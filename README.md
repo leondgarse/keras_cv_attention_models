@@ -7,6 +7,8 @@
     pip install -U git+https://github.com/leondgarse/keras_attention_models
     ```
     Refer to each sub directory for detail usage.
+***
+
 ## Models
   - [botnet](keras_attention_models/botnet)
     | Model        | params | Image  resolution | Top1 Acc | Download            |
@@ -14,7 +16,7 @@
     | botnet50     | 21M    | 224               | 77.604   | [botnet50.h5](https://github.com/leondgarse/keras_attention_models/releases/download/botnet/botnet50.h5)  |
 
   - [volo](keras_attention_models/volo)
-    | Model        | #params | Image  resolution | Top1 Acc | Download            |
+    | Model        | params | Image  resolution | Top1 Acc | Download            |
     | ------------ | ------- | ----------------- | -------- | ------------------- |
     | volo_d1      | 27M     | 224               | 84.2     | [volo_d1_224.h5](https://github.com/leondgarse/keras_attention_models/releases/download/volo/volo_d1_224.h5)  |
     | volo_d1 ↑384 | 27M     | 384               | 85.2     | [volo_d1_384.h5](https://github.com/leondgarse/keras_attention_models/releases/download/volo/volo_d1_384.h5)  |
@@ -37,7 +39,7 @@
     | resnest269     | 111M   | 416               | 84.54    | [resnest269.h5](https://github.com/leondgarse/keras_attention_models/releases/download/resnest/resnest269.h5)  |
 
   - [halonet](keras_attention_models/halonet)
-    | Model   | params | Input resolution | Top1 Acc |
+    | Model   | params | Image resolution | Top1 Acc |
     | ------- | ------ | ---------------- | -------- |
     | halo_b0 | 4.6M   | 256              |          |
     | halo_b1 | 8.8M   | 256              |          |
@@ -50,3 +52,9 @@
 
   - **[In progress]** [CoAtNet](keras_attention_models/coatnet)
   - **[In progress]** [CoTNet](keras_attention_models/cotnet)
+***
+
+## Other implemented keras models
+  - [Github ypeleg/nfnets-keras](https://github.com/ypeleg/nfnets-keras)
+  - [Github faustomorales/vit-keras](https://github.com/faustomorales/vit-keras)
+***
