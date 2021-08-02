@@ -40,13 +40,15 @@
   - **outlook_attention**
     ```py
     inputs = keras.layers.Input([28, 28, 192])
-    cc = keras.models.Model(inputs, attention_layers.outlook_attention(inputs, 4, 192))
+    nn = attention_layers.outlook_attention(inputs, 4, 192)
+    cc = keras.models.Model(inputs, nn)
     cc.summary()
     ```
   - **split_attention_conv2d**
     ```py
     inputs = keras.layers.Input([28, 28, 192])
-    dd = keras.models.Model(inputs, attention_layers.split_attention_conv2d(inputs, 384))
+    nn = attention_layers.split_attention_conv2d(inputs, 384)
+    dd = keras.models.Model(inputs, nn)
     dd.summary()
     ```
 ***

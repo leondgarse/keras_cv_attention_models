@@ -36,5 +36,17 @@
     | resnest200     | 71M    | 320               | 83.84    | [resnest200.h5](https://github.com/leondgarse/keras_attention_models/releases/download/resnest/resnest200.h5)  |
     | resnest269     | 111M   | 416               | 84.54    | [resnest269.h5](https://github.com/leondgarse/keras_attention_models/releases/download/resnest/resnest269.h5)  |
 
-  - **In progress** [halonet](keras_attention_models/halonet)
-  - **In progress** [CoAtNet](keras_attention_models/coatnet)
+  - [halonet](keras_attention_models/halonet)
+    | Model   | params | Input resolution | Top1 Acc |
+    | ------- | ------ | ---------------- | -------- |
+    | halo_b0 | 4.6M   | 256              |          |
+    | halo_b1 | 8.8M   | 256              |          |
+    | halo_b2 | 11.04M | 256              |          |
+    | halo_b3 | 15.1M  | 320              |          |
+    | halo_b4 | 31.4M  | 384              | 85.5%    |
+    | halo_b5 | 34.4M  | 448              |          |
+    | halo_b6 | 47.98M | 512              |          |
+    | halo_b7 | 68.4M  | 600              |          |
+
+  - **[In progress]** [CoAtNet](keras_attention_models/coatnet)
+  - **[In progress]** [CoTNet](keras_attention_models/cotnet)
