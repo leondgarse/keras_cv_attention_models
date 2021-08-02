@@ -4,7 +4,6 @@
 ## Summary
   - Keras implementation of [botnet](https://gist.github.com/aravindsrinivas/56359b79f0ce4449bcb04ab4b56a57a2). Paper [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://arxiv.org/pdf/2101.11605.pdf).
   - Model weights reloaded from [Github BIGBALLON/distribuuuu](https://github.com/BIGBALLON/distribuuuu)
-  - HaloAttention also included. Article: [PDF 2103.12731 Scaling Local Self-Attention for Parameter Efficient Visual Backbones](https://arxiv.org/pdf/2103.12731.pdf)
 ***
 
 ## Models
@@ -13,15 +12,11 @@
   | botnet50     | 21M    | 224               | 77.604   | [botnet50.h5](https://github.com/leondgarse/keras_attention_models/releases/download/botnet/botnet50.h5)  |
 ## Usage
   ```py
-  from tensorflow import keras
-  import botnet
+  from keras_attention_models import botnet
 
-  # Reload directly
-  mm = keras.models.load_model("../models/botnet50.h5")
-
-  # Or by define model --> load_weights
-  mm = botnet.BotNet50(input_shape=(224, 224, 3), classes=1000, strides=1, classifier_activation='softmax')
-  mm.load_weights("../models/botnet50.h5", by_name=True)
+  # Will download and load pretrained imagenet weights.
+  # Only BotNet50 weights supported, BotNet101 / BotNet152 will be random inited.
+  mm = botnet.BotNet50(pretrained="imagenet")
 
   # Run prediction
   from skimage.data import chelsea
@@ -37,9 +32,8 @@
   **Change input resolution**
   ```py
   import botnet
-  mm = botnet.BotNet50(input_shape=(480, 480, 3), classes=1000, strides=1)
-  bb = keras.models.load_model('../models/botnet50.h5')
-  mm.load_weights('../models/botnet50.h5', by_name=True, skip_mismatch=True)
+  mm = botnet.BotNet50(input_shape=(480, 480, 3), num_classes=1000, strides=1)
+  # >>>> Load pretraind from: ~/.keras/models/botnet50.h5
   # WARNING:tensorflow:Skipping loading of weights for layer stack4_block1_2_mhsa due to mismatch in shape ((128, 59) vs (128, 27)).
   # WARNING:tensorflow:Skipping loading of weights for layer stack4_block1_2_mhsa due to mismatch in shape ((128, 59) vs (128, 27)).
   # WARNING:tensorflow:Skipping loading of weights for layer stack4_block2_2_mhsa due to mismatch in shape ((128, 59) vs (128, 27)).
@@ -48,6 +42,7 @@
   # WARNING:tensorflow:Skipping loading of weights for layer stack4_block3_2_mhsa due to mismatch in shape ((128, 59) vs (128, 27)).
 
   # Reload mismatched `PositionalEmbedding` weights
+  bb = keras.models.load_model(os.path.expanduser('~/.keras/models/botnet50.h5'))
   for ii in ['stack4_block1_2_mhsa', 'stack4_block2_2_mhsa', 'stack4_block3_2_mhsa']:
       mm.get_layer(ii).load_resized_pos_emb(bb.get_layer(ii))
 
@@ -58,7 +53,7 @@
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 0.42937067), ('n02123159', 'tiger_cat', 0.3643389), ...]
 
-  mm.save("../models/botnet50_480.h5")
+  mm.save("botnet50_480.h5")
   ```
 ## Relative to absolute positional embedding detail
   - [How Positional Embeddings work in Self-Attention (code in Pytorch)](https://theaisummer.com/positional-embeddings/)
@@ -109,8 +104,8 @@
   torch_model.load_state_dict(weight)
 
   """ Keras botnet50 """
-  import botnet
-  mm = keras.models.load_model('../models/botnet50.h5')
+  from keras_attention_models import botnet
+  mm = botnet.BotNet50(pretrained="imagenet", classifier_activation=None)
 
   """ Verification """
   inputs = np.random.uniform(size=(1, 224, 224, 3)).astype("float32")

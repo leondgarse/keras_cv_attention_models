@@ -6,8 +6,8 @@ Original TensorFlow version: https://gist.github.com/aravindsrinivas/56359b79f0c
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.python.keras import backend
-import math
+from tensorflow.python.keras import backend as K
+import os
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
@@ -172,7 +172,7 @@ class MHSAWithPositionEmbedding(keras.layers.Layer):
 
 def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=""):
     """Performs a batch normalization followed by an activation. """
-    bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
+    bn_axis = 3 if K.image_data_format() == "channels_last" else 1
     gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
     nn = layers.BatchNormalization(
         axis=bn_axis,
@@ -267,14 +267,13 @@ def bot_stack(
 
 def BotNet(
     stack_fn,
-    preact,
-    use_bias,
+    preact=False,
+    use_bias=False,
     model_name="botnet",
     activation="relu",
-    include_top=True,
-    weights=None,
-    input_shape=None,
-    classes=1000,
+    pretrained="imagenet",
+    input_shape=(224, 224, 3),
+    num_classes=1000,
     classifier_activation="softmax",
     **kwargs
 ):
@@ -291,13 +290,26 @@ def BotNet(
     nn = stack_fn(nn)
     if preact:
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="post_")
-    if include_top:
+    if num_classes > 0:
         nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        nn = layers.Dense(classes, activation=classifier_activation, name="predictions")(nn)
-    return keras.models.Model(img_input, nn, name=model_name)
+        nn = layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
+
+    model = keras.models.Model(img_input, nn, name=model_name)
+    if pretrained in ["imagenet"]:
+        pre_url = "https://github.com/leondgarse/keras_attention_models/releases/download/botnet/{}.h5"
+        url = pre_url.format(model_name)
+        file_name = os.path.basename(url)
+        try:
+            pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
+        except:
+            print("[Error] will not load weights, url not found:", url)
+        else:
+            print(">>>> Load pretraind from:", pretrained_model)
+            model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
+    return model
 
 
-def BotNet50(strides=2, activation="relu", relative_pe=True, include_top=True, weights=None, input_tensor=None, input_shape=None, classes=1000, **kwargs):
+def BotNet50(strides=1, activation="relu", relative_pe=True, pretrained="imagenet", input_shape=(224, 224, 3), num_classes=1000, **kwargs):
     def stack_fn(nn):
         nn = bot_stack(nn, 64 * 4, 3, strides=1, activation=activation, name="stack1_", use_MHSA=False)
         nn = bot_stack(nn, 128 * 4, 4, strides=2, activation=activation, name="stack2_", use_MHSA=False)
@@ -305,10 +317,10 @@ def BotNet50(strides=2, activation="relu", relative_pe=True, include_top=True, w
         nn = bot_stack(nn, 512 * 4, 3, strides=strides, activation=activation, relative_pe=relative_pe, name="stack4_", use_MHSA=True)
         return nn
 
-    return BotNet(stack_fn, False, False, "botnet50", activation, include_top, weights, input_shape, classes, **kwargs)
+    return BotNet(stack_fn, False, False, "botnet50", activation, pretrained, input_shape, num_classes, **kwargs)
 
 
-def BotNet101(strides=2, activation="relu", relative_pe=True, include_top=True, weights=None, input_tensor=None, input_shape=None, classes=1000, **kwargs):
+def BotNet101(strides=1, activation="relu", relative_pe=True, pretrained="imagenet", input_shape=(224, 224, 3), num_classes=1000, **kwargs):
     def stack_fn(nn):
         nn = bot_stack(nn, 64 * 4, 3, strides=1, activation=activation, name="stack1_", use_MHSA=False)
         nn = bot_stack(nn, 128 * 4, 4, strides=2, activation=activation, name="stack2_", use_MHSA=False)
@@ -316,10 +328,10 @@ def BotNet101(strides=2, activation="relu", relative_pe=True, include_top=True, 
         nn = bot_stack(nn, 512 * 4, 3, strides=strides, activation=activation, relative_pe=relative_pe, name="stack4_", use_MHSA=True)
         return nn
 
-    return BotNet(stack_fn, False, False, "botnet101", activation, include_top, weights, input_shape, classes, **kwargs)
+    return BotNet(stack_fn, False, False, "botnet101", activation, pretrained, input_shape, num_classes, **kwargs)
 
 
-def BotNet152(strides=2, activation="relu", relative_pe=True, include_top=True, weights=None, input_tensor=None, input_shape=None, classes=1000, **kwargs):
+def BotNet152(strides=1, activation="relu", relative_pe=True, pretrained="imagenet", input_shape=(224, 224, 3), num_classes=1000, **kwargs):
     def stack_fn(nn):
         nn = bot_stack(nn, 64 * 4, 3, strides=1, activation=activation, name="stack1_", use_MHSA=False)
         nn = bot_stack(nn, 128 * 4, 8, strides=2, activation=activation, name="stack2_", use_MHSA=False)
@@ -327,4 +339,4 @@ def BotNet152(strides=2, activation="relu", relative_pe=True, include_top=True, 
         nn = bot_stack(nn, 512 * 4, 3, strides=strides, activation=activation, relative_pe=relative_pe, name="stack4_", use_MHSA=True)
         return nn
 
-    return BotNet(stack_fn, False, False, "botnet152", activation, include_top, weights, input_shape, classes, **kwargs)
+    return BotNet(stack_fn, False, False, "botnet152", activation, pretrained, input_shape, num_classes, **kwargs)

@@ -2,16 +2,12 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.python.keras import layers
 from tensorflow.keras import backend as K
+import os
 
 try:
     from tensorflow_addons.layers import StochasticDepth
 except:
     pass
-
-import sys
-sys.path.append("../Keras_insightface/backbones")
-from botnet import MHSAWithPositionEmbedding
-from resnest import split_attention_conv2d
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
@@ -289,9 +285,6 @@ def attention_mlp_block(inputs, embed_dim, num_head=1, mlp_ratio=3, attention_ty
         nn_1 = class_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
     elif attention_type == "mhsa":
         nn_1 = multi_head_self_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
-    elif attention_type == "mhsa_rp":
-        nn_1 = MHSAWithPositionEmbedding(num_heads=num_head, key_dim=embed_dim//num_head, out_shape=embed_dim, out_bias=True, name=name + "attn")(nn_1)
-        # nn_1 = BiasLayer(name=name + "attn_bias")(nn_1) # bias for output dense
 
     if survival is not None and survival < 1:
         nn_1 = StochasticDepth(float(survival))([nn_0, nn_1])
@@ -414,6 +407,7 @@ def VOLO(
     survivals=None,
     classfiers=2,
     num_classes=1000,
+    pretrained="imagenet",
     mix_token=False,
     token_classifier_top=False,
     mean_classifier_top=False,
@@ -514,46 +508,60 @@ def VOLO(
         nn_cls = layers.Dense(num_classes, name="token_head")(nn[:, 0])
         nn_aux = layers.Dense(num_classes, name="aux_head")(nn[:, 1:])
         nn = layers.Add()([nn_cls, tf.reduce_max(nn_aux, 1) * 0.5])
+
     model = tf.keras.models.Model(inputs, nn, name=model_name)
+    if pretrained in ["imagenet"]:
+        pre_url = "https://github.com/leondgarse/keras_attention_models/releases/download/volo/{}_{}.h5"
+        url = pre_url.format(model_name, input_shape[0])
+        file_name = os.path.basename(url)
+        try:
+            # print(">>>> Load pretraind from:", file_name, url)
+            pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models/volo")
+        except:
+            print("[Error] will not load weights, url not found:", url)
+        else:
+            print(">>>> Load pretraind from:", pretrained_model)
+            model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
+    return model
     return model
 
 
-def volo_d1(input_shape=(224, 224, 3), model_name="volo_d1", **kwargs):
+def volo_d1(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
     num_blocks = [4, 4, 8, 2]
     embed_dims = [192, 384, 384, 384]
     num_heads = [6, 12, 12, 12]
     mlp_ratios = [3, 3, 3, 3]
-    return VOLO(**locals(), **kwargs)
+    return VOLO(**locals(), model_name="volo_d1", **kwargs)
 
 
-def volo_d2(input_shape=(224, 224, 3), model_name="volo_d2", **kwargs):
+def volo_d2(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
     num_blocks = [6, 4, 10, 4]
     embed_dims = [256, 512, 512, 512]
     num_heads = [8, 16, 16, 16]
     mlp_ratios = [3, 3, 3, 3]
-    return VOLO(**locals(), **kwargs)
+    return VOLO(**locals(), model_name="volo_d2", **kwargs)
 
 
-def volo_d3(input_shape=(224, 224, 3), model_name="volo_d3", **kwargs):
+def volo_d3(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
     num_blocks = [8, 8, 16, 4]
     embed_dims = [256, 512, 512, 512]
     num_heads = [8, 16, 16, 16]
     mlp_ratios = [3, 3, 3, 3]
-    return VOLO(**locals(), **kwargs)
+    return VOLO(**locals(), model_name="volo_d3", **kwargs)
 
 
-def volo_d4(input_shape=(224, 224, 3), model_name="volo_d4", **kwargs):
+def volo_d4(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
     num_blocks = [8, 8, 16, 4]
     embed_dims = [384, 768, 768, 768]
     num_heads = [12, 16, 16, 16]
     mlp_ratios = [3, 3, 3, 3]
-    return VOLO(**locals(), **kwargs)
+    return VOLO(**locals(), model_name="volo_d4", **kwargs)
 
 
-def volo_d5(input_shape=(224, 224, 3), model_name="volo_d5", **kwargs):
+def volo_d5(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
     num_blocks = [12, 12, 20, 4]
     embed_dims = [384, 768, 768, 768]
     num_heads = [12, 16, 16, 16]
     mlp_ratios = [4, 4, 4, 4]
     stem_hidden_dim = 128
-    return VOLO(**locals(), **kwargs)
+    return VOLO(**locals(), model_name="volo_d5", **kwargs)

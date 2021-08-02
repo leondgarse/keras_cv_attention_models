@@ -15,15 +15,10 @@
   | resnest269     | 111M   | 416               | 84.54    | [resnest269.h5](https://github.com/leondgarse/keras_attention_models/releases/download/resnest/resnest269.h5)  |
 ## Usage
   ```py
-  from tensorflow import keras
-  import resnest
+  from keras_attention_models import resnest
 
-  # Reload directly
-  mm = keras.models.load_model("../models/resnest50.h5")
-
-  # Or by define model --> load_weights
-  mm = resnest.ResNest50(input_shape=(224, 224, 3), classes=1000, classifier_activation='softmax')
-  mm.load_weights("../models/resnest50.h5", by_name=True)
+  # Will download and load pretrained imagenet weights.
+  mm = resnest.ResNest50(pretrained="imagenet")
 
   # Run prediction
   from skimage.data import chelsea
@@ -39,8 +34,7 @@
   **Use dynamic input resolution**
   ```py
   import resnest
-  mm = resnest.ResNest50(input_shape=(None, None, 3), classes=0)
-  mm.load_weights('../models/resnest50.h5', by_name=True)
+  mm = resnest.ResNest50(input_shape=(None, None, 3), num_classes=0)
 
   print(mm(np.ones([1, 224, 224, 3])).shape)
   # (1, 7, 7, 2048)
@@ -60,8 +54,8 @@
   torch_model.eval()
 
   """ Keras ResNest50 """
-  import resnest
-  mm = keras.models.load_model('../models/resnest50.h5')
+  from keras_attention_models import resnest
+  mm = resnest.ResNest50(pretrained="imagenet", classifier_activation=None)
 
   """ Verification """
   inputs = np.random.uniform(size=(1, *mm.input_shape[1:3], 3)).astype("float32")

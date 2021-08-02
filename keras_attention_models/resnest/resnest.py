@@ -1,6 +1,8 @@
 import tensorflow as tf
+from tensorflow import keras
 from tensorflow.python.keras import layers
 from tensorflow.keras import backend as K
+import os
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
@@ -133,9 +135,10 @@ def ResNest(
     input_shape,
     blocks_set,
     stem_width=32,
-    classes=1000,
-    activation="relu",
     radix=2,
+    activation="relu",
+    pretrained="imagenet",
+    num_classes=1000,
     classifier_activation="softmax",
     model_name="resnest",
     **kwargs
@@ -148,25 +151,37 @@ def ResNest(
     nn = stack(nn, blocks=blocks_set[2], filters=256, strides=2, activation=activation, radix=radix, name="stack3_")
     nn = stack(nn, blocks=blocks_set[3], filters=512, strides=2, activation=activation, radix=radix, name="stack4_")
 
-    if classes > 0:
+    if num_classes > 0:
         nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        nn = layers.Dense(classes, activation=classifier_activation, name="predictions")(nn)
+        nn = layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
     model = tf.keras.models.Model(img_input, nn, name=model_name)
+    if pretrained in ["imagenet"]:
+        pre_url = "https://github.com/leondgarse/keras_attention_models/releases/download/resnest/{}.h5"
+        url = pre_url.format(model_name)
+        file_name = os.path.basename(url)
+        try:
+            # print(">>>> Load pretraind from:", file_name, url)
+            pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
+        except:
+            print("[Error] will not load weights, url not found:", url)
+        else:
+            print(">>>> Load pretraind from:", pretrained_model)
+            model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
     return model
 
 
-def ResNest50(input_shape=(224, 224, 3), stem_width=32, model_name="ResNest50", **kwargs):
-    return ResNest(blocks_set=[3, 4, 6, 3], **locals(), **kwargs)
+def ResNest50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", radix=2, pretrained="imagenet", **kwargs):
+    return ResNest(blocks_set=[3, 4, 6, 3], stem_width=32, model_name="resnest50", **locals(), **kwargs)
 
 
-def ResNest101(input_shape=(256, 256, 3), stem_width=64, model_name="ResNest101", **kwargs):
-    return ResNest(blocks_set=[3, 4, 23, 3], **locals(), **kwargs)
+def ResNest101(input_shape=(256, 256, 3), num_classes=1000, activation="relu", radix=2, pretrained="imagenet", **kwargs):
+    return ResNest(blocks_set=[3, 4, 23, 3], stem_width=64, model_name="resnest101", **locals(), **kwargs)
 
 
-def ResNest200(input_shape=(320, 320, 3), stem_width=64, model_name="ResNest200", **kwargs):
-    return ResNest(blocks_set=[3, 24, 36, 3], **locals(), **kwargs)
+def ResNest200(input_shape=(320, 320, 3), num_classes=1000, activation="relu", radix=2, pretrained="imagenet", **kwargs):
+    return ResNest(blocks_set=[3, 24, 36, 3], stem_width=64, model_name="resnest200", **locals(), **kwargs)
 
 
-def ResNest269(input_shape=(416, 416, 3), stem_width=64, model_name="ResNest269", **kwargs):
-    return ResNest(blocks_set=[3, 30, 48, 8], **locals(), **kwargs)
+def ResNest269(input_shape=(416, 416, 3), num_classes=1000, activation="relu", radix=2, pretrained="imagenet", **kwargs):
+    return ResNest(blocks_set=[3, 30, 48, 8], stem_width=64, model_name="resnest269", **locals(), **kwargs)

@@ -172,3 +172,51 @@ def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", nam
     if padding == "SAME":
         inputs = layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(inputs)
     return layers.Conv2D(filters, kernel_size, strides=strides, padding="VALID", use_bias=False, name=name + "conv")(inputs)
+
+
+def halo_block(inputs, out_filter, expansion=2):
+    nn = conv2d_no_bias(inputs, out_filter * expansion, 1)
+    identity = x
+    #print('ID sahpe ', identity.shape)
+    #print('X SHAPE ', x.shape)
+    out = self.conv1(x)
+    out = self.bn1(out)
+    out = self.relu(out)
+    if self.verbose:
+        print('out conV1 shape ', out.shape)
+    # out = self.conv2(out)
+    # out = self.bn2(out)
+    out  =  self.attn(out)
+    if self.verbose:
+        print('\n\n',
+          'out attn shape ', out.shape)
+    out = self.relu(out)
+
+    out = self.conv3(out)
+    out = self.bn3(out)
+    if self.verbose:
+        print('out Conv2 shape ', out.shape)
+    #print('Identity shape  ', identity.shape)
+    #print('Downsample ', self.downsample)
+    if self.downsample is not None:
+        identity = self.downsample(x)
+        #print('Identity shape after downsampling ', identity.shape)
+    out += identity
+    out = self.relu(out)
+    if self.verbose:
+        print('End of layer ! \n\n')
+
+    return out
+
+
+def halo_stack():
+    pass
+
+def HaloNet(model_type="b0", classes=0):
+    blocks_config = BLOCK_CONFIGS.get(model_type.lower(), BLOCK_CONFIGS["b0"])
+    halo_block_size = blocks_config["halo_block_size"]
+    halo_halo_size = blocks_config["halo_halo_size"]
+    output_conv_channel = blocks_config["output_conv_channel"]
+    num_blocks = blocks_config["num_blocks"]
+    out_channels = blocks_config["out_channels"]
+    num_heads = blocks_config["num_heads"]
