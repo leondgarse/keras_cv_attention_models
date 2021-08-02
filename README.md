@@ -37,3 +37,4 @@
     | resnest269     | 111M   | 416               | 84.54    | [resnest269.h5](https://github.com/leondgarse/keras_attention_models/releases/download/resnest/resnest269.h5)  |
 
   - [halonet](keras_attention_models/halonet)
+  - [CoAtNet](keras_attention_models/coatnet)
