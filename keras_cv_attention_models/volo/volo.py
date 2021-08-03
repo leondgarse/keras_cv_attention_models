@@ -216,55 +216,6 @@ def outlook_attention_simple(inputs, embed_dim, kernel_size=3, num_head=6, attn_
 
     return out
 
-def scaled_dot_product_attention(q, k, v, qk_scale, output_shape, attn_dropout=0, output_dropout=0, name=""):
-    # scaled_attention_logits = layers.Lambda(lambda aa: tf.matmul(aa[0], aa[1], transpose_b=True))([q, k]) / qk_scale
-    scaled_attention_logits = tf.matmul(q, k, transpose_b=True) / qk_scale
-    attention_weights = tf.nn.softmax(scaled_attention_logits, axis=-1)
-    if attn_dropout > 0:
-        attention_weights = layers.Dropout(attn_dropout)(attention_weights)
-
-    # output = layers.Lambda(lambda bb: tf.matmul(bb[0], bb[1]))([attention_weights, v])
-    output = tf.matmul(attention_weights, v)
-    output = tf.transpose(output, perm=[0, 2, 1, 3])
-
-    output = tf.reshape(output, output_shape)
-    output = layers.Dense(output_shape[-1], use_bias=True, name=name + "out")(output)
-    if output_dropout > 0:
-        output = layers.Dropout(output_dropout)(output)
-    return output
-
-
-def class_attention(inputs, embed_dim, num_head, attn_dropout=0, output_dropout=0, name=""):
-    _, width, channel = inputs.shape
-    depth = embed_dim // num_head
-    FLOAT_DTYPE = tf.keras.mixed_precision.global_policy().compute_dtype
-    qk_scale = tf.math.sqrt(tf.cast(depth, FLOAT_DTYPE))
-
-    q = layers.Dense(embed_dim, use_bias=False, name=name + "q")(inputs[:, :1, :])
-    q = tf.reshape(q, (-1, num_head, 1, depth))
-
-    kv = layers.Dense(embed_dim * 2, use_bias=False, name=name + "kv")(inputs)
-    kv = tf.reshape(kv, (-1, width, 2, num_head, depth))
-    kv = tf.transpose(kv, perm=[2, 0, 3, 1, 4])
-    k, v = kv[0], kv[1]
-
-    output_shape = (-1, 1, embed_dim)
-    return scaled_dot_product_attention(q, k, v, qk_scale, output_shape, attn_dropout, output_dropout, name=name)
-
-
-def multi_head_self_attention(inputs, embed_dim, num_head, attn_dropout=0, output_dropout=0, name=""):
-    _, height, width, channel = inputs.shape
-    depth = embed_dim // num_head
-    FLOAT_DTYPE = tf.keras.mixed_precision.global_policy().compute_dtype
-    qk_scale = tf.math.sqrt(tf.cast(depth, FLOAT_DTYPE))
-
-    qkv = layers.Dense(embed_dim * 3, use_bias=False, name=name + "qkv")(inputs)
-    qkv = tf.reshape(qkv, (-1, height * width, 3, num_head, embed_dim // num_head))
-    qkv = tf.transpose(qkv, perm=[2, 0, 3, 1, 4])
-    q, k, v = qkv[0], qkv[1], qkv[2]
-
-    output_shape = (-1, height, width, embed_dim)
-    return scaled_dot_product_attention(q, k, v, qk_scale, output_shape, attn_dropout, output_dropout, name=name)
 
 @tf.keras.utils.register_keras_serializable(package="Custom")
 class BiasLayer(tf.keras.layers.Layer):
@@ -276,6 +227,7 @@ class BiasLayer(tf.keras.layers.Layer):
 
     def call(self, inputs):
         return inputs + self.bias
+
 
 def attention_mlp_block(inputs, embed_dim, num_head=1, mlp_ratio=3, attention_type=None, survival=None, mlp_activation="gelu", dropout=0, name=""):
     nn_0 = inputs[:, :1] if attention_type == "class" else inputs
@@ -463,6 +415,7 @@ def VOLO(
     for ii in range(num_block):
         name = "outlook_block{}_".format(ii)
         nn = attention_mlp_block(nn, embed_dim, num_head, mlp_ratio=mlp_ratio, attention_type=first_attn_type, survival=survival[ii], name=name)
+
     # downsample
     nn = layers.Conv2D(embed_dim * 2, kernel_size=2, strides=2, name="downsample_conv")(nn)
     # PositionalEmbedding
@@ -523,6 +476,7 @@ def VOLO(
     reload_model_weights(model, input_shape, pretrained)
     return model
 
+
 def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
     pretrained_dd = {
         "volo_d1": [224, 384],
@@ -551,9 +505,12 @@ def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"
         model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
 
     if input_shape[0] != request_resolution:
-        print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
-        bb = keras.models.load_model(pretrained_model)
-        mm.get_layer('stack_0_positional').load_resized_pos_emb(bb.get_layer('stack_0_positional'))
+        try:
+            print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
+            bb = keras.models.load_model(pretrained_model)
+            model.get_layer('positional_embedding').load_resized_pos_emb(bb.get_layer('positional_embedding'))
+        except:
+            pass
 
 
 def VOLO_d1(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):

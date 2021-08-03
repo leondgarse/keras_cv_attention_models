@@ -33,7 +33,7 @@
   ```
   **Use dynamic input resolution**
   ```py
-  import resnest
+  from keras_cv_attention_models import resnest
   mm = resnest.ResNest50(input_shape=(None, None, 3), num_classes=0)
 
   print(mm(np.ones([1, 224, 224, 3])).shape)

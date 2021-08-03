@@ -37,24 +37,22 @@
   #  ('n02127052', 'lynx', 3.9177818),
   #  ('n02123597', 'Siamese_cat', 2.0154262)]
   ```
-  **Change input resolution**
+  **Change input resolution** if input_shape is not within pretraind, will load `PositionalEmbedding` weights by `load_resized_pos_emb`.
   ```py
   from keras_cv_attention_models import volo
-  bb = volo.VOLO_d1(input_shape=(384, 384, 3), classfiers=2, num_classes=1000, mix_token=False)
-  # >>>> Load pretraind from: ~/.keras/models/volo/volo_d1_384.h5
 
-  # Define model and load weights.
+  # Define model using a new input_shape
   mm = volo.VOLO_d1(input_shape=(512, 512, 3), classfiers=2, num_classes=1000, mix_token=False)
-  mm.load_weights(os.path.expanduser('~/.keras/models/volo/volo_d1_384.h5'), by_name=True, skip_mismatch=True)
-  # WARNING:tensorflow:Skipping loading of weights for layer stack_0_positional due to mismatch in shape ((1, 32, 32, 384) vs (1, 24, 24, 384)).
-  mm.get_layer('stack_0_positional').load_resized_pos_emb(bb.get_layer('stack_0_positional'))
+  # >>>> Load pretraind from: ~/.keras/models/volo/volo_d1_384.h5
+  # WARNING:tensorflow:Skipping loading of weights for layer positional_embedding due to mismatch in shape ((1, 32, 32, 384) vs (1, 24, 24, 384)).
+  # >>>> Reload mismatched PositionalEmbedding weights: 384 -> 512
 
-  # Run prediction on Chelsea with (384, 384) resolution
+  # Run prediction on Chelsea with (512, 512) resolution
   from skimage.data import chelsea
   imm = chelsea()  # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]) / 255, 0)).numpy()
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 12.904753), ('n02123045', 'tabby', 9.088284), ...]
+  # [('n02124075', 'Egyptian_cat', 12.932459), ('n02123045', 'tabby', 9.104419), ...]
 
   mm.save("volo_d1_512.h5")
   ```
@@ -70,7 +68,7 @@
   # len(out) = 2, out[0].shape = TensorShape([1, 1001]), out[1].shape = TensorShape([1, 196, 1000])
   pred = out[0][:, :-1] + 0.5 * tf.reduce_max(out[1], 1)
   print(keras.applications.imagenet_utils.decode_predictions(pred.numpy())[0])
-  # [('n02124075', 'Egyptian_cat', 12.883577), ('n02123045', 'tabby', 8.112266), ... ]
+  # [('n02124075', 'Egyptian_cat', 12.910139), ('n02123045', 'tabby', 8.122887), ... ]
   ```
 ## Verification with Pytorch model
   ```py
