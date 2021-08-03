@@ -1,3 +1,5 @@
+from keras_cv_attention_models import attention_layers
+from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models import coatnet
 from keras_cv_attention_models import botnet
 from keras_cv_attention_models import halonet
