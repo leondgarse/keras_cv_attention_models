@@ -12,28 +12,23 @@
   - [attention_layers](keras_cv_attention_models/attention_layers) is `__init__.py` only, which import core layers defined in other model architectures. Like `MHSAWithPositionEmbedding` from `botnet`, `HaloAttention` from `halonet`.
     ```py
     from keras_cv_attention_models import attention_layers
-    aa = attention_layers.MHSAWithPositionEmbedding()
+    aa = attention_layers.MHSAWithPositionEmbedding(num_heads=4, key_dim=128, relative=True)
     print(f"{aa(tf.ones([1, 14, 16, 256])).shape = }")
     # aa(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])
-
-    print({ii.name:ii.numpy().shape for ii in aa.weights})
-    # {'mhsa_with_position_embedding_2/query:0': (256, 512),
-    #  'mhsa_with_position_embedding_2/key:0': (256, 512),
-    #  'mhsa_with_position_embedding_2/value:0': (256, 512),
-    #  'mhsa_with_position_embedding_2/output_weight:0': (512, 512),
-    #  'mhsa_with_position_embedding_2/r_width:0': (128, 31),
-    #  'mhsa_with_position_embedding_2/r_height:0': (128, 27)}
     ```
 ## Model surgery
-  - [model_surgery](model_surgery) including functions used to change model parameters.
-    - `SAMModel`
-    - `add_l2_regularizer_2_model`
-    - `convert_to_mixed_float16`
-    - `convert_mixed_float16_to_float32`
-    - `replace_ReLU`
-    - `replace_add_with_stochastic_depth`
-    - `replace_stochastic_depth_with_add`
+  - [model_surgery](keras_cv_attention_models/model_surgery) including functions used to change model parameters after built.
+    ```py
+    from keras_cv_attention_models import model_surgery
+    # Replace all ReLU with PReLU
+    mm = model_surgery.replace_ReLU(keras.applications.ResNet50(), target_activation='PReLU')
+    ```
 ## Models
+  - Basic usage
+    ```py
+    from keras_cv_attention_models import volo
+    mm = volo.VOLO_d1(pretrained="imagenet")
+    ```
   - [botnet](keras_cv_attention_models/botnet)
     | Model        | params | Image  resolution | Top1 Acc | Download            |
     | ------------ | ------ | ----------------- | -------- | ------------------- |
