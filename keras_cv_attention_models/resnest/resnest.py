@@ -157,7 +157,7 @@ def ResNest(
 
     model = tf.keras.models.Model(img_input, nn, name=model_name)
     if pretrained in ["imagenet"]:
-        pre_url = "https://github.com/leondgarse/keras_attention_models/releases/download/resnest/{}.h5"
+        pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/{}.h5"
         url = pre_url.format(model_name)
         file_name = os.path.basename(url)
         try:

@@ -10,7 +10,7 @@
 ## Usage
   - **MHSAWithPositionEmbedding**
     ```py
-    from keras_attention_models import attention_layers
+    from keras_cv_attention_models import attention_layers
     aa = attention_layers.MHSAWithPositionEmbedding()
     print(f"{aa(tf.ones([1, 14, 16, 256])).shape = }")
     # aa(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])
@@ -25,7 +25,7 @@
     ```
   - **HaloAttention**
     ```py
-    from keras_attention_models import attention_layers
+    from keras_cv_attention_models import attention_layers
     bb = attention_layers.HaloAttention()
     print(f"{bb(tf.ones([1, 14, 16, 256])).shape = }")
     # bb(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])

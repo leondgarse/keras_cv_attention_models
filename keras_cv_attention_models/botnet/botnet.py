@@ -295,18 +295,35 @@ def BotNet(
         nn = layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(img_input, nn, name=model_name)
-    if pretrained in ["imagenet"]:
-        pre_url = "https://github.com/leondgarse/keras_attention_models/releases/download/botnet/{}.h5"
-        url = pre_url.format(model_name)
-        file_name = os.path.basename(url)
-        try:
-            pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
-        except:
-            print("[Error] will not load weights, url not found:", url)
-        else:
-            print(">>>> Load pretraind from:", pretrained_model)
-            model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
+    reload_model_weights(model, input_shape, pretrained)
     return model
+
+
+def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
+    if not pretrained in ["imagenet"] or not model.name in ["botnet50"]:
+        print(">>>> No pretraind available, model will be random initialized")
+        return
+
+    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/{}.h5"
+    url = pre_url.format(model.name)
+    file_name = os.path.basename(url)
+    try:
+        pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
+    except:
+        print("[Error] will not load weights, url not found:", url)
+        return
+    else:
+        print(">>>> Load pretraind from:", pretrained_model)
+        model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
+
+    if input_shape[0] != 224:
+        try:
+            print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(224, input_shape[0]))
+            bb = keras.models.load_model(pretrained_model)
+            for ii in ['stack4_block1_2_mhsa', 'stack4_block2_2_mhsa', 'stack4_block3_2_mhsa']:
+                model.get_layer(ii).load_resized_pos_emb(bb.get_layer(ii))
+        except:
+            pass
 
 
 def BotNet50(strides=1, activation="relu", relative_pe=True, pretrained="imagenet", input_shape=(224, 224, 3), num_classes=1000, **kwargs):

@@ -2,11 +2,11 @@ from setuptools import find_packages
 from setuptools import setup
 
 setup(
-    name="keras-attention-models",
+    name="keras-cv-attention-models",
     version="1.0.0",
     author="Leondgarse",
     author_email="leondgarse@google.com",
-    url="https://github.com/leondgarse/keras_attention_models",
+    url="https://github.com/leondgarse/keras_cv_attention_models",
     description="keras attention models",
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',

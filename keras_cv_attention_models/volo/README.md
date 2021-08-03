@@ -8,23 +8,23 @@
 ## Models
   | Model        | params | Image  resolution | Top1 Acc | Download            |
   | ------------ | ------ | ----------------- | -------- | ------------------- |
-  | volo_d1      | 27M    | 224               | 84.2     | [volo_d1_224.h5](https://github.com/leondgarse/keras_attention_models/releases/download/volo/volo_d1_224.h5)  |
-  | volo_d1 ↑384 | 27M    | 384               | 85.2     | [volo_d1_384.h5](https://github.com/leondgarse/keras_attention_models/releases/download/volo/volo_d1_384.h5)  |
-  | volo_d2      | 59M    | 224               | 85.2     | [volo_d2_224.h5](https://github.com/leondgarse/keras_attention_models/releases/download/volo/volo_d2_224.h5)  |
-  | volo_d2 ↑384 | 59M    | 384               | 86.0     | [volo_d2_384.h5](https://github.com/leondgarse/keras_attention_models/releases/download/volo/volo_d2_384.h5)  |
-  | volo_d3      | 86M    | 224               | 85.4     | [volo_d3_224.h5](https://github.com/leondgarse/keras_attention_models/releases/download/volo/volo_d3_224.h5)  |
-  | volo_d3 ↑448 | 86M    | 448               | 86.3     | [volo_d3_448.h5](https://github.com/leondgarse/keras_attention_models/releases/download/volo/volo_d3_448.h5)  |
-  | volo_d4      | 193M   | 224               | 85.7     | [volo_d4_224.h5](https://github.com/leondgarse/keras_attention_models/releases/download/volo/volo_d4_224.h5)  |
-  | volo_d4 ↑448 | 193M   | 448               | 86.8     | [volo_d4_448.h5](https://github.com/leondgarse/keras_attention_models/releases/download/volo/volo_d4_448.h5) |
-  | volo_d5      | 296M   | 224               | 86.1     | [volo_d5_224.h5](https://github.com/leondgarse/keras_attention_models/releases/download/volo/volo_d5_224.h5) |
-  | volo_d5 ↑448 | 296M   | 448               | 87.0     | [volo_d5_448.h5](https://github.com/leondgarse/keras_attention_models/releases/download/volo/volo_d5_448.h5) |
-  | volo_d5 ↑512 | 296M   | 512               | 87.1     | [volo_d5_512.h5](https://github.com/leondgarse/keras_attention_models/releases/download/volo/volo_d5_512.h5) |
+  | volo_d1      | 27M    | 224               | 84.2     | [volo_d1_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_224.h5)  |
+  | volo_d1 ↑384 | 27M    | 384               | 85.2     | [volo_d1_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_384.h5)  |
+  | volo_d2      | 59M    | 224               | 85.2     | [volo_d2_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d2_224.h5)  |
+  | volo_d2 ↑384 | 59M    | 384               | 86.0     | [volo_d2_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d2_384.h5)  |
+  | volo_d3      | 86M    | 224               | 85.4     | [volo_d3_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d3_224.h5)  |
+  | volo_d3 ↑448 | 86M    | 448               | 86.3     | [volo_d3_448.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d3_448.h5)  |
+  | volo_d4      | 193M   | 224               | 85.7     | [volo_d4_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d4_224.h5)  |
+  | volo_d4 ↑448 | 193M   | 448               | 86.8     | [volo_d4_448.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d4_448.h5) |
+  | volo_d5      | 296M   | 224               | 86.1     | [volo_d5_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_224.h5) |
+  | volo_d5 ↑448 | 296M   | 448               | 87.0     | [volo_d5_448.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_448.h5) |
+  | volo_d5 ↑512 | 296M   | 512               | 87.1     | [volo_d5_512.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_512.h5) |
 ## Usage
   ```py
-  from keras_attention_models import volo
+  from keras_cv_attention_models import volo
 
   # Will download and load pretrained imagenet weights.
-  mm = volo.volo_d5(input_shape=(512, 512, 3), classfiers=2, num_classes=1000, pretrained="imagenet")
+  mm = volo.VOLO_d5(input_shape=(512, 512, 3), classfiers=2, num_classes=1000, pretrained="imagenet")
 
   # Run prediction
   from skimage.data import chelsea
@@ -39,17 +39,19 @@
   ```
   **Change input resolution**
   ```py
-  from keras_attention_models import volo
-  bb = volo.volo_d1(input_shape=(384, 384, 3), classfiers=2, num_classes=1000, mix_token=False)
+  from keras_cv_attention_models import volo
+  bb = volo.VOLO_d1(input_shape=(384, 384, 3), classfiers=2, num_classes=1000, mix_token=False)
   # >>>> Load pretraind from: ~/.keras/models/volo/volo_d1_384.h5
 
   # Define model and load weights.
-  mm = volo.volo_d1(input_shape=(512, 512, 3), classfiers=2, num_classes=1000, mix_token=False)
+  mm = volo.VOLO_d1(input_shape=(512, 512, 3), classfiers=2, num_classes=1000, mix_token=False)
   mm.load_weights(os.path.expanduser('~/.keras/models/volo/volo_d1_384.h5'), by_name=True, skip_mismatch=True)
   # WARNING:tensorflow:Skipping loading of weights for layer stack_0_positional due to mismatch in shape ((1, 32, 32, 384) vs (1, 24, 24, 384)).
   mm.get_layer('stack_0_positional').load_resized_pos_emb(bb.get_layer('stack_0_positional'))
 
   # Run prediction on Chelsea with (384, 384) resolution
+  from skimage.data import chelsea
+  imm = chelsea()  # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]) / 255, 0)).numpy()
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 12.904753), ('n02123045', 'tabby', 9.088284), ...]
@@ -58,8 +60,8 @@
   ```
   **Mixup token**
   ```py
-  from keras_attention_models import volo
-  mm = volo.volo_d1(input_shape=(224, 224, 3), classfiers=2, num_classes=1000, mix_token=True, token_label_top=True)
+  from keras_cv_attention_models import volo
+  mm = volo.VOLO_d1(input_shape=(224, 224, 3), classfiers=2, num_classes=1000, mix_token=True, token_label_top=True)
 
   from skimage.data import chelsea
   imm = chelsea()  # Chelsea the cat
@@ -87,8 +89,8 @@
   load_pretrained_weights(torch_model, model_path, use_ema=False, strict=True, num_classes=1000)
 
   """ Keras volo """
-  from keras_attention_models import volo
-  mm = volo.volo_d5(input_shape=(512, 512, 3), classfiers=2, num_classes=1000, pretrained="imagenet")
+  from keras_cv_attention_models import volo
+  mm = volo.VOLO_d5(input_shape=(512, 512, 3), classfiers=2, num_classes=1000, pretrained="imagenet")
 
   """ Verification """
   inputs = np.random.uniform(size=(1, input_shape, input_shape, 3)).astype("float32")

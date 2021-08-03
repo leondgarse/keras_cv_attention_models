@@ -15,13 +15,15 @@ CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode=
 # CONV_KERNEL_INITIALIZER = 'glorot_uniform'
 
 
-def batchnorm_with_activation(inputs, activation="relu", name=""):
+def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=""):
     """Performs a batch normalization followed by an activation. """
     bn_axis = 3 if K.image_data_format() == "channels_last" else 1
+    gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
     nn = layers.BatchNormalization(
         axis=bn_axis,
         momentum=BATCH_NORM_DECAY,
         epsilon=BATCH_NORM_EPSILON,
+        gamma_initializer=gamma_initializer,
         name=name + "bn",
     )(inputs)
     if activation:
@@ -215,12 +217,14 @@ def outlook_attention_simple(inputs, embed_dim, kernel_size=3, num_head=6, attn_
     return out
 
 def scaled_dot_product_attention(q, k, v, qk_scale, output_shape, attn_dropout=0, output_dropout=0, name=""):
-    scaled_attention_logits = layers.Lambda(lambda aa: tf.matmul(aa[0], aa[1], transpose_b=True))([q, k]) / qk_scale
+    # scaled_attention_logits = layers.Lambda(lambda aa: tf.matmul(aa[0], aa[1], transpose_b=True))([q, k]) / qk_scale
+    scaled_attention_logits = tf.matmul(q, k, transpose_b=True) / qk_scale
     attention_weights = tf.nn.softmax(scaled_attention_logits, axis=-1)
     if attn_dropout > 0:
         attention_weights = layers.Dropout(attn_dropout)(attention_weights)
 
-    output = layers.Lambda(lambda bb: tf.matmul(bb[0], bb[1]))([attention_weights, v])
+    # output = layers.Lambda(lambda bb: tf.matmul(bb[0], bb[1]))([attention_weights, v])
+    output = tf.matmul(attention_weights, v)
     output = tf.transpose(output, perm=[0, 2, 1, 3])
 
     output = tf.reshape(output, output_shape)
@@ -282,9 +286,13 @@ def attention_mlp_block(inputs, embed_dim, num_head=1, mlp_ratio=3, attention_ty
     elif attention_type == "outlook_simple":
         nn_1 = outlook_attention_simple(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
     elif attention_type == "class":
-        nn_1 = class_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
+        # nn_1 = class_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
+        nn_1 = layers.MultiHeadAttention(num_heads=num_head, key_dim=embed_dim//num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa")(nn_1[:, :1, :], nn_1)
+        nn_1 = BiasLayer(name=name + "attn_bias")(nn_1) # bias for output dense
     elif attention_type == "mhsa":
-        nn_1 = multi_head_self_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
+        # nn_1 = multi_head_self_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
+        nn_1 = layers.MultiHeadAttention(num_heads=num_head, key_dim=embed_dim//num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa")(nn_1, nn_1)
+        nn_1 = BiasLayer(name=name + "attn_bias")(nn_1) # bias for output dense
 
     if survival is not None and survival < 1:
         nn_1 = StochasticDepth(float(survival))([nn_0, nn_1])
@@ -296,7 +304,8 @@ def attention_mlp_block(inputs, embed_dim, num_head=1, mlp_ratio=3, attention_ty
     nn_2 = layers.Dense(embed_dim * mlp_ratio, name=name + "mlp_dense_1")(nn_2)
     # gelu with approximate=False using `erf` leads to GPU memory leak...
     # nn_2 = layers.Activation("gelu", name=name + "mlp_" + mlp_activation)(nn_2)
-    nn_2 = tf.nn.gelu(nn_2, approximate=True)
+    approximate = True if tf.keras.mixed_precision.global_policy().compute_dtype == "float16" else False
+    nn_2 = tf.nn.gelu(nn_2, approximate=approximate)
     nn_2 = layers.Dense(embed_dim, name=name + "mlp_dense_2")(nn_2)
     if dropout > 0:
         nn_2 = layers.Dropout(dropout)(nn_2)
@@ -436,8 +445,8 @@ def VOLO(
         bbox = mixup_token(nn)
         nn = mixup_token.do_mixup_token(nn, bbox * scale)
 
-    outlook_attentions = [True, False, False, False]
-    downsamples = [True, False, False, False]
+    outlook_attentions = [True, False]
+    downsamples = [True, False]
 
     # StochasticDepth survival_probability values
     total_layers = sum(num_blocks)
@@ -449,20 +458,21 @@ def VOLO(
     survivals = [survivals[int(sum(num_blocks[:id])) : sum(num_blocks[: id + 1])] for id in range(len(num_blocks))]
 
     """ forward_tokens """
-    for stack_id, (bb, ee, hh, mm, outlook_attention, downsample, survival) in enumerate(
-        zip(num_blocks, embed_dims, num_heads, mlp_ratios, outlook_attentions, downsamples, survivals)
-    ):
-        attention_type = first_attn_type if outlook_attention else "mhsa"
-        for ii in range(bb):
-            # print(">>>>", ii, bb, ee, hh, mm, outlook_attention, downsample, nn.shape, survival[ii])
-            name = "stack{}_block{}_".format(stack_id, ii)
-            nn = attention_mlp_block(nn, ee, hh, mlp_ratio=mm, attention_type=attention_type, survival=survival[ii], name=name)
+    # Outlook attentions
+    num_block, embed_dim, num_head, mlp_ratio, survival = num_blocks[0], embed_dims[0], num_heads[0], mlp_ratios[0], survivals[0]
+    for ii in range(num_block):
+        name = "outlook_block{}_".format(ii)
+        nn = attention_mlp_block(nn, embed_dim, num_head, mlp_ratio=mlp_ratio, attention_type=first_attn_type, survival=survival[ii], name=name)
+    # downsample
+    nn = layers.Conv2D(embed_dim * 2, kernel_size=2, strides=2, name="downsample_conv")(nn)
+    # PositionalEmbedding
+    nn = PositionalEmbedding(name="positional_embedding")(nn)
 
-        if downsample:
-            nn = layers.Conv2D(ee * 2, kernel_size=2, strides=2, name="stack_{}_downsample".format(stack_id))(nn)
-
-        if outlook_attention:
-            nn = PositionalEmbedding(name="stack_{}_positional".format(stack_id))(nn)
+    # MHSA attentions
+    num_block, embed_dim, num_head, mlp_ratio, survival = num_blocks[1], embed_dims[1], num_heads[1], mlp_ratios[1], survivals[1]
+    for ii in range(num_block):
+        name = "MHSA_block{}_".format(ii)
+        nn = attention_mlp_block(nn, embed_dim, num_head, mlp_ratio=mlp_ratio, attention_type="mhsa", survival=survival[ii], name=name)
 
     if num_classes == 0:
         return tf.keras.models.Model(inputs, nn, name=model_name)
@@ -510,58 +520,78 @@ def VOLO(
         nn = layers.Add()([nn_cls, tf.reduce_max(nn_aux, 1) * 0.5])
 
     model = tf.keras.models.Model(inputs, nn, name=model_name)
-    if pretrained in ["imagenet"]:
-        pre_url = "https://github.com/leondgarse/keras_attention_models/releases/download/volo/{}_{}.h5"
-        url = pre_url.format(model_name, input_shape[0])
-        file_name = os.path.basename(url)
-        try:
-            # print(">>>> Load pretraind from:", file_name, url)
-            pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models/volo")
-        except:
-            print("[Error] will not load weights, url not found:", url)
-        else:
-            print(">>>> Load pretraind from:", pretrained_model)
-            model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
-    return model
+    reload_model_weights(model, input_shape, pretrained)
     return model
 
+def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
+    pretrained_dd = {
+        "volo_d1": [224, 384],
+        "volo_d2": [224, 384],
+        "volo_d3": [224, 448],
+        "volo_d4": [224, 448],
+        "volo_d5": [224, 448, 512],
+    }
+    if not pretrained in ["imagenet"] or not model.name in pretrained_dd:
+        print(">>>> No pretraind available, model will be random initialized")
+        return
 
-def volo_d1(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
-    num_blocks = [4, 4, 8, 2]
-    embed_dims = [192, 384, 384, 384]
-    num_heads = [6, 12, 12, 12]
-    mlp_ratios = [3, 3, 3, 3]
+    pre_resolutions = pretrained_dd[model.name]
+    request_resolution = input_shape[0] if input_shape[0] in pre_resolutions else pre_resolutions[-1]
+
+    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/{}_{}.h5"
+    url = pre_url.format(model.name, request_resolution)
+    file_name = os.path.basename(url)
+    try:
+        # print(">>>> Load pretraind from:", file_name, url)
+        pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models/volo")
+    except:
+        print("[Error] will not load weights, url not found:", url)
+    else:
+        print(">>>> Load pretraind from:", pretrained_model)
+        model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
+
+    if input_shape[0] != request_resolution:
+        print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
+        bb = keras.models.load_model(pretrained_model)
+        mm.get_layer('stack_0_positional').load_resized_pos_emb(bb.get_layer('stack_0_positional'))
+
+
+def VOLO_d1(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
+    num_blocks = [4, 14]
+    embed_dims = [192, 384]
+    num_heads = [6, 12]
+    mlp_ratios = [3, 3]
     return VOLO(**locals(), model_name="volo_d1", **kwargs)
 
 
-def volo_d2(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
-    num_blocks = [6, 4, 10, 4]
-    embed_dims = [256, 512, 512, 512]
-    num_heads = [8, 16, 16, 16]
-    mlp_ratios = [3, 3, 3, 3]
+def VOLO_d2(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
+    num_blocks = [6, 18]
+    embed_dims = [256, 512]
+    num_heads = [8, 16]
+    mlp_ratios = [3, 3]
     return VOLO(**locals(), model_name="volo_d2", **kwargs)
 
 
-def volo_d3(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
-    num_blocks = [8, 8, 16, 4]
-    embed_dims = [256, 512, 512, 512]
-    num_heads = [8, 16, 16, 16]
-    mlp_ratios = [3, 3, 3, 3]
+def VOLO_d3(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
+    num_blocks = [8, 28]
+    embed_dims = [256, 512]
+    num_heads = [8, 16]
+    mlp_ratios = [3, 3]
     return VOLO(**locals(), model_name="volo_d3", **kwargs)
 
 
-def volo_d4(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
-    num_blocks = [8, 8, 16, 4]
-    embed_dims = [384, 768, 768, 768]
-    num_heads = [12, 16, 16, 16]
-    mlp_ratios = [3, 3, 3, 3]
+def VOLO_d4(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
+    num_blocks = [8, 28]
+    embed_dims = [384, 768]
+    num_heads = [12, 16]
+    mlp_ratios = [3, 3]
     return VOLO(**locals(), model_name="volo_d4", **kwargs)
 
 
-def volo_d5(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
-    num_blocks = [12, 12, 20, 4]
-    embed_dims = [384, 768, 768, 768]
-    num_heads = [12, 16, 16, 16]
-    mlp_ratios = [4, 4, 4, 4]
+def VOLO_d5(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
+    num_blocks = [12, 36]
+    embed_dims = [384, 768]
+    num_heads = [12, 16]
+    mlp_ratios = [4, 4]
     stem_hidden_dim = 128
     return VOLO(**locals(), model_name="volo_d5", **kwargs)

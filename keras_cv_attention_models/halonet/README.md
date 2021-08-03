@@ -27,7 +27,7 @@
   | 1, 2, 3     | 4                | 83.8          | 0.5              |
 ## Usage
   ```py
-  from keras_attention_models import halonet
+  from keras_cv_attention_models import halonet
 
   # No pretraind available.
   mm = halonet.HaloNetB0()

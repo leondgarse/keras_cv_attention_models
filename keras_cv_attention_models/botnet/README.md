@@ -9,10 +9,10 @@
 ## Models
   | Model        | params | Image  resolution | Top1 Acc | Download            |
   | ------------ | ------ | ----------------- | -------- | ------------------- |
-  | botnet50     | 21M    | 224               | 77.604   | [botnet50.h5](https://github.com/leondgarse/keras_attention_models/releases/download/botnet/botnet50.h5)  |
+  | botnet50     | 21M    | 224               | 77.604   | [botnet50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet50.h5)  |
 ## Usage
   ```py
-  from keras_attention_models import botnet
+  from keras_cv_attention_models import botnet
 
   # Will download and load pretrained imagenet weights.
   # Only BotNet50 weights supported, BotNet101 / BotNet152 will be random inited.
@@ -29,9 +29,9 @@
   #  ('n02127052', 'lynx', 0.002341928),
   #  ('n02123045', 'plastic_bag', 0.0022007471)]
   ```
-  **Change input resolution**
+  **Change input resolution** if input_shape is not `(224, 224, 3)`, will load `PositionalEmbedding` weights by `load_resized_pos_emb`.
   ```py
-  import botnet
+  from keras_cv_attention_models import botnet
   mm = botnet.BotNet50(input_shape=(480, 480, 3), num_classes=1000, strides=1)
   # >>>> Load pretraind from: ~/.keras/models/botnet50.h5
   # WARNING:tensorflow:Skipping loading of weights for layer stack4_block1_2_mhsa due to mismatch in shape ((128, 59) vs (128, 27)).
@@ -40,11 +40,7 @@
   # WARNING:tensorflow:Skipping loading of weights for layer stack4_block2_2_mhsa due to mismatch in shape ((128, 59) vs (128, 27)).
   # WARNING:tensorflow:Skipping loading of weights for layer stack4_block3_2_mhsa due to mismatch in shape ((128, 59) vs (128, 27)).
   # WARNING:tensorflow:Skipping loading of weights for layer stack4_block3_2_mhsa due to mismatch in shape ((128, 59) vs (128, 27)).
-
-  # Reload mismatched `PositionalEmbedding` weights
-  bb = keras.models.load_model(os.path.expanduser('~/.keras/models/botnet50.h5'))
-  for ii in ['stack4_block1_2_mhsa', 'stack4_block2_2_mhsa', 'stack4_block3_2_mhsa']:
-      mm.get_layer(ii).load_resized_pos_emb(bb.get_layer(ii))
+  # >>>> Reload mismatched PositionalEmbedding weights
 
   # Run prediction on Chelsea with (480, 480) resolution
   from skimage.data import chelsea
@@ -104,7 +100,7 @@
   torch_model.load_state_dict(weight)
 
   """ Keras botnet50 """
-  from keras_attention_models import botnet
+  from keras_cv_attention_models import botnet
   mm = botnet.BotNet50(pretrained="imagenet", classifier_activation=None)
 
   """ Verification """

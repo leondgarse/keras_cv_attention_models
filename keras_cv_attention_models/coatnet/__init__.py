@@ -1,0 +1,1 @@
+from keras_cv_attention_models.coatnet.coatnet import CoAtNet
