@@ -8,7 +8,31 @@
     ```
     Refer to each sub directory for detail usage.
 ***
+## Layers
+  - [attention_layers](keras_cv_attention_models/attention_layers) is `__init__.py` only, which import core layers defined in other model architectures. Like `MHSAWithPositionEmbedding` from `botnet`, `HaloAttention` from `halonet`.
+    ```py
+    from keras_cv_attention_models import attention_layers
+    aa = attention_layers.MHSAWithPositionEmbedding()
+    print(f"{aa(tf.ones([1, 14, 16, 256])).shape = }")
+    # aa(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])
 
+    print({ii.name:ii.numpy().shape for ii in aa.weights})
+    # {'mhsa_with_position_embedding_2/query:0': (256, 512),
+    #  'mhsa_with_position_embedding_2/key:0': (256, 512),
+    #  'mhsa_with_position_embedding_2/value:0': (256, 512),
+    #  'mhsa_with_position_embedding_2/output_weight:0': (512, 512),
+    #  'mhsa_with_position_embedding_2/r_width:0': (128, 31),
+    #  'mhsa_with_position_embedding_2/r_height:0': (128, 27)}
+    ```
+## Model surgery
+  - [model_surgery](model_surgery) including functions used to change model parameters.
+    - `SAMModel`
+    - `add_l2_regularizer_2_model`
+    - `convert_to_mixed_float16`
+    - `convert_mixed_float16_to_float32`
+    - `replace_ReLU`
+    - `replace_add_with_stochastic_depth`
+    - `replace_stochastic_depth_with_add`
 ## Models
   - [botnet](keras_cv_attention_models/botnet)
     | Model        | params | Image  resolution | Top1 Acc | Download            |
@@ -51,29 +75,6 @@
     | halo_b7 | 68.4M  | 600              |          |
 
   - **[In progress]** [CoAtNet](keras_cv_attention_models/coatnet)
-    | Model                                | params | Image resolution | Top1 Acc |
-    | ------------------------------------ | ------ | ---------------- | -------- |
-    | CoAtNet-0                            | 25M    | 224              | 81.6     |
-    | CoAtNet-0                            | 25M    | 384              | 83.9     |
-    | CoAtNet-1                            | 42M    | 224              | 83.3     |
-    | CoAtNet-1                            | 42M    | 384              | 85.1     |
-    | CoAtNet-2                            | 75M    | 224              | 84.1     |
-    | CoAtNet-2                            | 75M    | 384              | 85.7     |
-    | CoAtNet-2                            | 75M    | 512              | 85.9     |
-    | CoAtNet-2, ImageNet-21k pretrain     | 75M    | 224              | 87.1     |
-    | CoAtNet-2, ImageNet-21k pretrain     | 75M    | 384              | 87.1     |
-    | CoAtNet-2, ImageNet-21k pretrain     | 75M    | 512              | 87.3     |
-    | CoAtNet-3                            | 168M   | 224              | 84.5     |
-    | CoAtNet-3                            | 168M   | 384              | 85.8     |
-    | CoAtNet-3                            | 168M   | 512              | 86.0     |
-    | CoAtNet-3, ImageNet-21k pretrain     | 168M   | 224              | 87.6     |
-    | CoAtNet-3, ImageNet-21k pretrain     | 168M   | 384              | 87.6     |
-    | CoAtNet-3, ImageNet-21k pretrain     | 168M   | 512              | 87.9     |
-    | CoAtNet-4, ImageNet-21k pretrain     | 275M   | 384              | 87.9     |
-    | CoAtNet-4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |
-    | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 384              | 88.4     |
-    | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
-
   - **[In progress]** [CoTNet](keras_cv_attention_models/cotnet)
 ***
 

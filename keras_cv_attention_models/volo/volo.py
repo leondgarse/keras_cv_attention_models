@@ -378,13 +378,7 @@ def VOLO(
     **kwargs,
 ):
     """
-    survivals: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
-        Can be value like `0.5` or `0.8`, indicates the survival probability linearly changes from `1 --> 0.8` for `top --> bottom` layers.
-        A higher value means a higher probability will keep the deep branch.
-    mix_token: Set True for training using `mix_token`. Should better with `token_label_top=True`.
-    token_classifier_top: Set True for using tokens[0] for classify when `mix_token==False`.
-    mean_classifier_top: Set True for using all tokens for classify when `mix_token==False`.
-    token_label_top: Set True for returning both `token_head` and `aux_head`.
+
     """
     inputs = layers.Input(input_shape)
 
