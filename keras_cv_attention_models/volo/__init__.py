@@ -60,58 +60,57 @@ VOLO_d3.__doc__ = VOLO_d1.__doc__
 VOLO_d4.__doc__ = VOLO_d1.__doc__
 VOLO_d5.__doc__ = VOLO_d1.__doc__
 
-outlook_attention.__doc__ = """ outlook attention. Callable function, NOT defined as a layer.
-  Original defined in [Github sail-sg/volo](https://github.com/sail-sg/volo).
-  Paper [PDF 2106.13112 VOLO: Vision Outlooker for Visual Recognition](https://arxiv.org/pdf/2106.13112.pdf).
+outlook_attention.__doc__ = __head_doc__ + """
+outlook attention. Callable function, NOT defined as a layer.
 
-  As the name `fold_overlap_1` indicates, works only if overlap happens once in fold, like `kernel_size=3, strides=2`.
-  For `kernel_size=3, strides=1`, overlap happens twice, will NOT work...
+As the name `fold_overlap_1` indicates, works only if overlap happens once in fold, like `kernel_size=3, strides=2`.
+For `kernel_size=3, strides=1`, overlap happens twice, will NOT work...
 
-  Examples:
+Examples:
 
-  >>> from keras_cv_attention_models import attention_layers
-  >>> inputs = keras.layers.Input([28, 28, 192])
-  >>> nn = attention_layers.outlook_attention(inputs, 4, 192)
-  >>> cc = keras.models.Model(inputs, nn)
-  >>> cc.summary()
-  __________________________________________________________________________________________________
-  Layer (type)                    Output Shape         Param #     Connected to
-  ==================================================================================================
-  input_2 (InputLayer)            [(None, 28, 28, 192) 0
-  __________________________________________________________________________________________________
-  average_pooling2d_1 (AveragePoo (None, 14, 14, 192)  0           input_2[0][0]
-  __________________________________________________________________________________________________
-  attn (Dense)                    (None, 14, 14, 324)  62532       average_pooling2d_1[0][0]
-  __________________________________________________________________________________________________
-  tf.math.truediv_1 (TFOpLambda)  (None, 14, 14, 324)  0           attn[0][0]
-  __________________________________________________________________________________________________
-  tf.reshape_1 (TFOpLambda)       (None, 14, 14, 4, 9, 0           tf.math.truediv_1[0][0]
-  __________________________________________________________________________________________________
-  v (Dense)                       (None, 28, 28, 192)  36864       input_2[0][0]
-  __________________________________________________________________________________________________
-  tf.nn.softmax_1 (TFOpLambda)    (None, 14, 14, 4, 9, 0           tf.reshape_1[0][0]
-  __________________________________________________________________________________________________
-  unfold_matmul_fold_1 (UnfoldMat (None, 28, 28, 192)  0           v[0][0]
-                                                                   tf.nn.softmax_1[0][0]
-  __________________________________________________________________________________________________
-  out (Dense)                     (None, 28, 28, 192)  37056       unfold_matmul_fold_1[0][0]
-  ==================================================================================================
-  Total params: 136,452
-  Trainable params: 136,452
-  Non-trainable params: 0
-  __________________________________________________________________________________________________
+>>> from keras_cv_attention_models import attention_layers
+>>> inputs = keras.layers.Input([28, 28, 192])
+>>> nn = attention_layers.outlook_attention(inputs, 4, 192)
+>>> cc = keras.models.Model(inputs, nn)
+>>> cc.summary()
+__________________________________________________________________________________________________
+Layer (type)                    Output Shape         Param #     Connected to
+==================================================================================================
+input_2 (InputLayer)            [(None, 28, 28, 192) 0
+__________________________________________________________________________________________________
+average_pooling2d_1 (AveragePoo (None, 14, 14, 192)  0           input_2[0][0]
+__________________________________________________________________________________________________
+attn (Dense)                    (None, 14, 14, 324)  62532       average_pooling2d_1[0][0]
+__________________________________________________________________________________________________
+tf.math.truediv_1 (TFOpLambda)  (None, 14, 14, 324)  0           attn[0][0]
+__________________________________________________________________________________________________
+tf.reshape_1 (TFOpLambda)       (None, 14, 14, 4, 9, 0           tf.math.truediv_1[0][0]
+__________________________________________________________________________________________________
+v (Dense)                       (None, 28, 28, 192)  36864       input_2[0][0]
+__________________________________________________________________________________________________
+tf.nn.softmax_1 (TFOpLambda)    (None, 14, 14, 4, 9, 0           tf.reshape_1[0][0]
+__________________________________________________________________________________________________
+unfold_matmul_fold_1 (UnfoldMat (None, 28, 28, 192)  0           v[0][0]
+                                                               tf.nn.softmax_1[0][0]
+__________________________________________________________________________________________________
+out (Dense)                     (None, 28, 28, 192)  37056       unfold_matmul_fold_1[0][0]
+==================================================================================================
+Total params: 136,452
+Trainable params: 136,452
+Non-trainable params: 0
+__________________________________________________________________________________________________
 
 
-  Args:
-    inputs: input tensor.
-    embed_dim: hidden dim for attention, value and ouput.
-    num_head: number of attention heads.
-    kernel_size: kernel size for extracting patches from input and calculating attention weights.
-        For extracting patches from input, it's simmilar with `Conv2D`.
-        For calculating attention weights, it affects the attention output shape.
-    padding: set if apply padding, simmilar with `Conv2D`.
-    strides: simmilar with `Conv2D`. If it's smaller then `kernel_size`, will have overlap area.
-        Currently only works if overlap happened once, like `kernel_size=3, strides=2`.
-    attn_dropout: dropout probability for attention.
-    output_dropout: dropout probability for output.
+Args:
+  inputs: input tensor.
+  embed_dim: hidden dim for attention, value and ouput.
+  num_head: number of attention heads.
+  kernel_size: kernel size for extracting patches from input and calculating attention weights.
+      For extracting patches from input, it's simmilar with `Conv2D`.
+      For calculating attention weights, it affects the attention output shape.
+  padding: set if apply padding, simmilar with `Conv2D`.
+  strides: simmilar with `Conv2D`. If it's smaller then `kernel_size`, will have overlap area.
+      Currently only works if overlap happened once, like `kernel_size=3, strides=2`.
+  attn_dropout: dropout probability for attention.
+  output_dropout: dropout probability for output.
 """

@@ -49,31 +49,30 @@ HaloNetB5.__doc__ = HaloNetB0.__doc__
 HaloNetB6.__doc__ = HaloNetB0.__doc__
 HaloNetB7.__doc__ = HaloNetB0.__doc__
 
-HaloAttention.__doc__ = """ Halo-Attention layer.
-  Original defined in [Github lucidrains/halonet-pytorch](https://github.com/lucidrains/halonet-pytorch).
-  Paper [PDF 2103.12731 Scaling Local Self-Attention for Parameter Efficient Visual Backbones](https://arxiv.org/pdf/2103.12731.pdf).
+HaloAttention.__doc__ = __head_doc__ + """
+Halo-Attention layer.
 
-  Examples:
+Examples:
 
-  >>> from keras_cv_attention_models import attention_layers
-  >>> bb = attention_layers.HaloAttention()
-  >>> print(f"{bb(tf.ones([1, 14, 16, 256])).shape = }")
-  bb(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])
+>>> from keras_cv_attention_models import attention_layers
+>>> bb = attention_layers.HaloAttention()
+>>> print(f"{bb(tf.ones([1, 14, 16, 256])).shape = }")
+bb(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])
 
-  >>> print({ii.name:ii.numpy().shape for ii in bb.weights})
-  {'halo_attention_2/query:0': (256, 512),
-   'halo_attention_2/key_value:0': (256, 1024),
-   'halo_attention_2/output_weight:0': (512, 512),
-   'halo_attention_2/r_width:0': (128, 7),
-   'halo_attention_2/r_height:0': (128, 7)}
+>>> print({ii.name:ii.numpy().shape for ii in bb.weights})
+{'halo_attention_2/query:0': (256, 512),
+ 'halo_attention_2/key_value:0': (256, 1024),
+ 'halo_attention_2/output_weight:0': (512, 512),
+ 'halo_attention_2/r_width:0': (128, 7),
+ 'halo_attention_2/r_height:0': (128, 7)}
 
-  Args:
-    num_heads: Number of attention heads.
-    key_dim: Size of each attention head for query and key.
-    block_size: works like `kernel_size` from `Conv2D`, extracting input patches as `query`.
-    halo_size: expansion to `block_size`, extracting input patches as `key` and `value`.
-    out_shape: The expected shape of an output tensor. If not specified, projects back to the key feature dim.
-    out_weight: Boolean, whether use an ouput dense.
-    out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
-    attn_dropout: Dropout probability for attention.
+Args:
+  num_heads: Number of attention heads.
+  key_dim: Size of each attention head for query and key.
+  block_size: works like `kernel_size` from `Conv2D`, extracting input patches as `query`.
+  halo_size: expansion to `block_size`, extracting input patches as `key` and `value`.
+  out_shape: The expected shape of an output tensor. If not specified, projects back to the key feature dim.
+  out_weight: Boolean, whether use an ouput dense.
+  out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
+  attn_dropout: Dropout probability for attention.
 """

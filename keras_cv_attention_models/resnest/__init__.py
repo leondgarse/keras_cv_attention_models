@@ -44,40 +44,39 @@ ResNest101.__doc__ = ResNest50.__doc__
 ResNest200.__doc__ = ResNest50.__doc__
 ResNest269.__doc__ = ResNest50.__doc__
 
-split_attention_conv2d.__doc__ = """ Split-Attention. Callable function, NOT defined as a layer.
-  Original defined in [ResNeSt](https://github.com/zhanghang1989/ResNeSt).
-  Paper [PDF 2004.08955 ResNeSt: Split-Attention Networks](https://arxiv.org/pdf/2004.08955.pdf).
+split_attention_conv2d.__doc__ = __head_doc__ + """
+Split-Attention. Callable function, NOT defined as a layer.
 
-  Examples:
+Examples:
 
-  >>> from keras_cv_attention_models import attention_layers
-  >>> inputs = keras.layers.Input([28, 28, 192])
-  >>> nn = attention_layers.split_attention_conv2d(inputs, 384)
-  >>> dd = keras.models.Model(inputs, nn)
-  >>> dd.summary()
-  >>> dd.output_shape
-  (None, 28, 28, 384)
+>>> from keras_cv_attention_models import attention_layers
+>>> inputs = keras.layers.Input([28, 28, 192])
+>>> nn = attention_layers.split_attention_conv2d(inputs, 384)
+>>> dd = keras.models.Model(inputs, nn)
+>>> dd.summary()
+>>> dd.output_shape
+(None, 28, 28, 384)
 
-  >>> {ii.name: ii.shape for ii in dd.weights}
-  {'1_g1_conv/kernel:0': TensorShape([3, 3, 96, 384]),
-   '1_g2_conv/kernel:0': TensorShape([3, 3, 96, 384]),
-   '1_bn/gamma:0': TensorShape([768]),
-   '1_bn/beta:0': TensorShape([768]),
-   '1_bn/moving_mean:0': TensorShape([768]),
-   '1_bn/moving_variance:0': TensorShape([768]),
-   '2_conv/kernel:0': TensorShape([1, 1, 384, 96]),
-   '2_conv/bias:0': TensorShape([96]),
-   '2_bn/gamma:0': TensorShape([96]),
-   '2_bn/beta:0': TensorShape([96]),
-   '2_bn/moving_mean:0': TensorShape([96]),
-   '2_bn/moving_variance:0': TensorShape([96]),
-   '3_conv/kernel:0': TensorShape([1, 1, 96, 768]),
-   '3_conv/bias:0': TensorShape([768])}
+>>> {ii.name: ii.shape for ii in dd.weights}
+{'1_g1_conv/kernel:0': TensorShape([3, 3, 96, 384]),
+ '1_g2_conv/kernel:0': TensorShape([3, 3, 96, 384]),
+ '1_bn/gamma:0': TensorShape([768]),
+ '1_bn/beta:0': TensorShape([768]),
+ '1_bn/moving_mean:0': TensorShape([768]),
+ '1_bn/moving_variance:0': TensorShape([768]),
+ '2_conv/kernel:0': TensorShape([1, 1, 384, 96]),
+ '2_conv/bias:0': TensorShape([96]),
+ '2_bn/gamma:0': TensorShape([96]),
+ '2_bn/beta:0': TensorShape([96]),
+ '2_bn/moving_mean:0': TensorShape([96]),
+ '2_bn/moving_variance:0': TensorShape([96]),
+ '3_conv/kernel:0': TensorShape([1, 1, 96, 768]),
+ '3_conv/bias:0': TensorShape([768])}
 
-  Args:
-    inputs: input tensor.
-    filters: output dimension.
-    kernel_size: kernel size for grouped Conv2D.
-    groups: number of splitted groups.
-    activation: activation used after `BatchNormalization`.
+Args:
+  inputs: input tensor.
+  filters: output dimension.
+  kernel_size: kernel size for grouped Conv2D.
+  groups: number of splitted groups.
+  activation: activation used after `BatchNormalization`.
 """

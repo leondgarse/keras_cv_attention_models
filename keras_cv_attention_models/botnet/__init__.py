@@ -43,31 +43,30 @@ Args:
 BotNet101.__doc__ = BotNet50.__doc__
 BotNet152.__doc__ = BotNet50.__doc__
 
-MHSAWithPositionEmbedding.__doc__ = """ Multi head self attention with positional embedding layer.
-  Original defined in [botnet](https://gist.github.com/aravindsrinivas/56359b79f0ce4449bcb04ab4b56a57a2).
-  Paper [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://arxiv.org/pdf/2101.11605.pdf).
+MHSAWithPositionEmbedding.__doc__ = __head_doc__ + """
+Multi head self attention with positional embedding layer.
 
-  Examples:
+Examples:
 
-  >>> from keras_cv_attention_models import attention_layers
-  >>> aa = attention_layers.MHSAWithPositionEmbedding()
-  >>> print(f"{aa(tf.ones([1, 14, 16, 256])).shape = }")
-  aa(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])
+>>> from keras_cv_attention_models import attention_layers
+>>> aa = attention_layers.MHSAWithPositionEmbedding()
+>>> print(f"{aa(tf.ones([1, 14, 16, 256])).shape = }")
+aa(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])
 
-  >>> print({ii.name:ii.numpy().shape for ii in aa.weights})
-  {'mhsa_with_position_embedding_2/query:0': (256, 512),
-   'mhsa_with_position_embedding_2/key:0': (256, 512),
-   'mhsa_with_position_embedding_2/value:0': (256, 512),
-   'mhsa_with_position_embedding_2/output_weight:0': (512, 512),
-   'mhsa_with_position_embedding_2/r_width:0': (128, 31),
-   'mhsa_with_position_embedding_2/r_height:0': (128, 27)}
+>>> print({ii.name:ii.numpy().shape for ii in aa.weights})
+{'mhsa_with_position_embedding_2/query:0': (256, 512),
+ 'mhsa_with_position_embedding_2/key:0': (256, 512),
+ 'mhsa_with_position_embedding_2/value:0': (256, 512),
+ 'mhsa_with_position_embedding_2/output_weight:0': (512, 512),
+ 'mhsa_with_position_embedding_2/r_width:0': (128, 31),
+ 'mhsa_with_position_embedding_2/r_height:0': (128, 27)}
 
-  Args:
-    num_heads: Number of attention heads.
-    key_dim: Size of each attention head for query and key.
-    relative: Boolean, whether using relative or absolute positional embedding.
-    out_weight: Boolean, whether use an ouput dense.
-    out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
-    out_shape: The expected shape of an output tensor. If not specified, projects back to the key feature dim.
-    attn_dropout: Dropout probability for attention.
+Args:
+  num_heads: Number of attention heads.
+  key_dim: Size of each attention head for query and key.
+  relative: Boolean, whether using relative or absolute positional embedding.
+  out_weight: Boolean, whether use an ouput dense.
+  out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
+  out_shape: The expected shape of an output tensor. If not specified, projects back to the key feature dim.
+  attn_dropout: Dropout probability for attention.
 """

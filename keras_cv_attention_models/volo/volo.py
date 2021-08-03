@@ -377,9 +377,6 @@ def VOLO(
     model_name="VOLO",
     **kwargs,
 ):
-    """
-
-    """
     inputs = layers.Input(input_shape)
 
     """ forward_embeddings """
