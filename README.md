@@ -64,7 +64,7 @@
     | halo_b1 | 8.8M   | 256              |          |
     | halo_b2 | 11.04M | 256              |          |
     | halo_b3 | 15.1M  | 320              |          |
-    | halo_b4 | 31.4M  | 384              | 85.5%    |
+    | halo_b4 | 31.4M  | 384              | 85.5    |
     | halo_b5 | 34.4M  | 448              |          |
     | halo_b6 | 47.98M | 512              |          |
     | halo_b7 | 68.4M  | 600              |          |
@@ -82,17 +82,17 @@
     | CoAtNet-4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |
     | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
 
-      - **[In progress]** [CoTNet](keras_cv_attention_models/cotnet)
-    | name           | resolution | #params | FLOPs | Top-1 Acc. | Top-5 Acc. |
-    | -------------- |:----------:|:-------:|:-----:|:----------:|:----------:|
-    | CoTNet-50      |    224     |  22.2M  |  3.3  |    81.3    |    95.6    |
-    | CoTNeXt-50     |    224     |  30.1M  |  4.3  |    82.1    |    95.9    |
-    | SE-CoTNetD-50  |    224     |  23.1M  |  4.1  |    81.6    |    95.8    |
-    | CoTNet-101     |    224     |  38.3M  |  6.1  |    82.8    |    96.2    |
-    | CoTNeXt-101    |    224     |  53.4M  |  8.2  |    83.2    |    96.4    |
-    | SE-CoTNetD-101 |    224     |  40.9M  |  8.5  |    83.2    |    96.5    |
-    | SE-CoTNetD-152 |    224     |  55.8M  | 17.0  |    84.0    |    97.0    |
-    | SE-CoTNetD-152 |    320     |  55.8M  | 26.5  |    84.6    |    97.1    |
+  - **[In progress]** [CoTNet](keras_cv_attention_models/cotnet)
+    | Model          | params | Image resolution | FLOPs | Top1 Acc | Top5 Acc |
+    | -------------- |:------:| ---------------- | ----- |:--------:|:--------:|
+    | CoTNet-50      | 22.2M  | 224              | 3.3   |   81.3   |   95.6   |
+    | CoTNeXt-50     | 30.1M  | 224              | 4.3   |   82.1   |   95.9   |
+    | SE-CoTNetD-50  | 23.1M  | 224              | 4.1   |   81.6   |   95.8   |
+    | CoTNet-101     | 38.3M  | 224              | 6.1   |   82.8   |   96.2   |
+    | CoTNeXt-101    | 53.4M  | 224              | 8.2   |   83.2   |   96.4   |
+    | SE-CoTNetD-101 | 40.9M  | 224              | 8.5   |   83.2   |   96.5   |
+    | SE-CoTNetD-152 | 55.8M  | 224              | 17.0  |   84.0   |   97.0   |
+    | SE-CoTNetD-152 | 55.8M  | 320              | 26.5  |   84.6   |   97.1   |
 
 ***
 
