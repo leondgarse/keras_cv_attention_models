@@ -20,11 +20,11 @@
   Comparing `halo_b7` accuracy by replacing Conv layers with Attention in each stage:
 
   | Conv Stages | Attention Stages | Top-1 Acc (%) | Norm. Train Time |
-  | ----------- | ---------------- | ------------- | ---------------- |
-  | -           | 1, 2, 3, 4       | 84.9          | 1.9              |
-  | 1           | 2, 3, 4          | 84.6          | 1.4              |
-  | 1, 2        | 3, 4             | 84.7          | 1.0              |
-  | 1, 2, 3     | 4                | 83.8          | 0.5              |
+  |:-----------:|:----------------:|:-------------:|:----------------:|
+  |      -      |    1, 2, 3, 4    |     84.9      |       1.9        |
+  |      1      |     2, 3, 4      |     84.6      |       1.4        |
+  |    1, 2     |       3, 4       |     84.7      |       1.0        |
+  |   1, 2, 3   |        4         |     83.8      |       0.5        |
 ## Usage
   ```py
   from keras_cv_attention_models import halonet

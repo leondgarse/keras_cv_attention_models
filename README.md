@@ -70,10 +70,34 @@
     | halo_b7 | 68.4M  | 600              |          |
 
   - **[In progress]** [CoAtNet](keras_cv_attention_models/coatnet)
-  - **[In progress]** [CoTNet](keras_cv_attention_models/cotnet)
+    | Model                                | params | Image resolution | Top1 Acc |
+    | ------------------------------------ | ------ | ---------------- | -------- |
+    | CoAtNet-0                            | 25M    | 224              | 81.6     |
+    | CoAtNet-1                            | 42M    | 224              | 83.3     |
+    | CoAtNet-2                            | 75M    | 224              | 84.1     |
+    | CoAtNet-2, ImageNet-21k pretrain     | 75M    | 224              | 87.1     |
+    | CoAtNet-3                            | 168M   | 224              | 84.5     |
+    | CoAtNet-3, ImageNet-21k pretrain     | 168M   | 224              | 87.6     |
+    | CoAtNet-3, ImageNet-21k pretrain     | 168M   | 512              | 87.9     |
+    | CoAtNet-4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |
+    | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
+
+      - **[In progress]** [CoTNet](keras_cv_attention_models/cotnet)
+    | name           | resolution | #params | FLOPs | Top-1 Acc. | Top-5 Acc. |
+    | -------------- |:----------:|:-------:|:-----:|:----------:|:----------:|
+    | CoTNet-50      |    224     |  22.2M  |  3.3  |    81.3    |    95.6    |
+    | CoTNeXt-50     |    224     |  30.1M  |  4.3  |    82.1    |    95.9    |
+    | SE-CoTNetD-50  |    224     |  23.1M  |  4.1  |    81.6    |    95.8    |
+    | CoTNet-101     |    224     |  38.3M  |  6.1  |    82.8    |    96.2    |
+    | CoTNeXt-101    |    224     |  53.4M  |  8.2  |    83.2    |    96.4    |
+    | SE-CoTNetD-101 |    224     |  40.9M  |  8.5  |    83.2    |    96.5    |
+    | SE-CoTNetD-152 |    224     |  55.8M  | 17.0  |    84.0    |    97.0    |
+    | SE-CoTNetD-152 |    320     |  55.8M  | 26.5  |    84.6    |    97.1    |
+
 ***
 
 ## Other implemented keras models
   - [Github ypeleg/nfnets-keras](https://github.com/ypeleg/nfnets-keras)
   - [Github faustomorales/vit-keras](https://github.com/faustomorales/vit-keras)
+  - [Github tensorflow/resnet_rs](https://github.com/tensorflow/tpu/tree/master/models/official/resnet/resnet_rs)
 ***

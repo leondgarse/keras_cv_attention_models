@@ -286,7 +286,8 @@ def HaloNet(
     num_heads = blocks_config["num_heads"]
 
     inputs = keras.layers.Input(input_shape)
-    nn = conv2d_no_bias(inputs, 64, 7, strides=2, padding="SAME", name="stem_")
+    nn = keras.layers.ZeroPadding2D(padding=3, name="stem_conv_pad")(inputs)
+    nn = conv2d_no_bias(nn, 64, 7, strides=2, padding="VALID", name="stem_")
     nn = batchnorm_with_activation(nn, activation=activation, name="stem_")
     nn = keras.layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name="stem_pool_pad")(nn)
     nn = keras.layers.MaxPooling2D(3, strides=2, name="stem_pool")(nn)
@@ -300,7 +301,7 @@ def HaloNet(
 
     out_channels = [64, 128, 256, 512]
     for id, (num_block, out_channel, num_head) in enumerate(zip(num_blocks, out_channels, num_heads)):
-        name = "stack{}_".format(id)
+        name = "stack{}_".format(id + 1)
         nn = halo_stack(nn, num_block, out_channel, 1, expansion, num_head, halo_key_dim, halo_block_size, halo_halo_size, activation=activation, name=name)
 
     if output_conv_channel != -1:
