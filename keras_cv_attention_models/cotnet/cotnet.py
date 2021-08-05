@@ -182,7 +182,7 @@ def CotNet(
     activation="relu",
     use_se=0,
     num_classes=1000,
-    pretrained=None,
+    pretrained="imagenet",
     classifier_activation="softmax",
     model_name="cotnet",
     **kwargs
@@ -206,12 +206,32 @@ def CotNet(
         nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
+    reload_model_weights(model, input_shape, pretrained)
     return model
 
 
-def CotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", pretrained=None, **kwargs):
+def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
+    if not pretrained in ["imagenet"]:
+        print(">>>> No pretraind available, model will be random initialized")
+        return
+
+    request_resolution = 320 if input_shape[0] == 320 else 224
+    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/{}_{}.h5"
+    url = pre_url.format(model.name, request_resolution)
+    file_name = os.path.basename(url)
+    try:
+        # print(">>>> Load pretraind from:", file_name, url)
+        pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
+    except:
+        print("[Error] will not load weights, url not found:", url)
+    else:
+        print(">>>> Load pretraind from:", pretrained_model)
+        model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
+
+
+def CotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
     return CotNet(num_blocks=[3, 4, 6, 3], model_name="cotnet50", **locals(), **kwargs)
 
 
-def CotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", pretrained=None, **kwargs):
+def CotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
     return CotNet(num_blocks=[3, 4, 23, 3], model_name="cotnet101", **locals(), **kwargs)

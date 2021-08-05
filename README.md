@@ -9,7 +9,7 @@
     Refer to each sub directory for detail usage.
 ***
 ## Layers
-  - [attention_layers](keras_cv_attention_models/attention_layers) is `__init__.py` only, which import core layers defined in other model architectures. Like `MHSAWithPositionEmbedding` from `botnet`, `HaloAttention` from `halonet`.
+  - [attention_layers](keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `MHSAWithPositionEmbedding` from `botnet`, `HaloAttention` from `halonet`.
     ```py
     from keras_cv_attention_models import attention_layers
     aa = attention_layers.MHSAWithPositionEmbedding(num_heads=4, key_dim=128, relative=True)
@@ -83,16 +83,16 @@
     | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
 
   - **[In progress]** [CoTNet](keras_cv_attention_models/cotnet)
-    | Model          | params | Image resolution | FLOPs | Top1 Acc | Top5 Acc |
-    | -------------- |:------:| ---------------- | ----- |:--------:|:--------:|
-    | CoTNet-50      | 22.2M  | 224              | 3.3   |   81.3   |   95.6   |
-    | CoTNeXt-50     | 30.1M  | 224              | 4.3   |   82.1   |   95.9   |
-    | SE-CoTNetD-50  | 23.1M  | 224              | 4.1   |   81.6   |   95.8   |
-    | CoTNet-101     | 38.3M  | 224              | 6.1   |   82.8   |   96.2   |
-    | CoTNeXt-101    | 53.4M  | 224              | 8.2   |   83.2   |   96.4   |
-    | SE-CoTNetD-101 | 40.9M  | 224              | 8.5   |   83.2   |   96.5   |
-    | SE-CoTNetD-152 | 55.8M  | 224              | 17.0  |   84.0   |   97.0   |
-    | SE-CoTNetD-152 | 55.8M  | 320              | 26.5  |   84.6   |   97.1   |
+    | Model          | params | Image resolution | FLOPs | Top1 Acc | Top5 Acc | Download            |
+    | -------------- |:------:| ---------------- | ----- |:--------:|:--------:| ------------------- |
+    | CoTNet-50      | 22.2M  | 224              | 3.3   |   81.3   |   95.6   |[cotnet50_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet50_224.h5)  |
+    | CoTNeXt-50     | 30.1M  | 224              | 4.3   |   82.1   |   95.9   |  |
+    | SE-CoTNetD-50  | 23.1M  | 224              | 4.1   |   81.6   |   95.8   |  |
+    | CoTNet-101     | 38.3M  | 224              | 6.1   |   82.8   |   96.2   |  |
+    | CoTNeXt-101    | 53.4M  | 224              | 8.2   |   83.2   |   96.4   |  |
+    | SE-CoTNetD-101 | 40.9M  | 224              | 8.5   |   83.2   |   96.5   |  |
+    | SE-CoTNetD-152 | 55.8M  | 224              | 17.0  |   84.0   |   97.0   |  |
+    | SE-CoTNetD-152 | 55.8M  | 320              | 26.5  |   84.6   |   97.1   |  |
 
 ***
 
