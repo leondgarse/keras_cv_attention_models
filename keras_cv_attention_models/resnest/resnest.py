@@ -50,17 +50,20 @@ def rsoftmax(inputs, filters, groups):
     return nn
 
 
-def split_attention_conv2d(inputs, filters, kernel_size=3, groups=2, activation="relu", name=""):
+def split_attention_conv2d(inputs, filters, kernel_size=3, strides=1, groups=2, activation="relu", name=""):
     h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
     in_channels = inputs.shape[-1]
-    # Using groups=2 is slow in `mixed_float16` policy
-    # logits = conv2d_no_bias(inputs, filters * groups, kernel_size, padding="same", groups=groups, name=name + "1_")
-    logits = []
-    splitted_inputs = tf.split(inputs, groups, axis=-1)
-    for ii in range(groups):
-        conv_name = name + "1_g{}_".format(ii + 1)
-        logits.append(conv2d_no_bias(splitted_inputs[ii], filters, kernel_size, padding="same", name=conv_name))
-    logits = tf.concat(logits, axis=-1)
+    if groups == 1:
+        logits = conv2d_no_bias(inputs, filters, kernel_size, strides=strides, padding="same", name=name + "1_")
+    else:
+        # Using groups=2 is slow in `mixed_float16` policy
+        # logits = conv2d_no_bias(inputs, filters * groups, kernel_size, padding="same", groups=groups, name=name + "1_")
+        logits = []
+        splitted_inputs = tf.split(inputs, groups, axis=-1)
+        for ii in range(groups):
+            conv_name = name + "1_g{}_".format(ii + 1)
+            logits.append(conv2d_no_bias(splitted_inputs[ii], filters, kernel_size, strides=strides, padding="same", name=conv_name))
+        logits = tf.concat(logits, axis=-1)
     logits = batchnorm_with_activation(logits, activation=activation, name=name + "1_")
 
     if groups > 1:

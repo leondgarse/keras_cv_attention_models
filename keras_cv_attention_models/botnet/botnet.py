@@ -310,7 +310,7 @@ def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"
     try:
         pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
     except:
-        print("[Error] will not load weights, url not found:", url)
+        print("[Error] will not load weights, url not found or download failed:", url)
         return
     else:
         print(">>>> Load pretraind from:", pretrained_model)

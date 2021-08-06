@@ -28,6 +28,18 @@
     ```py
     from keras_cv_attention_models import volo
     mm = volo.VOLO_d1(pretrained="imagenet")
+
+    """ Run predict """
+    from skimage.data import chelsea
+    imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
+    pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
+    pred = tf.nn.softmax(pred).numpy()  # If classifier activation is not softmax
+    print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
+    # [('n02124075', 'Egyptian_cat', 0.9692954),
+    #  ('n02123045', 'tabby', 0.020203391),
+    #  ('n02123159', 'tiger_cat', 0.006867502),
+    #  ('n02127052', 'lynx', 0.00017674894),
+    #  ('n02123597', 'Siamese_cat', 4.9493494e-05)]
     ```
   - [botnet](keras_cv_attention_models/botnet)
     | Model        | params | Image  resolution | Top1 Acc | Download            |
@@ -69,6 +81,18 @@
     | halo_b6 | 47.98M | 512              |          |
     | halo_b7 | 68.4M  | 600              |          |
 
+  - **[In progress]** [CoTNet](keras_cv_attention_models/cotnet)
+    | Model          | params | Image resolution | FLOPs | Top1 Acc | Download            |
+    | -------------- |:------:| ---------------- | ----- |:--------:| ------------------- |
+    | CoTNet-50      | 22.2M  | 224              | 3.3   |   81.3   | [cotnet50_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet50_224.h5) |
+    | CoTNeXt-50     | 30.1M  | 224              | 4.3   |   82.1   |  |
+    | SE-CoTNetD-50  | 23.1M  | 224              | 4.1   |   81.6   | [se_cotnetd50_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd50_224.h5) |
+    | CoTNet-101     | 38.3M  | 224              | 6.1   |   82.8   | [cotnet101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet101_224.h5) |
+    | CoTNeXt-101    | 53.4M  | 224              | 8.2   |   83.2   |  |
+    | SE-CoTNetD-101 | 40.9M  | 224              | 8.5   |   83.2   | [se_cotnetd101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd101_224.h5) |
+    | SE-CoTNetD-152 | 55.8M  | 224              | 17.0  |   84.0   |  |
+    | SE-CoTNetD-152 | 55.8M  | 320              | 26.5  |   84.6   |  |
+
   - **[In progress]** [CoAtNet](keras_cv_attention_models/coatnet)
     | Model                                | params | Image resolution | Top1 Acc |
     | ------------------------------------ | ------ | ---------------- | -------- |
@@ -81,19 +105,6 @@
     | CoAtNet-3, ImageNet-21k pretrain     | 168M   | 512              | 87.9     |
     | CoAtNet-4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |
     | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
-
-  - **[In progress]** [CoTNet](keras_cv_attention_models/cotnet)
-    | Model          | params | Image resolution | FLOPs | Top1 Acc | Download            |
-    | -------------- |:------:| ---------------- | ----- |:--------:| ------------------- |
-    | CoTNet-50      | 22.2M  | 224              | 3.3   |   81.3   |[cotnet50_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet50_224.h5)  |
-    | CoTNeXt-50     | 30.1M  | 224              | 4.3   |   82.1   |  |
-    | SE-CoTNetD-50  | 23.1M  | 224              | 4.1   |   81.6   |  |
-    | CoTNet-101     | 38.3M  | 224              | 6.1   |   82.8   |  |
-    | CoTNeXt-101    | 53.4M  | 224              | 8.2   |   83.2   |  |
-    | SE-CoTNetD-101 | 40.9M  | 224              | 8.5   |   83.2   |  |
-    | SE-CoTNetD-152 | 55.8M  | 224              | 17.0  |   84.0   |  |
-    | SE-CoTNetD-152 | 55.8M  | 320              | 26.5  |   84.6   |  |
-
 ***
 
 ## Other implemented keras models

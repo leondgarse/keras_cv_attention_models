@@ -60,11 +60,11 @@ def se_module(inputs, se_ratio=4, name=""):
     return keras.layers.Multiply()([inputs, se])
 
 
-def group_conv(inputs, filters, kernel_size, groups=4, name=""):
+def group_conv(inputs, filters, kernel_size, groups=4, name="", **kwargs):
     # Using groups=num in `Conv2D` is slow with `mixed_float16` policy
     return conv2d_no_bias(inputs, filters, kernel_size, groups=groups, name=name)
     # splitted_inputs = tf.split(inputs, groups, axis=-1)
-    # return tf.concat([conv2d_no_bias(splitted_inputs[ii], filters, kernel_size, name=name + "1_g{}_".format(ii + 1), **kwargs) for ii in range(groups)], axis=-1)
+    # return tf.concat([conv2d_no_bias(splitted_inputs[ii], filters // groups, kernel_size, name=name + "g{}_".format(ii + 1), **kwargs) for ii in range(groups)], axis=-1)
 
 
 def contextual_transformer(inputs, kernel_size=3, activation="relu", name=""):
@@ -130,12 +130,14 @@ def contextual_transformer(inputs, kernel_size=3, activation="relu", name=""):
     return output
 
 
-def cot_block(inputs, filters, strides=1, shortcut=False, expansion=4, cardinality=1, survival=None, use_se=0, activation="relu", name=""):
+def cot_block(inputs, filters, strides=1, shortcut=False, expansion=4, cardinality=1, attn_type="cot", survival=None, use_se=0, activation="relu", name=""):
     # target_dimension = round(planes * block.expansion * self.rb)
     expanded_filter = round(filters * expansion)
     if shortcut:
         # print(">>>> Downsample")
-        shortcut = conv2d_no_bias(inputs, expanded_filter, 1, strides=strides, name=name + "shorcut_")
+        short_cut = layers.AveragePooling2D(pool_size=strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs)
+        shortcut = conv2d_no_bias(short_cut, expanded_filter, 1, strides=1, name=name + "shorcut_")
+        # shortcut = conv2d_no_bias(inputs, expanded_filter, 1, strides=strides, name=name + "shorcut_")
         shortcut = batchnorm_with_activation(shortcut, activation=None, zero_gamma=False, name=name + "shorcut_")
     else:
         shortcut = inputs
@@ -144,11 +146,20 @@ def cot_block(inputs, filters, strides=1, shortcut=False, expansion=4, cardinali
     nn = conv2d_no_bias(inputs, filters, 1, name=name + "1_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
 
-    if strides > 1:
+    if strides > 1 and attn_type == "cot":
         nn = layers.ZeroPadding2D(padding=1, name=name + "pool_pad")(nn)
         nn = layers.AveragePooling2D(3, strides=2, name=name + "pool")(nn)
 
-    nn = contextual_transformer(nn, 3, activation=activation, name=name + "cot_") if cardinality == 1 else coxt_layer(nn, 3)
+    if attn_type == "cot":
+        nn = contextual_transformer(nn, 3, activation=activation, name=name + "cot_")
+    elif attn_type == "cotx":
+        nn = coxt_layer(nn, 3)  # Not implemented
+    elif attn_type == "sa":
+        from keras_cv_attention_models.attention_layers import split_attention_conv2d
+
+        nn = split_attention_conv2d(nn, filters, kernel_size=3, groups=1, strides=strides, activation="swish", name=name + "sa_")
+    else:
+        nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", name=name + "conv_")
 
     nn = conv2d_no_bias(nn, expanded_filter, 1, name=name + "2_")
     nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "2_")
@@ -164,21 +175,46 @@ def cot_block(inputs, filters, strides=1, shortcut=False, expansion=4, cardinali
     return layers.Activation(activation, name=name + "out")(nn)
 
 
-def cot_stack(inputs, blocks, filter, strides=2, expansion=4, cardinality=1, survival=None, use_se=0, activation="relu", name=""):
+def cot_stack(inputs, blocks, filter, strides=2, expansion=4, cardinality=1, attn_types="cot", survival=None, use_se=0, activation="relu", name=""):
     shortcut = True if strides != 1 or inputs.shape[-1] != filter * expansion else False
-    nn = cot_block(inputs, filter, strides, shortcut, expansion, cardinality, survival, use_se, activation, name=name + "block1_")
+    attn_type = attn_types[0] if isinstance(attn_types, (list, tuple)) else attn_types
+    nn = cot_block(inputs, filter, strides, shortcut, expansion, cardinality, attn_type, survival, use_se, activation, name=name + "block1_")
     shortcut = False
-    for ii in range(2, blocks + 1):
-        block_name = name + "block{}_".format(ii)
-        nn = cot_block(nn, filter, 1, shortcut, expansion, cardinality, survival, use_se, activation, name=block_name)
+    # print(">>>> attn_types:", attn_types)
+    for ii in range(1, blocks):
+        block_name = name + "block{}_".format(ii + 1)
+        attn_type = attn_types[ii] if isinstance(attn_types, (list, tuple)) else attn_types
+        nn = cot_block(nn, filter, 1, shortcut, expansion, cardinality, attn_type, survival, use_se, activation, name=block_name)
+    return nn
+
+
+def stem(inputs, stem_width, activation="relu", deep_stem=False, name=""):
+    if deep_stem:
+        nn = conv2d_no_bias(inputs, stem_width, 3, strides=2, padding="same", name=name + "1_")
+        nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
+        nn = conv2d_no_bias(nn, stem_width, 3, strides=1, padding="same", name=name + "2_")
+        nn = batchnorm_with_activation(nn, activation=activation, name=name + "2_")
+        nn = conv2d_no_bias(nn, stem_width * 2, 3, strides=1, padding="same", name=name + "3_")
+
+        nn = batchnorm_with_activation(nn, activation=activation, name=name)
+    else:
+        nn = conv2d_no_bias(inputs, stem_width, 7, strides=2, padding="same", name=name)
+
+        nn = batchnorm_with_activation(nn, activation=activation, name=name)
+        nn = layers.ZeroPadding2D(padding=1, name=name + "pool_pad")(nn)
+        nn = layers.MaxPool2D(pool_size=3, strides=2, name=name + "pool")(nn)
     return nn
 
 
 def CotNet(
     num_blocks,
+    stem_width=64,
+    deep_stem=False,
     input_shape=(224, 224, 3),
     expansion=4,
     cardinality=1,
+    attn_types="cot",
+    strides=[1, 2, 2, 2],
     activation="relu",
     use_se=0,
     num_classes=1000,
@@ -188,18 +224,14 @@ def CotNet(
     **kwargs
 ):
     inputs = keras.layers.Input(input_shape)
-    nn = keras.layers.ZeroPadding2D(padding=3, name="stem_conv_pad")(inputs)
-    nn = conv2d_no_bias(nn, 64, 7, strides=2, padding="VALID", name="stem_")
-    nn = batchnorm_with_activation(nn, activation=activation, name="stem_")
-    nn = keras.layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name="stem_pool_pad")(nn)
-    nn = keras.layers.MaxPooling2D(3, strides=2, name="stem_pool")(nn)
+    nn = stem(inputs, stem_width, activation=activation, deep_stem=deep_stem, name="stem_")
 
     out_channels = [64, 128, 256, 512]
-    for id, (num_block, out_channel) in enumerate(zip(num_blocks, out_channels)):
+    for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, strides)):
         name = "stack{}_".format(id + 1)
         survival = None
-        strides = 1 if id == 0 else 2
-        nn = cot_stack(nn, num_block, out_channel, strides, expansion, cardinality, survival, use_se, activation=activation, name=name)
+        attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
+        nn = cot_stack(nn, num_block, out_channel, stride, expansion, cardinality, attn_type, survival, use_se, activation=activation, name=name)
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
@@ -223,15 +255,43 @@ def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"
         # print(">>>> Load pretraind from:", file_name, url)
         pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
     except:
-        print("[Error] will not load weights, url not found:", url)
+        print("[Error] will not load weights, url not found or download failed:", url)
     else:
         print(">>>> Load pretraind from:", pretrained_model)
         model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
 
 
 def CotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
-    return CotNet(num_blocks=[3, 4, 6, 3], model_name="cotnet50", **locals(), **kwargs)
+    num_blocks = [3, 4, 6, 3]
+    strides = [1, 2, 2, 2]
+    return CotNet(**locals(), **kwargs, model_name="cotnet50")
 
 
 def CotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
-    return CotNet(num_blocks=[3, 4, 23, 3], model_name="cotnet101", **locals(), **kwargs)
+    num_blocks = [3, 4, 23, 3]
+    strides = [1, 2, 2, 2]
+    return CotNet(**locals(), **kwargs, model_name="cotnet101")
+
+
+def SeCotNetD50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 4, 6, 3]
+    strides = [2, 2, 2, 2]
+    attn_types = [
+        "sa", # stack 1
+        "sa", # stack 2
+        ["cot", "sa"] * (num_blocks[2] // 2 + 1), # stack 3
+        "cot", # stack 4
+    ]
+    return CotNet(deep_stem=True, stem_width=32, **locals(), **kwargs, model_name="se_cotnetd50")
+
+
+def SeCotNetD101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 4, 23, 3]
+    strides = [2, 2, 2, 2]
+    attn_types = [
+        "sa", # stack 1
+        "sa", # stack 2
+        ["cot", "sa"] * (num_blocks[2] // 2 + 1), # stack 3
+        "cot", # stack 4
+    ]
+    return CotNet(deep_stem=True, stem_width=64, **locals(), **kwargs, model_name="se_cotnetd101")
