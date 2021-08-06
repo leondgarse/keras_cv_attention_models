@@ -7,7 +7,6 @@ Paper [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://ar
 
 __tail_doc__ = """  preact: whether to use pre-activation or not.
   use_bias: whether to use biases for convolutional layers or not.
-  model_name: string, model name.
   activation: activation used in whole model, default `relu`.
   pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
       Will try to download and load pre-trained model weights if not None.
@@ -38,6 +37,7 @@ BotNet50.__doc__ = __head_doc__ + """
 Args:
   strides: strides used in the last stack. It's reported `1` works better than `2`, but slower.
   relative_pe: `True` for relative positional embedding. `False` for absolute positional embedding.
+  model_name: string, model name.
 """ + __tail_doc__
 
 BotNet101.__doc__ = BotNet50.__doc__
@@ -45,6 +45,15 @@ BotNet152.__doc__ = BotNet50.__doc__
 
 MHSAWithPositionEmbedding.__doc__ = __head_doc__ + """
 Multi head self attention with positional embedding layer.
+
+Args:
+  num_heads: Number of attention heads.
+  key_dim: Size of each attention head for query and key.
+  relative: Boolean, whether using relative or absolute positional embedding.
+  out_weight: Boolean, whether use an ouput dense.
+  out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
+  out_shape: The expected shape of an output tensor. If not specified, projects back to the key feature dim.
+  attn_dropout: Dropout probability for attention.
 
 Examples:
 
@@ -60,13 +69,4 @@ aa(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])
  'mhsa_with_position_embedding_2/output_weight:0': (512, 512),
  'mhsa_with_position_embedding_2/r_width:0': (128, 31),
  'mhsa_with_position_embedding_2/r_height:0': (128, 27)}
-
-Args:
-  num_heads: Number of attention heads.
-  key_dim: Size of each attention head for query and key.
-  relative: Boolean, whether using relative or absolute positional embedding.
-  out_weight: Boolean, whether use an ouput dense.
-  out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
-  out_shape: The expected shape of an output tensor. If not specified, projects back to the key feature dim.
-  attn_dropout: Dropout probability for attention.
 """

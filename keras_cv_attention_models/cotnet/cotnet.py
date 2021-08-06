@@ -91,7 +91,7 @@ def contextual_transformer(inputs, kernel_size=3, activation="relu", name=""):
     embed_ww = conv2d_no_bias(embed_ww, kernel_size * kernel_size * filters // reduction, 1, use_bias=True, name=name + "embed_ww_2_")
     embed_ww = GroupNormalization(groups=filters // reduction, epsilon=BATCH_NORM_EPSILON, name=name + "embed_ww_group_norm")(embed_ww)
     embed_ww = tf.reshape(embed_ww, (-1, height, width, filters // reduction, kernel_size * kernel_size))
-    embed_ww = tf.expand_dims(tf.transpose(embed_ww, [0, 1, 2, 4, 3]), axis=-2) # expand dim on `reduction` axis
+    embed_ww = tf.expand_dims(tf.transpose(embed_ww, [0, 1, 2, 4, 3]), axis=-2)  # expand dim on `reduction` axis
 
     # matmul, local_conv
     embed = conv2d_no_bias(inputs, filters, 1, name=name + "embed_1_")
@@ -106,7 +106,7 @@ def contextual_transformer(inputs, kernel_size=3, activation="relu", name=""):
     embed = tf.reshape(embed, [-1, height, width, kernel_size * kernel_size, reduction, filters // reduction])
 
     embed_out = layers.Multiply(name=name + "local_conv_mul")([embed, embed_ww])
-    embed_out = tf.reduce_sum(embed_out, axis=-3)    # reduce on `kernel_size * kernel_size` axis
+    embed_out = tf.reduce_sum(embed_out, axis=-3)  # reduce on `kernel_size * kernel_size` axis
     embed_out = tf.reshape(embed_out, [-1, height, width, filters])
     embed_out = batchnorm_with_activation(embed_out, activation="swish", zero_gamma=False, name=name + "embed_2_")
 
@@ -210,15 +210,15 @@ def CotNet(
     num_blocks,
     stem_width=64,
     deep_stem=False,
+    attn_types="cot",
+    strides=[1, 2, 2, 2],
     input_shape=(224, 224, 3),
     expansion=4,
     cardinality=1,
-    attn_types="cot",
-    strides=[1, 2, 2, 2],
-    activation="relu",
     use_se=0,
-    num_classes=1000,
+    activation="relu",
     pretrained="imagenet",
+    num_classes=1000,
     classifier_activation="softmax",
     model_name="cotnet",
     **kwargs
@@ -277,10 +277,10 @@ def SeCotNetD50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", 
     num_blocks = [3, 4, 6, 3]
     strides = [2, 2, 2, 2]
     attn_types = [
-        "sa", # stack 1
-        "sa", # stack 2
-        ["cot", "sa"] * (num_blocks[2] // 2 + 1), # stack 3
-        "cot", # stack 4
+        "sa",  # stack 1
+        "sa",  # stack 2
+        ["cot", "sa"] * (num_blocks[2] // 2 + 1),  # stack 3
+        "cot",  # stack 4
     ]
     return CotNet(deep_stem=True, stem_width=32, **locals(), **kwargs, model_name="se_cotnetd50")
 
@@ -289,9 +289,9 @@ def SeCotNetD101(input_shape=(224, 224, 3), num_classes=1000, activation="relu",
     num_blocks = [3, 4, 23, 3]
     strides = [2, 2, 2, 2]
     attn_types = [
-        "sa", # stack 1
-        "sa", # stack 2
-        ["cot", "sa"] * (num_blocks[2] // 2 + 1), # stack 3
-        "cot", # stack 4
+        "sa",  # stack 1
+        "sa",  # stack 2
+        ["cot", "sa"] * (num_blocks[2] // 2 + 1),  # stack 3
+        "cot",  # stack 4
     ]
     return CotNet(deep_stem=True, stem_width=64, **locals(), **kwargs, model_name="se_cotnetd101")

@@ -13,7 +13,6 @@ __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like 
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `softmax`.
-  model_name: string, model name.
   **kwargs: other parameters if available.
 
 Returns:
@@ -23,6 +22,7 @@ Returns:
 HaloNet.__doc__ = __head_doc__ + """
 Args:
   model_type: value in ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7'].
+  model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
   | Model   | params | Image resolution | Top1 Acc |
@@ -52,6 +52,16 @@ HaloNetB7.__doc__ = HaloNetB0.__doc__
 HaloAttention.__doc__ = __head_doc__ + """
 Halo-Attention layer.
 
+Args:
+  num_heads: Number of attention heads.
+  key_dim: Size of each attention head for query and key.
+  block_size: works like `kernel_size` from `Conv2D`, extracting input patches as `query`.
+  halo_size: expansion to `block_size`, extracting input patches as `key` and `value`.
+  out_shape: The expected shape of an output tensor. If not specified, projects back to the key feature dim.
+  out_weight: Boolean, whether use an ouput dense.
+  out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
+  attn_dropout: Dropout probability for attention.
+
 Examples:
 
 >>> from keras_cv_attention_models import attention_layers
@@ -65,14 +75,4 @@ bb(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])
  'halo_attention_2/output_weight:0': (512, 512),
  'halo_attention_2/r_width:0': (128, 7),
  'halo_attention_2/r_height:0': (128, 7)}
-
-Args:
-  num_heads: Number of attention heads.
-  key_dim: Size of each attention head for query and key.
-  block_size: works like `kernel_size` from `Conv2D`, extracting input patches as `query`.
-  halo_size: expansion to `block_size`, extracting input patches as `key` and `value`.
-  out_shape: The expected shape of an output tensor. If not specified, projects back to the key feature dim.
-  out_weight: Boolean, whether use an ouput dense.
-  out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
-  attn_dropout: Dropout probability for attention.
 """

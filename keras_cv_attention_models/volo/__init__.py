@@ -66,6 +66,19 @@ outlook attention. Callable function, NOT defined as a layer.
 As the name `fold_overlap_1` indicates, works only if overlap happens once in fold, like `kernel_size=3, strides=2`.
 For `kernel_size=3, strides=1`, overlap happens twice, will NOT work...
 
+Args:
+  inputs: input tensor.
+  embed_dim: hidden dim for attention, value and ouput.
+  num_head: number of attention heads.
+  kernel_size: kernel size for extracting patches from input and calculating attention weights.
+      For extracting patches from input, it's simmilar with `Conv2D`.
+      For calculating attention weights, it affects the attention output shape.
+  padding: set if apply padding, simmilar with `Conv2D`.
+  strides: simmilar with `Conv2D`. If it's smaller then `kernel_size`, will have overlap area.
+      Currently only works if overlap happened once, like `kernel_size=3, strides=2`.
+  attn_dropout: dropout probability for attention.
+  output_dropout: dropout probability for output.
+
 Examples:
 
 >>> from keras_cv_attention_models import attention_layers
@@ -99,18 +112,4 @@ Total params: 136,452
 Trainable params: 136,452
 Non-trainable params: 0
 __________________________________________________________________________________________________
-
-
-Args:
-  inputs: input tensor.
-  embed_dim: hidden dim for attention, value and ouput.
-  num_head: number of attention heads.
-  kernel_size: kernel size for extracting patches from input and calculating attention weights.
-      For extracting patches from input, it's simmilar with `Conv2D`.
-      For calculating attention weights, it affects the attention output shape.
-  padding: set if apply padding, simmilar with `Conv2D`.
-  strides: simmilar with `Conv2D`. If it's smaller then `kernel_size`, will have overlap area.
-      Currently only works if overlap happened once, like `kernel_size=3, strides=2`.
-  attn_dropout: dropout probability for attention.
-  output_dropout: dropout probability for output.
 """

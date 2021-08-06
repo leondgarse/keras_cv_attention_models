@@ -16,7 +16,6 @@ __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like 
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `softmax`.
-  model_name: string, model name.
   **kwargs: other parameters if available.
 
 Returns:
@@ -47,6 +46,15 @@ ResNest269.__doc__ = ResNest50.__doc__
 split_attention_conv2d.__doc__ = __head_doc__ + """
 Split-Attention. Callable function, NOT defined as a layer.
 
+Args:
+  inputs: input tensor.
+  filters: output dimension.
+  kernel_size: kernel size for grouped Conv2D.
+  strides: strides for grouped Conv2D.
+  groups: number of splitted groups.
+  activation: activation used after `BatchNormalization`.
+  model_name: string, model name.
+
 Examples:
 
 >>> from keras_cv_attention_models import attention_layers
@@ -72,11 +80,4 @@ Examples:
  '2_bn/moving_variance:0': TensorShape([96]),
  '3_conv/kernel:0': TensorShape([1, 1, 96, 768]),
  '3_conv/bias:0': TensorShape([768])}
-
-Args:
-  inputs: input tensor.
-  filters: output dimension.
-  kernel_size: kernel size for grouped Conv2D.
-  groups: number of splitted groups.
-  activation: activation used after `BatchNormalization`.
 """

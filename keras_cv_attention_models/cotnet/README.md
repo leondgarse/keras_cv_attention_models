@@ -38,13 +38,13 @@
   **Change input resolution**
   ```py
   from keras_cv_attention_models import cotnet
-  mm = cotnet.CotNet50(input_shape=(480, 480, 3), pretrained="imagenet")
+  mm = cotnet.SeCotNetD101(input_shape=(480, 480, 3), pretrained="imagenet")
 
   # Run prediction on Chelsea with (480, 480) resolution
   from skimage.data import chelsea
   imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.5839457), ('n02123159', 'tiger_cat', 0.15395148), ...]
+  # [('n02124075', 'Egyptian_cat', 0.75343966), ('n02123159', 'tiger_cat', 0.09504254), ...]
   ```
 ***
