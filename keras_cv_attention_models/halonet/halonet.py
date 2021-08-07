@@ -274,7 +274,7 @@ def halo_stack(inputs, blocks, filter, strides=1, expansion=2, num_heads=4, key_
 
 
 def HaloNet(
-    model_type="b0", input_shape=(256, 256, 3), activation="relu", num_classes=1000, pretrained=None, classifier_activation="softmax", model_name="halonet", **kwargs
+    model_type="b0", input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained=None, model_name="halonet", **kwargs
 ):
     blocks_config = BLOCK_CONFIGS.get(model_type.lower(), BLOCK_CONFIGS["b0"])
     halo_block_size = blocks_config["halo_block_size"]
@@ -316,33 +316,33 @@ def HaloNet(
     return model
 
 
-def HaloNetB0(input_shape=(256, 256, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+def HaloNetB0(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(model_type="b0", **locals(), **kwargs)
 
 
-def HaloNetB1(input_shape=(256, 256, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+def HaloNetB1(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(model_type="b1", **locals(), **kwargs)
 
 
-def HaloNetB2(input_shape=(256, 256, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+def HaloNetB2(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(model_type="b2", **locals(), **kwargs)
 
 
-def HaloNetB3(input_shape=(320, 320, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+def HaloNetB3(input_shape=(320, 320, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(model_type="b3", **locals(), **kwargs)
 
 
-def HaloNetB4(input_shape=(384, 384, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+def HaloNetB4(input_shape=(384, 384, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(model_type="b4", **locals(), **kwargs)
 
 
-def HaloNetB5(input_shape=(448, 448, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+def HaloNetB5(input_shape=(448, 448, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(model_type="b5", **locals(), **kwargs)
 
 
-def HaloNetB6(input_shape=(512, 512, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+def HaloNetB6(input_shape=(512, 512, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(model_type="b6", **locals(), **kwargs)
 
 
-def HaloNetB7(input_shape=(600, 600, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+def HaloNetB7(input_shape=(600, 600, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(model_type="b7", **locals(), **kwargs)

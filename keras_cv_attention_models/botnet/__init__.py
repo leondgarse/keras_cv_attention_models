@@ -1,20 +1,22 @@
 from keras_cv_attention_models.botnet.botnet import BotNet, BotNet50, BotNet101, BotNet152, MHSAWithPositionEmbedding
 
+
 __head_doc__ = """
 Keras implementation of [botnet](https://gist.github.com/aravindsrinivas/56359b79f0ce4449bcb04ab4b56a57a2).
 Paper [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://arxiv.org/pdf/2101.11605.pdf).
 """
 
-__tail_doc__ = """  preact: whether to use pre-activation or not.
+__tail_doc__ = """  strides: strides used in the last stack. It's reported `1` works better than `2`, but slower.
+  preact: whether to use pre-activation or not.
   use_bias: whether to use biases for convolutional layers or not.
-  activation: activation used in whole model, default `relu`.
-  pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
-      Will try to download and load pre-trained model weights if not None.
   input_shape: it should have exactly 3 inputs channels, default `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
+  activation: activation used in whole model, default `relu`.
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `softmax`.
+  pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
+      Will try to download and load pre-trained model weights if not None.
   **kwargs: other parameters if available.
 
 Returns:
@@ -23,21 +25,19 @@ Returns:
 
 BotNet.__doc__ = __head_doc__ + """
 Args:
-  stack_fn: a function that returns output tensor for the stacked residual blocks.
+  num_blocks: number of blocks in each stack.
+  model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
   | Model        | params |
   | ------------ | ------ |
   | botnet50     | 21M    |
-  | botnet101    | 40M    |
-  | botnet152    | 55M    |
+  | botnet101    | 41M    |
+  | botnet152    | 56M    |
 """
 
 BotNet50.__doc__ = __head_doc__ + """
 Args:
-  strides: strides used in the last stack. It's reported `1` works better than `2`, but slower.
-  relative_pe: `True` for relative positional embedding. `False` for absolute positional embedding.
-  model_name: string, model name.
 """ + __tail_doc__
 
 BotNet101.__doc__ = BotNet50.__doc__

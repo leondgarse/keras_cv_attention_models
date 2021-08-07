@@ -10,6 +10,8 @@
   | Model        | params | Image  resolution | Top1 Acc | Download            |
   | ------------ | ------ | ----------------- | -------- | ------------------- |
   | botnet50     | 21M    | 224               | 77.604   | [botnet50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet50.h5)  |
+  | botnet101    | 41M    | 224               |          |  |
+  | botnet152    | 56M    | 224               |          |  |
 ## Usage
   ```py
   from keras_cv_attention_models import botnet
@@ -48,8 +50,6 @@
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 0.42937067), ('n02123159', 'tiger_cat', 0.3643389), ...]
-
-  mm.save("botnet50_480.h5")
   ```
 ## Relative to absolute positional embedding detail
   - [How Positional Embeddings work in Self-Attention (code in Pytorch)](https://theaisummer.com/positional-embeddings/)

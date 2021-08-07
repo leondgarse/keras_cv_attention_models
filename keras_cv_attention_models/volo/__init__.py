@@ -5,14 +5,14 @@ Keras implementation of [Github sail-sg/volo](https://github.com/sail-sg/volo).
 Paper [PDF 2106.13112 VOLO: Vision Outlooker for Visual Recognition](https://arxiv.org/pdf/2106.13112.pdf).
 """
 
-__tail_doc__ = """  input_shape: it should have exactly 3 inputs channels like `(224, 224, 3)`.
+__tail_doc__ = """  patch_size: model architecture parameter, patch size extracted from input.
+  input_shape: it should have exactly 3 inputs channels like `(224, 224, 3)`.
       Mostly pre-trained input resolution is in [224, 384, 448, 512].
+  num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   survivals: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
       Can be value like `0.5` or `0.8`, indicates the survival probability linearly changes from `1 --> 0.8` for `top --> bottom` layers.
       A higher value means a higher probability will keep the deep branch.
   classfiers: number of classfier attension layers.
-  num_classes: number of classes to classify images into. Set `0` to exclude top layers.
-  pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
       Will try to download and load pre-trained model weights if not None.
   mix_token: set True for training using `mix_token`. Should better with `token_label_top=True`.
   token_classifier_top: set True for using tokens[0] for classify when `mix_token==False`.
@@ -20,6 +20,7 @@ __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels like `
   token_label_top: Set True for returning both `token_head` and `aux_head`.
       If `token_classifier_top` / `mean_classifier_top` / `token_label_top` all `False`, will return head layer as evaluation,
       which is the default behavior.
+  pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
   **kwargs: other parameters if available.
 
 Returns:
@@ -33,7 +34,7 @@ Args:
   num_heads: model architecture parameter, num heads for each blocks.
   mlp_ratios: model architecture parameter, mlp width expansion.
   stem_hidden_dim: model architecture parameter, 128 for VOLO_d5, 64 for others.
-  patch_size: model architecture parameter, patch size extracted from input.
+  model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
   | Model        | params | Image  resolution | Top1 Acc |
@@ -83,7 +84,7 @@ Examples:
 
 >>> from keras_cv_attention_models import attention_layers
 >>> inputs = keras.layers.Input([28, 28, 192])
->>> nn = attention_layers.outlook_attention(inputs, 4, 192)
+>>> nn = attention_layers.outlook_attention(inputs, embed_dim=192, num_head=4)
 >>> cc = keras.models.Model(inputs, nn)
 >>> cc.summary()
 __________________________________________________________________________________________________
@@ -107,6 +108,73 @@ unfold_matmul_fold_1 (UnfoldMat (None, 28, 28, 192)  0           v[0][0]
                                                                tf.nn.softmax_1[0][0]
 __________________________________________________________________________________________________
 out (Dense)                     (None, 28, 28, 192)  37056       unfold_matmul_fold_1[0][0]
+==================================================================================================
+Total params: 136,452
+Trainable params: 136,452
+Non-trainable params: 0
+__________________________________________________________________________________________________
+"""
+
+outlook_attention_simple.__doc__ = __head_doc__ + """
+A simplidied version of outlook attention. Callable function, NOT defined as a layer.
+Removed `UnfoldMatmulFold` operation.
+
+As the name `fold_overlap_1` indicates, works only if overlap happens once in fold, like `kernel_size=3, strides=2`.
+For `kernel_size=3, strides=1`, overlap happens twice, will NOT work...
+
+Args:
+  inputs: input tensor.
+  embed_dim: hidden dim for attention, value and ouput.
+  num_head: number of attention heads.
+  kernel_size: kernel size for extracting patches from input and calculating attention weights.
+      For extracting patches from input, it's simmilar with `Conv2D`.
+      For calculating attention weights, it affects the attention output shape.
+  attn_dropout: dropout probability for attention.
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> inputs = keras.layers.Input([28, 28, 192])
+>>> nn = attention_layers.outlook_attention_simple(inputs, embed_dim=192, num_head=4)
+>>> cc = keras.models.Model(inputs, nn)
+>>> cc.summary()
+__________________________________________________________________________________________________
+Layer (type)                    Output Shape         Param #     Connected to
+==================================================================================================
+input_1 (InputLayer)            [(None, 28, 28, 192) 0
+__________________________________________________________________________________________________
+zero_padding2d (ZeroPadding2D)  (None, 30, 30, 192)  0           input_1[0][0]
+__________________________________________________________________________________________________
+average_pooling2d (AveragePooli (None, 10, 10, 192)  0           zero_padding2d[0][0]
+__________________________________________________________________________________________________
+attn (Dense)                    (None, 10, 10, 324)  62532       average_pooling2d[0][0]
+__________________________________________________________________________________________________
+v (Dense)                       (None, 30, 30, 192)  36864       zero_padding2d[0][0]
+__________________________________________________________________________________________________
+tf.math.truediv (TFOpLambda)    (None, 10, 10, 324)  0           attn[0][0]
+__________________________________________________________________________________________________
+tf.reshape (TFOpLambda)         (None, 10, 3, 10, 3, 0           v[0][0]
+__________________________________________________________________________________________________
+tf.reshape_2 (TFOpLambda)       (None, 10, 10, 4, 9, 0           tf.math.truediv[0][0]
+__________________________________________________________________________________________________
+tf.compat.v1.transpose (TFOpLam (None, 10, 10, 4, 3, 0           tf.reshape[0][0]
+__________________________________________________________________________________________________
+tf.nn.softmax (TFOpLambda)      (None, 10, 10, 4, 9, 0           tf.reshape_2[0][0]
+__________________________________________________________________________________________________
+tf.reshape_1 (TFOpLambda)       (None, 10, 10, 4, 9, 0           tf.compat.v1.transpose[0][0]
+__________________________________________________________________________________________________
+tf.linalg.matmul (TFOpLambda)   (None, 10, 10, 4, 9, 0           tf.nn.softmax[0][0]
+                                                                 tf.reshape_1[0][0]
+__________________________________________________________________________________________________
+tf.reshape_3 (TFOpLambda)       (None, 10, 10, 4, 3, 0           tf.linalg.matmul[0][0]
+__________________________________________________________________________________________________
+tf.compat.v1.transpose_1 (TFOpL (None, 10, 3, 10, 3, 0           tf.reshape_3[0][0]
+__________________________________________________________________________________________________
+tf.reshape_4 (TFOpLambda)       (None, 30, 30, 192)  0           tf.compat.v1.transpose_1[0][0]
+__________________________________________________________________________________________________
+tf.__operators__.getitem (Slici (None, 28, 28, 192)  0           tf.reshape_4[0][0]
+__________________________________________________________________________________________________
+out (Dense)                     (None, 28, 28, 192)  37056       tf.__operators__.getitem[0][0]
 ==================================================================================================
 Total params: 136,452
 Trainable params: 136,452

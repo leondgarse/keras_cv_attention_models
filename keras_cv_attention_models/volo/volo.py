@@ -180,7 +180,7 @@ def outlook_attention(inputs, embed_dim, num_head, kernel_size=3, padding=1, str
     return output
 
 
-def outlook_attention_simple(inputs, embed_dim, kernel_size=3, num_head=6, attn_dropout=0, name=""):
+def outlook_attention_simple(inputs, embed_dim, num_head=6, kernel_size=3, attn_dropout=0, name=""):
     key_dim = embed_dim // num_head
     FLOAT_DTYPE = tf.keras.mixed_precision.global_policy().compute_dtype
     qk_scale = tf.math.sqrt(tf.cast(key_dim, FLOAT_DTYPE))
@@ -358,22 +358,22 @@ class MixupToken(layers.Layer):
 
 
 def VOLO(
-    input_shape,
     num_blocks,
     embed_dims,
     num_heads,
     mlp_ratios,
     stem_hidden_dim=64,
     patch_size=8,
+    input_shape=(224, 224, 3),
+    num_classes=1000,
     survivals=None,
     classfiers=2,
-    num_classes=1000,
-    pretrained="imagenet",
     mix_token=False,
     token_classifier_top=False,
     mean_classifier_top=False,
     token_label_top=False,
     first_attn_type="outlook",
+    pretrained="imagenet",
     model_name="VOLO",
     **kwargs,
 ):
@@ -509,6 +509,7 @@ def VOLO_d1(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrai
     embed_dims = [192, 384]
     num_heads = [6, 12]
     mlp_ratios = [3, 3]
+    stem_hidden_dim = 64
     return VOLO(**locals(), model_name="volo_d1", **kwargs)
 
 
@@ -517,6 +518,7 @@ def VOLO_d2(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrai
     embed_dims = [256, 512]
     num_heads = [8, 16]
     mlp_ratios = [3, 3]
+    stem_hidden_dim = 64
     return VOLO(**locals(), model_name="volo_d2", **kwargs)
 
 
@@ -525,6 +527,7 @@ def VOLO_d3(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrai
     embed_dims = [256, 512]
     num_heads = [8, 16]
     mlp_ratios = [3, 3]
+    stem_hidden_dim = 64
     return VOLO(**locals(), model_name="volo_d3", **kwargs)
 
 
@@ -533,6 +536,7 @@ def VOLO_d4(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrai
     embed_dims = [384, 768]
     num_heads = [12, 16]
     mlp_ratios = [3, 3]
+    stem_hidden_dim = 64
     return VOLO(**locals(), model_name="volo_d4", **kwargs)
 
 

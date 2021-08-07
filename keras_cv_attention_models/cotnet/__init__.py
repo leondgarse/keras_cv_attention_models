@@ -1,20 +1,20 @@
-from keras_cv_attention_models.cotnet.cotnet import CotNet, CotNet50, CotNet101, SeCotNetD50, SeCotNetD101, contextual_transformer
+from keras_cv_attention_models.cotnet.cotnet import CotNet, CotNet50, CotNet101, SECotNetD50, SECotNetD101, SECotNetD152, cot_attention
+
 
 __head_doc__ = """
 Keras implementation of [Github JDAI-CV/CoTNet](https://github.com/JDAI-CV/CoTNet).
 Paper [PDF 2107.12292 Contextual Transformer Networks for Visual Recognition](https://arxiv.org/pdf/2107.12292.pdf).
 """
 
-__tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
-      Set `(None, None, 3)` for dynamic input resolution.
-  use_se: se ratio in each block if not `0`.
-  activation: activation used in whole model, default `relu`.
-  pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
-      Will try to download and load pre-trained model weights if not None.
+__tail_doc__ = """  expansion: model structure parameter, channel ouput expansion for each block.
+  cardinality: not used.
+  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
+  activation: activation used in whole model, default `relu`.
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `softmax`.
+  pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
   **kwargs: other parameters if available.
 
 Returns:
@@ -28,11 +28,9 @@ Args:
   deep_stem: model structure parameter, boolean value if use deep conv in stem block.
   attn_types: model structure parameter, a list of `"sa"` or `"cot"` or `None`, indicates attnetion type for each stack or block.
       For `"sa"` means `split_attention_conv2d` from `resnest`.
-      For `"cot"` means `contextual_transformer` from this `CotNet` architecture.
+      For `"cot"` means `cot_attention` from this `CotNet` architecture.
       For `None` means `Conv2D` layer.
   strides: model structure parameter, strides value for the first block in each stack.
-  expansion: model structure parameter, channel ouput expansion for each block.
-  cardinality: not used.
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
@@ -53,10 +51,11 @@ Args:
 """ + __tail_doc__
 
 CotNet101.__doc__ = CotNet50.__doc__
-SeCotNetD50.__doc__ = CotNet50.__doc__
-SeCotNetD101.__doc__ = CotNet50.__doc__
+SECotNetD50.__doc__ = CotNet50.__doc__
+SECotNetD101.__doc__ = CotNet50.__doc__
+SECotNetD152.__doc__ = CotNet50.__doc__
 
-contextual_transformer.__doc__ = __head_doc__ + """
+cot_attention.__doc__ = __head_doc__ + """
 Contextual transformer. Callable function, NOT defined as a layer.
 
 Args:
@@ -68,7 +67,7 @@ Examples:
 
 >>> from keras_cv_attention_models import attention_layers
 >>> inputs = keras.layers.Input([28, 28, 192])
->>> nn = attention_layers.contextual_transformer(inputs, kernel_size=3)
+>>> nn = attention_layers.cot_attention(inputs, kernel_size=3)
 >>> dd = keras.models.Model(inputs, nn)
 >>> dd.summary()
 >>> dd.output_shape

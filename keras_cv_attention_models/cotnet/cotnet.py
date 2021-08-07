@@ -42,24 +42,6 @@ def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use
     )(inputs)
 
 
-def se_module(inputs, se_ratio=4, name=""):
-    channel_axis = 1 if K.image_data_format() == "channels_first" else -1
-    h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
-
-    filters = inputs.shape[channel_axis]
-    # reduction = _make_divisible(filters // se_ratio, 8)
-    reduction = filters // se_ratio
-    # se = GlobalAveragePooling2D()(inputs)
-    # se = Reshape((1, 1, filters))(se)
-    se = tf.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)
-    se = keras.layers.Conv2D(reduction, kernel_size=1, use_bias=True, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "1_conv")(se)
-    # se = PReLU(shared_axes=[1, 2])(se)
-    se = keras.layers.Activation("swish")(se)
-    se = keras.layers.Conv2D(filters, kernel_size=1, use_bias=True, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "2_conv")(se)
-    se = keras.layers.Activation("sigmoid")(se)
-    return keras.layers.Multiply()([inputs, se])
-
-
 def group_conv(inputs, filters, kernel_size, groups=4, name="", **kwargs):
     # Using groups=num in `Conv2D` is slow with `mixed_float16` policy
     return conv2d_no_bias(inputs, filters, kernel_size, groups=groups, name=name)
@@ -67,7 +49,7 @@ def group_conv(inputs, filters, kernel_size, groups=4, name="", **kwargs):
     # return tf.concat([conv2d_no_bias(splitted_inputs[ii], filters // groups, kernel_size, name=name + "g{}_".format(ii + 1), **kwargs) for ii in range(groups)], axis=-1)
 
 
-def contextual_transformer(inputs, kernel_size=3, activation="relu", name=""):
+def cot_attention(inputs, kernel_size=3, activation="relu", name=""):
     # inputs, kernel_size, strides, activation, name = tf.ones([1, 7, 7, 512]), 3, 1, "relu", ""
     filters = inputs.shape[-1]
     randix = 2
@@ -130,14 +112,14 @@ def contextual_transformer(inputs, kernel_size=3, activation="relu", name=""):
     return output
 
 
-def cot_block(inputs, filters, strides=1, shortcut=False, expansion=4, cardinality=1, attn_type="cot", survival=None, use_se=0, activation="relu", name=""):
+def cot_block(inputs, filters, strides=1, shortcut=False, expansion=4, cardinality=1, attn_type="cot", avd_first=True, survival=None, activation="relu", name=""):
     # target_dimension = round(planes * block.expansion * self.rb)
     expanded_filter = round(filters * expansion)
     if shortcut:
         # print(">>>> Downsample")
+        # shortcut = conv2d_no_bias(inputs, expanded_filter, 1, strides=strides, name=name + "shorcut_")
         short_cut = layers.AveragePooling2D(pool_size=strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs)
         shortcut = conv2d_no_bias(short_cut, expanded_filter, 1, strides=1, name=name + "shorcut_")
-        # shortcut = conv2d_no_bias(inputs, expanded_filter, 1, strides=strides, name=name + "shorcut_")
         shortcut = batchnorm_with_activation(shortcut, activation=None, zero_gamma=False, name=name + "shorcut_")
     else:
         shortcut = inputs
@@ -146,12 +128,12 @@ def cot_block(inputs, filters, strides=1, shortcut=False, expansion=4, cardinali
     nn = conv2d_no_bias(inputs, filters, 1, name=name + "1_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
 
-    if strides > 1 and attn_type == "cot":
+    if avd_first and strides > 1 and attn_type == "cot":
         nn = layers.ZeroPadding2D(padding=1, name=name + "pool_pad")(nn)
         nn = layers.AveragePooling2D(3, strides=2, name=name + "pool")(nn)
 
     if attn_type == "cot":
-        nn = contextual_transformer(nn, 3, activation=activation, name=name + "cot_")
+        nn = cot_attention(nn, 3, activation=activation, name=name + "cot_")
     elif attn_type == "cotx":
         nn = coxt_layer(nn, 3)  # Not implemented
     elif attn_type == "sa":
@@ -161,11 +143,12 @@ def cot_block(inputs, filters, strides=1, shortcut=False, expansion=4, cardinali
     else:
         nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", name=name + "conv_")
 
+    if not avd_first and strides > 1 and attn_type == "cot":
+        nn = layers.ZeroPadding2D(padding=1, name=name + "pool_pad")(nn)
+        nn = layers.AveragePooling2D(3, strides=2, name=name + "pool")(nn)
+
     nn = conv2d_no_bias(nn, expanded_filter, 1, name=name + "2_")
     nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "2_")
-
-    if use_se:
-        nn = se_module(nn, se_ratio=4 * expansion, name=name + "se_")
 
     # print(">>>>", nn.shape, shortcut.shape)
     if survival is not None and survival < 1:
@@ -175,16 +158,16 @@ def cot_block(inputs, filters, strides=1, shortcut=False, expansion=4, cardinali
     return layers.Activation(activation, name=name + "out")(nn)
 
 
-def cot_stack(inputs, blocks, filter, strides=2, expansion=4, cardinality=1, attn_types="cot", survival=None, use_se=0, activation="relu", name=""):
+def cot_stack(inputs, blocks, filter, strides=2, expansion=4, cardinality=1, attn_types="cot", avd_first=True, survival=None, activation="relu", name=""):
     shortcut = True if strides != 1 or inputs.shape[-1] != filter * expansion else False
     attn_type = attn_types[0] if isinstance(attn_types, (list, tuple)) else attn_types
-    nn = cot_block(inputs, filter, strides, shortcut, expansion, cardinality, attn_type, survival, use_se, activation, name=name + "block1_")
+    nn = cot_block(inputs, filter, strides, shortcut, expansion, cardinality, attn_type, avd_first, survival, activation, name=name + "block1_")
     shortcut = False
     # print(">>>> attn_types:", attn_types)
     for ii in range(1, blocks):
         block_name = name + "block{}_".format(ii + 1)
         attn_type = attn_types[ii] if isinstance(attn_types, (list, tuple)) else attn_types
-        nn = cot_block(nn, filter, 1, shortcut, expansion, cardinality, attn_type, survival, use_se, activation, name=block_name)
+        nn = cot_block(nn, filter, 1, shortcut, expansion, cardinality, attn_type, avd_first, survival, activation, name=block_name)
     return nn
 
 
@@ -211,15 +194,15 @@ def CotNet(
     stem_width=64,
     deep_stem=False,
     attn_types="cot",
+    avd_first=True,
     strides=[1, 2, 2, 2],
-    input_shape=(224, 224, 3),
     expansion=4,
     cardinality=1,
-    use_se=0,
-    activation="relu",
-    pretrained="imagenet",
+    input_shape=(224, 224, 3),
     num_classes=1000,
+    activation="relu",
     classifier_activation="softmax",
+    pretrained="imagenet",
     model_name="cotnet",
     **kwargs
 ):
@@ -231,7 +214,7 @@ def CotNet(
         name = "stack{}_".format(id + 1)
         survival = None
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
-        nn = cot_stack(nn, num_block, out_channel, stride, expansion, cardinality, attn_type, survival, use_se, activation=activation, name=name)
+        nn = cot_stack(nn, num_block, out_channel, stride, expansion, cardinality, attn_type, avd_first, survival, activation=activation, name=name)
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
@@ -247,7 +230,7 @@ def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"
         print(">>>> No pretraind available, model will be random initialized")
         return
 
-    request_resolution = 320 if input_shape[0] == 320 else 224
+    request_resolution = 320 if input_shape[0] == 320 and model.name == "se_cotnetd152" else 224
     pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/{}_{}.h5"
     url = pre_url.format(model.name, request_resolution)
     file_name = os.path.basename(url)
@@ -261,19 +244,21 @@ def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"
         model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
 
 
-def CotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+def CotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
     strides = [1, 2, 2, 2]
+    avd_first = True
     return CotNet(**locals(), **kwargs, model_name="cotnet50")
 
 
-def CotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+def CotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
     strides = [1, 2, 2, 2]
+    avd_first = True
     return CotNet(**locals(), **kwargs, model_name="cotnet101")
 
 
-def SeCotNetD50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+def SECotNetD50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
     strides = [2, 2, 2, 2]
     attn_types = [
@@ -282,10 +267,11 @@ def SeCotNetD50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", 
         ["cot", "sa"] * (num_blocks[2] // 2 + 1),  # stack 3
         "cot",  # stack 4
     ]
+    avd_first = True
     return CotNet(deep_stem=True, stem_width=32, **locals(), **kwargs, model_name="se_cotnetd50")
 
 
-def SeCotNetD101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", pretrained="imagenet", **kwargs):
+def SECotNetD101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
     strides = [2, 2, 2, 2]
     attn_types = [
@@ -294,4 +280,18 @@ def SeCotNetD101(input_shape=(224, 224, 3), num_classes=1000, activation="relu",
         ["cot", "sa"] * (num_blocks[2] // 2 + 1),  # stack 3
         "cot",  # stack 4
     ]
+    avd_first = True
     return CotNet(deep_stem=True, stem_width=64, **locals(), **kwargs, model_name="se_cotnetd101")
+
+
+def SECotNetD152(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 8, 36, 3]
+    strides = [2, 2, 2, 2]
+    attn_types = [
+        "sa",  # stack 1
+        "sa",  # stack 2
+        ["cot", "sa"] * (num_blocks[2] // 2 + 1),  # stack 3
+        "cot",  # stack 4
+    ]
+    avd_first = False
+    return CotNet(deep_stem=True, stem_width=64, **locals(), **kwargs, model_name="se_cotnetd152")

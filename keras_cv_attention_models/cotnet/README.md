@@ -15,8 +15,8 @@
   | CoTNet-101     | 38.3M  | 224              | 6.1   |   82.8   | [cotnet101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet101_224.h5) |
   | CoTNeXt-101    | 53.4M  | 224              | 8.2   |   83.2   |  |
   | SE-CoTNetD-101 | 40.9M  | 224              | 8.5   |   83.2   | [se_cotnetd101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd101_224.h5) |
-  | SE-CoTNetD-152 | 55.8M  | 224              | 17.0  |   84.0   |  |
-  | SE-CoTNetD-152 | 55.8M  | 320              | 26.5  |   84.6   |  |
+  | SE-CoTNetD-152 | 55.8M  | 224              | 17.0  |   84.0   | [se_cotnetd101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd152_224.h5) |
+  | SE-CoTNetD-152 | 55.8M  | 320              | 26.5  |   84.6   | [se_cotnetd101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd152_320.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import cotnet
@@ -38,7 +38,7 @@
   **Change input resolution**
   ```py
   from keras_cv_attention_models import cotnet
-  mm = cotnet.SeCotNetD101(input_shape=(480, 480, 3), pretrained="imagenet")
+  mm = cotnet.SECotNetD101(input_shape=(480, 480, 3), pretrained="imagenet")
 
   # Run prediction on Chelsea with (480, 480) resolution
   from skimage.data import chelsea
@@ -46,5 +46,10 @@
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 0.75343966), ('n02123159', 'tiger_cat', 0.09504254), ...]
+
+  print(f"{cotnet.SECotNetD101(input_shape=(224, 224, 3), num_classes=0).output_shape = }")
+  # cotnet.SECotNetD101(input_shape=(224, 224, 3), num_classes=0).output_shape = (None, 7, 7, 2048)
+  print(f"{cotnet.SECotNetD101(input_shape=(480, 480, 3), num_classes=0).output_shape = }")
+  # cotnet.SECotNetD101(input_shape=(480, 480, 3), num_classes=0).output_shape = (None, 15, 15, 2048)
   ```
 ***

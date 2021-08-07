@@ -1,21 +1,21 @@
 from keras_cv_attention_models.resnest.resnest import ResNest, ResNest50, ResNest101, ResNest200, ResNest269, rsoftmax, split_attention_conv2d
 
+
 __head_doc__ = """
 Keras implementation of [ResNeSt](https://github.com/zhanghang1989/ResNeSt).
 Paper [PDF 2004.08955 ResNeSt: Split-Attention Networks](https://arxiv.org/pdf/2004.08955.pdf).
 """
 
-__tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
+__tail_doc__ = """  groups: controls number of split groups in `split_attention_conv2d`.
+  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
       Set `(None, None, 3)` for dynamic input resolution.
-  stem_width: output dimension after stem.
-  groups: controls number of split groups in `split_attention_conv2d`.
-  activation: activation used in whole model, default `relu`.
-  pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
-      Will try to download and load pre-trained model weights if not None.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
+  activation: activation used in whole model, default `relu`.
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `softmax`.
+  pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
+      Will try to download and load pre-trained model weights if not None.
   **kwargs: other parameters if available.
 
 Returns:
@@ -24,7 +24,9 @@ Returns:
 
 ResNest.__doc__ = __head_doc__ + """
 Args:
-  blocks_set: model structure parameter, number of blocks in each stack.
+  num_blocks: number of blocks in each stack.
+  stem_width: output dimension after stem.
+  model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
   | Model          | params | Image  resolution | Top1 Acc |
@@ -53,7 +55,6 @@ Args:
   strides: strides for grouped Conv2D.
   groups: number of splitted groups.
   activation: activation used after `BatchNormalization`.
-  model_name: string, model name.
 
 Examples:
 

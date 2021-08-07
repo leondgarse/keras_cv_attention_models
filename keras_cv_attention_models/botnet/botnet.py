@@ -266,15 +266,16 @@ def bot_stack(
 
 
 def BotNet(
-    stack_fn,
+    num_blocks,
+    strides=1,
     preact=False,
     use_bias=False,
-    model_name="botnet",
-    activation="relu",
-    pretrained="imagenet",
     input_shape=(224, 224, 3),
     num_classes=1000,
+    activation="relu",
     classifier_activation="softmax",
+    pretrained="imagenet",
+    model_name="botnet",
     **kwargs
 ):
     img_input = layers.Input(shape=input_shape)
@@ -287,7 +288,13 @@ def BotNet(
     nn = layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name="pool1_pad")(nn)
     nn = layers.MaxPooling2D(3, strides=2, name="pool1_pool")(nn)
 
-    nn = stack_fn(nn)
+    out_channels = [64, 128, 256, 512]
+    stack_strides = [1, 2, 2, strides]
+    for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, stack_strides)):
+        name = "stack{}_".format(id + 1)
+        use_MHSA = True if id == len(num_blocks) - 1 else False # use MHSA in the last stack
+        nn = bot_stack(nn, out_channel * 4, num_block, strides=stride, activation=activation, relative_pe=True, name=name, use_MHSA=use_MHSA)
+
     if preact:
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="post_")
     if num_classes > 0:
@@ -326,34 +333,16 @@ def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"
             pass
 
 
-def BotNet50(strides=1, activation="relu", relative_pe=True, pretrained="imagenet", input_shape=(224, 224, 3), num_classes=1000, **kwargs):
-    def stack_fn(nn):
-        nn = bot_stack(nn, 64 * 4, 3, strides=1, activation=activation, name="stack1_", use_MHSA=False)
-        nn = bot_stack(nn, 128 * 4, 4, strides=2, activation=activation, name="stack2_", use_MHSA=False)
-        nn = bot_stack(nn, 256 * 4, 6, strides=2, activation=activation, name="stack3_", use_MHSA=False)
-        nn = bot_stack(nn, 512 * 4, 3, strides=strides, activation=activation, relative_pe=relative_pe, name="stack4_", use_MHSA=True)
-        return nn
-
-    return BotNet(stack_fn, False, False, "botnet50", activation, pretrained, input_shape, num_classes, **kwargs)
+def BotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", strides=1, **kwargs):
+    num_blocks = [3, 4, 6, 4]
+    return BotNet(**locals(), model_name="botnet50", **kwargs)
 
 
-def BotNet101(strides=1, activation="relu", relative_pe=True, pretrained="imagenet", input_shape=(224, 224, 3), num_classes=1000, **kwargs):
-    def stack_fn(nn):
-        nn = bot_stack(nn, 64 * 4, 3, strides=1, activation=activation, name="stack1_", use_MHSA=False)
-        nn = bot_stack(nn, 128 * 4, 4, strides=2, activation=activation, name="stack2_", use_MHSA=False)
-        nn = bot_stack(nn, 256 * 4, 23, strides=2, activation=activation, name="stack3_", use_MHSA=False)
-        nn = bot_stack(nn, 512 * 4, 3, strides=strides, activation=activation, relative_pe=relative_pe, name="stack4_", use_MHSA=True)
-        return nn
-
-    return BotNet(stack_fn, False, False, "botnet101", activation, pretrained, input_shape, num_classes, **kwargs)
+def BotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained=None, strides=1, **kwargs):
+    num_blocks = [3, 4, 23, 4]
+    return BotNet(**locals(), model_name="botnet101", **kwargs)
 
 
-def BotNet152(strides=1, activation="relu", relative_pe=True, pretrained="imagenet", input_shape=(224, 224, 3), num_classes=1000, **kwargs):
-    def stack_fn(nn):
-        nn = bot_stack(nn, 64 * 4, 3, strides=1, activation=activation, name="stack1_", use_MHSA=False)
-        nn = bot_stack(nn, 128 * 4, 8, strides=2, activation=activation, name="stack2_", use_MHSA=False)
-        nn = bot_stack(nn, 256 * 4, 36, strides=2, activation=activation, name="stack3_", use_MHSA=False)
-        nn = bot_stack(nn, 512 * 4, 3, strides=strides, activation=activation, relative_pe=relative_pe, name="stack4_", use_MHSA=True)
-        return nn
-
-    return BotNet(stack_fn, False, False, "botnet152", activation, pretrained, input_shape, num_classes, **kwargs)
+def BotNet152(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained=None, strides=1, **kwargs):
+    num_blocks = [3, 8, 36, 4]
+    return BotNet(**locals(), model_name="botnet152", **kwargs)
