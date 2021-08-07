@@ -83,7 +83,7 @@
     | halo_b6 | 47.98M | 512              |          |
     | halo_b7 | 68.4M  | 600              |          |
 
-  - **[In progress]** [CoTNet](keras_cv_attention_models/cotnet)
+  - [CoTNet](keras_cv_attention_models/cotnet)
     | Model          | params | Image resolution | FLOPs | Top1 Acc | Download            |
     | -------------- |:------:| ---------------- | ----- |:--------:| ------------------- |
     | CoTNet-50      | 22.2M  | 224              | 3.3   |   81.3   | [cotnet50_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet50_224.h5) |
@@ -92,8 +92,8 @@
     | CoTNet-101     | 38.3M  | 224              | 6.1   |   82.8   | [cotnet101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet101_224.h5) |
     | CoTNeXt-101    | 53.4M  | 224              | 8.2   |   83.2   |  |
     | SE-CoTNetD-101 | 40.9M  | 224              | 8.5   |   83.2   | [se_cotnetd101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd101_224.h5) |
-    | SE-CoTNetD-152 | 55.8M  | 224              | 17.0  |   84.0   | [se_cotnetd101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd152_224.h5) |
-    | SE-CoTNetD-152 | 55.8M  | 320              | 26.5  |   84.6   | [se_cotnetd101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd152_320.h5) |
+    | SE-CoTNetD-152 | 55.8M  | 224              | 17.0  |   84.0   | [se_cotnetd152_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd152_224.h5) |
+    | SE-CoTNetD-152 | 55.8M  | 320              | 26.5  |   84.6   | [se_cotnetd152_320.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd152_320.h5) |
 
   - **[In progress]** [CoAtNet](keras_cv_attention_models/coatnet)
     | Model                                | params | Image resolution | Top1 Acc |
