@@ -278,9 +278,9 @@ def BotNet(
     model_name="botnet",
     **kwargs
 ):
-    img_input = layers.Input(shape=input_shape)
+    inputs = layers.Input(shape=input_shape)
 
-    nn = layers.ZeroPadding2D(padding=((3, 3), (3, 3)), name="conv1_pad")(img_input)
+    nn = layers.ZeroPadding2D(padding=((3, 3), (3, 3)), name="conv1_pad")(inputs)
     nn = layers.Conv2D(64, 7, strides=2, use_bias=use_bias, name="conv1_conv")(nn)
 
     if not preact:
@@ -301,7 +301,7 @@ def BotNet(
         nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         nn = layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
-    model = keras.models.Model(img_input, nn, name=model_name)
+    model = keras.models.Model(inputs, nn, name=model_name)
     reload_model_weights(model, input_shape, pretrained)
     return model
 
@@ -334,15 +334,15 @@ def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"
 
 
 def BotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", strides=1, **kwargs):
-    num_blocks = [3, 4, 6, 4]
+    num_blocks = [3, 4, 6, 3]
     return BotNet(**locals(), model_name="botnet50", **kwargs)
 
 
 def BotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained=None, strides=1, **kwargs):
-    num_blocks = [3, 4, 23, 4]
+    num_blocks = [3, 4, 23, 3]
     return BotNet(**locals(), model_name="botnet101", **kwargs)
 
 
 def BotNet152(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained=None, strides=1, **kwargs):
-    num_blocks = [3, 8, 36, 4]
+    num_blocks = [3, 8, 36, 3]
     return BotNet(**locals(), model_name="botnet152", **kwargs)
