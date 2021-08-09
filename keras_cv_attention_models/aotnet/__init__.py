@@ -1,4 +1,21 @@
-from keras_cv_attention_models.aotnet.aotnet import AotNet, AotNet50, AotNet101, AotNet152, AotNet50V2, AotNet101V2, AotNet152V2, attn_block, batchnorm_with_activation, conv2d_no_bias, se_module, stem
+from keras_cv_attention_models.aotnet.aotnet import (
+    AotNet,
+    AotNet50,
+    AotNet101,
+    AotNet152,
+    AotNet50V2,
+    AotNet101V2,
+    AotNet152V2,
+    attn_block,
+    batchnorm_with_activation,
+    conv2d_no_bias,
+    se_module,
+    attn_block,
+    block,
+    stack1,
+    stack2,
+    stem,
+)
 
 
 __head_doc__ = """
@@ -8,7 +25,7 @@ Set parameters like `attn_types` and `se_ratio` and others, which is used to app
 
 __tail_doc__ = """  stem_width: output dimension for stem block.
   deep_stem: Boolean value if use deep stem.
-  stem_down_sample: Boolean value if ass `MaxPooling2D` layer after stem block.
+  stem_downsample: Boolean value if ass `MaxPooling2D` layer after stem block.
   attn_types: is a `string` or `list`, indicates attention layer type for each stack.
       Each element can also be a `string` or `list`, indicates attention layer type for each block.
       - `None`: `Conv2D`

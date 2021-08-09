@@ -21,7 +21,7 @@
     mm = aotnet.AotNet50(attn_types=None, deep_stem=False, strides=2)
 
     # se_ResNetRS50 like, 22.4M parameters
-    mm = aotnet.AotNet50(expansion=1, deep_stem=False, se_ratio=0.25, stem_down_sample=False, strides=2)
+    mm = aotnet.AotNet50(expansion=1, deep_stem=False, se_ratio=0.25, stem_downsample=False, strides=2)
 
     # ResNest50 like, 27.6M parameters
     mm = aotnet.AotNet50(attn_types="sa", deep_stem=True, strides=2)

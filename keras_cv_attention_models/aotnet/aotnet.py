@@ -86,6 +86,7 @@ def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_bloc
         nn = se_module(nn, se_ratio=se_ratio, activation=activation, name=name + "se_")
     return nn
 
+
 def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansion=4, attn_type=None, se_ratio=0, activation="relu", name=""):
     expanded_filter = filters * expansion
     halo_block_size = 4
@@ -118,10 +119,10 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
         nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "3_")
 
     if preact:  # ResNetV2
-        return layers.Add(name=name + "_add")([shortcut, nn])
+        return layers.Add(name=name + "add")([shortcut, nn])
     else:
         nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "3_")
-        nn = layers.Add(name=name + "_add")([shortcut, nn])
+        nn = layers.Add(name=name + "add")([shortcut, nn])
         return layers.Activation(activation, name=name + "out")(nn)
 
 
@@ -170,7 +171,7 @@ def AotNet(
     stack_strides=[1, 2, 2, 1],
     stem_width=64,
     deep_stem=False,
-    stem_down_sample=True,
+    stem_downsample=True,
     attn_types=None,
     expansion=4,
     se_ratio=0, # (0, 1)
@@ -186,7 +187,7 @@ def AotNet(
 
     if not preact:
         nn = batchnorm_with_activation(nn, activation=activation, name="stem_")
-    if stem_down_sample:
+    if stem_downsample:
         nn = layers.ZeroPadding2D(padding=1, name="stem_pool_pad")(nn)
         nn = layers.MaxPooling2D(pool_size=3, strides=2, name="stem_pool")(nn)
 
