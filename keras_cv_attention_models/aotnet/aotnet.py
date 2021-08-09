@@ -109,9 +109,9 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
     if expansion > 1:
         nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "1_")
     else:   # ResNet-RS like
-        # nn = conv2d_no_bias(inputs, filters, 3, strides=1, padding="SAME", name=name + "1_")
-        nn = conv2d_no_bias(inputs, filters, 3, strides=strides, padding="SAME", name=name + "1_")
-        strides = 1
+        nn = conv2d_no_bias(inputs, filters, 3, strides=1, padding="SAME", name=name + "1_") # Using strides=1 for not changing input shape
+        # nn = conv2d_no_bias(inputs, filters, 3, strides=strides, padding="SAME", name=name + "1_")
+        # strides = 1
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
     nn = attn_block(nn, filters, strides, attn_type, se_ratio, halo_block_size, activation, name)
 
