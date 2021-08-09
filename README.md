@@ -31,7 +31,8 @@
 
     """ Run predict """
     from skimage.data import chelsea
-    imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
+    img = chelsea() # Chelsea the cat
+    imm = keras.applications.imagenet_utils.preprocess_input(img, mode='torch')
     pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
     pred = tf.nn.softmax(pred).numpy()  # If classifier activation is not softmax
     print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
@@ -46,7 +47,8 @@
     # Mixing se and outlook and halo and mhsa and cot_attention, 21M parameters
     # 50 is just a picked number that larger than the relative `num_block`
     from keras_cv_attention_models import aotnet
-    mm = aotnet.AotNet50V2(attn_types=[None, "outlook", ["mhsa", "halo"] * 50, "cot"], se_ratio=[0.25, 0.25, 0, 0], deep_stem=True, strides=1)
+    attn_types=[None, "outlook", ["mhsa", "halo"] * 50, "cot"]
+    mm = aotnet.AotNet50V2(attn_types=attn_types, se_ratio=[0.25, 0.25, 0, 0], deep_stem=True, strides=1)
     ```
   - [botnet](keras_cv_attention_models/botnet)
     | Model        | params | Image  resolution | Top1 Acc | Download            |
