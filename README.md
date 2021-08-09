@@ -47,8 +47,9 @@
     # Mixing se and outlook and halo and mhsa and cot_attention, 21M parameters
     # 50 is just a picked number that larger than the relative `num_block`
     from keras_cv_attention_models import aotnet
-    attn_types=[None, "outlook", ["mhsa", "halo"] * 50, "cot"]
-    mm = aotnet.AotNet50V2(attn_types=attn_types, se_ratio=[0.25, 0.25, 0, 0], deep_stem=True, strides=1)
+    attn_types = [None, "outlook", ["mhsa", "halo"] * 50, "cot"]
+    se_ratio = [0.25, 0.25, 0, 0]
+    mm = aotnet.AotNet50V2(attn_types=attn_types, se_ratio=se_ratio, deep_stem=True, strides=1)
     ```
   - [botnet](keras_cv_attention_models/botnet)
     | Model        | params | Image  resolution | Top1 Acc | Download            |
