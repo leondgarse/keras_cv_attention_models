@@ -41,6 +41,13 @@
     #  ('n02127052', 'lynx', 0.00017674894),
     #  ('n02123597', 'Siamese_cat', 4.9493494e-05)]
     ```
+  - [aotnet](keras_cv_attention_models/aotnet) is just a `ResNet` / `ResNetV2` like framework, that set parameters like `attn_types` and `se_ratio` and others, which is used to apply different types attention layer.
+    ```py
+    # Mixing se and outlook and halo and mhsa and cot_attention, 21M parameters
+    # 50 is just a picked number that larger than the relative `num_block`
+    from keras_cv_attention_models import aotnet
+    mm = aotnet.AotNet50V2(attn_types=[None, "outlook", ["mhsa", "halo"] * 50, "cot"], se_ratio=[0.25, 0.25, 0, 0], deep_stem=True, strides=1)
+    ```
   - [botnet](keras_cv_attention_models/botnet)
     | Model        | params | Image  resolution | Top1 Acc | Download            |
     | ------------ | ------ | ----------------- | -------- | ------------------- |

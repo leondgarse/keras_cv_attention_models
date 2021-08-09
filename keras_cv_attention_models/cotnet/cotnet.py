@@ -135,7 +135,7 @@ def cot_block(inputs, filters, strides=1, shortcut=False, expansion=4, cardinali
     if attn_type == "cot":
         nn = cot_attention(nn, 3, activation=activation, name=name + "cot_")
     elif attn_type == "cotx":
-        nn = coxt_layer(nn, 3)  # Not implemented
+        nn = coxt_attention(nn, 3)  # Not implemented
     elif attn_type == "sa":
         from keras_cv_attention_models.attention_layers import split_attention_conv2d
 
@@ -274,12 +274,8 @@ def SECotNetD50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", 
 def SECotNetD101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
     strides = [2, 2, 2, 2]
-    attn_types = [
-        "sa",  # stack 1
-        "sa",  # stack 2
-        ["cot", "sa"] * (num_blocks[2] // 2 + 1),  # stack 3
-        "cot",  # stack 4
-    ]
+    # [stack 1, stack 2, stack 3, stack 4], 50 means just as long as larger than num_blocks[2]
+    attn_types = ["sa", "sa", ["cot", "sa"] * 50, "cot"]
     avd_first = True
     return CotNet(deep_stem=True, stem_width=64, **locals(), **kwargs, model_name="se_cotnetd101")
 
@@ -287,11 +283,7 @@ def SECotNetD101(input_shape=(224, 224, 3), num_classes=1000, activation="relu",
 def SECotNetD152(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 8, 36, 3]
     strides = [2, 2, 2, 2]
-    attn_types = [
-        "sa",  # stack 1
-        "sa",  # stack 2
-        ["cot", "sa"] * (num_blocks[2] // 2 + 1),  # stack 3
-        "cot",  # stack 4
-    ]
+    # [stack 1, stack 2, stack 3, stack 4], 50 means just as long as larger than num_blocks[2]
+    attn_types = ["sa", "sa", ["cot", "sa"] * 50, "cot"]
     avd_first = False
     return CotNet(deep_stem=True, stem_width=64, **locals(), **kwargs, model_name="se_cotnetd152")
