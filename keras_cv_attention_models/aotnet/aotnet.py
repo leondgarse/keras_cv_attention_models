@@ -86,7 +86,7 @@ def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_bloc
         nn = se_module(nn, se_ratio=se_ratio, activation=activation, name=name + "se_")
     return nn
 
-def block1(inputs, filters, strides=1, shortcut=False, expansion=4, attn_type=None, se_ratio=0, activation="relu", name=""):
+def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansion=4, attn_type=None, se_ratio=0, activation="relu", name=""):
     expanded_filter = filters * expansion
     halo_block_size = 4
     if attn_type == "halo" and inputs.shape[1] % halo_block_size != 0:  # HaloAttention
@@ -94,80 +94,60 @@ def block1(inputs, filters, strides=1, shortcut=False, expansion=4, attn_type=No
         pad_head, pad_tail = gap // 2, gap - gap // 2
         inputs = layers.ZeroPadding2D(padding=((pad_head, pad_tail), (pad_head, pad_tail)), name=name + "gap_pad")(inputs)
 
-    if shortcut:
-        if strides > 1:
-            shortcut = layers.AveragePooling2D(pool_size=strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs)
-        else:
-            shortcut = inputs
-        shortcut = conv2d_no_bias(shortcut, expanded_filter, 1, strides=1, name=name + "shorcut_")
-        shortcut = batchnorm_with_activation(shortcut, activation=None, zero_gamma=False, name=name + "shorcut_")
-    else:
-        shortcut = inputs
+    shortcut = layers.MaxPooling2D(strides, strides=strides, padding="SAME")(inputs) if strides > 1 else inputs
 
-    nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "1_")
-    # nn = conv2d_no_bias(inputs, filters, 3, strides=1, padding="SAME", name=name + "1_")
+    if preact:  # ResNetV2
+        inputs = batchnorm_with_activation(inputs, activation=activation, zero_gamma=False, name=name + "preact_")
+
+    if conv_shortcut:   # Set a new shortcut using conv
+        shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs) if strides > 1 else inputs
+        shortcut = conv2d_no_bias(shortcut, expanded_filter, 1, strides=1, name=name + "shorcut_")
+        if not preact:  # ResNet
+            shortcut = batchnorm_with_activation(shortcut, activation=None, zero_gamma=False, name=name + "shorcut_")
+
+    if expansion > 1:
+        nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "1_")
+    else:   # ResNet-RS like
+        # nn = conv2d_no_bias(inputs, filters, 3, strides=1, padding="SAME", name=name + "1_")
+        nn = conv2d_no_bias(inputs, filters, 3, strides=strides, padding="SAME", name=name + "1_")
+        strides = 1
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
     nn = attn_block(nn, filters, strides, attn_type, se_ratio, halo_block_size, activation, name)
 
-    nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "3_")
-    nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "3_")
+    if expansion > 1:   # not ResNet-RS like
+        nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "3_")
 
-    nn = layers.Add(name=name + "_add")([shortcut, nn])
-    return layers.Activation(activation, name=name + "out")(nn)
+    if preact:  # ResNetV2
+        return layers.Add(name=name + "_add")([shortcut, nn])
+    else:
+        nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "3_")
+        nn = layers.Add(name=name + "_add")([shortcut, nn])
+        return layers.Activation(activation, name=name + "out")(nn)
 
 
-def stack1(inputs, blocks, filters, strides=2, expansion=4, attn_types=None, se_ratio=0, activation="relu", name=""):
+def stack1(inputs, blocks, filters, preact=False, strides=2, expansion=4, attn_types=None, se_ratio=0, activation="relu", name=""):
     nn = inputs
     # print(">>>> attn_types:", attn_types)
     for id in range(blocks):
-        shortcut = True if id == 0 and (strides != 1 or inputs.shape[-1] != filters * expansion) else False
+        conv_shortcut = True if id == 0 and (strides != 1 or inputs.shape[-1] != filters * expansion) else False
         cur_strides = strides if id == 0 else 1
         block_name = name + "block{}_".format(id + 1)
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
         cur_se_ratio = se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio
-        nn = block1(nn, filters, cur_strides, shortcut, expansion, attn_type, cur_se_ratio, activation, name=block_name)
+        nn = block(nn, filters, preact, cur_strides, conv_shortcut, expansion, attn_type, cur_se_ratio, activation, name=block_name)
     return nn
 
 
-def block2(inputs, filters, strides=1, shortcut=False, expansion=4, attn_type=None, se_ratio=0, activation="relu", name=""):
-    expanded_filter = filters * expansion
-    halo_block_size = 4
-    if attn_type == "halo" and inputs.shape[1] % halo_block_size != 0:  # HaloAttention
-        gap = halo_block_size - inputs.shape[1] % halo_block_size
-        pad_head, pad_tail = gap // 2, gap - gap // 2
-        inputs = layers.ZeroPadding2D(padding=((pad_head, pad_tail), (pad_head, pad_tail)), name=name + "gap_pad")(inputs)
-
-    preact = batchnorm_with_activation(inputs, activation=activation, zero_gamma=False, name=name + "preact_")
-    if shortcut:
-        if strides > 1:
-            shortcut = layers.AveragePooling2D(pool_size=strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(preact)
-        else:
-            shortcut = preact
-        shortcut = conv2d_no_bias(shortcut, expanded_filter, 1, strides=1, name=name + "shorcut_")
-    else:
-        shortcut = layers.MaxPooling2D(strides, strides=strides, padding="SAME")(inputs) if strides > 1 else inputs
-
-    nn = conv2d_no_bias(preact, filters, 1, strides=1, padding="VALID", name=name + "1_")
-    # nn = conv2d_no_bias(inputs, filters, 3, strides=1, padding="SAME", name=name + "1_")
-    nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
-    nn = attn_block(nn, filters, strides, attn_type, se_ratio, halo_block_size, activation, name)
-
-    nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "3_")
-
-    nn = layers.Add(name=name + "_add")([shortcut, nn])
-    return nn
-
-
-def stack2(inputs, blocks, filters, strides=2, expansion=4, attn_types=None, se_ratio=0, activation="relu", name=""):
+def stack2(inputs, blocks, filters, preact=True, strides=2, expansion=4, attn_types=None, se_ratio=0, activation="relu", name=""):
     nn = inputs
     # print(">>>> attn_types:", attn_types)
     for id in range(blocks):
-        shortcut = True if id == 0 else False
+        conv_shortcut = True if id == 0 else False
         cur_strides = strides if id == blocks - 1 else 1
         block_name = name + "block{}_".format(id + 1)
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
         cur_se_ratio = se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio
-        nn = block2(nn, filters, cur_strides, shortcut, expansion, attn_type, cur_se_ratio, activation, name=block_name)
+        nn = block(nn, filters, preact, cur_strides, conv_shortcut, expansion, attn_type, cur_se_ratio, activation, name=block_name)
     return nn
 
 
@@ -187,11 +167,11 @@ def AotNet(
     num_blocks,
     preact=False,
     stack=stack1,
+    stack_strides=[1, 2, 2, 1],
     stem_width=64,
     deep_stem=False,
     stem_down_sample=True,
     attn_types=None,
-    strides=[1, 2, 2, 1],
     expansion=4,
     se_ratio=0, # (0, 1)
     input_shape=(224, 224, 3),
@@ -211,11 +191,11 @@ def AotNet(
         nn = layers.MaxPooling2D(pool_size=3, strides=2, name="stem_pool")(nn)
 
     out_channels = [64, 128, 256, 512]
-    for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, strides)):
+    for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, stack_strides)):
         name = "stack{}_".format(id + 1)
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
         cur_se_ratio = se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio
-        nn = stack(nn, num_block, out_channel, stride, expansion, attn_type, cur_se_ratio, activation, name=name)
+        nn = stack(nn, num_block, out_channel, preact, stride, expansion, attn_type, cur_se_ratio, activation, name=name)
 
     if preact:
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="post_")
@@ -232,7 +212,7 @@ def AotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", cla
     num_blocks = [3, 4, 6, 3]
     stack = stack1
     preact = False
-    strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
+    stack_strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name="aotnet50", **kwargs)
 
 
@@ -240,7 +220,7 @@ def AotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", cl
     num_blocks = [3, 4, 23, 3]
     stack = stack1
     preact = False
-    strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
+    stack_strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name="aotnet101", **kwargs)
 
 
@@ -248,7 +228,7 @@ def AotNet152(input_shape=(224, 224, 3), num_classes=1000, activation="relu", cl
     num_blocks = [3, 8, 36, 3]
     stack = stack1
     preact = False
-    strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
+    stack_strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name="aotnet152", **kwargs)
 
 
@@ -256,7 +236,7 @@ def AotNet50V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", c
     num_blocks = [3, 4, 6, 3]
     stack = stack2
     preact = True
-    strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
+    stack_strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
     return AotNet(**locals(), model_name="aotnet50v2", **kwargs)
 
 
@@ -264,7 +244,7 @@ def AotNet101V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", 
     num_blocks = [3, 4, 23, 3]
     stack = stack2
     preact = True
-    strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
+    stack_strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
     return AotNet(**locals(), model_name="aotnet101v2", **kwargs)
 
 
@@ -272,5 +252,5 @@ def AotNet152V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", 
     num_blocks = [3, 8, 36, 3]
     stack = stack2
     preact = True
-    strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
+    stack_strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
     return AotNet(**locals(), model_name="aotnet152v2", **kwargs)

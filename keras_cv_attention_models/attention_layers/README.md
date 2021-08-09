@@ -3,10 +3,11 @@
 
 ## Summary
   - Defined layers / functions from model structures.
+  - `cot_attention` from `cotnet`
+  - `HaloAttention` from `halonet`
   - `MHSAWithPositionEmbedding` from `botnet`.
   - `outlook_attention` and `outlook_attention_simple` from `volo`.
   - `rsoftmax` and `split_attention_conv2d` from `resnest`
-  - `HaloAttention` from `halonet`
 ## Usage
   - **MHSAWithPositionEmbedding**
     ```py
@@ -39,6 +40,7 @@
     ```
   - **outlook_attention**
     ```py
+    from keras_cv_attention_models import attention_layers
     inputs = keras.layers.Input([28, 28, 192])
     nn = attention_layers.outlook_attention(inputs, 4, 192)
     cc = keras.models.Model(inputs, nn)
@@ -46,9 +48,18 @@
     ```
   - **split_attention_conv2d**
     ```py
+    from keras_cv_attention_models import attention_layers
     inputs = keras.layers.Input([28, 28, 192])
     nn = attention_layers.split_attention_conv2d(inputs, 384)
     dd = keras.models.Model(inputs, nn)
     dd.summary()
+    ```
+  - **cot_attention**
+    ```py
+    from keras_cv_attention_models import attention_layers
+    inputs = keras.layers.Input([28, 28, 192])
+    nn = attention_layers.cot_attention(inputs, kernel_size=3)
+    ee = keras.models.Model(inputs, nn)
+    ee.summary()
     ```
 ***
