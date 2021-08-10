@@ -105,7 +105,7 @@
     | SE-CoTNetD-152 | 55.8M  | 224              | 17.0  |   84.0   | [se_cotnetd152_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd152_224.h5) |
     | SE-CoTNetD-152 | 55.8M  | 320              | 26.5  |   84.6   | [se_cotnetd152_320.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd152_320.h5) |
 
-  - **[In progress]** [CoAtNet](keras_cv_attention_models/coatnet)
+  - [CoAtNet](keras_cv_attention_models/coatnet)
     | Model                                | params | Image resolution | Top1 Acc |
     | ------------------------------------ | ------ | ---------------- | -------- |
     | CoAtNet-0                            | 25M    | 224              | 81.6     |
