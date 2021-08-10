@@ -62,4 +62,42 @@
     ee = keras.models.Model(inputs, nn)
     ee.summary()
     ```
+## ResNet Models
+  - [PDF 1812.01187 Bag of Tricks for Image Classification with Convolutional Neural Networks](https://arxiv.org/pdf/1812.01187.pdf)
+  - [PDF 2004.08955 ResNeSt: Split-Attention Networks](https://arxiv.org/pdf/2004.08955.pdf)
+    | Model                                                 | params | Top1 Acc |
+    | ----------------------------------------------------- | ------ | -------- |
+    | Basic ResNet50_V1                                     | 25M    | 76.21    |
+    | ResNet50_V1-B (block strides 1, 2 -> 2, 1)            | 25M    | 76.66    |
+    | ResNet50_V1-C (deep stem)                             | 25M    | 76.87    |
+    | ResNet50_V1-D (block shortcut avgpool + conv)         | 25M    | 77.16    |
+    | ResNet50_V1-D + cosine lr decay                       | 25M    | 77.91    |
+    | ResNet50_V1-D + cosine + label smoothing 0.1          | 25M    | 78.31    |
+    | ResNet50_V1-D + cosine + LS 0.1 + mixup 0.2           | 25M    | 79.15    |
+    | ResNet50_V1-D + cosine + LS 0.1 + mixup 0.2 + autoaug | 25M    | 79.41    |
+    | ResNeSt-50                                            | 27M    | 81.13    |
+
+  - [PDF 2103.07579 Revisiting ResNets: Improved Training and Scaling Strategies](https://arxiv.org/pdf/2103.07579.pdf)
+    | Model                      | Top1 Acc | ∆    |
+    | -------------------------- | -------- | ---- |
+    | ResNet-200                 | 79.0     | —    |
+    | + Cosine LR Decay          | 79.3     | +0.3 |
+    | + Increase training epochs | 78.8 †   | -0.5 |
+    | + EMA of weights           | 79.1     | +0.3 |
+    | + Label Smoothing          | 80.4     | +1.3 |
+    | + Stochastic Depth         | 80.6     | +0.2 |
+    | + RandAugment              | 81.0     | +0.4 |
+    | + Dropout on FC            | 80.7 ‡   | -0.3 |
+    | + Decrease weight decay    | 82.2     | +1.5 |
+    | + Squeeze-and-Excitation   | 82.9     | +0.7 |
+    | + ResNet-D                 | 83.4     | +0.5 |
+
+    | Model      | Regularization | Weight Decay 1e-4 | Weight Decay 4e-5 | ∆    |
+    | ---------- | -------------- | ----------------- | ----------------- | ---- |
+    | ResNet-50  | None           | 79.7              | 78.7              | -1.0 |
+    | ResNet-50  | RA-LS          | 82.4              | 82.3              | -0.1 |
+    | ResNet-50  | RA-LS-DO       | 82.2              | 82.7              | +0.5 |
+    | ResNet-200 | None           | 82.5              | 81.7              | -0.8 |
+    | ResNet-200 | RA-LS          | 85.2              | 84.9              | -0.3 |
+    | ResNet-200 | RA-LS-SD-DO    | 85.3              | 85.5              | +0.2 |
 ***

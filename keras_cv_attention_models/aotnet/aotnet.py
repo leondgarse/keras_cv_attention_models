@@ -11,7 +11,7 @@ BATCH_NORM_EPSILON = 1e-5
 CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
 
 
-def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=""):
+def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=None):
     """Performs a batch normalization followed by an activation. """
     bn_axis = 3 if K.image_data_format() == "channels_last" else 1
     gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
@@ -20,16 +20,17 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
         momentum=BATCH_NORM_DECAY,
         epsilon=BATCH_NORM_EPSILON,
         gamma_initializer=gamma_initializer,
-        name=name + "bn",
+        name=name and name + "bn",
     )(inputs)
     if activation:
-        nn = layers.Activation(activation=activation, name=name + activation)(nn)
+        nn = layers.Activation(activation=activation, name=name and name + activation)(nn)
     return nn
 
 
-def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, name="", **kwargs):
-    if padding.upper() == "SAME":
-        inputs = layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(inputs)
+def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, name=None, **kwargs):
+    pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
+    if padding.upper() == "SAME" and pad != 0:
+        inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
     return layers.Conv2D(
         filters,
         kernel_size,
@@ -37,7 +38,7 @@ def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use
         padding="VALID",
         use_bias=use_bias,
         kernel_initializer=CONV_KERNEL_INITIALIZER,
-        name=name + "conv",
+        name=name and name + "conv",
         **kwargs,
     )(inputs)
 
@@ -49,15 +50,37 @@ def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=""):
     filters = inputs.shape[channel_axis]
     # reduction = _make_divisible(filters // se_ratio, 8)
     reduction = int(filters * se_ratio)
-    # se = GlobalAveragePooling2D()(inputs)
-    # se = Reshape((1, 1, filters))(se)
     se = tf.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)
     se = keras.layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "1_conv")(se)
-    # se = PReLU(shared_axes=[1, 2])(se)
     se = keras.layers.Activation(activation)(se)
     se = keras.layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "2_conv")(se)
     se = keras.layers.Activation("sigmoid")(se)
     return keras.layers.Multiply()([inputs, se])
+
+
+def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding='SAME', trainable=False, name=None):
+    def anti_alias_downsample_initializer(weight_shape, dtype="float32"):
+        kernel_size, channel = weight_shape[0], weight_shape[2]
+
+        # ww = tf.constant([1., 2., 1.], dtype=dtype)
+        rr = tf.math.ceil(kernel_size / 2)
+        ww = tf.range(1, rr + 1, dtype=dtype)
+        ww = tf.concat([ww, ww[:kernel_size - int(rr)][::-1]], axis=0)
+
+        ww = tf.expand_dims(ww, 0) * tf.expand_dims(ww, 1)
+        ww /= tf.reduce_sum(ww)
+        ww = tf.repeat(tf.expand_dims(tf.expand_dims(ww, -1), -1), channel, axis=-2)
+        return tf.cast(ww, dtype)
+
+    return keras.layers.DepthwiseConv2D(
+        kernel_size=kernel_size,
+        strides=strides,
+        padding='SAME',
+        use_bias=False,
+        trainable=trainable,
+        depthwise_initializer=anti_alias_downsample_initializer,
+        name=name and name + "anti_alias_down"
+    )(inputs)
 
 
 def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_block_size=4, activation="relu", name=""):
@@ -102,6 +125,7 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
 
     if conv_shortcut:   # Set a new shortcut using conv
         shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs) if strides > 1 else inputs
+        # shortcut = anti_alias_downsample(inputs, kernel_size=3, strides=2, name=name + "shorcut_") if strides > 1 else inputs
         shortcut = conv2d_no_bias(shortcut, expanded_filter, 1, strides=1, name=name + "shorcut_")
         if not preact:  # ResNet
             shortcut = batchnorm_with_activation(shortcut, activation=None, zero_gamma=False, name=name + "shorcut_")
@@ -113,7 +137,7 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
         # nn = conv2d_no_bias(inputs, filters, 3, strides=strides, padding="SAME", name=name + "1_")
         # strides = 1
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
-    nn = attn_block(nn, filters, strides, attn_type, se_ratio, halo_block_size, activation, name)
+    nn = attn_block(nn, filters, strides, attn_type, se_ratio / expansion, halo_block_size, activation, name)
 
     if expansion > 1:   # not ResNet-RS like
         nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "3_")
@@ -255,3 +279,10 @@ def AotNet152V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", 
     preact = True
     stack_strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
     return AotNet(**locals(), model_name="aotnet152v2", **kwargs)
+
+
+def AotNetV2(num_blocks, input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
+    stack = stack2
+    preact = True
+    stack_strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
+    return AotNet(**locals(), model_name="aotnet50v2", **kwargs)

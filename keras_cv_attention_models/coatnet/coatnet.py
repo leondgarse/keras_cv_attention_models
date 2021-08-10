@@ -3,127 +3,96 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.python.keras import backend as K
 import os
-
+from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, se_module, MHSAWithPositionEmbedding
 
 BATCH_NORM_DECAY = 0.9
-BATCH_NORM_EPSILON = 0.001
-CONV_KERNEL_INITIALIZER = keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
+BATCH_NORM_EPSILON = 1e-5
+CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
 
 
-def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=""):
-    """Performs a batch normalization followed by an activation. """
-    bn_axis = 3 if K.image_data_format() == "channels_last" else 1
-    gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
-    nn = layers.BatchNormalization(
-        axis=bn_axis,
-        momentum=BATCH_NORM_DECAY,
-        epsilon=BATCH_NORM_EPSILON,
-        gamma_initializer=gamma_initializer,
-        name=name + "bn",
-    )(inputs)
-    if activation:
-        nn = layers.Activation(activation=activation, name=name + activation)(nn)
-    return nn
+def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion=4, se_ratio=0, activation="relu", name=None):
+    # preact
+    nn = batchnorm_with_activation(inputs, activation=activation, name=name + "preact_")
 
-
-def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", name=""):
-    if padding == "SAME":
-        inputs = layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(inputs)
-    return layers.Conv2D(filters, kernel_size, strides=strides, padding="VALID", use_bias=False, name=name + "conv")(inputs)
-
-
-def MBConv(inputs, output_channel, stride, expand_ratio, shortcut, survival=None, use_se=0, is_fused=False, name=""):
-    channel_axis = 1 if K.image_data_format() == "channels_first" else -1
-    input_channel = inputs.shape[channel_axis]
-
-    if is_fused and expand_ratio != 1:
-        nn = conv2d_no_bias(inputs, input_channel * expand_ratio, (3, 3), strides=stride, padding="same", name=name + "sortcut_")
-        nn = batchnorm_with_activation(nn, name=name + "sortcut_")
-    elif expand_ratio != 1:
-        nn = conv2d_no_bias(inputs, input_channel * expand_ratio, (1, 1), strides=(1, 1), padding="same", name=name + "sortcut_")
-        nn = batchnorm_with_activation(nn, name=name + "sortcut_")
+    if conv_short_cut:
+        shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(nn) if strides > 1 else nn
+        shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shorcut_")
     else:
-        nn = inputs
+        shortcut = inputs
 
-    if not is_fused:
-        nn = keras.layers.DepthwiseConv2D(
-            (3, 3), padding="same", strides=stride, use_bias=False, depthwise_initializer=CONV_KERNEL_INITIALIZER, name=name + "MB_dw_"
-        )(nn)
-        nn = batchnorm_with_activation(nn, name=name + "MB_dw_")
+    # MBConv
+    input_channel = inputs.shape[-1]
+    nn = conv2d_no_bias(nn, input_channel * expansion, 1, strides=1, padding="same", name=name + "expand_")
+    nn = batchnorm_with_activation(nn, activation=activation, name=name + "expand_")
+    nn = keras.layers.DepthwiseConv2D(3, padding="same", strides=strides, use_bias=False, name=name + "MB_dw_")(nn)
+    nn = batchnorm_with_activation(nn, activation=activation, name=name + "MB_dw_")
+    if se_ratio:
+        nn = se_module(nn, se_ratio=se_ratio / expansion, name=name + "se_")
+    nn = conv2d_no_bias(nn, output_channel, 1, strides=1, padding="same", name=name + "MB_pw_")
 
-    if use_se:
-        nn = se_module(nn, se_ratio=4 * expand_ratio, name=name + "se_")
+    return keras.layers.Add()([shortcut, nn])
 
-    # pw-linear
-    if is_fused and expand_ratio == 1:
-        nn = conv2d_no_bias(nn, output_channel, (3, 3), strides=stride, padding="same", name=name + "fu_")
-        nn = batchnorm_with_activation(nn, name=name + "fu_")
+
+def res_ffn(inputs, expansion=4, kernel_size=1, activation="relu", name=None):
+    input_channel = inputs.shape[-1]
+    nn = conv2d_no_bias(inputs, input_channel * expansion, kernel_size, name=name + "1_")
+    nn = keras.layers.Activation(activation)(nn)
+    nn = conv2d_no_bias(nn, input_channel, kernel_size, name=name + "2_")
+    return keras.layers.Add()([inputs, nn])
+
+
+def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, num_heads=4, activation="relu", name=None, **kwargs):
+    # preact
+    nn = batchnorm_with_activation(inputs, activation=activation, name=name + "preact_")
+
+    if conv_short_cut:
+        shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(nn) if strides > 1 else nn
+        shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shorcut_")
     else:
-        nn = conv2d_no_bias(nn, output_channel, (1, 1), strides=(1, 1), padding="same", name=name + "MB_pw_")
-        nn = batchnorm_with_activation(nn, activation=None, name=name + "MB_pw_")
+        shortcut = inputs
 
-    if shortcut:
-        if survival is not None and survival < 1:
-            from tensorflow_addons.layers import StochasticDepth
+    if strides != 1:  # Downsample
+        nn = layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
+        nn = layers.AvgPool2D(pool_size=3, strides=strides, name=name + "pool")(nn)
+    key_dim = output_channel // num_heads
+    nn = MHSAWithPositionEmbedding(num_heads=num_heads, key_dim=key_dim, name=name + "mhsa", **kwargs)(nn)
 
-            return StochasticDepth(float(survival))([inputs, nn])
-        else:
-            return keras.layers.Add()([inputs, nn])
-    else:
-        return nn
+    return keras.layers.Add()([shortcut, nn])
 
 
-def se_module(inputs, se_ratio=4, name=""):
-    channel_axis = 1 if K.image_data_format() == "channels_first" else -1
-    h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
-
-    filters = inputs.shape[channel_axis]
-    # reduction = _make_divisible(filters // se_ratio, 8)
-    reduction = filters // se_ratio
-    # se = GlobalAveragePooling2D()(inputs)
-    # se = Reshape((1, 1, filters))(se)
-    se = tf.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)
-    se = keras.layers.Conv2D(reduction, kernel_size=1, use_bias=True, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "1_conv")(se)
-    # se = PReLU(shared_axes=[1, 2])(se)
-    se = keras.layers.Activation("swish")(se)
-    se = keras.layers.Conv2D(filters, kernel_size=1, use_bias=True, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "2_conv")(se)
-    se = keras.layers.Activation("sigmoid")(se)
-    return keras.layers.Multiply()([inputs, se])
-
-
-def conv_mlp(inputs, out_channel, kernel_size=1):
-    if kernel_size != 1:
-        inputs = keras.layers.ZeroPadding2D(1)(inputs)
-    nn = keras.layers.Conv2D(out_channel, kernel_size)(inputs)
-    nn = keras.layers.ReLU()(nn)
-    if kernel_size != 1:
-        nn = keras.layers.ZeroPadding2D(1)(nn)
-    nn = keras.layers.Conv2D(out_channel, kernel_size)(nn)
-    return nn
-
-
-def CoAtNet(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained=None, model_name="CoAtNet"):
-    out_channels = [64, 96, 192, 384, 768]
+def CoAtNet(
+    num_blocks,
+    out_channels,
+    stem_width=64,
+    block_types=["conv", "conv", "transfrom", "transform"],
+    expansion=4,
+    input_shape=(224, 224, 3),
+    num_classes=1000,
+    activation="relu",
+    classifier_activation="softmax",
+    pretrained=None,
+    model_name="coatnet",
+    **kwargs,
+):
     inputs = keras.layers.Input(input_shape)
-    nn = conv_mlp(inputs, 3, 3) # s0
-    nn = conv_mlp(nn, out_channels[0], 1) # mlp0
-    nn = keras.layers.MaxPool2D(pool_size=2, strides=2)(nn)
 
-    nn = MBConv(nn, out_channels[0], stride=1, expand_ratio=1, shortcut=True, use_se=0.25, is_fused=False, name="s1_") # s1
-    nn = conv_mlp(nn, out_channels[1], 1) # mlp1
-    nn = keras.layers.MaxPool2D(pool_size=2, strides=2)(nn)
+    """ Stem_stage """
+    nn = conv2d_no_bias(inputs, stem_width, 3, strides=2, padding="same", name="stem_1_")
+    nn = batchnorm_with_activation(nn, activation=activation, name="stem_1_")
+    nn = conv2d_no_bias(nn, stem_width, 3, strides=1, padding="same", name="stem_2_")
 
-    nn = MBConv(nn, out_channels[1], stride=1, expand_ratio=1, shortcut=True, use_se=0.25, is_fused=False, name="s2_") # s2
-    nn = conv_mlp(nn, out_channels[2], 1) # mlp2
-    nn = keras.layers.MaxPool2D(pool_size=2, strides=2)(nn)
-
-    nn = keras.layers.MultiHeadAttention(num_heads=8, key_dim=nn.shape[-1] // 8)(nn, nn)  # s3
-    nn = conv_mlp(nn, out_channels[3], 1) # mlp3
-    nn = keras.layers.MaxPool2D(pool_size=(1, 2), strides=(1, 2))(nn)  # [batch, height, width, channel]
-
-    nn = keras.layers.MultiHeadAttention(num_heads=8, key_dim=nn.shape[-1] // 8)(nn, nn)  # s4
-    nn = conv_mlp(nn, out_channels[4], 1) # mlp4
-    nn = keras.layers.MaxPool2D(pool_size=(2, 1), strides=(2, 1))(nn)
+    """ stage [1, 2, 3, 4] """
+    for stack_id, (num_block, out_channel, block_type) in enumerate(zip(num_blocks, out_channels, block_types)):
+        is_conv_block = True if block_type[0].lower() == "c" else False
+        for block_id in range(num_block):
+            strides = 2 if block_id == 0 else 1
+            conv_short_cut = True if block_id == 0 else False
+            name = "stage_{}_block_{}_".format(stack_id + 1, block_id + 1)
+            if is_conv_block:
+                nn = res_MBConv(nn, out_channel, conv_short_cut, strides=strides, expansion=expansion, name=name)
+            else:
+                nn = res_mhsa(nn, out_channel, conv_short_cut, strides=strides, name=name)
+                nn = res_ffn(nn, expansion=expansion, activation=activation, name=name + "ffn_")
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
@@ -131,3 +100,38 @@ def CoAtNet(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="
 
     model = keras.models.Model(inputs, nn, name=model_name)
     return model
+
+
+def CoAtNet0(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", **kwargs):
+    num_blocks = [2, 3, 5, 2]
+    out_channels = [96, 192, 384, 768]
+    stem_width = 64
+    return CoAtNet(**locals(), model_name="coatnet0", **kwargs)
+
+
+def CoAtNet1(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", **kwargs):
+    num_blocks = [2, 6, 14, 2]
+    out_channels = [96, 192, 384, 768]
+    stem_width = 64
+    return CoAtNet(**locals(), model_name="coatnet1", **kwargs)
+
+
+def CoAtNet2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", **kwargs):
+    num_blocks = [2, 6, 14, 2]
+    out_channels = [128, 256, 512, 1024]
+    stem_width = 128
+    return CoAtNet(**locals(), model_name="coatnet2", **kwargs)
+
+
+def CoAtNet3(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", **kwargs):
+    num_blocks = [2, 6, 14, 2]
+    out_channels = [192, 384, 768, 1536]
+    stem_width = 192
+    return CoAtNet(**locals(), model_name="coatnet3", **kwargs)
+
+
+def CoAtNet4(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", **kwargs):
+    num_blocks = [2, 12, 28, 2]
+    out_channels = [192, 384, 768, 1536]
+    stem_width = 192
+    return CoAtNet(**locals(), model_name="coatnet4", **kwargs)

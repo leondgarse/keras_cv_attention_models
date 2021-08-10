@@ -2,10 +2,9 @@
 ***
 
 ## Summary
-- [CoAtNet: Marrying Convolution and Attention for All Data Sizes](https://arxiv.org/pdf/2106.04803v1.pdf)
-- [Github attention/CoAtNet.py](https://github.com/xmu-xiaoma666/External-Attention-pytorch/blob/master/attention/CoAtNet.py)
-- [Github CoAtNet.py](https://github.com/Laughing-q/xinye_competition/blob/master/model/regressor/CoAtNet.py)
+- CoAtNet article: [PDF 2106.04803 CoAtNet: Marrying Convolution and Attention for All Data Sizes](https://arxiv.org/pdf/2106.04803.pdf)
 - [Github comvex/coatnet/model.py](https://github.com/blakechi/ComVEX/blob/master/comvex/coatnet/model.py)
+- No pretraind available.
 ***
 
 ## Models
@@ -31,4 +30,12 @@
   | CoAtNet-4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |
   | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 384              | 88.4     |
   | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
+## Usage
+  ```py
+  from keras_cv_attention_models import coatnet
+
+  # No pretraind available.
+  mm = coatnet.CoAtNet0()
+  mm.summary()
+  ```
 ***
