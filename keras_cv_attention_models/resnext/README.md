@@ -1,4 +1,4 @@
-# Keras_resnest
+# Keras_ResNeXt
 ***
 
 ## Summary
@@ -7,7 +7,7 @@
 ***
 
 ## Models
-  | Model          | params | Image  resolution | Top1 Acc | Download            |
+  | Model          | Params | Image  resolution | Top1 Acc | Download            |
   | -------------- | ------ | ----------------- | -------- | ------------------- |
   | resnext50      | 25M    | 224               | 77.8     | [resnext50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext50.h5)  |
   | resnext101     | 42M    | 224               | 80.9     | [resnext101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext101.h5)  |

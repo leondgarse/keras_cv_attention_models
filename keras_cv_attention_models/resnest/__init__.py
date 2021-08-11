@@ -29,7 +29,7 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model          | params | Image  resolution | Top1 Acc |
+  | Model          | Params | Image  resolution | Top1 Acc |
   | -------------- | ------ | ----------------- | -------- |
   | resnest50      | 28M    | 224               | 81.03    |
   | resnest101     | 49M    | 256               | 82.83    |

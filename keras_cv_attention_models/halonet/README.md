@@ -6,7 +6,7 @@
   - HaloAttention article: [PDF 2103.12731 Scaling Local Self-Attention for Parameter Efficient Visual Backbones](https://arxiv.org/pdf/2103.12731.pdf)
   - No pretraind available.
 ## Models
-  | Model   | params | Image resolution | Top1 Acc |
+  | Model   | Params | Image resolution | Top1 Acc |
   | ------- | ------ | ---------------- | -------- |
   | halo_b0 | 4.6M   | 256              |          |
   | halo_b1 | 8.8M   | 256              |          |

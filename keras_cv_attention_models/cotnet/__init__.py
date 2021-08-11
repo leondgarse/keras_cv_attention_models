@@ -34,7 +34,7 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model          | params | Image resolution | FLOPs | Top1 Acc |
+  | Model          | Params | Image resolution | FLOPs | Top1 Acc |
   | -------------- |:------:| ---------------- | ----- |:--------:|
   | CoTNet-50      | 22.2M  | 224              | 3.3   |   81.3   |
   | CoTNeXt-50     | 30.1M  | 224              | 4.3   |   82.1   |

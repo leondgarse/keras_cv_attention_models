@@ -33,7 +33,7 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model                                | params | Image resolution | Top1 Acc |
+  | Model                                | Params | Image resolution | Top1 Acc |
   | ------------------------------------ | ------ | ---------------- | -------- |
   | CoAtNet-0                            | 25M    | 224              | 81.6     |
   | CoAtNet-0                            | 25M    | 384              | 83.9     |

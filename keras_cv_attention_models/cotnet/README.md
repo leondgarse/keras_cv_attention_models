@@ -7,7 +7,7 @@
 ***
 
 ## Models
-  | Model          | params | Image resolution | FLOPs | Top1 Acc | Download            |
+  | Model          | Params | Image resolution | FLOPs | Top1 Acc | Download            |
   | -------------- |:------:| ---------------- | ----- |:--------:| ------------------- |
   | CoTNet-50      | 22.2M  | 224              | 3.3   |   81.3   | [cotnet50_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet50_224.h5) |
   | CoTNeXt-50     | 30.1M  | 224              | 4.3   |   82.1   |  |

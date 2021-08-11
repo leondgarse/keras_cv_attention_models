@@ -6,7 +6,7 @@
 ***
 
 ## Models
-  | Model        | params | Image  resolution | Top1 Acc | Download            |
+  | Model        | Params | Image  resolution | Top1 Acc | Download            |
   | ------------ | ------ | ----------------- | -------- | ------------------- |
   | volo_d1      | 27M    | 224               | 84.2     | [volo_d1_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_224.h5)  |
   | volo_d1 ↑384 | 27M    | 384               | 85.2     | [volo_d1_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_384.h5)  |

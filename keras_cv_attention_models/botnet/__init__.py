@@ -29,7 +29,7 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model        | params |
+  | Model        | Params |
   | ------------ | ------ |
   | botnet50     | 21M    |
   | botnet101    | 41M    |

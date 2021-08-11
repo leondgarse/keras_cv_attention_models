@@ -66,7 +66,7 @@
 ## ResNet Models
   - [PDF 1812.01187 Bag of Tricks for Image Classification with Convolutional Neural Networks](https://arxiv.org/pdf/1812.01187.pdf)
   - [PDF 2004.08955 ResNeSt: Split-Attention Networks](https://arxiv.org/pdf/2004.08955.pdf)
-    | Model                                                 | params | Top1 Acc |
+    | Model                                                 | Params | Top1 Acc |
     | ----------------------------------------------------- | ------ | -------- |
     | Basic ResNet50_V1                                     | 25M    | 76.21    |
     | ResNet50_V1-B (block strides 1, 2 -> 2, 1)            | 25M    | 76.66    |

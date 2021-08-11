@@ -26,7 +26,7 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model   | params | Image resolution | Top1 Acc |
+  | Model   | Params | Image resolution | Top1 Acc |
   | ------- | ------ | ---------------- | -------- |
   | halo_b0 | 4.6M   | 256              |          |
   | halo_b1 | 8.8M   | 256              |          |

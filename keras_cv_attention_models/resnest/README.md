@@ -7,7 +7,7 @@
 ***
 
 ## Models
-  | Model          | params | Image  resolution | Top1 Acc | Download            |
+  | Model          | Params | Image  resolution | Top1 Acc | Download            |
   | -------------- | ------ | ----------------- | -------- | ------------------- |
   | resnest50      | 28M    | 224               | 81.03    | [resnest50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest50.h5)  |
   | resnest101     | 49M    | 256               | 82.83    | [resnest101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest101.h5)  |

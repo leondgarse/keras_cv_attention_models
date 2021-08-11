@@ -52,14 +52,14 @@
     mm = aotnet.AotNet50V2(attn_types=attn_types, se_ratio=se_ratio, deep_stem=True, strides=1)
     ```
   - [botnet](keras_cv_attention_models/botnet)
-    | Model        | params | Image  resolution | Top1 Acc | Download            |
+    | Model        | Params | Image  resolution | Top1 Acc | Download            |
     | ------------ | ------ | ----------------- | -------- | ------------------- |
     | botnet50     | 21M    | 224               | 77.604   | [botnet50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet50.h5)  |
     | botnet101    | 41M    | 224               |          |  |
     | botnet152    | 56M    | 224               |          |  |
 
   - [volo](keras_cv_attention_models/volo)
-    | Model        | params | Image  resolution | Top1 Acc | Download            |
+    | Model        | Params | Image  resolution | Top1 Acc | Download            |
     | ------------ | ------- | ----------------- | -------- | ------------------- |
     | volo_d1      | 27M     | 224               | 84.2     | [volo_d1_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_224.h5)  |
     | volo_d1 ↑384 | 27M     | 384               | 85.2     | [volo_d1_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_384.h5)  |
@@ -74,7 +74,7 @@
     | volo_d5 ↑512 | 296M    | 512               | 87.1     | [volo_d5_512.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_512.h5) |
 
   - [resnest](keras_cv_attention_models/resnest)
-    | Model          | params | Image  resolution | Top1 Acc | Download            |
+    | Model          | Params | Image  resolution | Top1 Acc | Download            |
     | -------------- | ------ | ----------------- | -------- | ------------------- |
     | resnest50      | 28M    | 224               | 81.03    | [resnest50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest50.h5)  |
     | resnest101     | 49M    | 256               | 82.83    | [resnest101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest101.h5)  |
@@ -82,13 +82,13 @@
     | resnest269     | 111M   | 416               | 84.54    | [resnest269.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest269.h5)  |
 
   - [resnext](keras_cv_attention_models/resnext)
-    | Model          | params | Image  resolution | Top1 Acc | Download            |
+    | Model          | Params | Image  resolution | Top1 Acc | Download            |
     | -------------- | ------ | ----------------- | -------- | ------------------- |
     | resnext50      | 25M    | 224               | 77.8     | [resnext50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext50.h5)  |
     | resnext101     | 42M    | 224               | 80.9     | [resnext101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext101.h5)  |
 
   - [halonet](keras_cv_attention_models/halonet)
-    | Model   | params | Image resolution | Top1 Acc |
+    | Model   | Params | Image resolution | Top1 Acc |
     | ------- | ------ | ---------------- | -------- |
     | halo_b0 | 4.6M   | 256              |          |
     | halo_b1 | 8.8M   | 256              |          |
@@ -100,7 +100,7 @@
     | halo_b7 | 68.4M  | 600              |          |
 
   - [CoTNet](keras_cv_attention_models/cotnet)
-    | Model          | params | Image resolution | FLOPs | Top1 Acc | Download            |
+    | Model          | Params | Image resolution | FLOPs | Top1 Acc | Download            |
     | -------------- |:------:| ---------------- | ----- |:--------:| ------------------- |
     | CoTNet-50      | 22.2M  | 224              | 3.3   |   81.3   | [cotnet50_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet50_224.h5) |
     | CoTNeXt-50     | 30.1M  | 224              | 4.3   |   82.1   |  |
@@ -112,7 +112,7 @@
     | SE-CoTNetD-152 | 55.8M  | 320              | 26.5  |   84.6   | [se_cotnetd152_320.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd152_320.h5) |
 
   - [CoAtNet](keras_cv_attention_models/coatnet)
-    | Model                                | params | Image resolution | Top1 Acc |
+    | Model                                | Params | Image resolution | Top1 Acc |
     | ------------------------------------ | ------ | ---------------- | -------- |
     | CoAtNet-0                            | 25M    | 224              | 81.6     |
     | CoAtNet-1                            | 42M    | 224              | 83.3     |

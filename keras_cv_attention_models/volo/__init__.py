@@ -37,7 +37,7 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model        | params | Image  resolution | Top1 Acc |
+  | Model        | Params | Image  resolution | Top1 Acc |
   | ------------ | ------ | ----------------- | -------- |
   | volo_d1      | 27M    | 224               | 84.2     |
   | volo_d1 ↑384 | 27M    | 384               | 85.2     |
