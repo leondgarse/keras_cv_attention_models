@@ -97,10 +97,12 @@ def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_bloc
         nn = attention_layers.cot_attention(nn, 3, activation=activation, name=name + "cot_")
     elif attn_type == "outlook": # outlook_attention
         nn = attention_layers.outlook_attention(nn, filters, num_head=6, kernel_size=3, name=name + "outlook_")
+    elif attn_type == "gd": # resnext groups_depthwise
+        nn = attention_layers.groups_depthwise(nn, groups=32, kernel_size=3, strides=strides, name=name + "GD_")
     else:  # ResNet block
         nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", name=name + "conv_")
 
-    if attn_type not in [None, "sa"] and strides != 1:  # Downsample
+    if attn_type not in [None, "sa", "gd"] and strides != 1:  # Downsample
         nn = layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
         nn = layers.AveragePooling2D(pool_size=3, strides=strides, name=name + "pool")(nn)
 
@@ -129,6 +131,7 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
         shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs) if strides > 1 else inputs
         # shortcut = anti_alias_downsample(inputs, kernel_size=3, strides=2, name=name + "shorcut_") if strides > 1 else inputs
         shortcut = conv2d_no_bias(shortcut, expanded_filter, 1, strides=1, name=name + "shorcut_")
+        # shortcut = conv2d_no_bias(inputs, expanded_filter, 1, strides=strides, name=name + "shorcut_")
         if not preact:  # ResNet
             shortcut = batchnorm_with_activation(shortcut, activation=None, zero_gamma=False, name=name + "shorcut_")
 
@@ -144,6 +147,7 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
     if expansion > 1:   # not ResNet-RS like
         nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "3_")
 
+    # print(">>>> shortcut:", shortcut.shape, "nn:", nn.shape)
     if preact:  # ResNetV2
         return layers.Add(name=name + "add")([shortcut, nn])
     else:
@@ -195,6 +199,7 @@ def AotNet(
     preact=False,
     stack=stack1,
     strides=[1, 2, 2, 1],
+    out_channels=[64, 128, 256, 512],
     stem_width=64,
     deep_stem=False,
     stem_downsample=True,
@@ -217,7 +222,6 @@ def AotNet(
         nn = layers.ZeroPadding2D(padding=1, name="stem_pool_pad")(nn)
         nn = layers.MaxPooling2D(pool_size=3, strides=2, name="stem_pool")(nn)
 
-    out_channels = [64, 128, 256, 512]
     for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, strides)):
         name = "stack{}_".format(id + 1)
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types

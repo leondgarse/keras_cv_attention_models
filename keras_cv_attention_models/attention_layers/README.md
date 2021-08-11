@@ -3,11 +3,12 @@
 
 ## Summary
   - Defined layers / functions from model structures.
-  - `cot_attention` from `cotnet`
-  - `HaloAttention` from `halonet`
+  - `cot_attention` from `cotnet`.
+  - `HaloAttention` from `halonet`.
   - `MHSAWithPositionEmbedding` from `botnet`.
   - `outlook_attention` and `outlook_attention_simple` from `volo`.
-  - `rsoftmax` and `split_attention_conv2d` from `resnest`
+  - `rsoftmax` and `split_attention_conv2d` from `resnest`.
+  - `groups_depthwise` from `resnext`.
 ## Usage
   - **MHSAWithPositionEmbedding**
     ```py

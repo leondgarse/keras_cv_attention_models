@@ -10,6 +10,7 @@
   - **attn_types** is a `string` or `list`, indicates attention layer type for each stack. Each element can also be a `string` or `list`, indicates attention layer type for each block.
     - `None`: `Conv2D`
     - `"cot"`: `attention_layers.cot_attention`. Default values: `kernel_size=3`.
+    - `"gd"`: `attention_layers.groups_depthwise`. Default values: `groups=32, kernel_size=3`.
     - `"halo"`: `attention_layers.HaloAttention`. Default values: `num_heads=8, key_dim=16, block_size=4, halo_size=1, out_bias=True`.
     - `"mhsa"`: `attention_layers.MHSAWithPositionEmbedding`. Default values: `num_heads=4, relative=True, out_bias=True`.
     - `"outlook"`: `attention_layers.outlook_attention`. Default values: `num_head=6, kernel_size=3`.
@@ -25,6 +26,9 @@
 
     # ResNest50 like, 27.6M parameters
     mm = aotnet.AotNet50(attn_types="sa", deep_stem=True, strides=2)
+
+    # ResNeXt50 like, 25.1M parameters
+    mm = aotnet.AotNet50(attn_types='gd', strides=2, expansion=2, out_channels=[64 * 2, 128 * 2, 256 * 2, 512 * 2])
 
     # BotNet50 like, 19.7M parameters
     mm = aotnet.AotNet50(attn_types=[None, None, "mhsa", "mhsa"], deep_stem=False, strides=1)
@@ -43,7 +47,7 @@
     # Mixing se and outlook and halo and mhsa and cot_attention, 21M parameters
     # 50 is just a picked number that larger than the relative `num_block`
     attn_types = [None, "outlook", ["mhsa", "halo"] * 50, "cot"]
-    mm = aotnet.AotNet50V2(attn_types=attn_types, se_ratio=[0.25, 0.25, 0, 0], deep_stem=True, strides=1)
+    mm = aotnet.AotNet50V2(attn_types=attn_types, se_ratio=[0.25, 0, 0, 0], deep_stem=True, strides=1)
     ```
-  - `AotNet50V2` / `AotNet101V2` / `AotNet152V2` is the `ResNetV2` like template.
+  - `AotNet50V2` / `AotNet101V2` / `AotNet152V2` / `AotNet200V2` is the `ResNetV2` like template.
 ***

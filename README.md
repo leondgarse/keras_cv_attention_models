@@ -48,7 +48,7 @@
     # 50 is just a picked number that larger than the relative `num_block`
     from keras_cv_attention_models import aotnet
     attn_types = [None, "outlook", ["mhsa", "halo"] * 50, "cot"]
-    se_ratio = [0.25, 0.25, 0, 0]
+    se_ratio = [0.25, 0, 0, 0]
     mm = aotnet.AotNet50V2(attn_types=attn_types, se_ratio=se_ratio, deep_stem=True, strides=1)
     ```
   - [botnet](keras_cv_attention_models/botnet)
@@ -80,6 +80,12 @@
     | resnest101     | 49M    | 256               | 82.83    | [resnest101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest101.h5)  |
     | resnest200     | 71M    | 320               | 83.84    | [resnest200.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest200.h5)  |
     | resnest269     | 111M   | 416               | 84.54    | [resnest269.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest269.h5)  |
+
+  - [resnext](keras_cv_attention_models/resnext)
+    | Model          | params | Image  resolution | Top1 Acc | Download            |
+    | -------------- | ------ | ----------------- | -------- | ------------------- |
+    | resnext50      | 25M    | 224               | 77.8     | [resnext50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext50.h5)  |
+    | resnext101     | 42M    | 224               | 80.9     | [resnext101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext101.h5)  |
 
   - [halonet](keras_cv_attention_models/halonet)
     | Model   | params | Image resolution | Top1 Acc |
