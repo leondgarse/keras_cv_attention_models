@@ -1,4 +1,4 @@
-from keras_cv_attention_models.coatnet.coatnet import CoAtNet, CoAtNet0, CoAtNet1, CoAtNet2, CoAtNet3, CoAtNet4
+from keras_cv_attention_models.coatnet.coatnet import CoAtNet, CoAtNet0, CoAtNet1, CoAtNet2, CoAtNet3, CoAtNet4, CoAtNet5
 
 __head_doc__ = """
 Keras implementation of `CoAtNet`, or `Conv + Transformer` networks.
@@ -10,6 +10,9 @@ __tail_doc__ = """  block_types: block types for each stack,
       - `transfrom` or any not `c` / `C` starts word, means `res_mhsa` + `res_ffn` block.
       value could be in format like `"cctt"` or `"CCTT"` or `["conv", "conv", "transfrom", "transform"]`.
   expansion: filter expansion in each block. The larger the wider.
+  se_ratio: value in `(0, 1)`, where `0` means not using `se_module`. Should be a `number` or `list`, indicates `se_ratio` for each stack.
+      Each element can also be a `number` or `list`, indicates `se_ratio` for each block.
+  num_heads: heads number for transformer block. `64` for `CoAtNet5`, `32` for others.
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default `relu`.
@@ -52,6 +55,7 @@ Model architectures:
   | CoAtNet-4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |
   | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 384              | 88.4     |
   | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
+  | CoAtNet-5                            | 680M   |                  |          |
 """
 
 CoAtNet0.__doc__ = __head_doc__ + """
@@ -62,3 +66,4 @@ CoAtNet1.__doc__ = CoAtNet0.__doc__
 CoAtNet2.__doc__ = CoAtNet0.__doc__
 CoAtNet3.__doc__ = CoAtNet0.__doc__
 CoAtNet4.__doc__ = CoAtNet0.__doc__
+CoAtNet5.__doc__ = CoAtNet0.__doc__

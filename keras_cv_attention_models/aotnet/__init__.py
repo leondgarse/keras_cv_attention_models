@@ -3,9 +3,12 @@ from keras_cv_attention_models.aotnet.aotnet import (
     AotNet50,
     AotNet101,
     AotNet152,
+    AotNet200,
+    AotNetV2,
     AotNet50V2,
     AotNet101V2,
     AotNet152V2,
+    AotNet200V2,
     attn_block,
     anti_alias_downsample,
     batchnorm_with_activation,
@@ -52,11 +55,11 @@ Returns:
 AotNet.__doc__ = __head_doc__ + """
 Args:
   num_blocks: number of blocks in each stack.
-  preact: whether to use pre-activation or not. False for ResNet, True for ResNetV2.
-  stack: stack function. `stack1` for ResNet, `stack2` for ResNetV2.
-  stack_strides: a `number` or `list`, indicates strides used in the last stack or list value for all stacks.
-      For `ResNet` like models, it's `[1, 2, 2, last_strides]`.
-      For `ResNetV2` like models, it's `[2, 2, 2, last_strides]`.
+  preact: whether to use pre-activation or not. False for ResNet like, True for ResNetV2 like.
+  stack: stack function. `stack1` for ResNet like, `stack2` for ResNetV2 like.
+  strides: a `number` or `list`, indicates strides used in the last stack or list value for all stacks.
+      If a number, for `ResNet` like models, it will be `[1, 2, 2, strides]`.
+      If a number, for `ResNetV2` like models, it will be `[2, 2, 2, strides]`.
   model_name: string, model name.
 """ + __tail_doc__ + """
 Example:
@@ -89,16 +92,18 @@ Example:
 AotNet50.__doc__ = __head_doc__ + """
 Args:
   strides: a `number` or `list`
-      number value indicates strides used in the last stack, final `stack_strides` will be `[1, 2, 2, strides]`,
+      number value indicates strides used in the last stack, final `strides` will be `[1, 2, 2, strides]`,
       or list value for all stacks.
 """ + __tail_doc__
 
 AotNet101.__doc__ = AotNet50.__doc__
 AotNet152.__doc__ = AotNet50.__doc__
+
+AotNetV2.__doc__ = AotNet.__doc__
 AotNet50V2.__doc__ = __head_doc__ + """
 Args:
   strides: a `number` or `list`
-      number value indicates strides used in the last stack, final `stack_strides` will be `[2, 2, 2, strides]`,
+      number value indicates strides used in the last stack, final `strides` will be `[2, 2, 2, strides]`,
       or list value for all stacks.
 """ + __tail_doc__
 AotNet101V2.__doc__ = AotNet50V2.__doc__

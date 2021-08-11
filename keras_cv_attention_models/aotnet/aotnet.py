@@ -83,7 +83,7 @@ def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding='SAME', trai
     )(inputs)
 
 
-def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_block_size=4, activation="relu", name=""):
+def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_block_size=4, use_bn=True, activation="relu", name=""):
     nn = inputs
     if attn_type == "mhsa":  # MHSA block
         num_heads = 4
@@ -98,12 +98,14 @@ def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_bloc
     elif attn_type == "outlook": # outlook_attention
         nn = attention_layers.outlook_attention(nn, filters, num_head=6, kernel_size=3, name=name + "outlook_")
     else:  # ResNet block
-        nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", name=name + "2_conv_")
+        nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", name=name + "conv_")
 
     if attn_type not in [None, "sa"] and strides != 1:  # Downsample
         nn = layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
         nn = layers.AveragePooling2D(pool_size=3, strides=strides, name=name + "pool")(nn)
-    nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "2_")
+
+    if use_bn:
+        nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name)
 
     if se_ratio:
         nn = se_module(nn, se_ratio=se_ratio, activation=activation, name=name + "se_")
@@ -137,7 +139,7 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
         # nn = conv2d_no_bias(inputs, filters, 3, strides=strides, padding="SAME", name=name + "1_")
         # strides = 1
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
-    nn = attn_block(nn, filters, strides, attn_type, se_ratio / expansion, halo_block_size, activation, name)
+    nn = attn_block(nn, filters, strides, attn_type, se_ratio / expansion, halo_block_size, True, activation, name=name + "2_")
 
     if expansion > 1:   # not ResNet-RS like
         nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "3_")
@@ -192,7 +194,7 @@ def AotNet(
     num_blocks,
     preact=False,
     stack=stack1,
-    stack_strides=[1, 2, 2, 1],
+    strides=[1, 2, 2, 1],
     stem_width=64,
     deep_stem=False,
     stem_downsample=True,
@@ -216,7 +218,7 @@ def AotNet(
         nn = layers.MaxPooling2D(pool_size=3, strides=2, name="stem_pool")(nn)
 
     out_channels = [64, 128, 256, 512]
-    for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, stack_strides)):
+    for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, strides)):
         name = "stack{}_".format(id + 1)
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
         cur_se_ratio = se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio
@@ -235,54 +237,52 @@ def AotNet(
 
 def AotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
     num_blocks = [3, 4, 6, 3]
-    stack = stack1
-    preact = False
-    stack_strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
+    strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name="aotnet50", **kwargs)
 
 
 def AotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
     num_blocks = [3, 4, 23, 3]
-    stack = stack1
-    preact = False
-    stack_strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
+    strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name="aotnet101", **kwargs)
 
 
 def AotNet152(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
     num_blocks = [3, 8, 36, 3]
-    stack = stack1
-    preact = False
-    stack_strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
+    strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name="aotnet152", **kwargs)
+
+
+def AotNet200(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
+    num_blocks = [3, 24, 36, 3]
+    strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
+    return AotNet(**locals(), model_name="aotnet200", **kwargs)
+
+
+def AotNetV2(num_blocks, preact=True, stack=stack2, strides=1, **kwargs):
+    strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
+    return AotNet(num_blocks, preact=preact, stack=stack, strides=strides, **kwargs)
 
 
 def AotNet50V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
     num_blocks = [3, 4, 6, 3]
-    stack = stack2
-    preact = True
-    stack_strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
-    return AotNet(**locals(), model_name="aotnet50v2", **kwargs)
+    strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
+    return AotNetV2(**locals(), model_name="aotnet50v2", **kwargs)
 
 
 def AotNet101V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
     num_blocks = [3, 4, 23, 3]
-    stack = stack2
-    preact = True
-    stack_strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
-    return AotNet(**locals(), model_name="aotnet101v2", **kwargs)
+    strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
+    return AotNetV2(**locals(), model_name="aotnet101v2", **kwargs)
 
 
 def AotNet152V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
     num_blocks = [3, 8, 36, 3]
-    stack = stack2
-    preact = True
-    stack_strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
-    return AotNet(**locals(), model_name="aotnet152v2", **kwargs)
+    strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
+    return AotNetV2(**locals(), model_name="aotnet152v2", **kwargs)
 
 
-def AotNetV2(num_blocks, input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
-    stack = stack2
-    preact = True
-    stack_strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
-    return AotNet(**locals(), model_name="aotnet50v2", **kwargs)
+def AotNet200V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
+    num_blocks = [3, 24, 36, 3]
+    strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
+    return AotNetV2(**locals(), model_name="aotnet200v2", **kwargs)
