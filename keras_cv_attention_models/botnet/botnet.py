@@ -38,7 +38,7 @@ class MHSAWithPositionEmbedding(keras.layers.Layer):
         if self.out_weight:
             self.out_dense_ww = self.add_weight("output_weight", shape=[self.emb_dim, self.out_shape], trainable=True)
         if self.out_bias:
-            self.out_dense_bb = self.add_weight("output_bias", shape=self.out_shape, initializer='zeros', trainable=True)
+            self.out_dense_bb = self.add_weight("output_bias", shape=self.out_shape, initializer="zeros", trainable=True)
 
         if self.attn_dropout > 0:
             self.attn_dropout_layer = keras.layers.Dropout(rate=self.attn_dropout)
@@ -68,15 +68,17 @@ class MHSAWithPositionEmbedding(keras.layers.Layer):
 
     def get_config(self):
         base_config = super(MHSAWithPositionEmbedding, self).get_config()
-        base_config.update({
-            "num_heads": self.num_heads,
-            "key_dim": self.key_dim,
-            "relative": self.relative,
-            "out_shape": self.out_shape,
-            "out_weight": self.out_weight,
-            "out_bias": self.out_bias,
-            "attn_dropout": self.attn_dropout
-        })
+        base_config.update(
+            {
+                "num_heads": self.num_heads,
+                "key_dim": self.key_dim,
+                "relative": self.relative,
+                "out_shape": self.out_shape,
+                "out_weight": self.out_weight,
+                "out_bias": self.out_bias,
+                "attn_dropout": self.attn_dropout,
+            }
+        )
         return base_config
 
     def rel_to_abs(self, rel_pos):
@@ -93,15 +95,15 @@ class MHSAWithPositionEmbedding(keras.layers.Layer):
 
     def relative_logits(self, query):
         query_w = tf.transpose(query, [0, 3, 1, 2, 4])  # e.g.: [1, 4, 14, 16, 128], [bs, heads, hh, ww, dims]
-        rel_logits_w = tf.matmul(query_w, self.pos_emb_w)   # [1, 4, 14, 16, 31], 2 * 16 - 1 == 31
-        rel_logits_w = self.rel_to_abs(rel_logits_w)    # [1, 4, 14, 16, 16]
+        rel_logits_w = tf.matmul(query_w, self.pos_emb_w)  # [1, 4, 14, 16, 31], 2 * 16 - 1 == 31
+        rel_logits_w = self.rel_to_abs(rel_logits_w)  # [1, 4, 14, 16, 16]
 
-        query_h = tf.transpose(query, [0, 3, 2, 1, 4]) # [1, 4, 16, 14, 128], [bs, heads, ww, hh, dims], Exchange `ww` and `hh`
+        query_h = tf.transpose(query, [0, 3, 2, 1, 4])  # [1, 4, 16, 14, 128], [bs, heads, ww, hh, dims], Exchange `ww` and `hh`
         rel_logits_h = tf.matmul(query_h, self.pos_emb_h)  # [1, 4, 16, 14, 27], 2 * 14 - 1 == 27
         rel_logits_h = self.rel_to_abs(rel_logits_h)  # [1, 4, 16, 14, 14]
-        rel_logits_h = tf.transpose(rel_logits_h, [0, 1, 3, 2, 4]) # [1, 4, 14, 16, 14], transpose back
+        rel_logits_h = tf.transpose(rel_logits_h, [0, 1, 3, 2, 4])  # [1, 4, 14, 16, 14], transpose back
 
-        return tf.expand_dims(rel_logits_w, axis=-2) + tf.expand_dims(rel_logits_h, axis=-1) # [1, 4, 14, 16, 14, 16]
+        return tf.expand_dims(rel_logits_w, axis=-2) + tf.expand_dims(rel_logits_h, axis=-1)  # [1, 4, 14, 16, 14, 16]
 
     def absolute_logits(self, query):
         pos_emb = tf.expand_dims(self.pos_emb_h, 2) + tf.expand_dims(self.pos_emb_w, 1)
@@ -130,7 +132,7 @@ class MHSAWithPositionEmbedding(keras.layers.Layer):
         # print(query.shape, key.shape, value.sahpe)
 
         # scaled_dot_product_attention
-        attention_scores = tf.matmul(attn_query, key)   # [batch, num_heads, hh * ww, hh * ww]
+        attention_scores = tf.matmul(attn_query, key)  # [batch, num_heads, hh * ww, hh * ww]
 
         if self.relative:
             # Add relative positional embedding
@@ -219,9 +221,7 @@ def bot_block(
 
     if use_MHSA:  # BotNet block
         key_dim = bottleneck_dimension // heads
-        nn = MHSAWithPositionEmbedding(num_heads=heads, key_dim=key_dim, relative=relative_pe, out_weight=False, name=name + "_2_mhsa")(
-            nn
-        )
+        nn = MHSAWithPositionEmbedding(num_heads=heads, key_dim=key_dim, relative=relative_pe, out_weight=False, name=name + "_2_mhsa")(nn)
         if strides != 1:
             # nn = layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
             # nn = layers.AveragePooling2D(pool_size=3, strides=strides, name=name + "pool")(nn)
@@ -292,7 +292,7 @@ def BotNet(
     stack_strides = [1, 2, 2, strides]
     for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, stack_strides)):
         name = "stack{}_".format(id + 1)
-        use_MHSA = True if id == len(num_blocks) - 1 else False # use MHSA in the last stack
+        use_MHSA = True if id == len(num_blocks) - 1 else False  # use MHSA in the last stack
         nn = bot_stack(nn, out_channel * 4, num_block, strides=stride, activation=activation, relative_pe=True, name=name, use_MHSA=use_MHSA)
 
     if preact:
@@ -327,7 +327,7 @@ def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"
         try:
             print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(224, input_shape[0]))
             bb = keras.models.load_model(pretrained_model)
-            for ii in ['stack4_block1_2_mhsa', 'stack4_block2_2_mhsa', 'stack4_block3_2_mhsa']:
+            for ii in ["stack4_block1_2_mhsa", "stack4_block2_2_mhsa", "stack4_block3_2_mhsa"]:
                 model.get_layer(ii).load_resized_pos_emb(bb.get_layer(ii))
         except:
             pass

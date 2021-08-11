@@ -58,28 +58,22 @@ def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=""):
     return keras.layers.Multiply()([inputs, se])
 
 
-def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding='SAME', trainable=False, name=None):
+def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trainable=False, name=None):
     def anti_alias_downsample_initializer(weight_shape, dtype="float32"):
         kernel_size, channel = weight_shape[0], weight_shape[2]
-
-        # ww = tf.constant([1., 2., 1.], dtype=dtype)
-        rr = tf.math.ceil(kernel_size / 2)
-        ww = tf.range(1, rr + 1, dtype=dtype)
-        ww = tf.concat([ww, ww[:kernel_size - int(rr)][::-1]], axis=0)
-
+        ww = tf.cast(np.poly1d((0.5, 0.5)) ** (kernel_size - 1), dtype)
         ww = tf.expand_dims(ww, 0) * tf.expand_dims(ww, 1)
-        ww /= tf.reduce_sum(ww)
         ww = tf.repeat(tf.expand_dims(tf.expand_dims(ww, -1), -1), channel, axis=-2)
-        return tf.cast(ww, dtype)
+        return ww
 
     return keras.layers.DepthwiseConv2D(
         kernel_size=kernel_size,
         strides=strides,
-        padding='SAME',
+        padding="SAME",
         use_bias=False,
         trainable=trainable,
         depthwise_initializer=anti_alias_downsample_initializer,
-        name=name and name + "anti_alias_down"
+        name=name and name + "anti_alias_down",
     )(inputs)
 
 
@@ -91,13 +85,13 @@ def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_bloc
         nn = attention_layers.MHSAWithPositionEmbedding(num_heads=num_heads, key_dim=key_dim, relative=True, out_bias=True, name=name + "mhsa")(nn)
     elif attn_type == "halo":  # HaloAttention
         nn = attention_layers.HaloAttention(num_heads=8, key_dim=16, block_size=halo_block_size, halo_size=1, out_bias=True, name=name + "halo")(nn)
-    elif attn_type == "sa": # split_attention_conv2d
+    elif attn_type == "sa":  # split_attention_conv2d
         nn = attention_layers.split_attention_conv2d(nn, filters=filters, kernel_size=3, strides=strides, groups=2, activation=activation, name=name + "sa_")
-    elif attn_type == "cot": # cot_attention
+    elif attn_type == "cot":  # cot_attention
         nn = attention_layers.cot_attention(nn, 3, activation=activation, name=name + "cot_")
-    elif attn_type == "outlook": # outlook_attention
+    elif attn_type == "outlook":  # outlook_attention
         nn = attention_layers.outlook_attention(nn, filters, num_head=6, kernel_size=3, name=name + "outlook_")
-    elif attn_type == "gd": # resnext groups_depthwise
+    elif attn_type == "gd":  # resnext groups_depthwise
         nn = attention_layers.groups_depthwise(nn, groups=32, kernel_size=3, strides=strides, name=name + "GD_")
     else:  # ResNet block
         nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", name=name + "conv_")
@@ -127,7 +121,7 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
     if preact:  # ResNetV2
         inputs = batchnorm_with_activation(inputs, activation=activation, zero_gamma=False, name=name + "preact_")
 
-    if conv_shortcut:   # Set a new shortcut using conv
+    if conv_shortcut:  # Set a new shortcut using conv
         shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs) if strides > 1 else inputs
         # shortcut = anti_alias_downsample(inputs, kernel_size=3, strides=2, name=name + "shorcut_") if strides > 1 else inputs
         shortcut = conv2d_no_bias(shortcut, expanded_filter, 1, strides=1, name=name + "shorcut_")
@@ -137,14 +131,14 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
 
     if expansion > 1:
         nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "1_")
-    else:   # ResNet-RS like
-        nn = conv2d_no_bias(inputs, filters, 3, strides=1, padding="SAME", name=name + "1_") # Using strides=1 for not changing input shape
+    else:  # ResNet-RS like
+        nn = conv2d_no_bias(inputs, filters, 3, strides=1, padding="SAME", name=name + "1_")  # Using strides=1 for not changing input shape
         # nn = conv2d_no_bias(inputs, filters, 3, strides=strides, padding="SAME", name=name + "1_")
         # strides = 1
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
     nn = attn_block(nn, filters, strides, attn_type, se_ratio / expansion, halo_block_size, True, activation, name=name + "2_")
 
-    if expansion > 1:   # not ResNet-RS like
+    if expansion > 1:  # not ResNet-RS like
         nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "3_")
 
     # print(">>>> shortcut:", shortcut.shape, "nn:", nn.shape)
@@ -205,7 +199,7 @@ def AotNet(
     stem_downsample=True,
     attn_types=None,
     expansion=4,
-    se_ratio=0, # (0, 1)
+    se_ratio=0,  # (0, 1)
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="relu",

@@ -237,15 +237,15 @@ def convert_to_fused_conv_bn_model(model):
 
     """ Check bn layers with conv layer input """
     model_config = json.loads(model.to_json())
-    ee = {layer['name']: layer for layer in model_config['config']['layers']}
+    ee = {layer["name"]: layer for layer in model_config["config"]["layers"]}
     fuse_convs, fuse_bns = [], []
     conv_names = ["Conv2D", "DepthwiseConv2D"]
-    for layer in model_config['config']['layers']:
-        if layer['class_name'] == "BatchNormalization" and len(layer["inbound_nodes"]) == 1:
+    for layer in model_config["config"]["layers"]:
+        if layer["class_name"] == "BatchNormalization" and len(layer["inbound_nodes"]) == 1:
             input_node = layer["inbound_nodes"][0][0]
-            if isinstance(input_node, list) and ee.get(input_node[0], {"class_name": None})['class_name'] in conv_names:
+            if isinstance(input_node, list) and ee.get(input_node[0], {"class_name": None})["class_name"] in conv_names:
                 fuse_convs.append(input_node[0])
-                fuse_bns.append(layer['name'])
+                fuse_bns.append(layer["name"])
     print(f">>>> {len(fuse_convs) = }, {len(fuse_bns) = }")
     # len(fuse_convs) = 53, len(fuse_bns) = 53
 
@@ -253,7 +253,7 @@ def convert_to_fused_conv_bn_model(model):
     layers = []
     fused_bn_dict = dict(zip(fuse_bns, fuse_convs))
     fused_conv_dict = dict(zip(fuse_convs, fuse_bns))
-    for layer in model_config['config']['layers']:
+    for layer in model_config["config"]["layers"]:
         if layer["name"] in fuse_convs:
             print(">>>> Fuse conv bn:", layer["name"])
             layer["config"]["use_bias"] = True
@@ -266,7 +266,7 @@ def convert_to_fused_conv_bn_model(model):
                     print(">>>> Replace inbound_nodes: {}, {} --> {}".format(layer["name"], ii[0], fused_bn_dict[ii[0]]))
                     ii[0] = fused_bn_dict[ii[0]]
         layers.append(layer)
-    model_config['config']['layers'] = layers
+    model_config["config"]["layers"] = layers
     new_model = keras.models.model_from_json(json.dumps(model_config))
 
     """ New model set layer weights by layer names """

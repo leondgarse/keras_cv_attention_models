@@ -52,4 +52,33 @@
   print(f"{cotnet.SECotNetD101(input_shape=(480, 480, 3), num_classes=0).output_shape = }")
   # cotnet.SECotNetD101(input_shape=(480, 480, 3), num_classes=0).output_shape = (None, 15, 15, 2048)
   ```
+## Verification with PyTorch version
+  ```py
+  """ PyTorch SECotNetD101 """
+  import torch
+  import argparse
+
+  sys.path.append("../CoTNet")
+  from train import setup_env, setup_model
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--folder', dest='folder', type=str, default=None)
+  args = parser.parse_args("--folder ../CoTNet/cot_experiments/SE-CoTNetD-101_350epoch/".split(' '))
+  setup_env(args)
+  torch_model, data_config = setup_model()
+  torch_model.eval()
+  weight = torch.load('../models/se_cotnetd_101.pth.tar', map_location=torch.device('cpu'))
+  torch_model.load_state_dict(weight)
+
+  """ Keras SECotNetD101 """
+  from keras_cv_attention_models import cotnet
+  mm = cotnet.SECotNetD101(classifier_activation=None)
+
+  """ Verification """
+  inputs = np.random.uniform(size=(1, *mm.input_shape[1:3], 3)).astype("float32")
+  torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2)).detach().numpy()
+  keras_out = mm(inputs).numpy()
+  print(f"{np.allclose(torch_out, keras_out, atol=1e-4) = }")
+  # np.allclose(torch_out, keras_out, atol=1e-4) = True
+  ```
 ***

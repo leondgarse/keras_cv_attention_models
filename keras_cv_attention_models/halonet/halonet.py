@@ -137,7 +137,7 @@ class HaloAttention(keras.layers.Layer):
 
 
 BLOCK_CONFIGS = {
-    "b0": { # rv = 1, rb = 0.5
+    "b0": {  # rv = 1, rb = 0.5
         "halo_block_size": 8,
         "halo_halo_size": 3,
         "halo_key_dim": 16,  # 16 * rv
@@ -146,7 +146,7 @@ BLOCK_CONFIGS = {
         "num_blocks": [3, 3, 7, 3],
         "num_heads": [4, 8, 8, 8],
     },
-    "b1": { # rv = 1, rb = 1
+    "b1": {  # rv = 1, rb = 1
         "halo_block_size": 8,
         "halo_halo_size": 3,
         "halo_key_dim": 16,  # 16 * rv
@@ -155,7 +155,7 @@ BLOCK_CONFIGS = {
         "num_blocks": [3, 3, 10, 3],
         "num_heads": [4, 8, 8, 8],
     },
-    "b2": { # rv = 1, rb = 1.25
+    "b2": {  # rv = 1, rb = 1.25
         "halo_block_size": 8,
         "halo_halo_size": 3,
         "halo_key_dim": 16,  # 16 * rv
@@ -274,7 +274,14 @@ def halo_stack(inputs, blocks, filter, strides=1, expansion=2, num_heads=4, key_
 
 
 def HaloNet(
-    model_type="b0", input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained=None, model_name="halonet", **kwargs
+    model_type="b0",
+    input_shape=(256, 256, 3),
+    num_classes=1000,
+    activation="relu",
+    classifier_activation="softmax",
+    pretrained=None,
+    model_name="halonet",
+    **kwargs
 ):
     blocks_config = BLOCK_CONFIGS.get(model_type.lower(), BLOCK_CONFIGS["b0"])
     halo_block_size = blocks_config["halo_block_size"]

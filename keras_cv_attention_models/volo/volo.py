@@ -57,6 +57,7 @@ def patch_stem(inputs, hidden_dim=64, stem_width=384, patch_size=8, strides=2, a
     patch_step = patch_size // strides
     return conv2d_with_init(nn, stem_width, patch_step, strides=patch_step, use_bias=True, name=name + "patch_")
 
+
 @tf.keras.utils.register_keras_serializable(package="Custom")
 class UnfoldMatmulFold(layers.Layer):
     """
@@ -186,7 +187,7 @@ def outlook_attention_simple(inputs, embed_dim, num_head=6, kernel_size=3, attn_
     qk_scale = tf.math.sqrt(tf.cast(key_dim, FLOAT_DTYPE))
 
     height, width = inputs.shape[1], inputs.shape[2]
-    hh, ww = int(tf.math.ceil(height / kernel_size)), int(tf.math.ceil(width / kernel_size)) # 14, 14
+    hh, ww = int(tf.math.ceil(height / kernel_size)), int(tf.math.ceil(width / kernel_size))  # 14, 14
     padded = hh * kernel_size - height
     if padded != 0:
         inputs = keras.layers.ZeroPadding2D(((0, padded), (0, padded)))(inputs)
@@ -200,12 +201,12 @@ def outlook_attention_simple(inputs, embed_dim, num_head=6, kernel_size=3, attn_
     # attn = keras.layers.AveragePooling2D(pool_size=3, strides=2, padding='SAME')(inputs)
     attn = keras.layers.AveragePooling2D(pool_size=kernel_size, strides=kernel_size)(inputs)
     attn = keras.layers.Dense(kernel_size ** 4 * num_head, use_bias=True, name=name + "attn")(attn) / qk_scale
-    attn = tf.reshape(attn , [-1, hh, ww, num_head, kernel_size * kernel_size, kernel_size * kernel_size]) # [1, 14, 14, 6, 4, 4]
+    attn = tf.reshape(attn, [-1, hh, ww, num_head, kernel_size * kernel_size, kernel_size * kernel_size])  # [1, 14, 14, 6, 4, 4]
     attn = tf.nn.softmax(attn, axis=-1)
     if attn_dropout > 0:
         attn = keras.layers.Dropout(attn_dropout)(attn)
 
-    out = tf.matmul(attn, vv) # [1, 14, 14, 6, 4, 32]
+    out = tf.matmul(attn, vv)  # [1, 14, 14, 6, 4, 32]
     # out = einops.rearrange(out, "D h w H (hk wk) p -> D (h hk) (w wk) (H p)", hk=kernel_size, wk=kernel_size)  # [1, 28, 28, 192]
     out = tf.reshape(out, [-1, hh, ww, num_head, kernel_size, kernel_size, key_dim])  # [1, 14, 14, 6, 2, 2, 32]
     out = tf.transpose(out, [0, 1, 4, 2, 5, 3, 6])  # [1, 14, 2, 14, 2, 6, 32]
@@ -223,7 +224,7 @@ class BiasLayer(tf.keras.layers.Layer):
         super(BiasLayer, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        self.bias = self.add_weight('bias', shape=input_shape[-1], initializer='zeros', trainable=True)
+        self.bias = self.add_weight("bias", shape=input_shape[-1], initializer="zeros", trainable=True)
 
     def call(self, inputs):
         return inputs + self.bias
@@ -239,12 +240,16 @@ def attention_mlp_block(inputs, embed_dim, num_head=1, mlp_ratio=3, attention_ty
         nn_1 = outlook_attention_simple(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
     elif attention_type == "class":
         # nn_1 = class_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
-        nn_1 = layers.MultiHeadAttention(num_heads=num_head, key_dim=embed_dim//num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa")(nn_1[:, :1, :], nn_1)
-        nn_1 = BiasLayer(name=name + "attn_bias")(nn_1) # bias for output dense
+        nn_1 = layers.MultiHeadAttention(num_heads=num_head, key_dim=embed_dim // num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa")(
+            nn_1[:, :1, :], nn_1
+        )
+        nn_1 = BiasLayer(name=name + "attn_bias")(nn_1)  # bias for output dense
     elif attention_type == "mhsa":
         # nn_1 = multi_head_self_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
-        nn_1 = layers.MultiHeadAttention(num_heads=num_head, key_dim=embed_dim//num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa")(nn_1, nn_1)
-        nn_1 = BiasLayer(name=name + "attn_bias")(nn_1) # bias for output dense
+        nn_1 = layers.MultiHeadAttention(num_heads=num_head, key_dim=embed_dim // num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa")(
+            nn_1, nn_1
+        )
+        nn_1 = BiasLayer(name=name + "attn_bias")(nn_1)  # bias for output dense
 
     if survival is not None and survival < 1:
         nn_1 = StochasticDepth(float(survival))([nn_0, nn_1])
@@ -319,8 +324,10 @@ class MixupToken(layers.Layer):
         # tf.print("training:", training)
         def _call_train():
             return tf.stack(self.rand_bbox(height, width))
+
         def _call_test():
-            return tf.cast(tf.stack([0, 0, 0, 0]), "int32") # No mixup area for test
+            return tf.cast(tf.stack([0, 0, 0, 0]), "int32")  # No mixup area for test
+
         return K.in_train_phase(_call_train, _call_test, training=training)
 
     def sample_beta_distribution(self):
@@ -499,7 +506,7 @@ def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"
         try:
             print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
             bb = keras.models.load_model(pretrained_model)
-            model.get_layer('positional_embedding').load_resized_pos_emb(bb.get_layer('positional_embedding'))
+            model.get_layer("positional_embedding").load_resized_pos_emb(bb.get_layer("positional_embedding"))
         except:
             pass
 

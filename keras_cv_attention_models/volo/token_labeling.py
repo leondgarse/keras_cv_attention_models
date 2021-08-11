@@ -2,8 +2,9 @@ import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
 
+
 def extract_token_label_batch(image_batch, teacher_model, top_k=5, return_one_hot=False):
-    iaa = tf.stack([tf.image.resize(ii, teacher_model.input_shape[1:3]) for ii in image_batch]) # (0, 255)
+    iaa = tf.stack([tf.image.resize(ii, teacher_model.input_shape[1:3]) for ii in image_batch])  # (0, 255)
     if teacher_model.layers[-1].activation.__name__ == "softmax":
         ipp = teacher_model(iaa).numpy()
     else:
@@ -59,6 +60,7 @@ def token_label_preprocess(token_label, num_classes=10, num_pathes=14):
 
 def load_cifar10_token_label(label_token_file, num_classes=10, batch_size=1024, image_shape=(32, 32), num_pathes=14):
     import tensorflow_datasets as tfds
+
     AUTOTUNE = tf.data.experimental.AUTOTUNE
 
     train_ds = tfds.load("cifar10", split="train")
@@ -70,7 +72,10 @@ def load_cifar10_token_label(label_token_file, num_classes=10, batch_size=1024, 
     image_preprocess = lambda data: tf.image.resize(data["image"], image_shape[:2]) / 255.0
     label_preprocess = lambda data: tf.one_hot(data["label"], depth=num_classes)
 
-    train_preprocessing = lambda data, token_label: (image_preprocess(data), (label_preprocess(data), token_label_preprocess(token_label, num_classes, num_pathes)))
+    train_preprocessing = lambda data, token_label: (
+        image_preprocess(data),
+        (label_preprocess(data), token_label_preprocess(token_label, num_classes, num_pathes)),
+    )
     token_label_train_ds = token_label_train_ds.shuffle(buffer_size=batch_size * 100).map(train_preprocessing, num_parallel_calls=AUTOTUNE)
     token_label_train_ds = token_label_train_ds.batch(batch_size).prefetch(buffer_size=AUTOTUNE)
 
@@ -99,7 +104,7 @@ class TokenLabelEval(keras.callbacks.Callback):
         preds, labels = [], []
         for image, label in self.test_dataset:
             cls_pred, aux_pred = self.model.predict(image)
-            pred = cls_pred[:, :aux_pred.shape[-1]] + tf.reduce_max(aux_pred, 1) * 0.5
+            pred = cls_pred[:, : aux_pred.shape[-1]] + tf.reduce_max(aux_pred, 1) * 0.5
             preds.extend(pred.numpy())
             labels.extend(label.numpy())
         preds, labels = np.stack(preds), np.stack(labels)

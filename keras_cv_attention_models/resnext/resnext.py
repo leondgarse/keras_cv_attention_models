@@ -46,8 +46,8 @@ def groups_depthwise(inputs, groups=32, kernel_size=3, strides=1, padding="SAME"
     cc = input_filter // groups
     nn = inputs
     if padding.upper() == "SAME":
-        nn = layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + 'pad')(nn)
-    nn = layers.DepthwiseConv2D(kernel_size, strides=strides, depth_multiplier=cc, use_bias=False, name=name and name + 'DC')(nn)
+        nn = layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "pad")(nn)
+    nn = layers.DepthwiseConv2D(kernel_size, strides=strides, depth_multiplier=cc, use_bias=False, name=name and name + "DC")(nn)
     nn = layers.Reshape((*nn.shape[1:-1], groups, cc, cc))(nn)
     nn = tf.reduce_sum(nn, axis=-2)
     nn = layers.Reshape((*nn.shape[1:-2], input_filter))(nn)
@@ -57,7 +57,7 @@ def groups_depthwise(inputs, groups=32, kernel_size=3, strides=1, padding="SAME"
 def block(inputs, filters, strides=1, conv_shortcut=False, cardinality=2, activation="relu", name=""):
     expanded_filter = filters * cardinality
 
-    if conv_shortcut:   # Set a new shortcut using conv
+    if conv_shortcut:  # Set a new shortcut using conv
         shortcut = conv2d_no_bias(inputs, expanded_filter, 1, strides=strides, name=name + "shorcut_")
         shortcut = batchnorm_with_activation(shortcut, activation=None, zero_gamma=False, name=name + "shorcut_")
     else:
