@@ -192,6 +192,12 @@ def replace_stochastic_depth_with_add(model, drop_survival=False):
     return keras.models.clone_model(model, input_tensors=input_tensors, clone_function=__replace_stochastic_depth_with_add__)
 
 
+def get_actual_survival_probabilities(model):
+    from tensorflow_addons.layers import StochasticDepth
+
+    return [ii.survival_probability for ii in model.layers if isinstance(ii, StochasticDepth)]
+
+
 def convert_to_mixed_float16(model, convert_batch_norm=False):
     policy = keras.mixed_precision.Policy("mixed_float16")
     policy_config = keras.utils.serialize_keras_object(policy)

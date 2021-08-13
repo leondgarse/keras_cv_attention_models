@@ -60,10 +60,12 @@ def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=""):
 
 def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trainable=False, name=None):
     def anti_alias_downsample_initializer(weight_shape, dtype="float32"):
+        import numpy as np
+
         kernel_size, channel = weight_shape[0], weight_shape[2]
         ww = tf.cast(np.poly1d((0.5, 0.5)) ** (kernel_size - 1), dtype)
         ww = tf.expand_dims(ww, 0) * tf.expand_dims(ww, 1)
-        ww = tf.repeat(tf.expand_dims(tf.expand_dims(ww, -1), -1), channel, axis=-2)
+        ww = tf.repeat(ww[:, :, tf.newaxis, tf.newaxis], channel, axis=-2)
         return ww
 
     return keras.layers.DepthwiseConv2D(
