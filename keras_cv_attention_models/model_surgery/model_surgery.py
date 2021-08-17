@@ -198,6 +198,10 @@ def get_actual_survival_probabilities(model):
     return [ii.survival_probability for ii in model.layers if isinstance(ii, StochasticDepth)]
 
 
+def get_actual_drop_connect_rates(model):
+    return [ii.rate for ii in model.layers if isinstance(ii, keras.layers.Dropout)]
+
+
 def convert_to_mixed_float16(model, convert_batch_norm=False):
     policy = keras.mixed_precision.Policy("mixed_float16")
     policy_config = keras.utils.serialize_keras_object(policy)

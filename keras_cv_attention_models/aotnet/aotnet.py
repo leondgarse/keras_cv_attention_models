@@ -1,7 +1,6 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers
-from tensorflow.python.keras import backend as K
+from tensorflow.keras import backend as K
 import os
 
 from keras_cv_attention_models import attention_layers
@@ -15,7 +14,7 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
     """Performs a batch normalization followed by an activation. """
     bn_axis = 3 if K.image_data_format() == "channels_last" else 1
     gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
-    nn = layers.BatchNormalization(
+    nn = keras.layers.BatchNormalization(
         axis=bn_axis,
         momentum=BATCH_NORM_DECAY,
         epsilon=BATCH_NORM_EPSILON,
@@ -23,15 +22,15 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
         name=name and name + "bn",
     )(inputs)
     if activation:
-        nn = layers.Activation(activation=activation, name=name and name + activation)(nn)
+        nn = keras.layers.Activation(activation=activation, name=name and name + activation)(nn)
     return nn
 
 
 def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, name=None, **kwargs):
     pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
     if padding.upper() == "SAME" and pad != 0:
-        inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
-    return layers.Conv2D(
+        inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
+    return keras.layers.Conv2D(
         filters,
         kernel_size,
         strides=strides,
@@ -99,8 +98,8 @@ def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_bloc
         nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", name=name + "conv_")
 
     if attn_type not in [None, "sa", "gd"] and strides != 1:  # Downsample
-        nn = layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
-        nn = layers.AveragePooling2D(pool_size=3, strides=strides, name=name + "pool")(nn)
+        nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
+        nn = keras.layers.AveragePooling2D(pool_size=3, strides=strides, name=name + "pool")(nn)
 
     if use_bn:
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name)
@@ -116,15 +115,15 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
     if attn_type == "halo" and inputs.shape[1] % halo_block_size != 0:  # HaloAttention
         gap = halo_block_size - inputs.shape[1] % halo_block_size
         pad_head, pad_tail = gap // 2, gap - gap // 2
-        inputs = layers.ZeroPadding2D(padding=((pad_head, pad_tail), (pad_head, pad_tail)), name=name + "gap_pad")(inputs)
+        inputs = keras.layers.ZeroPadding2D(padding=((pad_head, pad_tail), (pad_head, pad_tail)), name=name + "gap_pad")(inputs)
 
-    shortcut = layers.MaxPooling2D(strides, strides=strides, padding="SAME")(inputs) if strides > 1 else inputs
+    shortcut = keras.layers.MaxPooling2D(strides, strides=strides, padding="SAME")(inputs) if strides > 1 else inputs
 
     if preact:  # ResNetV2
         inputs = batchnorm_with_activation(inputs, activation=activation, zero_gamma=False, name=name + "preact_")
 
     if conv_shortcut:  # Set a new shortcut using conv
-        shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs) if strides > 1 else inputs
+        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs) if strides > 1 else inputs
         # shortcut = anti_alias_downsample(inputs, kernel_size=3, strides=2, name=name + "shorcut_") if strides > 1 else inputs
         shortcut = conv2d_no_bias(shortcut, expanded_filter, 1, strides=1, name=name + "shorcut_")
         # shortcut = conv2d_no_bias(inputs, expanded_filter, 1, strides=strides, name=name + "shorcut_")
@@ -145,11 +144,11 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
 
     # print(">>>> shortcut:", shortcut.shape, "nn:", nn.shape)
     if preact:  # ResNetV2
-        return layers.Add(name=name + "add")([shortcut, nn])
+        return keras.layers.Add(name=name + "add")([shortcut, nn])
     else:
         nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "3_")
-        nn = layers.Add(name=name + "add")([shortcut, nn])
-        return layers.Activation(activation, name=name + "out")(nn)
+        nn = keras.layers.Add(name=name + "add")([shortcut, nn])
+        return keras.layers.Activation(activation, name=name + "out")(nn)
 
 
 def stack1(inputs, blocks, filters, preact=False, strides=2, expansion=4, attn_types=None, se_ratio=0, activation="relu", name=""):
@@ -209,14 +208,14 @@ def AotNet(
     model_name="aotnet",
     **kwargs
 ):
-    inputs = layers.Input(shape=input_shape)
+    inputs = keras.layers.Input(shape=input_shape)
     nn = stem(inputs, stem_width, activation=activation, deep_stem=deep_stem, name="stem_")
 
     if not preact:
         nn = batchnorm_with_activation(nn, activation=activation, name="stem_")
     if stem_downsample:
-        nn = layers.ZeroPadding2D(padding=1, name="stem_pool_pad")(nn)
-        nn = layers.MaxPooling2D(pool_size=3, strides=2, name="stem_pool")(nn)
+        nn = keras.layers.ZeroPadding2D(padding=1, name="stem_pool_pad")(nn)
+        nn = keras.layers.MaxPooling2D(pool_size=3, strides=2, name="stem_pool")(nn)
 
     for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, strides)):
         name = "stack{}_".format(id + 1)
@@ -228,8 +227,8 @@ def AotNet(
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="post_")
 
     if num_classes > 0:
-        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        nn = layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
+        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
     return model

@@ -1,6 +1,5 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.python.keras import layers
 from tensorflow.keras import backend as K
 from tensorflow_addons.layers import StochasticDepth, GroupNormalization
 import os
@@ -15,7 +14,7 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
     """Performs a batch normalization followed by an activation. """
     bn_axis = 3 if K.image_data_format() == "channels_last" else 1
     gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
-    nn = layers.BatchNormalization(
+    nn = keras.layers.BatchNormalization(
         axis=bn_axis,
         momentum=BATCH_NORM_DECAY,
         epsilon=BATCH_NORM_EPSILON,
@@ -23,14 +22,14 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
         name=name + "bn",
     )(inputs)
     if activation:
-        nn = layers.Activation(activation=activation, name=name + activation)(nn)
+        nn = keras.layers.Activation(activation=activation, name=name + activation)(nn)
     return nn
 
 
 def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, name="", **kwargs):
     if padding.upper() == "SAME":
-        inputs = layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(inputs)
-    return layers.Conv2D(
+        inputs = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(inputs)
+    return keras.layers.Conv2D(
         filters,
         kernel_size,
         strides=strides,
@@ -56,14 +55,14 @@ def cot_attention(inputs, kernel_size=3, activation="relu", name=""):
 
     # key_embed
     if kernel_size // 2 != 0:
-        key_input = layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "conv_pad")(inputs)
+        key_input = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "conv_pad")(inputs)
     else:
         key_input = inputs
     key = group_conv(key_input, filters, kernel_size, groups=4, name=name + "key_")
     key = batchnorm_with_activation(key, activation=activation, zero_gamma=False, name=name + "key_")
 
     # query key
-    qk = layers.Concatenate(axis=-1)([inputs, key])
+    qk = keras.layers.Concatenate(axis=-1)([inputs, key])
     _, height, width, _ = qk.shape
 
     # embed weights from query and key, ignore `num_heads`, as it's set as `1`
@@ -83,44 +82,44 @@ def cot_attention(inputs, kernel_size=3, activation="relu", name=""):
     # x2 = unfold_j(bb).view(-1, reduction, filters // reduction, kernel_size * kernel_size, height, width)
     # y2 = (ww.unsqueeze(2) * x2.unsqueeze(1)).sum(-3).view(-1, filters, height, width)
     sizes, patch_strides = [1, kernel_size, kernel_size, 1], [1, 1, 1, 1]
-    embed = layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "embed_pad")(embed)
+    embed = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "embed_pad")(embed)
     embed = tf.image.extract_patches(embed, sizes=sizes, strides=patch_strides, rates=(1, 1, 1, 1), padding="VALID")
     embed = tf.reshape(embed, [-1, height, width, kernel_size * kernel_size, reduction, filters // reduction])
 
-    embed_out = layers.Multiply(name=name + "local_conv_mul")([embed, embed_ww])
+    embed_out = keras.layers.Multiply(name=name + "local_conv_mul")([embed, embed_ww])
     embed_out = tf.reduce_sum(embed_out, axis=-3)  # reduce on `kernel_size * kernel_size` axis
     embed_out = tf.reshape(embed_out, [-1, height, width, filters])
     embed_out = batchnorm_with_activation(embed_out, activation="swish", zero_gamma=False, name=name + "embed_2_")
 
     # attention
-    attn = layers.Add()([embed_out, key])
+    attn = keras.layers.Add()([embed_out, key])
     attn = tf.reduce_mean(attn, axis=[1, 2], keepdims=True)
     # attn se module
     attn_se_filters = max(filters * randix // 4, 32)
-    # attn = layers.Dense(attn_se_filters, use_bias=True, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "attn_se_dense_1")(attn)
+    # attn = keras.layers.Dense(attn_se_filters, use_bias=True, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "attn_se_dense_1")(attn)
     attn = conv2d_no_bias(attn, attn_se_filters, 1, use_bias=True, name=name + "attn_se_1_")
     attn = batchnorm_with_activation(attn, activation=activation, zero_gamma=False, name=name + "attn_se_")
-    # attn = layers.Dense(filters * randix, use_bias=True, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "attn_se_dense_2")(attn)
+    # attn = keras.layers.Dense(filters * randix, use_bias=True, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "attn_se_dense_2")(attn)
     attn = conv2d_no_bias(attn, filters * randix, 1, use_bias=True, name=name + "attn_se_2_")
     attn = tf.reshape(attn, [-1, 1, 1, filters, randix])
     attn = tf.nn.softmax(attn, axis=-1)
 
     # value and output
-    value = layers.Concatenate(axis=-1)([tf.expand_dims(embed_out, -1), tf.expand_dims(key, -1)])
-    output = layers.Multiply()([value, attn])
+    value = keras.layers.Concatenate(axis=-1)([tf.expand_dims(embed_out, -1), tf.expand_dims(key, -1)])
+    output = keras.layers.Multiply()([value, attn])
     output = tf.reduce_sum(output, axis=-1, name=name + "out")
     return output
 
 
 def cot_block(
-    inputs, filters, strides=1, shortcut=False, expansion=4, cardinality=1, attn_type="cot", avd_first=True, survival=None, activation="relu", name=""
+    inputs, filters, strides=1, shortcut=False, expansion=4, cardinality=1, attn_type="cot", avd_first=True, drop_rate=0, activation="relu", name=""
 ):
     # target_dimension = round(planes * block.expansion * self.rb)
     expanded_filter = round(filters * expansion)
     if shortcut:
         # print(">>>> Downsample")
         # shortcut = conv2d_no_bias(inputs, expanded_filter, 1, strides=strides, name=name + "shorcut_")
-        short_cut = layers.AveragePooling2D(pool_size=strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs)
+        short_cut = keras.layers.AveragePooling2D(pool_size=strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs)
         shortcut = conv2d_no_bias(short_cut, expanded_filter, 1, strides=1, name=name + "shorcut_")
         shortcut = batchnorm_with_activation(shortcut, activation=None, zero_gamma=False, name=name + "shorcut_")
     else:
@@ -131,8 +130,8 @@ def cot_block(
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
 
     if avd_first and strides > 1 and attn_type == "cot":
-        nn = layers.ZeroPadding2D(padding=1, name=name + "pool_pad")(nn)
-        nn = layers.AveragePooling2D(3, strides=2, name=name + "pool")(nn)
+        nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pool_pad")(nn)
+        nn = keras.layers.AveragePooling2D(3, strides=2, name=name + "pool")(nn)
 
     if attn_type == "cot":
         nn = cot_attention(nn, 3, activation=activation, name=name + "cot_")
@@ -146,30 +145,31 @@ def cot_block(
         nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", name=name + "conv_")
 
     if not avd_first and strides > 1 and attn_type == "cot":
-        nn = layers.ZeroPadding2D(padding=1, name=name + "pool_pad")(nn)
-        nn = layers.AveragePooling2D(3, strides=2, name=name + "pool")(nn)
+        nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pool_pad")(nn)
+        nn = keras.layers.AveragePooling2D(3, strides=2, name=name + "pool")(nn)
 
     nn = conv2d_no_bias(nn, expanded_filter, 1, name=name + "2_")
     nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "2_")
 
     # print(">>>>", nn.shape, shortcut.shape)
-    if survival is not None and survival < 1:
-        nn = StochasticDepth(float(survival))([shortcut, nn])
-    else:
-        nn = layers.Add()([shortcut, nn])
-    return layers.Activation(activation, name=name + "out")(nn)
+    if drop_rate > 0:
+        nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1, 1), name=name + "drop")(nn)
+    nn = keras.layers.Add()([shortcut, nn])
+    return keras.layers.Activation(activation, name=name + "out")(nn)
 
 
-def cot_stack(inputs, blocks, filter, strides=2, expansion=4, cardinality=1, attn_types="cot", avd_first=True, survival=None, activation="relu", name=""):
+def cot_stack(inputs, blocks, filter, strides=2, expansion=4, cardinality=1, attn_types="cot", avd_first=True, stack_drop=0, activation="relu", name=""):
     shortcut = True if strides != 1 or inputs.shape[-1] != filter * expansion else False
     attn_type = attn_types[0] if isinstance(attn_types, (list, tuple)) else attn_types
-    nn = cot_block(inputs, filter, strides, shortcut, expansion, cardinality, attn_type, avd_first, survival, activation, name=name + "block1_")
+    stack_drop_s, stack_drop_e = stack_drop if isinstance(stack_drop, (list, tuple)) else [stack_drop, stack_drop]
+    nn = cot_block(inputs, filter, strides, shortcut, expansion, cardinality, attn_type, avd_first, stack_drop_s, activation, name=name + "block1_")
     shortcut = False
     # print(">>>> attn_types:", attn_types)
     for ii in range(1, blocks):
         block_name = name + "block{}_".format(ii + 1)
+        block_drop_rate = stack_drop_s + (stack_drop_e - stack_drop_s) * ii / blocks
         attn_type = attn_types[ii] if isinstance(attn_types, (list, tuple)) else attn_types
-        nn = cot_block(nn, filter, 1, shortcut, expansion, cardinality, attn_type, avd_first, survival, activation, name=block_name)
+        nn = cot_block(nn, filter, 1, shortcut, expansion, cardinality, attn_type, avd_first, block_drop_rate, activation, name=block_name)
     return nn
 
 
@@ -186,8 +186,8 @@ def stem(inputs, stem_width, activation="relu", deep_stem=False, name=""):
         nn = conv2d_no_bias(inputs, stem_width, 7, strides=2, padding="same", name=name)
 
         nn = batchnorm_with_activation(nn, activation=activation, name=name)
-        nn = layers.ZeroPadding2D(padding=1, name=name + "pool_pad")(nn)
-        nn = layers.MaxPool2D(pool_size=3, strides=2, name=name + "pool")(nn)
+        nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pool_pad")(nn)
+        nn = keras.layers.MaxPool2D(pool_size=3, strides=2, name=name + "pool")(nn)
     return nn
 
 
@@ -203,6 +203,7 @@ def CotNet(
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="relu",
+    drop_connect_rate=0,
     classifier_activation="softmax",
     pretrained="imagenet",
     model_name="cotnet",
@@ -212,11 +213,17 @@ def CotNet(
     nn = stem(inputs, stem_width, activation=activation, deep_stem=deep_stem, name="stem_")
 
     out_channels = [64, 128, 256, 512]
+    total_blocks = sum(num_blocks)
+    global_block_id = 0
+    drop_connect_s, drop_connect_e = 0, drop_connect_rate
     for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, strides)):
         name = "stack{}_".format(id + 1)
-        survival = None
+        stack_drop_s = drop_connect_rate * global_block_id / total_blocks
+        stack_drop_e = drop_connect_rate * (global_block_id + num_block) / total_blocks
+        stack_drop = (stack_drop_s, stack_drop_e)
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
-        nn = cot_stack(nn, num_block, out_channel, stride, expansion, cardinality, attn_type, avd_first, survival, activation=activation, name=name)
+        nn = cot_stack(nn, num_block, out_channel, stride, expansion, cardinality, attn_type, avd_first, stack_drop, activation=activation, name=name)
+        global_block_id += num_block
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)

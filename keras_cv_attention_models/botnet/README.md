@@ -7,7 +7,7 @@
 ***
 
 ## Models
-  | Model        | Params | Image  resolution | Top1 Acc | Download            |
+  | Model        | Params | Image resolution | Top1 Acc | Download            |
   | ------------ | ------ | ----------------- | -------- | ------------------- |
   | botnet50     | 21M    | 224               | 77.604   | [botnet50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet50.h5)  |
   | botnet101    | 41M    | 224               |          |  |

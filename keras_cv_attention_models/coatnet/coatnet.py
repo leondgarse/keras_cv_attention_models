@@ -1,7 +1,6 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers
-from tensorflow.python.keras import backend as K
+from tensorflow.keras import backend as K
 import os
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, se_module, MHSAWithPositionEmbedding
 
@@ -15,7 +14,7 @@ def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion
     nn = batchnorm_with_activation(inputs, activation=activation, name=name + "preact_")
 
     if conv_short_cut:
-        shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(nn) if strides > 1 else nn
+        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(nn) if strides > 1 else nn
         shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shorcut_")
     else:
         shortcut = inputs
@@ -46,14 +45,14 @@ def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, num_heads=3
     nn = batchnorm_with_activation(inputs, activation=activation, name=name + "preact_")
 
     if conv_short_cut:
-        shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(nn) if strides > 1 else nn
+        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(nn) if strides > 1 else nn
         shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shorcut_")
     else:
         shortcut = inputs
 
     if strides != 1:  # Downsample
-        nn = layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
-        nn = layers.AvgPool2D(pool_size=3, strides=strides, name=name + "pool")(nn)
+        nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
+        nn = keras.layers.AvgPool2D(pool_size=3, strides=strides, name=name + "pool")(nn)
     key_dim = output_channel // num_heads
     nn = MHSAWithPositionEmbedding(num_heads=num_heads, key_dim=key_dim, name=name + "mhsa", **kwargs)(nn)
 

@@ -13,7 +13,6 @@ setup(
     install_requires=[
         "einops",
         "tensorflow",
-        "tensorflow-addons",
     ],
     packages=find_packages(),
     license="Apache 2.0",

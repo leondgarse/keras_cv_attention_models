@@ -1,6 +1,5 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.python.keras import layers
 from tensorflow.keras import backend as K
 import os
 
@@ -13,21 +12,21 @@ CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode=
 def batchnorm_with_activation(inputs, activation="relu", name=""):
     """Performs a batch normalization followed by an activation. """
     bn_axis = 3 if K.image_data_format() == "channels_last" else 1
-    nn = layers.BatchNormalization(
+    nn = keras.layers.BatchNormalization(
         axis=bn_axis,
         momentum=BATCH_NORM_DECAY,
         epsilon=BATCH_NORM_EPSILON,
         name=name + "bn",
     )(inputs)
     if activation:
-        nn = layers.Activation(activation=activation, name=name + activation)(nn)
+        nn = keras.layers.Activation(activation=activation, name=name + activation)(nn)
     return nn
 
 
 def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", name="", **kwargs):
     if padding.upper() == "SAME":
-        inputs = layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(inputs)
-    return layers.Conv2D(
+        inputs = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(inputs)
+    return keras.layers.Conv2D(
         filters,
         kernel_size,
         strides=strides,
@@ -46,7 +45,7 @@ def rsoftmax(inputs, filters, groups):
         nn = tf.nn.softmax(nn, axis=2)
         nn = tf.reshape(nn, [-1, 1, 1, groups * filters])
     else:
-        nn = layers.Activation("sigmoid")(inputs)
+        nn = keras.layers.Activation("sigmoid")(inputs)
     return nn
 
 
@@ -75,11 +74,11 @@ def split_attention_conv2d(inputs, filters, kernel_size=3, strides=1, groups=2, 
 
     reduction_factor = 4
     inter_channels = max(in_channels * groups // reduction_factor, 32)
-    atten = layers.Conv2D(inter_channels, kernel_size=1, name=name + "2_conv")(gap)
+    atten = keras.layers.Conv2D(inter_channels, kernel_size=1, name=name + "2_conv")(gap)
     atten = batchnorm_with_activation(atten, activation=activation, name=name + "2_")
-    atten = layers.Conv2D(filters * groups, kernel_size=1, name=name + "3_conv")(atten)
+    atten = keras.layers.Conv2D(filters * groups, kernel_size=1, name=name + "3_conv")(atten)
     atten = rsoftmax(atten, filters, groups)
-    out = layers.Multiply()([atten, logits])
+    out = keras.layers.Multiply()([atten, logits])
 
     if groups > 1:
         out = tf.split(out, groups, axis=-1)
@@ -89,7 +88,7 @@ def split_attention_conv2d(inputs, filters, kernel_size=3, strides=1, groups=2, 
 
 def block(inputs, filters, strides=1, activation="relu", use_se=False, groups=2, name=""):
     if strides != 1 or inputs.shape[-1] != filters * 4:
-        short_cut = layers.AveragePooling2D(pool_size=strides, strides=strides, padding="SAME", name=name + "st_pool")(inputs)
+        short_cut = keras.layers.AveragePooling2D(pool_size=strides, strides=strides, padding="SAME", name=name + "st_pool")(inputs)
         short_cut = conv2d_no_bias(short_cut, filters * 4, kernel_size=1, name=name + "shortcut_")
         short_cut = batchnorm_with_activation(short_cut, activation=None, name=name + "shortcut_")
     else:
@@ -100,13 +99,13 @@ def block(inputs, filters, strides=1, activation="relu", use_se=False, groups=2,
 
     nn = split_attention_conv2d(nn, filters=filters, kernel_size=3, groups=groups, activation=activation, name=name + "sa_")
     if strides > 1:
-        nn = layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
-        nn = layers.AveragePooling2D(pool_size=3, strides=strides, name=name + "pool")(nn)
+        nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
+        nn = keras.layers.AveragePooling2D(pool_size=3, strides=strides, name=name + "pool")(nn)
     nn = conv2d_no_bias(nn, filters * 4, 1, name=name + "2_")
     nn = batchnorm_with_activation(nn, activation=None, name=name + "2_")
 
-    nn = layers.Add()([short_cut, nn])
-    nn = layers.Activation(activation, name=name + "out_" + activation)(nn)
+    nn = keras.layers.Add()([short_cut, nn])
+    nn = keras.layers.Activation(activation, name=name + "out_" + activation)(nn)
     return nn
 
 
@@ -128,8 +127,8 @@ def stem(inputs, stem_width, activation="relu", deep_stem=False, name=""):
         nn = conv2d_no_bias(inputs, stem_width, 7, strides=2, padding="same", name=name + "3_")
 
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "3_")
-    nn = layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
-    nn = layers.MaxPool2D(pool_size=3, strides=2, name=name + "pool")(nn)
+    nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
+    nn = keras.layers.MaxPool2D(pool_size=3, strides=2, name=name + "pool")(nn)
     return nn
 
 
@@ -145,7 +144,7 @@ def ResNest(
     model_name="resnest",
     **kwargs
 ):
-    img_input = layers.Input(shape=input_shape)
+    img_input = keras.layers.Input(shape=input_shape)
     nn = stem(img_input, stem_width, activation=activation, deep_stem=True, name="stem_")
 
     out_channels = [64, 128, 256, 512]
@@ -155,8 +154,8 @@ def ResNest(
         nn = stack(nn, blocks=num_block, filters=out_channel, strides=stride, activation=activation, groups=groups, name=name)
 
     if num_classes > 0:
-        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        nn = layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
+        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
     model = tf.keras.models.Model(img_input, nn, name=model_name)
     reload_model_weights(model, input_shape, pretrained)

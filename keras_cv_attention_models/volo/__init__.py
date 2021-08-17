@@ -9,9 +9,10 @@ __tail_doc__ = """  patch_size: model architecture parameter, patch size extract
   input_shape: it should have exactly 3 inputs channels like `(224, 224, 3)`.
       Mostly pre-trained input resolution is in [224, 384, 448, 512].
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
-  survivals: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
-      Can be value like `0.5` or `0.8`, indicates the survival probability linearly changes from `1 --> 0.8` for `top --> bottom` layers.
-      A higher value means a higher probability will keep the deep branch.
+  drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
+      Can be value like `0.2`, indicates the drop probability linearly changes from `0 --> 0.2` for `top --> bottom` layers.
+      A higher value means a higher probability will drop the deep branch.
+      or `0` to disable (default).
   classfiers: number of classfier attension layers.
       Will try to download and load pre-trained model weights if not None.
   mix_token: set True for training using `mix_token`. Should better with `token_label_top=True`.

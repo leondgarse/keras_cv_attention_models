@@ -1,8 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers
-from tensorflow.python.keras import backend as K
-from einops import rearrange
+from tensorflow.keras import backend as K
+# from einops import rearrange    # Currently einops 0.3.0 is broken for tf.keras 2.6.0...
 import os
 
 BATCH_NORM_DECAY = 0.9
@@ -99,20 +98,33 @@ class HaloAttention(keras.layers.Layer):
         # pos_query = [batch, num_heads * hh * ww, block_size, block_size, key_dim]
         query = tf.matmul(inputs, self.query_dense)
         query = tf.multiply(query, self.qk_scale)
-        attn_query = rearrange(query, "B (h hb) (w wb) (hd c) -> B hd h w (hb wb) c", hb=self.block_size, wb=self.block_size, hd=self.num_heads)
-        pos_query = rearrange(attn_query, "B hd h w (hb wb) c -> B (hd h w) hb wb c", hb=self.block_size, wb=self.block_size)
+        # attn_query = rearrange(query, "B (h hb) (w wb) (hd c) -> B hd h w (hb wb) c", hb=self.block_size, wb=self.block_size, hd=self.num_heads)
+        # pos_query = rearrange(attn_query, "B hd h w (hb wb) c -> B (hd h w) hb wb c", hb=self.block_size, wb=self.block_size)
+        # Currently einops 0.3.0 is broken for keras...
+        _, hh, ww, cc = query.shape
+        hh_qq, ww_qq, cc_qq = hh // self.block_size, ww // self.block_size, cc // self.num_heads
+        query = tf.reshape(query, [-1, hh_qq, self.block_size, ww_qq, self.block_size, self.num_heads, cc_qq])
+        query = tf.transpose(query, [0, 5, 1, 3, 2, 4, 6])
+        attn_query = tf.reshape(query, [-1, self.num_heads, hh_qq, ww_qq, self.block_size * self.block_size, cc_qq])
+        pos_query = tf.reshape(query, [-1, self.num_heads * hh_qq * ww_qq, self.block_size, self.block_size, cc_qq])
 
         # key_value = [batch, num_heads, hh, ww, kv_kernel * kv_kernel, key_dim * 2]
         key_value = tf.matmul(inputs, self.kv_dense)
         kv_padded = tf.pad(key_value, [[0, 0], [self.halo_size, self.halo_size], [self.halo_size, self.halo_size], [0, 0]])
         sizes, strides = [1, self.kv_kernel, self.kv_kernel, 1], [1, self.block_size, self.block_size, 1]
         kv_inp = tf.image.extract_patches(kv_padded, sizes=sizes, strides=strides, rates=[1, 1, 1, 1], padding="VALID")
-        kv_inp = rearrange(kv_inp, "B h w (hb wb hd c) -> B hd h w (hb wb) c", hb=self.kv_kernel, wb=self.kv_kernel, hd=self.num_heads)
+        # kv_inp = rearrange(kv_inp, "B h w (hb wb hd c) -> B hd h w (hb wb) c", hb=self.kv_kernel, wb=self.kv_kernel, hd=self.num_heads)
+        _, hh_kk, ww_kk, cc = kv_inp.shape
+        cc_kk = cc // self.num_heads // self.kv_kernel // self.kv_kernel
+        kv_inp = tf.reshape(kv_inp, [-1, hh_kk, ww_kk, self.kv_kernel, self.kv_kernel, self.num_heads, cc_kk])
+        kv_inp = tf.transpose(kv_inp, [0, 5, 1, 2, 3, 4, 6])
+        kv_inp = tf.reshape(kv_inp, [-1, self.num_heads, hh_kk, ww_kk, self.kv_kernel * self.kv_kernel, cc_kk])
 
         # key = value = [batch, num_heads, hh, ww, kv_kernel * kv_kernel, key_dim]
         key, value = tf.split(kv_inp, 2, axis=-1)
 
         # scaled_dot_product_attention
+        # print(f">>>> {attn_query.shape = }, {key.shape = }, {value.shape = }, {kv_inp.shape = }")
         attention_scores = tf.matmul(attn_query, key, transpose_b=True)  # [batch, num_heads, hh, ww, block_size * block_size, kv_kernel * kv_kernel]
         pos = self.relative_logits(pos_query)  # [batch, num_heads * hh * ww, block_size, block_size, kv_kernel, kv_kernel]
         attention_scores += tf.reshape(pos, [-1, *attention_scores.shape[1:]])
@@ -122,7 +134,11 @@ class HaloAttention(keras.layers.Layer):
             attention_scores = self.attn_dropout_layer(attention_scores, training=training)
 
         attention_output = tf.matmul(attention_scores, value)  # [batch, num_heads, hh, ww, block_size * block_size, key_dim]
-        attention_output = rearrange(attention_output, "B hd h w (hb wb) c -> B (h hb) (w wb) (hd c)", hb=self.block_size, wb=self.block_size)
+        # attention_output = rearrange(attention_output, "B hd h w (hb wb) c -> B (h hb) (w wb) (hd c)", hb=self.block_size, wb=self.block_size)
+        _, heads, hh_aa, ww_aa, patch, cc_aa = attention_output.shape
+        attention_output = tf.reshape(attention_output, [-1, heads, hh_aa, ww_aa, self.block_size, self.block_size, cc_aa])
+        attention_output = tf.transpose(attention_output, [0, 2, 4, 3, 5, 1, 6])
+        attention_output = tf.reshape(attention_output, [-1, hh_aa * self.block_size, ww_aa * self.block_size, heads * cc_aa])
 
         if self.out_weight:
             # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
@@ -216,7 +232,7 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
     """Performs a batch normalization followed by an activation. zero_gamma: https://arxiv.org/abs/1706.02677 """
     bn_axis = 3 if K.image_data_format() == "channels_last" else 1
     gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
-    nn = layers.BatchNormalization(
+    nn = keras.layers.BatchNormalization(
         axis=bn_axis,
         momentum=BATCH_NORM_DECAY,
         epsilon=BATCH_NORM_EPSILON,
@@ -224,14 +240,14 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
         name=name + "bn",
     )(inputs)
     if activation:
-        nn = layers.Activation(activation=activation, name=name + activation)(nn)
+        nn = keras.layers.Activation(activation=activation, name=name + activation)(nn)
     return nn
 
 
 def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", name=""):
     if padding == "SAME":
-        inputs = layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(inputs)
-    return layers.Conv2D(filters, kernel_size, strides=strides, padding="VALID", use_bias=False, name=name + "conv")(inputs)
+        inputs = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(inputs)
+    return keras.layers.Conv2D(filters, kernel_size, strides=strides, padding="VALID", use_bias=False, name=name + "conv")(inputs)
 
 
 def halo_block(inputs, filter, strides=1, shortcut=False, expansion=2, num_heads=4, key_dim=16, block_size=8, halo_size=4, activation="relu", name=""):
@@ -253,14 +269,14 @@ def halo_block(inputs, filter, strides=1, shortcut=False, expansion=2, num_heads
     # print(">>>>", nn.shape, num_heads, key_dim, block_size, halo_size)
     nn = HaloAttention(num_heads, key_dim, block_size, halo_size, out_bias=True, name=name + "halo")(nn)
     # print(">>>>", nn.shape)
-    nn = layers.Activation(activation=activation)(nn)
+    nn = keras.layers.Activation(activation=activation)(nn)
     # round(planes * self.expansion * rb), expansion = 2
     nn = conv2d_no_bias(nn, expanded_filter, 1, name=name + "2_")
     nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "2_")
 
     # print(">>>>", nn.shape, shortcut.shape)
-    nn = layers.Add(name=name + "_add")([shortcut, nn])
-    return layers.Activation(activation, name=name + "_out")(nn)
+    nn = keras.layers.Add(name=name + "_add")([shortcut, nn])
+    return keras.layers.Activation(activation, name=name + "_out")(nn)
 
 
 def halo_stack(inputs, blocks, filter, strides=1, expansion=2, num_heads=4, key_dim=32, block_size=8, halo_size=4, activation="relu", name=""):

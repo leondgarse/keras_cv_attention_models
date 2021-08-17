@@ -5,8 +5,7 @@ Original TensorFlow version: https://gist.github.com/aravindsrinivas/56359b79f0c
 
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers
-from tensorflow.python.keras import backend as K
+from tensorflow.keras import backend as K
 import os
 
 BATCH_NORM_DECAY = 0.9
@@ -176,7 +175,7 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
     """Performs a batch normalization followed by an activation. """
     bn_axis = 3 if K.image_data_format() == "channels_last" else 1
     gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
-    nn = layers.BatchNormalization(
+    nn = keras.layers.BatchNormalization(
         axis=bn_axis,
         momentum=BATCH_NORM_DECAY,
         epsilon=BATCH_NORM_EPSILON,
@@ -184,14 +183,14 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
         name=name + "bn",
     )(inputs)
     if activation:
-        nn = layers.Activation(activation=activation, name=name + activation)(nn)
+        nn = keras.layers.Activation(activation=activation, name=name + activation)(nn)
     return nn
 
 
 def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", name=""):
     if padding == "SAME":
-        inputs = layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(inputs)
-    return layers.Conv2D(filters, kernel_size, strides=strides, padding="VALID", use_bias=False, name=name + "conv")(inputs)
+        inputs = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(inputs)
+    return keras.layers.Conv2D(filters, kernel_size, strides=strides, padding="VALID", use_bias=False, name=name + "conv")(inputs)
 
 
 def bot_block(
@@ -223,9 +222,9 @@ def bot_block(
         key_dim = bottleneck_dimension // heads
         nn = MHSAWithPositionEmbedding(num_heads=heads, key_dim=key_dim, relative=relative_pe, out_weight=False, name=name + "_2_mhsa")(nn)
         if strides != 1:
-            # nn = layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
-            # nn = layers.AveragePooling2D(pool_size=3, strides=strides, name=name + "pool")(nn)
-            nn = layers.AveragePooling2D(pool_size=(2, 2), strides=(2, 2), padding="same")(nn)
+            # nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
+            # nn = keras.layers.AveragePooling2D(pool_size=3, strides=strides, name=name + "pool")(nn)
+            nn = keras.layers.AveragePooling2D(pool_size=(2, 2), strides=(2, 2), padding="same")(nn)
     else:  # ResNet block
         nn = conv2d_no_bias(nn, bottleneck_dimension, 3, strides=strides, padding="SAME", name=name + "_2_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "_2_")
@@ -233,8 +232,8 @@ def bot_block(
     nn = conv2d_no_bias(nn, target_dimension, 1, strides=1, padding="VALID", name=name + "_3_")
     nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "_3_")
 
-    nn = layers.Add(name=name + "_add")([shortcut, nn])
-    return layers.Activation(activation, name=name + "_out")(nn)
+    nn = keras.layers.Add(name=name + "_add")([shortcut, nn])
+    return keras.layers.Activation(activation, name=name + "_out")(nn)
 
 
 def bot_stack(
@@ -278,15 +277,15 @@ def BotNet(
     model_name="botnet",
     **kwargs
 ):
-    inputs = layers.Input(shape=input_shape)
+    inputs = keras.layers.Input(shape=input_shape)
 
-    nn = layers.ZeroPadding2D(padding=((3, 3), (3, 3)), name="conv1_pad")(inputs)
-    nn = layers.Conv2D(64, 7, strides=2, use_bias=use_bias, name="conv1_conv")(nn)
+    nn = keras.layers.ZeroPadding2D(padding=((3, 3), (3, 3)), name="conv1_pad")(inputs)
+    nn = keras.layers.Conv2D(64, 7, strides=2, use_bias=use_bias, name="conv1_conv")(nn)
 
     if not preact:
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="conv1_")
-    nn = layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name="pool1_pad")(nn)
-    nn = layers.MaxPooling2D(3, strides=2, name="pool1_pool")(nn)
+    nn = keras.layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name="pool1_pad")(nn)
+    nn = keras.layers.MaxPooling2D(3, strides=2, name="pool1_pool")(nn)
 
     out_channels = [64, 128, 256, 512]
     stack_strides = [1, 2, 2, strides]
@@ -298,8 +297,8 @@ def BotNet(
     if preact:
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="post_")
     if num_classes > 0:
-        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        nn = layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
+        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
     reload_model_weights(model, input_shape, pretrained)

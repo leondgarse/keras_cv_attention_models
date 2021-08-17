@@ -1,13 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.python.keras import layers
 from tensorflow.keras import backend as K
 import os
-
-try:
-    from tensorflow_addons.layers import StochasticDepth
-except:
-    pass
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
@@ -19,7 +13,7 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
     """Performs a batch normalization followed by an activation. """
     bn_axis = 3 if K.image_data_format() == "channels_last" else 1
     gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
-    nn = layers.BatchNormalization(
+    nn = keras.layers.BatchNormalization(
         axis=bn_axis,
         momentum=BATCH_NORM_DECAY,
         epsilon=BATCH_NORM_EPSILON,
@@ -27,14 +21,14 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
         name=name + "bn",
     )(inputs)
     if activation:
-        nn = layers.Activation(activation=activation, name=name + activation)(nn)
+        nn = keras.layers.Activation(activation=activation, name=name + activation)(nn)
     return nn
 
 
 def conv2d_with_init(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, name="", **kwargs):
     if padding.upper() == "SAME":
-        inputs = layers.ZeroPadding2D(kernel_size // 2)(inputs)
-    return layers.Conv2D(
+        inputs = keras.layers.ZeroPadding2D(kernel_size // 2)(inputs)
+    return keras.layers.Conv2D(
         filters,
         kernel_size,
         strides=strides,
@@ -58,8 +52,8 @@ def patch_stem(inputs, hidden_dim=64, stem_width=384, patch_size=8, strides=2, a
     return conv2d_with_init(nn, stem_width, patch_step, strides=patch_step, use_bias=True, name=name + "patch_")
 
 
-@tf.keras.utils.register_keras_serializable(package="Custom")
-class UnfoldMatmulFold(layers.Layer):
+@keras.utils.register_keras_serializable(package="Custom")
+class UnfoldMatmulFold(keras.layers.Layer):
     """
     As the name `fold_overlap_1` indicates, works only if overlap happens once in fold, like `kernel_size=3, strides=2`.
     For `kernel_size=3, strides=1`, overlap happens twice, will NOT work...
@@ -158,25 +152,25 @@ def outlook_attention(inputs, embed_dim, num_head, kernel_size=3, padding=1, str
     qk_scale = tf.math.sqrt(tf.cast(embed_dim // num_head, FLOAT_DTYPE))
     hh, ww = int(tf.math.ceil(height / strides)), int(tf.math.ceil(width / strides))
 
-    vv = layers.Dense(embed_dim, use_bias=False, name=name + "v")(inputs)
+    vv = keras.layers.Dense(embed_dim, use_bias=False, name=name + "v")(inputs)
 
     """ attention """
     # [1, 14, 14, 192]
-    attn = layers.AveragePooling2D(pool_size=strides, strides=strides)(inputs)
+    attn = keras.layers.AveragePooling2D(pool_size=strides, strides=strides)(inputs)
     # [1, 14, 14, 486]
-    attn = layers.Dense(kernel_size ** 4 * num_head, name=name + "attn")(attn) / qk_scale
+    attn = keras.layers.Dense(kernel_size ** 4 * num_head, name=name + "attn")(attn) / qk_scale
     # [1, 14, 14, 6, 9, 9]
     attn = tf.reshape(attn, (-1, hh, ww, num_head, kernel_size * kernel_size, kernel_size * kernel_size))
     attention_weights = tf.nn.softmax(attn, axis=-1)
     if attn_dropout > 0:
-        attention_weights = layers.Dropout(attn_dropout)(attention_weights)
+        attention_weights = keras.layers.Dropout(attn_dropout)(attention_weights)
 
     """ Unfold --> Matmul --> Fold, no weights in this process """
     output = UnfoldMatmulFold((height, width, embed_dim), kernel_size, padding, strides)([vv, attention_weights])
-    output = layers.Dense(embed_dim, use_bias=True, name=name + "out")(output)
+    output = keras.layers.Dense(embed_dim, use_bias=True, name=name + "out")(output)
 
     if output_dropout > 0:
-        output = layers.Dropout(output_dropout)(output)
+        output = keras.layers.Dropout(output_dropout)(output)
 
     return output
 
@@ -219,20 +213,22 @@ def outlook_attention_simple(inputs, embed_dim, num_head=6, kernel_size=3, attn_
 
 
 @tf.keras.utils.register_keras_serializable(package="Custom")
-class BiasLayer(tf.keras.layers.Layer):
+class BiasLayer(keras.layers.Layer):
     def __init__(self, **kwargs):
         super(BiasLayer, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        self.bias = self.add_weight("bias", shape=input_shape[-1], initializer="zeros", trainable=True)
+        self.bb = self.add_weight(name="bias", shape=(input_shape[-1]), initializer="zeros", trainable=True)
+        super(BiasLayer, self).build(input_shape)
 
-    def call(self, inputs):
-        return inputs + self.bias
+    def call(self, inputs, **kwargs):
+        return inputs + self.bb
 
 
-def attention_mlp_block(inputs, embed_dim, num_head=1, mlp_ratio=3, attention_type=None, survival=None, mlp_activation="gelu", dropout=0, name=""):
+def attention_mlp_block(inputs, embed_dim, num_head=1, mlp_ratio=3, attention_type=None, drop_rate=0, mlp_activation="gelu", dropout=0, name=""):
+    # print(f">>>> {drop_rate = }")
     nn_0 = inputs[:, :1] if attention_type == "class" else inputs
-    nn_1 = layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "LN")(inputs)
+    nn_1 = keras.layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "LN")(inputs)
 
     if attention_type == "outlook":
         nn_1 = outlook_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
@@ -240,44 +236,43 @@ def attention_mlp_block(inputs, embed_dim, num_head=1, mlp_ratio=3, attention_ty
         nn_1 = outlook_attention_simple(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
     elif attention_type == "class":
         # nn_1 = class_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
-        nn_1 = layers.MultiHeadAttention(num_heads=num_head, key_dim=embed_dim // num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa")(
+        nn_1 = keras.layers.MultiHeadAttention(num_heads=num_head, key_dim=embed_dim // num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa")(
             nn_1[:, :1, :], nn_1
         )
         nn_1 = BiasLayer(name=name + "attn_bias")(nn_1)  # bias for output dense
     elif attention_type == "mhsa":
         # nn_1 = multi_head_self_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
-        nn_1 = layers.MultiHeadAttention(num_heads=num_head, key_dim=embed_dim // num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa")(
+        nn_1 = keras.layers.MultiHeadAttention(num_heads=num_head, key_dim=embed_dim // num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa")(
             nn_1, nn_1
         )
         nn_1 = BiasLayer(name=name + "attn_bias")(nn_1)  # bias for output dense
 
-    if survival is not None and survival < 1:
-        nn_1 = StochasticDepth(float(survival))([nn_0, nn_1])
-    else:
-        nn_1 = layers.Add()([nn_0, nn_1])
+    if drop_rate > 0:
+        nn_1 = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1, 1), name=name + "drop_1")(nn_1)
+    nn_1 = keras.layers.Add()([nn_0, nn_1])
 
     """ MLP """
-    nn_2 = layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "mlp_LN")(nn_1)
-    nn_2 = layers.Dense(embed_dim * mlp_ratio, name=name + "mlp_dense_1")(nn_2)
+    nn_2 = keras.layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "mlp_LN")(nn_1)
+    nn_2 = keras.layers.Dense(embed_dim * mlp_ratio, name=name + "mlp_dense_1")(nn_2)
     # gelu with approximate=False using `erf` leads to GPU memory leak...
-    # nn_2 = layers.Activation("gelu", name=name + "mlp_" + mlp_activation)(nn_2)
+    # nn_2 = keras.layers.Activation("gelu", name=name + "mlp_" + mlp_activation)(nn_2)
     approximate = True if tf.keras.mixed_precision.global_policy().compute_dtype == "float16" else False
     nn_2 = tf.nn.gelu(nn_2, approximate=approximate)
-    nn_2 = layers.Dense(embed_dim, name=name + "mlp_dense_2")(nn_2)
+    nn_2 = keras.layers.Dense(embed_dim, name=name + "mlp_dense_2")(nn_2)
     if dropout > 0:
-        nn_2 = layers.Dropout(dropout)(nn_2)
+        nn_2 = keras.layers.Dropout(dropout)(nn_2)
 
-    if survival is not None and survival < 1:
-        out = StochasticDepth(float(survival))([nn_1, nn_2])
-    else:
-        out = layers.Add()([nn_1, nn_2])
+    if drop_rate > 0:
+        nn_2 = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1, 1), name=name + "drop_2")(nn_2)
+    out = keras.layers.Add()([nn_1, nn_2])
+
     if attention_type == "class":
         out = tf.concat([out, inputs[:, 1:]], axis=1)
     return out
 
 
 @tf.keras.utils.register_keras_serializable(package="Custom")
-class PositionalEmbedding(layers.Layer):
+class PositionalEmbedding(keras.layers.Layer):
     def __init__(self, **kwargs):
         super(PositionalEmbedding, self).__init__(**kwargs)
         self.pp_init = tf.initializers.TruncatedNormal(stddev=0.2)
@@ -296,7 +291,7 @@ class PositionalEmbedding(layers.Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package="Custom")
-class ClassToken(layers.Layer):
+class ClassToken(keras.layers.Layer):
     def __init__(self, **kwargs):
         super(ClassToken, self).__init__(**kwargs)
         self.token_init = tf.initializers.TruncatedNormal(stddev=0.2)
@@ -314,7 +309,7 @@ class ClassToken(layers.Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package="Custom")
-class MixupToken(layers.Layer):
+class MixupToken(keras.layers.Layer):
     def __init__(self, scale=2, beta=1.0, **kwargs):
         super(MixupToken, self).__init__(**kwargs)
         self.scale, self.beta = scale, beta
@@ -373,7 +368,7 @@ def VOLO(
     patch_size=8,
     input_shape=(224, 224, 3),
     num_classes=1000,
-    survivals=None,
+    drop_connect_rate=0,
     classfiers=2,
     mix_token=False,
     token_classifier_top=False,
@@ -384,7 +379,7 @@ def VOLO(
     model_name="VOLO",
     **kwargs,
 ):
-    inputs = layers.Input(input_shape)
+    inputs = keras.layers.Input(input_shape)
 
     """ forward_embeddings """
     nn = patch_stem(inputs, hidden_dim=stem_hidden_dim, stem_width=embed_dims[0], patch_size=patch_size, strides=2, name="stem_")
@@ -398,35 +393,35 @@ def VOLO(
     outlook_attentions = [True, False]
     downsamples = [True, False]
 
-    # StochasticDepth survival_probability values
-    total_layers = sum(num_blocks)
-    if isinstance(survivals, float):
-        start, end = 1, survivals
-        survivals = [start - (1 - end) * float(ii) / (total_layers - 1) for ii in range(total_layers)]
-    else:
-        survivals = [None] * total_layers
-    survivals = [survivals[int(sum(num_blocks[:id])) : sum(num_blocks[: id + 1])] for id in range(len(num_blocks))]
-
     """ forward_tokens """
+    total_blocks = sum(num_blocks)
+    global_block_id = 0
+
     # Outlook attentions
-    num_block, embed_dim, num_head, mlp_ratio, survival = num_blocks[0], embed_dims[0], num_heads[0], mlp_ratios[0], survivals[0]
+    num_block, embed_dim, num_head, mlp_ratio = num_blocks[0], embed_dims[0], num_heads[0], mlp_ratios[0]
     for ii in range(num_block):
         name = "outlook_block{}_".format(ii)
-        nn = attention_mlp_block(nn, embed_dim, num_head, mlp_ratio=mlp_ratio, attention_type=first_attn_type, survival=survival[ii], name=name)
+        block_drop_rate = drop_connect_rate * global_block_id / total_blocks
+        nn = attention_mlp_block(nn, embed_dim, num_head, mlp_ratio=mlp_ratio, attention_type=first_attn_type, drop_rate=block_drop_rate, name=name)
+        global_block_id += 1
 
     # downsample
-    nn = layers.Conv2D(embed_dim * 2, kernel_size=2, strides=2, name="downsample_conv")(nn)
+    nn = keras.layers.Conv2D(embed_dim * 2, kernel_size=2, strides=2, name="downsample_conv")(nn)
     # PositionalEmbedding
     nn = PositionalEmbedding(name="positional_embedding")(nn)
 
     # MHSA attentions
-    num_block, embed_dim, num_head, mlp_ratio, survival = num_blocks[1], embed_dims[1], num_heads[1], mlp_ratios[1], survivals[1]
+    num_block, embed_dim, num_head, mlp_ratio = num_blocks[1], embed_dims[1], num_heads[1], mlp_ratios[1]
     for ii in range(num_block):
         name = "MHSA_block{}_".format(ii)
-        nn = attention_mlp_block(nn, embed_dim, num_head, mlp_ratio=mlp_ratio, attention_type="mhsa", survival=survival[ii], name=name)
+        block_drop_rate = drop_connect_rate * global_block_id / total_blocks
+        nn = attention_mlp_block(nn, embed_dim, num_head, mlp_ratio=mlp_ratio, attention_type="mhsa", drop_rate=block_drop_rate, name=name)
+        global_block_id += 1
 
     if num_classes == 0:
-        return tf.keras.models.Model(inputs, nn, name=model_name)
+        model = tf.keras.models.Model(inputs, nn, name=model_name)
+        reload_model_weights(model, input_shape, pretrained)
+        return model
 
     _, height, width, channel = nn.shape
     nn = tf.reshape(nn, (-1, height * width, channel))
@@ -438,37 +433,37 @@ def VOLO(
     for id in range(classfiers):
         name = "classfiers{}_".format(id)
         nn = attention_mlp_block(nn, embed_dim=embed_dim, num_head=num_head, mlp_ratio=mlp_ratio, attention_type="class", name=name)
-    nn = layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, name="pre_out_LN")(nn)
+    nn = keras.layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, name="pre_out_LN")(nn)
 
     if token_label_top:
         # Training with label token
-        nn_cls = layers.Dense(num_classes, name="token_head")(nn[:, 0])
-        nn_aux = layers.Dense(num_classes, name="aux_head")(nn[:, 1:])
+        nn_cls = keras.layers.Dense(num_classes, name="token_head")(nn[:, 0])
+        nn_aux = keras.layers.Dense(num_classes, name="aux_head")(nn[:, 1:])
 
         if mix_token:
             nn_aux = tf.reshape(nn_aux, (-1, height, width, num_classes))
             nn_aux = mixup_token.do_mixup_token(nn_aux, bbox)
-            nn_aux = layers.Reshape((height * width, num_classes), dtype="float32", name="aux")(nn_aux)
+            nn_aux = keras.layers.Reshape((height * width, num_classes), dtype="float32", name="aux")(nn_aux)
 
             left, top, right, bottom = bbox
             lam = 1 - ((right - left) * (bottom - top) / nn_aux.shape[1])
             lam_repeat = tf.expand_dims(tf.repeat(lam, tf.shape(inputs)[0], axis=0), 1)
-            nn_cls = layers.Concatenate(axis=-1, dtype="float32", name="class")([nn_cls, lam_repeat])
+            nn_cls = keras.layers.Concatenate(axis=-1, dtype="float32", name="class")([nn_cls, lam_repeat])
 
-        # nn_lam = layers.Lambda(lambda ii: tf.cast(tf.stack(ii), tf.float32))([left_pos, top_pos, right_pos, bottom_pos])
+        # nn_lam = keras.layers.Lambda(lambda ii: tf.cast(tf.stack(ii), tf.float32))([left_pos, top_pos, right_pos, bottom_pos])
         nn = [nn_cls, nn_aux]
     elif mean_classifier_top:
         # Return mean of all tokens
-        nn = layers.GlobalAveragePooling1D(name="avg_pool")(nn)
-        nn = layers.Dense(num_classes, name="token_head")(nn)
+        nn = keras.layers.GlobalAveragePooling1D(name="avg_pool")(nn)
+        nn = keras.layers.Dense(num_classes, name="token_head")(nn)
     elif token_classifier_top:
         # Return dense classifier using only first token
-        nn = layers.Dense(num_classes, name="token_head")(nn[:, 0])
+        nn = keras.layers.Dense(num_classes, name="token_head")(nn[:, 0])
     else:
         # Return token dense for evaluation
-        nn_cls = layers.Dense(num_classes, name="token_head")(nn[:, 0])
-        nn_aux = layers.Dense(num_classes, name="aux_head")(nn[:, 1:])
-        nn = layers.Add()([nn_cls, tf.reduce_max(nn_aux, 1) * 0.5])
+        nn_cls = keras.layers.Dense(num_classes, name="token_head")(nn[:, 0])
+        nn_aux = keras.layers.Dense(num_classes, name="aux_head")(nn[:, 1:])
+        nn = keras.layers.Add()([nn_cls, tf.reduce_max(nn_aux, 1) * 0.5])
 
     model = tf.keras.models.Model(inputs, nn, name=model_name)
     reload_model_weights(model, input_shape, pretrained)
@@ -511,7 +506,7 @@ def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"
             pass
 
 
-def VOLO_d1(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
+def VOLO_d1(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", **kwargs):
     num_blocks = [4, 14]
     embed_dims = [192, 384]
     num_heads = [6, 12]
@@ -520,7 +515,7 @@ def VOLO_d1(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrai
     return VOLO(**locals(), model_name="volo_d1", **kwargs)
 
 
-def VOLO_d2(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
+def VOLO_d2(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", **kwargs):
     num_blocks = [6, 18]
     embed_dims = [256, 512]
     num_heads = [8, 16]
@@ -529,7 +524,7 @@ def VOLO_d2(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrai
     return VOLO(**locals(), model_name="volo_d2", **kwargs)
 
 
-def VOLO_d3(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
+def VOLO_d3(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", **kwargs):
     num_blocks = [8, 28]
     embed_dims = [256, 512]
     num_heads = [8, 16]
@@ -538,7 +533,7 @@ def VOLO_d3(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrai
     return VOLO(**locals(), model_name="volo_d3", **kwargs)
 
 
-def VOLO_d4(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
+def VOLO_d4(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", **kwargs):
     num_blocks = [8, 28]
     embed_dims = [384, 768]
     num_heads = [12, 16]
@@ -547,7 +542,7 @@ def VOLO_d4(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrai
     return VOLO(**locals(), model_name="volo_d4", **kwargs)
 
 
-def VOLO_d5(input_shape=(224, 224, 3), num_classes=1000, survivals=None, pretrained="imagenet", **kwargs):
+def VOLO_d5(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", **kwargs):
     num_blocks = [12, 36]
     embed_dims = [384, 768]
     num_heads = [12, 16]
