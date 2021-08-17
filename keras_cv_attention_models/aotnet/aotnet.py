@@ -109,7 +109,7 @@ def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_bloc
     return nn
 
 
-def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansion=4, attn_type=None, se_ratio=0, activation="relu", name=""):
+def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansion=4, attn_type=None, se_ratio=0, drop_rate=0, activation="relu", name=""):
     expanded_filter = filters * expansion
     halo_block_size = 4
     if attn_type == "halo" and inputs.shape[1] % halo_block_size != 0:  # HaloAttention
@@ -143,6 +143,8 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
         nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "3_")
 
     # print(">>>> shortcut:", shortcut.shape, "nn:", nn.shape)
+    if drop_rate > 0:
+        nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1, 1), name=name + "drop")(nn)
     if preact:  # ResNetV2
         return keras.layers.Add(name=name + "add")([shortcut, nn])
     else:
@@ -151,29 +153,33 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
         return keras.layers.Activation(activation, name=name + "out")(nn)
 
 
-def stack1(inputs, blocks, filters, preact=False, strides=2, expansion=4, attn_types=None, se_ratio=0, activation="relu", name=""):
+def stack1(inputs, blocks, filters, preact=False, strides=2, expansion=4, attn_types=None, se_ratio=0, stack_drop=0, activation="relu", name=""):
     nn = inputs
     # print(">>>> attn_types:", attn_types)
+    stack_drop_s, stack_drop_e = stack_drop if isinstance(stack_drop, (list, tuple)) else [stack_drop, stack_drop]
     for id in range(blocks):
         conv_shortcut = True if id == 0 and (strides != 1 or inputs.shape[-1] != filters * expansion) else False
         cur_strides = strides if id == 0 else 1
         block_name = name + "block{}_".format(id + 1)
+        block_drop_rate = stack_drop_s + (stack_drop_e - stack_drop_s) * id / blocks
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
         cur_se_ratio = se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio
-        nn = block(nn, filters, preact, cur_strides, conv_shortcut, expansion, attn_type, cur_se_ratio, activation, name=block_name)
+        nn = block(nn, filters, preact, cur_strides, conv_shortcut, expansion, attn_type, cur_se_ratio, block_drop_rate, activation, name=block_name)
     return nn
 
 
-def stack2(inputs, blocks, filters, preact=True, strides=2, expansion=4, attn_types=None, se_ratio=0, activation="relu", name=""):
+def stack2(inputs, blocks, filters, preact=True, strides=2, expansion=4, attn_types=None, se_ratio=0, stack_drop=0, activation="relu", name=""):
     nn = inputs
     # print(">>>> attn_types:", attn_types)
+    stack_drop_s, stack_drop_e = stack_drop if isinstance(stack_drop, (list, tuple)) else [stack_drop, stack_drop]
     for id in range(blocks):
         conv_shortcut = True if id == 0 else False
         cur_strides = strides if id == blocks - 1 else 1
         block_name = name + "block{}_".format(id + 1)
+        block_drop_rate = stack_drop_s + (stack_drop_e - stack_drop_s) * id / blocks
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
         cur_se_ratio = se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio
-        nn = block(nn, filters, preact, cur_strides, conv_shortcut, expansion, attn_type, cur_se_ratio, activation, name=block_name)
+        nn = block(nn, filters, preact, cur_strides, conv_shortcut, expansion, attn_type, cur_se_ratio, block_drop_rate, activation, name=block_name)
     return nn
 
 
@@ -204,6 +210,7 @@ def AotNet(
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="relu",
+    drop_connect_rate=0,
     classifier_activation="softmax",
     model_name="aotnet",
     **kwargs
@@ -217,11 +224,18 @@ def AotNet(
         nn = keras.layers.ZeroPadding2D(padding=1, name="stem_pool_pad")(nn)
         nn = keras.layers.MaxPooling2D(pool_size=3, strides=2, name="stem_pool")(nn)
 
+    total_blocks = sum(num_blocks)
+    global_block_id = 0
+    drop_connect_s, drop_connect_e = 0, drop_connect_rate
     for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, strides)):
         name = "stack{}_".format(id + 1)
+        stack_drop_s = drop_connect_rate * global_block_id / total_blocks
+        stack_drop_e = drop_connect_rate * (global_block_id + num_block) / total_blocks
+        stack_drop = (stack_drop_s, stack_drop_e)
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
         cur_se_ratio = se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio
-        nn = stack(nn, num_block, out_channel, preact, stride, expansion, attn_type, cur_se_ratio, activation, name=name)
+        nn = stack(nn, num_block, out_channel, preact, stride, expansion, attn_type, cur_se_ratio, stack_drop, activation, name=name)
+        global_block_id += num_block
 
     if preact:
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="post_")

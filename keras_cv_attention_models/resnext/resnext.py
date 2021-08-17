@@ -136,7 +136,7 @@ def ResNeXt(
 
 def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
     if not pretrained in ["imagenet"] or not model.name in ["resnext50", "resnext101"]:
-        print(">>>> No pretraind available, model will be random initialized")
+        print(">>>> No pretraind available, model will be randomly initialized")
         return
 
     pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/{}.h5"

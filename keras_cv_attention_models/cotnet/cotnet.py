@@ -1,7 +1,6 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from tensorflow_addons.layers import StochasticDepth, GroupNormalization
 import os
 
 BATCH_NORM_DECAY = 0.9
@@ -49,6 +48,8 @@ def group_conv(inputs, filters, kernel_size, groups=4, name="", **kwargs):
 
 
 def cot_attention(inputs, kernel_size=3, activation="relu", name=""):
+    from tensorflow_addons.layers import GroupNormalization
+
     # inputs, kernel_size, strides, activation, name = tf.ones([1, 7, 7, 512]), 3, 1, "relu", ""
     filters = inputs.shape[-1]
     randix = 2
@@ -236,7 +237,7 @@ def CotNet(
 
 def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
     if not pretrained in ["imagenet"]:
-        print(">>>> No pretraind available, model will be random initialized")
+        print(">>>> No pretraind available, model will be randomly initialized")
         return
 
     request_resolution = 320 if input_shape[0] == 320 and model.name == "se_cotnetd152" else 224

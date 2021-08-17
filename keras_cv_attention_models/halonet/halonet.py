@@ -100,7 +100,6 @@ class HaloAttention(keras.layers.Layer):
         query = tf.multiply(query, self.qk_scale)
         # attn_query = rearrange(query, "B (h hb) (w wb) (hd c) -> B hd h w (hb wb) c", hb=self.block_size, wb=self.block_size, hd=self.num_heads)
         # pos_query = rearrange(attn_query, "B hd h w (hb wb) c -> B (hd h w) hb wb c", hb=self.block_size, wb=self.block_size)
-        # Currently einops 0.3.0 is broken for keras...
         _, hh, ww, cc = query.shape
         hh_qq, ww_qq, cc_qq = hh // self.block_size, ww // self.block_size, cc // self.num_heads
         query = tf.reshape(query, [-1, hh_qq, self.block_size, ww_qq, self.block_size, self.num_heads, cc_qq])
