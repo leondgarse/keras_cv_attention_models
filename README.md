@@ -72,7 +72,7 @@
     mm = aotnet.AotNet50V2(attn_types=attn_types, se_ratio=se_ratio, deep_stem=True, strides=1)
     ```
 ### Keras BotNet
-  - [Keras BotNet](keras_cv_attention_models/botnet)
+  - [Keras BotNet](keras_cv_attention_models/botnet) is for [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://arxiv.org/pdf/2101.11605.pdf).
 
   | Model        | Params | Image resolution | Top1 Acc | Download            |
   | ------------ | ------ | ---------------- | -------- | ------------------- |
@@ -80,7 +80,7 @@
   | botnet101    | 41M    | 224              |          |  |
   | botnet152    | 56M    | 224              |          |  |
 ### Keras VOLO
-  - [Keras VOLO](keras_cv_attention_models/volo)
+  - [Keras VOLO](keras_cv_attention_models/volo) is for [PDF 2106.13112 VOLO: Vision Outlooker for Visual Recognition](https://arxiv.org/pdf/2106.13112.pdf).
 
   | Model        | Params | Image resolution | Top1 Acc | Download            |
   | ------------ | ------ | ---------------- | -------- | ------------------- |
@@ -96,7 +96,7 @@
   | volo_d5 ↑448 | 296M   | 448              | 87.0     | [volo_d5_448.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_448.h5) |
   | volo_d5 ↑512 | 296M   | 512              | 87.1     | [volo_d5_512.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_512.h5) |
 ### Keras ResNeSt
-  - [Keras ResNeSt](keras_cv_attention_models/resnest)
+  - [Keras ResNeSt](keras_cv_attention_models/resnest) is for [PDF 2004.08955 ResNeSt: Split-Attention Networks](https://arxiv.org/pdf/2004.08955.pdf).
 
   | Model          | Params | Image resolution | Top1 Acc | Download            |
   | -------------- | ------ | ----------------- | -------- | ------------------- |
@@ -105,14 +105,14 @@
   | resnest200     | 71M    | 320               | 83.84    | [resnest200.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest200.h5)  |
   | resnest269     | 111M   | 416               | 84.54    | [resnest269.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest269.h5)  |
 ### Keras ResNeXt
-  - [Keras ResNeXt](keras_cv_attention_models/resnext)
+  - [Keras ResNeXt](keras_cv_attention_models/resnext) is for [PDF 1611.05431 Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf).
 
   | Model          | Params | Image  resolution | Top1 Acc | Download            |
   | -------------- | ------ | ----------------- | -------- | ------------------- |
   | resnext50      | 25M    | 224               | 77.74    | [resnext50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext50.h5)  |
   | resnext101     | 42M    | 224               | 78.73    | [resnext101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext101.h5)  |
 ### Keras HaloNet
-  - [Keras HaloNet](keras_cv_attention_models/halonet)
+  - [Keras HaloNet](keras_cv_attention_models/halonet) is for [PDF 2103.12731 Scaling Local Self-Attention for Parameter Efficient Visual Backbones](https://arxiv.org/pdf/2103.12731.pdf).
 
   | Model   | Params | Image resolution | Top1 Acc |
   | ------- | ------ | ---------------- | -------- |

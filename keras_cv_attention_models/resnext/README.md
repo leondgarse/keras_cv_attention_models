@@ -1,4 +1,4 @@
-# Keras_ResNeXt
+# ___Keras ResNeXt___
 ***
 
 ## Summary
