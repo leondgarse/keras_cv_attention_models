@@ -1,7 +1,8 @@
 from keras_cv_attention_models.aotnet.aotnet import anti_alias_downsample, batchnorm_with_activation, conv2d_no_bias, se_module
 from keras_cv_attention_models.botnet.botnet import MHSAWithPositionEmbedding
 from keras_cv_attention_models.cotnet.cotnet import cot_attention
+from keras_cv_attention_models.coat.coat import ConvPositionalEncoding, ConvRelativePositionalEncoding, layer_norm, mlp_block
 from keras_cv_attention_models.halonet.halonet import HaloAttention
 from keras_cv_attention_models.resnest.resnest import rsoftmax, split_attention_conv2d
 from keras_cv_attention_models.resnext.resnext import groups_depthwise
-from keras_cv_attention_models.volo.volo import outlook_attention, outlook_attention_simple
+from keras_cv_attention_models.volo.volo import outlook_attention, outlook_attention_simple, BiasLayer, PositionalEmbedding, ClassToken

@@ -8,7 +8,7 @@ BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 
 
-@tf.keras.utils.register_keras_serializable(package="Custom")
+@tf.keras.utils.register_keras_serializable(package="halonet")
 class HaloAttention(keras.layers.Layer):
     def __init__(self, num_heads=4, key_dim=128, block_size=2, halo_size=1, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, **kwargs):
         super(HaloAttention, self).__init__(**kwargs)

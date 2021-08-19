@@ -21,6 +21,8 @@
   mm = resnest.ResNest50(pretrained="imagenet")
 
   # Run prediction
+  import tensorflow as tf
+  from tensorflow import keras
   from skimage.data import chelsea
   imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()

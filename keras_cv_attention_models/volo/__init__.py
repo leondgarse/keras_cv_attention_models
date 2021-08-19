@@ -1,4 +1,4 @@
-from keras_cv_attention_models.volo.volo import VOLO, VOLO_d1, VOLO_d2, VOLO_d3, VOLO_d4, VOLO_d5, outlook_attention, outlook_attention_simple
+from keras_cv_attention_models.volo.volo import VOLO, VOLO_d1, VOLO_d2, VOLO_d3, VOLO_d4, VOLO_d5, outlook_attention, outlook_attention_simple, BiasLayer, PositionalEmbedding, ClassToken
 
 __head_doc__ = """
 Keras implementation of [Github sail-sg/volo](https://github.com/sail-sg/volo).
@@ -181,4 +181,55 @@ Total params: 136,452
 Trainable params: 136,452
 Non-trainable params: 0
 __________________________________________________________________________________________________
+"""
+
+ClassToken.__doc__ = __head_doc__ + """
+Attach class token on head.
+
+input: `[batch, blocks, channel]`
+output: `[batch, 1 * class_token + blocks, channel]`
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> aa = attention_layers.ClassToken()
+>>> print(f"{aa(tf.ones([2, 14 * 14, 192])).shape = }")
+aa(tf.ones([2, 14 * 14, 192])).shape = TensorShape([2, 197, 192])
+
+>>> print({ii.name:ii.numpy().shape for ii in aa.weights})
+{'class_token/tokens:0': (1, 1, 192)}
+"""
+
+BiasLayer.__doc__ = __head_doc__ + """
+Bias only layer on channel dimension.
+
+input: `[..., channel]`
+output: `[..., channel]`
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> aa = attention_layers.BiasLayer()
+>>> print(f"{aa(tf.ones([2, 14, 14, 192])).shape = }")
+aa(tf.ones([2, 14, 14, 192])).shape = TensorShape([2, 14, 14, 192])
+
+>>> print({ii.name:ii.numpy().shape for ii in aa.weights})
+{'bias_layer/bias:0': (192,)}
+"""
+
+PositionalEmbedding.__doc__ = __head_doc__ + """
+Absolute Positional embedding layer.
+
+input: `[batch, height, width, channel]`
+output: `[batch, height, width, channel]`
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> aa = attention_layers.PositionalEmbedding()
+>>> print(f"{aa(tf.ones([2, 14, 14, 192])).shape = }")
+aa(tf.ones([2, 14, 14, 192])).shape = TensorShape([2, 14, 14, 192])
+
+>>> print({ii.name:ii.numpy().shape for ii in aa.weights})
+{'positional_embedding/positional_embedding:0': (1, 14, 14, 192)}
 """

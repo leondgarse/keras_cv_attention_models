@@ -61,6 +61,13 @@
     #  ('n02127052', 'lynx', 0.00017674894),
     #  ('n02123597', 'Siamese_cat', 4.9493494e-05)]
     ```
+  - Exclude model top layers by set `num_classes=0`
+    ```py
+    from keras_cv_attention_models import resnest
+    mm = resnest.ResNest50(num_classes=0)
+    print(mm.output_shape)
+    # (None, 7, 7, 2048)
+    ```
 ### Keras AotNet
   - [Keras AotNet](keras_cv_attention_models/aotnet) is just a `ResNet` / `ResNetV2` like framework, that set parameters like `attn_types` and `se_ratio` and others, which is used to apply different types attention layer.
     ```py
@@ -154,13 +161,13 @@
 ### Keras CoaT
   - [Keras CoaT](keras_cv_attention_models/coat) is for [PDF 2104.06399 CoaT: Co-Scale Conv-Attentional Image Transformers](http://arxiv.org/abs/2104.06399).
 
-  | Model         | Params | Image resolution | Top1 Acc |
-  | ------------- | ------ | ---------------- | -------- |
-  | CoaTLiteTiny  | 5.7M   | 224              | 77.5     |
-  | CoaTLiteMini  | 11M    | 224              | 79.1     |
-  | CoaTLiteSmall | 20M    | 224              | 81.9     |
-  | CoaTTiny      | 5.5M   | 224              | 78.3     |
-  | CoaTMini      | 10M    | 224              | 81.0     |
+  | Model         | Params | Image resolution | Top1 Acc | Download |
+  | ------------- | ------ | ---------------- | -------- | -------- |
+  | CoaTLiteTiny  | 5.7M   | 224              | 77.5     | [coat_lite_tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coat/coat_lite_tiny_imagenet.h5) |
+  | CoaTLiteMini  | 11M    | 224              | 79.1     | [coat_lite_mini_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coat/coat_lite_mini_imagenet.h5) |
+  | CoaTLiteSmall | 20M    | 224              | 81.9     | [coat_lite_small_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coat/coat_lite_small_imagenet.h5) |
+  | CoaTTiny      | 5.5M   | 224              | 78.3     | [coat_tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coat/coat_tiny_imagenet.h5) |
+  | CoaTMini      | 10M    | 224              | 81.0     | [coat_mini_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coat/coat_mini_imagenet.h5) |
 ***
 
 ## Other implemented keras models

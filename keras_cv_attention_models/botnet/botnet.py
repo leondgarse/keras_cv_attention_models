@@ -12,7 +12,7 @@ BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 
 
-@tf.keras.utils.register_keras_serializable(package="Custom")
+@tf.keras.utils.register_keras_serializable(package="botnet")
 class MHSAWithPositionEmbedding(keras.layers.Layer):
     def __init__(self, num_heads=4, key_dim=128, relative=True, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, **kwargs):
         super(MHSAWithPositionEmbedding, self).__init__(**kwargs)

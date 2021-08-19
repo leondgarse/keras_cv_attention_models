@@ -52,7 +52,7 @@ def patch_stem(inputs, hidden_dim=64, stem_width=384, patch_size=8, strides=2, a
     return conv2d_with_init(nn, stem_width, patch_step, strides=patch_step, use_bias=True, name=name + "patch_")
 
 
-@keras.utils.register_keras_serializable(package="Custom")
+@keras.utils.register_keras_serializable(package="volo")
 class UnfoldMatmulFold(keras.layers.Layer):
     """
     As the name `fold_overlap_1` indicates, works only if overlap happens once in fold, like `kernel_size=3, strides=2`.
@@ -212,7 +212,7 @@ def outlook_attention_simple(inputs, embed_dim, num_head=6, kernel_size=3, attn_
     return out
 
 
-@tf.keras.utils.register_keras_serializable(package="Custom")
+@tf.keras.utils.register_keras_serializable(package="volo")
 class BiasLayer(keras.layers.Layer):
     def __init__(self, **kwargs):
         super(BiasLayer, self).__init__(**kwargs)
@@ -271,7 +271,7 @@ def attention_mlp_block(inputs, embed_dim, num_head=1, mlp_ratio=3, attention_ty
     return out
 
 
-@tf.keras.utils.register_keras_serializable(package="Custom")
+@tf.keras.utils.register_keras_serializable(package="volo")
 class PositionalEmbedding(keras.layers.Layer):
     def __init__(self, **kwargs):
         super(PositionalEmbedding, self).__init__(**kwargs)
@@ -290,7 +290,7 @@ class PositionalEmbedding(keras.layers.Layer):
         self.pp.assign(tf.image.resize(source_layer.pp, self.pp.shape[1:3]))
 
 
-@tf.keras.utils.register_keras_serializable(package="Custom")
+@tf.keras.utils.register_keras_serializable(package="volo")
 class ClassToken(keras.layers.Layer):
     def __init__(self, **kwargs):
         super(ClassToken, self).__init__(**kwargs)
@@ -308,7 +308,7 @@ class ClassToken(keras.layers.Layer):
         return (input_shape[0], input_shape[1] + 1, input_shape[2])
 
 
-@tf.keras.utils.register_keras_serializable(package="Custom")
+@tf.keras.utils.register_keras_serializable(package="volo")
 class MixupToken(keras.layers.Layer):
     def __init__(self, scale=2, beta=1.0, **kwargs):
         super(MixupToken, self).__init__(**kwargs)
