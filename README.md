@@ -199,6 +199,7 @@
   | - imagenet22k | 129M   | 224              | 84.4     | [resmlp_b24_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/resmlp_b24_imagenet22k.h5) |
 ## GMLP
   - [Keras mlp](keras_cv_attention_models/mlp_family#gmlp) includes implementation of [PDF 2105.08050 Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050.pdf).
+
   | Model      | Params | Image resolution | Top1 Acc | ImageNet |
   | ---------- | ------ | ---------------- | -------- | -------- |
   | GMLPTiny16 | 6M     | 224              | 72.3     |          |
