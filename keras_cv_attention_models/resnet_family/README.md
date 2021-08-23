@@ -10,7 +10,9 @@
   | Model                 | Params | Image  resolution | Top1 Acc | Download            |
   | --------------------- | ------ | ----------------- | -------- | ------------------- |
   | resnext50 (32x4d)     | 25M    | 224               | 77.74    | [resnext50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext50.h5)  |
+  | resnext50d (32x4d)    | 25M    | 224               | 77.74    | [resnext50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext50.h5)  |
   | resnext101 (32x4d)    | 42M    | 224               | 78.73    | [resnext101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext101.h5)  |
+  | resnext101w (32x8d)   | 42M    | 224               | 78.73    | [resnext101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext101.h5)  |
 ## Usage
   ```py
   from keras_cv_attention_models import resnext

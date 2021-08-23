@@ -1,4 +1,6 @@
-from keras_cv_attention_models.resnet_family.resnext import ResNeXt, ResNeXt50, ResNeXt101, groups_depthwise
+from keras_cv_attention_models.resnet_family.resnext import ResNeXt, ResNeXt50, ResNeXt101, ResNeXt50D, ResNeXt101W
+from keras_cv_attention_models.resnet_family.resnet_quad import ResNetQ, ResNet51Q, ResNet61Q
+from keras_cv_attention_models.resnet_family.resnet_deep import ResNet50D, ResNet101D, ResNet152D, ResNet200D
 
 
 __head_doc__ = """
@@ -45,44 +47,3 @@ Args:
 """ + __tail_doc__
 
 ResNeXt101.__doc__ = ResNeXt50.__doc__
-
-groups_depthwise.__doc__ = __head_doc__ + """
-Grouped depthwise. Callable function, NOT defined as a layer.
-
-Args:
-  inputs: input tensor.
-  groups: number of groups splitted for `DepthwiseConv2D` result.
-  kernel_size: kernel size for `DepthwiseConv2D`.
-  strides: strides for `DepthwiseConv2D`.
-  padding: padding for `DepthwiseConv2D`.
-
-Examples:
-
->>> from keras_cv_attention_models import attention_layers
->>> inputs = keras.layers.Input([28, 28, 192])
->>> nn = attention_layers.groups_depthwise(inputs, groups=32)
->>> dd = keras.models.Model(inputs, nn)
->>> dd.output_shape
-(None, 28, 28, 192)
-
->>> dd.summary()
-_________________________________________________________________
-Layer (type)                 Output Shape              Param #
-=================================================================
-input_2 (InputLayer)         [(None, 28, 28, 192)]     0
-_________________________________________________________________
-zero_padding2d (ZeroPadding2 (None, 30, 30, 192)       0
-_________________________________________________________________
-depthwise_conv2d (DepthwiseC (None, 28, 28, 1152)      10368
-_________________________________________________________________
-reshape (Reshape)            (None, 28, 28, 32, 6, 6)  0
-_________________________________________________________________
-tf.math.reduce_sum (TFOpLamb (None, 28, 28, 32, 6)     0
-_________________________________________________________________
-reshape_1 (Reshape)          (None, 28, 28, 192)       0
-=================================================================
-Total params: 10,368
-Trainable params: 10,368
-Non-trainable params: 0
-_________________________________________________________________
-"""

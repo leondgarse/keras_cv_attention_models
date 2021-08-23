@@ -115,8 +115,6 @@ def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_bloc
         nn = attention_layers.cot_attention(nn, 3, activation=activation, name=name + "cot_")
     elif attn_type == "outlook":  # outlook_attention
         nn = attention_layers.outlook_attention(nn, filters, num_head=6, kernel_size=3, name=name + "outlook_")
-    elif attn_type == "gd":  # resnext groups_depthwise
-        nn = attention_layers.groups_depthwise(nn, groups=32, kernel_size=3, strides=strides, name=name + "GD_")
     else:  # ResNet block
         nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", name=name + "conv_")
 

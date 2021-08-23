@@ -40,32 +40,22 @@ def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use
     )(inputs)
 
 
-def groups_depthwise(inputs, groups=32, kernel_size=3, strides=1, padding="SAME", name=None):
-    input_filter = inputs.shape[-1]
-    cc = input_filter // groups
-    nn = inputs
-    if padding.upper() == "SAME":
-        nn = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "pad")(nn)
-    nn = keras.layers.DepthwiseConv2D(kernel_size, strides=strides, depth_multiplier=cc, use_bias=False, name=name and name + "DC")(nn)
-    nn = keras.layers.Reshape((*nn.shape[1:-1], groups, cc, cc))(nn)
-    nn = tf.reduce_sum(nn, axis=-1)
-    nn = keras.layers.Reshape((*nn.shape[1:-2], input_filter))(nn)
-    return nn
-
-
-def block(inputs, filters, strides=1, conv_shortcut=False, cardinality=2, activation="relu", name=""):
-    expanded_filter = filters * cardinality
+def block(inputs, filters, expansion=2, strides=1, conv_shortcut=False, groups=32, avg_pool_down=False, activation="relu", name=""):
+    expanded_filter = filters * expansion
 
     if conv_shortcut:  # Set a new shortcut using conv
-        shortcut = conv2d_no_bias(inputs, expanded_filter, 1, strides=strides, name=name + "shorcut_")
-        shortcut = batchnorm_with_activation(shortcut, activation=None, zero_gamma=False, name=name + "shorcut_")
+        if strides > 1 and avg_pool_down:
+            shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_down")(inputs)
+            shortcut = conv2d_no_bias(shortcut, expanded_filter, 1, strides=1, name=name + "shortcut_")
+        else:
+            shortcut = conv2d_no_bias(inputs, expanded_filter, 1, strides=strides, name=name + "shortcut_")
+        shortcut = batchnorm_with_activation(shortcut, activation=None, zero_gamma=False, name=name + "shortcut_")
     else:
         shortcut = keras.layers.MaxPooling2D(strides, strides=strides, padding="SAME")(inputs) if strides > 1 else inputs
 
     nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "1_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
-    # nn = groups_depthwise(nn, groups=64 // cardinality, kernel_size=3, strides=strides, name=name + "GD_")
-    nn = conv2d_no_bias(nn, nn.shape[-1], 3, strides=strides, groups=64 // cardinality, name=name + "GC_")
+    nn = conv2d_no_bias(nn, nn.shape[-1], 3, strides=strides, groups=groups, padding="SAME", name=name + "GC_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name)
 
     nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "3_")
@@ -76,13 +66,13 @@ def block(inputs, filters, strides=1, conv_shortcut=False, cardinality=2, activa
     return keras.layers.Activation(activation, name=name + "out")(nn)
 
 
-def stack(inputs, blocks, filters, strides=2, cardinality=2, activation="relu", name=""):
+def stack(inputs, blocks, filters, expansion=2, strides=2, groups=32, avg_pool_down=False, activation="relu", name=""):
     nn = inputs
     for id in range(blocks):
-        conv_shortcut = True if id == 0 and (strides != 1 or inputs.shape[-1] != filters * cardinality) else False
+        conv_shortcut = True if id == 0 and (strides != 1 or inputs.shape[-1] != filters * expansion) else False
         cur_strides = strides if id == 0 else 1
         block_name = name + "block{}_".format(id + 1)
-        nn = block(nn, filters, cur_strides, conv_shortcut, cardinality, activation, name=block_name)
+        nn = block(nn, filters, expansion, cur_strides, conv_shortcut, groups, avg_pool_down, activation, name=block_name)
     return nn
 
 
@@ -102,10 +92,12 @@ def ResNeXt(
     num_blocks,
     strides=[1, 2, 2, 2],
     out_channels=[128, 256, 512, 1024],
+    expansion=2,
     stem_width=64,
     deep_stem=False,
     stem_downsample=True,
-    cardinality=2,
+    groups=32,
+    avg_pool_down=False,
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="relu",
@@ -124,7 +116,7 @@ def ResNeXt(
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, strides)):
         name = "stack{}_".format(id + 1)
-        nn = stack(nn, num_block, out_channel, stride, cardinality, activation, name=name)
+        nn = stack(nn, num_block, out_channel, expansion, stride, groups, avg_pool_down, activation, name=name)
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
@@ -136,12 +128,18 @@ def ResNeXt(
 
 
 def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
-    if not pretrained in ["imagenet"] or not model.name in ["resnext50", "resnext101"]:
+    pretrained_dd = {
+        "resnext50": ["imagenet"],
+        "resnext101": ["imagenet"],
+        "resnext50d": ["imagenet"],
+        "resnext101w": ["imagenet"],
+    }
+    if model.name not in pretrained_dd or pretrained not in pretrained_dd[model.name]:
         print(">>>> No pretraind available, model will be randomly initialized")
         return
 
-    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/{}.h5"
-    url = pre_url.format(model.name)
+    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/{}_{}.h5"
+    url = pre_url.format(model.name, pretrained)
     file_name = os.path.basename(url)
     try:
         pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
@@ -161,3 +159,18 @@ def ResNeXt50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", cl
 def ResNeXt101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
     return ResNeXt(**locals(), model_name="resnext101", **kwargs)
+
+
+def ResNeXt50D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 4, 6, 3]
+    deep_stem = True
+    stem_width = 32
+    avg_pool_down = True
+    return ResNeXt(**locals(), model_name="resnext50d", **kwargs)
+
+
+def ResNeXt101W(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    out_channels = [256, 512, 1024, 2048]
+    expansion = 1
+    num_blocks = [3, 4, 23, 3]
+    return ResNeXt(**locals(), model_name="resnext101w", **kwargs)

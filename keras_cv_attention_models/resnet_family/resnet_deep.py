@@ -11,6 +11,9 @@ def ResNetD(num_blocks, input_shape=(224, 224, 3), pretrained="imagenet", deep_s
 def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
     pretrained_dd = {
         "resnet50d": ["imagenet"],
+        "resnet101d": ["imagenet"],
+        "resnet152d": ["imagenet"],
+        "resnet200d": ["imagenet"],
     }
     if model.name not in pretrained_dd or pretrained not in pretrained_dd[model.name]:
         print(">>>> No pretraind available, model will be randomly initialized")
