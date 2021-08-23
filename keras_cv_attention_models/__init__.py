@@ -8,3 +8,4 @@ from keras_cv_attention_models import halonet
 from keras_cv_attention_models import resnest
 from keras_cv_attention_models import resnext
 from keras_cv_attention_models import volo
+from keras_cv_attention_models import mlp

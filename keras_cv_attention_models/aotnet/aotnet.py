@@ -7,6 +7,7 @@ from keras_cv_attention_models import attention_layers
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
+HALO_BLOCK_SIZE = 4
 CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
 
 
@@ -26,20 +27,34 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
     return nn
 
 
-def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, name=None, **kwargs):
+def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, groups=1, name=None, **kwargs):
     pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
     if padding.upper() == "SAME" and pad != 0:
         inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
-    return keras.layers.Conv2D(
-        filters,
-        kernel_size,
-        strides=strides,
-        padding="VALID",
-        use_bias=use_bias,
-        kernel_initializer=CONV_KERNEL_INITIALIZER,
-        name=name and name + "conv",
-        **kwargs,
-    )(inputs)
+
+    groups = groups if groups != 0 else 1
+    if groups == filters:
+        return keras.layers.DepthwiseConv2D(
+            kernel_size,
+            strides=strides,
+            padding="VALID",
+            use_bias=use_bias,
+            kernel_initializer=CONV_KERNEL_INITIALIZER,
+            name=name and name + "conv",
+            **kwargs
+        )(inputs)
+    else:
+        return keras.layers.Conv2D(
+            filters,
+            kernel_size,
+            strides=strides,
+            padding="VALID",
+            use_bias=use_bias,
+            groups=groups,
+            kernel_initializer=CONV_KERNEL_INITIALIZER,
+            name=name and name + "conv",
+            **kwargs,
+        )(inputs)
 
 
 def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=""):
@@ -55,6 +70,14 @@ def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=""):
     se = keras.layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "2_conv")(se)
     se = keras.layers.Activation("sigmoid")(se)
     return keras.layers.Multiply()([inputs, se])
+
+
+def drop_block(inputs, drop_rate=0, name=None):
+    if drop_rate > 0:
+        noise_shape = [None] + [1] * (len(inputs.shape) - 1)  # [None, 1, 1, 1]
+        return keras.layers.Dropout(drop_rate, noise_shape=noise_shape, name=name and name + "drop")(inputs)
+    else:
+        return inputs
 
 
 def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trainable=False, name=None):
@@ -109,48 +132,65 @@ def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_bloc
     return nn
 
 
+def conv_shortcut_branch(inputs, expanded_filter, preact=False, strides=1, avg_pool_down=True, anti_alias_down=False, name=""):
+    if strides > 1 and avg_pool_down:
+        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_down")(inputs)
+        strides = 1
+    elif strides > 1 and anti_alias_down:
+        shortcut = anti_alias_downsample(inputs, kernel_size=3, strides=2, name=name + "shorcut_down")
+        strides = 1
+    else:
+        shortcut = inputs
+    shortcut = conv2d_no_bias(shortcut, expanded_filter, 1, strides=strides, name=name + "shortcut_")
+    if not preact:  # ResNet
+        shortcut = batchnorm_with_activation(shortcut, activation=None, zero_gamma=False, name=name + "shortcut_")
+    return shortcut
+
+
+def deep_branch(inputs, filters, strides=1, expansion=4, attn_type=None, se_ratio=0, activation="relu", name=""):
+    expanded_filter = filters * expansion
+    if expansion > 1:
+        nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "deep_1_")
+    else:  # ResNet-RS like
+        nn = conv2d_no_bias(inputs, filters, 3, strides=1, padding="SAME", name=name + "deep_1_")  # Using strides=1 for not changing input shape
+        # nn = conv2d_no_bias(inputs, filters, 3, strides=strides, padding="SAME", name=name + "1_")
+        # strides = 1
+    nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "deep_1_")
+    nn = attn_block(nn, filters, strides, attn_type, se_ratio / expansion, HALO_BLOCK_SIZE, True, activation, name=name + "deep_2_")
+
+    if expansion > 1:  # not ResNet-RS like
+        nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "deep_3_")
+    return nn
+
+
 def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansion=4, attn_type=None, se_ratio=0, drop_rate=0, activation="relu", name=""):
     expanded_filter = filters * expansion
-    halo_block_size = 4
-    if attn_type == "halo" and inputs.shape[1] % halo_block_size != 0:  # HaloAttention
-        gap = halo_block_size - inputs.shape[1] % halo_block_size
+    if attn_type == "halo" and inputs.shape[1] % HALO_BLOCK_SIZE != 0:  # HaloAttention
+        gap = HALO_BLOCK_SIZE - inputs.shape[1] % HALO_BLOCK_SIZE
         pad_head, pad_tail = gap // 2, gap - gap // 2
         inputs = keras.layers.ZeroPadding2D(padding=((pad_head, pad_tail), (pad_head, pad_tail)), name=name + "gap_pad")(inputs)
 
-    shortcut = keras.layers.MaxPooling2D(strides, strides=strides, padding="SAME")(inputs) if strides > 1 else inputs
-
     if preact:  # ResNetV2
-        inputs = batchnorm_with_activation(inputs, activation=activation, zero_gamma=False, name=name + "preact_")
+        pre_inputs = batchnorm_with_activation(inputs, activation=activation, zero_gamma=False, name=name + "preact_")
+    else:
+        pre_inputs = inputs
+
+    deep = deep_branch(pre_inputs, filters, strides, expansion, attn_type, se_ratio, activation=activation, name=name)
 
     if conv_shortcut:  # Set a new shortcut using conv
-        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs) if strides > 1 else inputs
-        # shortcut = anti_alias_downsample(inputs, kernel_size=3, strides=2, name=name + "shorcut_") if strides > 1 else inputs
-        shortcut = conv2d_no_bias(shortcut, expanded_filter, 1, strides=1, name=name + "shorcut_")
-        # shortcut = conv2d_no_bias(inputs, expanded_filter, 1, strides=strides, name=name + "shorcut_")
-        if not preact:  # ResNet
-            shortcut = batchnorm_with_activation(shortcut, activation=None, zero_gamma=False, name=name + "shorcut_")
-
-    if expansion > 1:
-        nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "1_")
-    else:  # ResNet-RS like
-        nn = conv2d_no_bias(inputs, filters, 3, strides=1, padding="SAME", name=name + "1_")  # Using strides=1 for not changing input shape
-        # nn = conv2d_no_bias(inputs, filters, 3, strides=strides, padding="SAME", name=name + "1_")
-        # strides = 1
-    nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
-    nn = attn_block(nn, filters, strides, attn_type, se_ratio / expansion, halo_block_size, True, activation, name=name + "2_")
-
-    if expansion > 1:  # not ResNet-RS like
-        nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "3_")
-
-    # print(">>>> shortcut:", shortcut.shape, "nn:", nn.shape)
-    if drop_rate > 0:
-        nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1, 1), name=name + "drop")(nn)
-    if preact:  # ResNetV2
-        return keras.layers.Add(name=name + "add")([shortcut, nn])
+        shortcut = conv_shortcut_branch(pre_inputs, expanded_filter, preact, strides, avg_pool_down=True, anti_alias_down=False, name=name)
     else:
-        nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "3_")
-        nn = keras.layers.Add(name=name + "add")([shortcut, nn])
-        return keras.layers.Activation(activation, name=name + "out")(nn)
+        shortcut = keras.layers.MaxPooling2D(strides, strides=strides, padding="SAME")(inputs) if strides > 1 else inputs
+
+    # print(">>>> shortcut:", shortcut.shape, "deep:", deep.shape)
+    if preact:  # ResNetV2
+        deep = drop_block(deep, drop_rate)
+        return keras.layers.Add(name=name + "add")([shortcut, deep])
+    else:
+        deep = batchnorm_with_activation(deep, activation=None, zero_gamma=True, name=name + "3_")
+        deep = drop_block(deep, drop_rate)
+        out = keras.layers.Add(name=name + "add")([shortcut, deep])
+        return keras.layers.Activation(activation, name=name + "out")(out)
 
 
 def stack1(inputs, blocks, filters, preact=False, strides=2, expansion=4, attn_types=None, se_ratio=0, stack_drop=0, activation="relu", name=""):
@@ -183,13 +223,19 @@ def stack2(inputs, blocks, filters, preact=True, strides=2, expansion=4, attn_ty
     return nn
 
 
-def stem(inputs, stem_width, activation="relu", deep_stem=False, name=""):
+def stem(inputs, stem_width, activation="relu", deep_stem=False, quad_stem=False, name=""):
     if deep_stem:
         nn = conv2d_no_bias(inputs, stem_width, 3, strides=2, padding="same", name=name + "1_")
         nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
         nn = conv2d_no_bias(nn, stem_width, 3, strides=1, padding="same", name=name + "2_")
         nn = batchnorm_with_activation(nn, activation=activation, name=name + "2_")
         nn = conv2d_no_bias(nn, stem_width * 2, 3, strides=1, padding="same", name=name + "3_")
+    elif quad_stem:
+        nn = conv2d_no_bias(inputs, stem_width // 4, 3, strides=2, padding="same", name=name + "1_")
+        nn = conv2d_no_bias(nn, stem_width // 2, 3, strides=1, padding="same", name=name + "2_")
+        nn = conv2d_no_bias(nn, stem_width, 3, strides=1, padding="same", name=name + "3_")
+        nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
+        nn = conv2d_no_bias(nn, stem_width * 2, 3, strides=2, padding="same", name=name + "4_")
     else:
         nn = conv2d_no_bias(inputs, stem_width, 7, strides=2, padding="same", name=name)
     return nn
@@ -203,20 +249,22 @@ def AotNet(
     out_channels=[64, 128, 256, 512],
     stem_width=64,
     deep_stem=False,
+    quad_stem=False,
     stem_downsample=True,
     attn_types=None,
     expansion=4,
     se_ratio=0,  # (0, 1)
+    num_features=0,
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="relu",
     drop_connect_rate=0,
     classifier_activation="softmax",
     model_name="aotnet",
-    **kwargs
+    kwargs=None
 ):
     inputs = keras.layers.Input(shape=input_shape)
-    nn = stem(inputs, stem_width, activation=activation, deep_stem=deep_stem, name="stem_")
+    nn = stem(inputs, stem_width, activation=activation, deep_stem=deep_stem, quad_stem=quad_stem, name="stem_")
 
     if not preact:
         nn = batchnorm_with_activation(nn, activation=activation, name="stem_")
@@ -234,11 +282,16 @@ def AotNet(
         stack_drop = (stack_drop_s, stack_drop_e)
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
         cur_se_ratio = se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio
-        nn = stack(nn, num_block, out_channel, preact, stride, expansion, attn_type, cur_se_ratio, stack_drop, activation, name=name)
+        cur_expansion = expansion[id] if isinstance(expansion, (list, tuple)) else expansion
+        nn = stack(nn, num_block, out_channel, preact, stride, cur_expansion, attn_type, cur_se_ratio, stack_drop, activation, name=name)
         global_block_id += num_block
 
-    if preact:
+    if preact:  # resnetv2 like
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="post_")
+
+    if num_features != 0:   # efficientnet like
+        nn = conv2d_no_bias(nn, num_features, 1, strides=1, name="features_")
+        nn = batchnorm_with_activation(nn, activation=activation, name="features_")
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
