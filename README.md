@@ -2,7 +2,8 @@
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [Keras_cv_attention_models](#kerascvattentionmodels)
-	- [Usage](#usage)
+- [Usage](#usage)
+	- [Basic Usage](#basic-usage)
 	- [Layers](#layers)
 	- [Model surgery](#model-surgery)
 	- [AotNet](#aotnet)
@@ -14,12 +15,16 @@
 	- [CoTNet](#cotnet)
 	- [CoAtNet](#coatnet)
 	- [CoaT](#coat)
-	- [Other implemented keras models](#other-implemented-keras-models)
+	- [MLP mixer](#mlp-mixer)
+	- [ResMLP](#resmlp)
+	- [GMLP](#gmlp)
+- [Other implemented keras models](#other-implemented-keras-models)
 
 <!-- /TOC -->
 ***
 
-## Usage
+# Usage
+## Basic Usage
   - Install as pip package:
     ```sh
     pip install -U git+https://github.com/leondgarse/keras_cv_attention_models
@@ -167,9 +172,42 @@
   | CoaTLiteSmall | 20M    | 224              | 81.9     | [coat_lite_small_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coat/coat_lite_small_imagenet.h5) |
   | CoaTTiny      | 5.5M   | 224              | 78.3     | [coat_tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coat/coat_tiny_imagenet.h5) |
   | CoaTMini      | 10M    | 224              | 81.0     | [coat_mini_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coat/coat_mini_imagenet.h5) |
+## MLP mixer
+  - [Keras mlp](keras_cv_attention_models/mlp) includes implementation of [PDF 2105.01601 MLP-Mixer: An all-MLP Architecture for Vision](https://arxiv.org/pdf/2105.01601.pdf).
+  - **Models** `Top1 Acc` is `Pre-trained on JFT-300M` model accuray on `ImageNet 1K` from paper.
+
+  | Model       | Params | Top1 Acc | ImageNet | Imagenet21k | ImageNet SAM |
+  | ----------- | ------ | -------- | --------------- | ------------------ | ------------------- |
+  | MLPMixerS32 | 19.1M  | 68.70    |                 |                    |                     |
+  | MLPMixerS16 | 18.5M  | 73.83    |                 |                    |                     |
+  | MLPMixerB32 | 60.3M  | 75.53    |                 |                    | [b32_imagenet_sam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/mlp_mixer_b32_imagenet_sam.h5) |
+  | MLPMixerB16 | 59.9M  | 80.00    | [b16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/mlp_mixer_b16_imagenet.h5) | [b16_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/mlp_mixer_b16_imagenet21k.h5) | [b16_imagenet_sam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/mlp_mixer_b16_imagenet_sam.h5) |
+  | MLPMixerL32 | 206.9M | 80.67    |  |  |                     |
+  | MLPMixerL16 | 208.2M | 84.82    | [l16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/mlp_mixer_l16_imagenet.h5) | [l16_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/mlp_mixer_l16_imagenet21k.h5) |                     |
+  | - input 448 | 208.2M | 86.78    |                 |                    |                     |
+  | MLPMixerH14 | 432.3M | 86.32    |                 |                    |                     |
+  | - input 448 | 432.3M | 87.94    |                 |                    |                     |
+## ResMLP
+  - [Keras mlp](keras_cv_attention_models/mlp) includes implementation of [PDF 2105.03404 ResMLP: Feedforward networks for image classification with data-efficient training](https://arxiv.org/pdf/2105.03404.pdf)
+
+  | Model      | Params | Image resolution | Top1 Acc | ImageNet |
+  | ---------- | ------ | ---------------- | -------- | -------- |
+  | ResMLP12   | 15M    | 224              | 77.8     | [resmlp12_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/resmlp12_imagenet.h5) |
+  | ResMLP24   | 30M    | 224              | 80.8     | [resmlp24_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/resmlp24_imagenet.h5) |
+  | ResMLP36   | 116M   | 224              | 81.1     | [resmlp36_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/resmlp36_imagenet.h5) |
+  | ResMLP_B24 | 129M   | 224              | 83.6     | [resmlp_b24_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/resmlp_b24_imagenet.h5) |
+  | - imagenet22k | 129M   | 224              | 84.4     | [resmlp_b24_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/resmlp_b24_imagenet22k.h5) |
+## GMLP
+  - [Keras mlp](keras_cv_attention_models/mlp) includes implementation of [PDF 2105.08050 Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050.pdf).
+
+  | Model      | Params | Image resolution | Top1 Acc | ImageNet |
+  | ---------- | ------ | ---------------- | -------- | -------- |
+  | GMLPTiny16 | 6M     | 224              | 72.3     |          |
+  | GMLPS16    | 20M    | 224              | 79.6     | [gmlp_s16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/gmlp_s16_imagenet.h5) |
+  | GMLPB16    | 73M    | 224              | 81.6     |          |
 ***
 
-## Other implemented keras models
+# Other implemented keras models
   - [Github ypeleg/nfnets-keras](https://github.com/ypeleg/nfnets-keras)
   - [Github faustomorales/vit-keras](https://github.com/faustomorales/vit-keras)
   - [Github tensorflow/resnet_rs](https://github.com/tensorflow/tpu/tree/master/models/official/resnet/resnet_rs)
