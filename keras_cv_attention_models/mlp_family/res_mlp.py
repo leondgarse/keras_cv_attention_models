@@ -113,7 +113,7 @@ def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"
         print(">>>> No pretraind available, model will be randomly initialized")
         return
 
-    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/{}_{}.h5"
+    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/{}_{}.h5"
     url = pre_url.format(model.name, pretrained)
     file_name = os.path.basename(url)
     try:

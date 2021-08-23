@@ -6,6 +6,6 @@ from keras_cv_attention_models import coatnet
 from keras_cv_attention_models import cotnet
 from keras_cv_attention_models import halonet
 from keras_cv_attention_models import resnest
-from keras_cv_attention_models import resnext
+from keras_cv_attention_models import resnet_family
 from keras_cv_attention_models import volo
-from keras_cv_attention_models import mlp
+from keras_cv_attention_models import mlp_family

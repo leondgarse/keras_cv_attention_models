@@ -13,10 +13,10 @@
 ## Usage
   - **Basic usage**
     ```py
-    from keras_cv_attention_models import mlp
+    from keras_cv_attention_models import mlp_family
     # Will download and load `imagenet` pretrained weights.
     # Model weight is loaded with `by_name=True, skip_mismatch=True`.
-    mm = mlp.MLPMixerB16(num_classes=1000, pretrained="imagenet")
+    mm = mlp_family.MLPMixerB16(num_classes=1000, pretrained="imagenet")
 
     # Run prediction
     import tensorflow as tf
@@ -30,8 +30,8 @@
     For `"imagenet21k"` pre-trained models, actual `num_classes` is `21843`.
   - **Exclude model top layers** by set `num_classes=0`.
     ```py
-    from keras_cv_attention_models import mlp
-    mm = mlp.ResMLP_B24(num_classes=0, pretrained="imagenet22k")
+    from keras_cv_attention_models import mlp_family
+    mm = mlp_family.ResMLP_B24(num_classes=0, pretrained="imagenet22k")
     print(mm.output_shape)
     # (None, 784, 768)
 
@@ -45,10 +45,10 @@
     | ----------- | ------ | -------- | --------------- | ------------------ | ------------------- |
     | MLPMixerS32 | 19.1M  | 68.70    |                 |                    |                     |
     | MLPMixerS16 | 18.5M  | 73.83    |                 |                    |                     |
-    | MLPMixerB32 | 60.3M  | 75.53    |                 |                    | [b32_imagenet_sam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/mlp_mixer_b32_imagenet_sam.h5) |
-    | MLPMixerB16 | 59.9M  | 80.00    | [b16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/mlp_mixer_b16_imagenet.h5) | [b16_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/mlp_mixer_b16_imagenet21k.h5) | [b16_imagenet_sam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/mlp_mixer_b16_imagenet_sam.h5) |
+    | MLPMixerB32 | 60.3M  | 75.53    |                 |                    | [b32_imagenet_sam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/mlp_mixer_b32_imagenet_sam.h5) |
+    | MLPMixerB16 | 59.9M  | 80.00    | [b16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/mlp_mixer_b16_imagenet.h5) | [b16_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/mlp_mixer_b16_imagenet21k.h5) | [b16_imagenet_sam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/mlp_mixer_b16_imagenet_sam.h5) |
     | MLPMixerL32 | 206.9M | 80.67    |  |  |                     |
-    | MLPMixerL16 | 208.2M | 84.82    | [l16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/mlp_mixer_l16_imagenet.h5) | [l16_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/mlp_mixer_l16_imagenet21k.h5) |                     |
+    | MLPMixerL16 | 208.2M | 84.82    | [l16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/mlp_mixer_l16_imagenet.h5) | [l16_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/mlp_mixer_l16_imagenet21k.h5) |                     |
     | - input 448 | 208.2M | 86.78    |                 |                    |                     |
     | MLPMixerH14 | 432.3M | 86.32    |                 |                    |                     |
     | - input 448 | 432.3M | 87.94    |                 |                    |                     |
@@ -77,11 +77,11 @@
   - **Models** reloaded `imagenet` weights are the `distilled` version from official.
     | Model      | Params | Image resolution | Top1 Acc | ImageNet |
     | ---------- | ------ | ---------------- | -------- | -------- |
-    | ResMLP12   | 15M    | 224              | 77.8     | [resmlp12_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/resmlp12_imagenet.h5) |
-    | ResMLP24   | 30M    | 224              | 80.8     | [resmlp24_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/resmlp24_imagenet.h5) |
-    | ResMLP36   | 116M   | 224              | 81.1     | [resmlp36_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/resmlp36_imagenet.h5) |
-    | ResMLP_B24 | 129M   | 224              | 83.6     | [resmlp_b24_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/resmlp_b24_imagenet.h5) |
-    | - imagenet22k | 129M   | 224              | 84.4     | [resmlp_b24_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/resmlp_b24_imagenet22k.h5) |
+    | ResMLP12   | 15M    | 224              | 77.8     | [resmlp12_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/resmlp12_imagenet.h5) |
+    | ResMLP24   | 30M    | 224              | 80.8     | [resmlp24_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/resmlp24_imagenet.h5) |
+    | ResMLP36   | 116M   | 224              | 81.1     | [resmlp36_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/resmlp36_imagenet.h5) |
+    | ResMLP_B24 | 129M   | 224              | 83.6     | [resmlp_b24_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/resmlp_b24_imagenet.h5) |
+    | - imagenet22k | 129M   | 224              | 84.4     | [resmlp_b24_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/resmlp_b24_imagenet22k.h5) |
 
   - Parameter `pretrained` is added in value `[None, "imagenet", "imagenet22k"]`, where `imagenet22k` means pre-trained on `imagenet21k` and fine-tuned on `imagenet`. Default is `imagenet`.
 ## GMLP
@@ -91,7 +91,7 @@
     | Model      | Params | Image resolution | Top1 Acc | ImageNet |
     | ---------- | ------ | ---------------- | -------- | -------- |
     | GMLPTiny16 | 6M     | 224              | 72.3     |          |
-    | GMLPS16    | 20M    | 224              | 79.6     | [gmlp_s16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/gmlp_s16_imagenet.h5) |
+    | GMLPS16    | 20M    | 224              | 79.6     | [gmlp_s16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/gmlp_s16_imagenet.h5) |
     | GMLPB16    | 73M    | 224              | 81.6     |          |
 
   - Parameter `pretrained` is added in value `[None, "imagenet"]`. Default is `imagenet`.

@@ -11,6 +11,19 @@ def layer_norm(inputs, name=None):
     return keras.layers.LayerNormalization(axis=norm_axis, epsilon=BATCH_NORM_EPSILON, name=name)(inputs)
 
 
+def spatial_gating_block(inputs, name=None):
+    uu, vv = tf.split(inputs, 2, axis=-1)
+    # print(f">>>> {uu.shape = }, {vv.shape = }")
+    vv = layer_norm(vv, name=name and name + "vv_ln")
+    vv = keras.layers.Permute((2, 1), name=name and name + "permute_1")(vv)
+    ww_init = keras.initializers.truncated_normal(stddev=1e-6)
+    vv = keras.layers.Dense(vv.shape[-1], kernel_initializer=ww_init, bias_initializer="ones", name=name and name + "vv_dense")(vv)
+    vv = keras.layers.Permute((2, 1), name=name and name + "permute_2")(vv)
+    # print(f">>>> {uu.shape = }, {vv.shape = }")
+    gated_out = keras.layers.Multiply()([uu, vv])
+    return gated_out
+
+
 def res_gated_mlp_block(inputs, channels_mlp_dim, drop_rate=0, activation="gelu", name=None):
     nn = layer_norm(inputs, name=name + "pre_ln")
     nn = keras.layers.Dense(channels_mlp_dim, name=name + "pre_dense")(nn)
@@ -18,16 +31,7 @@ def res_gated_mlp_block(inputs, channels_mlp_dim, drop_rate=0, activation="gelu"
     # Drop
 
     # SpatialGatingUnit
-    uu, vv = tf.split(nn, 2, axis=-1)
-    # print(f">>>> {uu.shape = }, {vv.shape = }")
-    vv = layer_norm(vv, name=name + "vv_ln")
-    vv = keras.layers.Permute((2, 1), name=name + "permute_1")(vv)
-    ww_init = keras.initializers.truncated_normal(stddev=1e-6)
-    vv = keras.layers.Dense(vv.shape[-1], kernel_initializer=ww_init, bias_initializer="ones", name=name + "vv_dense")(vv)
-    vv = keras.layers.Permute((2, 1), name=name + "permute_2")(vv)
-    # print(f">>>> {uu.shape = }, {vv.shape = }")
-    gated_out = keras.layers.Multiply()([uu, vv])
-
+    gated_out = spatial_gating_block(nn, name=name)
     nn = keras.layers.Dense(inputs.shape[-1], name=name + "gated_dense")(gated_out)
     # Drop
 
@@ -89,7 +93,7 @@ def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"
         print(">>>> No pretraind available, model will be randomly initialized")
         return
 
-    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/{}_{}.h5"
+    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/{}_{}.h5"
     url = pre_url.format(model.name, pretrained)
     file_name = os.path.basename(url)
     try:

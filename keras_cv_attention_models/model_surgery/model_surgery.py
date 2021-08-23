@@ -60,6 +60,31 @@ class SAMModel(tf.keras.models.Model):
         return return_metrics
 
 
+@keras.utils.register_keras_serializable(package="model_surgery")
+class DropConnect(keras.layers.Layer):
+    def __init__(self, rate=0, **kwargs):
+        super(DropConnect, self).__init__(**kwargs)
+        self.rate = rate
+        self.supports_masking = False
+
+    def build(self, input_shape):
+        if self.rate > 0:
+            noise_shape = [None] + [1] * (len(input_shape) - 1)  # [None, 1, 1, 1]
+            self.drop = keras.layers.Dropout(self.rate, noise_shape=noise_shape, name=self.name + "drop")
+        else:
+            self.drop = lambda xx: xx
+
+    def call(self, inputs, **kwargs):
+        shortcut, deep = inputs
+        deep = self.drop(deep)
+        return keras.layers.Add()([shortcut, deep])
+
+    def get_config(self):
+        config = super(DropConnect, self).get_config()
+        config.update({"rate": self.rate})
+        return config
+
+
 def add_l2_regularizer_2_model(model, weight_decay, custom_objects={}, apply_to_batch_normal=False, apply_to_bias=False):
     # https://github.com/keras-team/keras/issues/2717#issuecomment-456254176
     if 0:
@@ -160,11 +185,43 @@ def replace_add_with_stochastic_depth(model, survivals=(1, 0.8)):
         if isinstance(layer, keras.layers.Add):
             layer_name = layer.name
             new_layer_name = layer_name.replace("_add", "_stochastic_depth")
-            new_layer_name = layer_name.replace("add_", "stochastic_depth_")
+            new_layer_name = new_layer_name.replace("add_", "stochastic_depth_")
             survival_probability = survivals_dict[layer_name]
             if survival_probability < 1:
                 print("Converting:", layer_name, "-->", new_layer_name, ", survival_probability:", survival_probability)
                 return StochasticDepth(survival_probability, name=new_layer_name)
+            else:
+                return layer
+        return layer
+
+    input_tensors = keras.layers.Input(model.input_shape[1:])
+    return keras.models.clone_model(model, input_tensors=input_tensors, clone_function=__replace_add_with_stochastic_depth__)
+
+
+def replace_add_with_drop_connect(model, drop_rate=(0, 0.2)):
+    """
+    - [Deep Networks with Stochastic Depth](https://arxiv.org/pdf/1603.09382.pdf)
+    - [tfa.layers.StochasticDepth](https://www.tensorflow.org/addons/api_docs/python/tfa/layers/StochasticDepth)
+    """
+
+    add_layers = [ii.name for ii in model.layers if isinstance(ii, keras.layers.Add)]
+    total_adds = len(add_layers)
+    if isinstance(drop_rate, float):
+        drop_rates = [drop_rate] * total_adds
+    elif isinstance(drop_rate, (list, tuple)) and len(drop_rate) == 2:
+        start, end = drop_rate
+        drop_rates = [(end - start) * float(ii) / total_adds for ii in range(total_adds)]
+    drop_conn_rate_dict = dict(zip(add_layers, drop_rates))
+
+    def __replace_add_with_stochastic_depth__(layer):
+        if isinstance(layer, keras.layers.Add):
+            layer_name = layer.name
+            new_layer_name = layer_name.replace("_add", "_drop_conn")
+            new_layer_name = new_layer_name.replace("add_", "drop_conn_")
+            drop_conn_rate = drop_conn_rate_dict[layer_name]
+            if drop_conn_rate < 1:
+                print("Converting:", layer_name, "-->", new_layer_name, ", drop_conn_rate:", drop_conn_rate)
+                return DropConnect(drop_conn_rate, name=new_layer_name)
             else:
                 return layer
         return layer
@@ -199,7 +256,7 @@ def get_actual_survival_probabilities(model):
 
 
 def get_actual_drop_connect_rates(model):
-    return [ii.rate for ii in model.layers if isinstance(ii, keras.layers.Dropout)]
+    return [ii.rate for ii in model.layers if isinstance(ii, keras.layers.Dropout) or isinstance(ii, DropConnect)]
 
 
 def convert_to_mixed_float16(model, convert_batch_norm=False):

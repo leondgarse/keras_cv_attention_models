@@ -11,26 +11,26 @@ def layer_norm(inputs, name=None):
 
 
 def mlp_block(inputs, hidden_dim, activation="gelu", name=None):
-    nn = keras.layers.Dense(hidden_dim, name=name + "Dense_0")(inputs)
-    nn = keras.layers.Activation(activation, name=name + "gelu")(nn)
-    nn = keras.layers.Dense(inputs.shape[-1], name=name + "Dense_1")(nn)
+    nn = keras.layers.Dense(hidden_dim, name=name and name + "Dense_0")(inputs)
+    nn = keras.layers.Activation(activation, name=name and name + "gelu")(nn)
+    nn = keras.layers.Dense(inputs.shape[-1], name=name and name + "Dense_1")(nn)
     return nn
 
 
 def mixer_block(inputs, tokens_mlp_dim, channels_mlp_dim, drop_rate=0, activation="gelu", name=None):
     nn = layer_norm(inputs, name=name + "LayerNorm_0")
-    nn = keras.layers.Permute((2, 1), name=name + "permute_0")(nn)
-    nn = mlp_block(nn, tokens_mlp_dim, activation, name=name + "token_mixing/")
-    nn = keras.layers.Permute((2, 1), name=name + "permute_1")(nn)
+    nn = keras.layers.Permute((2, 1), name=name and name + "permute_0")(nn)
+    nn = mlp_block(nn, tokens_mlp_dim, activation, name=name and name + "token_mixing/")
+    nn = keras.layers.Permute((2, 1), name=name and name + "permute_1")(nn)
     if drop_rate > 0:
-        nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "token_drop")(nn)
-    token_out = keras.layers.Add(name=name + "add_0")([nn, inputs])
+        nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name and name + "token_drop")(nn)
+    token_out = keras.layers.Add(name=name and name + "add_0")([nn, inputs])
 
     nn = layer_norm(token_out, name=name + "LayerNorm_1")
-    channel_out = mlp_block(nn, channels_mlp_dim, activation, name=name + "channel_mixing/")
+    channel_out = mlp_block(nn, channels_mlp_dim, activation, name=name and name + "channel_mixing/")
     if drop_rate > 0:
-        channel_out = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "channel_drop")(channel_out)
-    return keras.layers.Add(name=name + "add_1")([channel_out, token_out])
+        channel_out = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name and name + "channel_drop")(channel_out)
+    return keras.layers.Add(name=name and name + "add_1")([channel_out, token_out])
 
 
 def MLPMixer(
@@ -87,7 +87,7 @@ def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"
         print(">>>> No pretraind available, model will be randomly initialized")
         return
 
-    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp/{}_{}.h5"
+    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/{}_{}.h5"
     url = pre_url.format(model.name, pretrained)
     file_name = os.path.basename(url)
     try:
