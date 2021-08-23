@@ -48,7 +48,7 @@ def groups_depthwise(inputs, groups=32, kernel_size=3, strides=1, padding="SAME"
         nn = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "pad")(nn)
     nn = keras.layers.DepthwiseConv2D(kernel_size, strides=strides, depth_multiplier=cc, use_bias=False, name=name and name + "DC")(nn)
     nn = keras.layers.Reshape((*nn.shape[1:-1], groups, cc, cc))(nn)
-    nn = tf.reduce_sum(nn, axis=-2)
+    nn = tf.reduce_sum(nn, axis=-1)
     nn = keras.layers.Reshape((*nn.shape[1:-2], input_filter))(nn)
     return nn
 
@@ -64,7 +64,8 @@ def block(inputs, filters, strides=1, conv_shortcut=False, cardinality=2, activa
 
     nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "1_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
-    nn = groups_depthwise(nn, groups=64 // cardinality, kernel_size=3, strides=strides, name=name + "GD_")
+    # nn = groups_depthwise(nn, groups=64 // cardinality, kernel_size=3, strides=strides, name=name + "GD_")
+    nn = conv2d_no_bias(nn, nn.shape[-1], 3, strides=strides, groups=64 // cardinality, name=name + "GC_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name)
 
     nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "3_")

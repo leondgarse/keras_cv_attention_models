@@ -4,7 +4,7 @@ from keras_cv_attention_models.cotnet.cotnet import cot_attention
 from keras_cv_attention_models.coat.coat import ConvPositionalEncoding, ConvRelativePositionalEncoding, layer_norm
 from keras_cv_attention_models.halonet.halonet import HaloAttention
 from keras_cv_attention_models.resnest.resnest import rsoftmax, split_attention_conv2d
-from keras_cv_attention_models.resnext.resnext import groups_depthwise
+from keras_cv_attention_models.resnet_family.resnext import groups_depthwise
 from keras_cv_attention_models.volo.volo import outlook_attention, outlook_attention_simple, BiasLayer, PositionalEmbedding, ClassToken
 from keras_cv_attention_models.mlp_family.mlp_mixer import mlp_block, mixer_block
 from keras_cv_attention_models.mlp_family.res_mlp import ChannelAffine
