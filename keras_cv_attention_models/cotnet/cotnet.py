@@ -1,12 +1,21 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-import os
+from keras_cv_attention_models.download_and_load import reload_model_weights
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
 # CONV_KERNEL_INITIALIZER = 'glorot_uniform'
+
+
+PRETRAINED_DICT = {
+    "cotnet101": {"224": "6c65fceeae826a0659bf43f62b312441"},
+    "cotnet50": {"224": "6a087a93b1669b7e4e2e8875f1f81b17"},
+    "se_cotnetd101": {"224": "0b2f4b26c99d58de9043eb27cb1ad33d"},
+    "se_cotnetd152": {"224": "9211c7166fe3d116fe4492b9a3069a21", "320": "a26c234902f64f24dcd716b6ad0da01d"},
+    "se_cotnetd50": {"224": "cab719c9e54e4967f5a5aabe47863eaa"},
+}
 
 
 def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=""):
@@ -231,27 +240,10 @@ def CotNet(
         nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
-    reload_model_weights(model, input_shape, pretrained)
+    request_resolution = "320" if input_shape[0] == 320 and model.name == "se_cotnetd152" else "224"
+    pretrained = request_resolution if pretrained is not None else None
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="cotnet", input_shape=input_shape, pretrained=pretrained)
     return model
-
-
-def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
-    if not pretrained in ["imagenet"]:
-        print(">>>> No pretraind available, model will be randomly initialized")
-        return
-
-    request_resolution = 320 if input_shape[0] == 320 and model.name == "se_cotnetd152" else 224
-    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/{}_{}.h5"
-    url = pre_url.format(model.name, request_resolution)
-    file_name = os.path.basename(url)
-    try:
-        # print(">>>> Load pretraind from:", file_name, url)
-        pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
-    except:
-        print("[Error] will not load weights, url not found or download failed:", url)
-    else:
-        print(">>>> Load pretraind from:", pretrained_model)
-        model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
 
 
 def CotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):

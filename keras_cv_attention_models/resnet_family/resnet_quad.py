@@ -123,15 +123,15 @@ def quad_stem(inputs, stem_width, activation="swish", stem_act=False, name=""):
 
 def ResNetQ(
     num_blocks,
-    strides=2,
     out_channels=[64, 128, 384, 384],
     stem_width=128,
     stem_act=False,
-    stem_downsample=False,
     expansion=4,
     groups_div=32,
     extra_conv=False,
     num_features=2048,
+    strides=2,
+    stem_downsample=False,
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="swish",

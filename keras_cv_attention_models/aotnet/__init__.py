@@ -26,20 +26,25 @@ Set parameters like `attn_types` and `se_ratio` and others, which is used to app
 """
 
 __tail_doc__ = """  out_channels: default as `[64, 128, 256, 512]`. Output channel for each stack.
+  expansion: filter expansion in each block. The larger the wider. For default `ResNet` / `ResNetV2` like, it's `4`.
   stem_width: output dimension for stem block.
   deep_stem: Boolean value if use deep stem.
-  stem_downsample: Boolean value if ass `MaxPooling2D` layer after stem block.
+  stem_downsample: Boolean value if add `MaxPooling2D` layer after stem block.
   attn_types: is a `string` or `list`, indicates attention layer type for each stack.
       Each element can also be a `string` or `list`, indicates attention layer type for each block.
       - `None`: `Conv2D`
       - `"cot"`: `attention_layers.cot_attention`. Default values: `kernel_size=3`.
+      - `"groups_conv"`: `Conv2D` with `groups=32`. `ResNeXt` method.
       - `"halo"`: `attention_layers.HaloAttention`. Default values: `num_heads=8, key_dim=16, block_size=4, halo_size=1, out_bias=True`.
       - `"mhsa"`: `attention_layers.MHSAWithPositionEmbedding`. Default values: `num_heads=4, relative=True, out_bias=True`.
       - `"outlook"`: `attention_layers.outlook_attention`. Default values: `num_head=6, kernel_size=3`.
       - `"sa"`: `attention_layers.split_attention_conv2d`. Default values: `kernel_size=3, groups=2`.
-  expansion: filter expansion in each block. The larger the wider. For default `ResNet` / `ResNetV2` like, it's `4`.
   se_ratio: value in `(0, 1)`, where `0` means not using `se_module`. Should be a `number` or `list`, indicates `se_ratio` for each stack.
       Each element can also be a `number` or `list`, indicates `se_ratio` for each block.
+  num_features: none `0` value to add another `conv2d + bn + activation` layers before `GlobalAveragePooling2D`.
+  use_3x3_kernel: Boolean value if use two `3x3` conv instead of `1x1 + 3x3 + 1x1` conv in each block.
+  avg_pool_down: Boolean value if use `AvgPool2D` in shortcut branch. `True` for `ResNetD` model like.
+  anti_alias_down: Boolean value if use `anti_alias_downsample` in shortcut branch.
   input_shape: it should have exactly 3 inputs channels, default `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default `relu`.
@@ -60,10 +65,11 @@ AotNet.__doc__ = __head_doc__ + """
 Args:
   num_blocks: number of blocks in each stack.
   preact: whether to use pre-activation or not. False for ResNet like, True for ResNetV2 like.
-  stack: stack function. `stack1` for ResNet like, `stack2` for ResNetV2 like.
   strides: a `number` or `list`, indicates strides used in the last stack or list value for all stacks.
       If a number, for `ResNet` like models, it will be `[1, 2, 2, strides]`.
       If a number, for `ResNetV2` like models, it will be `[2, 2, 2, strides]`.
+  strides_first: Boolean value if use downsample in the first block in each stack.
+      `True` for ResNet like, `False` for ResNetV2 like.
   model_name: string, model name.
 """ + __tail_doc__ + """
 Example:

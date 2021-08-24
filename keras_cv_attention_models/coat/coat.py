@@ -1,10 +1,19 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.python.keras import backend as K
-import os
+from keras_cv_attention_models.download_and_load import reload_model_weights
 
 LAYER_NORM_EPSILON = 1e-6
 CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
+
+
+PRETRAINED_DICT = {
+    "coat_lite_tiny": {"imagenet": "7738d1efb345d17f7569929330a2cf7d"},
+    "coat_lite_mini": {"imagenet": "9ad2fa037addee382e70c6fac1941a68"},
+    "coat_lite_small": {"imagenet": "0c8012cfba5b1d1b97305770587730ff"},
+    "coat_tiny": {"imagenet": "0b20a82b7f82a3d73cca9fb5b66db8fb"},
+    "coat_mini": {"imagenet": "883a0c3083b82f19f1245572ef068311"},
+}
 
 
 def layer_norm(inputs, name=None):
@@ -308,32 +317,8 @@ def CoaT(
         nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
-    reload_model_weights(model, input_shape, pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="coat", input_shape=input_shape, pretrained=pretrained)
     return model
-
-
-def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
-    pretrained_dd = {
-        "coat_lite_tiny": ["imagenet"],
-        "coat_lite_mini": ["imagenet"],
-        "coat_lite_small": ["imagenet"],
-        "coat_tiny": ["imagenet"],
-        "coat_mini": ["imagenet"],
-    }
-    if model.name not in pretrained_dd or pretrained not in pretrained_dd[model.name]:
-        print(">>>> No pretraind available, model will be randomly initialized")
-        return
-    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/coat/{}_{}.h5"
-    url = pre_url.format(model.name, pretrained)
-    file_name = os.path.basename(url)
-    try:
-        pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
-    except:
-        print("[Error] will not load weights, url not found or download failed:", url)
-        return
-    else:
-        print(">>>> Load pretraind from:", pretrained_model)
-        model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
 
 
 BLOCK_CONFIGS = {

@@ -46,4 +46,5 @@ def ResNeXt101W(input_shape=(224, 224, 3), num_classes=1000, activation="relu", 
     num_blocks = [3, 4, 23, 3]
     out_channels = [256, 512, 1024, 2048]
     expansion = 1
+    avg_pool_down = False
     return ResNeXt(**locals(), model_name="resnext101w", **kwargs)

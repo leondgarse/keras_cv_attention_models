@@ -6,7 +6,7 @@
   from keras_cv_attention_models import resnet_family
 
   # Will download and load pretrained imagenet weights.
-  mm = resnet_family.ResNeXt50(pretrained="imagenet")
+  mm = resnet_family.ResNeXt50(pretrained="swsl")
 
   # Run prediction
   import tensorflow as tf
@@ -15,7 +15,7 @@
   imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.89839816), ('n02123159', 'tiger_cat', 0.024020346), ... ]
+  # [('n02124075', 'Egyptian_cat', 0.99826247), ('n02123045', 'tabby', 0.0009374655), ... ]
   ```
   **Set new input resolution**
   ```py

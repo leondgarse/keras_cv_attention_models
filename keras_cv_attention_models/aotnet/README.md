@@ -10,6 +10,7 @@
   - **attn_types** is a `string` or `list`, indicates attention layer type for each stack. Each element can also be a `string` or `list`, indicates attention layer type for each block.
     - `None`: `Conv2D`
     - `"cot"`: `attention_layers.cot_attention`. Default values: `kernel_size=3`.
+    - `"groups_conv"`: `Conv2D` with `groups=32`. `ResNeXt` method.
     - `"halo"`: `attention_layers.HaloAttention`. Default values: `num_heads=8, key_dim=16, block_size=4, halo_size=1, out_bias=True`.
     - `"mhsa"`: `attention_layers.MHSAWithPositionEmbedding`. Default values: `num_heads=4, relative=True, out_bias=True`.
     - `"outlook"`: `attention_layers.outlook_attention`. Default values: `num_head=6, kernel_size=3`.
