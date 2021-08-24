@@ -1,5 +1,12 @@
 from tensorflow import keras
-import os
+from keras_cv_attention_models.download_and_load import reload_model_weights
+
+PRETRAINED_DICT = {
+    "resmlp12": {"imagenet": "de6531fb461bcf52c25d3c36aa515583"},
+    "resmlp24": {"imagenet": "f8127be7f8ba564fc59552c0cf6f3401"},
+    "resmlp36": {"imagenet": "d0d3e6b09d7e975aaf46ff777c1fd73e"},
+    "resmlp_b24": {"imagenet": "d7808ef59c06d2f1975ffddd28be82de", "imagenet22k": "8d3ae1abdac60b21ed1f2840b656b6bf"},
+}
 
 
 @keras.utils.register_keras_serializable(package="resmlp")
@@ -98,32 +105,8 @@ def ResMLP(
         model = SAMModel(inputs, nn, name=model_name)
     else:
         model = keras.Model(inputs, nn, name=model_name)
-    reload_model_weights(model, input_shape, pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="mlp_family", input_shape=input_shape, pretrained=pretrained)
     return model
-
-
-def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
-    pretrained_dd = {
-        "resmlp12": ["imagenet"],
-        "resmlp24": ["imagenet"],
-        "resmlp36": ["imagenet"],
-        "resmlp_b24": ["imagenet", "imagenet22k"],
-    }
-    if model.name not in pretrained_dd or pretrained not in pretrained_dd[model.name]:
-        print(">>>> No pretraind available, model will be randomly initialized")
-        return
-
-    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/{}_{}.h5"
-    url = pre_url.format(model.name, pretrained)
-    file_name = os.path.basename(url)
-    try:
-        pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
-    except:
-        print("[Error] will not load weights, url not found or download failed:", url)
-        return
-    else:
-        print(">>>> Load pretraind from:", pretrained_model)
-        model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
 
 
 BLOCK_CONFIGS = {

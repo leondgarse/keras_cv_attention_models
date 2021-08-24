@@ -18,9 +18,9 @@
 	- [MLP mixer](#mlp-mixer)
 	- [ResMLP](#resmlp)
 	- [GMLP](#gmlp)
+	- [ResNeXt](#resnext)
 	- [ResNetD](#resnetd)
 	- [ResNetQ](#resnetq)
-	- [ResNeXt](#resnext)
 - [Other implemented keras models](#other-implemented-keras-models)
 
 <!-- /TOC -->
@@ -114,10 +114,10 @@
 
   | Model          | Params | Image resolution | Top1 Acc | Download            |
   | -------------- | ------ | ----------------- | -------- | ------------------- |
-  | resnest50      | 28M    | 224               | 81.03    | [resnest50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest50.h5)  |
-  | resnest101     | 49M    | 256               | 82.83    | [resnest101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest101.h5)  |
-  | resnest200     | 71M    | 320               | 83.84    | [resnest200.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest200.h5)  |
-  | resnest269     | 111M   | 416               | 84.54    | [resnest269.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest269.h5)  |
+  | resnest50      | 28M    | 224               | 81.03    | [resnest50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest50_imagenet.h5)  |
+  | resnest101     | 49M    | 256               | 82.83    | [resnest101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest101_imagenet.h5)  |
+  | resnest200     | 71M    | 320               | 83.84    | [resnest200.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest200_imagenet.h5)  |
+  | resnest269     | 111M   | 416               | 84.54    | [resnest269.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest269_imagenet.h5)  |
 ## HaloNet
   - [Keras HaloNet](keras_cv_attention_models/halonet) is for [PDF 2103.12731 Scaling Local Self-Attention for Parameter Efficient Visual Backbones](https://arxiv.org/pdf/2103.12731.pdf).
 
@@ -201,18 +201,30 @@
   | GMLPTiny16 | 6M     | 224              | 72.3     |          |
   | GMLPS16    | 20M    | 224              | 79.6     | [gmlp_s16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/gmlp_s16_imagenet.h5) |
   | GMLPB16    | 73M    | 224              | 81.6     |          |
-## ResNetD
-  - [Keras ResNeXt](keras_cv_attention_models/resnet_family) is for [PDF 1611.05431 Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf).
-## ResNetQ
-  - [Keras ResNeXt](keras_cv_attention_models/resnet_family) is for [PDF 1611.05431 Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf).
 ## ResNeXt
-  - [Keras ResNeXt](keras_cv_attention_models/resnet_family) is for [PDF 1611.05431 Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf).
+  - [Keras ResNeXt](keras_cv_attention_models/resnet_family#resnext) includes implementation of [PDF 1611.05431 Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf)
 
-  | Model          | Params | Image  resolution | Top1 Acc | Download            |
-  | -------------- | ------ | ----------------- | -------- | ------------------- |
-  | resnext50      | 25M    | 224               | 77.74    | [resnext50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext50.h5)  |
-  | resnext101     | 42M    | 224               | 78.73    | [resnext101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnext/resnext101.h5)  |
+  | Model                     | Params | Image  resolution | Top1 Acc | Download            |
+  | ------------------------- | ------ | ----------------- | -------- | ------------------- |
+  | ResNeXt50 (32x4d)         | 25M    | 224               | 79.768   | [resnext50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext50_imagenet.h5)  |
+  | ResNeXt50D (32x4d + deep) | 25M    | 224               | 79.676   | [resnext50.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext50_imagenet.h5)  |
+  | ResNeXt101 (32x4d)        | 42M    | 224               | 80.334   | [resnext101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_imagenet.h5)  |
+  | ResNeXt101W (32x8d)       | 89M    | 224               | 79.308   | [resnext101.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_imagenet.h5)  |
+## ResNetD
+  - [Keras ResNetD](keras_cv_attention_models/resnet_family#resnetd) includes implementation of [PDF 1812.01187 Bag of Tricks for Image Classification with Convolutional Neural Networks](https://arxiv.org/pdf/1812.01187.pdf)
 
+  | Model      | Params | Image  resolution | Top1 Acc | Download |
+  | ---------- | ------ | ----------------- | -------- | -------- |
+  | ResNet50D  | 25.58M | 224               | 80.530   | [resnet50d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet50d_imagenet.h5) |
+  | ResNet101D | 44.57M | 224               | 83.022   | [resnet101d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet101d_imagenet.h5) |
+  | ResNet152D | 60.21M | 224               | 83.680   | [resnet152d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet152d_imagenet.h5) |
+  | ResNet200D | 64.69  | 224               | 83.962   | [resnet200d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet200d_imagenet.h5) |
+## ResNetQ
+  - [Keras ResNetQ](keras_cv_attention_models/resnet_family#resnetq) includes implementation of [Github timm/models/resnet.py](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/resnet.py)
+
+  | Model     | Params | Image  resolution | Top1 Acc | Download |
+  | --------- | ------ | ----------------- | -------- | -------- |
+  | ResNet51Q | 35.7M  | 224               | 82.36    | [resnet51q.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet51q_imagenet.h5) |
 ***
 
 # Other implemented keras models

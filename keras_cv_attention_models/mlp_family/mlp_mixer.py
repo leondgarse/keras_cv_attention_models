@@ -1,8 +1,14 @@
 from tensorflow import keras
 from tensorflow.keras import backend as K
-import os
+from keras_cv_attention_models.download_and_load import reload_model_weights
 
 BATCH_NORM_EPSILON = 1e-5
+
+PRETRAINED_DICT = {
+    "mlp_mixer_b16": {"imagenet21k": "6353dffc590a2a7348a44cee2c784724", "imagenet": "abd04090063ba9ab0d49e2131cef9d64", "imagenet_sam": "d953ef41ffdb0ab9c3fa21493bf0982f"},
+    "mlp_mixer_l16": {"imagenet": "fa91a74f1aa11ed610299d06d643ed45", "imagenet21k": "8dca5de1817112d9e717db6b2e9a7b0b"},
+    "mlp_mixer_b32": {"imagenet_sam": "a6285750e55579fc68e7ba68a683c77d"},
+}
 
 
 def layer_norm(inputs, name=None):
@@ -73,31 +79,8 @@ def MLPMixer(
         model = SAMModel(inputs, nn, name=model_name)
     else:
         model = keras.Model(inputs, nn, name=model_name)
-    reload_model_weights(model, input_shape, pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="mlp_family", input_shape=input_shape, pretrained=pretrained)
     return model
-
-
-def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
-    pretrained_dd = {
-        "mlp_mixer_b16": ["imagenet", "imagenet_sam", "imagenet21k"],
-        "mlp_mixer_l16": ["imagenet", "imagenet21k"],
-        "mlp_mixer_b32": ["imagenet_sam"],
-    }
-    if model.name not in pretrained_dd or pretrained not in pretrained_dd[model.name]:
-        print(">>>> No pretraind available, model will be randomly initialized")
-        return
-
-    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/{}_{}.h5"
-    url = pre_url.format(model.name, pretrained)
-    file_name = os.path.basename(url)
-    try:
-        pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
-    except:
-        print("[Error] will not load weights, url not found or download failed:", url)
-        return
-    else:
-        print(">>>> Load pretraind from:", pretrained_model)
-        model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
 
 
 BLOCK_CONFIGS = {
