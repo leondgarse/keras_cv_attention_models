@@ -3,11 +3,16 @@
 
 ## Summary
   - Defined layers / functions from model structures.
-  - `cot_attention` from `cotnet`.
-  - `HaloAttention` from `halonet`.
+  - Basic `anti_alias_downsample`, `batchnorm_with_activation`, `conv2d_no_bias`, `se_module` from `aotnet`
   - `MHSAWithPositionEmbedding` from `botnet`.
-  - `outlook_attention` and `outlook_attention_simple` from `volo`.
+  - `cot_attention` from `cotnet`.
+  - `ConvPositionalEncoding`, `ConvRelativePositionalEncoding`, `layer_norm` from `coat`.
+  - `HaloAttention` from `halonet`.
   - `rsoftmax` and `split_attention_conv2d` from `resnest`.
+  - `outlook_attention`, `outlook_attention_simple`, `BiasLayer`, `PositionalEmbedding`, `ClassToken` from `volo`.
+  - `mlp_block`, `mixer_block` from `mlp_mixer`.
+  - `ChannelAffine` from `res_mlp`.
+  - `spatial_gating_block` from `gated_mlp`.
 ## Usage
   - **MHSAWithPositionEmbedding**
     ```py
