@@ -126,7 +126,7 @@ def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_bloc
     return nn
 
 
-def conv_shortcut_branch(inputs, expanded_filter, preact=False, strides=1, avg_pool_down=True, anti_alias_down=False, name=""):
+def conv_shortcut_branch(inputs, expanded_filter, preact=False, strides=1, avg_pool_down=False, anti_alias_down=False, name=""):
     if strides > 1 and avg_pool_down:
         shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_down")(inputs)
         strides = 1
@@ -168,7 +168,7 @@ def block(
     drop_rate=0,
     preact=False,
     use_3x3_kernel=False,
-    avg_pool_down=True,
+    avg_pool_down=False,
     anti_alias_down=False,
     activation="relu",
     name="",
@@ -250,7 +250,7 @@ def AotNet(
     se_ratio=0,  # (0, 1)
     num_features=0,
     use_3x3_kernel=False,
-    avg_pool_down=True,
+    avg_pool_down=False,
     anti_alias_down=False,
     input_shape=(224, 224, 3),
     num_classes=1000,
