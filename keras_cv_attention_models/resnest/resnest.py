@@ -1,13 +1,19 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-import os
+from keras_cv_attention_models.download_and_load import reload_model_weights
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
 # CONV_KERNEL_INITIALIZER = 'glorot_uniform'
 
+PRETRAINED_DICT = {
+    "resnest101": {"imagenet": "0e6c69ddc5aa792df75621de750f3798"},
+    "resnest200": {"imagenet": "fec89e331f745d2727e17fb2e4eb0a14"},
+    "resnest269": {"imagenet": "f855648d7bba0171df92e3a6bb0faec8"},
+    "resnest50": {"imagenet": "04cbe66345b2b37f0c9c4c78a3b07b26"},
+}
 
 def batchnorm_with_activation(inputs, activation="relu", name=""):
     """Performs a batch normalization followed by an activation. """
@@ -158,26 +164,8 @@ def ResNest(
         nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
     model = tf.keras.models.Model(img_input, nn, name=model_name)
-    reload_model_weights(model, input_shape, pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnest", input_shape=input_shape, pretrained=pretrained)
     return model
-
-
-def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
-    if not pretrained in ["imagenet"]:
-        print(">>>> No pretraind available, model will be randomly initialized")
-        return
-
-    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/{}.h5"
-    url = pre_url.format(model.name)
-    file_name = os.path.basename(url)
-    try:
-        # print(">>>> Load pretraind from:", file_name, url)
-        pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
-    except:
-        print("[Error] will not load weights, url not found or download failed:", url)
-    else:
-        print(">>>> Load pretraind from:", pretrained_model)
-        model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
 
 
 def ResNest50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", groups=2, **kwargs):

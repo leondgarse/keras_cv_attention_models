@@ -15,8 +15,7 @@ from keras_cv_attention_models.aotnet.aotnet import (
     conv2d_no_bias,
     se_module,
     block,
-    stack1,
-    stack2,
+    stack,
     stem,
 )
 

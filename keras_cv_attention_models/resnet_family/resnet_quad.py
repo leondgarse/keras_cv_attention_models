@@ -1,12 +1,15 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-import os
+from keras_cv_attention_models.download_and_load import reload_model_weights
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
 
+PRETRAINED_DICT = {
+    "resnet51q": {"imagenet": "2b54c5e252bd58f37454e6fb273716f7"},
+}
 
 def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=None):
     """Performs a batch normalization followed by an activation. """
@@ -169,29 +172,8 @@ def ResNetQ(
         nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
-    reload_model_weights(model, input_shape, pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
     return model
-
-
-def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
-    pretrained_dd = {
-        "resnetq51": ["imagenet"],
-    }
-    if model.name not in pretrained_dd or pretrained not in pretrained_dd[model.name]:
-        print(">>>> No pretraind available, model will be randomly initialized")
-        return
-
-    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/{}_{}.h5"
-    url = pre_url.format(model.name, pretrained)
-    file_name = os.path.basename(url)
-    try:
-        pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
-    except:
-        print("[Error] will not load weights, url not found or download failed:", url)
-        return
-    else:
-        print(">>>> Load pretraind from:", pretrained_model)
-        model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
 
 
 def ResNet51Q(input_shape=(224, 224, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
@@ -203,7 +185,7 @@ def ResNet51Q(input_shape=(224, 224, 3), num_classes=1000, activation="swish", c
     groups_div = [32, 32, 32, 1]
     extra_conv = False
     num_features = 2048
-    return ResNetQ(**locals(), model_name="resnetq51", **kwargs)
+    return ResNetQ(**locals(), model_name="resnet51q", **kwargs)
 
 
 def ResNet61Q(input_shape=(224, 224, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
@@ -215,4 +197,4 @@ def ResNet61Q(input_shape=(224, 224, 3), num_classes=1000, activation="swish", c
     groups_div = [0, 32, 32, 1]
     extra_conv = [False, True, True, True]
     num_features = 2048
-    return ResNetQ(**locals(), model_name="resnetq61", **kwargs)
+    return ResNetQ(**locals(), model_name="resnet61q", **kwargs)

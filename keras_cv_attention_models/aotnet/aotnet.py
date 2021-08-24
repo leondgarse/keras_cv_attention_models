@@ -35,13 +35,7 @@ def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use
     groups = groups if groups != 0 else 1
     if groups == filters:
         return keras.layers.DepthwiseConv2D(
-            kernel_size,
-            strides=strides,
-            padding="VALID",
-            use_bias=use_bias,
-            kernel_initializer=CONV_KERNEL_INITIALIZER,
-            name=name and name + "conv",
-            **kwargs
+            kernel_size, strides=strides, padding="VALID", use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "conv", **kwargs
         )(inputs)
     else:
         return keras.layers.Conv2D(
@@ -115,10 +109,12 @@ def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_bloc
         nn = attention_layers.cot_attention(nn, 3, activation=activation, name=name + "cot_")
     elif attn_type == "outlook":  # outlook_attention
         nn = attention_layers.outlook_attention(nn, filters, num_head=6, kernel_size=3, name=name + "outlook_")
+    elif attn_type == "groups_conv":  # ResNeXt like
+        nn = conv2d_no_bias(nn, filters, 3, strides=strides, groups=32, padding="SAME", name=name + "GC_")
     else:  # ResNet block
         nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", name=name + "conv_")
 
-    if attn_type not in [None, "sa", "gd"] and strides != 1:  # Downsample
+    if attn_type not in [None, "sa", "groups_conv"] and strides != 1:  # Downsample
         nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
         nn = keras.layers.AveragePooling2D(pool_size=3, strides=strides, name=name + "pool")(nn)
 
@@ -145,23 +141,38 @@ def conv_shortcut_branch(inputs, expanded_filter, preact=False, strides=1, avg_p
     return shortcut
 
 
-def deep_branch(inputs, filters, strides=1, expansion=4, attn_type=None, se_ratio=0, activation="relu", name=""):
+def deep_branch(inputs, filters, strides=1, expansion=4, attn_type=None, se_ratio=0, use_3x3_kernel=False, activation="relu", name=""):
     expanded_filter = filters * expansion
-    if expansion > 1:
-        nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "deep_1_")
-    else:  # ResNet-RS like
+    if use_3x3_kernel:
         nn = conv2d_no_bias(inputs, filters, 3, strides=1, padding="SAME", name=name + "deep_1_")  # Using strides=1 for not changing input shape
         # nn = conv2d_no_bias(inputs, filters, 3, strides=strides, padding="SAME", name=name + "1_")
         # strides = 1
+    else:
+        nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "deep_1_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "deep_1_")
     nn = attn_block(nn, filters, strides, attn_type, se_ratio / expansion, HALO_BLOCK_SIZE, True, activation, name=name + "deep_2_")
 
-    if expansion > 1:  # not ResNet-RS like
+    if not use_3x3_kernel:
         nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "deep_3_")
     return nn
 
 
-def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansion=4, attn_type=None, se_ratio=0, drop_rate=0, activation="relu", name=""):
+def block(
+    inputs,
+    filters,
+    strides=1,
+    conv_shortcut=False,
+    expansion=4,
+    attn_type=None,
+    se_ratio=0,
+    drop_rate=0,
+    preact=False,
+    use_3x3_kernel=False,
+    avg_pool_down=True,
+    anti_alias_down=False,
+    activation="relu",
+    name="",
+):
     expanded_filter = filters * expansion
     if attn_type == "halo" and inputs.shape[1] % HALO_BLOCK_SIZE != 0:  # HaloAttention
         gap = HALO_BLOCK_SIZE - inputs.shape[1] % HALO_BLOCK_SIZE
@@ -173,12 +184,11 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
     else:
         pre_inputs = inputs
 
-    deep = deep_branch(pre_inputs, filters, strides, expansion, attn_type, se_ratio, activation=activation, name=name)
-
     if conv_shortcut:  # Set a new shortcut using conv
-        shortcut = conv_shortcut_branch(pre_inputs, expanded_filter, preact, strides, avg_pool_down=True, anti_alias_down=False, name=name)
+        shortcut = conv_shortcut_branch(pre_inputs, expanded_filter, preact, strides, avg_pool_down, anti_alias_down, name=name)
     else:
         shortcut = keras.layers.MaxPooling2D(strides, strides=strides, padding="SAME")(inputs) if strides > 1 else inputs
+    deep = deep_branch(pre_inputs, filters, strides, expansion, attn_type, se_ratio, use_3x3_kernel, activation=activation, name=name)
 
     # print(">>>> shortcut:", shortcut.shape, "deep:", deep.shape)
     if preact:  # ResNetV2
@@ -191,33 +201,19 @@ def block(inputs, filters, preact=False, strides=1, conv_shortcut=False, expansi
         return keras.layers.Activation(activation, name=name + "out")(out)
 
 
-def stack1(inputs, blocks, filters, preact=False, strides=2, expansion=4, attn_types=None, se_ratio=0, stack_drop=0, activation="relu", name=""):
+def stack(inputs, blocks, filters, strides=2, strides_first=True, expansion=4, attn_types=None, se_ratio=0, stack_drop=0, block_params={}, name=""):
     nn = inputs
     # print(">>>> attn_types:", attn_types)
     stack_drop_s, stack_drop_e = stack_drop if isinstance(stack_drop, (list, tuple)) else [stack_drop, stack_drop]
+    strides_block_id = 0 if strides_first else blocks - 1
     for id in range(blocks):
         conv_shortcut = True if id == 0 and (strides != 1 or inputs.shape[-1] != filters * expansion) else False
-        cur_strides = strides if id == 0 else 1
+        cur_strides = strides if id == strides_block_id else 1
         block_name = name + "block{}_".format(id + 1)
         block_drop_rate = stack_drop_s + (stack_drop_e - stack_drop_s) * id / blocks
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
         cur_se_ratio = se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio
-        nn = block(nn, filters, preact, cur_strides, conv_shortcut, expansion, attn_type, cur_se_ratio, block_drop_rate, activation, name=block_name)
-    return nn
-
-
-def stack2(inputs, blocks, filters, preact=True, strides=2, expansion=4, attn_types=None, se_ratio=0, stack_drop=0, activation="relu", name=""):
-    nn = inputs
-    # print(">>>> attn_types:", attn_types)
-    stack_drop_s, stack_drop_e = stack_drop if isinstance(stack_drop, (list, tuple)) else [stack_drop, stack_drop]
-    for id in range(blocks):
-        conv_shortcut = True if id == 0 else False
-        cur_strides = strides if id == blocks - 1 else 1
-        block_name = name + "block{}_".format(id + 1)
-        block_drop_rate = stack_drop_s + (stack_drop_e - stack_drop_s) * id / blocks
-        attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
-        cur_se_ratio = se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio
-        nn = block(nn, filters, preact, cur_strides, conv_shortcut, expansion, attn_type, cur_se_ratio, block_drop_rate, activation, name=block_name)
+        nn = block(nn, filters, cur_strides, conv_shortcut, expansion, attn_type, cur_se_ratio, block_drop_rate, **block_params, name=block_name)
     return nn
 
 
@@ -242,24 +238,27 @@ def stem(inputs, stem_width, activation="relu", deep_stem=False, quad_stem=False
 def AotNet(
     num_blocks,
     preact=False,
-    stack=stack1,
     strides=[1, 2, 2, 1],
+    strides_first=True, # True for resnet, False for resnetv2
     out_channels=[64, 128, 256, 512],
+    expansion=4,
     stem_width=64,
     deep_stem=False,
     quad_stem=False,
     stem_downsample=True,
     attn_types=None,
-    expansion=4,
     se_ratio=0,  # (0, 1)
     num_features=0,
+    use_3x3_kernel=False,
+    avg_pool_down=True,
+    anti_alias_down=False,
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="relu",
     drop_connect_rate=0,
     classifier_activation="softmax",
     model_name="aotnet",
-    kwargs=None
+    kwargs=None,
 ):
     inputs = keras.layers.Input(shape=input_shape)
     nn = stem(inputs, stem_width, activation=activation, deep_stem=deep_stem, quad_stem=quad_stem, name="stem_")
@@ -270,6 +269,13 @@ def AotNet(
         nn = keras.layers.ZeroPadding2D(padding=1, name="stem_pool_pad")(nn)
         nn = keras.layers.MaxPooling2D(pool_size=3, strides=2, name="stem_pool")(nn)
 
+    block_params = { # params same for all blocks
+        "preact": preact,
+        "use_3x3_kernel": use_3x3_kernel,
+        "avg_pool_down": avg_pool_down,
+        "anti_alias_down": anti_alias_down,
+        "activation": activation,
+    }
     total_blocks = sum(num_blocks)
     global_block_id = 0
     drop_connect_s, drop_connect_e = 0, drop_connect_rate
@@ -281,13 +287,13 @@ def AotNet(
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
         cur_se_ratio = se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio
         cur_expansion = expansion[id] if isinstance(expansion, (list, tuple)) else expansion
-        nn = stack(nn, num_block, out_channel, preact, stride, cur_expansion, attn_type, cur_se_ratio, stack_drop, activation, name=name)
+        nn = stack(nn, num_block, out_channel, stride, strides_first, cur_expansion, attn_type, cur_se_ratio, stack_drop, block_params, name=name)
         global_block_id += num_block
 
     if preact:  # resnetv2 like
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="post_")
 
-    if num_features != 0:   # efficientnet like
+    if num_features != 0:  # efficientnet like
         nn = conv2d_no_bias(nn, num_features, 1, strides=1, name="features_")
         nn = batchnorm_with_activation(nn, activation=activation, name="features_")
 
@@ -323,9 +329,9 @@ def AotNet200(input_shape=(224, 224, 3), num_classes=1000, activation="relu", cl
     return AotNet(**locals(), model_name="aotnet200", **kwargs)
 
 
-def AotNetV2(num_blocks, preact=True, stack=stack2, strides=1, **kwargs):
+def AotNetV2(num_blocks, preact=True, strides=1, strides_first=False, **kwargs):
     strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
-    return AotNet(num_blocks, preact=preact, stack=stack, strides=strides, **kwargs)
+    return AotNet(num_blocks, preact=preact, strides=strides, strides_first=strides_first, **kwargs)
 
 
 def AotNet50V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):

@@ -9,3 +9,4 @@ from keras_cv_attention_models import resnest
 from keras_cv_attention_models import resnet_family
 from keras_cv_attention_models import volo
 from keras_cv_attention_models import mlp_family
+from keras_cv_attention_models import download_and_load

@@ -1,5 +1,5 @@
 # Keras_cv_attention_models
-- **Currenly working on `resnet_family`, may change it frequently.**
+- **[Note] `resnet_family` under working, avoid using it.**
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [Keras_cv_attention_models](#kerascvattentionmodels)
