@@ -91,6 +91,9 @@ Examples:
 >>> from keras_cv_attention_models import attention_layers
 >>> inputs = keras.layers.Input([14 * 14, 9])
 >>> nn = attention_layers.mlp_block(inputs, 9 * 4)
+>>> print(f"{nn.shape = }")
+nn.shape = TensorShape([None, 196, 9])
+
 >>> keras.models.Model(inputs, nn).summary()
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #
@@ -123,6 +126,9 @@ Examples:
 >>> from keras_cv_attention_models import attention_layers
 >>> inputs = keras.layers.Input([14 * 14, 9])
 >>> nn = attention_layers.mixer_block(inputs, tokens_mlp_dim=14 * 14, channels_mlp_dim=9 * 4)
+>>> print(f"{nn.shape = }")
+nn.shape = TensorShape([None, 196, 9])
+
 >>> mm = keras.models.Model(inputs, nn)
 >>> mm.summary()
 __________________________________________________________________________________________________
@@ -245,6 +251,9 @@ GMLPB16.__doc__ = __gmlp_default_doc__.format(model_name="GMLPB16", **gated_mlp.
 
 spatial_gating_block.__doc__ = __gmlp_head_doc__ + """
 Spatial Gating Block
+
+input: `[batch, height * width, channel]`.
+output: `[batch, height * width, channel // 2]`.
 
 Examples:
 

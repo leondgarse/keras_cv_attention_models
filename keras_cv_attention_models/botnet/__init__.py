@@ -58,7 +58,7 @@ Args:
 Examples:
 
 >>> from keras_cv_attention_models import attention_layers
->>> aa = attention_layers.MHSAWithPositionEmbedding()
+>>> aa = attention_layers.MHSAWithPositionEmbedding(num_heads=4, key_dim=128)
 >>> print(f"{aa(tf.ones([1, 14, 16, 256])).shape = }")
 aa(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])
 

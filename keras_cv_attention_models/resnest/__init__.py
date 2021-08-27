@@ -85,4 +85,11 @@ Examples:
 
 rsoftmax.__doc__ = __head_doc__ + """
 Perform group split softmax
+
+input: `[batch, 1, 1, channel]`.
+output: `[batch, 1, 1, channel]`.
+
+Args:
+  inputs: Input tensor.
+  groups: groups to split on channel dimension.
 """
