@@ -6,11 +6,14 @@ Original TensorFlow version: https://gist.github.com/aravindsrinivas/56359b79f0c
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-import os
+from keras_cv_attention_models.download_and_load import reload_model_weights
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 
+PRETRAINED_DICT = {
+    "botnet50": {"imagenet": "10d2ffa88d3e7abc30b2c4cd05221e0c"},
+}
 
 @tf.keras.utils.register_keras_serializable(package="botnet")
 class MHSAWithPositionEmbedding(keras.layers.Layer):
@@ -301,33 +304,23 @@ def BotNet(
         nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
-    reload_model_weights(model, input_shape, pretrained)
+    reload_model_weights_with_mismatch(model, input_shape, pretrained)
     return model
 
 
-def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
-    if not pretrained in ["imagenet"] or not model.name in ["botnet50"]:
-        print(">>>> No pretraind available, model will be randomly initialized")
+def reload_model_weights_with_mismatch(model, input_shape=(224, 224, 3), pretrained="imagenet"):
+    pretrained_model = reload_model_weights(model, PRETRAINED_DICT, sub_release="botnet", input_shape=input_shape, pretrained=pretrained)
+    if pretrained_model is None:
         return
-
-    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/{}.h5"
-    url = pre_url.format(model.name)
-    file_name = os.path.basename(url)
-    try:
-        pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models")
-    except:
-        print("[Error] will not load weights, url not found or download failed:", url)
-        return
-    else:
-        print(">>>> Load pretraind from:", pretrained_model)
-        model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
 
     if input_shape[0] != 224:
         try:
             print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(224, input_shape[0]))
-            bb = keras.models.load_model(pretrained_model)
-            for ii in ["stack4_block1_2_mhsa", "stack4_block2_2_mhsa", "stack4_block3_2_mhsa"]:
-                model.get_layer(ii).load_resized_pos_emb(bb.get_layer(ii))
+            bb = keras.models.load_model(pretrained_model, custom_objects={"MHSAWithPositionEmbedding": MHSAWithPositionEmbedding})
+            for ii in model.layers:
+                if isinstance(ii, MHSAWithPositionEmbedding):
+                    print(">>>> Reload layer:", ii.name)
+                    model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
         except:
             pass
 

@@ -247,11 +247,11 @@ def LeViT(
             out = [out, distill]
 
     model = keras.models.Model(inputs, out, name=model_name)
-    reload_model_weights_with_position(model, input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights_with_mismatch(model, input_shape=input_shape, pretrained=pretrained)
     return model
 
 
-def reload_model_weights_with_position(model, input_shape=(224, 224, 3), pretrained="imagenet"):
+def reload_model_weights_with_mismatch(model, input_shape=(224, 224, 3), pretrained="imagenet"):
     pretrained_model = reload_model_weights(model, PRETRAINED_DICT, sub_release="levit", input_shape=input_shape, pretrained=pretrained)
     if pretrained_model is None:
         return
