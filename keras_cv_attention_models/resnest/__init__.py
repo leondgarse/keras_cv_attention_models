@@ -82,3 +82,7 @@ Examples:
  '3_conv/kernel:0': TensorShape([1, 1, 96, 768]),
  '3_conv/bias:0': TensorShape([768])}
 """
+
+rsoftmax.__doc__ = __head_doc__ + """
+Perform group split softmax
+"""

@@ -12,6 +12,7 @@ PRETRAINED_DICT = {
 
 
 def layer_norm(inputs, name=None):
+    """ Typical LayerNormalization with epsilon=1e-5 """
     norm_axis = -1 if K.image_data_format() == "channels_last" else 1
     return keras.layers.LayerNormalization(axis=norm_axis, epsilon=BATCH_NORM_EPSILON, name=name)(inputs)
 
@@ -24,7 +25,7 @@ def mlp_block(inputs, hidden_dim, activation="gelu", name=None):
 
 
 def mixer_block(inputs, tokens_mlp_dim, channels_mlp_dim, drop_rate=0, activation="gelu", name=None):
-    nn = layer_norm(inputs, name=name + "LayerNorm_0")
+    nn = layer_norm(inputs, name=name and name + "LayerNorm_0")
     nn = keras.layers.Permute((2, 1), name=name and name + "permute_0")(nn)
     nn = mlp_block(nn, tokens_mlp_dim, activation, name=name and name + "token_mixing/")
     nn = keras.layers.Permute((2, 1), name=name and name + "permute_1")(nn)
@@ -32,7 +33,7 @@ def mixer_block(inputs, tokens_mlp_dim, channels_mlp_dim, drop_rate=0, activatio
         nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name and name + "token_drop")(nn)
     token_out = keras.layers.Add(name=name and name + "add_0")([nn, inputs])
 
-    nn = layer_norm(token_out, name=name + "LayerNorm_1")
+    nn = layer_norm(token_out, name=name and name + "LayerNorm_1")
     channel_out = mlp_block(nn, channels_mlp_dim, activation, name=name and name + "channel_mixing/")
     if drop_rate > 0:
         channel_out = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name and name + "channel_drop")(channel_out)

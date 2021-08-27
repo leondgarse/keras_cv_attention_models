@@ -17,6 +17,7 @@ PRETRAINED_DICT = {
 
 
 def layer_norm(inputs, name=None):
+    """ Typical LayerNormalization with epsilon=1e-5 """
     norm_axis = -1 if K.image_data_format() == "channels_last" else 1
     return keras.layers.LayerNormalization(axis=norm_axis, epsilon=LAYER_NORM_EPSILON, name=name and name + "ln")(inputs)
 

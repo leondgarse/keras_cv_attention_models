@@ -44,12 +44,12 @@ def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", nam
     )(inputs)
 
 
-def rsoftmax(inputs, filters, groups):
+def rsoftmax(inputs, groups):
     if groups > 1:
-        nn = tf.reshape(inputs, [-1, 1, groups, filters])
+        nn = tf.reshape(inputs, [-1, 1, groups, inputs.shape[-1] // groups])
         # nn = tf.transpose(nn, [0, 2, 1, 3])
         nn = tf.nn.softmax(nn, axis=2)
-        nn = tf.reshape(nn, [-1, 1, 1, groups * filters])
+        nn = tf.reshape(nn, [-1, 1, 1, inputs.shape[-1]])
     else:
         nn = keras.layers.Activation("sigmoid")(inputs)
     return nn
@@ -83,7 +83,7 @@ def split_attention_conv2d(inputs, filters, kernel_size=3, strides=1, groups=2, 
     atten = keras.layers.Conv2D(inter_channels, kernel_size=1, name=name + "2_conv")(gap)
     atten = batchnorm_with_activation(atten, activation=activation, name=name + "2_")
     atten = keras.layers.Conv2D(filters * groups, kernel_size=1, name=name + "3_conv")(atten)
-    atten = rsoftmax(atten, filters, groups)
+    atten = rsoftmax(atten, groups)
     out = keras.layers.Multiply()([atten, logits])
 
     if groups > 1:

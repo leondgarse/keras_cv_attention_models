@@ -171,11 +171,13 @@ def res_mlp_block(inputs, mlp_ratio, drop_rate=0, use_bias=False, activation="ha
     return keras.layers.Add(name=name + "add")([inputs, nn])
 
 
-def attention_mlp_stack(inputs, out_channel, num_heads, depth, key_dim, attn_ratio, mlp_ratio, strides, drop_rate=0, activation="hard_swish", name=""):
+def attention_mlp_stack(inputs, out_channel, num_heads, depth, key_dim, attn_ratio, mlp_ratio, strides, stack_drop=0, activation="hard_swish", name=""):
     nn = inputs
     embed_dim = nn.shape[-1]
-    for id in range(depth):
-        block_name = name + "block{}_".format(id + 1)
+    stack_drop_s, stack_drop_e = stack_drop if isinstance(stack_drop, (list, tuple)) else [stack_drop, stack_drop]
+    for ii in range(depth):
+        block_name = name + "block{}_".format(ii + 1)
+        drop_rate = stack_drop_s + (stack_drop_e - stack_drop_s) * ii / depth
         nn = res_mhsa_with_multi_head_position(nn, embed_dim, num_heads, key_dim, attn_ratio, drop_rate, activation=activation, name=block_name)
         if mlp_ratio > 0:
             nn = res_mlp_block(nn, mlp_ratio, drop_rate, activation=activation, name=block_name + "mlp_")
@@ -225,12 +227,18 @@ def LeViT(
     nn = patch_stem(inputs, patch_channel, activation=activation, name="stem_")
     nn = tf.reshape(nn, [-1, nn.shape[1] * nn.shape[2], patch_channel])
 
+    global_block_id = 0
+    total_blocks = sum(depthes)
+    drop_connect_s, drop_connect_e = drop_connect_rate if isinstance(drop_connect_rate, (list, tuple)) else (drop_connect_rate, drop_connect_rate)
     for id, (out_channel, num_head, depth, key_dim, attn_ratio, mlp_ratio, stride) in enumerate(
         zip(out_channels, num_heads, depthes, key_dims, attn_ratios, mlp_ratios, strides)
     ):
         name = "stack{}_".format(id + 1)
-        drop_rate = 0
-        nn = attention_mlp_stack(nn, out_channel, num_head, depth, key_dim, attn_ratio, mlp_ratio, stride, drop_rate, activation, name=name)
+        stack_drop_s = drop_connect_s + (drop_connect_e - drop_connect_s) * global_block_id / total_blocks
+        stack_drop_e = drop_connect_s + (drop_connect_e - drop_connect_s) * (global_block_id + depth) / total_blocks
+        stack_drop = (stack_drop_s, stack_drop_e)
+        nn = attention_mlp_stack(nn, out_channel, num_head, depth, key_dim, attn_ratio, mlp_ratio, stride, stack_drop, activation, name=name)
+        global_block_id += depth
 
     if num_classes == 0:
         out = nn

@@ -28,6 +28,7 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
 
 
 def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, groups=1, name=None, **kwargs):
+    """" Typical Conv2D with `use_bias` default as `False` and fixed padding """
     pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
     if padding.upper() == "SAME" and pad != 0:
         inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
@@ -52,6 +53,7 @@ def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use
 
 
 def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=""):
+    """ Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf """
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
     h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
 
@@ -67,6 +69,7 @@ def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=""):
 
 
 def drop_block(inputs, drop_rate=0, name=None):
+    """ Stochastic Depth block by Dropout, arxiv: https://arxiv.org/abs/1603.09382 """
     if drop_rate > 0:
         noise_shape = [None] + [1] * (len(inputs.shape) - 1)  # [None, 1, 1, 1]
         return keras.layers.Dropout(drop_rate, noise_shape=noise_shape, name=name and name + "drop")(inputs)
@@ -75,6 +78,7 @@ def drop_block(inputs, drop_rate=0, name=None):
 
 
 def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trainable=False, name=None):
+    """ DepthwiseConv2D performing anti-aliasing downsample, arxiv: https://arxiv.org/pdf/1904.11486.pdf """
     def anti_alias_downsample_initializer(weight_shape, dtype="float32"):
         import numpy as np
 

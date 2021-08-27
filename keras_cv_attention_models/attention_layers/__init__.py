@@ -1,4 +1,4 @@
-from keras_cv_attention_models.aotnet.aotnet import anti_alias_downsample, batchnorm_with_activation, conv2d_no_bias, se_module
+from keras_cv_attention_models.aotnet.aotnet import anti_alias_downsample, batchnorm_with_activation, conv2d_no_bias, se_module, drop_block
 from keras_cv_attention_models.botnet.botnet import MHSAWithPositionEmbedding
 from keras_cv_attention_models.cotnet.cotnet import cot_attention
 from keras_cv_attention_models.coat.coat import ConvPositionalEncoding, ConvRelativePositionalEncoding, layer_norm

@@ -14,7 +14,7 @@ __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels like `
   activation: activation used in whole model, default `gelu`.
   sam_rho: None zero value to init model using `SAM` training step.
       SAM Arxiv article: [Sharpness-Aware Minimization for Efficiently Improving Generalization](https://arxiv.org/pdf/2010.01412.pdf).
-  dropout: dropout rate if top layers is included.
+  dropout: top dropout rate if top layers is included.
   drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
       Can be a constant value like `0.2`,
       or a tuple value like `(0, 0.2)` indicates the drop probability linearly changes from `0 --> 0.2` for `top --> bottom` layers.
@@ -36,7 +36,7 @@ Args:
   num_blocks: number of layers.
   patch_size: stem patch resolution P×P, means `kernel_size=patch_size, strides=patch_size` for stem `Conv2D` block.
   stem_width: stem output channel dimenion.
-  tokens_mlp_dim: MLP block token level hidden dimenion, where token level means `height * weight` dimention.
+  tokens_mlp_dim: MLP block token level hidden dimenion, where token level means `height * weight` dimension.
   channels_mlp_dim: MLP block channel level hidden dimenion.
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet", "imagenet21k", "imagenet_sam"]) + """
@@ -78,6 +78,90 @@ MLPMixerL32.__doc__ = __mixer_default_doc__.format(model_name="MLPMixerL32", **m
 MLPMixerL16.__doc__ = __mixer_default_doc__.format(model_name="MLPMixerL16", **mlp_mixer.BLOCK_CONFIGS["l16"])
 MLPMixerH14.__doc__ = __mixer_default_doc__.format(model_name="MLPMixerH14", **mlp_mixer.BLOCK_CONFIGS["h14"])
 
+mlp_block.__doc__ = __mlp_mixer_head_doc__ + """
+MLP block
+
+Args:
+  inputs: Input tensor.
+  hidden_dim: Expanded channel dimension for the first `Dense` layer.
+  activation: activation applied, default `gelu`.
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> inputs = keras.layers.Input([14 * 14, 9])
+>>> nn = attention_layers.mlp_block(inputs, 9 * 4)
+>>> keras.models.Model(inputs, nn).summary()
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #
+=================================================================
+input_1 (InputLayer)         [(None, 196, 9)]          0
+_________________________________________________________________
+dense (Dense)                (None, 196, 36)           360
+_________________________________________________________________
+activation (Activation)      (None, 196, 36)           0
+_________________________________________________________________
+dense_1 (Dense)              (None, 196, 9)            333
+=================================================================
+Total params: 693
+Trainable params: 693
+Non-trainable params: 0
+_________________________________________________________________
+"""
+mixer_block.__doc__ = __mlp_mixer_head_doc__ + """
+MLP Mixer block
+
+Args:
+  inputs: Input tensor.
+  tokens_mlp_dim:
+  channels_mlp_dim:
+  drop_rate:
+  activation:
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> inputs = keras.layers.Input([14 * 14, 9])
+>>> nn = attention_layers.mixer_block(inputs, tokens_mlp_dim=14 * 14, channels_mlp_dim=9 * 4)
+>>> mm = keras.models.Model(inputs, nn)
+>>> mm.summary()
+__________________________________________________________________________________________________
+Layer (type)                    Output Shape         Param #     Connected to
+==================================================================================================
+input_1 (InputLayer)            [(None, 196, 9)]     0
+__________________________________________________________________________________________________
+layer_normalization (LayerNorma (None, 196, 9)       18          input_1[0][0]
+__________________________________________________________________________________________________
+permute (Permute)               (None, 9, 196)       0           layer_normalization[0][0]
+__________________________________________________________________________________________________
+dense (Dense)                   (None, 9, 196)       38612       permute[0][0]
+__________________________________________________________________________________________________
+activation (Activation)         (None, 9, 196)       0           dense[0][0]
+__________________________________________________________________________________________________
+dense_1 (Dense)                 (None, 9, 196)       38612       activation[0][0]
+__________________________________________________________________________________________________
+permute_1 (Permute)             (None, 196, 9)       0           dense_1[0][0]
+__________________________________________________________________________________________________
+add (Add)                       (None, 196, 9)       0           permute_1[0][0]
+                                                                 input_1[0][0]
+__________________________________________________________________________________________________
+layer_normalization_1 (LayerNor (None, 196, 9)       18          add[0][0]
+__________________________________________________________________________________________________
+dense_2 (Dense)                 (None, 196, 36)      360         layer_normalization_1[0][0]
+__________________________________________________________________________________________________
+activation_1 (Activation)       (None, 196, 36)      0           dense_2[0][0]
+__________________________________________________________________________________________________
+dense_3 (Dense)                 (None, 196, 9)       333         activation_1[0][0]
+__________________________________________________________________________________________________
+add_1 (Add)                     (None, 196, 9)       0           dense_3[0][0]
+                                                                 add[0][0]
+==================================================================================================
+Total params: 77,953
+Trainable params: 77,953
+Non-trainable params: 0
+__________________________________________________________________________________________________
+"""
+
 __resmlp_head_doc__ = """
 Github source [leondgarse/keras_cv_attention_models](https://github.com/leondgarse/keras_cv_attention_models).
 Keras implementation of [Github facebookresearch/deit](https://github.com/facebookresearch/deit).
@@ -113,6 +197,20 @@ ResMLP24.__doc__ = __resmlp_default_doc__.format(model_name="ResMLP24", **res_ml
 ResMLP36.__doc__ = __resmlp_default_doc__.format(model_name="ResMLP36", **res_mlp.BLOCK_CONFIGS["36"])
 ResMLP_B24.__doc__ = __resmlp_default_doc__.format(model_name="ResMLP_B24", **res_mlp.BLOCK_CONFIGS["b24"])
 
+ChannelAffine.__doc__ = __resmlp_head_doc__ + """
+ChannelAffine layer
+
+Examples:
+>>> from keras_cv_attention_models import attention_layers
+>>> aa = attention_layers.ChannelAffine()
+>>> print(f"{aa(tf.ones([1, 32, 32, 192])).shape = }")
+aa(tf.ones([1, 32, 32, 192])).shape = TensorShape([1, 32, 32, 192])
+
+>>> print({ii.name: ii.shape for ii in aa.weights})
+{'channel_affine_1/weight:0': TensorShape([192]),
+ 'channel_affine_1/bias:0': TensorShape([192])}
+"""
+
 __gmlp_head_doc__ = """
 Github source [leondgarse/keras_cv_attention_models](https://github.com/leondgarse/keras_cv_attention_models).
 Keras implementation of Gated MLP.
@@ -144,3 +242,37 @@ Args:
 GMLPTiny16.__doc__ = __gmlp_default_doc__.format(model_name="GMLPTiny16", **gated_mlp.BLOCK_CONFIGS["tiny16"])
 GMLPS16.__doc__ = __gmlp_default_doc__.format(model_name="GMLPS16", **gated_mlp.BLOCK_CONFIGS["s16"])
 GMLPB16.__doc__ = __gmlp_default_doc__.format(model_name="GMLPB16", **gated_mlp.BLOCK_CONFIGS["b16"])
+
+spatial_gating_block.__doc__ = __gmlp_head_doc__ + """
+Spatial Gating Block
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> inputs = keras.layers.Input([14 * 14, 8])
+>>> nn = attention_layers.spatial_gating_block(inputs)
+>>> mm = keras.models.Model(inputs, nn)
+>>> mm.summary()
+__________________________________________________________________________________________________
+Layer (type)                    Output Shape         Param #     Connected to
+==================================================================================================
+input_1 (InputLayer)            [(None, 196, 8)]     0
+__________________________________________________________________________________________________
+tf.split (TFOpLambda)           [(None, 196, 4), (No 0           input_1[0][0]
+__________________________________________________________________________________________________
+layer_normalization (LayerNorma (None, 196, 4)       8           tf.split[0][1]
+__________________________________________________________________________________________________
+permute (Permute)               (None, 4, 196)       0           layer_normalization[0][0]
+__________________________________________________________________________________________________
+dense (Dense)                   (None, 4, 196)       38612       permute[0][0]
+__________________________________________________________________________________________________
+permute_1 (Permute)             (None, 196, 4)       0           dense[0][0]
+__________________________________________________________________________________________________
+multiply (Multiply)             (None, 196, 4)       0           tf.split[0][0]
+                                                                 permute_1[0][0]
+==================================================================================================
+Total params: 38,620
+Trainable params: 38,620
+Non-trainable params: 0
+__________________________________________________________________________________________________
+"""
