@@ -3,23 +3,24 @@
 
 - [Keras_cv_attention_models](#kerascvattentionmodels)
 - [Usage](#usage)
-	- [Basic Usage](#basic-usage)
-	- [Layers](#layers)
-	- [Model surgery](#model-surgery)
-	- [AotNet](#aotnet)
-	- [ResNetD](#resnetd)
-	- [ResNeXt](#resnext)
-	- [ResNetQ](#resnetq)
-	- [BotNet](#botnet)
-	- [VOLO](#volo)
-	- [ResNeSt](#resnest)
-	- [HaloNet](#halonet)
-	- [CoTNet](#cotnet)
-	- [CoAtNet](#coatnet)
-	- [CoaT](#coat)
-	- [MLP mixer](#mlp-mixer)
-	- [ResMLP](#resmlp)
-	- [GMLP](#gmlp)
+  - [Basic Usage](#basic-usage)
+  - [Layers](#layers)
+  - [Model surgery](#model-surgery)
+  - [AotNet](#aotnet)
+  - [ResNetD](#resnetd)
+  - [ResNeXt](#resnext)
+  - [ResNetQ](#resnetq)
+  - [BotNet](#botnet)
+  - [VOLO](#volo)
+  - [ResNeSt](#resnest)
+  - [HaloNet](#halonet)
+  - [CoTNet](#cotnet)
+  - [CoAtNet](#coatnet)
+  - [CoaT](#coat)
+  - [MLP mixer](#mlp-mixer)
+  - [ResMLP](#resmlp)
+  - [GMLP](#gmlp)
+  - [LeViT](#levit)
 - [Other implemented keras models](#other-implemented-keras-models)
 
 <!-- /TOC -->
@@ -228,6 +229,16 @@
   | GMLPTiny16 | 6M     | 224              | 72.3     |          |
   | GMLPS16    | 20M    | 224              | 79.6     | [gmlp_s16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/gmlp_s16_imagenet.h5) |
   | GMLPB16    | 73M    | 224              | 81.6     |          |
+## LeViT
+  - [Keras LeViT](keras_cv_attention_models/levit) is for [PDF 2104.01136 LeViT: a Vision Transformer in ConvNet’s Clothing for Faster Inference](https://arxiv.org/pdf/2104.01136.pdf).
+
+  | Model     | Params | Image resolution | Top1 Acc | ImageNet |
+  | --------- | ------ | ---------------- | -------- | -------- |
+  | LeViT128S | 7.8M   | 224              | 76.6     | [levit128s_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit128s_imagenet.h5) |
+  | LeViT128  | 9.2M   | 224              | 78.6     | [levit128_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit128_imagenet.h5) |
+  | LeViT192  | 11M    | 224              | 80.0     | [levit192_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit192_imagenet.h5) |
+  | LeViT256  | 19M    | 224              | 81.6     | [levit256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit256_imagenet.h5) |
+  | LeViT384  | 39M    | 224              | 82.6     | [levit384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit384_imagenet.h5) |
 ***
 
 # Other implemented keras models

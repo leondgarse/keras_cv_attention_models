@@ -16,3 +16,4 @@ from keras_cv_attention_models.mlp_family import  mlp_mixer
 from keras_cv_attention_models.mlp_family import  res_mlp
 from keras_cv_attention_models.mlp_family import  gated_mlp
 from keras_cv_attention_models import download_and_load
+from keras_cv_attention_models import levit
