@@ -19,3 +19,22 @@ def reload_model_weights(model, pretrained_dict, sub_release, input_shape=(224, 
         print(">>>> Load pretraind from:", pretrained_model)
         model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
         return pretrained_model
+
+
+def reload_model_weights_with_mismatch(
+    model, pretrained_dict, sub_release, mismatch_class, request_resolution=224, input_shape=(224, 224, 3), pretrained="imagenet"
+):
+    pretrained_model = reload_model_weights(model, pretrained_dict, sub_release, input_shape=input_shape, pretrained=pretrained)
+    if pretrained_model is None:
+        return
+
+    if input_shape[0] != request_resolution:
+        try:
+            print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
+            bb = keras.models.load_model(pretrained_model)
+            for ii in model.layers:
+                if isinstance(ii, mismatch_class):
+                    print(">>>> Reload layer:", ii.name)
+                    model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
+        except:
+            pass

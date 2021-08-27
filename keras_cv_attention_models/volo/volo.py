@@ -1,12 +1,20 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-import os
+from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
 # CONV_KERNEL_INITIALIZER = 'glorot_uniform'
+
+PRETRAINED_DICT = {
+    "volo_d1": {"224": "5b6ce55272a86b2f34c69cbef2cbdeb9", "384": "5262455b634c9cff15309a524958b0a2"},
+    "volo_d2": {"224": "c8c9159c7772f531b8f5ad0646440963", "384": "88496dc586366bdc757ab903bd467f9b"},
+    "volo_d3": {"224": "e0dc5f03bf66f6d76e1fd62e0ea26923", "448": "b6cbd7b7d8b442779706c118c719ac73"},
+    "volo_d4": {"224": "b4e94a026fa9debc6207c03f8f2c41be", "448": "966d59f584f772e7dd5f26757d39929d"},
+    "volo_d5": {"224": "94a74fa461208ec6aa857516d0e12f9d", "448": "41e5e41bf03f23682cdf764136b8ea06", "512": "d3be44adf90607828003d41c7dec3f34"},
+}
 
 
 def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=""):
@@ -466,44 +474,13 @@ def VOLO(
         nn = keras.layers.Add()([nn_cls, tf.reduce_max(nn_aux, 1) * 0.5])
 
     model = tf.keras.models.Model(inputs, nn, name=model_name)
-    reload_model_weights(model, input_shape, pretrained)
+
+    pre_resolutions = PRETRAINED_DICT[model.name]
+    max_resolution = max([int(ii) for ii in pre_resolutions.keys()])
+    request_resolution = input_shape[0] if str(input_shape[0]) in pre_resolutions else max_resolution
+    pretrained = str(request_resolution) if pretrained is not None else None
+    reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "volo", PositionalEmbedding, request_resolution, input_shape, pretrained)
     return model
-
-
-def reload_model_weights(model, input_shape=(224, 224, 3), pretrained="imagenet"):
-    pretrained_dd = {
-        "volo_d1": [224, 384],
-        "volo_d2": [224, 384],
-        "volo_d3": [224, 448],
-        "volo_d4": [224, 448],
-        "volo_d5": [224, 448, 512],
-    }
-    if not pretrained in ["imagenet"] or not model.name in pretrained_dd:
-        print(">>>> No pretraind available, model will be randomly initialized")
-        return
-
-    pre_resolutions = pretrained_dd[model.name]
-    request_resolution = input_shape[0] if input_shape[0] in pre_resolutions else pre_resolutions[-1]
-
-    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/{}_{}.h5"
-    url = pre_url.format(model.name, request_resolution)
-    file_name = os.path.basename(url)
-    try:
-        # print(">>>> Load pretraind from:", file_name, url)
-        pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models/volo")
-    except:
-        print("[Error] will not load weights, url not found or download failed:", url)
-    else:
-        print(">>>> Load pretraind from:", pretrained_model)
-        model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
-
-    if input_shape[0] != request_resolution:
-        try:
-            print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
-            bb = keras.models.load_model(pretrained_model)
-            model.get_layer("positional_embedding").load_resized_pos_emb(bb.get_layer("positional_embedding"))
-        except:
-            pass
 
 
 def VOLO_d1(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", **kwargs):

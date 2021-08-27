@@ -6,7 +6,7 @@ Original TensorFlow version: https://gist.github.com/aravindsrinivas/56359b79f0c
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from keras_cv_attention_models.download_and_load import reload_model_weights
+from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
@@ -304,25 +304,8 @@ def BotNet(
         nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
-    reload_model_weights_with_mismatch(model, input_shape, pretrained)
+    reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "botnet", MHSAWithPositionEmbedding, input_shape=input_shape, pretrained=pretrained)
     return model
-
-
-def reload_model_weights_with_mismatch(model, input_shape=(224, 224, 3), pretrained="imagenet"):
-    pretrained_model = reload_model_weights(model, PRETRAINED_DICT, sub_release="botnet", input_shape=input_shape, pretrained=pretrained)
-    if pretrained_model is None:
-        return
-
-    if input_shape[0] != 224:
-        try:
-            print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(224, input_shape[0]))
-            bb = keras.models.load_model(pretrained_model, custom_objects={"MHSAWithPositionEmbedding": MHSAWithPositionEmbedding})
-            for ii in model.layers:
-                if isinstance(ii, MHSAWithPositionEmbedding):
-                    print(">>>> Reload layer:", ii.name)
-                    model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
-        except:
-            pass
 
 
 def BotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", strides=1, **kwargs):

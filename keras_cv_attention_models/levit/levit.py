@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from keras_cv_attention_models.download_and_load import reload_model_weights
+from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
@@ -247,25 +247,8 @@ def LeViT(
             out = [out, distill]
 
     model = keras.models.Model(inputs, out, name=model_name)
-    reload_model_weights_with_mismatch(model, input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "levit", MultiHeadPositionalEmbedding, input_shape=input_shape, pretrained=pretrained)
     return model
-
-
-def reload_model_weights_with_mismatch(model, input_shape=(224, 224, 3), pretrained="imagenet"):
-    pretrained_model = reload_model_weights(model, PRETRAINED_DICT, sub_release="levit", input_shape=input_shape, pretrained=pretrained)
-    if pretrained_model is None:
-        return
-
-    if input_shape[0] != 224:
-        try:
-            print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(224, input_shape[0]))
-            bb = keras.models.load_model(pretrained_model)
-            for ii in model.layers:
-                if isinstance(ii, MultiHeadPositionalEmbedding):
-                    print(">>>> Reload layer:", ii.name)
-                    model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
-        except:
-            pass
 
 
 BLOCK_CONFIGS = {
