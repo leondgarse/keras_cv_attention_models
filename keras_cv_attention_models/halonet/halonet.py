@@ -165,7 +165,7 @@ class HaloAttention(keras.layers.Layer):
         return attention_output
 
 
-def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, act_first=False, name=""):
+def batchnorm_with_activation(inputs, activation="swish", zero_gamma=False, act_first=False, name=""):
     """Performs a batch normalization followed by an activation. zero_gamma: https://arxiv.org/abs/1706.02677 """
     bn_axis = 3 if K.image_data_format() == "channels_last" else 1
     gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
@@ -189,7 +189,7 @@ def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", nam
     return keras.layers.Conv2D(filters, kernel_size, strides=strides, padding="VALID", use_bias=False, name=name + "conv")(inputs)
 
 
-def halo_block(inputs, filter, strides=1, shortcut=False, expansion=2, num_heads=4, halo_expansion=1, block_size=8, halo_size=4, activation="relu", name=""):
+def halo_block(inputs, filter, strides=1, shortcut=False, expansion=2, num_heads=4, halo_expansion=1, block_size=8, halo_size=4, activation="swish", name=""):
     # target_dimension = round(planes * block.expansion * self.rb)
     expanded_filter = round(filter * expansion)
     if shortcut:
@@ -208,6 +208,7 @@ def halo_block(inputs, filter, strides=1, shortcut=False, expansion=2, num_heads
     # print(">>>>", nn.shape, num_heads, key_dim, block_size, halo_size)
     out_shape = int(filter * halo_expansion)
     key_dim = filter // num_heads
+    # print(f"{filter // num_heads = }")
     # key_dim = 16
     nn = HaloAttention(num_heads, key_dim, block_size, halo_size, strides=strides, out_shape=out_shape, out_bias=True, name=name + "halo")(nn)
     # print(">>>>", nn.shape)
@@ -218,11 +219,11 @@ def halo_block(inputs, filter, strides=1, shortcut=False, expansion=2, num_heads
     nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "2_")
 
     # print(">>>>", nn.shape, shortcut.shape)
-    nn = keras.layers.Add(name=name + "_add")([shortcut, nn])
-    return keras.layers.Activation(activation, name=name + "_out")(nn)
+    nn = keras.layers.Add(name=name + "add")([shortcut, nn])
+    return keras.layers.Activation(activation, name=name + "out")(nn)
 
 
-def halo_stack(inputs, blocks, filter, strides=1, expansion=2, num_heads=4, halo_expansion=1, block_size=8, halo_size=4, activation="relu", name=""):
+def halo_stack(inputs, blocks, filter, strides=1, expansion=2, num_heads=4, halo_expansion=1, block_size=8, halo_size=4, activation="swish", name=""):
     shortcut = True if strides != 1 or inputs.shape[-1] != filter * 2 or expansion != 2 else False
     nn = halo_block(inputs, filter, strides, shortcut, expansion, num_heads, halo_expansion, block_size, halo_size, activation, name=name + "block1_")
     shortcut = False
@@ -244,7 +245,7 @@ def HaloNet(
     strides=[1, 2, 2, 2],
     input_shape=(256, 256, 3),
     num_classes=1000,
-    activation="relu",
+    activation="swish",
     classifier_activation="softmax",
     pretrained=None,
     model_name="halonet",
@@ -258,8 +259,9 @@ def HaloNet(
     nn = keras.layers.MaxPooling2D(3, strides=2, name="stem_pool")(nn)
 
     # Input (height, width) should be dividable by `halo_block_size`, assume height == width here
-    if nn.shape[1] % halo_block_size != 0:
-        gap = halo_block_size - nn.shape[1] % halo_block_size
+    down_sample_rate = tf.reduce_prod(strides) * halo_block_size
+    if nn.shape[1] % down_sample_rate != 0:
+        gap = down_sample_rate - nn.shape[1] % down_sample_rate
         pad_head, pad_tail = gap // 2, gap - gap // 2
         # print(">>>> pad_head:", pad_head, "pad_tail:", pad_tail)
         nn = keras.layers.ZeroPadding2D(padding=((pad_head, pad_tail), (pad_head, pad_tail)), name="gap_pad")(nn)
@@ -358,34 +360,33 @@ BLOCK_CONFIGS = {
 }
 
 
-def HaloNetH0(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def HaloNetH0(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h0"], model_name="haloneth0", **locals(), **kwargs)
 
 
-def HaloNetH1(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def HaloNetH1(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h1"], model_name="haloneth1", **locals(), **kwargs)
 
 
-def HaloNetH2(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def HaloNetH2(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h2"], model_name="haloneth2", **locals(), **kwargs)
 
 
-def HaloNetH3(input_shape=(320, 320, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def HaloNetH3(input_shape=(320, 320, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h3"], model_name="haloneth3", **locals(), **kwargs)
 
 
-def HaloNetH4(input_shape=(384, 384, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def HaloNetH4(input_shape=(384, 384, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h4"], model_name="haloneth4", **locals(), **kwargs)
 
 
-def HaloNetH5(input_shape=(448, 448, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def HaloNetH5(input_shape=(448, 448, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h5"], model_name="haloneth5", **locals(), **kwargs)
 
 
-def HaloNetH6(input_shape=(512, 512, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def HaloNetH6(input_shape=(512, 512, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h6"], model_name="haloneth6", **locals(), **kwargs)
 
 
-# halo_block_size == 10, strides == [1, 2, 2, 2], 640 % (halo_block_size * 2 * 2 * 2 * 4) == 0
-def HaloNetH7(input_shape=(640, 640, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def HaloNetH7(input_shape=(600, 600, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h7"], model_name="haloneth7", **locals(), **kwargs)

@@ -59,7 +59,7 @@ if __name__ == "__test__":
     strategy = tf.distribute.MirroredStrategy() if len(gpus) > 1 else tf.distribute.OneDeviceStrategy(device="/gpu:0")
     keras.mixed_precision.set_global_policy("mixed_float16")
 
-    from keras_cv_attention_models.imagenet import train, callbacks
+    from keras_cv_attention_models import imagenet
     from keras_cv_attention_models import model_surgery
 
     input_shape, batch_size, l2_weight_decay, magnitude, mixup_alpha = (224, 224, 3), 128, 5e-5, 5, 0
@@ -76,8 +76,8 @@ if __name__ == "__test__":
 
         optimizer = keras.optimizers.SGD(learning_rate=0.05, momentum=0.9)
         model.compile(optimizer=optimizer, loss=keras.losses.CategoricalCrossentropy(label_smoothing=0.1), metrics=["acc"])
-        lr_schduler = callbacks.CosineLrScheduler(0.05, first_restart_step=16, m_mul=0.5, t_mul=2.0, lr_min=1e-05, warmup=2, steps_per_epoch=-1)
-        train.train(
+        lr_schduler = imagenet.CosineLrScheduler(0.05, first_restart_step=16, m_mul=0.5, t_mul=2.0, lr_min=1e-05, warmup=2, steps_per_epoch=-1)
+        imagenet.train(
             model,
             epochs=16 + 32 + 2,
             lr_schduler=lr_schduler,
