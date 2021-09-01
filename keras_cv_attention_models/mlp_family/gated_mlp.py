@@ -76,7 +76,7 @@ def GMLP(
         nn = keras.layers.GlobalAveragePooling1D()(nn)
         if dropout > 0 and dropout < 1:
             nn = keras.layers.Dropout(dropout)(nn)
-        nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
+        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     if sam_rho != 0:
         from keras_cv_attention_models.model_surgery import SAMModel

@@ -237,7 +237,7 @@ def CotNet(
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
+        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
     request_resolution = "320" if input_shape[0] == 320 and model.name == "se_cotnetd152" else "224"

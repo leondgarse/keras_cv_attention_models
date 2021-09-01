@@ -312,7 +312,7 @@ def AotNet(
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
+        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
     return model

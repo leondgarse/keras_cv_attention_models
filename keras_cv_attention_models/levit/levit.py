@@ -247,11 +247,11 @@ def LeViT(
         if dropout > 0 and dropout < 1:
             nn = keras.layers.Dropout(dropout)(nn)
         out = batchnorm_with_activation(nn, activation=None, name="head_")
-        out = keras.layers.Dense(num_classes, activation=classifier_activation, name="head")(out)
+        out = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="head")(out)
 
         if use_distillation:
             distill = batchnorm_with_activation(nn, activation=None, name="distill_head_")
-            distill = keras.layers.Dense(num_classes, activation=classifier_activation, name="distill_head")(distill)
+            distill = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="distill_head")(distill)
             out = [out, distill]
 
     model = keras.models.Model(inputs, out, name=model_name)

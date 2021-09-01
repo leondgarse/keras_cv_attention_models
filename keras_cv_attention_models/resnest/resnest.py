@@ -161,7 +161,7 @@ def ResNest(
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
+        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     model = tf.keras.models.Model(img_input, nn, name=model_name)
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnest", input_shape=input_shape, pretrained=pretrained)

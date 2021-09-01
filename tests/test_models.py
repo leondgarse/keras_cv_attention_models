@@ -34,8 +34,8 @@ def test_SECotNetD50_defination():
     assert isinstance(mm, keras.models.Model)
 
 
-def test_HaloNetB0_defination():
-    mm = keras_cv_attention_models.halonet.HaloNetB0(pretrained=None)
+def test_HaloNetH0_defination():
+    mm = keras_cv_attention_models.halonet.HaloNetH0(pretrained=None)
     assert isinstance(mm, keras.models.Model)
 
 

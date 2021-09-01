@@ -445,8 +445,8 @@ def VOLO(
 
     if token_label_top:
         # Training with label token
-        nn_cls = keras.layers.Dense(num_classes, name="token_head")(nn[:, 0])
-        nn_aux = keras.layers.Dense(num_classes, name="aux_head")(nn[:, 1:])
+        nn_cls = keras.layers.Dense(num_classes, dtype="float32", name="token_head")(nn[:, 0])
+        nn_aux = keras.layers.Dense(num_classes, dtype="float32", name="aux_head")(nn[:, 1:])
 
         if mix_token:
             nn_aux = tf.reshape(nn_aux, (-1, height, width, num_classes))
@@ -463,14 +463,14 @@ def VOLO(
     elif mean_classifier_top:
         # Return mean of all tokens
         nn = keras.layers.GlobalAveragePooling1D(name="avg_pool")(nn)
-        nn = keras.layers.Dense(num_classes, name="token_head")(nn)
+        nn = keras.layers.Dense(num_classes, dtype="float32", name="token_head")(nn)
     elif token_classifier_top:
         # Return dense classifier using only first token
-        nn = keras.layers.Dense(num_classes, name="token_head")(nn[:, 0])
+        nn = keras.layers.Dense(num_classes, dtype="float32", name="token_head")(nn[:, 0])
     else:
         # Return token dense for evaluation
-        nn_cls = keras.layers.Dense(num_classes, name="token_head")(nn[:, 0])
-        nn_aux = keras.layers.Dense(num_classes, name="aux_head")(nn[:, 1:])
+        nn_cls = keras.layers.Dense(num_classes, dtype="float32", name="token_head")(nn[:, 0])
+        nn_aux = keras.layers.Dense(num_classes, dtype="float32", name="aux_head")(nn[:, 1:])
         nn = keras.layers.Add()([nn_cls, tf.reduce_max(nn_aux, 1) * 0.5])
 
     model = tf.keras.models.Model(inputs, nn, name=model_name)

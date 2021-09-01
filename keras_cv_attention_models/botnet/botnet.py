@@ -301,7 +301,7 @@ def BotNet(
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="post_")
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
+        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
     reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "botnet", MHSAWithPositionEmbedding, input_shape=input_shape, pretrained=pretrained)
