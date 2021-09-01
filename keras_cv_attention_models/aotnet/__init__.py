@@ -9,6 +9,12 @@ from keras_cv_attention_models.aotnet.aotnet import (
     AotNet101V2,
     AotNet152V2,
     AotNet200V2,
+    MHSA_PARAMS,
+    HALO_PARAMS,
+    SA_PARAMS,
+    COT_PARAMS,
+    OUTLOOK_PARAMS,
+    GROUPS_CONV_PARAMS,
     attn_block,
     anti_alias_downsample,
     batchnorm_with_activation,
@@ -26,7 +32,7 @@ Set parameters like `attn_types` and `se_ratio` and others, which is used to app
 """
 
 __tail_doc__ = """  out_channels: default as `[64, 128, 256, 512]`. Output channel for each stack.
-  expansion: filter expansion in each block. The larger the wider. For default `ResNet` / `ResNetV2` like, it's `4`.
+  expansion: filter expansion for each block output channel. The larger the wider. For default `ResNet` / `ResNetV2` like, it's `4`.
   stem_width: output dimension for stem block.
   deep_stem: Boolean value if use deep stem.
   stem_downsample: Boolean value if add `MaxPooling2D` layer after stem block.
@@ -86,7 +92,7 @@ Example:
 >>> mm = aotnet.AotNet50(attn_types=[None, None, "mhsa", "mhsa"], deep_stem=False, strides=1)
 
 >>> # HaloNet like, 16.2M parameters
->>> mm = aotnet.AotNet50(attn_types="halo", deep_stem=False, strides=[1, 1, 1, 1])
+>>> mm = aotnet.AotNet50(attn_types="halo", deep_stem=False, strides=[1, 2, 2, 2])
 
 >>> # CotNet50 like, 22.2M parameters
 >>> mm = aotnet.AotNet50(attn_types="cot", deep_stem=False, strides=2)

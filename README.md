@@ -149,16 +149,16 @@
 ## HaloNet
   - [Keras HaloNet](keras_cv_attention_models/halonet) is for [PDF 2103.12731 Scaling Local Self-Attention for Parameter Efficient Visual Backbones](https://arxiv.org/pdf/2103.12731.pdf).
 
-  | Model   | Params | Image resolution | Top1 Acc |
-  | ------- | ------ | ---------------- | -------- |
-  | halo_b0 | 4.6M   | 256              |          |
-  | halo_b1 | 8.8M   | 256              |          |
-  | halo_b2 | 11.04M | 256              |          |
-  | halo_b3 | 15.1M  | 320              |          |
-  | halo_b4 | 31.4M  | 384              | 85.5     |
-  | halo_b5 | 34.4M  | 448              |          |
-  | halo_b6 | 47.98M | 512              |          |
-  | halo_b7 | 68.4M  | 600              |          |
+  | Model     | Params | Image resolution | Top1 Acc |
+  | --------- | ------ | ---------------- | -------- |
+  | HaloNetH0 | 6.6M   | 256              |          |
+  | HaloNetH1 | 9.1M   | 256              |          |
+  | HaloNetH2 | 10.3M  | 256              |          |
+  | HaloNetH3 | 12.5M  | 320              |          |
+  | HaloNetH4 | 19.5M  | 384              | 85.5     |
+  | HaloNetH5 | 31.6M  | 448              |          |
+  | HaloNetH6 | 44.3M  | 512              |          |
+  | HaloNetH7 | 67.9M  | 640              |          |
 ## CoTNet
   - [Keras CoTNet](keras_cv_attention_models/cotnet) is for [PDF 2107.12292 Contextual Transformer Networks for Visual Recognition](https://arxiv.org/pdf/2107.12292.pdf).
 
@@ -197,7 +197,7 @@
   | CoaTTiny      | 5.5M   | 224              | 78.3     | [coat_tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coat/coat_tiny_imagenet.h5) |
   | CoaTMini      | 10M    | 224              | 81.0     | [coat_mini_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coat/coat_mini_imagenet.h5) |
 ## MLP mixer
-  - [Keras mlp](keras_cv_attention_models/mlp_family#mlp-mixer) includes implementation of [PDF 2105.01601 MLP-Mixer: An all-MLP Architecture for Vision](https://arxiv.org/pdf/2105.01601.pdf).
+  - [Keras MLP mixer](keras_cv_attention_models/mlp_family#mlp-mixer) includes implementation of [PDF 2105.01601 MLP-Mixer: An all-MLP Architecture for Vision](https://arxiv.org/pdf/2105.01601.pdf).
   - **Models** `Top1 Acc` is `Pre-trained on JFT-300M` model accuray on `ImageNet 1K` from paper.
 
   | Model       | Params | Top1 Acc | ImageNet | Imagenet21k | ImageNet SAM |
@@ -212,7 +212,7 @@
   | MLPMixerH14 | 432.3M | 86.32    |                 |                    |                     |
   | - input 448 | 432.3M | 87.94    |                 |                    |                     |
 ## ResMLP
-  - [Keras mlp](keras_cv_attention_models/mlp_family#resmlp) includes implementation of [PDF 2105.03404 ResMLP: Feedforward networks for image classification with data-efficient training](https://arxiv.org/pdf/2105.03404.pdf)
+  - [Keras ResMLP](keras_cv_attention_models/mlp_family#resmlp) includes implementation of [PDF 2105.03404 ResMLP: Feedforward networks for image classification with data-efficient training](https://arxiv.org/pdf/2105.03404.pdf)
 
   | Model      | Params | Image resolution | Top1 Acc | ImageNet |
   | ---------- | ------ | ---------------- | -------- | -------- |
@@ -222,7 +222,7 @@
   | ResMLP_B24 | 129M   | 224              | 83.6     | [resmlp_b24_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/resmlp_b24_imagenet.h5) |
   | - imagenet22k | 129M   | 224              | 84.4     | [resmlp_b24_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/resmlp_b24_imagenet22k.h5) |
 ## GMLP
-  - [Keras mlp](keras_cv_attention_models/mlp_family#gmlp) includes implementation of [PDF 2105.08050 Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050.pdf).
+  - [Keras GMLP](keras_cv_attention_models/mlp_family#gmlp) includes implementation of [PDF 2105.08050 Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050.pdf).
 
   | Model      | Params | Image resolution | Top1 Acc | ImageNet |
   | ---------- | ------ | ---------------- | -------- | -------- |

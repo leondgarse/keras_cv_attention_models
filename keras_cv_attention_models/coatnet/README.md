@@ -4,7 +4,7 @@
 ## Summary
 - CoAtNet article: [PDF 2106.04803 CoAtNet: Marrying Convolution and Attention for All Data Sizes](https://arxiv.org/pdf/2106.04803.pdf)
 - [Github comvex/coatnet/model.py](https://github.com/blakechi/ComVEX/blob/master/comvex/coatnet/model.py)
-- No pretraind available.
+- No pretraind available. Architecture is guessed from article, so it's NOT certain.
 ***
 
 ## Models

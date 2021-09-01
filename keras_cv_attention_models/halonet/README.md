@@ -4,18 +4,20 @@
 ## Summary
   - [Github lucidrains/halonet-pytorch](https://github.com/lucidrains/halonet-pytorch).
   - HaloAttention article: [PDF 2103.12731 Scaling Local Self-Attention for Parameter Efficient Visual Backbones](https://arxiv.org/pdf/2103.12731.pdf).
-  - No pretraind available.
+  - No pretraind available. Architecture is guessed from article, so it's NOT certain.
 ## Models
-  | Model   | Params | Image resolution | Top1 Acc |
-  | ------- | ------ | ---------------- | -------- |
-  | halo_b0 | 4.6M   | 256              |          |
-  | halo_b1 | 8.8M   | 256              |          |
-  | halo_b2 | 11.04M | 256              |          |
-  | halo_b3 | 15.1M  | 320              |          |
-  | halo_b4 | 31.4M  | 384              | 85.5     |
-  | halo_b5 | 34.4M  | 448              |          |
-  | halo_b6 | 47.98M | 512              |          |
-  | halo_b7 | 68.4M  | 600              |          |
+  ![](halo_attention.png)
+
+  | Model     | Params | Image resolution | Top1 Acc |
+  | --------- | ------ | ---------------- | -------- |
+  | HaloNetH0 | 6.6M   | 256              |          |
+  | HaloNetH1 | 9.1M   | 256              |          |
+  | HaloNetH2 | 10.3M  | 256              |          |
+  | HaloNetH3 | 12.5M  | 320              |          |
+  | HaloNetH4 | 19.5M  | 384              | 85.5     |
+  | HaloNetH5 | 31.6M  | 448              |          |
+  | HaloNetH6 | 44.3M  | 512              |          |
+  | HaloNetH7 | 67.9M  | 640              |          |
 
   Comparing `halo_b7` accuracy by replacing Conv layers with Attention in each stage:
 
@@ -30,7 +32,7 @@
   from keras_cv_attention_models import halonet
 
   # No pretraind available.
-  mm = halonet.HaloNetB0()
+  mm = halonet.HaloNetH1()
   mm.summary()
   ```
 ***

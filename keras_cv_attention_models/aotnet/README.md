@@ -9,12 +9,12 @@
 ## Usage
   - **attn_types** is a `string` or `list`, indicates attention layer type for each stack. Each element can also be a `string` or `list`, indicates attention layer type for each block.
     - `None`: `Conv2D`
-    - `"cot"`: `attention_layers.cot_attention`. Default values: `kernel_size=3`.
-    - `"groups_conv"`: `Conv2D` with `groups=32`. `ResNeXt` method.
-    - `"halo"`: `attention_layers.HaloAttention`. Default values: `num_heads=8, key_dim=16, block_size=4, halo_size=1, out_bias=True`.
-    - `"mhsa"`: `attention_layers.MHSAWithPositionEmbedding`. Default values: `num_heads=4, relative=True, out_bias=True`.
-    - `"outlook"`: `attention_layers.outlook_attention`. Default values: `num_head=6, kernel_size=3`.
-    - `"sa"`: `attention_layers.split_attention_conv2d`. Default values: `kernel_size=3, groups=2`.
+    - `"cot"`: `attention_layers.cot_attention`. Default values: `COT_PARAMS = {"kernel_size": 3}`.
+    - `"groups_conv"`: `Conv2D` with `GROUPS_CONV_PARAMS = {"groups": 32, "kernel_size": 3}`. `ResNeXt` method.
+    - `"halo"`: `attention_layers.HaloAttention`. Default values: `HALO_PARAMS = {"block_size": 4, "halo_size": 1, "num_heads": 8, "out_bias": True}`.
+    - `"mhsa"`: `attention_layers.MHSAWithPositionEmbedding`. Default values: `MHSA_PARAMS = {"num_heads": 4, "relative": True, "out_bias": True}`.
+    - `"outlook"`: `attention_layers.outlook_attention`. Default values: `OUTLOOK_PARAMS = {"num_heads": 6, "kernel_size": 3}`.
+    - `"sa"`: `attention_layers.split_attention_conv2d`. Default values: `SA_PARAMS = {"kernel_size": 3, "groups": 2}`.
   - **se_ratio** value in `(0, 1)`, where `0` means not using `se_module`. Should be a `number` or `list`, indicates `se_ratio` for each stack. Each element can also be a `number` or `list`, indicates `se_ratio` for each block.
   - **Apply different attention layers**
     ```py
@@ -31,7 +31,7 @@
     mm = aotnet.AotNet50(attn_types=[None, None, "mhsa", "mhsa"], deep_stem=False, strides=1)
 
     # HaloNet like, 16.2M parameters
-    mm = aotnet.AotNet50(attn_types="halo", deep_stem=False, strides=[1, 1, 1, 1])
+    mm = aotnet.AotNet50(attn_types="halo", deep_stem=False, strides=[1, 2, 2, 2])
 
     # CotNet50 like, 22.2M parameters
     mm = aotnet.AotNet50(attn_types="cot", deep_stem=False, strides=2)

@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
+
 # from einops import rearrange    # Currently einops 0.3.0 is broken for tf.keras 2.6.0...
 import os
 
@@ -10,14 +11,18 @@ BATCH_NORM_EPSILON = 1e-5
 
 @tf.keras.utils.register_keras_serializable(package="halonet")
 class HaloAttention(keras.layers.Layer):
-    def __init__(self, num_heads=4, key_dim=128, block_size=2, halo_size=1, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, **kwargs):
+    def __init__(
+        self, num_heads=4, key_dim=128, block_size=2, halo_size=1, strides=1, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, **kwargs
+    ):
         super(HaloAttention, self).__init__(**kwargs)
         self.num_heads, self.key_dim, self.block_size, self.halo_size, self.out_shape = num_heads, key_dim, block_size, halo_size, out_shape
+        self.strides = strides
         self.attn_dropout = attn_dropout
         self.out_bias, self.out_weight = out_bias, out_weight
         self.emb_dim = self.num_heads * self.key_dim
         self.qk_scale = 1.0 / tf.math.sqrt(tf.cast(self.key_dim, self._compute_dtype_object))
         self.kv_kernel = self.block_size + self.halo_size * 2
+        self.query_block = block_size // strides
 
     def build(self, inputs):
         if hasattr(inputs, "shape"):
@@ -26,7 +31,7 @@ class HaloAttention(keras.layers.Layer):
             _, hh, ww, cc = inputs
         stddev = self.key_dim ** -0.5
         self.out_shape = cc if self.out_shape is None or not self.out_weight else self.out_shape
-        self.final_out_shape = (None, hh, ww, self.out_shape)
+        self.final_out_shape = (None, hh // self.strides, ww // self.strides, self.out_shape)
 
         self.query_dense = self.add_weight("query", shape=[cc, self.emb_dim], trainable=True)
         self.kv_dense = self.add_weight("key_value", shape=[cc, self.emb_dim * 2], trainable=True)
@@ -59,6 +64,7 @@ class HaloAttention(keras.layers.Layer):
                 "key_dim": self.key_dim,
                 "block_size": self.block_size,
                 "halo_size": self.halo_size,
+                "strides": self.strides,
                 "out_shape": self.out_shape,
                 "out_weight": self.out_weight,
                 "out_bias": self.out_bias,
@@ -75,10 +81,12 @@ class HaloAttention(keras.layers.Layer):
         """
         _, heads, hh, ww, dim = rel_pos.shape  # [bs, heads, height, width, 2 * width - 1]
         pos_dim = (dim + 1) // 2
-        full_rank_gap = pos_dim - ww
+        full_rank_gap = pos_dim - ww if ww > 1 else 2
         # [bs, heads, height, width * (2 * width - 1)] --> [bs, heads, height, width * (2 * width - 1) - width]
-        flat_x = tf.reshape(rel_pos, [-1, heads, hh, ww * (pos_dim * 2 - 1)])[:, :, :, ww - 1 : -1]
+        flat_x = tf.reshape(rel_pos, [-1, heads, hh, ww * dim])
+        flat_x = flat_x[:, :, :, ww - 1 : -1] if ww > 1 else flat_x[:, :, :, 1:]
         # [bs, heads, height, width, 2 * (width - 1)] --> [bs, heads, height, width, width]
+        # print(f">>>> {full_rank_gap = }, {flat_x.shape = }")
         return tf.reshape(flat_x, [-1, heads, hh, ww, 2 * (pos_dim - 1)])[:, :, :, :, full_rank_gap : pos_dim + full_rank_gap]
 
     def relative_logits(self, query):
@@ -94,18 +102,22 @@ class HaloAttention(keras.layers.Layer):
         return tf.expand_dims(rel_logits_w, axis=-2) + tf.expand_dims(rel_logits_h, axis=-1)  # [1, 4, 14, 16, 14, 16]
 
     def call(self, inputs, return_attention_scores=False, training=None):
-        # attn_query = [batch, num_heads, hh, ww, block_size * block_size, key_dim]
-        # pos_query = [batch, num_heads * hh * ww, block_size, block_size, key_dim]
-        query = tf.matmul(inputs, self.query_dense)
+        # attn_query = [batch, num_heads, hh, ww, query_block * query_block, key_dim]
+        # pos_query = [batch, num_heads * hh * ww, query_block, query_block, key_dim]
+        if self.strides == 1:
+            query = tf.matmul(inputs, self.query_dense)
+        else:
+            query = tf.matmul(inputs[:, :: self.strides, :: self.strides, :], self.query_dense)
         query = tf.multiply(query, self.qk_scale)
-        # attn_query = rearrange(query, "B (h hb) (w wb) (hd c) -> B hd h w (hb wb) c", hb=self.block_size, wb=self.block_size, hd=self.num_heads)
-        # pos_query = rearrange(attn_query, "B hd h w (hb wb) c -> B (hd h w) hb wb c", hb=self.block_size, wb=self.block_size)
+        # print(f">>>> {inputs.shape = }, {query.shape = }, {self.final_out_shape = }, {self.strides = }")
+        # attn_query = rearrange(query, "B (h hb) (w wb) (hd c) -> B hd h w (hb wb) c", hb=self.query_block, wb=self.query_block, hd=self.num_heads)
+        # pos_query = rearrange(attn_query, "B hd h w (hb wb) c -> B (hd h w) hb wb c", hb=self.query_block, wb=self.query_block)
         _, hh, ww, cc = query.shape
-        hh_qq, ww_qq, cc_qq = hh // self.block_size, ww // self.block_size, cc // self.num_heads
-        query = tf.reshape(query, [-1, hh_qq, self.block_size, ww_qq, self.block_size, self.num_heads, cc_qq])
+        hh_qq, ww_qq, cc_qq = hh // self.query_block, ww // self.query_block, cc // self.num_heads
+        query = tf.reshape(query, [-1, hh_qq, self.query_block, ww_qq, self.query_block, self.num_heads, cc_qq])
         query = tf.transpose(query, [0, 5, 1, 3, 2, 4, 6])
-        attn_query = tf.reshape(query, [-1, self.num_heads, hh_qq, ww_qq, self.block_size * self.block_size, cc_qq])
-        pos_query = tf.reshape(query, [-1, self.num_heads * hh_qq * ww_qq, self.block_size, self.block_size, cc_qq])
+        attn_query = tf.reshape(query, [-1, self.num_heads, hh_qq, ww_qq, self.query_block * self.query_block, cc_qq])
+        pos_query = tf.reshape(query, [-1, self.num_heads * hh_qq * ww_qq, self.query_block, self.query_block, cc_qq])
 
         # key_value = [batch, num_heads, hh, ww, kv_kernel * kv_kernel, key_dim * 2]
         key_value = tf.matmul(inputs, self.kv_dense)
@@ -123,21 +135,23 @@ class HaloAttention(keras.layers.Layer):
         key, value = tf.split(kv_inp, 2, axis=-1)
 
         # scaled_dot_product_attention
-        # print(f">>>> {attn_query.shape = }, {key.shape = }, {value.shape = }, {kv_inp.shape = }")
-        attention_scores = tf.matmul(attn_query, key, transpose_b=True)  # [batch, num_heads, hh, ww, block_size * block_size, kv_kernel * kv_kernel]
-        pos = self.relative_logits(pos_query)  # [batch, num_heads * hh * ww, block_size, block_size, kv_kernel, kv_kernel]
+        # print(f">>>> {attn_query.shape = }, {key.shape = }, {value.shape = }, {kv_inp.shape = }, {pos_query.shape = }")
+        attention_scores = tf.matmul(attn_query, key, transpose_b=True)  # [batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]
+        pos = self.relative_logits(pos_query)  # [batch, num_heads * hh * ww, query_block, query_block, kv_kernel, kv_kernel]
+        # print(f">>>> {pos.shape = }, {attention_scores.shape = }")
         attention_scores += tf.reshape(pos, [-1, *attention_scores.shape[1:]])
         attention_scores = tf.nn.softmax(attention_scores, axis=-1)
 
         if self.attn_dropout > 0:
             attention_scores = self.attn_dropout_layer(attention_scores, training=training)
 
-        attention_output = tf.matmul(attention_scores, value)  # [batch, num_heads, hh, ww, block_size * block_size, key_dim]
-        # attention_output = rearrange(attention_output, "B hd h w (hb wb) c -> B (h hb) (w wb) (hd c)", hb=self.block_size, wb=self.block_size)
+        attention_output = tf.matmul(attention_scores, value)  # [batch, num_heads, hh, ww, query_block * query_block, key_dim]
+        # attention_output = rearrange(attention_output, "B hd h w (hb wb) c -> B (h hb) (w wb) (hd c)", hb=self.query_block, wb=self.query_block)
         _, heads, hh_aa, ww_aa, patch, cc_aa = attention_output.shape
-        attention_output = tf.reshape(attention_output, [-1, heads, hh_aa, ww_aa, self.block_size, self.block_size, cc_aa])
+        attention_output = tf.reshape(attention_output, [-1, heads, hh_aa, ww_aa, self.query_block, self.query_block, cc_aa])
         attention_output = tf.transpose(attention_output, [0, 2, 4, 3, 5, 1, 6])
-        attention_output = tf.reshape(attention_output, [-1, hh_aa * self.block_size, ww_aa * self.block_size, heads * cc_aa])
+        attention_output = tf.reshape(attention_output, [-1, hh_aa * self.query_block, ww_aa * self.query_block, heads * cc_aa])
+        # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
         if self.out_weight:
             # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
@@ -151,86 +165,12 @@ class HaloAttention(keras.layers.Layer):
         return attention_output
 
 
-BLOCK_CONFIGS = {
-    "b0": {  # rv = 1, rb = 0.5
-        "halo_block_size": 8,
-        "halo_halo_size": 3,
-        "halo_key_dim": 16,  # 16 * rv
-        "expansion": 1,  # 2 * rb
-        "output_conv_channel": -1,  # df
-        "num_blocks": [3, 3, 7, 3],
-        "num_heads": [4, 8, 8, 8],
-    },
-    "b1": {  # rv = 1, rb = 1
-        "halo_block_size": 8,
-        "halo_halo_size": 3,
-        "halo_key_dim": 16,  # 16 * rv
-        "expansion": 2,  # 2 * rb
-        "output_conv_channel": -1,  # df
-        "num_blocks": [3, 3, 10, 3],
-        "num_heads": [4, 8, 8, 8],
-    },
-    "b2": {  # rv = 1, rb = 1.25
-        "halo_block_size": 8,
-        "halo_halo_size": 3,
-        "halo_key_dim": 16,  # 16 * rv
-        "expansion": 2.5,  # 2 * rb
-        "output_conv_channel": -1,  # df
-        "num_blocks": [3, 3, 11, 3],
-        "num_heads": [4, 8, 8, 8],
-    },
-    "b3": {  # rv = 1, rb = 1.5
-        "halo_block_size": 10,
-        "halo_halo_size": 3,
-        "halo_key_dim": 16,  # 16 * rv
-        "expansion": 3,  # 2 * rb
-        "output_conv_channel": 1024,  # df
-        "num_blocks": [3, 3, 12, 3],
-        "num_heads": [4, 8, 8, 8],
-    },
-    "b4": {  # rv = 1, rb = 3
-        "halo_block_size": 12,
-        "halo_halo_size": 2,
-        "halo_key_dim": 16,  # 16 * rv
-        "expansion": 6,  # 2 * rb
-        "output_conv_channel": 1280,  # df
-        "num_blocks": [3, 3, 12, 3],
-        "num_heads": [4, 8, 8, 8],
-    },
-    "b5": {  # rv = 2.5, rb = 2
-        "halo_block_size": 14,
-        "halo_halo_size": 2,
-        "halo_key_dim": 40,  # 16 * rv
-        "expansion": 4,  # 2 * rb
-        "output_conv_channel": 1536,  # df
-        "num_blocks": [3, 3, 23, 3],
-        "num_heads": [4, 8, 8, 8],
-    },
-    "b6": {  # rv = 3, rb = 2.75
-        "halo_block_size": 8,
-        "halo_halo_size": 4,
-        "halo_key_dim": 48,  # 16 * rv
-        "expansion": 5.5,  # 2 * rb
-        "output_conv_channel": 1536,  # df
-        "num_blocks": [3, 3, 24, 3],
-        "num_heads": [4, 8, 8, 8],
-    },
-    "b7": {  # rv = 4, rb = 3.5
-        "halo_block_size": 10,
-        "halo_halo_size": 3,
-        "halo_key_dim": 64,  # 16 * rv
-        "expansion": 7,  # 2 * rb
-        "output_conv_channel": 2048,  # df
-        "num_blocks": [3, 3, 26, 3],
-        "num_heads": [4, 8, 8, 8],
-    },
-}
-
-
-def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=""):
+def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, act_first=False, name=""):
     """Performs a batch normalization followed by an activation. zero_gamma: https://arxiv.org/abs/1706.02677 """
     bn_axis = 3 if K.image_data_format() == "channels_last" else 1
     gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
+    if act_first and activation:
+        inputs = keras.layers.Activation(activation=activation, name=name + activation)(inputs)
     nn = keras.layers.BatchNormalization(
         axis=bn_axis,
         momentum=BATCH_NORM_DECAY,
@@ -238,7 +178,7 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
         gamma_initializer=gamma_initializer,
         name=name + "bn",
     )(inputs)
-    if activation:
+    if not act_first and activation:
         nn = keras.layers.Activation(activation=activation, name=name + activation)(nn)
     return nn
 
@@ -249,7 +189,7 @@ def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", nam
     return keras.layers.Conv2D(filters, kernel_size, strides=strides, padding="VALID", use_bias=False, name=name + "conv")(inputs)
 
 
-def halo_block(inputs, filter, strides=1, shortcut=False, expansion=2, num_heads=4, key_dim=16, block_size=8, halo_size=4, activation="relu", name=""):
+def halo_block(inputs, filter, strides=1, shortcut=False, expansion=2, num_heads=4, halo_expansion=1, block_size=8, halo_size=4, activation="relu", name=""):
     # target_dimension = round(planes * block.expansion * self.rb)
     expanded_filter = round(filter * expansion)
     if shortcut:
@@ -266,9 +206,13 @@ def halo_block(inputs, filter, strides=1, shortcut=False, expansion=2, num_heads
     # num_heads=4, key_dim=128, block_size=2, halo_size=1, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0
     # key_dim = round( dim_head * rv)
     # print(">>>>", nn.shape, num_heads, key_dim, block_size, halo_size)
-    nn = HaloAttention(num_heads, key_dim, block_size, halo_size, out_bias=True, name=name + "halo")(nn)
+    out_shape = int(filter * halo_expansion)
+    key_dim = filter // num_heads
+    # key_dim = 16
+    nn = HaloAttention(num_heads, key_dim, block_size, halo_size, strides=strides, out_shape=out_shape, out_bias=True, name=name + "halo")(nn)
     # print(">>>>", nn.shape)
-    nn = keras.layers.Activation(activation=activation)(nn)
+    # nn = keras.layers.Activation(activation=activation)(nn)
+    nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "halo_")
     # round(planes * self.expansion * rb), expansion = 2
     nn = conv2d_no_bias(nn, expanded_filter, 1, name=name + "2_")
     nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "2_")
@@ -278,18 +222,26 @@ def halo_block(inputs, filter, strides=1, shortcut=False, expansion=2, num_heads
     return keras.layers.Activation(activation, name=name + "_out")(nn)
 
 
-def halo_stack(inputs, blocks, filter, strides=1, expansion=2, num_heads=4, key_dim=32, block_size=8, halo_size=4, activation="relu", name=""):
+def halo_stack(inputs, blocks, filter, strides=1, expansion=2, num_heads=4, halo_expansion=1, block_size=8, halo_size=4, activation="relu", name=""):
     shortcut = True if strides != 1 or inputs.shape[-1] != filter * 2 or expansion != 2 else False
-    nn = halo_block(inputs, filter, strides, shortcut, expansion, num_heads, key_dim, block_size, halo_size, activation, name=name + "block1_")
+    nn = halo_block(inputs, filter, strides, shortcut, expansion, num_heads, halo_expansion, block_size, halo_size, activation, name=name + "block1_")
     shortcut = False
     for ii in range(2, blocks + 1):
         block_name = name + "block{}_".format(ii)
-        nn = halo_block(nn, filter, 1, shortcut, expansion, num_heads, key_dim, block_size, halo_size, activation, name=block_name)
+        nn = halo_block(nn, filter, 1, shortcut, expansion, num_heads, halo_expansion, block_size, halo_size, activation, name=block_name)
     return nn
 
 
 def HaloNet(
-    model_type="b0",
+    halo_block_size=8,  # b
+    halo_halo_size=3,  # h
+    halo_expansion=1,  # rv
+    expansion=1,  # rb
+    output_conv_channel=-1,  # df
+    num_blocks=[3, 3, 10, 3],
+    num_heads=[4, 8, 8, 8],
+    out_channels=[64, 128, 256, 512],
+    strides=[1, 2, 2, 2],
     input_shape=(256, 256, 3),
     num_classes=1000,
     activation="relu",
@@ -298,15 +250,6 @@ def HaloNet(
     model_name="halonet",
     **kwargs
 ):
-    blocks_config = BLOCK_CONFIGS.get(model_type.lower(), BLOCK_CONFIGS["b0"])
-    halo_block_size = blocks_config["halo_block_size"]
-    halo_halo_size = blocks_config["halo_halo_size"]
-    halo_key_dim = blocks_config["halo_key_dim"]
-    expansion = blocks_config["expansion"]
-    output_conv_channel = blocks_config["output_conv_channel"]
-    num_blocks = blocks_config["num_blocks"]
-    num_heads = blocks_config["num_heads"]
-
     inputs = keras.layers.Input(input_shape)
     nn = keras.layers.ZeroPadding2D(padding=3, name="stem_conv_pad")(inputs)
     nn = conv2d_no_bias(nn, 64, 7, strides=2, padding="VALID", name="stem_")
@@ -321,50 +264,128 @@ def HaloNet(
         # print(">>>> pad_head:", pad_head, "pad_tail:", pad_tail)
         nn = keras.layers.ZeroPadding2D(padding=((pad_head, pad_tail), (pad_head, pad_tail)), name="gap_pad")(nn)
 
-    out_channels = [64, 128, 256, 512]
-    for id, (num_block, out_channel, num_head) in enumerate(zip(num_blocks, out_channels, num_heads)):
+    for id, (num_block, out_channel, num_head, stride) in enumerate(zip(num_blocks, out_channels, num_heads, strides)):
         name = "stack{}_".format(id + 1)
-        nn = halo_stack(nn, num_block, out_channel, 1, expansion, num_head, halo_key_dim, halo_block_size, halo_halo_size, activation=activation, name=name)
+        nn = halo_stack(
+            nn, num_block, out_channel, stride, expansion, num_head, halo_expansion, halo_block_size, halo_halo_size, activation=activation, name=name
+        )
 
-    if output_conv_channel != -1:
+    if output_conv_channel > 0:
         nn = conv2d_no_bias(nn, output_conv_channel, 1, name="post_")
+        nn = batchnorm_with_activation(nn, activation=activation, name="post_")
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         nn = keras.layers.Dense(num_classes, activation=classifier_activation, name="predictions")(nn)
 
-    name = model_name + "_" + model_type
-    model = keras.models.Model(inputs, nn, name=name)
+    model = keras.models.Model(inputs, nn, name=model_name)
     return model
 
 
-def HaloNetB0(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(model_type="b0", **locals(), **kwargs)
+BLOCK_CONFIGS = {
+    "h0": {  # rv = 1, rb = 0.5
+        "halo_block_size": 8,  # b
+        "halo_halo_size": 3,  # h
+        "halo_expansion": 1,  # rv
+        "expansion": 0.5,  # rb
+        "output_conv_channel": -1,  # df
+        "num_blocks": [3, 3, 7, 3],
+        "num_heads": [4, 8, 8, 8],
+    },
+    "h1": {  # rv = 1, rb = 1
+        "halo_block_size": 8,
+        "halo_halo_size": 3,
+        "halo_expansion": 1,  # rv
+        "expansion": 1,  # rb
+        "output_conv_channel": -1,  # df
+        "num_blocks": [3, 3, 10, 3],
+        "num_heads": [4, 8, 8, 8],
+    },
+    "h2": {  # rv = 1, rb = 1.25
+        "halo_block_size": 8,
+        "halo_halo_size": 3,
+        "halo_expansion": 1,  # rv
+        "expansion": 1.25,  # rb
+        "output_conv_channel": -1,  # df
+        "num_blocks": [3, 3, 11, 3],
+        "num_heads": [4, 8, 8, 8],
+    },
+    "h3": {  # rv = 1, rb = 1.5
+        "halo_block_size": 10,
+        "halo_halo_size": 3,
+        "halo_expansion": 1,  # rv
+        "expansion": 1.5,  # rb
+        "output_conv_channel": 1024,  # df
+        "num_blocks": [3, 3, 12, 3],
+        "num_heads": [4, 8, 8, 8],
+    },
+    "h4": {  # rv = 1, rb = 3
+        "halo_block_size": 12,
+        "halo_halo_size": 2,
+        "halo_expansion": 1,  # rv
+        "expansion": 3,  # rb
+        "output_conv_channel": 1280,  # df
+        "num_blocks": [3, 3, 12, 3],
+        "num_heads": [4, 8, 8, 8],
+    },
+    "h5": {  # rv = 2.5, rb = 2
+        "halo_block_size": 14,
+        "halo_halo_size": 2,
+        "halo_expansion": 2.5,  # rv
+        "expansion": 2,  # rb
+        "output_conv_channel": 1536,  # df
+        "num_blocks": [3, 3, 23, 3],
+        "num_heads": [4, 8, 8, 8],
+    },
+    "h6": {  # rv = 3, rb = 2.75
+        "halo_block_size": 8,
+        "halo_halo_size": 4,
+        "halo_expansion": 3,  # rv
+        "expansion": 2.75,  # rb
+        "output_conv_channel": 1536,  # df
+        "num_blocks": [3, 3, 24, 3],
+        "num_heads": [4, 8, 8, 8],
+    },
+    "h7": {  # rv = 4, rb = 3.5
+        "halo_block_size": 10,
+        "halo_halo_size": 3,
+        "halo_expansion": 4,  # rv
+        "expansion": 3.5,  # rb
+        "output_conv_channel": 2048,  # df
+        "num_blocks": [3, 3, 26, 3],
+        "num_heads": [4, 8, 8, 8],
+    },
+}
 
 
-def HaloNetB1(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(model_type="b1", **locals(), **kwargs)
+def HaloNetH0(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return HaloNet(**BLOCK_CONFIGS["h0"], model_name="haloneth0", **locals(), **kwargs)
 
 
-def HaloNetB2(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(model_type="b2", **locals(), **kwargs)
+def HaloNetH1(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return HaloNet(**BLOCK_CONFIGS["h1"], model_name="haloneth1", **locals(), **kwargs)
 
 
-def HaloNetB3(input_shape=(320, 320, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(model_type="b3", **locals(), **kwargs)
+def HaloNetH2(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return HaloNet(**BLOCK_CONFIGS["h2"], model_name="haloneth2", **locals(), **kwargs)
 
 
-def HaloNetB4(input_shape=(384, 384, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(model_type="b4", **locals(), **kwargs)
+def HaloNetH3(input_shape=(320, 320, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return HaloNet(**BLOCK_CONFIGS["h3"], model_name="haloneth3", **locals(), **kwargs)
 
 
-def HaloNetB5(input_shape=(448, 448, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(model_type="b5", **locals(), **kwargs)
+def HaloNetH4(input_shape=(384, 384, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return HaloNet(**BLOCK_CONFIGS["h4"], model_name="haloneth4", **locals(), **kwargs)
 
 
-def HaloNetB6(input_shape=(512, 512, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(model_type="b6", **locals(), **kwargs)
+def HaloNetH5(input_shape=(448, 448, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return HaloNet(**BLOCK_CONFIGS["h5"], model_name="haloneth5", **locals(), **kwargs)
 
 
-def HaloNetB7(input_shape=(600, 600, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(model_type="b7", **locals(), **kwargs)
+def HaloNetH6(input_shape=(512, 512, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return HaloNet(**BLOCK_CONFIGS["h6"], model_name="haloneth6", **locals(), **kwargs)
+
+
+# halo_block_size == 10, strides == [1, 2, 2, 2], 640 % (halo_block_size * 2 * 2 * 2 * 4) == 0
+def HaloNetH7(input_shape=(640, 640, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return HaloNet(**BLOCK_CONFIGS["h7"], model_name="haloneth7", **locals(), **kwargs)

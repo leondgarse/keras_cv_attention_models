@@ -7,14 +7,21 @@ from keras_cv_attention_models import attention_layers
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
-HALO_BLOCK_SIZE = 4
 CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
+MHSA_PARAMS = {"num_heads": 4, "relative": True, "out_bias": True}
+HALO_PARAMS = {"block_size": 4, "halo_size": 1, "num_heads": 8, "out_bias": True}
+SA_PARAMS = {"kernel_size": 3, "groups": 2}
+COT_PARAMS = {"kernel_size": 3}
+OUTLOOK_PARAMS = {"num_heads": 6, "kernel_size": 3}
+GROUPS_CONV_PARAMS = {"groups": 32, "kernel_size": 3}
 
 
-def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=None):
+def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, act_first=False, name=None):
     """Performs a batch normalization followed by an activation. """
     bn_axis = 3 if K.image_data_format() == "channels_last" else 1
     gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
+    if act_first and activation:
+        inputs = keras.layers.Activation(activation=activation, name=name and name + activation)(nn)
     nn = keras.layers.BatchNormalization(
         axis=bn_axis,
         momentum=BATCH_NORM_DECAY,
@@ -22,7 +29,7 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=
         gamma_initializer=gamma_initializer,
         name=name and name + "bn",
     )(inputs)
-    if activation:
+    if not act_first and activation:
         nn = keras.layers.Activation(activation=activation, name=name and name + activation)(nn)
     return nn
 
@@ -99,26 +106,27 @@ def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trai
     )(inputs)
 
 
-def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, halo_block_size=4, use_bn=True, activation="relu", name=""):
+def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, use_bn=True, activation="relu", name=""):
     nn = inputs
     if attn_type == "mhsa":  # MHSA block
         num_heads = 4
         key_dim = filters // num_heads
-        nn = attention_layers.MHSAWithPositionEmbedding(num_heads=num_heads, key_dim=key_dim, relative=True, out_bias=True, name=name + "mhsa")(nn)
+        nn = attention_layers.MHSAWithPositionEmbedding(**MHSA_PARAMS, key_dim=key_dim, name=name + "mhsa")(nn)
     elif attn_type == "halo":  # HaloAttention
-        nn = attention_layers.HaloAttention(num_heads=8, key_dim=16, block_size=halo_block_size, halo_size=1, out_bias=True, name=name + "halo")(nn)
+        key_dim = filters // num_heads
+        nn = attention_layers.HaloAttention(**HALO_PARAMS, key_dim=key_dim, strides=strides, name=name + "halo")(nn)
     elif attn_type == "sa":  # split_attention_conv2d
-        nn = attention_layers.split_attention_conv2d(nn, filters=filters, kernel_size=3, strides=strides, groups=2, activation=activation, name=name + "sa_")
+        nn = attention_layers.split_attention_conv2d(nn, **SA_PARAMS, filters=filters, strides=strides, activation=activation, name=name + "sa_")
     elif attn_type == "cot":  # cot_attention
-        nn = attention_layers.cot_attention(nn, 3, activation=activation, name=name + "cot_")
+        nn = attention_layers.cot_attention(nn, **COT_PARAMS, activation=activation, name=name + "cot_")
     elif attn_type == "outlook":  # outlook_attention
-        nn = attention_layers.outlook_attention(nn, filters, num_head=6, kernel_size=3, name=name + "outlook_")
+        nn = attention_layers.outlook_attention(nn, filters, **OUTLOOK_PARAMS, name=name + "outlook_")
     elif attn_type == "groups_conv":  # ResNeXt like
-        nn = conv2d_no_bias(nn, filters, 3, strides=strides, groups=32, padding="SAME", name=name + "GC_")
+        nn = conv2d_no_bias(nn, filters, **GROUPS_CONV_PARAMS, strides=strides, padding="SAME", name=name + "GC_")
     else:  # ResNet block
         nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", name=name + "conv_")
 
-    if attn_type not in [None, "sa", "groups_conv"] and strides != 1:  # Downsample
+    if attn_type in ["mhsa", "cot", "outlook"] and strides != 1:  # Downsample
         nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
         nn = keras.layers.AveragePooling2D(pool_size=3, strides=strides, name=name + "pool")(nn)
 
@@ -154,7 +162,7 @@ def deep_branch(inputs, filters, strides=1, expansion=4, attn_type=None, se_rati
     else:
         nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "deep_1_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "deep_1_")
-    nn = attn_block(nn, filters, strides, attn_type, se_ratio / expansion, HALO_BLOCK_SIZE, True, activation, name=name + "deep_2_")
+    nn = attn_block(nn, filters, strides, attn_type, se_ratio / expansion, True, activation, name=name + "deep_2_")
 
     if not use_3x3_kernel:
         nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "deep_3_")
@@ -178,8 +186,9 @@ def block(
     name="",
 ):
     expanded_filter = filters * expansion
-    if attn_type == "halo" and inputs.shape[1] % HALO_BLOCK_SIZE != 0:  # HaloAttention
-        gap = HALO_BLOCK_SIZE - inputs.shape[1] % HALO_BLOCK_SIZE
+    halo_block_size = HALO_PARAMS["block_size"]
+    if attn_type == "halo" and inputs.shape[1] % halo_block_size != 0:  # HaloAttention
+        gap = halo_block_size - inputs.shape[1] % halo_block_size
         pad_head, pad_tail = gap // 2, gap - gap // 2
         inputs = keras.layers.ZeroPadding2D(padding=((pad_head, pad_tail), (pad_head, pad_tail)), name=name + "gap_pad")(inputs)
 
