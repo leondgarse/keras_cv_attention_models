@@ -16,7 +16,7 @@ jobs:
       run: >-
         python -m
         pip install
-        build pytest pytest-timeout scikit-image tensorflow tensorflow-addons tensorflow-datasets
+        build pytest pytest-timeout scikit-image tensorflow tensorflow-addons
         --user
     - name: Build a binary wheel and a source tarball
       run: >-
