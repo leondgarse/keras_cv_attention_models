@@ -1,4 +1,4 @@
-from keras_cv_attention_models.botnet.botnet import BotNet, BotNet50, BotNet101, BotNet152, MHSAWithPositionEmbedding
+from keras_cv_attention_models.botnet.botnet import BotNet, BotNet50, BotNet101, BotNet152, RelativePositionalEmbedding, mhsa_with_relative_position_embedding
 
 
 __head_doc__ = """
@@ -43,30 +43,57 @@ Args:
 BotNet101.__doc__ = BotNet50.__doc__
 BotNet152.__doc__ = BotNet50.__doc__
 
-MHSAWithPositionEmbedding.__doc__ = __head_doc__ + """
-Multi head self attention with positional embedding layer.
+mhsa_with_relative_position_embedding.__doc__ = __head_doc__ + """
+Multi head self attention with positional embedding. Defined as function, not layer.
 
 Args:
+  inputs: input tensor.
   num_heads: Number of attention heads.
-  key_dim: Size of each attention head for query and key.
+  key_dim: Size of each attention head for query and key. Default `0` for `key_dim = inputs.shape[-1] // num_heads`.
   relative: Boolean, whether using relative or absolute positional embedding.
   out_weight: Boolean, whether use an ouput dense.
   out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
-  out_shape: The expected shape of an output tensor. If not specified, projects back to the key feature dim.
+  out_shape: The expected shape of an output tensor. If not specified, projects back to the input dim.
   attn_dropout: Dropout probability for attention.
 
 Examples:
 
 >>> from keras_cv_attention_models import attention_layers
->>> aa = attention_layers.MHSAWithPositionEmbedding(num_heads=4, key_dim=128)
->>> print(f"{aa(tf.ones([1, 14, 16, 256])).shape = }")
-aa(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])
+>>> inputs = keras.layers.Input([14, 16, 256])
+>>> nn = attention_layers.mhsa_with_relative_position_embedding(inputs, num_heads=4)
+>>> print(f"{nn.shape = }")
+nn.shape = TensorShape([None, 14, 16, 256])
 
->>> print({ii.name:ii.numpy().shape for ii in aa.weights})
-{'mhsa_with_position_embedding_2/query:0': (256, 512),
- 'mhsa_with_position_embedding_2/key:0': (256, 512),
- 'mhsa_with_position_embedding_2/value:0': (256, 512),
- 'mhsa_with_position_embedding_2/output_weight:0': (512, 512),
- 'mhsa_with_position_embedding_2/r_width:0': (128, 31),
- 'mhsa_with_position_embedding_2/r_height:0': (128, 27)}
+>>> mm = keras.models.Model(inputs, nn)
+>>> mm.summary()
+>>> print({ii.name: ii.shape for ii in mm.weights})
+{'dense/kernel:0': TensorShape([256, 768]),
+ 'relative_positional_embedding/r_height:0': TensorShape([64, 27]),
+ 'relative_positional_embedding/r_width:0': TensorShape([64, 31]),
+ 'dense_1/kernel:0': TensorShape([256, 256])}
+"""
+
+RelativePositionalEmbedding.__doc__ = __head_doc__ + """
+Relative Positional Embedding layer. Supports also absolute positional embedding.
+
+input: `[batch, num_heads, height, width, key_dim]`.
+output: `[batch, num_heads, height, width, position_height, position_width]`
+
+Args:
+  position_height: positional embedding height. Default `0` for using `input_shape[2]`.
+      Should be larger than `input_shape[2]`.
+  position_width: positional embedding width. Default `0` for using `input_shape[3]` or `position_height` if set.
+      Should be larger than `input_shape[3]`.
+  use_absolute_pos: Set `True` to use absolute positional embeddings.
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> aa = attention_layers.RelativePositionalEmbedding()
+>>> print(f"{aa(tf.ones([1, 4, 14, 16, 32])).shape = }")
+aa(tf.ones([1, 4, 14, 16, 32])).shape = TensorShape([1, 4, 14, 16, 14, 16])
+
+>>> print({ii.name:ii.shape for ii in aa.weights})
+{'relative_positional_embedding_6/r_height:0': TensorShape([32, 27]),
+ 'relative_positional_embedding_6/r_width:0': TensorShape([32, 31])}
 """

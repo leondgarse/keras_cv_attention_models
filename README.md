@@ -30,6 +30,8 @@
 ## Basic Usage
   - Install as pip package:
     ```sh
+    pip install -U keras-cv-attention-models
+    # Or
     pip install -U git+https://github.com/leondgarse/keras_cv_attention_models
     ```
     Refer to each sub directory for detail usage.
@@ -61,12 +63,12 @@
     # (None, 7, 7, 2048)
     ```
 ## Layers
-  - [attention_layers](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `MHSAWithPositionEmbedding` from `botnet`, `HaloAttention` from `halonet`.
+  - [attention_layers](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `RelativePositionalEmbedding` from `botnet`, `outlook_attention` from `volo`.
   ```py
   from keras_cv_attention_models import attention_layers
-  aa = attention_layers.MHSAWithPositionEmbedding(num_heads=4, key_dim=128, relative=True)
-  print(f"{aa(tf.ones([1, 14, 16, 256])).shape = }")
-  # aa(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])
+  aa = attention_layers.RelativePositionalEmbedding()
+  print(f"{aa(tf.ones([1, 4, 14, 16, 256])).shape = }")
+  # aa(tf.ones([1, 4, 14, 16, 256])).shape = TensorShape([1, 4, 14, 16, 14, 16])
   ```
 ## Model surgery
   - [model_surgery](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/model_surgery) including functions used to change model parameters after built.

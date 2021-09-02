@@ -1,8 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-import os
-from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, se_module, MHSAWithPositionEmbedding
+from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, se_module, mhsa_with_relative_position_embedding
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
@@ -40,7 +39,7 @@ def res_ffn(inputs, expansion=4, kernel_size=1, activation="relu", name=None):
     return keras.layers.Add()([inputs, nn])
 
 
-def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, num_heads=32, activation="relu", name=None, **kwargs):
+def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, num_heads=32, activation="relu", name=None):
     # preact
     nn = batchnorm_with_activation(inputs, activation=activation, name=name + "preact_")
 
@@ -53,8 +52,7 @@ def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, num_heads=3
     if strides != 1:  # Downsample
         nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
         nn = keras.layers.AvgPool2D(pool_size=3, strides=strides, name=name + "pool")(nn)
-    key_dim = output_channel // num_heads
-    nn = MHSAWithPositionEmbedding(num_heads=num_heads, key_dim=key_dim, name=name + "mhsa", **kwargs)(nn)
+    nn = mhsa_with_relative_position_embedding(nn, num_heads=num_heads, out_shape=output_channel, name=name + "mhsa")
 
     return keras.layers.Add()([shortcut, nn])
 

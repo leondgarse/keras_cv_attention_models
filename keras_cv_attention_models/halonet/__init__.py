@@ -1,4 +1,4 @@
-from keras_cv_attention_models.halonet.halonet import HaloNet, HaloNetH0, HaloNetH1, HaloNetH2, HaloNetH3, HaloNetH4, HaloNetH5, HaloNetH6, HaloNetH7, HaloAttention
+from keras_cv_attention_models.halonet.halonet import HaloNet, HaloNetH0, HaloNetH1, HaloNetH2, HaloNetH3, HaloNetH4, HaloNetH5, HaloNetH6, HaloNetH7, halo_attention
 
 
 __head_doc__ = """
@@ -58,16 +58,17 @@ HaloNetH5.__doc__ = HaloNetH0.__doc__
 HaloNetH6.__doc__ = HaloNetH0.__doc__
 HaloNetH7.__doc__ = HaloNetH0.__doc__
 
-HaloAttention.__doc__ = __head_doc__ + """
-Halo-Attention layer.
+halo_attention.__doc__ = __head_doc__ + """
+Halo Attention. Defined as function, not layer.
 
 Args:
+  inputs: input tensor.
   num_heads: Number of attention heads.
-  key_dim: Size of each attention head for query and key.
+  key_dim: Size of each attention head for query and key. Default `0` for `key_dim = inputs.shape[-1] // num_heads`
   block_size: works like `kernel_size` from `Conv2D`, extracting input patches as `query`.
   halo_size: expansion to `block_size`, extracting input patches as `key` and `value`.
   strides: downsample strides for `query`.
-  out_shape: The expected shape of an output tensor. If not specified, projects back to the key feature dim.
+  out_shape: The expected shape of an output tensor. If not specified, projects back to the input dim.
   out_weight: Boolean, whether use an ouput dense.
   out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
   attn_dropout: Dropout probability for attention.
@@ -75,14 +76,17 @@ Args:
 Examples:
 
 >>> from keras_cv_attention_models import attention_layers
->>> bb = attention_layers.HaloAttention()
->>> print(f"{bb(tf.ones([1, 14, 16, 256])).shape = }")
-bb(tf.ones([1, 14, 16, 256])).shape = TensorShape([1, 14, 16, 512])
+>>> inputs = keras.layers.Input([14, 16, 256])
+>>> nn = attention_layers.halo_attention(inputs, num_heads=4)
+>>> print(f"{nn.shape = }")
+nn.shape = TensorShape([None, 14, 16, 256])
 
->>> print({ii.name:ii.numpy().shape for ii in bb.weights})
-{'halo_attention_2/query:0': (256, 512),
- 'halo_attention_2/key_value:0': (256, 1024),
- 'halo_attention_2/output_weight:0': (512, 512),
- 'halo_attention_2/r_width:0': (128, 7),
- 'halo_attention_2/r_height:0': (128, 7)}
+>>> mm = keras.models.Model(inputs, nn)
+>>> mm.summary()
+>>> print({ii.name: ii.shape for ii in mm.weights})
+{'halo_key_value/kernel:0': TensorShape([256, 1024]),
+ 'halo_query/kernel:0': TensorShape([256, 512]),
+ 'halo_pos_emb/r_height:0': TensorShape([128, 7]),
+ 'halo_pos_emb/r_width:0': TensorShape([128, 7]),
+ 'halo_output/kernel:0': TensorShape([512, 256])}
 """

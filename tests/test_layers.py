@@ -51,10 +51,11 @@ def test_cot_attention():
     assert attention_layers.cot_attention(tf.ones(input_shape), kernel_size=3).shape == input_shape
 
 
-def test_HaloAttention():
-    aa = attention_layers.HaloAttention()
+def test_halo_attention():
     input_shape = [2, 14, 16, 256]
-    assert aa(tf.ones(input_shape)).shape == input_shape
+    out_shape = 384
+    out = attention_layers.halo_attention(tf.ones(input_shape), num_heads=4, out_shape=out_shape)
+    assert out.shape == [input_shape[0], input_shape[1], input_shape[2], out_shape]
 
 
 def test_mhsa_with_multi_head_position_and_strides():
@@ -65,12 +66,11 @@ def test_mhsa_with_multi_head_position_and_strides():
     assert out.shape == [input_shape[0], input_shape[1] // strides // strides, output_dim]
 
 
-def test_MHSAWithPositionEmbedding():
-    num_heads = 4
-    key_dim = 128
-    aa = attention_layers.MHSAWithPositionEmbedding(num_heads=num_heads, key_dim=key_dim)
+def test_mhsa_with_relative_position_embedding():
     input_shape = [2, 14, 16, 256]
-    assert aa(tf.ones(input_shape)).shape == [*input_shape[:3], num_heads * key_dim]
+    out_shape = 384
+    out = attention_layers.mhsa_with_relative_position_embedding(tf.ones(input_shape), num_heads=4, out_shape=out_shape)
+    assert out.shape == [input_shape[0], input_shape[1], input_shape[2], out_shape]
 
 
 def test_mixer_block():
@@ -107,6 +107,14 @@ def test_PositionalEmbedding():
     aa = attention_layers.PositionalEmbedding()
     input_shape = [2, 8, 16, 49]
     assert aa(tf.ones(input_shape)).shape == input_shape
+
+
+def test_RelativePositionalEmbedding():
+    aa = attention_layers.RelativePositionalEmbedding()
+    hh = pos_hh = 14
+    ww = pos_ww = 16
+    input_shape = [2, 4, hh, ww, 32]
+    assert aa(tf.ones(input_shape)).shape == [input_shape[0], input_shape[1], hh, ww, pos_hh, pos_ww]
 
 
 def test_rsoftmax():
