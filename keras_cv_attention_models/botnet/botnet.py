@@ -19,11 +19,12 @@ PRETRAINED_DICT = {
 
 @tf.keras.utils.register_keras_serializable(package="botnet")
 class RelativePositionalEmbedding(keras.layers.Layer):
-    def __init__(self, position_height=0, position_width=0, use_absolute_pos=False, **kwargs):
+    def __init__(self, position_height=0, position_width=0, use_absolute_pos=False, dynamic_shape=False, **kwargs):
         super(RelativePositionalEmbedding, self).__init__(**kwargs)
         self.position_height = position_height
         self.position_width = position_width if position_width > 0 else position_height
         self.use_absolute_pos = use_absolute_pos
+        self.dynamic_shape = dynamic_shape
 
     def build(self, input_shape):
         _, num_heads, height, width, key_dim = input_shape
@@ -45,7 +46,12 @@ class RelativePositionalEmbedding(keras.layers.Layer):
 
     def get_config(self):
         base_config = super(RelativePositionalEmbedding, self).get_config()
-        base_config.update({"position_height": self.position_height, "position_width": self.position_width, "use_absolute_pos": self.use_absolute_pos})
+        base_config.update({
+            "position_height": self.position_height,
+            "position_width": self.position_width,
+            "use_absolute_pos": self.use_absolute_pos,
+            "dynamic_shape": self.dynamic_shape,
+        })
         return base_config
 
     def rel_to_abs(self, rel_pos):
@@ -85,7 +91,11 @@ class RelativePositionalEmbedding(keras.layers.Layer):
         return abs_logits
 
     def call(self, inputs):
-        return self.absolute_logits(inputs) if self.use_absolute_pos else self.relative_logits(inputs)
+        pos_emb = self.absolute_logits(inputs) if self.use_absolute_pos else self.relative_logits(inputs)
+        if self.dynamic_shape:
+            _, _, hh, ww, _ = inputs.shape
+            pos_emb = pos_emb[:, :, :, :, :hh, :ww]
+        return pos_emb
 
     def load_resized_pos_emb(self, source_layer):
         # For input 224 --> [128, 27], convert to 480 --> [128, 30]
@@ -106,7 +116,7 @@ def mhsa_with_relative_position_embedding(
     qk_scale = 1.0 / tf.math.sqrt(float(key_dim))
     out_shape = cc if out_shape is None or not out_weight else out_shape
     emb_dim = num_heads * key_dim
-    final_out_shape = (None, hh, ww, out_shape)
+    # final_out_shape = (None, hh, ww, out_shape)
 
     qkv = keras.layers.Dense(emb_dim * 3, use_bias=False, name=name and name + "qkv")(inputs)
     qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], 3, num_heads, key_dim])
@@ -135,7 +145,7 @@ def mhsa_with_relative_position_embedding(
     if out_weight:
         # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
         attention_output = keras.layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
-    attention_output.set_shape(final_out_shape)
+    # attention_output.set_shape(final_out_shape)
     return attention_output
 
 

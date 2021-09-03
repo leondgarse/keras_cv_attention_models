@@ -38,3 +38,14 @@ def reload_model_weights_with_mismatch(
                     model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
         except:
             pass
+
+
+def load_weights_with_mismatch(model, weight_file, mismatch_class=None, custom_objects={}):
+    model.load_weights(weight_file, by_name=True, skip_mismatch=True)
+    if mismatch_class is not None:
+        print(">>>> Reload mismatched weights.")
+        bb = keras.models.load_model(weight_file, custom_objects=custom_objects)
+        for ii in model.layers:
+            if isinstance(ii, mismatch_class):
+                print(">>>> Reload layer:", ii.name)
+                model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
