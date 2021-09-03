@@ -46,13 +46,12 @@ class CosineLrScheduler(keras.callbacks.Callback):
         return lr
 
 
-def constant_scheduler(epoch, lr_base, lr_decay_steps, decay_rate=0.1, lr_min=0, warmup=0):
+def constant_scheduler(epoch, lr_base, lr_decay_steps, decay_rate=0.1, warmup=0):
     if epoch < warmup:
-        lr = (lr_base - lr_min) * (epoch + 1) / (warmup + 1)
+        lr = lr_base * (epoch + 1) / (warmup + 1)
     else:
         epoch -= warmup
         lr = lr_base * decay_rate ** np.sum(epoch >= np.array(lr_decay_steps))
-        lr = lr if lr > lr_min else lr_min
     print("\nLearning rate for iter {} is {}".format(epoch + 1, lr))
     return lr
 

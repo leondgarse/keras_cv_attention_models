@@ -2,13 +2,9 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.download_and_load import reload_model_weights
+from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias
 
-BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
-CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
-# CONV_KERNEL_INITIALIZER = 'glorot_uniform'
-
-
 PRETRAINED_DICT = {
     "cotnet101": {"224": "6c65fceeae826a0659bf43f62b312441"},
     "cotnet50": {"224": "6a087a93b1669b7e4e2e8875f1f81b17"},
@@ -16,37 +12,6 @@ PRETRAINED_DICT = {
     "se_cotnetd152": {"224": "9211c7166fe3d116fe4492b9a3069a21", "320": "a26c234902f64f24dcd716b6ad0da01d"},
     "se_cotnetd50": {"224": "cab719c9e54e4967f5a5aabe47863eaa"},
 }
-
-
-def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=""):
-    """Performs a batch normalization followed by an activation. """
-    bn_axis = 3 if K.image_data_format() == "channels_last" else 1
-    gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
-    nn = keras.layers.BatchNormalization(
-        axis=bn_axis,
-        momentum=BATCH_NORM_DECAY,
-        epsilon=BATCH_NORM_EPSILON,
-        gamma_initializer=gamma_initializer,
-        name=name + "bn",
-    )(inputs)
-    if activation:
-        nn = keras.layers.Activation(activation=activation, name=name + activation)(nn)
-    return nn
-
-
-def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, name="", **kwargs):
-    if padding.upper() == "SAME":
-        inputs = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(inputs)
-    return keras.layers.Conv2D(
-        filters,
-        kernel_size,
-        strides=strides,
-        padding="VALID",
-        use_bias=use_bias,
-        kernel_initializer=CONV_KERNEL_INITIALIZER,
-        name=name + "conv",
-        **kwargs,
-    )(inputs)
 
 
 def group_conv(inputs, filters, kernel_size, groups=4, name="", **kwargs):
@@ -106,10 +71,10 @@ def cot_attention(inputs, kernel_size=3, activation="relu", name=""):
     attn = tf.reduce_mean(attn, axis=[1, 2], keepdims=True)
     # attn se module
     attn_se_filters = max(filters * randix // 4, 32)
-    # attn = keras.layers.Dense(attn_se_filters, use_bias=True, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "attn_se_dense_1")(attn)
+    # attn = keras.layers.Dense(attn_se_filters, use_bias=True, name=name + "attn_se_dense_1")(attn)
     attn = conv2d_no_bias(attn, attn_se_filters, 1, use_bias=True, name=name + "attn_se_1_")
     attn = batchnorm_with_activation(attn, activation=activation, zero_gamma=False, name=name + "attn_se_")
-    # attn = keras.layers.Dense(filters * randix, use_bias=True, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "attn_se_dense_2")(attn)
+    # attn = keras.layers.Dense(filters * randix, use_bias=True, name=name + "attn_se_dense_2")(attn)
     attn = conv2d_no_bias(attn, filters * randix, 1, use_bias=True, name=name + "attn_se_2_")
     attn = tf.reshape(attn, [-1, 1, 1, filters, randix])
     attn = tf.nn.softmax(attn, axis=-1)

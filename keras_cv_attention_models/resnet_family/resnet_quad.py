@@ -2,67 +2,12 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.download_and_load import reload_model_weights
+from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, drop_block
 
-BATCH_NORM_DECAY = 0.9
-BATCH_NORM_EPSILON = 1e-5
-CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
 
 PRETRAINED_DICT = {
     "resnet51q": {"imagenet": "2b54c5e252bd58f37454e6fb273716f7"},
 }
-
-def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=None):
-    """Performs a batch normalization followed by an activation. """
-    bn_axis = 3 if K.image_data_format() == "channels_last" else 1
-    gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
-    nn = keras.layers.BatchNormalization(
-        axis=bn_axis,
-        momentum=BATCH_NORM_DECAY,
-        epsilon=BATCH_NORM_EPSILON,
-        gamma_initializer=gamma_initializer,
-        name=name and name + "bn",
-    )(inputs)
-    if activation:
-        nn = keras.layers.Activation(activation=activation, name=name and name + activation)(nn)
-    return nn
-
-
-def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, groups=1, name=None, **kwargs):
-    pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
-    if padding.upper() == "SAME" and pad != 0:
-        inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
-
-    groups = groups if groups != 0 else 1
-    if groups == filters:
-        return keras.layers.DepthwiseConv2D(
-            kernel_size,
-            strides=strides,
-            padding="VALID",
-            use_bias=use_bias,
-            kernel_initializer=CONV_KERNEL_INITIALIZER,
-            name=name and name + "conv",
-            **kwargs
-        )(inputs)
-    else:
-        return keras.layers.Conv2D(
-            filters,
-            kernel_size,
-            strides=strides,
-            padding="VALID",
-            use_bias=use_bias,
-            groups=groups,
-            kernel_initializer=CONV_KERNEL_INITIALIZER,
-            name=name and name + "conv",
-            **kwargs,
-        )(inputs)
-
-
-def drop_block(inputs, drop_rate=0, name=None):
-    if drop_rate > 0:
-        noise_shape = [None] + [1] * (len(inputs.shape) - 1)  # [None, 1, 1, 1]
-        return keras.layers.Dropout(drop_rate, noise_shape=noise_shape, name=name and name + "drop")(inputs)
-    else:
-        return inputs
 
 
 def quad_block(inputs, filters, groups_div=32, strides=1, conv_shortcut=False, expansion=4, extra_conv=False, drop_rate=0, activation="swish", name=""):

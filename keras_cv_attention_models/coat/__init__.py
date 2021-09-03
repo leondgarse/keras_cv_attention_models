@@ -1,4 +1,4 @@
-from keras_cv_attention_models.coat.coat import CoaT, CoaTLiteTiny, CoaTLiteMini, CoaTLiteSmall, CoaTTiny, CoaTMini, ConvPositionalEncoding, ConvRelativePositionalEncoding, ClassToken, layer_norm, mlp_block
+from keras_cv_attention_models.coat.coat import CoaT, CoaTLiteTiny, CoaTLiteMini, CoaTLiteSmall, CoaTTiny, CoaTMini, ConvPositionalEncoding, ConvRelativePositionalEncoding, ClassToken
 
 __head_doc__ = """
 Keras implementation of [Github mlpc-ucsd/CoaT](https://github.com/mlpc-ucsd/CoaT).

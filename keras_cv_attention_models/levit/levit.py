@@ -2,11 +2,8 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
+from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, activation_by_name
 
-BATCH_NORM_DECAY = 0.9
-BATCH_NORM_EPSILON = 1e-5
-CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
-# CONV_KERNEL_INITIALIZER = 'glorot_uniform'
 
 PRETRAINED_DICT = {
     "levit128s": {"imagenet": "5e35073bb6079491fb0a1adff833da23"},
@@ -15,44 +12,6 @@ PRETRAINED_DICT = {
     "levit256": {"imagenet": "9ada767ba2798c94aa1c894a00ae40fd"},
     "levit384": {"imagenet": "520f207f7f4c626b83e21564dd0c92a3"},
 }
-
-@tf.keras.utils.register_keras_serializable(package="levit")
-def hard_swish(inputs):
-    """ `out = xx * relu6(xx + 3) / 6`, arxiv: https://arxiv.org/abs/1905.02244 """
-    return inputs * tf.nn.relu6(inputs + 3) / 6
-
-
-def batchnorm_with_activation(inputs, activation="hard_swish", zero_gamma=False, name=""):
-    """Performs a batch normalization followed by an activation. """
-    bn_axis = -1 if K.image_data_format() == "channels_last" else 1
-    gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
-    nn = keras.layers.BatchNormalization(
-        axis=bn_axis,
-        momentum=BATCH_NORM_DECAY,
-        epsilon=BATCH_NORM_EPSILON,
-        gamma_initializer=gamma_initializer,
-        name=name + "bn",
-    )(inputs)
-    if activation == "hard_swish":
-        nn = keras.layers.Activation(activation=hard_swish, name=name + activation)(nn)
-    elif activation:
-        nn = keras.layers.Activation(activation=activation, name=name + activation)(nn)
-    return nn
-
-
-def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, name="", **kwargs):
-    if padding.upper() == "SAME":
-        inputs = keras.layers.ZeroPadding2D(kernel_size // 2)(inputs)
-    return keras.layers.Conv2D(
-        filters,
-        kernel_size,
-        strides=strides,
-        padding="VALID",
-        use_bias=use_bias,
-        kernel_initializer=CONV_KERNEL_INITIALIZER,
-        name=name + "conv",
-        **kwargs,
-    )(inputs)
 
 
 @tf.keras.utils.register_keras_serializable(package="levit")
@@ -107,10 +66,8 @@ def scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_dim, ac
     output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attn, vv])
     output = tf.transpose(output, perm=[0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
     output = tf.reshape(output, [-1, output.shape[1], output.shape[2] * output.shape[3]])  # [batch, q_blocks, channel * attn_ratio]
-    if activation == "hard_swish":
-        output = keras.layers.Activation(activation=hard_swish, name=name + "out_" + activation)(output)
-    elif activation:
-        output = keras.layers.Activation(activation=activation, name=name + "out_" + activation)(output)
+    if activation:
+        output = activation_by_name(output, activation=activation, name=name)
     output = keras.layers.Dense(output_dim, use_bias=False, name=name + "out")(output)
     output = batchnorm_with_activation(output, activation=None, zero_gamma=True, name=name + "out_")
     return output

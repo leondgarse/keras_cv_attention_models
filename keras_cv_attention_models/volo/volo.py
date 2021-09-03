@@ -2,12 +2,10 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
+from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias
 
-BATCH_NORM_DECAY = 0.9
+
 BATCH_NORM_EPSILON = 1e-5
-CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
-# CONV_KERNEL_INITIALIZER = 'glorot_uniform'
-
 PRETRAINED_DICT = {
     "volo_d1": {"224": "5b6ce55272a86b2f34c69cbef2cbdeb9", "384": "5262455b634c9cff15309a524958b0a2"},
     "volo_d2": {"224": "c8c9159c7772f531b8f5ad0646440963", "384": "88496dc586366bdc757ab903bd467f9b"},
@@ -17,47 +15,16 @@ PRETRAINED_DICT = {
 }
 
 
-def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, name=""):
-    """Performs a batch normalization followed by an activation. """
-    bn_axis = 3 if K.image_data_format() == "channels_last" else 1
-    gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
-    nn = keras.layers.BatchNormalization(
-        axis=bn_axis,
-        momentum=BATCH_NORM_DECAY,
-        epsilon=BATCH_NORM_EPSILON,
-        gamma_initializer=gamma_initializer,
-        name=name + "bn",
-    )(inputs)
-    if activation:
-        nn = keras.layers.Activation(activation=activation, name=name + activation)(nn)
-    return nn
-
-
-def conv2d_with_init(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, name="", **kwargs):
-    if padding.upper() == "SAME":
-        inputs = keras.layers.ZeroPadding2D(kernel_size // 2)(inputs)
-    return keras.layers.Conv2D(
-        filters,
-        kernel_size,
-        strides=strides,
-        padding="VALID",
-        use_bias=use_bias,
-        kernel_initializer=CONV_KERNEL_INITIALIZER,
-        name=name + "conv",
-        **kwargs,
-    )(inputs)
-
-
 def patch_stem(inputs, hidden_dim=64, stem_width=384, patch_size=8, strides=2, activation="relu", name=""):
-    nn = conv2d_with_init(inputs, hidden_dim, 7, strides=strides, padding="same", name=name + "1_")
+    nn = conv2d_no_bias(inputs, hidden_dim, 7, strides=strides, padding="same", name=name + "1_")
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
-    nn = conv2d_with_init(nn, hidden_dim, 3, strides=1, padding="same", name=name + "2_")
+    nn = conv2d_no_bias(nn, hidden_dim, 3, strides=1, padding="same", name=name + "2_")
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "2_")
-    nn = conv2d_with_init(nn, hidden_dim, 3, strides=1, padding="same", name=name + "3_")
+    nn = conv2d_no_bias(nn, hidden_dim, 3, strides=1, padding="same", name=name + "3_")
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "3_")
 
     patch_step = patch_size // strides
-    return conv2d_with_init(nn, stem_width, patch_step, strides=patch_step, use_bias=True, name=name + "patch_")
+    return conv2d_no_bias(nn, stem_width, patch_step, strides=patch_step, use_bias=True, name=name + "patch_")
 
 
 @keras.utils.register_keras_serializable(package="volo")

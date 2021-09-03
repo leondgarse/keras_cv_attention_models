@@ -2,108 +2,16 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 import os
-
+from keras_cv_attention_models.attention_layers import anti_alias_downsample, batchnorm_with_activation, conv2d_no_bias, drop_block, se_module
 from keras_cv_attention_models import attention_layers
 
-BATCH_NORM_DECAY = 0.9
-BATCH_NORM_EPSILON = 1e-5
-CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
+
 MHSA_PARAMS = {"num_heads": 4, "relative": True, "out_bias": True}
 HALO_PARAMS = {"block_size": 4, "halo_size": 1, "num_heads": 8, "out_bias": True}
 SA_PARAMS = {"kernel_size": 3, "groups": 2}
 COT_PARAMS = {"kernel_size": 3}
 OUTLOOK_PARAMS = {"num_heads": 6, "kernel_size": 3}
 GROUPS_CONV_PARAMS = {"groups": 32, "kernel_size": 3}
-
-
-def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, act_first=False, name=None):
-    """Performs a batch normalization followed by an activation. """
-    bn_axis = 3 if K.image_data_format() == "channels_last" else 1
-    gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
-    if act_first and activation:
-        inputs = keras.layers.Activation(activation=activation, name=name and name + activation)(nn)
-    nn = keras.layers.BatchNormalization(
-        axis=bn_axis,
-        momentum=BATCH_NORM_DECAY,
-        epsilon=BATCH_NORM_EPSILON,
-        gamma_initializer=gamma_initializer,
-        name=name and name + "bn",
-    )(inputs)
-    if not act_first and activation:
-        nn = keras.layers.Activation(activation=activation, name=name and name + activation)(nn)
-    return nn
-
-
-def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, groups=1, name=None, **kwargs):
-    """" Typical Conv2D with `use_bias` default as `False` and fixed padding """
-    pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
-    if padding.upper() == "SAME" and pad != 0:
-        inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
-
-    groups = groups if groups != 0 else 1
-    if groups == filters:
-        return keras.layers.DepthwiseConv2D(
-            kernel_size, strides=strides, padding="VALID", use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "conv", **kwargs
-        )(inputs)
-    else:
-        return keras.layers.Conv2D(
-            filters,
-            kernel_size,
-            strides=strides,
-            padding="VALID",
-            use_bias=use_bias,
-            groups=groups,
-            kernel_initializer=CONV_KERNEL_INITIALIZER,
-            name=name and name + "conv",
-            **kwargs,
-        )(inputs)
-
-
-def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=""):
-    """ Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf """
-    channel_axis = 1 if K.image_data_format() == "channels_first" else -1
-    h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
-
-    filters = inputs.shape[channel_axis]
-    # reduction = _make_divisible(filters // se_ratio, 8)
-    reduction = int(filters * se_ratio)
-    se = tf.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)
-    se = keras.layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "1_conv")(se)
-    se = keras.layers.Activation(activation)(se)
-    se = keras.layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name + "2_conv")(se)
-    se = keras.layers.Activation("sigmoid")(se)
-    return keras.layers.Multiply()([inputs, se])
-
-
-def drop_block(inputs, drop_rate=0, name=None):
-    """ Stochastic Depth block by Dropout, arxiv: https://arxiv.org/abs/1603.09382 """
-    if drop_rate > 0:
-        noise_shape = [None] + [1] * (len(inputs.shape) - 1)  # [None, 1, 1, 1]
-        return keras.layers.Dropout(drop_rate, noise_shape=noise_shape, name=name and name + "drop")(inputs)
-    else:
-        return inputs
-
-
-def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trainable=False, name=None):
-    """ DepthwiseConv2D performing anti-aliasing downsample, arxiv: https://arxiv.org/pdf/1904.11486.pdf """
-    def anti_alias_downsample_initializer(weight_shape, dtype="float32"):
-        import numpy as np
-
-        kernel_size, channel = weight_shape[0], weight_shape[2]
-        ww = tf.cast(np.poly1d((0.5, 0.5)) ** (kernel_size - 1), dtype)
-        ww = tf.expand_dims(ww, 0) * tf.expand_dims(ww, 1)
-        ww = tf.repeat(ww[:, :, tf.newaxis, tf.newaxis], channel, axis=-2)
-        return ww
-
-    return keras.layers.DepthwiseConv2D(
-        kernel_size=kernel_size,
-        strides=strides,
-        padding="SAME",
-        use_bias=False,
-        trainable=trainable,
-        depthwise_initializer=anti_alias_downsample_initializer,
-        name=name and name + "anti_alias_down",
-    )(inputs)
 
 
 def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, use_bn=True, activation="relu", name=""):

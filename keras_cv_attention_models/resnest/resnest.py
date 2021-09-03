@@ -2,11 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.download_and_load import reload_model_weights
-
-BATCH_NORM_DECAY = 0.9
-BATCH_NORM_EPSILON = 1e-5
-CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
-# CONV_KERNEL_INITIALIZER = 'glorot_uniform'
+from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias
 
 PRETRAINED_DICT = {
     "resnest101": {"imagenet": "0e6c69ddc5aa792df75621de750f3798"},
@@ -14,34 +10,6 @@ PRETRAINED_DICT = {
     "resnest269": {"imagenet": "f855648d7bba0171df92e3a6bb0faec8"},
     "resnest50": {"imagenet": "04cbe66345b2b37f0c9c4c78a3b07b26"},
 }
-
-def batchnorm_with_activation(inputs, activation="relu", name=""):
-    """Performs a batch normalization followed by an activation. """
-    bn_axis = 3 if K.image_data_format() == "channels_last" else 1
-    nn = keras.layers.BatchNormalization(
-        axis=bn_axis,
-        momentum=BATCH_NORM_DECAY,
-        epsilon=BATCH_NORM_EPSILON,
-        name=name + "bn",
-    )(inputs)
-    if activation:
-        nn = keras.layers.Activation(activation=activation, name=name + activation)(nn)
-    return nn
-
-
-def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", name="", **kwargs):
-    if padding.upper() == "SAME":
-        inputs = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(inputs)
-    return keras.layers.Conv2D(
-        filters,
-        kernel_size,
-        strides=strides,
-        padding="VALID",
-        use_bias=False,
-        kernel_initializer=CONV_KERNEL_INITIALIZER,
-        name=name + "conv",
-        **kwargs,
-    )(inputs)
 
 
 def rsoftmax(inputs, groups):

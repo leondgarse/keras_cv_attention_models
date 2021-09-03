@@ -6,7 +6,6 @@ from keras_cv_attention_models.levit.levit import (
     LeViT256,
     LeViT384,
     MultiHeadPositionalEmbedding,
-    hard_swish,
     mhsa_with_multi_head_position_and_strides,
 )
 

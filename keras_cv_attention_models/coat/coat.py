@@ -2,9 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.python.keras import backend as K
 from keras_cv_attention_models.download_and_load import reload_model_weights
-
-LAYER_NORM_EPSILON = 1e-6
-CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
+from keras_cv_attention_models.attention_layers import layer_norm, conv2d_no_bias
 
 
 PRETRAINED_DICT = {
@@ -14,27 +12,6 @@ PRETRAINED_DICT = {
     "coat_tiny": {"imagenet": "0b20a82b7f82a3d73cca9fb5b66db8fb"},
     "coat_mini": {"imagenet": "883a0c3083b82f19f1245572ef068311"},
 }
-
-
-def layer_norm(inputs, name=None):
-    """ Typical LayerNormalization with epsilon=1e-5 """
-    norm_axis = -1 if K.image_data_format() == "channels_last" else 1
-    return keras.layers.LayerNormalization(axis=norm_axis, epsilon=LAYER_NORM_EPSILON, name=name and name + "ln")(inputs)
-
-
-def conv2d_with_init(inputs, filters, kernel_size, strides=1, padding="VALID", name=None, **kwargs):
-    pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
-    if padding.upper() == "SAME" and pad != 0:
-        inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
-    return keras.layers.Conv2D(
-        filters,
-        kernel_size,
-        strides=strides,
-        padding="VALID",
-        kernel_initializer=CONV_KERNEL_INITIALIZER,
-        name=name and name + "conv",
-        **kwargs,
-    )(inputs)
 
 
 def mlp_block(inputs, hidden_dim, activation="gelu", name=None):
@@ -60,7 +37,6 @@ class ConvPositionalEncoding(keras.layers.Layer):
             self.kernel_size,
             strides=1,
             padding="VALID",
-            kernel_initializer=CONV_KERNEL_INITIALIZER,
             name=self.name and self.name + "depth_conv",
         )
         self.dconv.build([None, self.height, self.width, self.channel])
@@ -104,7 +80,6 @@ class ConvRelativePositionalEncoding(keras.layers.Layer):
                     kernel_size,
                     strides=1,
                     padding="VALID",
-                    kernel_initializer=CONV_KERNEL_INITIALIZER,
                     name=name_scope if self.name is None else self.name + name_scope,
                 )
                 # print(query_shape, [None, self.height, self.width, int(head_split * self.query_dim)])
@@ -249,7 +224,7 @@ def patch_embed(inputs, embed_dim, patch_size=2, name=""):
     if len(inputs.shape) == 3:
         height = width = int(tf.math.sqrt(float(inputs.shape[1])))  # assume hh == ww
         inputs = keras.layers.Reshape([height, width, inputs.shape[-1]])(inputs)
-    nn = conv2d_with_init(inputs, embed_dim, kernel_size=patch_size, strides=patch_size, name=name)  # Try with Conv1D
+    nn = conv2d_no_bias(inputs, embed_dim, kernel_size=patch_size, strides=patch_size, use_bias=True, name=name)  # Try with Conv1D
     nn = keras.layers.Reshape([nn.shape[1] * nn.shape[2], nn.shape[-1]])(nn)  # flatten(2)
     nn = layer_norm(nn, name=name)
     return nn

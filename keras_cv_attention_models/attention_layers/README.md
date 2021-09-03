@@ -3,17 +3,17 @@
 
 ## Summary
   - Defined layers / functions from model structures.
-  - Basic `anti_alias_downsample`, `batchnorm_with_activation`, `conv2d_no_bias`, `se_module`, `drop_block` from `aotnet`
+  - Basic `activation_by_name`, `anti_alias_downsample`, `batchnorm_with_activation`, `conv2d_no_bias`, `drop_block`, `hard_swish`, `layer_norm`, `se_module` from `common_layers`
   - `RelativePositionalEmbedding` and `mhsa_with_relative_position_embedding` from `botnet`.
   - `cot_attention` from `cotnet`.
-  - `ConvPositionalEncoding`, `ConvRelativePositionalEncoding`, `layer_norm` from `coat`.
+  - `ConvPositionalEncoding`, `ConvRelativePositionalEncoding`, from `coat`.
   - `halo_attention` from `halonet`.
   - `rsoftmax` and `split_attention_conv2d` from `resnest`.
   - `outlook_attention`, `outlook_attention_simple`, `BiasLayer`, `PositionalEmbedding`, `ClassToken` from `volo`.
   - `mlp_block`, `mixer_block` from `mlp_mixer`.
   - `ChannelAffine` from `res_mlp`.
   - `spatial_gating_block` from `gated_mlp`.
-  - `MultiHeadPositionalEmbedding`, `hard_swish`, `mhsa_with_multi_head_position_and_strides` from `levit`.
+  - `MultiHeadPositionalEmbedding`, `mhsa_with_multi_head_position_and_strides` from `levit`.
 ## Usage Examples
   - **RelativePositionalEmbedding**
     ```py

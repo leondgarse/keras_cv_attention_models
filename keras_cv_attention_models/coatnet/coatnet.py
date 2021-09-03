@@ -3,10 +3,6 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, se_module, mhsa_with_relative_position_embedding
 
-BATCH_NORM_DECAY = 0.9
-BATCH_NORM_EPSILON = 1e-5
-CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
-
 
 def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion=4, se_ratio=0, activation="relu", name=None):
     # preact

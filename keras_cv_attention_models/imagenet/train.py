@@ -9,7 +9,7 @@ from keras_cv_attention_models import model_surgery
 def train(
     compiled_model,
     epochs,
-    lr_schduler=None,
+    lr_scheduler=None,
     initial_epoch=0,
     input_shape=(224, 224, 3),
     batch_size=64,
@@ -25,8 +25,8 @@ def train(
         batch_size=batch_size, input_shape=input_shape, magnitude=magnitude, mixup_alpha=mixup_alpha
     )
 
-    if hasattr(lr_schduler, "steps_per_epoch") and lr_schduler.steps_per_epoch == -1:
-        lr_schduler.build(steps_per_epoch)
+    if hasattr(lr_scheduler, "steps_per_epoch") and lr_scheduler.steps_per_epoch == -1:
+        lr_scheduler.build(steps_per_epoch)
     if basic_save_name is None:
         basic_save_name = "{}_imagenet_batch_size_{}_magnitude_{}_".format(compiled_model.name, batch_size, magnitude)
     ckpt_path = os.path.join("checkpoints", basic_save_name + "epoch_{epoch:02d}_val_acc_{val_acc:.2f}.h5")
@@ -36,8 +36,8 @@ def train(
         os.remove(hist_file)
     cur_callbacks.append(callbacks.MyHistory(initial_file=hist_file))
     cur_callbacks.append(keras.callbacks.TerminateOnNaN())
-    if lr_schduler is not None:
-        cur_callbacks.append(lr_schduler)
+    if lr_scheduler is not None:
+        cur_callbacks.append(lr_scheduler)
 
     compiled_model.fit(
         train_dataset,
@@ -76,11 +76,11 @@ if __name__ == "__test__":
 
         optimizer = keras.optimizers.SGD(learning_rate=0.05, momentum=0.9)
         model.compile(optimizer=optimizer, loss=keras.losses.CategoricalCrossentropy(label_smoothing=0.1), metrics=["acc"])
-        lr_schduler = imagenet.CosineLrScheduler(0.05, first_restart_step=16, m_mul=0.5, t_mul=2.0, lr_min=1e-05, warmup=2, steps_per_epoch=-1)
+        lr_scheduler = imagenet.CosineLrScheduler(0.05, first_restart_step=16, m_mul=0.5, t_mul=2.0, lr_min=1e-05, warmup=2, steps_per_epoch=-1)
         imagenet.train(
             model,
             epochs=16 + 32 + 2,
-            lr_schduler=lr_schduler,
+            lr_scheduler=lr_scheduler,
             input_shape=input_shape,
             batch_size=batch_size,
             magnitude=magnitude,

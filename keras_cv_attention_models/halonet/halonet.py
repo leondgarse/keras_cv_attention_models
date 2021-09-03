@@ -1,13 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-
-# from einops import rearrange    # Currently einops 0.3.0 is broken for tf.keras 2.6.0...
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, RelativePositionalEmbedding
-
-
-BATCH_NORM_DECAY = 0.9
-BATCH_NORM_EPSILON = 1e-5
 
 
 def halo_attention(
