@@ -352,7 +352,7 @@ def VOLO(
     first_attn_type="outlook",
     pretrained="imagenet",
     model_name="VOLO",
-    **kwargs,
+    kwargs=None,
 ):
     inputs = keras.layers.Input(input_shape)
 

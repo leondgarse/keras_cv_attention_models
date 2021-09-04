@@ -4,6 +4,7 @@ from keras_cv_attention_models.common_layers import (
     anti_alias_downsample,
     batchnorm_with_activation,
     conv2d_no_bias,
+    depthwise_conv2d_no_bias,
     drop_block,
     hard_swish,
     layer_norm,

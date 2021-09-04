@@ -79,6 +79,16 @@ def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use
         )(inputs)
 
 
+def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", use_bias=False, name=None, **kwargs):
+    """ Typical DepthwiseConv2D with `use_bias` default as `False` and fixed padding """
+    pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
+    if padding.upper() == "SAME" and pad != 0:
+        inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "dw_pad")(inputs)
+    return keras.layers.DepthwiseConv2D(
+        kernel_size, strides=strides, padding="valid", use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "dw_conv", **kwargs,
+    )(inputs)
+
+
 def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=""):
     """ Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf """
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1

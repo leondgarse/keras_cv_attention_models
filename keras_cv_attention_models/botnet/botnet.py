@@ -94,7 +94,8 @@ class RelativePositionalEmbedding(keras.layers.Layer):
         pos_emb = self.absolute_logits(inputs) if self.use_absolute_pos else self.relative_logits(inputs)
         if self.dynamic_shape:
             _, _, hh, ww, _ = inputs.shape
-            pos_emb = pos_emb[:, :, :, :, :hh, :ww]
+            if hh < self.position_height or ww < self.position_width:
+                pos_emb = pos_emb[:, :, :, :, :hh, :ww]
         return pos_emb
 
     def load_resized_pos_emb(self, source_layer):

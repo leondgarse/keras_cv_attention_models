@@ -95,6 +95,8 @@ Examples:
 >>> aa = attention_layers.RelativePositionalEmbedding()
 >>> print(f"{aa(tf.ones([1, 4, 14, 16, 32])).shape = }")
 aa(tf.ones([1, 4, 14, 16, 32])).shape = TensorShape([1, 4, 14, 16, 14, 16])
+>>> print(f"{aa(tf.ones([1, 4, 4, 6, 32])).shape = }")  # last 2 dimension in output is `[position_height, position_width]`
+aa(tf.ones([1, 4, 4, 6, 32])).shape = TensorShape([1, 4, 4, 6, 14, 16])
 
 >>> print({ii.name:ii.shape for ii in aa.weights})
 {'relative_positional_embedding_6/r_height:0': TensorShape([32, 27]),
@@ -104,7 +106,7 @@ For `dynamic_shape=True`:
 >>> aa = attention_layers.RelativePositionalEmbedding(dynamic_shape=True)
 >>> print(f"{aa(tf.ones([1, 4, 14, 16, 32])).shape = }")
 aa(tf.ones([1, 4, 14, 16, 32])).shape = TensorShape([1, 4, 14, 16, 14, 16])
->>> print(f"{aa(tf.ones([1, 4, 4, 6, 32])).shape = }")
+>>> print(f"{aa(tf.ones([1, 4, 4, 6, 32])).shape = }")  # last 2 dimension in output is `[height, width]`
 aa(tf.ones([1, 4, 4, 6, 32])).shape = TensorShape([1, 4, 4, 6, 4, 6])
 
 Reload layer weights by `self.load_resized_pos_emb`:

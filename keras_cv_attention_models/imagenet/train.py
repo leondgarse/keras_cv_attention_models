@@ -52,6 +52,38 @@ def train(
     )
 
 
+def plot_hists(hists, names=None, base_size=6):
+    import os
+    import json
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(1, 2, figsize=(2 * base_size, base_size))
+    for id, hist in enumerate(hists):
+        name = names[id] if names != None else None
+        if isinstance(hist, str):
+            name = name if name != None else os.path.splitext(os.path.basename(hist))[0]
+            with open(hist, "r") as ff:
+                hist = json.load(ff)
+        name = name if name != None else str(id)
+
+        axes[0].plot(hist["loss"], label=name + " loss")
+        color = axes[0].lines[-1].get_color()
+        axes[0].plot(hist["val_loss"], label=name + " val_loss", color=color, linestyle="--")
+        axes[1].plot(hist["accuracy" if "accuracy" in hist else "acc"], label=name + " accuracy")
+        color = axes[1].lines[-1].get_color()
+        axes[1].plot(
+            hist["val_accuracy" if "val_accuracy" in hist else "val_acc"],
+            label=name + " val_accuracy",
+            color=color,
+            linestyle="--",
+        )
+    for ax in axes:
+        ax.legend()
+        ax.grid()
+    fig.tight_layout()
+    return fig
+
+
 if __name__ == "__test__":
     gpus = tf.config.experimental.get_visible_devices("GPU")
     for gpu in gpus:

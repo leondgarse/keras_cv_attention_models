@@ -249,7 +249,7 @@ def CoaT(
     classifier_activation="softmax",
     pretrained="imagenet",
     model_name="coat",
-    **kwargs,
+    kwargs=None,
 ):
     inputs = keras.layers.Input(input_shape)
 

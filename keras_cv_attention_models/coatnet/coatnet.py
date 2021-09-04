@@ -1,7 +1,16 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, se_module, drop_block, mhsa_with_relative_position_embedding
+from keras_cv_attention_models.attention_layers import (
+    activation_by_name,
+    batchnorm_with_activation,
+    conv2d_no_bias,
+    depthwise_conv2d_no_bias,
+    drop_block,
+    layer_norm,
+    se_module,
+    mhsa_with_relative_position_embedding,
+)
 
 
 def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion=4, se_ratio=0, drop_rate=0, activation="gelu", name=""):
@@ -19,8 +28,7 @@ def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion
     input_channel = inputs.shape[-1]
     nn = conv2d_no_bias(nn, input_channel * expansion, 1, strides=1, padding="same", name=name + "expand_") # May swap stirdes with DW
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "expand_")
-    nn = keras.layers.ZeroPadding2D(1, name=name+"dw_pad")(nn)
-    nn = keras.layers.DepthwiseConv2D(3, padding="valid", strides=strides, use_bias=False, name=name + "MB_dw")(nn)
+    nn = depthwise_conv2d_no_bias(nn, 3, strides=strides, padding="same", name=name + "MB_")
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "MB_dw_")
     if se_ratio:
         nn = se_module(nn, se_ratio=se_ratio / expansion, activation=activation, name=name + "se_")
@@ -33,9 +41,10 @@ def res_ffn(inputs, expansion=4, kernel_size=1, drop_rate=0, activation="gelu", 
     """ x ← x + Module (Norm(x)) """
     input_channel = inputs.shape[-1]
     # preact
-    nn = batchnorm_with_activation(inputs, activation=None, name=name + "preact_")
+    # nn = batchnorm_with_activation(inputs, activation=None, name=name + "preact_")
+    nn = layer_norm(inputs, name=name + "preact_")
     nn = conv2d_no_bias(nn, input_channel * expansion, kernel_size, name=name + "1_")
-    nn = keras.layers.Activation(activation, name=name + activation)(nn)
+    nn = activation_by_name(nn, activation=activation, name=name)
     nn = conv2d_no_bias(nn, input_channel, kernel_size, name=name + "2_")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
     return keras.layers.Add()([inputs, nn])
@@ -51,14 +60,15 @@ def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, head_dimens
         shortcut = inputs
 
     # preact
-    nn = batchnorm_with_activation(inputs, activation=None, name=name + "preact_")
+    # nn = batchnorm_with_activation(inputs, activation=None, name=name + "preact_")
+    nn = layer_norm(inputs, name=name + "preact_")
     if strides != 1:  # Downsample
         # nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
         nn = keras.layers.MaxPool2D(pool_size=2, strides=strides, padding="SAME", name=name + "pool")(nn)
     num_heads = nn.shape[-1] // head_dimension
     nn = mhsa_with_relative_position_embedding(nn, num_heads=num_heads, key_dim=head_dimension, out_shape=output_channel, name=name + "mhsa")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
-    print(f"{name = }, {inputs.shape = }, {shortcut.shape = }, {nn.shape = }")
+    # print(f"{name = }, {inputs.shape = }, {shortcut.shape = }, {nn.shape = }")
     return keras.layers.Add()([shortcut, nn])
 
 
@@ -77,7 +87,7 @@ def CoAtNet(
     classifier_activation="softmax",
     pretrained=None,
     model_name="coatnet",
-    **kwargs,
+    kwargs=None,
 ):
     inputs = keras.layers.Input(input_shape)
 
