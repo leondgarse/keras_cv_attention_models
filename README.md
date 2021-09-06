@@ -28,6 +28,7 @@
 
 # Usage
 ## Basic Usage
+  - **Current under works**: CMT, CoAtNet training.
   - Install as pip package:
     ```sh
     pip install -U keras-cv-attention-models

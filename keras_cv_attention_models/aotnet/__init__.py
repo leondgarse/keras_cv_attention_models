@@ -53,6 +53,7 @@ __tail_doc__ = """  out_channels: default as `[64, 128, 256, 512]`. Output chann
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `softmax`.
+  drop_rate: dropout rate if top layers is included.
   **kwargs: other parameters if available.
 
 Returns:

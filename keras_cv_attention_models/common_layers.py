@@ -35,7 +35,7 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, epsil
     bn_axis = -1 if K.image_data_format() == "channels_last" else 1
     gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
     if act_first and activation:
-        inputs = activation_by_name(ipnuts, activation=activation, name=name)
+        inputs = activation_by_name(inputs, activation=activation, name=name)
     nn = keras.layers.BatchNormalization(
         axis=bn_axis,
         momentum=BATCH_NORM_DECAY,

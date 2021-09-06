@@ -67,6 +67,28 @@ def exp_scheduler(epoch, lr_base=0.1, decay_step=1, decay_rate=0.9, lr_min=0, wa
     return lr
 
 
+class OptimizerWeightDecay(keras.callbacks.Callback):
+    def __init__(self, lr_base, wd_base, is_lr_on_batch=False):
+        super(OptimizerWeightDecay, self).__init__()
+        self.wd_m = wd_base / lr_base
+        self.lr_base, self.wd_base = lr_base, wd_base
+        # self.model.optimizer.weight_decay = lambda: wd_m * self.model.optimizer.lr
+        self.is_lr_on_batch = is_lr_on_batch
+        if is_lr_on_batch:
+            self.on_train_batch_begin = self.__update_wd__
+        else:
+            self.on_epoch_begin = self.__update_wd__
+
+    def __update_wd__(self, step, log=None):
+        if self.model is not None:
+            wd = self.wd_m * K.get_value(self.model.optimizer.lr)
+            # wd = self.wd_base * K.get_value(self.model.optimizer.lr)
+            K.set_value(self.model.optimizer.weight_decay, wd)
+        # wd = self.model.optimizer.weight_decay
+        if not self.is_lr_on_batch or step == 0:
+            print("Weight decay is {}".format(wd))
+
+
 class MyHistory(keras.callbacks.Callback):
     def __init__(self, initial_file=None):
         super(MyHistory, self).__init__()
