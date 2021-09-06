@@ -33,12 +33,13 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model  | Params | Image resolution | Top1 Acc |
-  | ------ | ------ | ---------------- | -------- |
-  | CMT-T  | 11.3M  | 160x160          | 79.2     |
-  | CMT-XS |        | 192x192          | 81.8     |
-  | CMT-S  |        | 224x224          | 83.5     |
-  | CMT-L  |        | 256x256          | 84.5     |
+  | Model    | Params | Image resolution | Top1 Acc |
+  | -------- | ------ | ---------------- | -------- |
+  | CMTTiny  | 9.5M   | 160              | 79.2     |
+  | CMTXS    | 15.2M  | 192              | 81.8     |
+  | CMTSmall | 25.1M  | 224              | 83.5     |
+  | CMTBig   | 45.7M  | 256              | 84.5     |
+  | CMTL     | 74.7M  | 288              | 84.8     |
 """
 
 CMTTiny.__doc__ = __head_doc__ + """

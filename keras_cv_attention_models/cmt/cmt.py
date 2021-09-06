@@ -26,7 +26,7 @@ def light_multi_head_self_attention(inputs, num_heads=4, key_dim=0, sr_ratio=1, 
     attn_query = tf.reshape(pos_query, [-1, num_heads, query_hh * query_ww, key_dim])   # [batch, num_heads, hh * ww, key_dim]
 
     if sr_ratio > 1:
-        key_value = conv2d_no_bias(inputs, cc, kernel_size=sr_ratio, strides=sr_ratio, name=name + "kv_sr_")
+        key_value = depthwise_conv2d_no_bias(inputs, kernel_size=sr_ratio, strides=sr_ratio, name=name + "kv_sr_")
         key_value = layer_norm(key_value, name=name+"kv_sr_")
     else:
         key_value = inputs
@@ -67,21 +67,25 @@ def light_multi_head_self_attention(inputs, num_heads=4, key_dim=0, sr_ratio=1, 
     # attention_output.set_shape(final_out_shape)
     return attention_output
 
+
 def inverted_residual_feed_forward(inputs, expansion=4, activation="gelu", name=""):
+    """ IRFFN(X) = Conv(F(Conv(X))), F(X) = DWConv(X) + X """
     in_channel = inputs.shape[-1]
-    expanded = conv2d_no_bias(inputs, int(in_channel * expansion), kernel_size=1, name=name + "1_")
+    expanded = conv2d_no_bias(inputs, int(in_channel * expansion), kernel_size=1, use_bias=False, name=name + "1_")
     expanded = batchnorm_with_activation(expanded, activation=activation, act_first=True, name=name + "1_")
 
     dw = depthwise_conv2d_no_bias(expanded, kernel_size=3, padding="SAME", name=name)
-    dw = batchnorm_with_activation(dw, activation=activation, act_first=True, name=name + "2_")
     dw_out = keras.layers.Add(name=name + "dw_out")([expanded, dw])
+    dw_out = batchnorm_with_activation(dw_out, activation=activation, act_first=True, name=name + "2_")
 
-    pw = conv2d_no_bias(dw_out, in_channel, kernel_size=1, name=name + "3_")
+    pw = conv2d_no_bias(dw_out, in_channel, kernel_size=1, use_bias=False, name=name + "3_")
     pw = batchnorm_with_activation(pw, activation=None, name=name + "3_")
     return pw
 
+
 def cmt_block(inputs, num_heads=4, sr_ratio=1, expansion=4, activation="gelu", drop_rate=0, name=""):
-    """ local_perception_unit """
+    """ X0 = LPU(Xi), X1 = LMHSA(LN(X0)) + X0, X2 = IRFFN(LN(X1)) + X1 """
+    """ Local Perception Unit, LPU(X) = DWConv(X) + X """
     lpu = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="SAME", name=name)
     # lpu = batchnorm_with_activation(lpu, activation=activation, name=name + "lpu_", act_first=True)
     lpu_out = keras.layers.Add(name=name + "lpu_out")([inputs, lpu])
@@ -97,6 +101,7 @@ def cmt_block(inputs, num_heads=4, sr_ratio=1, expansion=4, activation="gelu", d
 
     return ffn_out
 
+
 def cmt_stem(inputs, stem_width, activation="gelu", name="", **kwargs):
     nn = conv2d_no_bias(inputs, stem_width, kernel_size=3, strides=2, padding="same", name=name + "1_")
     nn = batchnorm_with_activation(nn, activation=activation, act_first=True, name=name + "1_")
@@ -105,6 +110,7 @@ def cmt_stem(inputs, stem_width, activation="gelu", name="", **kwargs):
     nn = conv2d_no_bias(nn, stem_width, kernel_size=3, strides=1, padding="same", name=name + "3_")
     nn = batchnorm_with_activation(nn, activation=activation, act_first=True, name=name + "3_")
     return nn
+
 
 def CMT(
     num_blocks,
@@ -130,24 +136,30 @@ def CMT(
     total_blocks = sum(num_blocks)
     global_block_id = 0
     for stack_id, (num_block, out_channel, num_head, sr_ratio) in enumerate(zip(num_blocks, out_channels, num_heads, sr_ratios)):
-        nn = conv2d_no_bias(nn, out_channel, kernel_size=2, strides=2, name="stage_{}_down_sample".format(stack_id + 1))
+        stage_name = "stage_{}_".format(stack_id + 1)
+        nn = conv2d_no_bias(nn, out_channel, kernel_size=2, strides=2, name=stage_name + "down_sample")
+        nn = layer_norm(nn, name=stage_name)
         for block_id in range(num_block):
-            name = "stage_{}_block_{}_".format(stack_id + 1, block_id + 1)
+            name = stage_name + "block_{}_".format(block_id + 1)
             strides = 2 if block_id == 0 else 1
             conv_short_cut = True if block_id == 0 else False
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             global_block_id += 1
             nn = cmt_block(nn, num_head, sr_ratio, ffn_expansion, activation=activation, drop_rate=block_drop_rate, name=name)
 
+    nn = conv2d_no_bias(nn, 1280, 1, strides=1, name="post_")
+    nn = batchnorm_with_activation(nn, activation=activation, name="post_")
+
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        nn = keras.layers.Dense(1280, name="post_dense")(nn)
+        # nn = keras.layers.Dense(1280, name="post_dense")(nn)
         if drop_rate > 0:
             nn = keras.layers.Dropout(drop_rate)(nn)
         nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
     return model
+
 
 BLOCK_CONFIGS = {
     "tiny": {
