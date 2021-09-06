@@ -94,7 +94,7 @@ if __name__ == "__test__":
     from keras_cv_attention_models import imagenet
     from keras_cv_attention_models import model_surgery
 
-    input_shape, batch_size, l2_weight_decay, magnitude, mixup_alpha = (224, 224, 3), 128, 5e-5, 5, 0
+    input_shape, batch_size, l2_weight_decay, magnitude, mixup_alpha = (224, 224, 3), 128 * strategy.num_replicas_in_sync, 5e-4, 5, 0.5
     with strategy.scope():
         mm = keras.applications.ResNet50V2(include_top=False, input_shape=input_shape, weights=None)
         nn = mm.outputs[0]
@@ -106,9 +106,11 @@ if __name__ == "__test__":
         if l2_weight_decay != 0:
             model = model_surgery.add_l2_regularizer_2_model(model, weight_decay=l2_weight_decay, apply_to_batch_normal=False)
 
-        optimizer = keras.optimizers.SGD(learning_rate=0.05, momentum=0.9)
+        lr_base =  0.1 * batch_size / 512
+        optimizer = keras.optimizers.SGD(learning_rate=lr_base, momentum=0.9)
         model.compile(optimizer=optimizer, loss=keras.losses.CategoricalCrossentropy(label_smoothing=0.1), metrics=["acc"])
-        lr_scheduler = imagenet.CosineLrScheduler(0.05, first_restart_step=16, m_mul=0.5, t_mul=2.0, lr_min=1e-05, warmup=2, steps_per_epoch=-1)
+        # lr_scheduler = imagenet.CosineLrScheduler(lr_base, first_restart_step=16, m_mul=0.5, t_mul=2.0, lr_min=1e-05, warmup=2, steps_per_epoch=-1)
+        lr_scheduler = keras.callbacks.LearningRateScheduler(lambda epoch: imagenet.constant_scheduler(epoch, lr_base=lr_base, lr_decay_steps=[30, 60, 90], warmup=4))
         imagenet.train(
             model,
             epochs=16 + 32 + 2,

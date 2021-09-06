@@ -1,4 +1,4 @@
-from keras_cv_attention_models.coatnet.coatnet import CoAtNet, CoAtNet0, CoAtNet1, CoAtNet2, CoAtNet3, CoAtNet4, CoAtNet5
+from keras_cv_attention_models.coatnet.coatnet import CoAtNet, CoAtNetT, CoAtNet0, CoAtNet1, CoAtNet2, CoAtNet3, CoAtNet4, CoAtNet5
 
 __head_doc__ = """
 Keras implementation of `CoAtNet`, or `Conv + Transformer` networks.

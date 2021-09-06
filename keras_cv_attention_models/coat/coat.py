@@ -130,7 +130,7 @@ class ClassToken(keras.layers.Layer):
 def factor_attention_conv_relative_positional_encoding(inputs, shared_crpe=None, num_heads=8, qkv_bias=True, name=""):
     blocks, dim = inputs.shape[1], inputs.shape[-1]
     key_dim = dim // num_heads
-    qk_scale = 1.0 / tf.math.sqrt(float(key_dim))
+    qk_scale = 1.0 / tf.math.sqrt(tf.cast(key_dim, inputs.dtype))
 
     qkv = keras.layers.Dense(dim * 3, use_bias=qkv_bias, name=name + "qkv")(inputs)
     qkv = keras.layers.Reshape([blocks, 3, num_heads, key_dim])(qkv)

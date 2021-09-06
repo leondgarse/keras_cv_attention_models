@@ -15,18 +15,20 @@ from keras_cv_attention_models.attention_layers import (
 
 def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion=4, se_ratio=0, drop_rate=0, activation="gelu", name=""):
     """ x ← Proj(Pool(x)) + Conv (DepthConv (Conv (Norm(x), stride = 2)))) """
+    # preact
+    preact = batchnorm_with_activation(inputs, activation=activation, zero_gamma=False, name=name + "preact_")
+
     if conv_short_cut:
         # Avg or Max pool
-        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs) if strides > 1 else inputs
+        # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs) if strides > 1 else inputs
+        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(preact) if strides > 1 else preact
         shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shorcut_")
     else:
         shortcut = inputs
 
-    # preact
-    nn = batchnorm_with_activation(inputs, activation=None, name=name + "preact_")
     # MBConv
     input_channel = inputs.shape[-1]
-    nn = conv2d_no_bias(nn, input_channel * expansion, 1, strides=1, padding="same", name=name + "expand_") # May swap stirdes with DW
+    nn = conv2d_no_bias(preact, input_channel * expansion, 1, strides=1, padding="same", name=name + "expand_") # May swap stirdes with DW
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "expand_")
     nn = depthwise_conv2d_no_bias(nn, 3, strides=strides, padding="same", name=name + "MB_")
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "MB_dw_")
@@ -39,12 +41,14 @@ def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion
 
 def res_ffn(inputs, expansion=4, kernel_size=1, drop_rate=0, activation="gelu", name=""):
     """ x ← x + Module (Norm(x)) """
-    input_channel = inputs.shape[-1]
     # preact
-    # nn = batchnorm_with_activation(inputs, activation=None, name=name + "preact_")
-    nn = layer_norm(inputs, name=name + "preact_")
-    nn = conv2d_no_bias(nn, input_channel * expansion, kernel_size, name=name + "1_")
-    nn = activation_by_name(nn, activation=activation, name=name)
+    preact = batchnorm_with_activation(inputs, activation=activation, zero_gamma=False, name=name + "preact_")
+    # nn = layer_norm(inputs, name=name + "preact_")
+
+    input_channel = inputs.shape[-1]
+    nn = conv2d_no_bias(preact, input_channel * expansion, kernel_size, name=name + "1_")
+    # nn = activation_by_name(nn, activation=activation, name=name)
+    nn = batchnorm_with_activation(nn, activation=activation, name=name + "ffn_")
     nn = conv2d_no_bias(nn, input_channel, kernel_size, name=name + "2_")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
     return keras.layers.Add()([inputs, nn])
@@ -52,16 +56,19 @@ def res_ffn(inputs, expansion=4, kernel_size=1, drop_rate=0, activation="gelu", 
 
 def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, head_dimension=32, drop_rate=0, activation="gelu", name=""):
     """ x ← Proj(Pool(x)) + Attention (Pool(Norm(x))) """
+    # preact
+    preact = batchnorm_with_activation(inputs, activation=activation, zero_gamma=False, name=name + "preact_")
+    # preact = layer_norm(inputs, name=name + "preact_")
+
     if conv_short_cut:
         # Avg or Max pool
-        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs) if strides > 1 else inputs
+        # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs) if strides > 1 else inputs
+        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(preact) if strides > 1 else preact
         shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shorcut_")
     else:
         shortcut = inputs
 
-    # preact
-    # nn = batchnorm_with_activation(inputs, activation=None, name=name + "preact_")
-    nn = layer_norm(inputs, name=name + "preact_")
+    nn = preact
     if strides != 1:  # Downsample
         # nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
         nn = keras.layers.MaxPool2D(pool_size=2, strides=strides, padding="SAME", name=name + "pool")(nn)
@@ -85,6 +92,7 @@ def CoAtNet(
     activation="gelu",
     drop_connect_rate=0,
     classifier_activation="softmax",
+    drop_rate=0,
     pretrained=None,
     model_name="coatnet",
     kwargs=None,
@@ -117,10 +125,18 @@ def CoAtNet(
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        if drop_rate > 0:
+            nn = keras.layers.Dropout(drop_rate)(nn)
         nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
     return model
+
+def CoAtNetT(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
+    num_blocks = [2, 3, 5, 2]
+    out_channels = [64, 128, 256, 512]
+    stem_width = 64
+    return CoAtNet(**locals(), model_name="coatnett", **kwargs)
 
 
 def CoAtNet0(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
@@ -128,7 +144,6 @@ def CoAtNet0(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cla
     out_channels = [96, 192, 384, 768]
     stem_width = 64
     return CoAtNet(**locals(), model_name="coatnet0", **kwargs)
-
 
 def CoAtNet1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
     num_blocks = [2, 6, 14, 2]

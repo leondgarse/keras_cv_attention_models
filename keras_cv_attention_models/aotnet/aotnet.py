@@ -17,9 +17,7 @@ GROUPS_CONV_PARAMS = {"groups": 32, "kernel_size": 3}
 def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, use_bn=True, activation="relu", name=""):
     nn = inputs
     if attn_type == "mhsa":  # MHSA block
-        num_heads = 4
-        key_dim = filters // num_heads
-        nn = attention_layers.MHSAWithPositionEmbedding(**MHSA_PARAMS, key_dim=key_dim, name=name + "mhsa")(nn)
+        nn = attention_layers.mhsa_with_relative_position_embedding(nn, **MHSA_PARAMS, name=name + "_mhsa_")
     elif attn_type == "halo":  # HaloAttention
         key_dim = filters // num_heads
         nn = attention_layers.HaloAttention(**HALO_PARAMS, key_dim=key_dim, strides=strides, name=name + "halo")(nn)
@@ -70,7 +68,8 @@ def deep_branch(inputs, filters, strides=1, expansion=4, attn_type=None, se_rati
     else:
         nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "deep_1_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "deep_1_")
-    nn = attn_block(nn, filters, strides, attn_type, se_ratio / expansion, True, activation, name=name + "deep_2_")
+    use_bn = not use_3x3_kernel
+    nn = attn_block(nn, filters, strides, attn_type, se_ratio / expansion, use_bn, activation, name=name + "deep_2_")
 
     if not use_3x3_kernel:
         nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "deep_3_")
@@ -178,6 +177,7 @@ def AotNet(
     activation="relu",
     drop_connect_rate=0,
     classifier_activation="softmax",
+    drop_rate=0,
     model_name="aotnet",
     kwargs=None,
 ):
@@ -220,6 +220,8 @@ def AotNet(
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        if drop_rate > 0:
+            nn = keras.layers.Dropout(drop_rate, name="head_drop")(nn)
         nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)

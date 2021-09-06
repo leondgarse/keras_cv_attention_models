@@ -8,7 +8,7 @@ def halo_attention(
     inputs, num_heads=4, key_dim=128, block_size=2, halo_size=1, strides=1, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
 ):
     _, hh, ww, cc = inputs.shape
-    qk_scale = 1.0 / tf.math.sqrt(float(key_dim))
+    qk_scale = 1.0 / tf.math.sqrt(tf.cast(key_dim, inputs.dtype))
     out_shape = cc if out_shape is None or not out_weight else out_shape
     emb_dim = num_heads * key_dim
     final_out_shape = (None, hh // strides, ww // strides, out_shape)

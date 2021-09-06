@@ -114,7 +114,7 @@ def mhsa_with_relative_position_embedding(
 ):
     _, hh, ww, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
-    qk_scale = 1.0 / tf.math.sqrt(float(key_dim))
+    qk_scale = 1.0 / tf.math.sqrt(tf.cast(key_dim, inputs.dtype))
     out_shape = cc if out_shape is None or not out_weight else out_shape
     emb_dim = num_heads * key_dim
     # final_out_shape = (None, hh, ww, out_shape)
