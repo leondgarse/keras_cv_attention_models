@@ -22,8 +22,8 @@ def light_multi_head_self_attention(inputs, num_heads=4, key_dim=0, sr_ratio=1, 
     # print(f">>>> {inputs.shape = }, {query.shape = }, {final_out_shape = }, {strides = }")
     _, query_hh, query_ww, _ = query.shape
     query = tf.reshape(query, [-1, query_hh, query_ww, num_heads, key_dim])
-    pos_query = tf.transpose(query, [0, 3, 1, 2, 4])    # [batch, num_heads, hh, ww, key_dim]
-    attn_query = tf.reshape(pos_query, [-1, num_heads, query_hh * query_ww, key_dim])   # [batch, num_heads, hh * ww, key_dim]
+    pos_query = tf.transpose(query, [0, 3, 1, 2, 4])  # [batch, num_heads, hh, ww, key_dim]
+    attn_query = tf.reshape(pos_query, [-1, num_heads, query_hh * query_ww, key_dim])  # [batch, num_heads, hh * ww, key_dim]
 
     if sr_ratio > 1:
         # key_value = depthwise_conv2d_no_bias(inputs, kernel_size=sr_ratio, strides=sr_ratio, name=name + "kv_sr_")
@@ -38,7 +38,7 @@ def light_multi_head_self_attention(inputs, num_heads=4, key_dim=0, sr_ratio=1, 
     # key_value = tf.reshape(qkv, [-1, hh * ww, 2, num_heads, key_dim])
     # key, value = tf.transpose(key_value, [2, 0, 3, 1, 4])   # [2, batch, num_heads, blocks, key_dim]
     key_value = tf.reshape(key_value, [-1, key_hh * key_ww, key_dim, num_heads, 2])
-    key, value = tf.transpose(key_value, [4, 0, 3, 1, 2])   # [2, batch, num_heads, blocks, key_dim]
+    key, value = tf.transpose(key_value, [4, 0, 3, 1, 2])  # [2, batch, num_heads, blocks, key_dim]
 
     # scaled_dot_product_attention
     # print(f">>>> {attn_query.shape = }, {key.shape = }, {value.shape = }, {kv_inp.shape = }, {pos_query.shape = }")
@@ -82,6 +82,7 @@ def inverted_residual_feed_forward(inputs, expansion=4, activation="gelu", name=
     pw = conv2d_no_bias(dw_out, in_channel, kernel_size=1, use_bias=False, name=name + "3_")
     pw = batchnorm_with_activation(pw, activation=None, name=name + "3_")
     return pw
+
 
 def inverted_residual_feed_forward_2(inputs, expansion=4, activation="gelu", name=""):
     """ IRFFN(X) = Conv(F(Conv(X))), F(X) = DWConv(X) + X """

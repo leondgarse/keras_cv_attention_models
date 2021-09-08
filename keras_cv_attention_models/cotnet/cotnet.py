@@ -86,9 +86,7 @@ def cot_attention(inputs, kernel_size=3, activation="relu", name=""):
     return output
 
 
-def cot_block(
-    inputs, filters, strides=1, shortcut=False, expansion=4, cardinality=1, attn_type="cot", avd_first=True, drop_rate=0, activation="relu", name=""
-):
+def cot_block(inputs, filters, strides=1, shortcut=False, expansion=4, cardinality=1, attn_type="cot", avd_first=True, drop_rate=0, activation="relu", name=""):
     # target_dimension = round(planes * block.expansion * self.rb)
     expanded_filter = round(filters * expansion)
     if shortcut:

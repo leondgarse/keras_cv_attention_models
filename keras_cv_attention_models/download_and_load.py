@@ -1,6 +1,7 @@
 import os
 from tensorflow import keras
 
+
 def reload_model_weights(model, pretrained_dict, sub_release, input_shape=(224, 224, 3), pretrained="imagenet"):
     if model.name not in pretrained_dict or pretrained not in pretrained_dict[model.name]:
         print(">>>> No pretrained available, model will be randomly initialized")

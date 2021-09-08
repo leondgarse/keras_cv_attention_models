@@ -103,7 +103,7 @@ class MyHistory(keras.callbacks.Callback):
         logs = logs or {}
         logs.pop("lr", None)
         lr = self.model.optimizer.lr
-        if hasattr(lr, 'value'):
+        if hasattr(lr, "value"):
             lr = lr.value()
 
         self.history.setdefault("lr", []).append(float(lr))
@@ -127,7 +127,7 @@ class MyHistory(keras.callbacks.Callback):
 
 
 class MyCheckpoint(keras.callbacks.Callback):
-    def __init__(self, basic_save_name, monitor='val_acc', mode="auto", save_path="checkpoints"):
+    def __init__(self, basic_save_name, monitor="val_acc", mode="auto", save_path="checkpoints"):
         super(MyCheckpoint, self).__init__()
         self.monitor_save = os.path.join(save_path, basic_save_name + "_epoch_{}_" + monitor + "_{}.h5")
         self.monitor_save_re = self.monitor_save.format("*", "*")

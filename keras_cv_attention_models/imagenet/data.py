@@ -93,7 +93,7 @@ def cutmix(images, labels, alpha=0.5, min_mix_weight=0.01):
     # Get a sample from the Beta distribution
     batch_size = tf.shape(images)[0]
     _, hh, ww, _ = images.shape
-    mix_weight = sample_beta_distribution(1, alpha, alpha)[0]    # same value in batch
+    mix_weight = sample_beta_distribution(1, alpha, alpha)[0]  # same value in batch
     if mix_weight < min_mix_weight or 1 - mix_weight < min_mix_weight:
         # For input_shape=224, min_mix_weight=0.01, min_height = 224 * 0.1 = 22.4
         return images, labels

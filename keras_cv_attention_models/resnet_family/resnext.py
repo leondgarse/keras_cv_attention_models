@@ -9,6 +9,7 @@ PRETRAINED_DICT = {
     "resnext50d": {"imagenet": "a7b2433b7bee7029fce11ba3fabf3fb9"},
 }
 
+
 def ResNeXt(num_blocks, input_shape=(224, 224, 3), pretrained="imagenet", strides=2, attn_types="groups_conv", **kwargs):
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     model = AotNet(num_blocks, input_shape=input_shape, strides=strides, attn_types=attn_types, **kwargs)
@@ -18,7 +19,7 @@ def ResNeXt(num_blocks, input_shape=(224, 224, 3), pretrained="imagenet", stride
 
 def ResNeXt50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
-    out_channels=[128, 256, 512, 1024]
+    out_channels = [128, 256, 512, 1024]
     expansion = 2
     avg_pool_down = False
     return ResNeXt(**locals(), model_name="resnext50", **kwargs)
@@ -26,7 +27,7 @@ def ResNeXt50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", cl
 
 def ResNeXt101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
-    out_channels=[128, 256, 512, 1024]
+    out_channels = [128, 256, 512, 1024]
     expansion = 2
     avg_pool_down = False
     return ResNeXt(**locals(), model_name="resnext101", **kwargs)
@@ -34,7 +35,7 @@ def ResNeXt101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", c
 
 def ResNeXt50D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
-    out_channels=[128, 256, 512, 1024]
+    out_channels = [128, 256, 512, 1024]
     expansion = 2
     deep_stem = True
     stem_width = 32

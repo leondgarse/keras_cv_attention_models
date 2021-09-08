@@ -374,9 +374,7 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
 
     # First, we create a model that maps the input image to the activations
     # of the last conv layer as well as the output predictions
-    grad_model = tf.keras.models.Model(
-        [model.inputs], [model.get_layer(last_conv_layer_name).output, model.output]
-    )
+    grad_model = tf.keras.models.Model([model.inputs], [model.get_layer(last_conv_layer_name).output, model.output])
 
     # Then, we compute the gradient of the top predicted class for our input image
     # with respect to the activations of the last conv layer
@@ -437,13 +435,13 @@ def make_and_apply_gradcam_heatmap(orign_image, processed_image, model, last_con
     # Use jet colormap to colorize heatmap. Use RGB values of the colormap
     jet = cm.get_cmap("jet")
     jet_colors = jet(tf.range(256))[:, :3]
-    jet_heatmap = jet_colors[tf.cast(heatmap * 255, 'uint8').numpy()]
+    jet_heatmap = jet_colors[tf.cast(heatmap * 255, "uint8").numpy()]
 
     # Create an image with RGB colorized heatmap
-    jet_heatmap = tf.image.resize(jet_heatmap, (orign_image.shape[:2])) # [0, 1]
+    jet_heatmap = tf.image.resize(jet_heatmap, (orign_image.shape[:2]))  # [0, 1]
 
     # Superimpose the heatmap on original image
-    orign_image = orign_image.astype('float32') / 255 if orign_image.max() > 127 else orign_image
+    orign_image = orign_image.astype("float32") / 255 if orign_image.max() > 127 else orign_image
     superimposed_img = (jet_heatmap * alpha + orign_image).numpy()
     superimposed_img /= superimposed_img.max()
     return superimposed_img, heatmap, preds

@@ -19,7 +19,7 @@ def quad_block(inputs, filters, groups_div=32, strides=1, conv_shortcut=False, e
     else:
         shortcut = inputs
 
-    if groups != 1: # Edge block
+    if groups != 1:  # Edge block
         nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "1_")
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
     else:
@@ -84,7 +84,7 @@ def ResNetQ(
     classifier_activation="softmax",
     pretrained="imagenet",
     model_name="resnetq",
-    kwargs=None
+    kwargs=None,
 ):
     inputs = keras.layers.Input(shape=input_shape)
     nn = quad_stem(inputs, stem_width, activation=activation, stem_act=stem_act, name="stem_")
@@ -108,7 +108,7 @@ def ResNetQ(
         nn = quad_stack(nn, num_block, out_channel, cur_groups_div, stride, cur_expansion, cur_extra_conv, stack_drop, activation, name=name)
         global_block_id += num_block
 
-    if num_features != 0:   # efficientnet like
+    if num_features != 0:  # efficientnet like
         nn = conv2d_no_bias(nn, num_features, 1, strides=1, name="features_")
         nn = batchnorm_with_activation(nn, activation=activation, name="features_")
 

@@ -8,6 +8,7 @@ PRETRAINED_DICT = {
     "gmlp_s16": {"imagenet": "cc2d83bc0a7edd257aa6cd58397887e9"},
 }
 
+
 def layer_norm(inputs, name=None):
     """ Typical LayerNormalization with epsilon=1e-5 """
     norm_axis = -1 if K.image_data_format() == "channels_last" else 1

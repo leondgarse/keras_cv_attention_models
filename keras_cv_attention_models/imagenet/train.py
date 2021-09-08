@@ -11,12 +11,14 @@ import tensorflow_addons as tfa
 def train(
     compiled_model,
     epochs,
+    data_name="imagenet2012",
     lr_scheduler=None,
     initial_epoch=0,
     input_shape=(224, 224, 3),
     batch_size=64,
     magnitude=0,
     mixup_alpha=0,
+    cutmix_alpha=0,
     basic_save_name=None,
 ):
     if compiled_model.compiled_loss is None:
@@ -24,7 +26,7 @@ def train(
         return None
 
     train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = data.init_dataset(
-        batch_size=batch_size, input_shape=input_shape, magnitude=magnitude, mixup_alpha=mixup_alpha
+        data_name=data_name, batch_size=batch_size, input_shape=input_shape, magnitude=magnitude, mixup_alpha=mixup_alpha, cutmix_alpha=cutmix_alpha
     )
 
     if hasattr(lr_scheduler, "steps_per_epoch") and lr_scheduler.steps_per_epoch == -1:
@@ -34,7 +36,7 @@ def train(
     # ckpt_path = os.path.join("checkpoints", basic_save_name + "epoch_{epoch:03d}_val_acc_{val_acc:.4f}.h5")
     # cur_callbacks = [keras.callbacks.ModelCheckpoint(ckpt_path, monitor="val_loss", save_best_only=True)]
     # cur_callbacks = [keras.callbacks.ModelCheckpoint(os.path.join("checkpoints", basic_save_name + ".h5"))]
-    cur_callbacks = [callbacks.MyCheckpoint(basic_save_name, monitor='val_acc')]
+    cur_callbacks = [callbacks.MyCheckpoint(basic_save_name, monitor="val_acc")]
     hist_file = os.path.join("checkpoints", basic_save_name + "hist.json")
     if initial_epoch == 0 and os.path.exists(hist_file):
         os.remove(hist_file)
@@ -62,7 +64,7 @@ def train(
     )
 
 
-def plot_hists(hists, names=None, base_size=6, addition_plots=['lr']):
+def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"]):
     import os
     import json
     import matplotlib.pyplot as plt
@@ -116,8 +118,9 @@ if __name__ == "__test__":
     optimizer_wd_base = 1e-2
     magnitude = 5
     mixup_alpha = 0
+    cutmix_alpha = 0
     label_smoothing = 0.1
-    lr_decay_steps = 30 # [30, 60, 90] for constant decay
+    lr_decay_steps = 30  # [30, 60, 90] for constant decay
     lr_warmup = 4
     basic_save_name = None
 
@@ -128,32 +131,35 @@ if __name__ == "__test__":
         # nn = keras.layers.Dropout(0.2)(nn)
         # nn = keras.layers.Dense(1000, activation="softmax", dtype="float32", name="predictions")(nn)
         # model = keras.models.Model(mm.inputs[0], nn, name=mm.name)
-        model = coatnet.CoAtNet0(num_classes=1000, activation='gelu', drop_connect_rate=0.2, drop_rate=0.2)
+        model = coatnet.CoAtNet0(num_classes=1000, activation="gelu", drop_connect_rate=0.2, drop_rate=0.2)
         # model = aotnet.AotNet(num_blocks=[3, 4, 6, 3], strides=[1, 2, 2, 2], activation='swish', preact=True, avg_pool_down=True, drop_connect_rate=0.2, drop_rate=0.2, model_name='aotnet50_swish_preact_avg_down_drop02_mixup_0')
 
         if l2_weight_decay != 0:
             model = model_surgery.add_l2_regularizer_2_model(model, weight_decay=l2_weight_decay, apply_to_batch_normal=False)
 
-        lr_base =  lr_base_512 * batch_size / 512
+        lr_base = lr_base_512 * batch_size / 512
         # optimizer = keras.optimizers.SGD(learning_rate=lr_base, momentum=0.9)
         optimizer = tfa.optimizers.AdamW(lr=lr_base, weight_decay=lr_base * optimizer_wd_base)
         model.compile(optimizer=optimizer, loss=keras.losses.CategoricalCrossentropy(label_smoothing=label_smoothing), metrics=["acc"])
         if isinstance(lr_decay_steps, list):
             constant_lr_sch = lambda epoch: imagenet.constant_scheduler(epoch, lr_base=lr_base, lr_decay_steps=lr_decay_steps, warmup=lr_warmup)
             lr_scheduler = keras.callbacks.LearningRateScheduler(constant_lr_sch)
-            epoch = lr_decay_steps[-1] +lr_decay_steps[0] + lr_warmup   # 124 for lr_decay_steps=[30, 60, 90], lr_warmup=4
+            epochs = lr_decay_steps[-1] + lr_decay_steps[0] + lr_warmup  # 124 for lr_decay_steps=[30, 60, 90], lr_warmup=4
         else:
-            lr_scheduler = imagenet.CosineLrScheduler(lr_base, first_restart_step=lr_decay_steps, m_mul=0.5, t_mul=2.0, lr_min=1e-05, warmup=lr_warmup, steps_per_epoch=-1)
-            epoch = lr_decay_steps * 3 + lr_warmup  # 94 for lr_decay_steps=30, lr_warmup=4
+            lr_scheduler = imagenet.CosineLrScheduler(
+                lr_base, first_restart_step=lr_decay_steps, m_mul=0.5, t_mul=2.0, lr_min=1e-05, warmup=lr_warmup, steps_per_epoch=-1
+            )
+            epochs = lr_decay_steps * 3 + lr_warmup  # 94 for lr_decay_steps=30, lr_warmup=4
 
         imagenet.train(
             model,
-            epochs=epoch,
+            epochs=epochs,
             initial_epoch=0,
             lr_scheduler=lr_scheduler,
             input_shape=input_shape,
             batch_size=batch_size,
             magnitude=magnitude,
             mixup_alpha=mixup_alpha,
+            cutmix_alpha=cutmix_alpha,
             basic_save_name=basic_save_name,
         )

@@ -211,15 +211,15 @@ def attention_mlp_block(inputs, embed_dim, num_head=1, mlp_ratio=3, attention_ty
         nn_1 = outlook_attention_simple(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
     elif attention_type == "class":
         # nn_1 = class_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
-        nn_1 = keras.layers.MultiHeadAttention(num_heads=num_head, key_dim=embed_dim // num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa")(
-            nn_1[:, :1, :], nn_1
-        )
+        nn_1 = keras.layers.MultiHeadAttention(
+            num_heads=num_head, key_dim=embed_dim // num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa"
+        )(nn_1[:, :1, :], nn_1)
         nn_1 = BiasLayer(name=name + "attn_bias")(nn_1)  # bias for output dense
     elif attention_type == "mhsa":
         # nn_1 = multi_head_self_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
-        nn_1 = keras.layers.MultiHeadAttention(num_heads=num_head, key_dim=embed_dim // num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa")(
-            nn_1, nn_1
-        )
+        nn_1 = keras.layers.MultiHeadAttention(
+            num_heads=num_head, key_dim=embed_dim // num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa"
+        )(nn_1, nn_1)
         nn_1 = BiasLayer(name=name + "attn_bias")(nn_1)  # bias for output dense
 
     if drop_rate > 0:

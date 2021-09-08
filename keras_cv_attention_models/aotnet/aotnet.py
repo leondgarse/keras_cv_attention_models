@@ -163,7 +163,7 @@ def AotNet(
     num_blocks,
     preact=False,
     strides=[1, 2, 2, 1],
-    strides_first=True, # True for resnet, False for resnetv2
+    strides_first=True,  # True for resnet, False for resnetv2
     out_channels=[64, 128, 256, 512],
     expansion=4,
     stem_width=64,
@@ -194,7 +194,7 @@ def AotNet(
         nn = keras.layers.ZeroPadding2D(padding=1, name="stem_pool_pad")(nn)
         nn = keras.layers.MaxPooling2D(pool_size=3, strides=2, name="stem_pool")(nn)
 
-    block_params = { # params same for all blocks
+    block_params = {  # params same for all blocks
         "preact": preact,
         "use_3x3_kernel": use_3x3_kernel,
         "avg_pool_down": avg_pool_down,

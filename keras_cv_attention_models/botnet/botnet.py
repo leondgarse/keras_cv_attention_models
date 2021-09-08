@@ -46,12 +46,14 @@ class RelativePositionalEmbedding(keras.layers.Layer):
 
     def get_config(self):
         base_config = super(RelativePositionalEmbedding, self).get_config()
-        base_config.update({
-            "position_height": self.position_height,
-            "position_width": self.position_width,
-            "use_absolute_pos": self.use_absolute_pos,
-            "dynamic_shape": self.dynamic_shape,
-        })
+        base_config.update(
+            {
+                "position_height": self.position_height,
+                "position_width": self.position_width,
+                "use_absolute_pos": self.use_absolute_pos,
+                "dynamic_shape": self.dynamic_shape,
+            }
+        )
         return base_config
 
     def rel_to_abs(self, rel_pos):

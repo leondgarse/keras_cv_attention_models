@@ -28,7 +28,7 @@ def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion
 
     # MBConv
     input_channel = inputs.shape[-1]
-    nn = conv2d_no_bias(preact, input_channel * expansion, 1, strides=1, padding="same", name=name + "expand_") # May swap stirdes with DW
+    nn = conv2d_no_bias(preact, input_channel * expansion, 1, strides=1, padding="same", name=name + "expand_")  # May swap stirdes with DW
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "expand_")
     nn = depthwise_conv2d_no_bias(nn, 3, strides=strides, padding="same", name=name + "MB_")
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "MB_dw_")
@@ -132,6 +132,7 @@ def CoAtNet(
     model = keras.models.Model(inputs, nn, name=model_name)
     return model
 
+
 def CoAtNetT(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
     num_blocks = [2, 3, 5, 2]
     out_channels = [64, 128, 256, 512]
@@ -144,6 +145,7 @@ def CoAtNet0(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cla
     out_channels = [96, 192, 384, 768]
     stem_width = 64
     return CoAtNet(**locals(), model_name="coatnet0", **kwargs)
+
 
 def CoAtNet1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
     num_blocks = [2, 6, 14, 2]

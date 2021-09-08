@@ -532,9 +532,7 @@ def unwrap(image: tf.Tensor, replace: int) -> tf.Tensor:
     replace = tf.concat([replace, tf.ones([1], image.dtype)], 0)
 
     # Where they are zero, fill them in with 'replace'.
-    flattened_image = tf.where(
-        tf.equal(alpha_channel, 0), tf.ones_like(flattened_image, dtype=image.dtype) * replace, flattened_image
-    )
+    flattened_image = tf.where(tf.equal(alpha_channel, 0), tf.ones_like(flattened_image, dtype=image.dtype) * replace, flattened_image)
 
     image = tf.reshape(flattened_image, image_shape)
     image = tf.slice(image, [0, 0, 0], [image_shape[0], image_shape[1], 3])
@@ -668,9 +666,7 @@ def level_to_arg(cutout_const: float, translate_const: float):
     return args
 
 
-def _parse_policy_info(
-    name: Text, prob: float, level: float, replace_value: List[int], cutout_const: float, translate_const: float
-) -> Tuple[Any, float, Any]:
+def _parse_policy_info(name: Text, prob: float, level: float, replace_value: List[int], cutout_const: float, translate_const: float) -> Tuple[Any, float, Any]:
     """Return the function that corresponds to `name` and update `level` param."""
     func = NAME_TO_FUNC[name]
     args = level_to_arg(cutout_const, translate_const)[name](level)
@@ -875,9 +871,7 @@ class RandAugment(ImageAugment):
     RandAugment is from the paper https://arxiv.org/abs/1909.13719,
     """
 
-    def __init__(
-        self, num_layers: int = 2, magnitude: float = 10.0, cutout_const: float = 40.0, translate_const: float = 100.0
-    ):
+    def __init__(self, num_layers: int = 2, magnitude: float = 10.0, cutout_const: float = 40.0, translate_const: float = 100.0):
         """Applies the RandAugment policy to images.
 
         Args:
@@ -939,9 +933,7 @@ class RandAugment(ImageAugment):
             branch_fns = []
             for (i, op_name) in enumerate(self.available_ops):
                 prob = tf.random.uniform([], minval=min_prob, maxval=max_prob, dtype=tf.float32)
-                func, _, args = _parse_policy_info(
-                    op_name, prob, self.magnitude, replace_value, self.cutout_const, self.translate_const
-                )
+                func, _, args = _parse_policy_info(op_name, prob, self.magnitude, replace_value, self.cutout_const, self.translate_const)
                 branch_fns.append(
                     (
                         i,

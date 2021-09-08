@@ -8,6 +8,7 @@ PRETRAINED_DICT = {
     "resnet200d": {"imagenet": "39d9050953e8d4fe9c672620542dd24d"},
 }
 
+
 def ResNetD(num_blocks, input_shape=(224, 224, 3), pretrained="imagenet", deep_stem=True, stem_width=64, strides=2, avg_pool_down=True, **kwargs):
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     model = AotNet(num_blocks, input_shape=input_shape, deep_stem=deep_stem, stem_width=stem_width, strides=strides, avg_pool_down=avg_pool_down, **kwargs)

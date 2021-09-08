@@ -8,6 +8,7 @@ LAYER_NORM_EPSILON = 1e-5
 CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
 # CONV_KERNEL_INITIALIZER = 'glorot_uniform'
 
+
 @tf.keras.utils.register_keras_serializable(package="common")
 def hard_swish(inputs):
     """ `out = xx * relu6(xx + 3) / 6`, arxiv: https://arxiv.org/abs/1905.02244 """
@@ -85,7 +86,13 @@ def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", us
     if padding.upper() == "SAME" and pad != 0:
         inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "dw_pad")(inputs)
     return keras.layers.DepthwiseConv2D(
-        kernel_size, strides=strides, padding="valid", use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "dw_conv", **kwargs,
+        kernel_size,
+        strides=strides,
+        padding="valid",
+        use_bias=use_bias,
+        kernel_initializer=CONV_KERNEL_INITIALIZER,
+        name=name and name + "dw_conv",
+        **kwargs,
     )(inputs)
 
 
@@ -116,6 +123,7 @@ def drop_block(inputs, drop_rate=0, name=None):
 
 def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trainable=False, name=None):
     """ DepthwiseConv2D performing anti-aliasing downsample, arxiv: https://arxiv.org/pdf/1904.11486.pdf """
+
     def anti_alias_downsample_initializer(weight_shape, dtype="float32"):
         import numpy as np
 
