@@ -137,19 +137,23 @@ def stack(inputs, blocks, filters, strides=2, strides_first=True, expansion=4, a
     return nn
 
 
-def stem(inputs, stem_width, activation="relu", deep_stem=False, quad_stem=False, name=""):
+def aot_stem(inputs, stem_width, activation="relu", deep_stem=False, quad_stem=False, quad_stem_act=False, name=""):
     if deep_stem:
-        nn = conv2d_no_bias(inputs, stem_width, 3, strides=2, padding="same", name=name + "1_")
+        nn = conv2d_no_bias(inputs, stem_width // 2, 3, strides=2, padding="same", name=name + "1_")
         nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
-        nn = conv2d_no_bias(nn, stem_width, 3, strides=1, padding="same", name=name + "2_")
-        nn = batchnorm_with_activation(nn, activation=activation, name=name + "2_")
-        nn = conv2d_no_bias(nn, stem_width * 2, 3, strides=1, padding="same", name=name + "3_")
-    elif quad_stem:
-        nn = conv2d_no_bias(inputs, stem_width // 4, 3, strides=2, padding="same", name=name + "1_")
         nn = conv2d_no_bias(nn, stem_width // 2, 3, strides=1, padding="same", name=name + "2_")
+        nn = batchnorm_with_activation(nn, activation=activation, name=name + "2_")
         nn = conv2d_no_bias(nn, stem_width, 3, strides=1, padding="same", name=name + "3_")
+    elif quad_stem:
+        nn = conv2d_no_bias(inputs, stem_width // 8, 3, strides=2, padding="same", name=name + "1_")
+        if quad_stem_act:
+            nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
+        nn = conv2d_no_bias(nn, stem_width // 4, 3, strides=1, padding="same", name=name + "2_")
+        if quad_stem_act:
+            nn = batchnorm_with_activation(nn, activation=activation, name=name + "2_")
+        nn = conv2d_no_bias(nn, stem_width // 2, 3, strides=1, padding="same", name=name + "3_")
         nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
-        nn = conv2d_no_bias(nn, stem_width * 2, 3, strides=2, padding="same", name=name + "4_")
+        nn = conv2d_no_bias(nn, stem_width, 3, strides=2, padding="same", name=name + "4_")
     else:
         nn = conv2d_no_bias(inputs, stem_width, 7, strides=2, padding="same", name=name)
     return nn
@@ -182,7 +186,7 @@ def AotNet(
     kwargs=None,
 ):
     inputs = keras.layers.Input(shape=input_shape)
-    nn = stem(inputs, stem_width, activation=activation, deep_stem=deep_stem, quad_stem=quad_stem, name="stem_")
+    nn = aot_stem(inputs, stem_width, activation=activation, deep_stem=deep_stem, quad_stem=quad_stem, name="stem_")
 
     if not preact:
         nn = batchnorm_with_activation(nn, activation=activation, name="stem_")
