@@ -124,3 +124,29 @@ class MyHistory(keras.callbacks.Callback):
         for kk, vv in self.history.items():
             print("  '%s': %s," % (kk, vv))
         print("}")
+
+
+class MyCheckpoint(keras.callbacks.Callback):
+    def __init__(self, basic_save_name, monitor='val_acc', mode="auto", save_path="checkpoints"):
+        super(MyCheckpoint, self).__init__()
+        self.monitor_save = os.path.join(save_path, basic_save_name + "_epoch_{}_" + monitor + "_{}.h5")
+        self.monitor_save_re = self.monitor_save.format("*", "*")
+        self.latest_save = os.path.join(save_path, basic_save_name + "_latest.h5")
+        self.monitor, self.save_best_only = monitor, save_best_only
+        self.is_better = (lambda cur, pre: cur <= pre) if mode == "min" or "loss" in monitor else (lambda cur, pre: cur >= pre)
+        self.pre_best = 1e5 if mode == "min" or "loss" in monitor else -1e5
+
+    def on_epoch_end(self, epoch, logs={}):
+        # tf.print(">>>> Save latest to:", self.latest_save)
+        self.model.save(self.latest_save)
+
+        cur_monitor_val = logs.get(self.monitor, 0)
+        if self.is_better(cur_monitor_val, self.pre_best):
+            self.pre_best = cur_monitor_val
+            pre_monitor_saves = tf.io.gfile.glob(self.monitor_save_re)
+            # tf.print(">>>> pre_monitor_saves:", pre_monitor_saves)
+            if len(pre_monitor_saves) != 0:
+                os.remove(pre_monitor_saves[0])
+            monitor_save = self.monitor_save.format(epoch, cur_monitor_val)
+            tf.print(">>>> Save best to:", monitor_save)
+            self.model.save(monitor_save)

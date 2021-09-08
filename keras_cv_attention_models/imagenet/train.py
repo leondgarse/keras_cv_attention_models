@@ -31,9 +31,10 @@ def train(
         lr_scheduler.build(steps_per_epoch)
     if basic_save_name is None:
         basic_save_name = "{}_imagenet_batch_size_{}_randaug_{}_mixup_{}".format(compiled_model.name, batch_size, magnitude, mixup_alpha)
-    # ckpt_path = os.path.join("checkpoints", basic_save_name + "epoch_{epoch:02d}_val_acc_{val_acc:.2f}.h5")
+    # ckpt_path = os.path.join("checkpoints", basic_save_name + "epoch_{epoch:03d}_val_acc_{val_acc:.4f}.h5")
     # cur_callbacks = [keras.callbacks.ModelCheckpoint(ckpt_path, monitor="val_loss", save_best_only=True)]
-    cur_callbacks = [keras.callbacks.ModelCheckpoint(os.path.join("checkpoints", basic_save_name + ".h5"))]
+    # cur_callbacks = [keras.callbacks.ModelCheckpoint(os.path.join("checkpoints", basic_save_name + ".h5"))]
+    cur_callbacks = [callbacks.MyCheckpoint(basic_save_name, monitor='val_acc')]
     hist_file = os.path.join("checkpoints", basic_save_name + "hist.json")
     if initial_epoch == 0 and os.path.exists(hist_file):
         os.remove(hist_file)
@@ -61,12 +62,13 @@ def train(
     )
 
 
-def plot_hists(hists, names=None, base_size=6):
+def plot_hists(hists, names=None, base_size=6, addition_plots=['lr']):
     import os
     import json
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(1, 2, figsize=(2 * base_size, base_size))
+    num_axes = 3 if addition_plots is not None and len(addition_plots) != 0 else 2
+    fig, axes = plt.subplots(1, num_axes, figsize=(num_axes * base_size, base_size))
     for id, hist in enumerate(hists):
         name = names[id] if names != None else None
         if isinstance(hist, str):
@@ -86,6 +88,9 @@ def plot_hists(hists, names=None, base_size=6):
             color=color,
             linestyle="--",
         )
+        if addition_plots is not None and len(addition_plots) != 0:
+            for ii in addition_plots:
+                axes[2].plot(hist[ii], label=name + " " + ii)
     for ax in axes:
         ax.legend()
         ax.grid()
