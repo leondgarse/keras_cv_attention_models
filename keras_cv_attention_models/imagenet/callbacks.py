@@ -132,7 +132,7 @@ class MyCheckpoint(keras.callbacks.Callback):
         self.monitor_save = os.path.join(save_path, basic_save_name + "_epoch_{}_" + monitor + "_{}.h5")
         self.monitor_save_re = self.monitor_save.format("*", "*")
         self.latest_save = os.path.join(save_path, basic_save_name + "_latest.h5")
-        self.monitor, self.save_best_only = monitor, save_best_only
+        self.monitor = monitor
         self.is_better = (lambda cur, pre: cur <= pre) if mode == "min" or "loss" in monitor else (lambda cur, pre: cur >= pre)
         self.pre_best = 1e5 if mode == "min" or "loss" in monitor else -1e5
 
