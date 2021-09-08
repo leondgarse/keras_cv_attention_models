@@ -39,7 +39,6 @@ Model architectures:
   | CMTXS    | 15.2M  | 192              | 81.8     |
   | CMTSmall | 25.1M  | 224              | 83.5     |
   | CMTBig   | 45.7M  | 256              | 84.5     |
-  | CMTL     | 74.7M  | 288              | 84.8     |
 """
 
 CMTTiny.__doc__ = __head_doc__ + """

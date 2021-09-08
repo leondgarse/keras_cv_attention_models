@@ -3,7 +3,7 @@
 
 ## Summary
 - CMT article: [PDF 2107.06263 CoAtNet: CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf)
-- [Github FlyEgle/CMT-pytorch](https://github.com/FlyEgle/CMT-pytorch)
+- [Github wilile26811249/CMT_CNN-meet-Vision-Transformer](https://github.com/wilile26811249/CMT_CNN-meet-Vision-Transformer)
 - No pretraind available.
 ***
 

@@ -249,4 +249,5 @@
   - [Github ypeleg/nfnets-keras](https://github.com/ypeleg/nfnets-keras)
   - [Github faustomorales/vit-keras](https://github.com/faustomorales/vit-keras)
   - [Github tensorflow/resnet_rs](https://github.com/tensorflow/tpu/tree/master/models/official/resnet/resnet_rs)
+  - [perceiver_image_classification](https://keras.io/examples/vision/perceiver_image_classification/)
 ***
