@@ -7,6 +7,8 @@ from keras_cv_attention_models.model_surgery.model_surgery import (
     convert_to_fused_conv_bn_model,
     get_actual_survival_probabilities,
     get_actual_drop_connect_rates,
+    make_gradcam_heatmap,
+    make_and_apply_gradcam_heatmap,
     replace_ReLU,
     replace_add_with_drop_connect,
     replace_add_with_stochastic_depth,

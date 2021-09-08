@@ -350,3 +350,100 @@ def convert_to_fused_conv_bn_model(model):
         else:
             layer.set_weights(orign_layer.get_weights())
     return new_model
+
+
+def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
+    """
+    Copied From: https://keras.io/examples/vision/grad_cam/
+
+    Example:
+    >>> from keras_cv_attention_models import model_surgery
+    >>> from skimage.data import chelsea
+    >>> mm = keras.applications.Xception()
+    >>> orign_image = chelsea().astype('float32')
+    >>> img = tf.expand_dims(tf.image.resize(orign_image, mm.input_shape[1:-1]), 0)
+    >>> img = keras.applications.imagenet_utils.preprocess_input(img, mode='tf')
+    >>> heatmap, preds = model_surgery.make_gradcam_heatmap(img, mm, 'block14_sepconv2_act')
+    >>> print(f"{preds.shape = }, {heatmap.shape = }, {heatmap.max() = }, {heatmap.min() = }")
+    # preds.shape = (1, 1000), heatmap.shape = (10, 10), heatmap.max() = 1.0, heatmap.min() = 0.0
+    >>> print(keras.applications.imagenet_utils.decode_predictions(preds)[0][0])
+    # ('n02124075', 'Egyptian_cat', 0.8749054)
+
+    >>> plt.imshow(heatmap)
+    """
+
+    # First, we create a model that maps the input image to the activations
+    # of the last conv layer as well as the output predictions
+    grad_model = tf.keras.models.Model(
+        [model.inputs], [model.get_layer(last_conv_layer_name).output, model.output]
+    )
+
+    # Then, we compute the gradient of the top predicted class for our input image
+    # with respect to the activations of the last conv layer
+    with tf.GradientTape() as tape:
+        last_conv_layer_output, preds = grad_model(img_array)
+        if pred_index is None:
+            pred_index = tf.argmax(preds[0])
+        class_channel = preds[:, pred_index]
+
+    # This is the gradient of the output neuron (top predicted or chosen)
+    # with regard to the output feature map of the last conv layer
+    grads = tape.gradient(class_channel, last_conv_layer_output)
+
+    # This is a vector where each entry is the mean intensity of the gradient
+    # over a specific feature map channel
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+
+    # We multiply each channel in the feature map array
+    # by "how important this channel is" with regard to the top predicted class
+    # then sum all the channels to obtain the heatmap class activation
+    last_conv_layer_output = last_conv_layer_output[0]
+    heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
+    heatmap = tf.squeeze(heatmap)
+
+    # For visualization purpose, we will also normalize the heatmap between 0 & 1
+    heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
+    return heatmap.numpy(), preds.numpy()
+
+
+def make_and_apply_gradcam_heatmap(orign_image, processed_image, model, last_conv_layer_name, pred_index=None, alpha=0.4):
+    """
+    Copied From: https://keras.io/examples/vision/grad_cam/
+
+    Example:
+    >>> from keras_cv_attention_models import model_surgery
+    >>> from skimage.data import chelsea
+    >>> mm = keras.applications.Xception()
+    >>> orign_image = chelsea().astype('float32')
+    >>> img = tf.expand_dims(tf.image.resize(orign_image, mm.input_shape[1:-1]), 0)
+    >>> img = keras.applications.imagenet_utils.preprocess_input(img, mode='tf')
+    >>> superimposed_img, heatmap, preds = model_surgery.make_and_apply_gradcam_heatmap(orign_image, img, mm, "block14_sepconv2_act")
+    >>> # Ouput info
+    >>> print(f"{preds.shape = }, {heatmap.shape = }, {heatmap.max() = }, {heatmap.min() = }")
+    # preds.shape = (1, 1000), heatmap.shape = (10, 10), heatmap.max() = 1.0, heatmap.min() = 0.0
+    >>> print(keras.applications.imagenet_utils.decode_predictions(preds)[0][0])
+    # ('n02124075', 'Egyptian_cat', 0.8749054)
+    >>> print(f"{superimposed_img.shape = }, {superimposed_img.max() = }, {superimposed_img.min() = }")
+    # superimposed_img.shape = (300, 451, 3), superimposed_img.max() = 1.0, superimposed_img.min() = 0.0
+
+
+    >>> plt.imshow(superimposed_img)
+    """
+
+    import matplotlib.cm as cm
+
+    heatmap, preds = make_gradcam_heatmap(processed_image, model, last_conv_layer_name, pred_index=pred_index)
+
+    # Use jet colormap to colorize heatmap. Use RGB values of the colormap
+    jet = cm.get_cmap("jet")
+    jet_colors = jet(tf.range(256))[:, :3]
+    jet_heatmap = jet_colors[tf.cast(heatmap * 255, 'uint8').numpy()]
+
+    # Create an image with RGB colorized heatmap
+    jet_heatmap = tf.image.resize(jet_heatmap, (orign_image.shape[:2])) # [0, 1]
+
+    # Superimpose the heatmap on original image
+    orign_image = orign_image.astype('float32') / 255 if orign_image.max() > 127 else orign_image
+    superimposed_img = (jet_heatmap * alpha + orign_image).numpy()
+    superimposed_img /= superimposed_img.max()
+    return superimposed_img, heatmap, preds
