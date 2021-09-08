@@ -11,9 +11,9 @@ import tensorflow_addons as tfa
 def train(
     compiled_model,
     epochs,
+    initial_epoch=0,
     data_name="imagenet2012",
     lr_scheduler=None,
-    initial_epoch=0,
     input_shape=(224, 224, 3),
     batch_size=64,
     magnitude=0,
@@ -48,7 +48,7 @@ def train(
         print(">>>> Append weight decay callback...")
         lr_base, wd_base = compiled_model.optimizer.lr.numpy(), compiled_model.optimizer.weight_decay.numpy()
         is_lr_on_batch = isinstance(lr_scheduler, callbacks.CosineLrScheduler)
-        wd_callback = myCallbacks.OptimizerWeightDecay(lr_base, wd_base, is_lr_on_batch=is_lr_on_batch)
+        wd_callback = callbacks.OptimizerWeightDecay(lr_base, wd_base, is_lr_on_batch=is_lr_on_batch)
         cur_callbacks.append(wd_callback)  # should be after lr_scheduler
 
     compiled_model.fit(
@@ -113,9 +113,9 @@ if __name__ == "__test__":
 
     input_shape = (224, 224, 3)
     batch_size = 128 * strategy.num_replicas_in_sync
-    lr_base_512 = 0.01
+    lr_base_512 = 1e-3
     l2_weight_decay = 0
-    optimizer_wd_base = 1e-2
+    optimizer_wd_mul = 1e-1
     magnitude = 5
     mixup_alpha = 0
     cutmix_alpha = 0
@@ -123,6 +123,8 @@ if __name__ == "__test__":
     lr_decay_steps = 30  # [30, 60, 90] for constant decay
     lr_warmup = 4
     basic_save_name = None
+    data_name = "cifar10"
+    num_classes = 10
 
     with strategy.scope():
         # mm = keras.applications.ResNet50V2(include_top=False, input_shape=input_shape, weights=None)
@@ -131,15 +133,17 @@ if __name__ == "__test__":
         # nn = keras.layers.Dropout(0.2)(nn)
         # nn = keras.layers.Dense(1000, activation="softmax", dtype="float32", name="predictions")(nn)
         # model = keras.models.Model(mm.inputs[0], nn, name=mm.name)
-        model = coatnet.CoAtNet0(num_classes=1000, activation="gelu", drop_connect_rate=0.2, drop_rate=0.2)
+        model = coatnet.CoAtNet0(input_shape=input_shape, num_classes=num_classes, activation="gelu", drop_connect_rate=0.2, drop_rate=0.2)
         # model = aotnet.AotNet(num_blocks=[3, 4, 6, 3], strides=[1, 2, 2, 2], activation='swish', preact=True, avg_pool_down=True, drop_connect_rate=0.2, drop_rate=0.2, model_name='aotnet50_swish_preact_avg_down_drop02_mixup_0')
 
         if l2_weight_decay != 0:
             model = model_surgery.add_l2_regularizer_2_model(model, weight_decay=l2_weight_decay, apply_to_batch_normal=False)
 
         lr_base = lr_base_512 * batch_size / 512
-        # optimizer = keras.optimizers.SGD(learning_rate=lr_base, momentum=0.9)
-        optimizer = tfa.optimizers.AdamW(lr=lr_base, weight_decay=lr_base * optimizer_wd_base)
+        if optimizer_wd_mul > 0:
+            optimizer = tfa.optimizers.AdamW(learning_rate=lr_base, weight_decay=lr_base * optimizer_wd_mul)
+        else:
+            optimizer = keras.optimizers.SGD(learning_rate=lr_base, momentum=0.9)
         model.compile(optimizer=optimizer, loss=keras.losses.CategoricalCrossentropy(label_smoothing=label_smoothing), metrics=["acc"])
         if isinstance(lr_decay_steps, list):
             constant_lr_sch = lambda epoch: imagenet.constant_scheduler(epoch, lr_base=lr_base, lr_decay_steps=lr_decay_steps, warmup=lr_warmup)
@@ -155,6 +159,7 @@ if __name__ == "__test__":
             model,
             epochs=epochs,
             initial_epoch=0,
+            data_name=data_name,
             lr_scheduler=lr_scheduler,
             input_shape=input_shape,
             batch_size=batch_size,
