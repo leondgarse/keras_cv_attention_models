@@ -299,7 +299,39 @@ def convert_mixed_float16_to_float32(model):
     return keras.models.clone_model(model, input_tensors=input_tensors, clone_function=do_convert_to_mixed_float16)
 
 
+def fuse_conv_bn(conv_layer, bn_layer):
+    # BatchNormalization returns: gamma * (batch - self.moving_mean) / sqrt(self.moving_var + epsilon) + beta
+    # --> conv_w_new = gamma * conv_w / np.sqrt(var + epsilon)
+    # --> conv_b_new = gamma * (conv_b - mean) / sqrt(var + epsilon) + beta
+    batch_std = tf.sqrt(bn_layer.moving_variance + bn_layer.epsilon)
+    if isinstance(conv_layer, keras.layers.DepthwiseConv2D):
+        ww = tf.transpose(conv_layer.depthwise_kernel, [0, 1, 3, 2]) * bn_layer.gamma / batch_std
+        ww = tf.transpose(ww, [0, 1, 3, 2])
+    else:
+        ww = conv_layer.kernel * bn_layer.gamma / batch_std
+
+    if conv_layer.use_bias:
+        bias = bn_layer.gamma * (conv_layer.bias - bn_layer.moving_mean) / batch_std + bn_layer.beta
+    else:
+        bias = bn_layer.gamma * (-1 * bn_layer.moving_mean) / batch_std + bn_layer.beta
+
+    cc = conv_layer.get_config()
+    cc["use_bias"] = True
+    fused_conv_bn = conv_layer.__class__.from_config(cc)
+    fused_conv_bn.build(conv_layer.input_shape)
+    fused_conv_bn.set_weights([ww, bias])
+    return fused_conv_bn
+
+
 def convert_to_fused_conv_bn_model(model):
+    """
+    Convert model by fusing Conv + batchnorm
+
+    Exampls:
+    >>> from keras_cv_attention_models import model_surgery
+    >>> mm = keras.applications.ResNet50()
+    >>> bb = model_surgery.convert_to_fused_conv_bn_model(mm)
+    """
     import json
 
     """ Check bn layers with conv layer input """
@@ -313,7 +345,7 @@ def convert_to_fused_conv_bn_model(model):
             if isinstance(input_node, list) and ee.get(input_node[0], {"class_name": None})["class_name"] in conv_names:
                 fuse_convs.append(input_node[0])
                 fuse_bns.append(layer["name"])
-    print(f">>>> {len(fuse_convs) = }, {len(fuse_bns) = }")
+    print(">>>> len(fuse_convs) =", len(fuse_convs), "len(fuse_bns) =", len(fuse_bns))
     # len(fuse_convs) = 53, len(fuse_bns) = 53
 
     """ Create new model config """
