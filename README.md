@@ -16,6 +16,7 @@
   - [HaloNet](#halonet)
   - [CoTNet](#cotnet)
   - [CoAtNet](#coatnet)
+  - [CMT](#cmt)
   - [CoaT](#coat)
   - [MLP mixer](#mlp-mixer)
   - [ResMLP](#resmlp)
@@ -190,6 +191,15 @@
   | CoAtNet-3, ImageNet-21k pretrain     | 168M   | 512              | 87.9     |
   | CoAtNet-4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |
   | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
+## CMT
+  - [Keras CMT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cmt) is for [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf).
+
+  | Model    | Params | Image resolution | Top1 Acc |
+  | -------- | ------ | ---------------- | -------- |
+  | CMTTiny  | 9.5M   | 160              | 79.2     |
+  | CMTXS    | 15.2M  | 192              | 81.8     |
+  | CMTSmall | 25.1M  | 224              | 83.5     |
+  | CMTBig   | 45.7M  | 256              | 84.5     |
 ## CoaT
   - [Keras CoaT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coat) is for [PDF 2104.06399 CoaT: Co-Scale Conv-Attentional Image Transformers](http://arxiv.org/abs/2104.06399).
 

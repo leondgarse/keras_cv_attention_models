@@ -2,7 +2,7 @@
 ***
 
 ## Summary
-- CMT article: [PDF 2107.06263 CoAtNet: CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf)
+- CMT article: [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf)
 - [Github wilile26811249/CMT_CNN-meet-Vision-Transformer](https://github.com/wilile26811249/CMT_CNN-meet-Vision-Transformer)
 - No pretraind available.
 ***
@@ -49,7 +49,8 @@
   )
   epochs = 16 * 3 + 4
   imagenet.train(
-      model, epochs=epochs, data_name="cifar10", lr_scheduler=lr_scheduler, input_shape=input_shape, batch_size=batch_size, magnitude=10
+      model, epochs=epochs, data_name="cifar10", lr_scheduler=lr_scheduler, input_shape=input_shape,
+      batch_size=batch_size, magnitude=10
   )
   ```
   ![](cmt-tiny-cifar10.svg)
