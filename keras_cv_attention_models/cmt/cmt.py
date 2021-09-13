@@ -26,9 +26,10 @@ def light_multi_head_self_attention(inputs, num_heads=4, key_dim=0, sr_ratio=1, 
     attn_query = tf.reshape(pos_query, [-1, num_heads, query_hh * query_ww, key_dim])  # [batch, num_heads, hh * ww, key_dim]
 
     if sr_ratio > 1:
-        # key_value = depthwise_conv2d_no_bias(inputs, kernel_size=sr_ratio, strides=sr_ratio, name=name + "kv_sr_")
-        # key_value = layer_norm(key_value, name=name+"kv_sr_")
-        key_value = inputs[:, ::sr_ratio, ::sr_ratio, :]
+        key_value = depthwise_conv2d_no_bias(inputs, kernel_size=sr_ratio, strides=sr_ratio, name=name + "kv_sr_")
+        # key_value = conv2d_no_bias(inputs, inputs.shape[-1], kernel_size=sr_ratio, strides=sr_ratio, name=name + "kv_sr_")
+        key_value = layer_norm(key_value, name=name+"kv_sr_")
+        # key_value = inputs[:, ::sr_ratio, ::sr_ratio, :]
     else:
         key_value = inputs
 
@@ -72,10 +73,11 @@ def light_multi_head_self_attention(inputs, num_heads=4, key_dim=0, sr_ratio=1, 
 def inverted_residual_feed_forward(inputs, expansion=4, activation="gelu", name=""):
     """ IRFFN(X) = Conv(F(Conv(X))), F(X) = DWConv(X) + X """
     in_channel = inputs.shape[-1]
-    expanded = conv2d_no_bias(inputs, int(in_channel * expansion), kernel_size=1, use_bias=False, name=name + "1_")
+    expanded = conv2d_no_bias(inputs, int(in_channel * expansion), kernel_size=1, use_bias=True, name=name + "1_")
     expanded = batchnorm_with_activation(expanded, activation=activation, act_first=True, name=name + "1_")
 
-    dw = depthwise_conv2d_no_bias(expanded, kernel_size=3, padding="SAME", name=name)
+    dw = depthwise_conv2d_no_bias(expanded, kernel_size=3, padding="SAME", use_bias=True, name=name)
+    # dw = batchnorm_with_activation(dw, activation=activation, act_first=True, name=name + "2_")
     dw_out = keras.layers.Add(name=name + "dw_out")([expanded, dw])
     dw_out = batchnorm_with_activation(dw_out, activation=activation, act_first=True, name=name + "2_")
 
@@ -87,13 +89,13 @@ def inverted_residual_feed_forward(inputs, expansion=4, activation="gelu", name=
 def inverted_residual_feed_forward_2(inputs, expansion=4, activation="gelu", name=""):
     """ IRFFN(X) = Conv(F(Conv(X))), F(X) = DWConv(X) + X """
     in_channel = inputs.shape[-1]
-    expanded = conv2d_no_bias(inputs, int(in_channel * expansion), kernel_size=1, use_bias=False, name=name + "1_")
+    expanded = conv2d_no_bias(inputs, int(in_channel * expansion), kernel_size=1, use_bias=True, name=name + "1_")
     expanded = batchnorm_with_activation(expanded, activation=activation, act_first=False, name=name + "1_")
 
-    dw = depthwise_conv2d_no_bias(expanded, kernel_size=3, padding="SAME", name=name)
+    dw = depthwise_conv2d_no_bias(expanded, kernel_size=3, padding="SAME", use_bias=True, name=name)
     dw_out = batchnorm_with_activation(dw_out, activation=activation, act_first=False, name=name + "2_")
 
-    pw = conv2d_no_bias(dw_out, in_channel, kernel_size=1, use_bias=False, name=name + "3_")
+    pw = conv2d_no_bias(dw_out, in_channel, kernel_size=1, use_bias=True, name=name + "3_")
     pw = batchnorm_with_activation(pw, activation=None, name=name + "3_")
     pw_out = keras.layers.Add(name=name + "dw_out")([inputs, pw])
     return pw_out
@@ -102,7 +104,7 @@ def inverted_residual_feed_forward_2(inputs, expansion=4, activation="gelu", nam
 def cmt_block(inputs, num_heads=4, sr_ratio=1, expansion=4, activation="gelu", drop_rate=0, name=""):
     """ X0 = LPU(Xi), X1 = LMHSA(LN(X0)) + X0, X2 = IRFFN(LN(X1)) + X1 """
     """ Local Perception Unit, LPU(X) = DWConv(X) + X """
-    lpu = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="SAME", use_bias=False, name=name)
+    lpu = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="SAME", use_bias=True, name=name)
     # lpu = batchnorm_with_activation(lpu, activation=activation, name=name + "lpu_", act_first=True)
     lpu_out = keras.layers.Add(name=name + "lpu_out")([inputs, lpu])
 
@@ -122,11 +124,11 @@ def cmt_block(inputs, num_heads=4, sr_ratio=1, expansion=4, activation="gelu", d
 
 def cmt_stem(inputs, stem_width, activation="gelu", name="", **kwargs):
     nn = conv2d_no_bias(inputs, stem_width, kernel_size=3, strides=2, padding="same", name=name + "1_")
-    nn = batchnorm_with_activation(nn, activation=activation, act_first=True, name=name + "1_")
+    nn = batchnorm_with_activation(nn, activation=activation, act_first=False, name=name + "1_")
     nn = conv2d_no_bias(nn, stem_width, kernel_size=3, strides=1, padding="same", name=name + "2_")
-    nn = batchnorm_with_activation(nn, activation=activation, act_first=True, name=name + "2_")
+    nn = batchnorm_with_activation(nn, activation=activation, act_first=False, name=name + "2_")
     nn = conv2d_no_bias(nn, stem_width, kernel_size=3, strides=1, padding="same", name=name + "3_")
-    nn = batchnorm_with_activation(nn, activation=activation, act_first=True, name=name + "3_")
+    nn = batchnorm_with_activation(nn, activation=activation, act_first=False, name=name + "3_")
     return nn
 
 
@@ -156,7 +158,7 @@ def CMT(
     for stack_id, (num_block, out_channel, num_head, sr_ratio) in enumerate(zip(num_blocks, out_channels, num_heads, sr_ratios)):
         stage_name = "stage_{}_".format(stack_id + 1)
         nn = conv2d_no_bias(nn, out_channel, kernel_size=2, strides=2, name=stage_name + "down_sample")
-        nn = layer_norm(nn, name=stage_name)
+        # nn = layer_norm(nn, name=stage_name)
         for block_id in range(num_block):
             name = stage_name + "block_{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks

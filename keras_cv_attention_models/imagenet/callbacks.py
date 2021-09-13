@@ -46,6 +46,33 @@ class CosineLrScheduler(keras.callbacks.Callback):
         return lr
 
 
+class CosineLrSchedulerEpoch(keras.callbacks.Callback):
+    def __init__(self, lr_base, first_restart_step, m_mul=0.5, t_mul=2.0, lr_min=1e-5, warmup=0):
+        super(CosineLrSchedulerEpoch, self).__init__()
+        self.warmup = warmup
+
+        if lr_min == lr_base * m_mul:
+            self.schedule = keras.experimental.CosineDecay(lr_base, first_restart_step, alpha=lr_min / lr_base)
+        else:
+            self.schedule = keras.experimental.CosineDecayRestarts(
+                lr_base, first_restart_step, t_mul=t_mul, m_mul=m_mul, alpha=lr_min / lr_base
+            )
+
+        if warmup != 0:
+            self.warmup_lr_func = lambda ii: lr_min + (lr_base - lr_min) * ii / warmup
+
+    def on_epoch_begin(self, epoch, logs=None):
+        if epoch < self.warmup:
+            lr = self.warmup_lr_func(epoch)
+        else:
+            lr = self.schedule(epoch - self.warmup)
+        if self.model is not None:
+            K.set_value(self.model.optimizer.lr, lr)
+
+        print("\nLearning rate for iter {} is {}".format(epoch + 1, lr))
+        return lr
+
+
 def constant_scheduler(epoch, lr_base, lr_decay_steps, decay_rate=0.1, warmup=0):
     if epoch < warmup:
         lr = lr_base * (epoch + 1) / (warmup + 1)
@@ -147,6 +174,6 @@ class MyCheckpoint(keras.callbacks.Callback):
             # tf.print(">>>> pre_monitor_saves:", pre_monitor_saves)
             if len(pre_monitor_saves) != 0:
                 os.remove(pre_monitor_saves[0])
-            monitor_save = self.monitor_save.format(epoch, cur_monitor_val)
+            monitor_save = self.monitor_save.format(epoch, "{:.4f}".format(cur_monitor_val))
             tf.print(">>>> Save best to:", monitor_save)
             self.model.save(monitor_save)

@@ -31,23 +31,27 @@ def train(
 
     if hasattr(lr_scheduler, "steps_per_epoch") and lr_scheduler.steps_per_epoch == -1:
         lr_scheduler.build(steps_per_epoch)
+    is_lr_on_batch = True if hasattr(lr_scheduler, "steps_per_epoch") and lr_scheduler.steps_per_epoch > 0 else False
+
     if basic_save_name is None:
-        basic_save_name = "{}_imagenet_batch_size_{}_randaug_{}_mixup_{}".format(compiled_model.name, batch_size, magnitude, mixup_alpha)
+        basic_save_name = "{}_{}_batch_size_{}_randaug_{}_mixup_{}".format(compiled_model.name, data_name, batch_size, magnitude, mixup_alpha)
     # ckpt_path = os.path.join("checkpoints", basic_save_name + "epoch_{epoch:03d}_val_acc_{val_acc:.4f}.h5")
     # cur_callbacks = [keras.callbacks.ModelCheckpoint(ckpt_path, monitor="val_loss", save_best_only=True)]
     # cur_callbacks = [keras.callbacks.ModelCheckpoint(os.path.join("checkpoints", basic_save_name + ".h5"))]
     cur_callbacks = [callbacks.MyCheckpoint(basic_save_name, monitor="val_acc")]
-    hist_file = os.path.join("checkpoints", basic_save_name + "hist.json")
+    hist_file = os.path.join("checkpoints", basic_save_name + "_hist.json")
     if initial_epoch == 0 and os.path.exists(hist_file):
         os.remove(hist_file)
     cur_callbacks.append(callbacks.MyHistory(initial_file=hist_file))
     cur_callbacks.append(keras.callbacks.TerminateOnNaN())
     if lr_scheduler is not None:
         cur_callbacks.append(lr_scheduler)
-    if lr_scheduler is not None and isinstance(compiled_model.optimizer, tfa.optimizers.weight_decay_optimizers.DecoupledWeightDecayExtension):
+
+    compiled_opt = compiled_model.optimizer
+    compiled_opt = compiled_opt.inner_optimizer if isinstance(compiled_opt, keras.mixed_precision.LossScaleOptimizer) else compiled_opt
+    if lr_scheduler is not None and isinstance(compiled_opt, tfa.optimizers.weight_decay_optimizers.DecoupledWeightDecayExtension):
         print(">>>> Append weight decay callback...")
         lr_base, wd_base = compiled_model.optimizer.lr.numpy(), compiled_model.optimizer.weight_decay.numpy()
-        is_lr_on_batch = isinstance(lr_scheduler, callbacks.CosineLrScheduler)
         wd_callback = callbacks.OptimizerWeightDecay(lr_base, wd_base, is_lr_on_batch=is_lr_on_batch)
         cur_callbacks.append(wd_callback)  # should be after lr_scheduler
 
@@ -62,6 +66,17 @@ def train(
         use_multiprocessing=True,
         workers=4,
     )
+
+
+def plot_and_peak_scatter(ax, array, peak_method, label, color=None, **kwargs):
+    for id, ii in enumerate(array):
+        if np.isnan(ii):
+            array[id] = array[id - 1]
+    ax.plot(array, label=label, color=color, **kwargs)
+    pp = peak_method(array)
+    vv = array[pp]
+    ax.scatter(pp, vv, color=color, marker="v")
+    ax.text(pp, vv, "{:.4f}".format(vv), va="bottom", ha="right", fontsize=9, rotation=0)
 
 
 def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"]):
@@ -79,23 +94,20 @@ def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"]):
                 hist = json.load(ff)
         name = name if name != None else str(id)
 
-        axes[0].plot(hist["loss"], label=name + " loss")
+        plot_and_peak_scatter(axes[0], hist["loss"], peak_method=np.argmin, label=name + " loss", color=None)
         color = axes[0].lines[-1].get_color()
-        axes[0].plot(hist["val_loss"], label=name + " val_loss", color=color, linestyle="--")
-        axes[1].plot(hist["accuracy" if "accuracy" in hist else "acc"], label=name + " accuracy")
-        color = axes[1].lines[-1].get_color()
-        axes[1].plot(
-            hist["val_accuracy" if "val_accuracy" in hist else "val_acc"],
-            label=name + " val_accuracy",
-            color=color,
-            linestyle="--",
-        )
+        loss_vv = np.array(hist["val_loss"]) - np.array(hist["regular_loss"]) if "regular_loss" in hist else hist["val_loss"]
+        plot_and_peak_scatter(axes[0], loss_vv, peak_method=np.argmin, label=name + " val_loss", color=color, linestyle="--")
+        acc = hist.get("acc", hist.get("accuracy", []))
+        plot_and_peak_scatter(axes[1], acc, peak_method=np.argmax, label=name + " accuracy", color=color)
+        val_acc = hist.get("val_acc", hist.get("val_accuracy", []))
+        plot_and_peak_scatter(axes[1], val_acc, peak_method=np.argmax, label=name + " val_accuracy", color=color, linestyle="--")
         if addition_plots is not None and len(addition_plots) != 0:
             for ii in addition_plots:
-                axes[2].plot(hist[ii], label=name + " " + ii)
+                plot_and_peak_scatter(axes[2], hist[ii], peak_method=np.argmin, label=name + " " + ii, color=color)
     for ax in axes:
         ax.legend()
-        ax.grid()
+        ax.grid(True)
     fig.tight_layout()
     return fig
 
@@ -108,23 +120,28 @@ if __name__ == "__test__":
     keras.mixed_precision.set_global_policy("mixed_float16")
 
     from keras_cv_attention_models import imagenet
+    from keras_cv_attention_models.imagenet import data
+    from keras_cv_attention_models.imagenet import callbacks
     from keras_cv_attention_models import model_surgery
-    from keras_cv_attention_models import aotnet, coatnet
+    from keras_cv_attention_models import aotnet, coatnet, cmt
+    import tensorflow_addons as tfa
 
     input_shape = (224, 224, 3)
-    batch_size = 128 * strategy.num_replicas_in_sync
-    lr_base_512 = 1e-3
+    batch_size = 32 * strategy.num_replicas_in_sync
+    lr_base_512 = 1e-2
     l2_weight_decay = 0
     optimizer_wd_mul = 1e-1
-    magnitude = 5
+    magnitude = 10
     mixup_alpha = 0
     cutmix_alpha = 0
     label_smoothing = 0.1
     lr_decay_steps = 30  # [30, 60, 90] for constant decay
     lr_warmup = 4
+    lr_min = 1e-5
     basic_save_name = None
-    data_name = "cifar10"
-    num_classes = 10
+    data_name = "imagenet2012"
+    num_classes = 1000
+    initial_epoch = 0
 
     with strategy.scope():
         # mm = keras.applications.ResNet50V2(include_top=False, input_shape=input_shape, weights=None)
@@ -134,6 +151,7 @@ if __name__ == "__test__":
         # nn = keras.layers.Dense(1000, activation="softmax", dtype="float32", name="predictions")(nn)
         # model = keras.models.Model(mm.inputs[0], nn, name=mm.name)
         model = coatnet.CoAtNet0(input_shape=input_shape, num_classes=num_classes, activation="gelu", drop_connect_rate=0.2, drop_rate=0.2)
+        # model = cmt.CMTTiny(input_shape=input_shape, num_classes=num_classes, drop_connect_rate=0.2, drop_rate=0.2)
         # model = aotnet.AotNet(num_blocks=[3, 4, 6, 3], strides=[1, 2, 2, 2], activation='swish', preact=True, avg_pool_down=True, drop_connect_rate=0.2, drop_rate=0.2, model_name='aotnet50_swish_preact_avg_down_drop02_mixup_0')
 
         if l2_weight_decay != 0:
@@ -146,13 +164,14 @@ if __name__ == "__test__":
             optimizer = keras.optimizers.SGD(learning_rate=lr_base, momentum=0.9)
         model.compile(optimizer=optimizer, loss=keras.losses.CategoricalCrossentropy(label_smoothing=label_smoothing), metrics=["acc"])
         if isinstance(lr_decay_steps, list):
-            constant_lr_sch = lambda epoch: imagenet.constant_scheduler(epoch, lr_base=lr_base, lr_decay_steps=lr_decay_steps, warmup=lr_warmup)
+            constant_lr_sch = lambda epoch: callbacks.constant_scheduler(epoch, lr_base=lr_base, lr_decay_steps=lr_decay_steps, warmup=lr_warmup)
             lr_scheduler = keras.callbacks.LearningRateScheduler(constant_lr_sch)
             epochs = lr_decay_steps[-1] + lr_decay_steps[0] + lr_warmup  # 124 for lr_decay_steps=[30, 60, 90], lr_warmup=4
         else:
-            lr_scheduler = imagenet.CosineLrScheduler(
-                lr_base, first_restart_step=lr_decay_steps, m_mul=0.5, t_mul=2.0, lr_min=1e-05, warmup=lr_warmup, steps_per_epoch=-1
+            lr_scheduler = callbacks.CosineLrScheduler(
+                lr_base, first_restart_step=lr_decay_steps, m_mul=0.5, t_mul=2.0, lr_min=lr_min, warmup=lr_warmup, steps_per_epoch=-1
             )
+            # lr_scheduler = callbacks.CosineLrSchedulerEpoch(lr_base, first_restart_step=lr_decay_steps, m_mul=0.5, t_mul=2.0, lr_min=lr_min, warmup=lr_warmup)
             epochs = lr_decay_steps * 3 + lr_warmup  # 94 for lr_decay_steps=30, lr_warmup=4
 
         imagenet.train(
