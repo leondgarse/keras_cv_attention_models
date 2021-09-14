@@ -72,16 +72,17 @@ Multi Head Positional Embedding layer.
 
 input: `[batch, num_heads, query_blocks, key_blocks]`.
 output: `[batch, num_heads, query_blocks, key_blocks] + positional_bias`.
+conditions: query_height == query_width, key_height == key_width, key_height >= query_height
 
 Examples:
 
 >>> from keras_cv_attention_models import attention_layers
 >>> aa = attention_layers.MultiHeadPositionalEmbedding()
 >>> print(f"{aa(tf.ones([1, 8, 16, 49])).shape = }")
-aa(tf.ones([1, 8, 16, 49])).shape = TensorShape([1, 8, 16, 49])
+# aa(tf.ones([1, 8, 16, 49])).shape = TensorShape([1, 8, 16, 49])
 
 >>> print({ii.name:ii.numpy().shape for ii in aa.weights})
-{'multi_head_positional_embedding/positional_embedding:0': (49, 8)}
+# {'multi_head_positional_embedding/positional_embedding:0': (49, 8)}
 
 >>> plt.imshow(aa.bb_pos)
 """
@@ -107,7 +108,7 @@ Examples:
 >>> inputs = keras.layers.Input([14 * 14, 192])
 >>> nn = attention_layers.mhsa_with_multi_head_position_and_strides(inputs, output_dim=384, num_heads=4, key_dim=16, strides=2)
 >>> print(f"{nn.shape = }")
-nn.shape = TensorShape([None, 49, 384])
+# nn.shape = TensorShape([None, 49, 384])
 
 >>> mm = keras.models.Model(inputs, nn)
 >>> print({ii.name:ii.numpy().shape for ii in mm.weights})

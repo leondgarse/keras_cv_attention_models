@@ -189,15 +189,28 @@ def outlook_attention_simple(inputs, embed_dim, num_head=6, kernel_size=3, attn_
 
 @tf.keras.utils.register_keras_serializable(package="volo")
 class BiasLayer(keras.layers.Layer):
-    def __init__(self, **kwargs):
+    def __init__(self, axis=-1, **kwargs):
         super(BiasLayer, self).__init__(**kwargs)
+        self.axis = axis
 
     def build(self, input_shape):
-        self.bb = self.add_weight(name="bias", shape=(input_shape[-1]), initializer="zeros", trainable=True)
+        if self.axis == -1 or self.axis == len(input_shape) - 1:
+            bb_shape = (input_shape[-1],)
+        else:
+            bb_shape = [1] * len(input_shape)
+            axis = self.axis if isinstance(self.axis, (list, tuple)) else [self.axis]
+            for ii in axis:
+                bb_shape[ii] = input_shape[ii]
+        self.bb = self.add_weight(name="bias", shape=bb_shape, initializer="zeros", trainable=True)
         super(BiasLayer, self).build(input_shape)
 
     def call(self, inputs, **kwargs):
         return inputs + self.bb
+
+    def get_config(self):
+        config = super(BiasLayer, self).get_config()
+        config.update({"axis": self.axis})
+        return config
 
 
 def attention_mlp_block(inputs, embed_dim, num_head=1, mlp_ratio=3, attention_type=None, drop_rate=0, mlp_activation="gelu", dropout=0, name=""):

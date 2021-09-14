@@ -86,21 +86,6 @@ def inverted_residual_feed_forward(inputs, expansion=4, activation="gelu", name=
     return pw
 
 
-def inverted_residual_feed_forward_2(inputs, expansion=4, activation="gelu", name=""):
-    """ IRFFN(X) = Conv(F(Conv(X))), F(X) = DWConv(X) + X """
-    in_channel = inputs.shape[-1]
-    expanded = conv2d_no_bias(inputs, int(in_channel * expansion), kernel_size=1, use_bias=True, name=name + "1_")
-    expanded = batchnorm_with_activation(expanded, activation=activation, act_first=False, name=name + "1_")
-
-    dw = depthwise_conv2d_no_bias(expanded, kernel_size=3, padding="SAME", use_bias=True, name=name)
-    dw_out = batchnorm_with_activation(dw_out, activation=activation, act_first=False, name=name + "2_")
-
-    pw = conv2d_no_bias(dw_out, in_channel, kernel_size=1, use_bias=True, name=name + "3_")
-    pw = batchnorm_with_activation(pw, activation=None, name=name + "3_")
-    pw_out = keras.layers.Add(name=name + "dw_out")([inputs, pw])
-    return pw_out
-
-
 def cmt_block(inputs, num_heads=4, sr_ratio=1, expansion=4, activation="gelu", drop_rate=0, name=""):
     """ X0 = LPU(Xi), X1 = LMHSA(LN(X0)) + X0, X2 = IRFFN(LN(X1)) + X1 """
     """ Local Perception Unit, LPU(X) = DWConv(X) + X """
