@@ -137,10 +137,13 @@ class MyHistory(keras.callbacks.Callback):
         for k, v in logs.items():
             k = "accuracy" if "accuracy" in k else k
             self.history.setdefault(k, []).append(float(v))
-        if len(self.model.losses) != 0:
+
+        if len(self.model.losses) != 0: # Has regular_loss
             regular_loss = K.sum(self.model.losses).numpy()
             self.history.setdefault("regular_loss", []).append(float(regular_loss))
             self.history["loss"][-1] -= regular_loss
+            if "val_loss" in self.history:
+                self.history["val_loss"][-1] -= regular_loss
 
         if self.initial_file:
             with open(self.initial_file, "w") as ff:

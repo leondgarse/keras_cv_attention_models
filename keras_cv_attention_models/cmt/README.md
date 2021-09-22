@@ -45,9 +45,9 @@
   optimizer = tfa.optimizers.AdamW(learning_rate=lr_base, weight_decay=lr_base * optimizer_wd_mul)
   model.compile(optimizer=optimizer, loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1), metrics=["acc"])
   lr_scheduler = imagenet.CosineLrScheduler(
-      lr_base, first_restart_step=16, m_mul=0.5, t_mul=2.0, lr_min=1e-5, warmup=4, steps_per_epoch=-1
+      lr_base, first_restart_step=48, m_mul=0.5, t_mul=2.0, lr_min=1e-5, warmup=4, steps_per_epoch=-1
   )
-  epochs = 16 * 3 + 4
+  epochs = 48 + 4
   imagenet.train(
       model, epochs=epochs, data_name="cifar10", lr_scheduler=lr_scheduler, input_shape=input_shape,
       batch_size=batch_size, magnitude=10

@@ -96,8 +96,7 @@ def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"]):
 
         plot_and_peak_scatter(axes[0], hist["loss"], peak_method=np.argmin, label=name + " loss", color=None)
         color = axes[0].lines[-1].get_color()
-        loss_vv = np.array(hist["val_loss"]) - np.array(hist["regular_loss"]) if "regular_loss" in hist else hist["val_loss"]
-        plot_and_peak_scatter(axes[0], loss_vv, peak_method=np.argmin, label=name + " val_loss", color=color, linestyle="--")
+        plot_and_peak_scatter(axes[0], hist["val_loss"], peak_method=np.argmin, label=name + " val_loss", color=color, linestyle="--")
         acc = hist.get("acc", hist.get("accuracy", []))
         plot_and_peak_scatter(axes[1], acc, peak_method=np.argmax, label=name + " accuracy", color=color)
         val_acc = hist.get("val_acc", hist.get("val_accuracy", []))
