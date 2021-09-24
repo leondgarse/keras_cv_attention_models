@@ -108,8 +108,8 @@ def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=""):
     se = keras.layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_conv")(se)
     se = activation_by_name(se, activation=activation, name=name)
     se = keras.layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "2_conv")(se)
-    se = keras.layers.Activation("sigmoid")(se)
-    return keras.layers.Multiply()([inputs, se])
+    se = activation_by_name(se, activation="sigmoid", name=name)
+    return keras.layers.Multiply(name=name and name + "out")([inputs, se])
 
 
 def drop_block(inputs, drop_rate=0, name=None):

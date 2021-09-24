@@ -22,6 +22,7 @@
   - [ResMLP](#resmlp)
   - [GMLP](#gmlp)
   - [LeViT](#levit)
+  - [NFNets](#nfnets)
 - [Other implemented keras models](#other-implemented-keras-models)
 
 <!-- /TOC -->
@@ -253,11 +254,23 @@
   | LeViT192  | 11M    | 224              | 80.0     | [levit192_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit192_imagenet.h5) |
   | LeViT256  | 19M    | 224              | 81.6     | [levit256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit256_imagenet.h5) |
   | LeViT384  | 39M    | 224              | 82.6     | [levit384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit384_imagenet.h5) |
+## NFNets
+  - [Keras NFNets](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/nfnets) is for [PDF 2102.06171 High-Performance Large-Scale Image Recognition Without Normalization](https://arxiv.org/pdf/2102.06171.pdf).
+
+  | Model       | Params | Image  resolution | Top1 Acc | Download |
+  | ----------- | ------ | ----------------- | -------- | -------- |
+  | NFNetF0     | 71.5M  | 256               | 83.6     |          |
+  | NFNetF1     | 132.6M | 320               | 84.7     |          |
+  | NFNetF2     | 193.8M | 352               | 85.1     |          |
+  | NFNetF3     | 254.9M | 416               | 85.7     |          |
+  | NFNetF4     | 316.1M | 512               | 85.9     |          |
+  | NFNetF5     | 377.2M | 544               | 86.0     |          |
+  | NFNetF6 SAM | 438.4M | 576               | 86.5     |          |
+  | NFNetF7     | 499.5M |                   |          |          |
 ***
 
 # Other implemented keras models
   - [perceiver_image_classification](https://keras.io/examples/vision/perceiver_image_classification/)
-  - [Github ypeleg/nfnets-keras](https://github.com/ypeleg/nfnets-keras)
   - [Github faustomorales/vit-keras](https://github.com/faustomorales/vit-keras)
   - [Github tensorflow/resnet_rs](https://github.com/tensorflow/tpu/tree/master/models/official/resnet/resnet_rs)
   - [Github google-research/big_transfer](https://github.com/google-research/big_transfer)

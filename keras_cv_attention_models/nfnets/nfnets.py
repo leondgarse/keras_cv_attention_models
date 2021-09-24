@@ -115,7 +115,7 @@ def block(
     deep = activation_by_name_with_gamma(deep, activation, name=name + "deep_3_")
     deep = std_conv2d_with_init(deep, expanded_filter, 1, strides=1, padding="VALID", name=name + "deep_4_")
     if se_ratio > 0:
-        deep = se_module(deep, se_ratio=se_ratio, activation=activation, use_bias=True, name=name + "se_")
+        deep = se_module(deep, se_ratio=se_ratio, activation="relu", use_bias=True, name=name + "se_")
         deep *= attn_gain
 
     deep = drop_block(deep, drop_rate)
@@ -162,6 +162,7 @@ def NormFreeNet(
     drop_connect_rate=0,
     classifier_activation="softmax",
     drop_rate=0,
+    pretrained="imagenet",
     model_name="nfnet",
     kwargs=None
 ):
@@ -204,26 +205,26 @@ def NormFreeNet(
     model = keras.models.Model(inputs, nn, name=model_name)
     return model
 
-def NFNetF0(input_shape=(256, 256, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", drop_rate=0.2, **kwargs):
+def NFNetF0(input_shape=(256, 256, 3), num_classes=1000, activation="gelu", drop_rate=0.2, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[1, 2, 6, 3], model_name="nfnetf0", **locals(), **kwargs)
 
-def NFNetF1(input_shape=(320, 320, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", drop_rate=0.3, **kwargs):
+def NFNetF1(input_shape=(320, 320, 3), num_classes=1000, activation="gelu", drop_rate=0.3, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[2, 4, 12, 6], model_name="nfnetf1", **locals(), **kwargs)
 
-def NFNetF2(input_shape=(352, 352, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", drop_rate=0.4, **kwargs):
+def NFNetF2(input_shape=(352, 352, 3), num_classes=1000, activation="gelu", drop_rate=0.4, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[3, 6, 18, 9], model_name="nfnetf2", **locals(), **kwargs)
 
-def NFNetF3(input_shape=(416, 416, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", drop_rate=0.4, **kwargs):
+def NFNetF3(input_shape=(416, 416, 3), num_classes=1000, activation="gelu", drop_rate=0.4, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[4, 8, 24, 12], model_name="nfnetf3", **locals(), **kwargs)
 
-def NFNetF4(input_shape=(512, 512, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", drop_rate=0.5, **kwargs):
+def NFNetF4(input_shape=(512, 512, 3), num_classes=1000, activation="gelu", drop_rate=0.5, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[5, 10, 30, 15], model_name="nfnetf4", **locals(), **kwargs)
 
-def NFNetF5(input_shape=(544, 544, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", drop_rate=0.5, **kwargs):
+def NFNetF5(input_shape=(544, 544, 3), num_classes=1000, activation="gelu", drop_rate=0.5, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[6, 12, 36, 18], model_name="nfnetf5", **locals(), **kwargs)
 
-def NFNetF6(input_shape=(576, 576, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", drop_rate=0.5, **kwargs):
+def NFNetF6(input_shape=(576, 576, 3), num_classes=1000, activation="gelu", drop_rate=0.5, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[7, 14, 42, 21], model_name="nfnetf6", **locals(), **kwargs)
 
-def NFNetF7(input_shape=(608, 608, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", drop_rate=0.5, **kwargs):
+def NFNetF7(input_shape=(608, 608, 3), num_classes=1000, activation="gelu", drop_rate=0.5, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[8, 16, 48, 24], model_name="nfnetf7", **locals(), **kwargs)
