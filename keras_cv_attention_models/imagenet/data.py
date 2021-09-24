@@ -5,9 +5,10 @@ from tensorflow import keras
 
 
 class RandomProcessImage:
-    def __init__(self, target_shape=(300, 300), magnitude=0, keep_shape=False):
+    def __init__(self, target_shape=(300, 300), magnitude=0, central_fraction=1.0, keep_shape=False):
         self.target_shape, self.magnitude, self.keep_shape = target_shape, magnitude, keep_shape
         self.target_shape = target_shape if len(target_shape) == 2 else target_shape[:2]
+        self.central_fraction = central_fraction
         if magnitude > 0:
             from keras_cv_attention_models.imagenet import augment
 
@@ -29,7 +30,8 @@ class RandomProcessImage:
             cropped_shape = tf.reduce_min(tf.keras.backend.shape(image)[:2])
             image = tf.image.random_crop(image, (cropped_shape, cropped_shape, 3))
 
-        input_image = tf.image.resize(image, self.target_shape)
+        input_image = tf.image.central_crop(image, self.central_fraction)
+        input_image = tf.image.resize(input_image, self.target_shape)
         label = datapoint["label"]
         input_image = self.process(input_image)
         input_image = tf.cast(input_image, tf.float32)
@@ -119,6 +121,7 @@ def init_dataset(
     magnitude=0,
     mixup_alpha=0,
     cutmix_alpha=0,
+    central_fraction=1.0,
     keep_shape=False,
 ):
     dataset, info = tfds.load(data_name, with_info=True)
@@ -129,9 +132,9 @@ def init_dataset(
         return total_images, num_classes, steps_per_epoch
 
     AUTOTUNE = tf.data.AUTOTUNE
-    train_process = RandomProcessImage(input_shape, magnitude, keep_shape=keep_shape)
+    train_process = RandomProcessImage(input_shape, magnitude, central_fraction=central_fraction, keep_shape=keep_shape)
     train = dataset["train"].map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE)
-    test_process = RandomProcessImage(input_shape, magnitude=-1, keep_shape=keep_shape)
+    test_process = RandomProcessImage(input_shape, magnitude=-1, central_fraction=central_fraction, keep_shape=keep_shape)
     if "validation" in dataset:
         test = dataset["validation"].map(lambda xx: test_process(xx))
     elif "test" in dataset:

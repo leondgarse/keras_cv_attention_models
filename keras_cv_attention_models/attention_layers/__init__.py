@@ -8,6 +8,7 @@ from keras_cv_attention_models.common_layers import (
     drop_block,
     hard_swish,
     layer_norm,
+    make_divisible,
     se_module,
 )
 from keras_cv_attention_models.aotnet.aotnet import aot_stem

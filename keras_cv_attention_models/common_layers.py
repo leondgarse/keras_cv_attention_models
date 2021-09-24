@@ -142,3 +142,14 @@ def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trai
         depthwise_initializer=anti_alias_downsample_initializer,
         name=name and name + "anti_alias_down",
     )(inputs)
+
+
+def make_divisible(vv, divisor=4, min_value=None):
+    """ Copied from https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py """
+    if min_value is None:
+        min_value = divisor
+    new_v = max(min_value, int(vv + divisor / 2) // divisor * divisor)
+    # Make sure that round down does not go down by more than 10%.
+    if new_v < 0.9 * vv:
+        new_v += divisor
+    return new_v

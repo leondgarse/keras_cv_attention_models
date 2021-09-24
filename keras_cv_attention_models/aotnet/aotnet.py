@@ -124,13 +124,12 @@ def block(
 def stack(inputs, blocks, filters, strides=2, strides_first=True, expansion=4, attn_types=None, se_ratio=0, stack_drop=0, block_params={}, name=""):
     nn = inputs
     # print(">>>> attn_types:", attn_types)
-    stack_drop_s, stack_drop_e = stack_drop if isinstance(stack_drop, (list, tuple)) else [stack_drop, stack_drop]
     strides_block_id = 0 if strides_first else blocks - 1
     for id in range(blocks):
         conv_shortcut = True if id == 0 and (strides != 1 or inputs.shape[-1] != filters * expansion) else False
         cur_strides = strides if id == strides_block_id else 1
         block_name = name + "block{}_".format(id + 1)
-        block_drop_rate = stack_drop_s + (stack_drop_e - stack_drop_s) * id / blocks
+        block_drop_rate = stack_drop[id] if isinstance(stack_drop, (list, tuple)) else stack_drop
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
         cur_se_ratio = se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio
         nn = block(nn, filters, cur_strides, conv_shortcut, expansion, attn_type, cur_se_ratio, block_drop_rate, **block_params, name=block_name)
@@ -152,7 +151,7 @@ def aot_stem(inputs, stem_width, activation="relu", deep_stem=False, quad_stem=F
         if quad_stem_act:
             nn = batchnorm_with_activation(nn, activation=activation, name=name + "2_")
         nn = conv2d_no_bias(nn, stem_width // 2, 3, strides=1, padding="same", name=name + "3_")
-        nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
+        nn = batchnorm_with_activation(nn, activation=activation, name=name + "3_")
         nn = conv2d_no_bias(nn, stem_width, 3, strides=2, padding="same", name=name + "4_")
     else:
         nn = conv2d_no_bias(inputs, stem_width, 7, strides=2, padding="same", name=name)
@@ -201,19 +200,15 @@ def AotNet(
         "anti_alias_down": anti_alias_down,
         "activation": activation,
     }
-    total_blocks = sum(num_blocks)
-    global_block_id = 0
-    drop_connect_s, drop_connect_e = 0, drop_connect_rate
-    for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, strides)):
+
+    drop_connect_rates = tf.split(tf.linspace(0., drop_connect_rate, sum(num_blocks)), num_blocks)
+    drop_connect_rates = [ii.numpy().tolist() for ii in drop_connect_rates]
+    for id, (num_block, out_channel, stride, drop_connect) in enumerate(zip(num_blocks, out_channels, strides, drop_connect_rates)):
         name = "stack{}_".format(id + 1)
-        stack_drop_s = drop_connect_rate * global_block_id / total_blocks
-        stack_drop_e = drop_connect_rate * (global_block_id + num_block) / total_blocks
-        stack_drop = (stack_drop_s, stack_drop_e)
         attn_type = attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types
         cur_se_ratio = se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio
         cur_expansion = expansion[id] if isinstance(expansion, (list, tuple)) else expansion
-        nn = stack(nn, num_block, out_channel, stride, strides_first, cur_expansion, attn_type, cur_se_ratio, stack_drop, block_params, name=name)
-        global_block_id += num_block
+        nn = stack(nn, num_block, out_channel, stride, strides_first, cur_expansion, attn_type, cur_se_ratio, drop_connect, block_params, name=name)
 
     if preact:  # resnetv2 like
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="post_")
