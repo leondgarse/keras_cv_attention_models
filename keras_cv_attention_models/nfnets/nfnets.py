@@ -287,31 +287,31 @@ def NFNetF7(input_shape=(608, 608, 3), num_classes=1000, activation="gelu", drop
     return NormFreeNet(num_blocks=[8, 16, 48, 24], model_name="nfnetf7", **locals(), **kwargs)
 
 
-def NFNet_Light(channel_ratio=0.25, group_size=64, torch_padding=True, use_zero_init_gain=False, gamma_in_act=False, **kwargs):
+def NormFreeNet_Light(channel_ratio=0.25, group_size=64, torch_padding=True, use_zero_init_gain=False, gamma_in_act=False, **kwargs):
     kwargs.pop("kwargs", None)
     return NormFreeNet(**locals(), **kwargs)
 
 
-def ECA_NFNetLight0(input_shape=(288, 288, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
+def ECA_NFNetL0(input_shape=(288, 288, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
     num_blocks = [1, 2, 6, 3]
     num_features_factor = 1.5
     attn_type = "eca"
-    return NFNet_Light(model_name="eca_nfnetl0", **locals(), **kwargs)
+    return NormFreeNet_Light(model_name="eca_nfnetl0", **locals(), **kwargs)
 
 
-def ECA_NFNetLight1(input_shape=(320, 320, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
+def ECA_NFNetL1(input_shape=(320, 320, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
     num_blocks = [2, 4, 12, 6]
     attn_type = "eca"
-    return NFNet_Light(model_name="eca_nfnetl1", **locals(), **kwargs)
+    return NormFreeNet_Light(model_name="eca_nfnetl1", **locals(), **kwargs)
 
 
-def ECA_NFNetLight2(input_shape=(384, 384, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
+def ECA_NFNetL2(input_shape=(384, 384, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
     num_blocks = [3, 6, 18, 9]
     attn_type = "eca"
-    return NFNet_Light(model_name="eca_nfnetl2", **locals(), **kwargs)
+    return NormFreeNet_Light(model_name="eca_nfnetl2", **locals(), **kwargs)
 
 
-def ECA_NFNetLight3(input_shape=(448, 448, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
+def ECA_NFNetL3(input_shape=(448, 448, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
     num_blocks = [4, 8, 24, 12]
     attn_type = "eca"
-    return NFNet_Light(model_name="eca_nfnetl3", **locals(), **kwargs)
+    return NormFreeNet_Light(model_name="eca_nfnetl3", **locals(), **kwargs)
