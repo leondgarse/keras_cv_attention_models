@@ -96,7 +96,7 @@ def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", us
     )(inputs)
 
 
-def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=""):
+def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=None):
     """ Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf """
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
     h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
@@ -110,6 +110,27 @@ def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=""):
     se = keras.layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "2_conv")(se)
     se = activation_by_name(se, activation="sigmoid", name=name)
     return keras.layers.Multiply(name=name and name + "out")([inputs, se])
+
+
+def eca_module(inputs, gamma=2., beta=1., name=None, **kwargs):
+    """ Efficient Channel Attention block, arxiv: https://arxiv.org/pdf/1910.03151.pdf """
+    channel_axis = 1 if K.image_data_format() == "channels_first" else -1
+    h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
+
+    filters = inputs.shape[channel_axis]
+    beta, gamma = float(beta), float(gamma)
+    tt = int((tf.math.log(float(filters)) / tf.math.log(2.) + beta) / gamma)
+    kernel_size = max(tt if tt % 2 else tt + 1, 3)
+    pad = kernel_size // 2
+
+    nn = tf.reduce_mean(inputs, [h_axis, w_axis], keepdims=False)
+    nn = tf.pad(nn, [[0, 0], [pad, pad]])
+    nn = tf.expand_dims(nn, channel_axis)
+
+    nn = keras.layers.Conv1D(1, kernel_size=kernel_size, strides=1, padding="VALID", use_bias=False, name=name and name + "conv1d")(nn)
+    nn = tf.squeeze(nn, axis=channel_axis)
+    nn = activation_by_name(nn, activation="sigmoid", name=name)
+    return keras.layers.Multiply(name=name and name + "out")([inputs, nn])
 
 
 def drop_block(inputs, drop_rate=0, name=None):

@@ -6,6 +6,7 @@ from keras_cv_attention_models.common_layers import (
     conv2d_no_bias,
     depthwise_conv2d_no_bias,
     drop_block,
+    eca_module,
     hard_swish,
     layer_norm,
     make_divisible,
