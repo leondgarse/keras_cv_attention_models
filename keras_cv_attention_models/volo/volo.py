@@ -408,7 +408,7 @@ def VOLO(
 
     if num_classes == 0:
         model = tf.keras.models.Model(inputs, nn, name=model_name)
-        reload_model_weights(model, input_shape, pretrained)
+        reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="volo", input_shape=input_shape, pretrained=pretrained)
         return model
 
     _, height, width, channel = nn.shape
