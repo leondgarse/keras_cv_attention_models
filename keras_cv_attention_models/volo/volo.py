@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
+from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch, reload_model_weights
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias
 
 
