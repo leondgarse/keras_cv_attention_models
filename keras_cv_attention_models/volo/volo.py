@@ -408,6 +408,10 @@ def VOLO(
 
     if num_classes == 0:
         model = tf.keras.models.Model(inputs, nn, name=model_name)
+        pre_resolutions = PRETRAINED_DICT[model.name]
+        max_resolution = max([int(ii) for ii in pre_resolutions.keys()])
+        request_resolution = input_shape[0] if str(input_shape[0]) in pre_resolutions else max_resolution
+        pretrained = str(request_resolution) if pretrained is not None else None
         reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="volo", input_shape=input_shape, pretrained=pretrained)
         return model
 
