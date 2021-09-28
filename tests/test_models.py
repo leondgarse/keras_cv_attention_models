@@ -84,6 +84,16 @@ def test_VOLO_d2_defination():
     assert isinstance(mm, keras.models.Model)
 
 
+def test_NFNetF0_defination():
+    mm = keras_cv_attention_models.nfnets.NFNetF0(pretrained=None)
+    assert isinstance(mm, keras.models.Model)
+
+
+def test_ECA_NFNetL0_defination():
+    mm = keras_cv_attention_models.nfnets.ECA_NFNetL0(pretrained=None)
+    assert isinstance(mm, keras.models.Model)
+
+
 def test_LeViT128S_predict():
     mm = keras_cv_attention_models.levit.LeViT128S(pretrained="imagenet")
     imm = tf.image.resize(chelsea(), mm.input_shape[1:3])  # Chelsea the cat

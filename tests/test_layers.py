@@ -50,6 +50,12 @@ def test_cot_attention():
     assert attention_layers.cot_attention(tf.ones(input_shape), kernel_size=3).shape == input_shape
 
 
+def test_eca_module():
+    input_shape = [2, 28, 28, 192]
+    out = attention_layers.eca_module(tf.ones(input_shape))
+    assert out.shape == input_shape
+
+
 def test_halo_attention():
     input_shape = [2, 14, 16, 256]
     out_shape = 384
@@ -122,6 +128,13 @@ def test_rsoftmax():
     assert out.shape == input_shape
 
 
+def test_ScaledStandardizedConv2D():
+    filters = 64
+    aa = attention_layers.ScaledStandardizedConv2D(filters=filters, kernel_size=3, padding="SAME")
+    input_shape = [2, 28, 28, 32]
+    assert aa(tf.ones(input_shape)).shape == [*input_shape[:3], filters]
+
+
 def test_se_module():
     input_shape = [2, 28, 28, 192]
     out = attention_layers.se_module(tf.ones(input_shape), se_ratio=0.25)
@@ -139,3 +152,9 @@ def test_split_attention_conv2d():
     filters = 384
     out = attention_layers.split_attention_conv2d(tf.ones(input_shape), filters=filters)
     assert out.shape == [*input_shape[:3], filters]
+
+
+def test_ZeroInitGain():
+    aa = attention_layers.ZeroInitGain()
+    input_shape = [2, 28, 28, 32]
+    assert aa(tf.ones(input_shape)).shape == input_shape

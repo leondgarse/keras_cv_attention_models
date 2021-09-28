@@ -12,6 +12,10 @@ PRETRAINED_DICT = {
     "nfnetf4": {"imagenet": "9a44cb37155f67b88b3900b7c2c9617d"},
     "nfnetf5": {"imagenet": "728d9202661de4d1003c9b149c25461e"},
     "nfnetf6": {"imagenet": "ee4a06b4a543531d72ea5a8a101336ac"},
+    "nfnetl0": {"imagenet": "6bd4d11037bf720506aa3d3e12ec4f53"},
+    "eca_nfnetl0": {"imagenet": "7789af74226ffee28a0a68cdca6f3737"},
+    "eca_nfnetl1": {"imagenet": "cd17a98175825258d32229bc82b744fd"},
+    "eca_nfnetl2": {"imagenet": "ca7e0bba4f2d1945d881ffc6e36bed36"},
 }
 
 CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
@@ -58,7 +62,7 @@ class ScaledStandardizedConv2D(tf.keras.layers.Conv2D):
             # Kernel has shape HWIO, normalize over HWI
             mean, var = tf.nn.moments(kernel, axes=[0, 1, 2], keepdims=True)
             # Manually fused normalization, eq. to (w - mean) * gain / sqrt(N * var)
-            scale = tf.math.rsqrt(tf.math.maximum(var * self.fan_in, self.__eps__)) * self.gain * self.__gamma__
+            scale = tf.math.rsqrt(tf.math.maximum(var * self.fan_in, self.__eps__)) * (self.gain * self.__gamma__)
             return default_conv_op(inputs, (kernel - mean) * scale)
 
         self._convolution_op = standardized_conv_op
@@ -182,21 +186,21 @@ def stem(inputs, stem_width, activation="gelu", torch_padding=False, conv_gamma=
 
 def NormFreeNet(
     num_blocks,
-    width_factor=1.0,
-    num_features_factor=2,
-    strides=[1, 2, 2, 2],
+    attn_type="se",
+    stem_width=128,
     out_channels=[256, 512, 1536, 1536],
     channel_ratio=0.5,
-    stem_width=128,
+    num_features_factor=2,
+    strides=[1, 2, 2, 2],
     input_shape=(224, 224, 3),
     num_classes=1000,
-    alpha=0.2,
     se_ratio=0.5,
     group_size=128,
     use_zero_init_gain=True,
     torch_padding=False,
-    attn_type="se",
     gamma_in_act=True,
+    alpha=0.2,
+    width_factor=1.0,
     activation="gelu",
     drop_connect_rate=0,
     classifier_activation="softmax",
@@ -292,6 +296,13 @@ def NormFreeNet_Light(channel_ratio=0.25, group_size=64, torch_padding=True, use
     return NormFreeNet(**locals(), **kwargs)
 
 
+def NFNetL0(input_shape=(288, 288, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
+    num_blocks = [1, 2, 6, 3]
+    num_features_factor = 1.5
+    se_ratio = 0.25
+    return NormFreeNet_Light(model_name="nfnetl0", **locals(), **kwargs)
+
+
 def ECA_NFNetL0(input_shape=(288, 288, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
     num_blocks = [1, 2, 6, 3]
     num_features_factor = 1.5
@@ -311,7 +322,7 @@ def ECA_NFNetL2(input_shape=(384, 384, 3), num_classes=1000, activation="swish",
     return NormFreeNet_Light(model_name="eca_nfnetl2", **locals(), **kwargs)
 
 
-def ECA_NFNetL3(input_shape=(448, 448, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
+def ECA_NFNetL3(input_shape=(448, 448, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained=None, **kwargs):
     num_blocks = [4, 8, 24, 12]
     attn_type = "eca"
     return NormFreeNet_Light(model_name="eca_nfnetl3", **locals(), **kwargs)

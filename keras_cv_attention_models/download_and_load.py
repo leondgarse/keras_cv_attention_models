@@ -50,3 +50,50 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, custom_o
             if isinstance(ii, mismatch_class):
                 print(">>>> Reload layer:", ii.name)
                 model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
+
+
+def state_dict_stack_by_layer(state_dict):
+    stacked_state_dict = {}
+    for kk, vv in state_dict.items():
+        split_kk = kk.split(".")
+        vv = vv.numpy()
+        if split_kk[-1] in ["num_batches_tracked", "attention_bias_idxs", "attention_biases"]:
+            continue
+        if split_kk[-1] in ["weight", "bias", "running_mean", "running_var", "gain"]:
+            layer_name = ".".join(split_kk[:-1])
+            stacked_state_dict.setdefault(layer_name, []).append(vv)
+        else:
+            stacked_state_dict[kk] = [vv]
+    return stacked_state_dict
+
+
+def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_matched_torch, save_name=None):
+    import numpy as np
+
+    for kk, tf_layer_name in zip(stacked_state_dict.keys(), layer_names_matched_torch):
+        print("torch layer name: {}, tf layer name: {}".format(kk, tf_layer_name))
+        tf_layer = model.get_layer(tf_layer_name)
+        tf_weights = tf_layer.get_weights()
+        torch_weight = stacked_state_dict[kk]
+        # print("[{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
+
+        if isinstance(tf_layer, keras.layers.Conv2D):
+            torch_weight[0] = np.transpose(torch_weight[0], (2, 3, 1, 0))
+            if len(torch_weight) > 2: # gain
+                torch_weight[2] = np.squeeze(torch_weight[2])
+        elif isinstance(tf_layer, keras.layers.PReLU):
+            torch_weight[0] = np.expand_dims(np.expand_dims(torch_weight[0], 0), 0)
+        elif isinstance(tf_layer, keras.layers.Conv1D):
+            torch_weight[0] = np.transpose(torch_weight[0], (2, 1, 0))
+        elif isinstance(tf_layer, keras.layers.Dense):
+            # fc layer after flatten, weights need to reshape according to NCHW --> NHWC
+            torch_weight[0] = torch_weight[0].T
+        print("[{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
+
+        tf_layer.set_weights(torch_weight)
+
+    if save_name is None:
+        save_name = model.name + ".h5"
+    if len(save_name) != 0:
+        print(">>>> Save model to:", save_name)
+        model.save(save_name)
