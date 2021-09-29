@@ -23,11 +23,11 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
         _, num_heads, qq_blocks, kk_blocks = input_shape
         self.bb = self.add_weight(name="positional_embedding", shape=(kk_blocks, num_heads), initializer="zeros", trainable=True)
         strides = int(tf.math.ceil(tf.math.sqrt(float(kk_blocks / qq_blocks))))
-        q_blocks_h = q_blocks_h = int(tf.math.sqrt(float(qq_blocks)))
-        k_blocks_h = k_blocks_h = int(tf.math.sqrt(float(kk_blocks)))
+        q_blocks_h = q_blocks_w = int(tf.math.sqrt(float(qq_blocks)))
+        k_blocks_h = k_blocks_w = int(tf.math.sqrt(float(kk_blocks)))
 
-        x1, y1 = tf.meshgrid(range(q_blocks_h), range(q_blocks_h))
-        x2, y2 = tf.meshgrid(range(k_blocks_h), range(k_blocks_h))
+        x1, y1 = tf.meshgrid(range(q_blocks_h), range(q_blocks_w))
+        x2, y2 = tf.meshgrid(range(k_blocks_h), range(k_blocks_w))
         aa = tf.concat([tf.reshape(x1, (-1, 1)), tf.reshape(y1, (-1, 1))], axis=-1)
         bb = tf.concat([tf.reshape(x2, (-1, 1)), tf.reshape(y2, (-1, 1))], axis=-1)
         # print(f">>>> {aa.shape = }, {bb.shape = }") # aa.shape = (16, 2), bb.shape = (49, 2)
@@ -44,10 +44,10 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
 
     def load_resized_pos_emb(self, source_layer):
         hh = ww = int(tf.math.sqrt(float(source_layer.bb.shape[0])))
-        ss = tf.reshape(source_layer.bb, (hh, ww, source_layer.bb.shape[-1]))  # [1, hh, ww, num_heads]
+        ss = tf.reshape(source_layer.bb, (hh, ww, source_layer.bb.shape[-1]))  # [hh, ww, num_heads]
         target_hh = target_ww = int(tf.math.sqrt(float(self.bb.shape[0])))
         tt = tf.image.resize(ss, [target_hh, target_ww])  # [target_hh, target_ww, num_heads]
-        tt = tf.reshape(tt, (self.bb.shape))
+        tt = tf.reshape(tt, (self.bb.shape))  # [target_hh * target_ww, num_heads]
         self.bb.assign(tt)
 
 

@@ -274,9 +274,10 @@
   | ECA_NFNetL3 | 72.04M | 448               |          |          |
 ***
 
-# Other implemented keras models
-  - [perceiver_image_classification](https://keras.io/examples/vision/perceiver_image_classification/)
+# Other implemented tensorflow or keras models
   - [Github faustomorales/vit-keras](https://github.com/faustomorales/vit-keras)
+  - [Github rishigami/Swin-Transformer-TF](https://github.com/rishigami/Swin-Transformer-TF)
   - [Github tensorflow/resnet_rs](https://github.com/tensorflow/tpu/tree/master/models/official/resnet/resnet_rs)
   - [Github google-research/big_transfer](https://github.com/google-research/big_transfer)
+  - [perceiver_image_classification](https://keras.io/examples/vision/perceiver_image_classification/)
 ***

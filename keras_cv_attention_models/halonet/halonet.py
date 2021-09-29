@@ -9,9 +9,9 @@ def halo_attention(
 ):
     _, hh, ww, cc = inputs.shape
     qk_scale = 1.0 / tf.math.sqrt(tf.cast(key_dim, inputs.dtype))
-    out_shape = cc if out_shape is None or not out_weight else out_shape
+    out_shape = cc if out_shape is None else out_shape
     emb_dim = num_heads * key_dim
-    final_out_shape = (None, hh // strides, ww // strides, out_shape)
+    # final_out_shape = (None, hh // strides, ww // strides, out_shape)
     query_block = block_size // strides
     kv_kernel = block_size + halo_size * 2
 
@@ -30,7 +30,7 @@ def halo_attention(
     pos_query = tf.reshape(query, [-1, num_heads * hh_qq * ww_qq, query_block, query_block, cc_qq])
 
     # key_value = [batch, num_heads, hh, ww, kv_kernel * kv_kernel, key_dim * 2]
-    key_value = keras.layers.Dense(emb_dim * 2, use_bias=False, name=name and name + "key_value")(inputs)
+    key_value = keras.layers.Dense(emb_dim + out_shape, use_bias=False, name=name and name + "key_value")(inputs)
     kv_padded = tf.pad(key_value, [[0, 0], [halo_size, halo_size], [halo_size, halo_size], [0, 0]])
     sizes, strides = [1, kv_kernel, kv_kernel, 1], [1, block_size, block_size, 1]
     kv_inp = tf.image.extract_patches(kv_padded, sizes=sizes, strides=strides, rates=[1, 1, 1, 1], padding="VALID")
@@ -42,7 +42,7 @@ def halo_attention(
     kv_inp = tf.reshape(kv_inp, [-1, num_heads, hh_kk, ww_kk, kv_kernel * kv_kernel, cc_kk])
 
     # key = value = [batch, num_heads, hh, ww, kv_kernel * kv_kernel, key_dim]
-    key, value = tf.split(kv_inp, 2, axis=-1)
+    key, value = tf.split(kv_inp, [emb_dim // num_heads, out_shape // num_heads], axis=-1)
 
     # scaled_dot_product_attention
     # print(f">>>> {attn_query.shape = }, {key.shape = }, {value.shape = }, {kv_inp.shape = }, {pos_query.shape = }")
@@ -51,8 +51,8 @@ def halo_attention(
     attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1], transpose_b=True))([attn_query, key])
     # [batch, num_heads * hh * ww, query_block, query_block, kv_kernel, kv_kernel]
     pos = RelativePositionalEmbedding(position_height=kv_kernel, name=name and name + "pos_emb")(pos_query)
-    pos = tf.reshape(pos, [-1, *attention_scores.shape[1:]])
     # print(f">>>> {pos.shape = }, {attention_scores.shape = }")
+    pos = tf.reshape(pos, [-1, *attention_scores.shape[1:]])
     attention_scores = keras.layers.Add()([attention_scores, pos])
     attention_scores = tf.nn.softmax(attention_scores, axis=-1)
 
@@ -71,7 +71,7 @@ def halo_attention(
     if out_weight:
         # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
         attention_output = keras.layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
-    attention_output.set_shape(final_out_shape)
+    # attention_output.set_shape(final_out_shape)
     return attention_output
 
 
@@ -96,7 +96,7 @@ def halo_block(inputs, filter, strides=1, shortcut=False, expansion=2, num_heads
     key_dim = filter // num_heads
     # print(f"{filter // num_heads = }")
     # key_dim = 16
-    nn = halo_attention(nn, num_heads, key_dim, block_size, halo_size, strides=strides, out_shape=out_shape, out_bias=True, name=name + "halo_")
+    nn = halo_attention(nn, num_heads, key_dim, block_size, halo_size, strides=strides, out_shape=out_shape, out_weight=False, name=name + "halo_")
     # print(">>>>", nn.shape)
     # nn = keras.layers.Activation(activation=activation)(nn)
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "halo_")
@@ -110,7 +110,8 @@ def halo_block(inputs, filter, strides=1, shortcut=False, expansion=2, num_heads
 
 
 def halo_stack(inputs, blocks, filter, strides=1, expansion=2, num_heads=4, halo_expansion=1, block_size=8, halo_size=4, activation="swish", name=""):
-    shortcut = True if strides != 1 or inputs.shape[-1] != filter * 2 or expansion != 2 else False
+    # shortcut = True if strides != 1 or inputs.shape[-1] != filter * 2 or expansion != 2 else False
+    shortcut = True if strides != 1 or inputs.shape[-1] != filter * expansion else False
     nn = halo_block(inputs, filter, strides, shortcut, expansion, num_heads, halo_expansion, block_size, halo_size, activation, name=name + "block1_")
     shortcut = False
     for ii in range(2, blocks + 1):
@@ -188,6 +189,7 @@ BLOCK_CONFIGS = {
         "output_conv_channel": -1,  # df
         "num_blocks": [3, 3, 10, 3],
         "num_heads": [4, 8, 8, 8],
+        # "num_heads": [8, 8, 8, 8],
     },
     "h2": {  # rv = 1, rb = 1.25
         "halo_block_size": 8,
