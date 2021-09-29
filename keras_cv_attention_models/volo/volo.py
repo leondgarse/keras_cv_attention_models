@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch, reload_model_weights
+from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias
 
 
@@ -408,11 +408,7 @@ def VOLO(
 
     if num_classes == 0:
         model = tf.keras.models.Model(inputs, nn, name=model_name)
-        pre_resolutions = PRETRAINED_DICT[model.name]
-        max_resolution = max([int(ii) for ii in pre_resolutions.keys()])
-        request_resolution = input_shape[0] if str(input_shape[0]) in pre_resolutions else max_resolution
-        pretrained = str(request_resolution) if pretrained is not None else None
-        reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="volo", input_shape=input_shape, pretrained=pretrained)
+        volo_reload_model_weights(model, input_shape, pretrained)
         return model
 
     _, height, width, channel = nn.shape
@@ -458,13 +454,16 @@ def VOLO(
         nn = keras.layers.Add()([nn_cls, tf.reduce_max(nn_aux, 1) * 0.5])
 
     model = tf.keras.models.Model(inputs, nn, name=model_name)
+    volo_reload_model_weights(model, input_shape, pretrained)
+    return model
 
+
+def volo_reload_model_weights(model, input_shape, pretrained):
     pre_resolutions = PRETRAINED_DICT[model.name]
     max_resolution = max([int(ii) for ii in pre_resolutions.keys()])
     request_resolution = input_shape[0] if str(input_shape[0]) in pre_resolutions else max_resolution
     pretrained = str(request_resolution) if pretrained is not None else None
     reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "volo", PositionalEmbedding, request_resolution, input_shape, pretrained)
-    return model
 
 
 def VOLO_d1(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", **kwargs):

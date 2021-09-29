@@ -1,8 +1,6 @@
 # ___Keras NFNets___
 ***
 
-- **In progress**
-
 ## Summary
   - Keras implementation of [Github deepmind/nfnets](https://github.com/deepmind/deepmind-research/tree/master/nfnets). Paper [PDF 2102.06171 High-Performance Large-Scale Image Recognition Without Normalization](https://arxiv.org/pdf/2102.06171.pdf).
   - Model weights reloaded from official publication.
@@ -56,3 +54,4 @@
 
   mm.save("nfnetf1_imagenet_dynamic_notop.h5")
   ```
+***
