@@ -154,17 +154,20 @@
 ## HaloNet
   - [Keras HaloNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/halonet) is for [PDF 2103.12731 Scaling Local Self-Attention for Parameter Efficient Visual Backbones](https://arxiv.org/pdf/2103.12731.pdf).
 
-  | Model     | Params | Image resolution | Top1 Acc |
-  | --------- | ------ | ---------------- | -------- |
-  | HaloNetH0 | 6.6M   | 256              | 77.9     |
-  | HaloNetH1 | 9.1M   | 256              | 79.9     |
-  | HaloNetH2 | 10.3M  | 256              | 80.4     |
-  | HaloNetH3 | 12.5M  | 320              | 81.9     |
-  | HaloNetH4 | 19.5M  | 384              | 83.3     |
-  | - 21k     | 19.5M  | 384              | 85.5     |
-  | HaloNetH5 | 31.6M  | 448              | 84.0     |
-  | HaloNetH6 | 44.3M  | 512              | 84.4     |
-  | HaloNetH7 | 67.9M  | 600              | 84.9     |
+  | Model          | Params | Image resolution | Top1 Acc | Download |
+  | -------------- | ------ | ---------------- | -------- | -------- |
+  | HaloNetH0      | 5.5M   | 256              | 77.9     |          |
+  | HaloNetH1      | 8.1M   | 256              | 79.9     |          |
+  | HaloNetH2      | 9.4M   | 256              | 80.4     |          |
+  | HaloNetH3      | 11.8M  | 320              | 81.9     |          |
+  | HaloNetH4      | 19.1M  | 384              | 83.3     |          |
+  | - 21k          | 19.1M  | 384              | 85.5     |          |
+  | HaloNetH5      | 30.7M  | 448              | 84.0     |          |
+  | HaloNetH6      | 43.4M  | 512              | 84.4     |          |
+  | HaloNetH7      | 67.4M  | 600              | 84.9     |          |
+  | HaloNet26T     | 11.6M  | 256              | 77.6 ?   | [halonet26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet26t_imagenet.h5) |
+  | HaloNetSE33T   | 13.7M  | 256              | 79.8 ?   | [halonet_se33t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet_se33t_imagenet.h5) |
+  | HaloNextECA26T | 10.7M  | 256              | 77.8 ?   | [halonext_eca26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonext_eca26t_imagenet.h5) |
 ## CoTNet
   - [Keras CoTNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cotnet) is for [PDF 2107.12292 Contextual Transformer Networks for Visual Recognition](https://arxiv.org/pdf/2107.12292.pdf).
 

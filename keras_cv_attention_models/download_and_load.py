@@ -52,22 +52,24 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, custom_o
                 model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
 
 
-def state_dict_stack_by_layer(state_dict):
+def state_dict_stack_by_layer(state_dict, skip_weights=["num_batches_tracked"], unstack_weights=[]):
     stacked_state_dict = {}
     for kk, vv in state_dict.items():
         split_kk = kk.split(".")
         vv = vv.numpy()
-        if split_kk[-1] in ["num_batches_tracked", "attention_bias_idxs", "attention_biases"]:
+        if split_kk[-1] in skip_weights:
             continue
-        if split_kk[-1] in ["weight", "bias", "running_mean", "running_var", "gain"]:
+
+        if split_kk[-1] in unstack_weights:
+            stacked_state_dict[kk] = [vv]
+        else:
+            # split_kk[-1] in ["weight", "bias", "running_mean", "running_var", "gain"]
             layer_name = ".".join(split_kk[:-1])
             stacked_state_dict.setdefault(layer_name, []).append(vv)
-        else:
-            stacked_state_dict[kk] = [vv]
     return stacked_state_dict
 
 
-def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_matched_torch, save_name=None):
+def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_matched_torch, additional_transfer={}, save_name=None):
     import numpy as np
 
     for kk, tf_layer_name in zip(stacked_state_dict.keys(), layer_names_matched_torch):
@@ -88,6 +90,10 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
         elif isinstance(tf_layer, keras.layers.Dense):
             # fc layer after flatten, weights need to reshape according to NCHW --> NHWC
             torch_weight[0] = torch_weight[0].T
+
+        for add_layer, add_transfer in additional_transfer.items():
+            if isinstance(tf_layer, add_layer):
+                torch_weight = add_transfer(torch_weight)
         print("[{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
 
         tf_layer.set_weights(torch_weight)

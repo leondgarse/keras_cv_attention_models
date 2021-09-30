@@ -4,21 +4,25 @@
 ## Summary
   - [Github lucidrains/halonet-pytorch](https://github.com/lucidrains/halonet-pytorch).
   - HaloAttention article: [PDF 2103.12731 Scaling Local Self-Attention for Parameter Efficient Visual Backbones](https://arxiv.org/pdf/2103.12731.pdf).
-  - No pretraind available. Architecture is guessed from article, so it's NOT certain.
+  - No pretrained available for `H` models. Architecture is guessed from article, so it's NOT certain.
+  - `T` model weights are reloaded from timm [Github rwightman/pytorch-image-models](https://github.com/rwightman/pytorch-image-models).
 ## Models
   ![](halo_attention.png)
 
-  | Model     | Params | Image resolution | Top1 Acc |
-  | --------- | ------ | ---------------- | -------- |
-  | HaloNetH0 | 6.6M   | 256              | 77.9     |
-  | HaloNetH1 | 9.1M   | 256              | 79.9     |
-  | HaloNetH2 | 10.3M  | 256              | 80.4     |
-  | HaloNetH3 | 12.5M  | 320              | 81.9     |
-  | HaloNetH4 | 19.5M  | 384              | 83.3     |
-  | - 21k     | 19.5M  | 384              | 85.5     |
-  | HaloNetH5 | 31.6M  | 448              | 84.0     |
-  | HaloNetH6 | 44.3M  | 512              | 84.4     |
-  | HaloNetH7 | 67.9M  | 600              | 84.9     |
+  | Model          | Params | Image resolution | Top1 Acc | Download |
+  | -------------- | ------ | ---------------- | -------- | -------- |
+  | HaloNetH0      | 5.5M   | 256              | 77.9     |          |
+  | HaloNetH1      | 8.1M   | 256              | 79.9     |          |
+  | HaloNetH2      | 9.4M   | 256              | 80.4     |          |
+  | HaloNetH3      | 11.8M  | 320              | 81.9     |          |
+  | HaloNetH4      | 19.1M  | 384              | 83.3     |          |
+  | - 21k          | 19.1M  | 384              | 85.5     |          |
+  | HaloNetH5      | 30.7M  | 448              | 84.0     |          |
+  | HaloNetH6      | 43.4M  | 512              | 84.4     |          |
+  | HaloNetH7      | 67.4M  | 600              | 84.9     |          |
+  | HaloNet26T     | 11.6M  | 256              | 77.6 ?   | [halonet26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet26t_imagenet.h5) |
+  | HaloNetSE33T   | 13.7M  | 256              | 79.8 ?   | [halonet_se33t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet_se33t_imagenet.h5) |
+  | HaloNextECA26T | 10.7M  | 256              | 77.8 ?   | [halonext_eca26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonext_eca26t_imagenet.h5) |
 
   Comparing `halo_b7` accuracy by replacing Conv layers with Attention in each stage:
 
@@ -32,8 +36,20 @@
   ```py
   from keras_cv_attention_models import halonet
 
-  # No pretraind available.
-  mm = halonet.HaloNetH1()
-  mm.summary()
+  # Will download and load pretrained imagenet weights.
+  mm = halonet.HaloNet26T(pretrained="imagenet")
+
+  # Run prediction
+  import tensorflow as tf
+  from tensorflow import keras
+  from skimage.data import chelsea
+  imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
+  pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
+  print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
+  # [('n02124075', 'Egyptian_cat', 0.63371086),
+  #  ('n02123159', 'tiger_cat', 0.1171699),
+  #  ('n02123045', 'tabby', 0.11092894),
+  #  ('n02127052', 'lynx', 0.007458764),
+  #  ('n02883205', 'bow_tie', 0.001702262)]
   ```
 ***
