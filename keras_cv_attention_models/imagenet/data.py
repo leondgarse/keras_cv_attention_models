@@ -123,6 +123,7 @@ def init_dataset(
     cutmix_alpha=0,
     central_fraction=1.0,
     keep_shape=False,
+    mode='tf',
 ):
     dataset, info = tfds.load(data_name, with_info=True)
     num_classes = info.features["label"].num_classes
@@ -140,7 +141,13 @@ def init_dataset(
     elif "test" in dataset:
         test = dataset["test"].map(lambda xx: test_process(xx))
 
-    rescaling = lambda xx: (xx - 127.5) * 0.0078125
+    if mode == "torch":
+        mean = np.array([0.485, 0.456, 0.406]) * 255.0
+        std = np.array([0.229, 0.224, 0.225]) * 255.0
+        rescaling = lambda xx: (xx - mean) / std
+    else:
+        rescaling = lambda xx: (xx - 127.5) * 0.0078125
+
     as_one_hot = lambda yy: tf.one_hot(yy, num_classes)
     train_dataset = train.shuffle(buffer_size).batch(batch_size).prefetch(buffer_size=AUTOTUNE)
     test_dataset = test.batch(batch_size).map(lambda xx, yy: (rescaling(xx), as_one_hot(yy)))
