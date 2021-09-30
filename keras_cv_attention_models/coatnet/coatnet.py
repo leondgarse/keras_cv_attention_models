@@ -20,9 +20,9 @@ def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion
 
     if conv_short_cut:
         # Avg or Max pool
-        # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs) if strides > 1 else inputs
-        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(preact) if strides > 1 else preact
-        shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shorcut_")
+        # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
+        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
+        shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shortcut_")
     else:
         shortcut = inputs
 
@@ -62,9 +62,9 @@ def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, head_dimens
 
     if conv_short_cut:
         # Avg or Max pool
-        # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(inputs) if strides > 1 else inputs
-        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_pool")(preact) if strides > 1 else preact
-        shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shorcut_")
+        # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
+        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
+        shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shortcut_")
     else:
         shortcut = inputs
 

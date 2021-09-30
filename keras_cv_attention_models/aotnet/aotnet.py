@@ -46,10 +46,10 @@ def attn_block(inputs, filters, strides=1, attn_type=None, se_ratio=0, use_bn=Tr
 
 def conv_shortcut_branch(inputs, expanded_filter, preact=False, strides=1, avg_pool_down=False, anti_alias_down=False, name=""):
     if strides > 1 and avg_pool_down:
-        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_down")(inputs)
+        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_down")(inputs)
         strides = 1
     elif strides > 1 and anti_alias_down:
-        shortcut = anti_alias_downsample(inputs, kernel_size=3, strides=2, name=name + "shorcut_down")
+        shortcut = anti_alias_downsample(inputs, kernel_size=3, strides=2, name=name + "shortcut_down")
         strides = 1
     else:
         shortcut = inputs
