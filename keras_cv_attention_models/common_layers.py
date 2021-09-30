@@ -96,14 +96,14 @@ def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", us
     )(inputs)
 
 
-def se_module(inputs, se_ratio=0.25, activation="relu", use_bias=True, name=None):
+def se_module(inputs, se_ratio=0.25, divisor=8, activation="relu", use_bias=True, name=None):
     """ Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf """
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
     h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
 
     filters = inputs.shape[channel_axis]
-    # reduction = _make_divisible(filters // se_ratio, 8)
-    reduction = int(filters * se_ratio)
+    # reduction = int(filters * se_ratio)
+    reduction = make_divisible(filters * se_ratio, divisor)
     se = tf.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)
     se = keras.layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_conv")(se)
     se = activation_by_name(se, activation=activation, name=name)
