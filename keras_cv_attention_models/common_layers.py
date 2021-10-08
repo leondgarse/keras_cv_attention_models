@@ -174,3 +174,37 @@ def make_divisible(vv, divisor=4, min_value=None):
     if new_v < 0.9 * vv:
         new_v += divisor
     return new_v
+
+def tpu_extract_patches_overlap_1(inputs, kernel_size=3, strides=2):
+    # kernel_size, strides = 3, 2
+    # inputs = np.random.uniform(size=[1, 28, 28, 192])
+    pad = kernel_size // 2
+    pad_inputs = tf.pad(inputs, [[0, 0], [pad, pad], [pad, pad], [0, 0]])
+
+    _, ww, hh, cc = pad_inputs.shape
+    num_patches = int(tf.math.ceil(ww / strides) - 1)
+    valid_ww = num_patches * strides
+    overlap_s = kernel_size - strides
+    temp_shape = (-1, num_patches, strides, num_patches, strides, cc)
+    # print(f"{ww = }, {hh = }, {cc = }, {num_patches = }, {valid_ww = }, {overlap_s = }")
+    # ww = 30, hh = 30, cc = 192, num_patches = 14, valid_ww = 28, overlap_s = 1
+
+    center = tf.reshape(pad_inputs[:, :valid_ww, :valid_ww, :], temp_shape) # (1, 14, 2, 14, 2, 192)
+    ww_overlap = tf.reshape(pad_inputs[:, :valid_ww, overlap_s:valid_ww + overlap_s, :], temp_shape)  # (1, 14, 2, 14, 2, 192)
+    hh_overlap = tf.reshape(pad_inputs[:, overlap_s:valid_ww + overlap_s, :valid_ww, :], temp_shape)  # (1, 14, 2, 14, 2, 192)
+    corner_overlap = tf.reshape(pad_inputs[:, overlap_s:valid_ww + overlap_s, overlap_s:valid_ww + overlap_s, :], temp_shape) # (1, 14, 2, 14, 2, 192)
+    # print(f"{center.shape = }, {corner_overlap.shape = }")
+    # center.shape = TensorShape([1, 14, 2, 14, 2, 192]), corner_overlap.shape = TensorShape([1, 14, 2, 14, 2, 192])
+    # print(f"{ww_overlap.shape = }, {hh_overlap.shape = }")
+    # ww_overlap.shape = TensorShape([1, 14, 2, 14, 2, 192]), hh_overlap.shape = TensorShape([1, 14, 2, 14, 2, 192])
+
+    aa = tf.concat([center, ww_overlap[:, :, :, :, -overlap_s:, :]], axis=4)    # (1, 14, 2, 14, 3, 192)
+    bb = tf.concat([hh_overlap[:, :, -overlap_s:, :, :, :], corner_overlap[:, :, -overlap_s:, :, -overlap_s:, :]], axis=4)    # (1, 14, 1, 14, 3, 192)
+    out = tf.concat([aa, bb], axis=2)  # (1, 14, 3, 14, 3, 192)
+    # print(f"{aa.shape = }, {bb.shape = }, {out.shape = }")
+    # aa.shape = TensorShape([1, 14, 2, 14, 3, 192]), bb.shape = TensorShape([1, 14, 1, 14, 3, 192]), out.shape = TensorShape([1, 14, 3, 14, 3, 192])
+
+    out = tf.transpose(out, [0, 1, 3, 2, 4, 5]) # [1, 14, 14, 3, 3, 192]
+    # print(f"{out.shape = }")
+    # out.shape = TensorShape([1, 14, 14, 3, 3, 192])
+    return tf.reshape(out, [-1, num_patches, num_patches, kernel_size * kernel_size * cc])
