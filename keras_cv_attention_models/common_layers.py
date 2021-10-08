@@ -175,11 +175,15 @@ def make_divisible(vv, divisor=4, min_value=None):
         new_v += divisor
     return new_v
 
-def tpu_extract_patches_overlap_1(inputs, kernel_size=3, strides=2):
-    # kernel_size, strides = 3, 2
-    # inputs = np.random.uniform(size=[1, 28, 28, 192])
-    pad = kernel_size // 2
-    pad_inputs = tf.pad(inputs, [[0, 0], [pad, pad], [pad, pad], [0, 0]])
+def tpu_extract_patches_overlap_1(inputs, sizes=3, strides=2, rates=1, padding="SAME", name=None):
+    kernel_size = sizes[1] if isinstance(sizes, (list, tuple)) else sizes
+    strides = strides[1] if isinstance(strides, (list, tuple)) else strides
+
+    if padding.upper() == "SAME":
+        pad = kernel_size // 2
+        pad_inputs = tf.pad(inputs, [[0, 0], [pad, pad], [pad, pad], [0, 0]])
+    else:
+        pad_inputs = inputs
 
     _, ww, hh, cc = pad_inputs.shape
     num_patches = int(tf.math.ceil(ww / strides) - 1)

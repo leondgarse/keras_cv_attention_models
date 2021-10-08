@@ -3,6 +3,7 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias
+from keras_cv_attention_models.attention_layers import tpu_extract_patches_overlap_1
 
 
 BATCH_NORM_EPSILON = 1e-5
@@ -58,6 +59,13 @@ class UnfoldMatmulFold(keras.layers.Layer):
             self.out_start_h, self.out_start_w = 0, 0
         self.out_end_h, self.out_end_w = self.out_start_h + height, self.out_start_w + width
 
+        if len(tf.config.experimental.list_logical_devices('TPU')) == 0:
+            self.extract_patches = tf.image.extract_patches
+        else:   # Using TPU, tf.image.extract_patches NOT working
+            # print(">>>> TPU extract_patches")
+            self.extract_patches = tpu_extract_patches_overlap_1
+
+
     def pad_overlap(self, patches, start_h, start_w):
         bb = patches[:, start_h::2, :, start_w::2, :, :]  # [1, 7, 4, 7, 4, 192]
         bb = tf.reshape(bb, [-1, bb.shape[1] * bb.shape[2], bb.shape[3] * bb.shape[4], bb.shape[-1]])  # [1, 28, 28, 192]
@@ -82,7 +90,9 @@ class UnfoldMatmulFold(keras.layers.Layer):
         # [1, 30, 30, 192], do SAME padding
         pad_vv = tf.pad(vv, self.patch_pad)
         # [1, 14, 14, 1728]
-        patches = tf.image.extract_patches(pad_vv, self.patch_kernel, self.patch_strides, [1, 1, 1, 1], padding="VALID")
+        # patches = tf.image.extract_patches(pad_vv, self.patch_kernel, self.patch_strides, [1, 1, 1, 1], padding="VALID")
+        # patches = tpu_extract_patches_overlap_1(vv, kernel_size=self.kernel_size, strides=self.strides)
+        patches = self.extract_patches(pad_vv, self.patch_kernel, self.patch_strides, [1, 1, 1, 1], padding="VALID")
 
         """ matmul """
         # mm = einops.rearrange(patches, 'D H W (k h p) -> D H W h k p', h=num_head, k=self.kernel_size * self.kernel_size)
