@@ -29,7 +29,7 @@ def reload_model_weights_with_mismatch(
     if pretrained_model is None:
         return
 
-    if input_shape[0] != request_resolution:
+    if input_shape[0] != request_resolution or input_shape[1] != request_resolution:    # May be non-square
         try:
             print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
             bb = keras.models.load_model(pretrained_model)
