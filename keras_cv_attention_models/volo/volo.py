@@ -65,7 +65,6 @@ class UnfoldMatmulFold(keras.layers.Layer):
             # print(">>>> TPU extract_patches")
             self.extract_patches = tpu_extract_patches_overlap_1
 
-
     def pad_overlap(self, patches, start_h, start_w):
         bb = patches[:, start_h::2, :, start_w::2, :, :]  # [1, 7, 4, 7, 4, 192]
         bb = tf.reshape(bb, [-1, bb.shape[1] * bb.shape[2], bb.shape[3] * bb.shape[4], bb.shape[-1]])  # [1, 28, 28, 192]
