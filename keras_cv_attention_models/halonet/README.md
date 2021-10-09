@@ -20,9 +20,10 @@
   | HaloNetH5      | 30.7M  | 448              | 84.0     |          |
   | HaloNetH6      | 43.4M  | 512              | 84.4     |          |
   | HaloNetH7      | 67.4M  | 600              | 84.9     |          |
-  | HaloNet26T     | 11.6M  | 256              | 77.6 ?   | [halonet26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet26t_imagenet.h5) |
+  | HaloNet26T     | 12.5M  | 256              | 77.7 ?   | [halonet26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet26t_imagenet.h5) |
   | HaloNetSE33T   | 13.7M  | 256              | 79.8 ?   | [halonet_se33t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet_se33t_imagenet.h5) |
   | HaloNextECA26T | 10.7M  | 256              | 77.8 ?   | [halonext_eca26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonext_eca26t_imagenet.h5) |
+  | HaloNet50T     | 22.7M  | 256              | 80.8 ?   | [halonext_eca26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet50t_imagenet.h5) |
 
   Comparing `halo_b7` accuracy by replacing Conv layers with Attention in each stage:
 
@@ -46,10 +47,10 @@
   imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.63371086),
-  #  ('n02123159', 'tiger_cat', 0.1171699),
-  #  ('n02123045', 'tabby', 0.11092894),
-  #  ('n02127052', 'lynx', 0.007458764),
-  #  ('n02883205', 'bow_tie', 0.001702262)]
+  # [('n02124075', 'Egyptian_cat', 0.8999013),
+  #  ('n02123159', 'tiger_cat', 0.012704549),
+  #  ('n02123045', 'tabby', 0.009713952),
+  #  ('n07760859', 'custard_apple', 0.00056676986),
+  #  ('n02487347', 'macaque', 0.00050636294)]
   ```
 ***

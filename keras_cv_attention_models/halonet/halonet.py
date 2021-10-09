@@ -12,10 +12,12 @@ from keras_cv_attention_models.attention_layers import (
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
-    "halonet26t": {"imagenet": "017b70b19970332403a25eadc4239a53"},
-    "halonet_se33t": {"imagenet": "714e261ad1d4b833bcc6ea7abe71c762"},
-    "halonext_eca26t": {"imagenet": "e3aa2a77953ba8ccd65862e01f70e756"},
+    "halonet26t": {"imagenet": "e9a08aa78fb0d912283834266ca179f2"},
+    "halonet50t": {"imagenet": "8146970cd6443d7679aa0797581432f9"},
+    "halonet_se33t": {"imagenet": "58e9382e876f4043d62154e189c065ca"},
+    "halonext_eca26t": {"imagenet": "b6e140e9ea99b75de878ef173696c748"},
 }
+
 
 def halo_attention(
     inputs, num_heads=4, key_dim=0, block_size=2, halo_size=1, strides=1, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
@@ -37,7 +39,7 @@ def halo_attention(
     query = tf.reshape(query, [-1, hh_qq, query_block, ww_qq, query_block, num_heads, cc_qq])
     query = tf.transpose(query, [0, 5, 1, 3, 2, 4, 6])  # [batch, num_heads, hh, ww, query_block, query_block, key_dim]
     # attn_query = [batch, num_heads, hh, ww, query_block * query_block, key_dim]
-    attn_query = tf.reshape(query, [-1, num_heads, hh_qq, ww_qq, query_block * query_block, cc_qq]) * qk_scale
+    attn_query = tf.reshape(query, [-1, num_heads, hh_qq, ww_qq, query_block * query_block, cc_qq]) * qk_scale  # [???] qk_scale NOT multiplied with pos_query
     # pos_query = [batch, num_heads * hh * ww, query_block, query_block, key_dim]
     pos_query = tf.reshape(query, [-1, num_heads * hh_qq * ww_qq, query_block, query_block, cc_qq])
 
@@ -59,7 +61,7 @@ def halo_attention(
     key, value = tf.split(kv_inp, [emb_dim // num_heads, out_shape // num_heads], axis=-1)
 
     # scaled_dot_product_attention
-    # print(f">>>> {attn_query.shape = }, {key.shape = }, {value.shape = }, {kv_inp.shape = }, {pos_query.shape = }")
+    # print(f">>>> {attn_query.shape = }, {key.shape = }, {value.shape = }, {kv_inp.shape = }, {pos_query.shape = }, {num_heads = }")
     # attention_scores = [batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]
     attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1], transpose_b=True))([attn_query, key])
     # pos = [batch, num_heads * hh * ww, query_block, query_block, kv_kernel, kv_kernel]
@@ -261,7 +263,6 @@ BLOCK_CONFIGS = {
         "output_conv_channel": -1,  # df
         "num_blocks": [3, 3, 10, 3],
         "num_heads": [4, 8, 8, 8],
-        # "num_heads": [8, 8, 8, 8],
     },
     "h2": {  # rv = 1, rb = 1.25
         "halo_block_size": 8,
@@ -358,10 +359,22 @@ def HaloNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", c
     expansion = 4
     halo_block_size = 8
     halo_halo_size = 2
-    num_heads = 8
-    key_dim = 16
+    num_heads = [0, 0, 8, 8]
+    # key_dim = 16
     tiered_stem = True
     return HaloNet(model_name="halonet26t", **locals(), **kwargs)
+
+
+def HaloNet50T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 4, 6, 3]
+    attn_type = [None, [None, None, None, 'halo'], [None, 'halo'] * 3, [None, 'halo', None]]
+    expansion = 4
+    halo_block_size = 8
+    halo_halo_size = 3
+    num_heads = [0, 4, 8, 8]
+    # key_dim = 16
+    tiered_stem = True
+    return HaloNet(model_name="halonet50t", **locals(), **kwargs)
 
 
 def HaloNetSE33T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):

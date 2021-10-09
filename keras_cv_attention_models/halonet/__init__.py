@@ -9,6 +9,7 @@ from keras_cv_attention_models.halonet.halonet import (
     HaloNetH6,
     HaloNetH7,
     HaloNet26T,
+    HaloNet50T,
     HaloNetSE33T,
     HaloNextECA26T,
     halo_attention,
@@ -76,9 +77,10 @@ Model architectures:
   | HaloNetH5      | 30.7M  | 448              | 84.0     |
   | HaloNetH6      | 43.4M  | 512              | 84.4     |
   | HaloNetH7      | 67.4M  | 600              | 84.9     |
-  | HaloNet26T     | 11.6M  | 256              | 77.6 ?   |
+  | HaloNet26T     | 11.6M  | 256              | 77.7 ?   |
   | HaloNetSE33T   | 13.7M  | 256              | 79.8 ?   |
   | HaloNextECA26T | 10.7M  | 256              | 77.8 ?   |
+  | HaloNet50T     | 22.7M  | 256              | 80.8 ?   |
 """
 
 HaloNetH0.__doc__ = __head_doc__ + """
@@ -99,6 +101,7 @@ Args:
 """ + __tail_doc__
 HaloNetSE33T.__doc__ = HaloNet26T.__doc__
 HaloNextECA26T.__doc__ = HaloNet26T.__doc__
+HaloNet50T.__doc__ = HaloNet26T.__doc__
 
 halo_attention.__doc__ = __head_doc__ + """
 Halo Attention. Defined as function, not layer.
