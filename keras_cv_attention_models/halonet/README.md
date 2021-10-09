@@ -23,7 +23,7 @@
   | HaloNet26T     | 12.5M  | 256              | 77.7 ?   | [halonet26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet26t_imagenet.h5) |
   | HaloNetSE33T   | 13.7M  | 256              | 79.8 ?   | [halonet_se33t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet_se33t_imagenet.h5) |
   | HaloNextECA26T | 10.7M  | 256              | 77.8 ?   | [halonext_eca26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonext_eca26t_imagenet.h5) |
-  | HaloNet50T     | 22.7M  | 256              | 80.8 ?   | [halonext_eca26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet50t_imagenet.h5) |
+  | HaloNet50T     | 22.7M  | 256              | 80.8 ?   | [halonet50t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet50t_imagenet.h5) |
 
   Comparing `halo_b7` accuracy by replacing Conv layers with Attention in each stage:
 
