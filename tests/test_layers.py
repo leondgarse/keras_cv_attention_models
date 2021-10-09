@@ -155,11 +155,11 @@ def test_split_attention_conv2d():
 
 
 def test_tpu_extract_patches_overlap_1():
-    inputs = np.random.uniform(size=[1, 64, 27, 192])
+    inputs = tf.random.uniform([1, 64, 27, 192])
     pad_inputs = tf.pad(inputs, [[0, 0], [1, 1], [1, 1], [0, 0]])
     pathes = tf.image.extract_patches(pad_inputs, [1, 3, 3, 1], [1, 2, 2, 1], [1, 1, 1, 1], padding='VALID')
     tpu_pathes = attention_layers.tpu_extract_patches_overlap_1(pad_inputs, 3, 2, padding='VALID')
-    tf.assert_equal(tpu_pathes, pathes)
+    tf.assert_less(tf.abs(pathes - tpu_pathes), 1e-7)
 
 
 def test_ZeroInitGain():
