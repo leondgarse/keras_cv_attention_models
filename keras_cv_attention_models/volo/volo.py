@@ -59,9 +59,9 @@ class UnfoldMatmulFold(keras.layers.Layer):
             self.out_start_h, self.out_start_w = 0, 0
         self.out_end_h, self.out_end_w = self.out_start_h + height, self.out_start_w + width
 
-        if len(tf.config.experimental.list_logical_devices('TPU')) == 0:
+        if len(tf.config.experimental.list_logical_devices("TPU")) == 0:
             self.extract_patches = tf.image.extract_patches
-        else:   # Using TPU, tf.image.extract_patches NOT working
+        else:  # Using TPU, tf.image.extract_patches NOT working
             # print(">>>> TPU extract_patches")
             self.extract_patches = tpu_extract_patches_overlap_1
 
@@ -376,6 +376,7 @@ def VOLO(
     model_name="VOLO",
     kwargs=None,
 ):
+    assert input_shape[0] % 16 == 0 and input_shape[1] % 16 == 0  # Or will have reshpae error after int(tf.math.ceil(height / strides))
     inputs = keras.layers.Input(input_shape)
 
     """ forward_embeddings """
