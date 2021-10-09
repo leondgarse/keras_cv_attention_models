@@ -140,7 +140,8 @@ def outlook_attention(inputs, embed_dim, num_head, kernel_size=3, padding=1, str
 
     """ attention """
     # [1, 14, 14, 192]
-    attn = keras.layers.AveragePooling2D(pool_size=strides, strides=strides)(inputs)
+    pool_padding = "VALID" if height % strides == 0 and width % strides == 0 else "SAME"
+    attn = keras.layers.AveragePooling2D(pool_size=strides, strides=strides, padding=pool_padding)(inputs)
     # [1, 14, 14, 486]
     attn = keras.layers.Dense(kernel_size ** 4 * num_head, name=name + "attn")(attn) / qk_scale
     # [1, 14, 14, 6, 9, 9]
@@ -376,7 +377,6 @@ def VOLO(
     model_name="VOLO",
     kwargs=None,
 ):
-    assert input_shape[0] % 16 == 0 and input_shape[1] % 16 == 0  # Or will have reshpae error after int(tf.math.ceil(height / strides))
     inputs = keras.layers.Input(input_shape)
 
     """ forward_embeddings """
