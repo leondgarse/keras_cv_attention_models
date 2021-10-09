@@ -112,14 +112,14 @@ def se_module(inputs, se_ratio=0.25, divisor=8, activation="relu", use_bias=True
     return keras.layers.Multiply(name=name and name + "out")([inputs, se])
 
 
-def eca_module(inputs, gamma=2., beta=1., name=None, **kwargs):
+def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
     """ Efficient Channel Attention block, arxiv: https://arxiv.org/pdf/1910.03151.pdf """
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
     h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
 
     filters = inputs.shape[channel_axis]
     beta, gamma = float(beta), float(gamma)
-    tt = int((tf.math.log(float(filters)) / tf.math.log(2.) + beta) / gamma)
+    tt = int((tf.math.log(float(filters)) / tf.math.log(2.0) + beta) / gamma)
     kernel_size = max(tt if tt % 2 else tt + 1, 3)
     pad = kernel_size // 2
 
@@ -177,10 +177,10 @@ def make_divisible(vv, divisor=4, min_value=None):
 
 
 def tpu_extract_patches_overlap_1(inputs, sizes=3, strides=2, rates=1, padding="SAME", name=None):
-    """ For issue https://github.com/leondgarse/keras_cv_attention_models/issues/8,
-     `tf.image.extract_patches` NOT working for TPU.
-     `overlap_1` means `1 < sizes / strides <= 2`.
-     `rates` and `name` not used, just keeping same perameters with `tf.image.extract_patche`.
+    """For issue https://github.com/leondgarse/keras_cv_attention_models/issues/8,
+    `tf.image.extract_patches` NOT working for TPU.
+    `overlap_1` means `1 < sizes / strides <= 2`.
+    `rates` and `name` not used, just keeping same perameters with `tf.image.extract_patche`.
     """
     # kernel_size, strides = 3, 2
     # inputs = np.random.uniform(size=[1, 64, 28, 192])
@@ -201,29 +201,29 @@ def tpu_extract_patches_overlap_1(inputs, sizes=3, strides=2, rates=1, padding="
     # print(f"{ww = }, {hh = }, {cc = }, {num_patches_hh = }, {num_patches_ww = }, {valid_hh = }, {valid_ww = }, {overlap_s = }")
     # ww = 30, hh = 66, cc = 192, num_patches_hh = 32, num_patches_ww = 14, valid_hh = 64, valid_ww = 28, overlap_s = 1
 
-    center = tf.reshape(pad_inputs[:, :valid_hh, :valid_ww, :], temp_shape) # (1, 32, 2, 14, 2, 192)
-    ww_overlap = tf.reshape(pad_inputs[:, :valid_hh, overlap_s:valid_ww + overlap_s, :], temp_shape)  # (1, 32, 2, 14, 2, 192)
-    hh_overlap = tf.reshape(pad_inputs[:, overlap_s:valid_hh + overlap_s, :valid_ww, :], temp_shape)  # (1, 32, 2, 14, 2, 192)
-    corner_overlap = tf.reshape(pad_inputs[:, overlap_s:valid_hh + overlap_s, overlap_s:valid_ww + overlap_s, :], temp_shape) # (1, 32, 2, 14, 2, 192)
+    center = tf.reshape(pad_inputs[:, :valid_hh, :valid_ww, :], temp_shape)  # (1, 32, 2, 14, 2, 192)
+    ww_overlap = tf.reshape(pad_inputs[:, :valid_hh, overlap_s : valid_ww + overlap_s, :], temp_shape)  # (1, 32, 2, 14, 2, 192)
+    hh_overlap = tf.reshape(pad_inputs[:, overlap_s : valid_hh + overlap_s, :valid_ww, :], temp_shape)  # (1, 32, 2, 14, 2, 192)
+    corner_overlap = tf.reshape(pad_inputs[:, overlap_s : valid_hh + overlap_s, overlap_s : valid_ww + overlap_s, :], temp_shape)  # (1, 32, 2, 14, 2, 192)
     # print(f"{center.shape = }, {corner_overlap.shape = }")
     # center.shape = TensorShape([1, 32, 2, 14, 2, 192]), corner_overlap.shape = TensorShape([1, 32, 2, 14, 2, 192])
     # print(f"{ww_overlap.shape = }, {hh_overlap.shape = }")
     # ww_overlap.shape = TensorShape([1, 32, 2, 14, 2, 192]), hh_overlap.shape = TensorShape([1, 32, 2, 14, 2, 192])
 
-    center_ww = tf.concat([center, ww_overlap[:, :, :, :, -overlap_s:, :]], axis=4)    # (1, 32, 2, 14, 3, 192)
-    hh_corner = tf.concat([hh_overlap[:, :, -overlap_s:, :, :, :], corner_overlap[:, :, -overlap_s:, :, -overlap_s:, :]], axis=4)    # (1, 32, 1, 14, 3, 192)
+    center_ww = tf.concat([center, ww_overlap[:, :, :, :, -overlap_s:, :]], axis=4)  # (1, 32, 2, 14, 3, 192)
+    hh_corner = tf.concat([hh_overlap[:, :, -overlap_s:, :, :, :], corner_overlap[:, :, -overlap_s:, :, -overlap_s:, :]], axis=4)  # (1, 32, 1, 14, 3, 192)
     out = tf.concat([center_ww, hh_corner], axis=2)  # (1, 32, 3, 14, 3, 192)
     # print(f"{center_ww.shape = }, {hh_corner.shape = }, {out.shape = }")
     # center_ww.shape = TensorShape([1, 32, 2, 14, 3, 192]), hh_corner.shape = TensorShape([1, 32, 1, 14, 3, 192]), out.shape = TensorShape([1, 32, 3, 14, 3, 192])
 
-    out = tf.transpose(out, [0, 1, 3, 2, 4, 5]) # [batch, height, width, kernel, kernel, channel], [1, 32, 14, 3, 3, 192]
+    out = tf.transpose(out, [0, 1, 3, 2, 4, 5])  # [batch, height, width, kernel, kernel, channel], [1, 32, 14, 3, 3, 192]
     # print(f"{out.shape = }")
     # out.shape = TensorShape([1, 32, 14, 3, 3, 192])
     return tf.reshape(out, [-1, num_patches_hh, num_patches_ww, kernel_size * kernel_size * cc])
 
 
 def tpu_compatible_extract_patches_overlap_1(inputs, sizes=3, strides=2, rates=1, padding="SAME", name=None):
-    if len(tf.config.experimental.list_logical_devices('TPU')) == 0:
+    if len(tf.config.experimental.list_logical_devices("TPU")) == 0:
         return tf.image.extract_patches(inputs, sizes, strides, rates, padding, name)
     else:
         return tpu_extract_patches_overlap_1(inputs, sizes, strides, rates, padding, name)
