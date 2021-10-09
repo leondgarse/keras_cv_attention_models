@@ -179,8 +179,7 @@ def outlook_attention_simple(inputs, embed_dim, num_head=6, kernel_size=3, attn_
     vv = tf.reshape(vv, [-1, hh, ww, num_head, kernel_size * kernel_size, key_dim])  # [1, 14, 14, 6, 4, 32]
 
     # attn = keras.layers.AveragePooling2D(pool_size=3, strides=2, padding='SAME')(inputs)
-    pool_padding = "VALID" if height % strides == 0 and width % strides == 0 else "SAME"
-    attn = keras.layers.AveragePooling2D(pool_size=kernel_size, strides=kernel_size, padding=pool_padding)(inputs)
+    attn = keras.layers.AveragePooling2D(pool_size=kernel_size, strides=kernel_size)(inputs)
     attn = keras.layers.Dense(kernel_size ** 4 * num_head, use_bias=True, name=name + "attn")(attn) / qk_scale
     attn = tf.reshape(attn, [-1, hh, ww, num_head, kernel_size * kernel_size, kernel_size * kernel_size])  # [1, 14, 14, 6, 4, 4]
     attn = tf.nn.softmax(attn, axis=-1)
