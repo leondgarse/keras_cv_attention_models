@@ -205,7 +205,7 @@ def HaloNet(
 
 
     # Input (height, width) should be dividable by `halo_block_size`, assume height == width here
-    down_sample_rate = tf.reduce_prod(strides) * halo_block_size
+    down_sample_rate = int(tf.reduce_prod(strides) * halo_block_size)
     if nn.shape[1] % down_sample_rate != 0:
         gap = down_sample_rate - nn.shape[1] % down_sample_rate
         pad_head, pad_tail = gap // 2, gap - gap // 2

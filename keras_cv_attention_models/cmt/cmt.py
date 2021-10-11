@@ -27,7 +27,7 @@ def light_multi_head_self_attention(inputs, num_heads=4, key_dim=0, sr_ratio=1, 
 
     if sr_ratio > 1:
         key_value = depthwise_conv2d_no_bias(inputs, kernel_size=sr_ratio, strides=sr_ratio, name=name + "kv_sr_")
-        # key_value = conv2d_no_bias(inputs, inputs.shape[-1], kernel_size=sr_ratio, strides=sr_ratio, name=name + "kv_sr_")
+        # key_value = conv2d_no_bias(inputs, inputs.shape[-1], kernel_size=sr_ratio, strides=sr_ratio, use_bias=True, name=name + "kv_sr_")
         key_value = layer_norm(key_value, name=name+"kv_sr_")
         # key_value = inputs[:, ::sr_ratio, ::sr_ratio, :]
     else:
@@ -108,11 +108,11 @@ def cmt_block(inputs, num_heads=4, sr_ratio=1, expansion=4, activation="gelu", d
 
 
 def cmt_stem(inputs, stem_width, activation="gelu", name="", **kwargs):
-    nn = conv2d_no_bias(inputs, stem_width, kernel_size=3, strides=2, padding="same", name=name + "1_")
+    nn = conv2d_no_bias(inputs, stem_width, kernel_size=3, strides=2, padding="same", use_bias=False, name=name + "1_")
     nn = batchnorm_with_activation(nn, activation=activation, act_first=False, name=name + "1_")
-    nn = conv2d_no_bias(nn, stem_width, kernel_size=3, strides=1, padding="same", name=name + "2_")
+    nn = conv2d_no_bias(nn, stem_width, kernel_size=3, strides=1, padding="same", use_bias=False, name=name + "2_")
     nn = batchnorm_with_activation(nn, activation=activation, act_first=False, name=name + "2_")
-    nn = conv2d_no_bias(nn, stem_width, kernel_size=3, strides=1, padding="same", name=name + "3_")
+    nn = conv2d_no_bias(nn, stem_width, kernel_size=3, strides=1, padding="same", use_bias=False, name=name + "3_")
     nn = batchnorm_with_activation(nn, activation=activation, act_first=False, name=name + "3_")
     return nn
 

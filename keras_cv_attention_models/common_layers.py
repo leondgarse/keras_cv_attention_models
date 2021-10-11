@@ -181,6 +181,16 @@ def tpu_extract_patches_overlap_1(inputs, sizes=3, strides=2, rates=1, padding="
     `tf.image.extract_patches` NOT working for TPU.
     `overlap_1` means `1 < sizes / strides <= 2`.
     `rates` and `name` not used, just keeping same perameters with `tf.image.extract_patche`.
+
+    input: `[batch, height, width, channel]`.
+    output: `[batch, height // strides,  width // strides, sizes * sizes * channel]`.
+
+    Examples:
+
+    >>> from keras_cv_attention_models import attention_layers
+    >>> inputs = tf.ones([1, 64, 27, 192])
+    >>> print(attention_layers.tpu_extract_patches_overlap_1(inputs, sizes=3, strides=2).shape)
+    # (1, 32, 14, 1728)
     """
     # kernel_size, strides = 3, 2
     # inputs = np.random.uniform(size=[1, 64, 28, 192])

@@ -77,10 +77,10 @@ Model architectures:
   | HaloNetH5      | 30.7M  | 448              | 84.0     |
   | HaloNetH6      | 43.4M  | 512              | 84.4     |
   | HaloNetH7      | 67.4M  | 600              | 84.9     |
-  | HaloNet26T     | 11.6M  | 256              | 77.7 ?   |
-  | HaloNetSE33T   | 13.7M  | 256              | 79.8 ?   |
-  | HaloNextECA26T | 10.7M  | 256              | 77.8 ?   |
-  | HaloNet50T     | 22.7M  | 256              | 80.8 ?   |
+  | HaloNet26T     | 11.6M  | 256              | 79.13    |
+  | HaloNetSE33T   | 13.7M  | 256              | 80.99    |
+  | HaloNextECA26T | 10.7M  | 256              | 78.84    |
+  | HaloNet50T     | 22.7M  | 256              | 81.5 ?   |
 """
 
 HaloNetH0.__doc__ = __head_doc__ + """

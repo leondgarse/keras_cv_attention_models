@@ -2,9 +2,11 @@ import numpy as np
 from tqdm import tqdm
 from keras_cv_attention_models.imagenet import data
 
-def eval(model, data_name="imagenet2012", input_shape=None, batch_size=64, central_fraction=1.0, mode='tf'):
+def eval(model, data_name="imagenet2012", input_shape=None, batch_size=64, central_fraction=1.0, resize_method="bilinear", mode='tf'):
     input_shape = model.input_shape[1:-1] if input_shape is None else input_shape
-    _, test_dataset, _, _, _ = data.init_dataset(data_name, input_shape=input_shape, batch_size=batch_size, central_fraction=central_fraction, mode=mode)
+    _, test_dataset, _, _, _ = data.init_dataset(
+        data_name, input_shape=input_shape, batch_size=batch_size, central_fraction=central_fraction, resize_method=resize_method, mode=mode
+    )
 
     y_true, y_pred_top_1, y_pred_top_5 = [], [], []
     for img_batch, true_labels in tqdm(test_dataset, "Evaluating", total=len(test_dataset)):
