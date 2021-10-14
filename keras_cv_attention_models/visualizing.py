@@ -1,11 +1,13 @@
 import numpy as np
 import tensorflow as tf
 
+
 def __compute_loss__(feature_extractor, input_image, filter_index):
     activation = feature_extractor(input_image)
     # We avoid border artifacts by only involving non-border pixels in the loss.
     filter_activation = activation[:, 2:-2, 2:-2, filter_index]
     return tf.reduce_mean(filter_activation)
+
 
 @tf.function
 def __gradient_ascent_step__(feature_extractor, img, filter_index, learning_rate):
@@ -19,12 +21,14 @@ def __gradient_ascent_step__(feature_extractor, img, filter_index, learning_rate
     img += learning_rate * grads
     return loss, img
 
+
 def __initialize_image__(img_width, img_height):
     # We start from a gray image with some random noise
     img = tf.random.uniform((1, img_width, img_height, 3))
     # ResNet50V2 expects inputs in the range [-1, +1].
     # Here we scale our random inputs to [-0.125, +0.125]
     return (img - 0.5) * 0.25
+
 
 def __deprocess_image__(img):
     # Normalize array: center on 0., ensure variance is 0.15
@@ -99,12 +103,12 @@ def visualize_filters_result_to_single_image(all_images, margin=5, width=-1):
             width = ww
             break
     height = total // width
-    all_images = all_images[:height * width]
+    all_images = all_images[: height * width]
     print(">>>> width:", width, ", height:", height, ", len(all_images):", len(all_images))
 
     ww_margin = np.zeros([all_images[0].shape[0], margin, channel], dtype=all_images[0].dtype)
     ww_margined_images = [np.hstack([ii, ww_margin]) for ii in all_images]
-    hstacked_images = [np.hstack(ww_margined_images[ii: ii + width]) for ii in range(0, len(ww_margined_images), width)]
+    hstacked_images = [np.hstack(ww_margined_images[ii : ii + width]) for ii in range(0, len(ww_margined_images), width)]
 
     hh_margin = np.zeros([margin, hstacked_images[0].shape[1], channel], dtype=hstacked_images[0].dtype)
     hh_margined_images = [np.vstack([ii, hh_margin]) for ii in hstacked_images]

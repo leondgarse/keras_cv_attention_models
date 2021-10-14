@@ -54,9 +54,7 @@ class CosineLrSchedulerEpoch(keras.callbacks.Callback):
         if lr_min == lr_base * m_mul:
             self.schedule = keras.experimental.CosineDecay(lr_base, first_restart_step, alpha=lr_min / lr_base)
         else:
-            self.schedule = keras.experimental.CosineDecayRestarts(
-                lr_base, first_restart_step, t_mul=t_mul, m_mul=m_mul, alpha=lr_min / lr_base
-            )
+            self.schedule = keras.experimental.CosineDecayRestarts(lr_base, first_restart_step, t_mul=t_mul, m_mul=m_mul, alpha=lr_min / lr_base)
 
         if warmup != 0:
             self.warmup_lr_func = lambda ii: lr_min + (lr_base - lr_min) * ii / warmup
@@ -138,7 +136,7 @@ class MyHistory(keras.callbacks.Callback):
             k = "accuracy" if "accuracy" in k else k
             self.history.setdefault(k, []).append(float(v))
 
-        if len(self.model.losses) != 0: # Has regular_loss
+        if len(self.model.losses) != 0:  # Has regular_loss
             regular_loss = K.sum(self.model.losses).numpy()
             self.history.setdefault("regular_loss", []).append(float(regular_loss))
             self.history["loss"][-1] -= regular_loss

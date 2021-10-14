@@ -182,7 +182,7 @@ def BotNet152(input_shape=(224, 224, 3), num_classes=1000, activation="relu", cl
 
 def BotNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 2, 2]
-    attn_types = [None, None, [None, 'bot'], 'bot']
+    attn_types = [None, None, [None, "bot"], "bot"]
     attn_params = [
         None,
         None,

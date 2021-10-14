@@ -26,9 +26,7 @@ DEFAULT_PARAMS = {
 }
 
 
-def attn_block(
-    inputs, filters, strides=1, attn_type=None, attn_params=None, se_ratio=0, use_eca=False, groups=1, use_bn=True, activation="relu", name=""
-):
+def attn_block(inputs, filters, strides=1, attn_type=None, attn_params=None, se_ratio=0, use_eca=False, groups=1, use_bn=True, activation="relu", name=""):
     nn = inputs
     if attn_params is not None:
         default_attn_params = DEFAULT_PARAMS.get(attn_type, {}).copy()
@@ -166,7 +164,7 @@ def aot_stack(
     se_ratio=0,
     use_eca=False,
     groups=1,
-    name=""
+    name="",
 ):
     nn = inputs
     # print(">>>> attn_types:", attn_types)
@@ -176,7 +174,7 @@ def aot_stack(
         cur_strides = strides if id == strides_block_id else 1
         block_name = name + "block{}_".format(id + 1)
         block_drop_rate = stack_drop[id] if isinstance(stack_drop, (list, tuple)) else stack_drop
-        attn_block_params = {   # Just save the line width..
+        attn_block_params = {  # Just save the line width..
             "attn_type": attn_types[id] if isinstance(attn_types, (list, tuple)) else attn_types,
             "attn_params": attn_params[id] if isinstance(attn_params, (list, tuple)) else attn_params,
             "se_ratio": (se_ratio[id] if isinstance(se_ratio, (list, tuple)) else se_ratio) / expansion,
@@ -215,12 +213,12 @@ def AotNet(
     quad_stem_act=False,
     stem_last_strides=1,
     stem_downsample=True,
-    attn_types=None,    # Attention block params
+    attn_types=None,  # Attention block params
     attn_params=None,
     se_ratio=0,  # (0, 1)
     use_eca=False,
     groups=1,
-    avg_pool_down=False,    # shortcut_branch params
+    avg_pool_down=False,  # shortcut_branch params
     anti_alias_down=False,
     input_shape=(224, 224, 3),  # Model common params
     num_classes=1000,
@@ -261,9 +259,7 @@ def AotNet(
             "groups": groups[id] if isinstance(groups, (list, tuple)) else groups,
         }
         cur_expansion = expansion[id] if isinstance(expansion, (list, tuple)) else expansion
-        nn = aot_stack(
-            nn, num_block, out_channel, stride, strides_first, cur_expansion, drop_connect, block_params, **cur_attn_params, name=name
-        )
+        nn = aot_stack(nn, num_block, out_channel, stride, strides_first, cur_expansion, drop_connect, block_params, **cur_attn_params, name=name)
 
     if preact:  # resnetv2 like
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="post_")

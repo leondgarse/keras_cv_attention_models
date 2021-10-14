@@ -29,7 +29,7 @@ def reload_model_weights_with_mismatch(
     if pretrained_model is None:
         return
 
-    if input_shape[0] != request_resolution or input_shape[1] != request_resolution:    # May be non-square
+    if input_shape[0] != request_resolution or input_shape[1] != request_resolution:  # May be non-square
         try:
             print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
             bb = keras.models.load_model(pretrained_model)
@@ -81,7 +81,7 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
 
         if isinstance(tf_layer, keras.layers.Conv2D):
             torch_weight[0] = np.transpose(torch_weight[0], (2, 3, 1, 0))
-            if len(torch_weight) > 2: # gain
+            if len(torch_weight) > 2:  # gain
                 torch_weight[2] = np.squeeze(torch_weight[2])
         elif isinstance(tf_layer, keras.layers.PReLU):
             torch_weight[0] = np.expand_dims(np.expand_dims(torch_weight[0], 0), 0)

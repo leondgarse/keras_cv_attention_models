@@ -28,7 +28,7 @@ def light_multi_head_self_attention(inputs, num_heads=4, key_dim=0, sr_ratio=1, 
     if sr_ratio > 1:
         key_value = depthwise_conv2d_no_bias(inputs, kernel_size=sr_ratio, strides=sr_ratio, name=name + "kv_sr_")
         # key_value = conv2d_no_bias(inputs, inputs.shape[-1], kernel_size=sr_ratio, strides=sr_ratio, use_bias=True, name=name + "kv_sr_")
-        key_value = layer_norm(key_value, name=name+"kv_sr_")
+        key_value = layer_norm(key_value, name=name + "kv_sr_")
         # key_value = inputs[:, ::sr_ratio, ::sr_ratio, :]
     else:
         key_value = inputs

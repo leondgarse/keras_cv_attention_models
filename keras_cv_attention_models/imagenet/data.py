@@ -5,11 +5,11 @@ from tensorflow import keras
 
 
 class RandomProcessImage:
-    def __init__(self, target_shape=(300, 300), magnitude=0, central_fraction=1.0, resize_method="bilinear", keep_shape=False):
+    def __init__(self, target_shape=(300, 300), magnitude=0, central_crop=1.0, random_crop=1.0, resize_method="bilinear", keep_shape=False):
         self.target_shape, self.magnitude, self.keep_shape = target_shape, magnitude, keep_shape
         self.target_shape = target_shape if len(target_shape) == 2 else target_shape[:2]
-        self.central_fraction = central_fraction
-        self.resize_method = resize_method
+        self.central_crop, self.random_crop, self.resize_method = central_crop, random_crop, resize_method
+
         if magnitude > 0:
             from keras_cv_attention_models.imagenet import augment
 
@@ -25,13 +25,20 @@ class RandomProcessImage:
         else:
             self.process = lambda img: img
 
+        if random_crop > 0 and random_crop < 1:
+            self.enlarge_shape = (int(target_shape[0] / random_crop), int(target_shape[1] / random_crop))
+
     def __call__(self, datapoint):
         image = datapoint["image"]
         if self.keep_shape:
             cropped_shape = tf.reduce_min(tf.keras.backend.shape(image)[:2])
             image = tf.image.random_crop(image, (cropped_shape, cropped_shape, 3))
 
-        input_image = tf.image.central_crop(image, self.central_fraction)
+        if self.random_crop > 0 and self.random_crop < 1:
+            cropped_shape = tf.cast(tf.cast(tf.keras.backend.shape(image)[:2], tf.float32) * self.random_crop, tf.int32)
+            input_image = tf.image.random_crop(image, (*cropped_shape, 3))
+        else:
+            input_image = tf.image.central_crop(image, self.central_crop)
         input_image = tf.image.resize(input_image, self.target_shape, method=self.resize_method)
         label = datapoint["label"]
         input_image = self.process(input_image)
@@ -122,13 +129,14 @@ def init_dataset(
     magnitude=0,
     mixup_alpha=0,
     cutmix_alpha=0,
-    central_fraction=1.0,
+    central_crop=1.0,
+    random_crop=1.0,
     keep_shape=False,
     resize_method="bilinear",
-    mode='tf',
+    mode="tf",
 ):
-    """ Init dataset by name.
-     returns train_dataset, test_dataset, total_images, num_classes, steps_per_epoch.
+    """Init dataset by name.
+    returns train_dataset, test_dataset, total_images, num_classes, steps_per_epoch.
     """
     dataset, info = tfds.load(data_name, with_info=True)
     num_classes = info.features["label"].num_classes
@@ -139,11 +147,11 @@ def init_dataset(
 
     AUTOTUNE = tf.data.AUTOTUNE
     train_process = RandomProcessImage(
-        input_shape, magnitude, central_fraction=central_fraction, resize_method=resize_method, keep_shape=keep_shape
+        input_shape, magnitude, central_crop=central_crop, random_crop=random_crop, resize_method=resize_method, keep_shape=keep_shape
     )
     train = dataset["train"].map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE)
     test_process = RandomProcessImage(
-        input_shape, magnitude=-1, central_fraction=central_fraction, resize_method=resize_method, keep_shape=keep_shape
+        input_shape, magnitude=-1, central_crop=central_crop, random_crop=random_crop, resize_method=resize_method, keep_shape=keep_shape
     )
     if "validation" in dataset:
         test = dataset["validation"].map(lambda xx: test_process(xx))

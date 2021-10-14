@@ -162,16 +162,27 @@ BLOCK_CONFIGS = {
 def HaloNet(input_shape=(256, 256, 3), halo_block_size=4, halo_halo_size=1, num_heads=8, halo_expansion=1, pretrained=None, **kwargs):
     attn_types = "halo"
     if isinstance(num_heads, (list, tuple)):
-        attn_params = [{"block_size": halo_block_size, "halo_size": halo_halo_size, "halo_expansion": halo_expansion, "num_heads": hh, "out_weight": False} for hh in num_heads]
+        attn_params = [
+            {"block_size": halo_block_size, "halo_size": halo_halo_size, "halo_expansion": halo_expansion, "num_heads": hh, "out_weight": False}
+            for hh in num_heads
+        ]
     else:
-        attn_params = {"block_size": halo_block_size, "halo_size": halo_halo_size, "halo_expansion": halo_expansion, "num_heads": num_heads, "out_weight": False}
+        attn_params = {
+            "block_size": halo_block_size,
+            "halo_size": halo_halo_size,
+            "halo_expansion": halo_expansion,
+            "num_heads": num_heads,
+            "out_weight": False,
+        }
 
     model = AotNet(input_shape=input_shape, attn_types=attn_types, attn_params=attn_params, **kwargs)
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
     return model
 
+
 def HaloNetH0(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return AaloNet(**BLOCK_CONFIGS["h0"], model_name="haloneth0", **locals(), **kwargs)
+
 
 def HaloNetH0(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h0"], model_name="haloneth0", **locals(), **kwargs)
@@ -208,7 +219,7 @@ def HaloNetH7(input_shape=(640, 640, 3), num_classes=1000, activation="swish", c
 
 def HaloNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 2, 2]
-    attn_types = [None, None, [None, 'halo'], 'halo']
+    attn_types = [None, None, [None, "halo"], "halo"]
     attn_params = [
         None,
         None,
@@ -222,9 +233,10 @@ def HaloNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", c
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
     return model
 
+
 def HaloNet50T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
-    attn_types = [None, [None, None, None, 'halo'], [None, 'halo'] * 3, [None, 'halo', None]]
+    attn_types = [None, [None, None, None, "halo"], [None, "halo"] * 3, [None, "halo", None]]
     attn_params = [
         None,
         [None, None, None, {"block_size": 8, "halo_size": 3, "num_heads": 4, "out_weight": False}],
@@ -238,9 +250,10 @@ def HaloNet50T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", 
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
     return model
 
+
 def HaloNetSE33T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 3, 3, 2]
-    attn_types = [None, [None, None, 'halo'], [None, None, 'halo'], 'halo']
+    attn_types = [None, [None, None, "halo"], [None, None, "halo"], "halo"]
     attn_params = [
         None,
         [None, None, {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False}],
@@ -258,9 +271,10 @@ def HaloNetSE33T(input_shape=(256, 256, 3), num_classes=1000, activation="swish"
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
     return model
 
+
 def HaloNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 2, 2]
-    attn_types = [None, None, [None, 'halo'], 'halo']
+    attn_types = [None, None, [None, "halo"], "halo"]
     attn_params = [
         None,
         None,
