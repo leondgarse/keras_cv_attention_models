@@ -10,9 +10,9 @@ PRETRAINED_DICT = {
 }
 
 
-def ResNeXt(num_blocks, input_shape=(224, 224, 3), pretrained="imagenet", strides=2, attn_types="groups_conv", **kwargs):
+def ResNeXt(num_blocks, input_shape=(224, 224, 3), pretrained="imagenet", strides=2, groups=32, **kwargs):
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
-    model = AotNet(num_blocks, input_shape=input_shape, strides=strides, attn_types=attn_types, **kwargs)
+    model = AotNet(num_blocks, input_shape=input_shape, strides=strides, groups=groups, **kwargs)
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
     return model
 
@@ -37,8 +37,7 @@ def ResNeXt50D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", c
     num_blocks = [3, 4, 6, 3]
     out_channels = [128, 256, 512, 1024]
     expansion = 2
-    deep_stem = True
-    stem_width = 32
+    stem_type = "deep"
     avg_pool_down = True
     return ResNeXt(**locals(), model_name="resnext50d", **kwargs)
 

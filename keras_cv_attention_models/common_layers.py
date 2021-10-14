@@ -96,6 +96,51 @@ def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", us
     )(inputs)
 
 
+def deep_stem(inputs, stem_width, activation="relu", last_strides=1, name=None):
+    nn = conv2d_no_bias(inputs, stem_width // 2, 3, strides=2, padding="same", name=name and name + "1_")
+    nn = batchnorm_with_activation(nn, activation=activation, name=name and name + "1_")
+    nn = conv2d_no_bias(nn, stem_width // 2, 3, strides=1, padding="same", name=name and name + "2_")
+    nn = batchnorm_with_activation(nn, activation=activation, name=name and name + "2_")
+    nn = conv2d_no_bias(nn, stem_width, 3, strides=last_strides, padding="same", name=name and name + "3_")
+    return nn
+
+
+def quad_stem(inputs, stem_width, activation="relu", stem_act=False, last_strides=2, name=None):
+    nn = conv2d_no_bias(inputs, stem_width // 8, 3, strides=2, padding="same", name=name and name + "1_")
+    if stem_act:
+        nn = batchnorm_with_activation(nn, activation=activation, name=name and name + "1_")
+    nn = conv2d_no_bias(nn, stem_width // 4, 3, strides=1, padding="same", name=name and name + "2_")
+    if stem_act:
+        nn = batchnorm_with_activation(nn, activation=activation, name=name and name + "2_")
+    nn = conv2d_no_bias(nn, stem_width // 2, 3, strides=1, padding="same", name=name and name + "3_")
+    nn = batchnorm_with_activation(nn, activation=activation, name=name and name + "3_")
+    nn = conv2d_no_bias(nn, stem_width, 3, strides=last_strides, padding="same", name=name and name + "4_")
+    return nn
+
+
+def tiered_stem(inputs, stem_width, activation="relu", last_strides=1, name=None):
+    nn = conv2d_no_bias(inputs, 3 * stem_width // 8, 3, strides=2, padding="same", name=name and name + "1_")
+    nn = batchnorm_with_activation(nn, activation=activation, name=name and name + "1_")
+    nn = conv2d_no_bias(nn, stem_width // 2, 3, strides=1, padding="same", name=name and name + "2_")
+    nn = batchnorm_with_activation(nn, activation=activation, name=name and name + "2_")
+    nn = conv2d_no_bias(nn, stem_width, 3, strides=last_strides, padding="same", name=name and name + "3_")
+    return nn
+
+
+def output_block(inputs, num_features=0, activation="relu", num_classes=1000, drop_rate=0, classifier_activation="softmax"):
+    nn = inputs
+    if num_features > 0:  # efficientnet like
+        nn = conv2d_no_bias(nn, num_features, 1, strides=1, name="features_")
+        nn = batchnorm_with_activation(nn, activation=activation, name="features_")
+
+    if num_classes > 0:
+        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        if drop_rate > 0:
+            nn = keras.layers.Dropout(drop_rate, name="head_drop")(nn)
+        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+    return nn
+
+
 def se_module(inputs, se_ratio=0.25, divisor=8, activation="relu", use_bias=True, name=None):
     """ Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf """
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
@@ -131,6 +176,11 @@ def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
     nn = tf.squeeze(nn, axis=channel_axis)
     nn = activation_by_name(nn, activation="sigmoid", name=name)
     return keras.layers.Multiply(name=name and name + "out")([inputs, nn])
+
+
+def drop_connect_rates_split(num_blocks, start=0.0, end=0.0):
+    drop_connect_rates = tf.split(tf.linspace(start, end, sum(num_blocks)), num_blocks)
+    return [ii.numpy().tolist() for ii in drop_connect_rates]
 
 
 def drop_block(inputs, drop_rate=0, name=None):

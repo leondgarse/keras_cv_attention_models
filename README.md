@@ -28,7 +28,7 @@
 <!-- /TOC -->
 ***
 
-# [Roadmap](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)
+# [Roadmap and todo list](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)
 ***
 
 # Usage

@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.download_and_load import reload_model_weights
-from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, drop_block
+from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, drop_block, quad_stem
 
 
 PRETRAINED_DICT = {
@@ -50,19 +50,6 @@ def quad_stack(inputs, blocks, filters, groups_div, strides=2, expansion=4, extr
         block_name = name + "block{}_".format(id + 1)
         block_drop_rate = stack_drop_s + (stack_drop_e - stack_drop_s) * id / blocks
         nn = quad_block(nn, filters, groups_div, cur_strides, conv_shortcut, expansion, extra_conv, block_drop_rate, activation, name=block_name)
-    return nn
-
-
-def quad_stem(inputs, stem_width, activation="swish", stem_act=False, name=""):
-    nn = conv2d_no_bias(inputs, stem_width // 8, 3, strides=2, padding="same", name=name + "1_")
-    if stem_act:
-        nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
-    nn = conv2d_no_bias(nn, stem_width // 4, 3, strides=1, padding="same", name=name + "2_")
-    if stem_act:
-        nn = batchnorm_with_activation(nn, activation=activation, name=name + "2_")
-    nn = conv2d_no_bias(nn, stem_width // 2, 3, strides=1, padding="same", name=name + "3_")
-    nn = batchnorm_with_activation(nn, activation=activation, name=name + "3_")
-    nn = conv2d_no_bias(nn, stem_width, 3, strides=2, padding="same", name=name + "4_")
     return nn
 
 

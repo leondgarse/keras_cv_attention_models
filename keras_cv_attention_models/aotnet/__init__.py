@@ -9,12 +9,7 @@ from keras_cv_attention_models.aotnet.aotnet import (
     AotNet101V2,
     AotNet152V2,
     AotNet200V2,
-    MHSA_PARAMS,
-    HALO_PARAMS,
-    SA_PARAMS,
-    COT_PARAMS,
-    OUTLOOK_PARAMS,
-    GROUPS_CONV_PARAMS,
+    DEFAULT_PARAMS,
 )
 
 
