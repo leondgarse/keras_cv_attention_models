@@ -51,9 +51,7 @@ def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activ
     embed_ww = batchnorm_with_activation(embed_ww, activation=activation, zero_gamma=False, name=name and name + "embed_ww_1_")
     embed_filters = kernel_size * kernel_size * filters // reduction
     embed_ww = conv2d_no_bias(embed_ww, embed_filters, 1, use_bias=True, name=name and name + "embed_ww_2_")
-    embed_ww = GroupNormalization(
-        groups=filters // reduction, epsilon=BATCH_NORM_EPSILON, name=name and name + "embed_ww_group_norm"
-    )(embed_ww)
+    embed_ww = GroupNormalization(groups=filters // reduction, epsilon=BATCH_NORM_EPSILON, name=name and name + "embed_ww_group_norm")(embed_ww)
     embed_ww = tf.reshape(embed_ww, (-1, height, width, filters // reduction, kernel_size * kernel_size))
     embed_ww = tf.expand_dims(tf.transpose(embed_ww, [0, 1, 2, 4, 3]), axis=-2)  # expand dim on `reduction` axis
 
@@ -97,6 +95,7 @@ def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activ
         output = keras.layers.AveragePooling2D(3, strides=2, name=name and name + "pool")(output)
     return output
 
+
 def CotNet(input_shape=(224, 224, 3), bn_after_attn=False, avg_pool_down=True, attn_types="cot", pretrained="imagenet", **kwargs):
     model = AotNet(input_shape=input_shape, attn_types=attn_types, bn_after_attn=bn_after_attn, avg_pool_down=avg_pool_down, **kwargs)
     request_resolution = "320" if input_shape[0] == 320 and model.name == "cotnet_se152d" else "224"
@@ -104,55 +103,60 @@ def CotNet(input_shape=(224, 224, 3), bn_after_attn=False, avg_pool_down=True, a
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="cotnet", input_shape=input_shape, pretrained=pretrained)
     return model
 
+
 def CotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
     strides = [1, 2, 2, 2]
     return CotNet(**locals(), **kwargs, model_name="cotnet50")
+
 
 def CotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
     strides = [1, 2, 2, 2]
     return CotNet(**locals(), **kwargs, model_name="cotnet101")
 
+
 def CotNetSE50D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
     strides = [2, 2, 2, 2]
     attn_types = ["sa", "sa", ["cot", "sa"] * 3, "cot"]
     attn_params = [
-        {"groups": 1, "activation": "swish"},   # sa, stack1
-        {"groups": 1, "activation": "swish"},   # sa, stack2
-        [{}, {"groups": 1, "activation": "swish"}] * 3, # cot + sa, stack 3
-        {}, # cot, stack 4
+        {"downsample_first": True, "groups": 1, "activation": "swish"},  # sa, stack1
+        {"downsample_first": True, "groups": 1, "activation": "swish"},  # sa, stack2
+        [{}, {"downsample_first": True, "groups": 1, "activation": "swish"}] * 3,  # cot + sa, stack 3
+        {},  # cot, stack 4
     ]
     stem_type = "deep"
     stem_width = 64
     stem_downsample = False
     return CotNet(**locals(), **kwargs, model_name="cotnet_se50d")
 
+
 def CotNetSE101D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
     strides = [2, 2, 2, 2]
     attn_types = ["sa", "sa", ["cot", "sa"] * 12, "cot"]
     attn_params = [
-        {"groups": 1, "activation": "swish"},   # sa, stack1
-        {"groups": 1, "activation": "swish"},   # sa, stack2
-        [{}, {"groups": 1, "activation": "swish"}] * 12, # cot + sa, stack 3
-        {}, # cot, stack 4
+        {"downsample_first": True, "groups": 1, "activation": "swish"},  # sa, stack1
+        {"downsample_first": True, "groups": 1, "activation": "swish"},  # sa, stack2
+        [{}, {"downsample_first": True, "groups": 1, "activation": "swish"}] * 12,  # cot + sa, stack 3
+        {},  # cot, stack 4
     ]
     stem_type = "deep"
     stem_width = 128
     stem_downsample = False
     return CotNet(**locals(), **kwargs, model_name="cotnet_se101d")
 
+
 def CotNetSE152D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 8, 36, 3]
     strides = [2, 2, 2, 2]
     attn_types = ["sa", "sa", ["cot", "sa"] * 18, "cot"]
     attn_params = [
-        {"groups": 1, "activation": "swish"},   # sa, stack1
-        {"groups": 1, "activation": "swish"},   # sa, stack2
-        [{"downsample_first": False}, {"groups": 1, "activation": "swish"}] * 18, # cot + sa, stack 3
-        {"downsample_first": False}, # cot, stack 4
+        {"downsample_first": True, "groups": 1, "activation": "swish"},  # sa, stack1
+        {"downsample_first": True, "groups": 1, "activation": "swish"},  # sa, stack2
+        [{"downsample_first": False}, {"downsample_first": True, "groups": 1, "activation": "swish"}] * 18,  # cot + sa, stack 3
+        {"downsample_first": False},  # cot, stack 4
     ]
     stem_type = "deep"
     stem_width = 128

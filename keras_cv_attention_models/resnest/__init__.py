@@ -11,12 +11,16 @@ __tail_doc__ = """  groups: controls number of split groups in `split_attention_
       Set `(None, None, 3)` for dynamic input resolution.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default `relu`.
+  drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
+      Can be value like `0.2`, indicates the drop probability linearly changes from `0 --> 0.2` for `top --> bottom` layers.
+      A higher value means a higher probability will drop the deep branch.
+      or `0` to disable (default).
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `softmax`.
   pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
       Will try to download and load pre-trained model weights if not None.
-  **kwargs: other parameters if available.
+  **kwargs: other parameters from `AotNet` if not conflict.
 
 Returns:
     A `keras.Model` instance.
@@ -25,7 +29,6 @@ Returns:
 ResNest.__doc__ = __head_doc__ + """
 Args:
   num_blocks: number of blocks in each stack.
-  stem_width: output dimension after stem.
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
