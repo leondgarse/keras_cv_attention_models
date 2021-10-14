@@ -130,10 +130,10 @@ class UnfoldMatmulFold(keras.layers.Layer):
         return config
 
 
-def outlook_attention(inputs, embed_dim, num_head, kernel_size=3, padding=1, strides=2, attn_dropout=0, output_dropout=0, name=""):
+def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, strides=2, attn_dropout=0, output_dropout=0, name=""):
     _, height, width, channel = inputs.shape
     FLOAT_DTYPE = tf.keras.mixed_precision.global_policy().compute_dtype
-    qk_scale = tf.math.sqrt(tf.cast(embed_dim // num_head, FLOAT_DTYPE))
+    qk_scale = tf.math.sqrt(tf.cast(embed_dim // num_heads, FLOAT_DTYPE))
     hh, ww = int(tf.math.ceil(height / strides)), int(tf.math.ceil(width / strides))
 
     vv = keras.layers.Dense(embed_dim, use_bias=False, name=name + "v")(inputs)
@@ -143,9 +143,9 @@ def outlook_attention(inputs, embed_dim, num_head, kernel_size=3, padding=1, str
     pool_padding = "VALID" if height % strides == 0 and width % strides == 0 else "SAME"
     attn = keras.layers.AveragePooling2D(pool_size=strides, strides=strides, padding=pool_padding)(inputs)
     # [1, 14, 14, 486]
-    attn = keras.layers.Dense(kernel_size ** 4 * num_head, name=name + "attn")(attn) / qk_scale
+    attn = keras.layers.Dense(kernel_size ** 4 * num_heads, name=name + "attn")(attn) / qk_scale
     # [1, 14, 14, 6, 9, 9]
-    attn = tf.reshape(attn, (-1, hh, ww, num_head, kernel_size * kernel_size, kernel_size * kernel_size))
+    attn = tf.reshape(attn, (-1, hh, ww, num_heads, kernel_size * kernel_size, kernel_size * kernel_size))
     attention_weights = tf.nn.softmax(attn, axis=-1)
     if attn_dropout > 0:
         attention_weights = keras.layers.Dropout(attn_dropout)(attention_weights)
@@ -160,9 +160,9 @@ def outlook_attention(inputs, embed_dim, num_head, kernel_size=3, padding=1, str
     return output
 
 
-def outlook_attention_simple(inputs, embed_dim, num_head=6, kernel_size=3, attn_dropout=0, name=""):
+def outlook_attention_simple(inputs, embed_dim, num_heads=6, kernel_size=3, attn_dropout=0, name=""):
     """ Simple version not using unfold and fold """
-    key_dim = embed_dim // num_head
+    key_dim = embed_dim // num_heads
     FLOAT_DTYPE = tf.keras.mixed_precision.global_policy().compute_dtype
     qk_scale = tf.math.sqrt(tf.cast(key_dim, FLOAT_DTYPE))
 
@@ -173,22 +173,22 @@ def outlook_attention_simple(inputs, embed_dim, num_head=6, kernel_size=3, attn_
         inputs = keras.layers.ZeroPadding2D(((0, padded), (0, padded)))(inputs)
 
     vv = keras.layers.Dense(embed_dim, use_bias=False, name=name + "v")(inputs)
-    # vv = einops.rearrange(vv, "D (h hk) (w wk) (H p) -> D h w H (hk wk) p", hk=kernel_size, wk=kernel_size, H=num_head, p=key_dim)
-    vv = tf.reshape(vv, (-1, hh, kernel_size, ww, kernel_size, num_head, key_dim))  # [1, 14, 2, 14, 2, 6, 32]
+    # vv = einops.rearrange(vv, "D (h hk) (w wk) (H p) -> D h w H (hk wk) p", hk=kernel_size, wk=kernel_size, H=num_heads, p=key_dim)
+    vv = tf.reshape(vv, (-1, hh, kernel_size, ww, kernel_size, num_heads, key_dim))  # [1, 14, 2, 14, 2, 6, 32]
     vv = tf.transpose(vv, [0, 1, 3, 5, 2, 4, 6])
-    vv = tf.reshape(vv, [-1, hh, ww, num_head, kernel_size * kernel_size, key_dim])  # [1, 14, 14, 6, 4, 32]
+    vv = tf.reshape(vv, [-1, hh, ww, num_heads, kernel_size * kernel_size, key_dim])  # [1, 14, 14, 6, 4, 32]
 
     # attn = keras.layers.AveragePooling2D(pool_size=3, strides=2, padding='SAME')(inputs)
     attn = keras.layers.AveragePooling2D(pool_size=kernel_size, strides=kernel_size)(inputs)
-    attn = keras.layers.Dense(kernel_size ** 4 * num_head, use_bias=True, name=name + "attn")(attn) / qk_scale
-    attn = tf.reshape(attn, [-1, hh, ww, num_head, kernel_size * kernel_size, kernel_size * kernel_size])  # [1, 14, 14, 6, 4, 4]
+    attn = keras.layers.Dense(kernel_size ** 4 * num_heads, use_bias=True, name=name + "attn")(attn) / qk_scale
+    attn = tf.reshape(attn, [-1, hh, ww, num_heads, kernel_size * kernel_size, kernel_size * kernel_size])  # [1, 14, 14, 6, 4, 4]
     attn = tf.nn.softmax(attn, axis=-1)
     if attn_dropout > 0:
         attn = keras.layers.Dropout(attn_dropout)(attn)
 
     out = tf.matmul(attn, vv)  # [1, 14, 14, 6, 4, 32]
     # out = einops.rearrange(out, "D h w H (hk wk) p -> D (h hk) (w wk) (H p)", hk=kernel_size, wk=kernel_size)  # [1, 28, 28, 192]
-    out = tf.reshape(out, [-1, hh, ww, num_head, kernel_size, kernel_size, key_dim])  # [1, 14, 14, 6, 2, 2, 32]
+    out = tf.reshape(out, [-1, hh, ww, num_heads, kernel_size, kernel_size, key_dim])  # [1, 14, 14, 6, 2, 2, 32]
     out = tf.transpose(out, [0, 1, 4, 2, 5, 3, 6])  # [1, 14, 2, 14, 2, 6, 32]
     out = tf.reshape(out, [-1, inputs.shape[1], inputs.shape[2], embed_dim])  # [1, 28, 28, 192]
     if padded != 0:
@@ -224,25 +224,25 @@ class BiasLayer(keras.layers.Layer):
         return config
 
 
-def attention_mlp_block(inputs, embed_dim, num_head=1, mlp_ratio=3, attention_type=None, drop_rate=0, mlp_activation="gelu", dropout=0, name=""):
+def attention_mlp_block(inputs, embed_dim, num_heads=1, mlp_ratio=3, attention_type=None, drop_rate=0, mlp_activation="gelu", dropout=0, name=""):
     # print(f">>>> {drop_rate = }")
     nn_0 = inputs[:, :1] if attention_type == "class" else inputs
     nn_1 = keras.layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "LN")(inputs)
 
     if attention_type == "outlook":
-        nn_1 = outlook_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
+        nn_1 = outlook_attention(nn_1, embed_dim, num_heads=num_heads, name=name + "attn_")
     elif attention_type == "outlook_simple":
-        nn_1 = outlook_attention_simple(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
+        nn_1 = outlook_attention_simple(nn_1, embed_dim, num_heads=num_heads, name=name + "attn_")
     elif attention_type == "class":
-        # nn_1 = class_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
+        # nn_1 = class_attention(nn_1, embed_dim, num_heads=num_heads, name=name + "attn_")
         nn_1 = keras.layers.MultiHeadAttention(
-            num_heads=num_head, key_dim=embed_dim // num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa"
+            num_heads=num_heads, key_dim=embed_dim // num_heads, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa"
         )(nn_1[:, :1, :], nn_1)
         nn_1 = BiasLayer(name=name + "attn_bias")(nn_1)  # bias for output dense
     elif attention_type == "mhsa":
-        # nn_1 = multi_head_self_attention(nn_1, embed_dim, num_head=num_head, name=name + "attn_")
+        # nn_1 = multi_head_self_attention(nn_1, embed_dim, num_heads=num_heads, name=name + "attn_")
         nn_1 = keras.layers.MultiHeadAttention(
-            num_heads=num_head, key_dim=embed_dim // num_head, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa"
+            num_heads=num_heads, key_dim=embed_dim // num_heads, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa"
         )(nn_1, nn_1)
         nn_1 = BiasLayer(name=name + "attn_bias")(nn_1)  # bias for output dense
 
@@ -431,7 +431,7 @@ def VOLO(
     embed_dim, num_head, mlp_ratio = embed_dims[-1], num_heads[-1], mlp_ratios[-1]
     for id in range(classfiers):
         name = "classfiers{}_".format(id)
-        nn = attention_mlp_block(nn, embed_dim=embed_dim, num_head=num_head, mlp_ratio=mlp_ratio, attention_type="class", name=name)
+        nn = attention_mlp_block(nn, embed_dim=embed_dim, num_heads=num_head, mlp_ratio=mlp_ratio, attention_type="class", name=name)
     nn = keras.layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, name="pre_out_LN")(nn)
 
     if token_label_top:
