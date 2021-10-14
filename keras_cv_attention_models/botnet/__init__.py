@@ -7,17 +7,19 @@ Paper [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://ar
 """
 
 __tail_doc__ = """  strides: strides used in the last stack. It's reported `1` works better than `2`, but slower.
-  preact: whether to use pre-activation or not.
-  use_bias: whether to use biases for convolutional layers or not.
   input_shape: it should have exactly 3 inputs channels, default `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default `relu`.
+  drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
+      Can be value like `0.2`, indicates the drop probability linearly changes from `0 --> 0.2` for `top --> bottom` layers.
+      A higher value means a higher probability will drop the deep branch.
+      or `0` to disable (default).
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `softmax`.
   pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
       Will try to download and load pre-trained model weights if not None.
-  **kwargs: other parameters if available.
+  **kwargs: other parameters from `AotNet` if not conflict.
 
 Returns:
     A `keras.Model` instance.
@@ -29,12 +31,12 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model        | Params |
-  | ------------ | ------ |
-  | BotNet50     | 21M    |
-  | BotNet101    | 41M    |
-  | BotNet152    | 56M    |
-  | BotNet26T    | 12.5M  |
+  | Model        | Params | Image resolution | Top1 Acc |
+  | ------------ | ------ | ---------------- | -------- |
+  | BotNet50     | 21M    | 224              |          |
+  | BotNet101    | 41M    | 224              |          |
+  | BotNet152    | 56M    | 224              |          |
+  | BotNet26T    | 12.5M  | 256              | 79.246   |
 """
 
 BotNet50.__doc__ = __head_doc__ + """

@@ -25,7 +25,7 @@ __tail_doc__ = """  out_channels: output channels for each stack, default `[64, 
   strides: strides for each stack, default `[1, 2, 2, 2]`.
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
-  activation: activation used in whole model, default `relu`.
+  activation: activation used in whole model.
   drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
       Can be value like `0.2`, indicates the drop probability linearly changes from `0 --> 0.2` for `top --> bottom` layers.
       A higher value means a higher probability will drop the deep branch.
@@ -37,6 +37,7 @@ __tail_doc__ = """  out_channels: output channels for each stack, default `[64, 
   pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
       Will try to download and load pre-trained model weights if not None.
       No pretrained available for `H` models.
+  **kwargs: other parameters from `AotNet` if not conflict.
 
 Returns:
     A `keras.Model` instance.
@@ -45,24 +46,12 @@ Returns:
 HaloNet.__doc__ = __head_doc__ + """
 Args:
   num_blocks: number of blocks in each stack.
-  attn_type: is a `string` or `list`, indicates attention layer type for each stack.
-      Each element can also be a `string` or `list`, indicates attention layer type for each block.
-      - `None`: `Conv2D`
-      - `"halo"`: `HaloAttention`.
-      - `"se"`: `attention_layers.se_module`. Default values: `se_ratio=1 / 16`.
-      - `"eca"`: `attention_layers.eca_module`.
-      Default is `"halo"`.
-  group_size: none 0 value to use groups for all blocks 3x3 Conv2D layers, `groups = filters // group_size`.
-  stem_width: output dimension for stem block. Default 64.
-  stem_pool: pooling layer for stem block, one of `[None, "maxpool", "avgpool"]`.
-  tiered_stem: boolean value if use `tiered` type stem.
   halo_block_size: block_size for halo attention layers.
   halo_halo_size: halo_size for halo attention layers.
   halo_expansion: filter expansion for halo attention output channel.
+  num_heads: number of heads in each stack. Can be a number or list of number like `[4, 8, 8, 8]`.
   expansion: filter expansion for each block output channel.
-  output_conv_channel: none `0` value to add another `conv2d + bn + activation` layers before `GlobalAveragePooling2D`.
-  num_heads: number of heads in each stack.
-  key_dim: key dim for `HaloAttention`. Default `0` means using `key_dim = filter // num_heads`.
+  output_num_features: none `0` value to add another `conv2d + bn + activation` layers before `GlobalAveragePooling2D`.
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:

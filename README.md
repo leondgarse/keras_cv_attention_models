@@ -138,16 +138,16 @@
 ## CoTNet
   - [Keras CoTNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cotnet) is for [PDF 2107.12292 Contextual Transformer Networks for Visual Recognition](https://arxiv.org/pdf/2107.12292.pdf).
 
-  | Model          | Params | Image resolution | FLOPs | Top1 Acc | Download            |
-  | -------------- |:------:| ---------------- | ----- |:--------:| ------------------- |
-  | CoTNet-50      | 22.2M  | 224              | 3.3   |   81.3   | [cotnet50_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet50_224.h5) |
-  | CoTNeXt-50     | 30.1M  | 224              | 4.3   |   82.1   |  |
-  | SE-CoTNetD-50  | 23.1M  | 224              | 4.1   |   81.6   | [se_cotnetd50_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd50_224.h5) |
-  | CoTNet-101     | 38.3M  | 224              | 6.1   |   82.8   | [cotnet101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet101_224.h5) |
-  | CoTNeXt-101    | 53.4M  | 224              | 8.2   |   83.2   |  |
-  | SE-CoTNetD-101 | 40.9M  | 224              | 8.5   |   83.2   | [se_cotnetd101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd101_224.h5) |
-  | SE-CoTNetD-152 | 55.8M  | 224              | 17.0  |   84.0   | [se_cotnetd152_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd152_224.h5) |
-  | SE-CoTNetD-152 | 55.8M  | 320              | 26.5  |   84.6   | [se_cotnetd152_320.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/se_cotnetd152_320.h5) |
+  | Model        | Params | Image resolution | FLOPs | Top1 Acc | Download            |
+  | ------------ |:------:| ---------------- | ----- |:--------:| ------------------- |
+  | CotNet50     | 22.2M  | 224              | 3.3   |   81.3   | [cotnet50_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet50_224.h5) |
+  | CoTNeXt50    | 30.1M  | 224              | 4.3   |   82.1   |  |
+  | CotNetSE50D  | 23.1M  | 224              | 4.1   |   81.6   | [cotnet_se50d_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se50d_224.h5) |
+  | CotNet101    | 38.3M  | 224              | 6.1   |   82.8   | [cotnet101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet101_224.h5) |
+  | CoTNeXt-101  | 53.4M  | 224              | 8.2   |   83.2   |  |
+  | CotNetSE101D | 40.9M  | 224              | 8.5   |   83.2   | [cotnet_se101d_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se101d_224.h5) |
+  | CotNetSE152D | 55.8M  | 224              | 17.0  |   84.0   | [cotnet_se152d_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_224.h5) |
+  | CotNetSE152D | 55.8M  | 320              | 26.5  |   84.6   | [cotnet_se152d_320.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_320.h5) |
 ## GMLP
   - [Keras GMLP](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#gmlp) includes implementation of [PDF 2105.08050 Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050.pdf).
 
