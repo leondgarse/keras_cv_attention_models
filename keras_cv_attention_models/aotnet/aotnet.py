@@ -20,7 +20,7 @@ from keras_cv_attention_models import attention_layers
 DEFAULT_PARAMS = {
     "bot": {"num_heads": 4, "relative": True, "out_bias": False},
     "halo": {"num_heads": 8, "block_size": 4, "halo_size": 1},
-    "sa": {"kernel_size": 3, "groups": 2},
+    "sa": {"kernel_size": 3, "groups": 2, "downsample_first": False},
     "cot": {"kernel_size": 3, "downsample_first": True},
     "outlook": {"num_heads": 8, "kernel_size": 3},
 }
@@ -35,22 +35,22 @@ def attn_block(inputs, filters, strides=1, attn_type=None, attn_params={}, se_ra
     else:
         attn_params = DEFAULT_PARAMS.get(attn_type, {})
 
-    if attn_type == "bot":  # bottleneck attention
+    if attn_type == "bot":  # mhsa_with_relative_position_embedding from botnet
         nn = attention_layers.mhsa_with_relative_position_embedding(nn, **attn_params, name=name + "mhsa_")
-    elif attn_type == "halo":  # HaloAttention
+    elif attn_type == "halo":  # halo_attention from halonet
         halo_expansion = attn_params.pop("halo_expansion", 1)
         out_shape = int(filters * halo_expansion)
         nn = attention_layers.halo_attention(nn, **attn_params, strides=strides, out_shape=out_shape, name=name + "halo")
-    elif attn_type == "sa":  # split_attention_conv2d
+    elif attn_type == "sa":  # split_attention_conv2d from resnest
         sa_act = attn_params.pop("activation", activation)
         nn = attention_layers.split_attention_conv2d(nn, **attn_params, filters=filters, strides=strides, activation=sa_act, name=name + "sa_")
-    elif attn_type == "cot":  # cot_attention
+    elif attn_type == "cot":  # cot_attention from cotnet
         nn = attention_layers.cot_attention(nn, **attn_params, strides=strides, activation=activation, name=name + "cot_")
-    elif attn_type == "outlook":  # outlook_attention
+    elif attn_type == "outlook":  # outlook_attention from volo
         nn = attention_layers.outlook_attention(nn, filters, **attn_params, name=name + "outlook_")
     # elif attn_type == "groups_conv":  # ResNeXt like
     #     nn = conv2d_no_bias(nn, filters, **attn_params, strides=strides, padding="SAME", name=name + "GC_")
-    else:  # ResNet and ResNeXt like
+    else:  # ResNet and `groups > 1` for ResNeXt like
         conv_name = (name + "GC_") if groups > 1 else name
         nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", groups=groups, name=conv_name)
 
@@ -203,7 +203,7 @@ def aot_stem(inputs, stem_width, stem_type=None, activation="relu", quad_stem_ac
 
 
 def AotNet(
-    num_blocks,
+    num_blocks, # Stack parameters
     preact=False,
     strides=[1, 2, 2, 2],
     strides_first=True,  # True for resnet, False for resnetv2
