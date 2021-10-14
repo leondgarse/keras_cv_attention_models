@@ -57,7 +57,7 @@ def test_eca_module():
 
 
 def test_halo_attention():
-    input_shape = [2, 14, 16, 256]
+    input_shape = [2, 12, 16, 256]
     out_shape = 384
     out = attention_layers.halo_attention(tf.ones(input_shape), num_heads=4, out_shape=out_shape)
     assert out.shape == [input_shape[0], input_shape[1], input_shape[2], out_shape]

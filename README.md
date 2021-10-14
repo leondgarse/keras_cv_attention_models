@@ -125,9 +125,10 @@
 
   | Model        | Params | Image resolution | Top1 Acc | Download            |
   | ------------ | ------ | ---------------- | -------- | ------------------- |
-  | botnet50     | 21M    | 224              | 77.604   | [botnet50_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet50_imagenet.h5)  |
-  | botnet101    | 41M    | 224              |          |  |
-  | botnet152    | 56M    | 224              |          |  |
+  | BotNet50     | 21M    | 224              |          |  |
+  | BotNet101    | 41M    | 224              |          |  |
+  | BotNet152    | 56M    | 224              |          |  |
+  | BotNet26T    | 12.5M  | 256              | 79.246   | [botnet26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet26t_imagenet.h5) |
 ## VOLO
   - [Keras VOLO](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/volo) is for [PDF 2106.13112 VOLO: Vision Outlooker for Visual Recognition](https://arxiv.org/pdf/2106.13112.pdf).
 

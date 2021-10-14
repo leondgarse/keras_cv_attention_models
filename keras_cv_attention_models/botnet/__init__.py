@@ -1,4 +1,4 @@
-from keras_cv_attention_models.botnet.botnet import BotNet, BotNet50, BotNet101, BotNet152, RelativePositionalEmbedding, mhsa_with_relative_position_embedding
+from keras_cv_attention_models.botnet.botnet import BotNet, BotNet50, BotNet101, BotNet152, BotNet26T, RelativePositionalEmbedding, mhsa_with_relative_position_embedding
 
 
 __head_doc__ = """
@@ -31,9 +31,10 @@ Args:
 Model architectures:
   | Model        | Params |
   | ------------ | ------ |
-  | botnet50     | 21M    |
-  | botnet101    | 41M    |
-  | botnet152    | 56M    |
+  | BotNet50     | 21M    |
+  | BotNet101    | 41M    |
+  | BotNet152    | 56M    |
+  | BotNet26T    | 12.5M  |
 """
 
 BotNet50.__doc__ = __head_doc__ + """
@@ -42,6 +43,11 @@ Args:
 
 BotNet101.__doc__ = BotNet50.__doc__
 BotNet152.__doc__ = BotNet50.__doc__
+
+BotNet26T.__doc__ = __head_doc__ + """Model weights are reloaded from timm [Github rwightman/pytorch-image-models](https://github.com/rwightman/pytorch-image-models).
+
+Args:
+""" + __tail_doc__
 
 mhsa_with_relative_position_embedding.__doc__ = __head_doc__ + """
 Multi head self attention with positional embedding. Defined as function, not layer.

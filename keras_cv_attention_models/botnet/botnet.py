@@ -6,14 +6,16 @@ Original TensorFlow version: https://gist.github.com/aravindsrinivas/56359b79f0c
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
+from keras_cv_attention_models.aotnet import AotNet
+from keras_cv_attention_models.attention_layers import conv2d_no_bias
 from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
-from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 
 PRETRAINED_DICT = {
-    "botnet50": {"imagenet": "b221b45ca316166fc858fda1cf4fd946"},
+    # "botnet50": {"imagenet": "b221b45ca316166fc858fda1cf4fd946"},
+    "botnet26t": {"imagenet": "6d7a9548f866b4971ca2c9d17dd815fc"},
 }
 
 
@@ -121,14 +123,15 @@ def mhsa_with_relative_position_embedding(
     emb_dim = num_heads * key_dim
     # final_out_shape = (None, hh, ww, out_shape)
 
-    qkv = keras.layers.Dense(emb_dim * 3, use_bias=False, name=name and name + "qkv")(inputs)
+    # qkv = keras.layers.Dense(emb_dim * 3, use_bias=False, name=name and name + "qkv")(inputs)
+    qkv = conv2d_no_bias(inputs, emb_dim * 3, kernel_size=1, name=name and name + "qkv_")
     qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], 3, num_heads, key_dim])
     query, key, value = tf.transpose(qkv, [2, 0, 3, 1, 4])  # [3, batch, num_heads, blocks, key_dim]
 
     # query = key = [batch, num_heads, hh * ww, key_dim]
-    query *= qk_scale
+    # query *= qk_scale
     # [batch, num_heads, hh * ww, hh * ww]
-    attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1], transpose_b=True))([query, key])
+    attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1], transpose_b=True))([query, key]) * qk_scale
     # pos_query = [batch, num_heads, hh, ww, key_dim]
     pos_query = tf.reshape(query, [-1, num_heads, inputs.shape[1], inputs.shape[2], key_dim])
     pos_emb = RelativePositionalEmbedding(use_absolute_pos=not relative, name=name and name + "pos_emb")(pos_query)
@@ -152,113 +155,12 @@ def mhsa_with_relative_position_embedding(
     return attention_output
 
 
-def bot_block(
-    featuremap,
-    heads=4,
-    proj_factor=4,
-    activation="relu",
-    relative_pe=True,
-    strides=1,
-    target_dimension=2048,
-    name="all2all",
-    use_MHSA=True,
-):
-    if strides != 1 or featuremap.shape[-1] != target_dimension:
-        # padding = "SAME" if strides == 1 else "VALID"
-        shortcut = conv2d_no_bias(featuremap, target_dimension, 1, strides=strides, name=name + "_shorcut_")
-        bn_act = activation if use_MHSA else None
-        # bn_act = None
-        shortcut = batchnorm_with_activation(shortcut, activation=bn_act, zero_gamma=False, name=name + "_shorcut_")
-    else:
-        shortcut = featuremap
+def BotNet(input_shape=(224, 224, 3), strides=1, pretrained="imagenet", **kwargs):
+    attn_types = [None, None, None, "bot"]
+    attn_params = {"num_heads": 4, "out_weight": False}
+    strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
 
-    bottleneck_dimension = target_dimension // proj_factor
-
-    nn = conv2d_no_bias(featuremap, bottleneck_dimension, 1, strides=1, padding="VALID", name=name + "_1_")
-    nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "_1_")
-
-    if use_MHSA:  # BotNet block
-        nn = mhsa_with_relative_position_embedding(nn, num_heads=heads, relative=relative_pe, out_weight=False, name=name + "_2_mhsa_")
-        if strides != 1:
-            # nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
-            # nn = keras.layers.AveragePooling2D(pool_size=3, strides=strides, name=name + "pool")(nn)
-            nn = keras.layers.AveragePooling2D(pool_size=(2, 2), strides=(2, 2), padding="same")(nn)
-    else:  # ResNet block
-        nn = conv2d_no_bias(nn, bottleneck_dimension, 3, strides=strides, padding="SAME", name=name + "_2_")
-    nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "_2_")
-
-    nn = conv2d_no_bias(nn, target_dimension, 1, strides=1, padding="VALID", name=name + "_3_")
-    nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "_3_")
-
-    nn = keras.layers.Add(name=name + "_add")([shortcut, nn])
-    return keras.layers.Activation(activation, name=name + "_out")(nn)
-
-
-def bot_stack(
-    featuremap,
-    target_dimension=2048,
-    num_layers=3,
-    strides=2,
-    activation="relu",
-    heads=4,
-    proj_factor=4,
-    relative_pe=True,
-    name="all2all_stack",
-    use_MHSA=True,
-):
-    """ c5 Blockgroup of BoT Blocks. Use `activation=swish` for `silu` """
-    for i in range(num_layers):
-        featuremap = bot_block(
-            featuremap,
-            heads=heads,
-            proj_factor=proj_factor,
-            activation=activation,
-            relative_pe=relative_pe,
-            strides=strides if i == 0 else 1,
-            target_dimension=target_dimension,
-            name=name + "block{}".format(i + 1),
-            use_MHSA=use_MHSA,
-        )
-    return featuremap
-
-
-def BotNet(
-    num_blocks,
-    strides=1,
-    preact=False,
-    use_bias=False,
-    input_shape=(224, 224, 3),
-    num_classes=1000,
-    activation="relu",
-    classifier_activation="softmax",
-    pretrained="imagenet",
-    model_name="botnet",
-    **kwargs
-):
-    inputs = keras.layers.Input(shape=input_shape)
-
-    nn = keras.layers.ZeroPadding2D(padding=((3, 3), (3, 3)), name="conv1_pad")(inputs)
-    nn = keras.layers.Conv2D(64, 7, strides=2, use_bias=use_bias, name="conv1_conv")(nn)
-
-    if not preact:
-        nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="conv1_")
-    nn = keras.layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name="pool1_pad")(nn)
-    nn = keras.layers.MaxPooling2D(3, strides=2, name="pool1_pool")(nn)
-
-    out_channels = [64, 128, 256, 512]
-    stack_strides = [1, 2, 2, strides]
-    for id, (num_block, out_channel, stride) in enumerate(zip(num_blocks, out_channels, stack_strides)):
-        name = "stack{}_".format(id + 1)
-        use_MHSA = True if id == len(num_blocks) - 1 else False  # use MHSA in the last stack
-        nn = bot_stack(nn, out_channel * 4, num_block, strides=stride, activation=activation, relative_pe=True, name=name, use_MHSA=use_MHSA)
-
-    if preact:
-        nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="post_")
-    if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
-
-    model = keras.models.Model(inputs, nn, name=model_name)
+    model = AotNet(input_shape=input_shape, attn_types=attn_types, attn_params=attn_params, strides=strides, **kwargs)
     reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "botnet", RelativePositionalEmbedding, input_shape=input_shape, pretrained=pretrained)
     return model
 
@@ -276,3 +178,21 @@ def BotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", cl
 def BotNet152(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained=None, strides=1, **kwargs):
     num_blocks = [3, 8, 36, 3]
     return BotNet(**locals(), model_name="botnet152", **kwargs)
+
+
+def BotNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [2, 2, 2, 2]
+    attn_types = [None, None, [None, 'bot'], 'bot']
+    attn_params = [
+        None,
+        None,
+        [None, {"num_heads": 4, "out_weight": False}],
+        {"num_heads": 4, "out_weight": False},
+    ]
+    expansion = 4
+    stem_type = "tiered"
+    model = AotNet(model_name="botnet26t", **locals(), **kwargs)
+    reload_model_weights_with_mismatch(
+        model, PRETRAINED_DICT, "botnet", RelativePositionalEmbedding, request_resolution=256, input_shape=input_shape, pretrained=pretrained
+    )
+    return model
