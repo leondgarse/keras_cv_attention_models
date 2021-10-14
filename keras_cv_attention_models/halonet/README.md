@@ -25,7 +25,7 @@
   | HaloNextECA26T | 10.7M  | 256              | 78.84    | [halonext_eca26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonext_eca26t_imagenet.h5) |
   | HaloNet50T     | 22.7M  | 256              | 81.5 ?   | [halonet50t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet50t_imagenet.h5) |
 
-  Comparing `halo_b7` accuracy by replacing Conv layers with Attention in each stage:
+  Comparing `HaloNetH7` accuracy by replacing Conv layers with Attention in each stage:
 
   | Conv Stages | Attention Stages | Top-1 Acc (%) | Norm. Train Time |
   |:-----------:|:----------------:|:-------------:|:----------------:|

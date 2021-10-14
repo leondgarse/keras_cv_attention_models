@@ -1,26 +1,20 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from keras_cv_attention_models.attention_layers import (
-    batchnorm_with_activation,
-    conv2d_no_bias,
-    drop_block,
-    eca_module,
-    RelativePositionalEmbedding,
-    se_module,
-)
+from keras_cv_attention_models.aotnet import AotNet
+from keras_cv_attention_models.attention_layers import RelativePositionalEmbedding, conv2d_no_bias
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
-    "halonet26t": {"imagenet": "e9a08aa78fb0d912283834266ca179f2"},
-    "halonet50t": {"imagenet": "8146970cd6443d7679aa0797581432f9"},
-    "halonet_se33t": {"imagenet": "58e9382e876f4043d62154e189c065ca"},
-    "halonext_eca26t": {"imagenet": "b6e140e9ea99b75de878ef173696c748"},
+    "halonet26t": {"imagenet": "6e8848ce6e98a13cd45f65dd68435d00"},
+    "halonet50t": {"imagenet": "25a7f03498830fa91b893d847c131ac0"},
+    "halonet_se33t": {"imagenet": "7e0afb7f8fb6459491b8a46ad80bcd91"},
+    "halonext_eca26t": {"imagenet": "fbb73481cf0317a3226e963a99dd7151"},
 }
 
 
 def halo_attention(
-    inputs, num_heads=4, key_dim=0, block_size=2, halo_size=1, strides=1, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
+    inputs, num_heads=8, key_dim=0, block_size=4, halo_size=1, strides=1, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
 ):
     _, hh, ww, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
@@ -32,7 +26,7 @@ def halo_attention(
 
     query = conv2d_no_bias(inputs, emb_dim, kernel_size=1, strides=strides, name=name and name + "query_")
     _, hh, ww, cc = query.shape
-    # print(f">>>> {inputs.shape = }, {query.shape = }, {strides = }")
+    # print(f">>>> {inputs.shape = }, {query.shape = }, {block_size = }, {strides = }")
     # attn_query = rearrange(query, "B (h hb) (w wb) (hd c) -> B hd h w (hb wb) c", hb=query_block, wb=query_block, hd=num_heads)
     # pos_query = rearrange(attn_query, "B hd h w (hb wb) c -> B (hd h w) hb wb c", hb=query_block, wb=query_block)
     hh_qq, ww_qq, cc_qq = hh // query_block, ww // query_block, cc // num_heads
@@ -89,169 +83,13 @@ def halo_attention(
     return attention_output
 
 
-def halo_block(
-    inputs,
-    filter,
-    strides=1,
-    shortcut=False,
-    expansion=2,
-    attn_type="halo",
-    num_heads=4,
-    drop_rate=0,
-    halo_expansion=1,
-    block_size=8,
-    halo_size=4,
-    key_dim=0,
-    group_size=0,
-    activation="swish",
-    name="",
-):
-    expanded_filter = round(filter * expansion)
-    if shortcut:
-        # print(">>>> Downsample")
-        shortcut = conv2d_no_bias(inputs, expanded_filter, 1, strides=strides, name=name + "shortcut_")
-        shortcut = batchnorm_with_activation(shortcut, activation=None, zero_gamma=False, name=name + "shortcut_")
-    else:
-        shortcut = inputs
-
-    deep = conv2d_no_bias(inputs, filter, 1, name=name + "deep_1_")
-    deep = batchnorm_with_activation(deep, activation=activation, zero_gamma=False, name=name + "deep_1_")
-
-    if attn_type == "halo":
-        out_shape = int(filter * halo_expansion)
-        deep = halo_attention(deep, num_heads, key_dim, block_size, halo_size, strides=strides, out_shape=out_shape, out_weight=False, name=name + "halo_")
-    else:
-        groups = 1 if group_size < 1 else filter // group_size
-        deep = conv2d_no_bias(deep, filter, 3, strides=strides, padding="SAME", groups=groups, name=name + "deep_2_")
-    # print(">>>>", deep.shape)
-    deep = batchnorm_with_activation(deep, activation=activation, zero_gamma=False, name=name + "deep_2_")
-
-    if attn_type == "se":   # SE
-        se_ratio = 1 / 16
-        deep = se_module(deep, se_ratio=se_ratio, activation="relu", name=name + "se_")
-    elif attn_type == "eca":  # ECA
-        deep = eca_module(deep, name=name + "eca_")
-
-    deep = conv2d_no_bias(deep, expanded_filter, 1, name=name + "deep_3_")
-    deep = batchnorm_with_activation(deep, activation=None, zero_gamma=True, name=name + "deep_3_")
-
-    # print(">>>>", deep.shape, shortcut.shape)
-    deep = drop_block(deep, drop_rate)
-    deep = keras.layers.Add(name=name + "add")([shortcut, deep])
-    return keras.layers.Activation(activation, name=name + "out")(deep)
-
-
-def halo_stack(inputs, blocks, filter, strides=1, expansion=1, attn_type="halo", num_heads=4, stack_drop=0, block_params={}, name=""):
-    nn = inputs
-    for id in range(blocks):
-        strides = strides if id == 0 else 1
-        shortcut = True if strides != 1 or nn.shape[-1] != filter * expansion else False
-        block_name = name + "block{}_".format(id + 1)
-        cur_attn_type = attn_type[id] if isinstance(attn_type, (list, tuple)) else attn_type
-        drop_rate = stack_drop[id] if isinstance(stack_drop, (list, tuple)) else stack_drop
-        nn = halo_block(nn, filter, strides, shortcut, expansion, cur_attn_type, num_heads, drop_rate, **block_params, name=block_name)
-    return nn
-
-
-def halo_stem(inputs, stem_width=64, stem_pool="maxpool", activation="relu", tiered_stem=False, name=""):
-    if tiered_stem:
-        nn = conv2d_no_bias(inputs, 3 * stem_width // 8, 3, strides=2, padding="same", name=name + "1_")
-        nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
-        nn = conv2d_no_bias(nn, stem_width // 2, 3, strides=1, padding="same", name=name + "2_")
-        nn = batchnorm_with_activation(nn, activation=activation, name=name + "2_")
-        strides = 1 if stem_pool is not None and len(stem_pool) != 0 else 2
-        nn = conv2d_no_bias(nn, stem_width, 3, strides=strides, padding="same", name=name + "3_")
-    else:
-        nn = conv2d_no_bias(inputs, stem_width, 7, strides=2, padding="same", name=name)
-
-    nn = batchnorm_with_activation(nn, activation=activation, name="stem_")
-    if stem_pool is not None and len(stem_pool) != 0:
-        nn = keras.layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name="stem_pool_pad")(nn)
-        if "max" in stem_pool.lower():
-            nn = keras.layers.MaxPooling2D(3, strides=2, name="stem_pool")(nn)
-        else:
-            nn = keras.layers.AveragePooling2D(3, strides=2, name="stem_pool")(nn)
-    return nn
-
-
-def HaloNet(
-    num_blocks=[3, 3, 10, 3],
-    attn_type="halo",
-    group_size=0,
-    stem_width=64,
-    stem_pool="maxpool",
-    tiered_stem=False,
-    halo_block_size=8,  # b
-    halo_halo_size=3,  # h
-    halo_expansion=1,  # rv
-    expansion=1,  # rb
-    output_conv_channel=-1,  # df
-    num_heads=[4, 8, 8, 8],
-    key_dim=0,
-    out_channels=[64, 128, 256, 512],
-    strides=[1, 2, 2, 2],
-    input_shape=(256, 256, 3),
-    num_classes=1000,
-    activation="swish",
-    drop_connect_rate=0,
-    classifier_activation="softmax",
-    drop_rate=0,
-    pretrained=None,
-    model_name="halonet",
-    kwargs=None,
-):
-    inputs = keras.layers.Input(input_shape)
-    nn = halo_stem(inputs, stem_width, stem_pool=stem_pool, activation=activation, tiered_stem=tiered_stem, name="stem_")
-
-
-    # Input (height, width) should be dividable by `halo_block_size`, assume height == width here
-    down_sample_rate = int(tf.reduce_prod(strides) * halo_block_size)
-    if nn.shape[1] % down_sample_rate != 0:
-        gap = down_sample_rate - nn.shape[1] % down_sample_rate
-        pad_head, pad_tail = gap // 2, gap - gap // 2
-        # print(">>>> pad_head:", pad_head, "pad_tail:", pad_tail)
-        nn = keras.layers.ZeroPadding2D(padding=((pad_head, pad_tail), (pad_head, pad_tail)), name="gap_pad")(nn)
-
-    block_params = {  # params same for all blocks
-        "block_size": halo_block_size,
-        "halo_size": halo_halo_size,
-        "halo_expansion": halo_expansion,
-        "key_dim": key_dim,
-        "activation": activation,
-        "group_size": group_size,
-    }
-
-    drop_connect_rates = tf.split(tf.linspace(0.0, drop_connect_rate, sum(num_blocks)), num_blocks)
-    drop_connect_rates = [ii.numpy().tolist() for ii in drop_connect_rates]
-    for id, (num_block, out_channel, stride, drop_connect) in enumerate(zip(num_blocks, out_channels, strides, drop_connect_rates)):
-        name = "stack{}_".format(id + 1)
-        cur_attn_type = attn_type[id] if isinstance(attn_type, (list, tuple)) else attn_type
-        cur_expansion = expansion[id] if isinstance(expansion, (list, tuple)) else expansion
-        num_head = num_heads[id] if isinstance(num_heads, (list, tuple)) else num_heads
-        nn = halo_stack(nn, num_block, out_channel, stride, cur_expansion, cur_attn_type, num_head, drop_connect, block_params, name=name)
-
-    if output_conv_channel > 0:
-        nn = conv2d_no_bias(nn, output_conv_channel, 1, name="post_")
-        nn = batchnorm_with_activation(nn, activation=activation, name="post_")
-
-    if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        if drop_rate > 0:
-            nn = keras.layers.Dropout(drop_rate, name="head_drop")(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
-
-    model = keras.models.Model(inputs, nn, name=model_name)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
-    return model
-
-
 BLOCK_CONFIGS = {
     "h0": {  # rv = 1, rb = 0.5
         "halo_block_size": 8,  # b
         "halo_halo_size": 3,  # h
         "halo_expansion": 1,  # rv
         "expansion": 0.5,  # rb
-        "output_conv_channel": -1,  # df
+        "output_num_features": -1,  # df
         "num_blocks": [3, 3, 7, 3],
         "num_heads": [4, 8, 8, 8],
     },
@@ -260,7 +98,7 @@ BLOCK_CONFIGS = {
         "halo_halo_size": 3,
         "halo_expansion": 1,  # rv
         "expansion": 1,  # rb
-        "output_conv_channel": -1,  # df
+        "output_num_features": -1,  # df
         "num_blocks": [3, 3, 10, 3],
         "num_heads": [4, 8, 8, 8],
     },
@@ -269,7 +107,7 @@ BLOCK_CONFIGS = {
         "halo_halo_size": 3,
         "halo_expansion": 1,  # rv
         "expansion": 1.25,  # rb
-        "output_conv_channel": -1,  # df
+        "output_num_features": -1,  # df
         "num_blocks": [3, 3, 11, 3],
         "num_heads": [4, 8, 8, 8],
     },
@@ -278,7 +116,7 @@ BLOCK_CONFIGS = {
         "halo_halo_size": 3,
         "halo_expansion": 1,  # rv
         "expansion": 1.5,  # rb
-        "output_conv_channel": 1024,  # df
+        "output_num_features": 1024,  # df
         "num_blocks": [3, 3, 12, 3],
         "num_heads": [4, 8, 8, 8],
     },
@@ -287,7 +125,7 @@ BLOCK_CONFIGS = {
         "halo_halo_size": 2,
         "halo_expansion": 1,  # rv
         "expansion": 3,  # rb
-        "output_conv_channel": 1280,  # df
+        "output_num_features": 1280,  # df
         "num_blocks": [3, 3, 12, 3],
         "num_heads": [4, 8, 8, 8],
     },
@@ -296,7 +134,7 @@ BLOCK_CONFIGS = {
         "halo_halo_size": 2,
         "halo_expansion": 2.5,  # rv
         "expansion": 2,  # rb
-        "output_conv_channel": 1536,  # df
+        "output_num_features": 1536,  # df
         "num_blocks": [3, 3, 23, 3],
         "num_heads": [4, 8, 8, 8],
     },
@@ -305,7 +143,7 @@ BLOCK_CONFIGS = {
         "halo_halo_size": 4,
         "halo_expansion": 3,  # rv
         "expansion": 2.75,  # rb
-        "output_conv_channel": 1536,  # df
+        "output_num_features": 1536,  # df
         "num_blocks": [3, 3, 24, 3],
         "num_heads": [4, 8, 8, 8],
     },
@@ -313,13 +151,27 @@ BLOCK_CONFIGS = {
         "halo_block_size": 10,
         "halo_halo_size": 3,
         "halo_expansion": 4,  # rv
-        "expansion": 3.5,  # rb
-        "output_conv_channel": 2048,  # df
-        "num_blocks": [3, 3, 26, 3],
         "num_heads": [4, 8, 8, 8],
+        "expansion": 3.5,  # rb
+        "output_num_features": 2048,  # df
+        "num_blocks": [3, 3, 26, 3],
     },
 }
 
+
+def HaloNet(input_shape=(256, 256, 3), halo_block_size=4, halo_halo_size=1, num_heads=8, halo_expansion=1, pretrained=None, **kwargs):
+    attn_types = "halo"
+    if isinstance(num_heads, (list, tuple)):
+        attn_params = [{"block_size": halo_block_size, "halo_size": halo_halo_size, "halo_expansion": halo_expansion, "num_heads": hh, "out_weight": False} for hh in num_heads]
+    else:
+        attn_params = {"block_size": halo_block_size, "halo_size": halo_halo_size, "halo_expansion": halo_expansion, "num_heads": num_heads, "out_weight": False}
+
+    model = AotNet(input_shape=input_shape, attn_types=attn_types, attn_params=attn_params, **kwargs)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    return model
+
+def HaloNetH0(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return AaloNet(**BLOCK_CONFIGS["h0"], model_name="haloneth0", **locals(), **kwargs)
 
 def HaloNetH0(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h0"], model_name="haloneth0", **locals(), **kwargs)
@@ -349,55 +201,76 @@ def HaloNetH6(input_shape=(512, 512, 3), num_classes=1000, activation="swish", c
     return HaloNet(**BLOCK_CONFIGS["h6"], model_name="haloneth6", **locals(), **kwargs)
 
 
-def HaloNetH7(input_shape=(600, 600, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def HaloNetH7(input_shape=(640, 640, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    # input_shape should be dividable by `int(tf.reduce_prod(strides) * halo_block_size)`, so using 640 here
     return HaloNet(**BLOCK_CONFIGS["h7"], model_name="haloneth7", **locals(), **kwargs)
 
 
 def HaloNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 2, 2]
-    attn_type = [None, None, [None, 'halo'], 'halo']
+    attn_types = [None, None, [None, 'halo'], 'halo']
+    attn_params = [
+        None,
+        None,
+        [None, {"block_size": 8, "halo_size": 2, "num_heads": 8, "out_weight": False}],
+        {"block_size": 8, "halo_size": 2, "num_heads": 8, "out_weight": False},
+    ]
     expansion = 4
-    halo_block_size = 8
-    halo_halo_size = 2
-    num_heads = [0, 0, 8, 8]
     # key_dim = 16
-    tiered_stem = True
-    return HaloNet(model_name="halonet26t", **locals(), **kwargs)
-
+    stem_type = "tiered"
+    model = AotNet(model_name="halonet26t", **locals(), **kwargs)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    return model
 
 def HaloNet50T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
-    attn_type = [None, [None, None, None, 'halo'], [None, 'halo'] * 3, [None, 'halo', None]]
+    attn_types = [None, [None, None, None, 'halo'], [None, 'halo'] * 3, [None, 'halo', None]]
+    attn_params = [
+        None,
+        [None, None, None, {"block_size": 8, "halo_size": 3, "num_heads": 4, "out_weight": False}],
+        [None, {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False}] * 3,
+        [None, {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False}, None],
+    ]
     expansion = 4
-    halo_block_size = 8
-    halo_halo_size = 3
-    num_heads = [0, 4, 8, 8]
     # key_dim = 16
-    tiered_stem = True
-    return HaloNet(model_name="halonet50t", **locals(), **kwargs)
-
+    stem_type = "tiered"
+    model = AotNet(model_name="halonet50t", **locals(), **kwargs)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    return model
 
 def HaloNetSE33T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 3, 3, 2]
-    attn_type = ["se", ["se", "se", 'halo'], ["se", "se", 'halo'], 'halo']
+    attn_types = [None, [None, None, 'halo'], [None, None, 'halo'], 'halo']
+    attn_params = [
+        None,
+        [None, None, {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False}],
+        [None, None, {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False}],
+        {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False},
+    ]
+    se_ratio = 0.25
     expansion = [4, 4, 4, 3]
-    stem_pool = None
-    halo_block_size = 8
-    halo_halo_size = 3
-    num_heads = 8
-    tiered_stem = True
-    output_conv_channel = 1280
-    return HaloNet(model_name="halonet_se33t", **locals(), **kwargs)
-
+    # key_dim = 16
+    stem_type = "tiered"
+    stem_last_strides = 2
+    stem_downsample = False
+    output_num_features = 1280
+    model = AotNet(model_name="halonet_se33t", **locals(), **kwargs)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    return model
 
 def HaloNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 2, 2]
-    attn_type = ["eca", "eca", ["eca", 'halo'], 'halo']
-    group_size = 16
+    attn_types = [None, None, [None, 'halo'], 'halo']
+    attn_params = [
+        None,
+        None,
+        [None, {"block_size": 8, "halo_size": 2, "num_heads": 8, "key_dim": 16, "out_weight": False}],
+        {"block_size": 8, "halo_size": 2, "num_heads": 8, "key_dim": 16, "out_weight": False},
+    ]
+    use_eca = True
+    groups = [4, 8, 16, 32]
     expansion = 4
-    halo_block_size = 8
-    halo_halo_size = 2
-    num_heads = 8
-    key_dim = 16
-    tiered_stem = True
-    return HaloNet(model_name="halonext_eca26t", **locals(), **kwargs)
+    stem_type = "tiered"
+    model = AotNet(model_name="halonext_eca26t", **locals(), **kwargs)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    return model
