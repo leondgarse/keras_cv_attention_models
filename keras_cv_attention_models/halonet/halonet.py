@@ -159,7 +159,7 @@ BLOCK_CONFIGS = {
 }
 
 
-def HaloNet(input_shape=(256, 256, 3), halo_block_size=4, halo_halo_size=1, num_heads=8, halo_expansion=1, pretrained=None, **kwargs):
+def HaloNet(input_shape=(256, 256, 3), activation="swish", halo_block_size=4, halo_halo_size=1, halo_expansion=1, num_heads=8, pretrained=None, **kwargs):
     attn_types = "halo"
     if isinstance(num_heads, (list, tuple)):
         attn_params = [
@@ -175,7 +175,7 @@ def HaloNet(input_shape=(256, 256, 3), halo_block_size=4, halo_halo_size=1, num_
             "out_weight": False,
         }
 
-    model = AotNet(input_shape=input_shape, attn_types=attn_types, attn_params=attn_params, **kwargs)
+    model = AotNet(input_shape=input_shape, activation=activation, attn_types=attn_types, attn_params=attn_params, **kwargs)
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
     return model
 
