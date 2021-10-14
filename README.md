@@ -86,13 +86,10 @@
   - [Keras AotNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/aotnet) is just a `ResNet` / `ResNetV2` like framework, that set parameters like `attn_types` and `se_ratio` and others, which is used to apply different types attention layer. Works like `byoanet` / `byobnet` from `timm`.
     ```py
     # Mixing se and outlook and halo and mhsa and cot_attention, 21M parameters
-		# 50 is just a picked number that larger than the relative `num_block`
-    model = aotnet.AotNet50V2(
-        attn_types=[None, "outlook", ["bot", "halo"] * 50, "cot"],
-        se_ratio=[0.25, 0, 0, 0],
-        stem_type="deep",
-        strides=1,
-    )
+    # 50 is just a picked number that larger than the relative `num_block`
+    attn_types = [None, "outlook", ["bot", "halo"] * 50, "cot"],
+    se_ratio = [0.25, 0, 0, 0],
+    model = aotnet.AotNet50V2(attn_types=attn_types, se_ratio=se_ratio, stem_type="deep", strides=1)
     model.summary()
     ```
 ## BotNet
