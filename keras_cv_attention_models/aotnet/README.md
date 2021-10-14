@@ -64,6 +64,18 @@
     )
     model.summary()
     ```
+  - **Definition of `ResNest50`**
+    ```py
+    from keras_cv_attention_models import aotnet
+    model = aotnet.AotNet50(
+        stem_type="deep",
+        avg_pool_down=True,
+        attn_types="sa",
+        bn_after_attn=False,
+        model_name="resnest50",
+    )
+    model.summary()
+    ```
   - **Mixing se and outlook and halo and bot and cot**, 21M parameters
     ```py
     # 50 is just a picked number that larger than the relative `num_block`

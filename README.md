@@ -2,7 +2,6 @@
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [Keras_cv_attention_models](#kerascvattentionmodels)
-- [[Roadmap and todo list](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)](#roadmap-and-todo-listhttpsgithubcomleondgarsekerascvattentionmodelswikiroadmap)
 - [Usage](#usage)
   - [Basic Usage](#basic-usage)
   - [Layers](#layers)

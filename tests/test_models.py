@@ -50,10 +50,10 @@ def test_CotNet_defination():
 
 
 def test_SECotNetD_defination():
-    mm = keras_cv_attention_models.cotnet.SECotNetD50(pretrained=None)
+    mm = keras_cv_attention_models.cotnet.CotNetSE50D(pretrained=None)
     assert isinstance(mm, keras.models.Model)
 
-    mm = keras_cv_attention_models.cotnet.SECotNetD101(pretrained=None, num_classes=0)
+    mm = keras_cv_attention_models.cotnet.CotNetSE101D(pretrained=None, num_classes=0)
     assert isinstance(mm, keras.models.Model)
 
 
