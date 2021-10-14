@@ -19,16 +19,16 @@ from keras_cv_attention_models import attention_layers
 
 DEFAULT_PARAMS = {
     "bot": {"num_heads": 4, "relative": True, "out_bias": False},
-    "halo": {"block_size": 4, "halo_size": 1, "num_heads": 8},
+    "halo": {"num_heads": 8, "block_size": 4, "halo_size": 1},
     "sa": {"kernel_size": 3, "groups": 2},
-    "cot": {"kernel_size": 3},
-    "outlook": {"num_heads": 6, "kernel_size": 3},
+    "cot": {"kernel_size": 3, "downsample_first": True},
+    "outlook": {"num_heads": 8, "kernel_size": 3},
 }
 
 
-def attn_block(inputs, filters, strides=1, attn_type=None, attn_params=None, se_ratio=0, use_eca=False, groups=1, use_bn=True, activation="relu", name=""):
+def attn_block(inputs, filters, strides=1, attn_type=None, attn_params={}, se_ratio=0, use_eca=False, groups=1, bn_after_attn=True, activation="relu", name=""):
     nn = inputs
-    if attn_params is not None:
+    if attn_params is not None and len(attn_params) != 0:
         default_attn_params = DEFAULT_PARAMS.get(attn_type, {}).copy()
         default_attn_params.update(attn_params)
         attn_params = default_attn_params
@@ -42,9 +42,10 @@ def attn_block(inputs, filters, strides=1, attn_type=None, attn_params=None, se_
         out_shape = int(filters * halo_expansion)
         nn = attention_layers.halo_attention(nn, **attn_params, strides=strides, out_shape=out_shape, name=name + "halo")
     elif attn_type == "sa":  # split_attention_conv2d
-        nn = attention_layers.split_attention_conv2d(nn, **attn_params, filters=filters, strides=strides, activation=activation, name=name + "sa_")
+        sa_act = attn_params.pop("activation", activation)
+        nn = attention_layers.split_attention_conv2d(nn, **attn_params, filters=filters, strides=strides, activation=sa_act, name=name + "sa_")
     elif attn_type == "cot":  # cot_attention
-        nn = attention_layers.cot_attention(nn, **attn_params, activation=activation, name=name + "cot_")
+        nn = attention_layers.cot_attention(nn, **attn_params, strides=strides, activation=activation, name=name + "cot_")
     elif attn_type == "outlook":  # outlook_attention
         nn = attention_layers.outlook_attention(nn, filters, **attn_params, name=name + "outlook_")
     # elif attn_type == "groups_conv":  # ResNeXt like
@@ -53,11 +54,11 @@ def attn_block(inputs, filters, strides=1, attn_type=None, attn_params=None, se_
         conv_name = (name + "GC_") if groups > 1 else name
         nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", groups=groups, name=conv_name)
 
-    if attn_type in ["bot", "cot", "outlook"] and strides != 1:  # Downsample
+    if attn_type in ["bot", "outlook"] and strides != 1:  # Downsample
         # nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
         nn = keras.layers.AveragePooling2D(pool_size=2, strides=strides, name=name + "pool")(nn)
 
-    if use_bn:
+    if bn_after_attn:
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name)
 
     if attn_type is None and se_ratio:
@@ -83,7 +84,7 @@ def conv_shortcut_branch(inputs, expanded_filter, preact=False, strides=1, avg_p
     return shortcut
 
 
-def deep_branch(inputs, filters, strides=1, expansion=4, use_3x3_kernel=False, activation="relu", attn_block_params={}, name=""):
+def deep_branch(inputs, filters, strides=1, expansion=4, use_3x3_kernel=False, bn_after_attn=True, activation="relu", attn_block_params={}, name=""):
     expanded_filter = filters * expansion
     if use_3x3_kernel:
         nn = conv2d_no_bias(inputs, filters, 3, strides=1, padding="SAME", name=name + "deep_1_")  # Using strides=1 for not changing input shape
@@ -92,8 +93,8 @@ def deep_branch(inputs, filters, strides=1, expansion=4, use_3x3_kernel=False, a
     else:
         nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "deep_1_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "deep_1_")
-    use_bn = not use_3x3_kernel
-    nn = attn_block(nn, filters, strides, **attn_block_params, use_bn=use_bn, activation=activation, name=name + "deep_2_")
+    bn_after_attn = False if use_3x3_kernel else bn_after_attn
+    nn = attn_block(nn, filters, strides, **attn_block_params, bn_after_attn=bn_after_attn, activation=activation, name=name + "deep_2_")
 
     if not use_3x3_kernel:
         nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "deep_3_")
@@ -109,6 +110,7 @@ def aot_block(
     drop_rate=0,
     preact=False,
     use_3x3_kernel=False,
+    bn_after_attn=True,
     avg_pool_down=False,
     anti_alias_down=False,
     activation="relu",
@@ -137,7 +139,7 @@ def aot_block(
     else:
         shortcut = keras.layers.MaxPooling2D(strides, strides=strides, padding="SAME")(inputs) if strides > 1 else inputs
 
-    deep = deep_branch(pre_inputs, filters, strides, expansion, use_3x3_kernel, activation, attn_block_params, name=name)
+    deep = deep_branch(pre_inputs, filters, strides, expansion, use_3x3_kernel, bn_after_attn, activation, attn_block_params, name=name)
 
     # print(">>>> shortcut:", shortcut.shape, "deep:", deep.shape)
     if preact:  # ResNetV2
@@ -160,7 +162,7 @@ def aot_stack(
     stack_drop=0,
     block_params={},
     attn_types=None,
-    attn_params=None,
+    attn_params={},
     se_ratio=0,
     use_eca=False,
     groups=1,
@@ -214,10 +216,11 @@ def AotNet(
     stem_last_strides=1,
     stem_downsample=True,
     attn_types=None,  # Attention block params
-    attn_params=None,
+    attn_params={},
     se_ratio=0,  # (0, 1)
     use_eca=False,
     groups=1,
+    bn_after_attn=True,
     avg_pool_down=False,  # shortcut_branch params
     anti_alias_down=False,
     input_shape=(224, 224, 3),  # Model common params
@@ -243,6 +246,7 @@ def AotNet(
     block_params = {  # params same for all blocks
         "preact": preact,
         "use_3x3_kernel": use_3x3_kernel,
+        "bn_after_attn": bn_after_attn,
         "avg_pool_down": avg_pool_down,
         "anti_alias_down": anti_alias_down,
         "activation": activation,

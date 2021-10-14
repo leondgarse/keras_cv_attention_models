@@ -1,4 +1,4 @@
-from keras_cv_attention_models.cotnet.cotnet import CotNet, CotNet50, CotNet101, SECotNetD50, SECotNetD101, SECotNetD152, cot_attention
+from keras_cv_attention_models.cotnet.cotnet import CotNet, CotNet50, CotNet101, CotNetSE50D, CotNetSE101D, CotNetSE152D, cot_attention
 
 
 __head_doc__ = """
@@ -6,8 +6,8 @@ Keras implementation of [Github JDAI-CV/CoTNet](https://github.com/JDAI-CV/CoTNe
 Paper [PDF 2107.12292 Contextual Transformer Networks for Visual Recognition](https://arxiv.org/pdf/2107.12292.pdf).
 """
 
-__tail_doc__ = """  expansion: model structure parameter, channel ouput expansion for each block.
-  cardinality: not used.
+__tail_doc__ = """  bn_after_attn: boolean value if add `batchnorm + activation` layers after attention layer. Default `True`.
+  avg_pool_down: boolean value if use `AvgPool2D` in shortcut branch. Default `True` for `ResNetD` model like.
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default `relu`.
@@ -19,7 +19,7 @@ __tail_doc__ = """  expansion: model structure parameter, channel ouput expansio
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `softmax`.
   pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
-  **kwargs: other parameters if available.
+  **kwargs: other parameters from `AotNet` if not conflict.
 
 Returns:
     A `keras.Model` instance.
@@ -28,26 +28,21 @@ Returns:
 CotNet.__doc__ = __head_doc__ + """
 Args:
   num_blocks: model structure parameter, number of blocks in each stack.
-  stem_width: model structure parameter, output dimension after stem block.
-  deep_stem: model structure parameter, boolean value if use deep conv in stem block.
-  attn_types: model structure parameter, a list of `"sa"` or `"cot"` or `None`, indicates attnetion type for each stack or block.
-      For `"sa"` means `split_attention_conv2d` from `resnest`.
-      For `"cot"` means `cot_attention` from this `CotNet` architecture.
-      For `None` means `Conv2D` layer.
   strides: model structure parameter, strides value for the first block in each stack.
+      `[2, 2, 2, 2]` for `CotNetSExxD` models, `[1, 2, 2, 2]` for others.
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model          | Params | Image resolution | FLOPs | Top1 Acc |
-  | -------------- |:------:| ---------------- | ----- |:--------:|
-  | CoTNet-50      | 22.2M  | 224              | 3.3   |   81.3   |
-  | CoTNeXt-50     | 30.1M  | 224              | 4.3   |   82.1   |
-  | SE-CoTNetD-50  | 23.1M  | 224              | 4.1   |   81.6   |
-  | CoTNet-101     | 38.3M  | 224              | 6.1   |   82.8   |
-  | CoTNeXt-101    | 53.4M  | 224              | 8.2   |   83.2   |
-  | SE-CoTNetD-101 | 40.9M  | 224              | 8.5   |   83.2   |
-  | SE-CoTNetD-152 | 55.8M  | 224              | 17.0  |   84.0   |
-  | SE-CoTNetD-152 | 55.8M  | 320              | 26.5  |   84.6   |
+  | Model        | Params | Image resolution | FLOPs | Top1 Acc |
+  | ------------ |:------:| ---------------- | ----- |:--------:|
+  | CotNet50     | 22.2M  | 224              | 3.3   |   81.3   |
+  | CoTNeXt50    | 30.1M  | 224              | 4.3   |   82.1   |
+  | CotNetSE50D  | 23.1M  | 224              | 4.1   |   81.6   |
+  | CotNet101    | 38.3M  | 224              | 6.1   |   82.8   |
+  | CoTNeXt-101  | 53.4M  | 224              | 8.2   |   83.2   |
+  | CotNetSE101D | 40.9M  | 224              | 8.5   |   83.2   |
+  | CotNetSE152D | 55.8M  | 224              | 17.0  |   84.0   |
+  | CotNetSE152D | 55.8M  | 320              | 26.5  |   84.6   |
 """
 
 CotNet50.__doc__ = __head_doc__ + """
@@ -55,9 +50,9 @@ Args:
 """ + __tail_doc__
 
 CotNet101.__doc__ = CotNet50.__doc__
-SECotNetD50.__doc__ = CotNet50.__doc__
-SECotNetD101.__doc__ = CotNet50.__doc__
-SECotNetD152.__doc__ = CotNet50.__doc__
+CotNetSE50D.__doc__ = CotNet50.__doc__
+CotNetSE101D.__doc__ = CotNet50.__doc__
+CotNetSE152D.__doc__ = CotNet50.__doc__
 
 cot_attention.__doc__ = __head_doc__ + """
 Contextual transformer. Callable function, NOT defined as a layer.
