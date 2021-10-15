@@ -230,7 +230,7 @@ def tpu_extract_patches_overlap_1(inputs, sizes=3, strides=2, rates=1, padding="
     """For issue https://github.com/leondgarse/keras_cv_attention_models/issues/8,
     `tf.image.extract_patches` NOT working for TPU.
     `overlap_1` means `1 < sizes / strides <= 2`.
-    `rates` and `name` not used, just keeping same perameters with `tf.image.extract_patche`.
+    `rates` and `name` not used, just keeping same perameters with `tf.image.extract_patches`.
 
     input: `[batch, height, width, channel]`.
     output: `[batch, height // strides,  width // strides, sizes * sizes * channel]`.
@@ -246,6 +246,8 @@ def tpu_extract_patches_overlap_1(inputs, sizes=3, strides=2, rates=1, padding="
     # inputs = np.random.uniform(size=[1, 64, 28, 192])
     kernel_size = sizes[1] if isinstance(sizes, (list, tuple)) else sizes
     strides = strides[1] if isinstance(strides, (list, tuple)) else strides
+    err_info = "Only supports overlap=1 for TPU, means 1 < sizes / strides <= 2, got sizes={}, strides={}".format(kernel_size, strides)
+    assert kernel_size / strides > 1 and kernel_size / strides <= 2, err_info
 
     if padding.upper() == "SAME":
         pad = kernel_size // 2
@@ -282,7 +284,7 @@ def tpu_extract_patches_overlap_1(inputs, sizes=3, strides=2, rates=1, padding="
     return tf.reshape(out, [-1, num_patches_hh, num_patches_ww, kernel_size * kernel_size * cc])
 
 
-def tpu_compatible_extract_patches_overlap_1(inputs, sizes=3, strides=2, rates=1, padding="SAME", name=None):
+def tpu_compatible_extract_patches(inputs, sizes=3, strides=2, rates=1, padding="SAME", name=None):
     if len(tf.config.experimental.list_logical_devices("TPU")) == 0:
         return tf.image.extract_patches(inputs, sizes, strides, rates, padding, name)
     else:

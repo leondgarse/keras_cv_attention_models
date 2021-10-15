@@ -1,14 +1,42 @@
-import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from tensorflow import keras
 
 
+def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333333333333)):
+    """https://github.com/tensorflow/models/blob/master/official/vision/image_classification/preprocessing.py
+    RandomResizedCrop related function.
+    As outputs are converted int, for running 1e5 times, results are about scale in (0.0806, 1.0) , ratio in (0.735, 1.36).
+
+    hh_crop * ww_crop = crop_area = crop_fraction * area, crop_fraction in scale=(0.08, 1.0)
+    hh_crop / ww_crop > ratio[0]
+    hh_crop / ww_crop < ratio[1]
+    ==> ww_crop > sqrt(crop_area / ratio[1])
+        ww_crop < sqrt(crop_area / ratio[0])
+
+    Args:
+      size (tuple of int): input image shape. `area = size[0] * size[1]`.
+      scale (tuple of float): scale range of the cropped image. crop_area in range `(scale[0] * area, sacle[1] * area)`.
+      ratio (tuple of float): aspect ratio range of the cropped image. hh_crop / ww_crop in range `(ratio[0], ratio[1])`.
+
+    Returns: cropped size `hh_crop, ww_crop`.
+    """
+    area = size[0] * size[1]
+    crop_area = tf.random.uniform((), *scale) * area
+    ww_fraction_min = tf.maximum(crop_area / size[0], tf.sqrt(crop_area / ratio[1]))
+    ww_fraction_max = tf.minimum(tf.cast(size[1], "float32"), tf.sqrt(crop_area / ratio[0]))
+    ww_fraction = tf.random.uniform((), ww_fraction_min, ww_fraction_max)
+    # hh_crop, ww_crop = tf.cast(tf.math.ceil(crop_area / ww_fraction), "int32"), tf.cast(tf.math.ceil(ww_fraction), "int32")
+    hh_crop, ww_crop = tf.cast(tf.math.floor(crop_area / ww_fraction), "int32"), tf.cast(tf.math.floor(ww_fraction), "int32")
+    # return hh_crop, ww_crop, crop_area, ww_fraction_min, ww_fraction_max, ww_fraction
+    return tf.minimum(hh_crop, size[0] - 1), tf.minimum(ww_crop, size[1] - 1)
+
+
 class RandomProcessImage:
-    def __init__(self, target_shape=(300, 300), magnitude=0, central_crop=1.0, random_crop=1.0, resize_method="bilinear", keep_shape=False):
-        self.target_shape, self.magnitude, self.keep_shape = target_shape, magnitude, keep_shape
+    def __init__(self, target_shape=(300, 300), magnitude=0, central_crop=1.0, random_crop_min=1.0, resize_method="bilinear"):
+        self.target_shape, self.magnitude = target_shape, magnitude
         self.target_shape = target_shape if len(target_shape) == 2 else target_shape[:2]
-        self.central_crop, self.random_crop, self.resize_method = central_crop, random_crop, resize_method
+        self.central_crop, self.random_crop_min, self.resize_method = central_crop, random_crop_min, resize_method
 
         if magnitude > 0:
             from keras_cv_attention_models.imagenet import augment
@@ -19,24 +47,23 @@ class RandomProcessImage:
             print(">>>> RandAugment: magnitude = %d, translate_const = %d, cutout_const = %d" % (magnitude, translate_const, cutout_const))
             aa = augment.RandAugment(magnitude=magnitude, translate_const=translate_const, cutout_const=cutout_const)
             # aa.available_ops = ["AutoContrast", "Equalize", "Invert", "Rotate", "Posterize", "Solarize", "Color", "Contrast", "Brightness", "Sharpness", "ShearX", "ShearY", "TranslateX", "TranslateY", "Cutout", "SolarizeAdd"]
-            self.process = lambda img: aa.distort(img)
+            self.process = lambda img: tf.image.random_flip_left_right(aa.distort(img))
         elif magnitude == 0:
             self.process = lambda img: tf.image.random_flip_left_right(img)
         else:
             self.process = lambda img: img
 
-        if random_crop > 0 and random_crop < 1:
-            self.enlarge_shape = (int(target_shape[0] / random_crop), int(target_shape[1] / random_crop))
-
     def __call__(self, datapoint):
         image = datapoint["image"]
-        if self.keep_shape:
-            cropped_shape = tf.reduce_min(tf.keras.backend.shape(image)[:2])
-            image = tf.image.random_crop(image, (cropped_shape, cropped_shape, 3))
+        # if self.keep_shape:
+        #     cropped_shape = tf.reduce_min(tf.keras.backend.shape(image)[:2])
+        #     image = tf.image.random_crop(image, (cropped_shape, cropped_shape, 3))
 
-        if self.random_crop > 0 and self.random_crop < 1:
-            cropped_shape = tf.cast(tf.cast(tf.keras.backend.shape(image)[:2], tf.float32) * self.random_crop, tf.int32)
-            input_image = tf.image.random_crop(image, (*cropped_shape, 3))
+        if self.random_crop_min > 0 and self.random_crop_min < 1:
+            # cropped_shape = tf.cast(tf.cast(tf.keras.backend.shape(image)[:2], tf.float32) * self.random_crop_min, tf.int32)
+            # input_image = random_crop_with_min_fraction(image, self.random_crop_min)
+            hh, ww = random_crop_fraction(image.shape, scale=(self.random_crop_min, 1.0))
+            input_image = tf.image.random_crop(image, (hh, ww, 3))
         else:
             input_image = tf.image.central_crop(image, self.central_crop)
         input_image = tf.image.resize(input_image, self.target_shape, method=self.resize_method)
@@ -120,6 +147,25 @@ def cutmix(images, labels, alpha=0.5, min_mix_weight=0.01):
     return images, labels
 
 
+def random_erasing_per_pixel(image, num_layers=1, scale=(0.02, 1/3), ratio=(0.3, 10/3), probability=0.5):
+    """ https://github.com/rwightman/pytorch-image-models/blob/master/timm/data/random_erasing.py """
+    if tf.random.uniform(()) > probability:
+        return image
+
+    mean = [123.675, 116.28, 103.53]
+    std = [58.395, 57.120003, 57.375]
+    height, width, _ = image.shape
+    for _ in range(num_layers):
+        hh, ww = random_crop_fraction((height, width), scale=scale, ratio=ratio)
+        hh_ss = tf.random.uniform((), 0, height - hh, dtype='int32')
+        ww_ss = tf.random.uniform((), 0, width - ww, dtype='int32')
+        mask = tf.random.normal([hh, ww, 3], mean=mean, stddev=std)
+        mask = tf.clip_by_value(mask, 0.0, 255.0)    # value in [0, 255]
+        aa = tf.concat([image[:hh_ss, ww_ss:ww_ss + ww], mask, image[hh_ss + hh:, ww_ss:ww_ss + ww]], axis=0)
+        image = tf.concat([image[:, :ww_ss], aa, image[:, ww_ss + ww:]], axis=1)
+    return image
+
+
 def init_dataset(
     data_name="imagenet2012",
     input_shape=(224, 224),
@@ -130,8 +176,7 @@ def init_dataset(
     mixup_alpha=0,
     cutmix_alpha=0,
     central_crop=1.0,
-    random_crop=1.0,
-    keep_shape=False,
+    random_crop_min=1.0,
     resize_method="bilinear",
     mode="tf",
 ):
@@ -141,26 +186,22 @@ def init_dataset(
     dataset, info = tfds.load(data_name, with_info=True)
     num_classes = info.features["label"].num_classes
     total_images = info.splits["train"].num_examples
-    steps_per_epoch = int(np.ceil(total_images / float(batch_size)))
+    steps_per_epoch = int(tf.math.ceil(total_images / float(batch_size)))
     if info_only:
         return total_images, num_classes, steps_per_epoch
 
     AUTOTUNE = tf.data.AUTOTUNE
-    train_process = RandomProcessImage(
-        input_shape, magnitude, central_crop=central_crop, random_crop=random_crop, resize_method=resize_method, keep_shape=keep_shape
-    )
+    train_process = RandomProcessImage(input_shape, magnitude, central_crop=central_crop, random_crop_min=random_crop_min, resize_method=resize_method)
     train = dataset["train"].map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE)
-    test_process = RandomProcessImage(
-        input_shape, magnitude=-1, central_crop=central_crop, random_crop=random_crop, resize_method=resize_method, keep_shape=keep_shape
-    )
+    test_process = RandomProcessImage(input_shape, magnitude=-1, central_crop=central_crop, random_crop_min=1.0, resize_method=resize_method)
     if "validation" in dataset:
         test = dataset["validation"].map(lambda xx: test_process(xx))
     elif "test" in dataset:
         test = dataset["test"].map(lambda xx: test_process(xx))
 
     if mode == "torch":
-        mean = np.array([0.485, 0.456, 0.406]) * 255.0
-        std = np.array([0.229, 0.224, 0.225]) * 255.0
+        mean = tf.constant([0.485, 0.456, 0.406]) * 255.0
+        std = tf.constant([0.229, 0.224, 0.225]) * 255.0
         rescaling = lambda xx: (xx - mean) / std
     else:
         rescaling = lambda xx: (xx - 127.5) * 0.0078125
@@ -169,7 +210,15 @@ def init_dataset(
     train_dataset = train.shuffle(buffer_size).batch(batch_size).prefetch(buffer_size=AUTOTUNE)
     test_dataset = test.batch(batch_size).map(lambda xx, yy: (rescaling(xx), as_one_hot(yy)))
 
-    if mixup_alpha > 0 and mixup_alpha <= 1:
+    if mixup_alpha > 0 and mixup_alpha <= 1 and cutmix_alpha > 0 and cutmix_alpha <= 1:
+        print(">>>> Both mixup_alpha and cutmix_alpha provided: mixup_alpha = {}, cutmix_alpha = {}".format(mixup_alpha, cutmix_alpha))
+        mixup_cutmix = lambda xx, yy: tf.cond(
+            tf.random.uniform(()) > 0.5,    # switch_prob = 0.5
+            lambda: mixup(rescaling(xx), as_one_hot(yy), alpha=mixup_alpha),
+            lambda: cutmix(rescaling(xx), as_one_hot(yy), alpha=cutmix_alpha),
+        )
+        train_dataset = train_dataset.map(mixup_cutmix)
+    elif mixup_alpha > 0 and mixup_alpha <= 1:
         print(">>>> mixup_alpha provided:", mixup_alpha)
         train_dataset = train_dataset.map(lambda xx, yy: mixup(rescaling(xx), as_one_hot(yy), alpha=mixup_alpha))
     elif cutmix_alpha > 0 and cutmix_alpha <= 1:
