@@ -1,5 +1,6 @@
 """
-Copied from https://github.com/tensorflow/models/blob/master/official/vision/image_classification/augment.py
+Copied from: https://github.com/tensorflow/models/blob/master/official/vision/image_classification/augment.py
+Midified according to: https://github.com/rwightman/pytorch-image-models/blob/master/timm/data/auto_augment.py
 """
 # Copyright 2019 The TensorFlow Authors. All Rights Reserved.
 #
@@ -22,9 +23,9 @@ RandAugment Reference: https://arxiv.org/abs/1909.13719
 """
 
 import math
-
+import random
 import tensorflow as tf
-from typing import Any, Dict, List, Optional, Text, Tuple
+from typing import Any, Dict, List, Optional, Text, Tuple, Union
 
 from tensorflow.python.keras.layers.preprocessing import image_preprocessing as image_ops
 
@@ -164,7 +165,7 @@ def transform(image: tf.Tensor, transforms) -> tf.Tensor:
     if transforms.shape.rank == 1:
         transforms = transforms[None]
     image = to_4d(image)
-    image = image_ops.transform(images=image, transforms=transforms, interpolation="nearest")
+    image = image_ops.transform(images=image, transforms=transforms, interpolation="nearest", fill_mode="constant")
     return from_4d(image, original_ndims)
 
 
@@ -351,6 +352,20 @@ def posterize(image: tf.Tensor, bits: int) -> tf.Tensor:
 def wrapped_rotate(image: tf.Tensor, degrees: float, replace: int) -> tf.Tensor:
     """Applies rotation with wrap/unwrap."""
     image = rotate(wrap(image), degrees=degrees)
+    return unwrap(image, replace)
+
+
+def translate_x_relative(image: tf.Tensor, level: float, replace: int) -> tf.Tensor:
+    """Equivalent of PIL Translate in X dimension."""
+    pixels = level * image.shape[0]
+    image = translate(wrap(image), [-pixels, 0])
+    return unwrap(image, replace)
+
+
+def translate_y_relative(image: tf.Tensor, level: float, replace: int) -> tf.Tensor:
+    """Equivalent of PIL Translate in Y dimension."""
+    pixels = level * image.shape[1]
+    image = translate(wrap(image), [0, -pixels])
     return unwrap(image, replace)
 
 
@@ -562,7 +577,16 @@ def _shrink_level_to_arg(level: float):
 
 
 def _enhance_level_to_arg(level: float):
-    return ((level / _MAX_LEVEL) * 1.8 + 0.1,)
+    return ((level / _MAX_LEVEL) * 1.8 + 0.1,)  # range [0.1, 1.9]
+
+
+def _enhance_increasing_level_to_arg(level: float):
+    # the 'no change' level is 1.0, moving away from that towards 0. or 2.0 increases the enhancement blend
+    # range [0.1, 1.9] if level <= _LEVEL_DENOM
+    level = (level / _MAX_LEVEL) * 0.9
+    level = 1.0 + _randomly_negate_tensor(level)
+    level = tf.reduce_max([level, 0.1])  # keep it >= 0.1
+    return (level,)
 
 
 def _shear_level_to_arg(level: float):
@@ -578,10 +602,40 @@ def _translate_level_to_arg(level: float, translate_const: float):
     level = _randomly_negate_tensor(level)
     return (level,)
 
+def _cutout_level_to_arg(level: float, cutout_const: float):
+    return (int((level / _MAX_LEVEL) * cutout_const),)
 
-def _mult_to_arg(level: float, multiplier: float = 1.0):
-    return (int((level / _MAX_LEVEL) * multiplier),)
+def _posterize_level_to_arg(level: float):
+    # As per Tensorflow TPU EfficientNet impl
+    # range [0, 4], 'keep 0 up to 4 MSB of original image'
+    # intensity/severity of augmentation decreases with level
+    return (int((level / _MAX_LEVEL) * 4),)
 
+def _posterize_increasing_level_to_arg(level: float):
+    # As per Tensorflow models research and UDA impl
+    # range [4, 0], 'keep 4 down to 0 MSB of original image',
+    # intensity/severity of augmentation increases with level
+    return (4 - int((level / _MAX_LEVEL) * 4),)
+
+def _posterize_original_level_to_arg(level: float):
+    # As per original AutoAugment paper description
+    # range [4, 8], 'keep 4 up to 8 MSB of image'
+    # intensity/severity of augmentation decreases with level
+    return (int((level / _MAX_LEVEL) * 4) + 4,)
+
+def _solarize_level_to_arg(level: float):
+    # range [0, 256]
+    # intensity/severity of augmentation decreases with level
+    return (int((level / _MAX_LEVEL) * 256),)
+
+def _solarize_increasing_level_to_arg(level: float):
+    # range [0, 256]
+    # intensity/severity of augmentation increases with level
+    return (256 - int((level / _MAX_LEVEL) * 256),)
+
+def _solarize_add_level_to_arg(level: float):
+    # range [0, 110]
+    return (int((level / _MAX_LEVEL) * 110),)
 
 def _apply_func_with_prob(func: Any, image: tf.Tensor, args: Any, prob: float):
     """Apply `func` to image w/ `args` as input with probability `prob`."""
@@ -609,16 +663,25 @@ NAME_TO_FUNC = {
     "Invert": invert,
     "Rotate": wrapped_rotate,
     "Posterize": posterize,
+    'PosterizeIncreasing': posterize,
+    'PosterizeOriginal': posterize,
     "Solarize": solarize,
+    'SolarizeIncreasing': solarize,
     "SolarizeAdd": solarize_add,
     "Color": color,
+    'ColorIncreasing': color,
     "Contrast": contrast,
+    'ContrastIncreasing': contrast,
     "Brightness": brightness,
+    'BrightnessIncreasing': brightness,
     "Sharpness": sharpness,
+    'SharpnessIncreasing': sharpness,
     "ShearX": shear_x,
     "ShearY": shear_y,
     "TranslateX": translate_x,
     "TranslateY": translate_y,
+    "TranslateXRel": translate_x_relative,
+    "TranslateYRel": translate_y_relative,
     "Cutout": cutout,
 }
 
@@ -627,49 +690,54 @@ REPLACE_FUNCS = frozenset(
     {
         "Rotate",
         "TranslateX",
+        "TranslateXRel",
         "ShearX",
         "ShearY",
         "TranslateY",
+        "TranslateYRel",
         "Cutout",
     }
 )
 
-
-def level_to_arg(cutout_const: float, translate_const: float):
-    """Creates a dict mapping image operation names to their arguments."""
-
-    no_arg = lambda level: ()
-    posterize_arg = lambda level: _mult_to_arg(level, 4)
-    solarize_arg = lambda level: _mult_to_arg(level, 256)
-    solarize_add_arg = lambda level: _mult_to_arg(level, 110)
-    cutout_arg = lambda level: _mult_to_arg(level, cutout_const)
-    translate_arg = lambda level: _translate_level_to_arg(level, translate_const)
-
-    args = {
-        "AutoContrast": no_arg,
-        "Equalize": no_arg,
-        "Invert": no_arg,
-        "Rotate": _rotate_level_to_arg,
-        "Posterize": posterize_arg,
-        "Solarize": solarize_arg,
-        "SolarizeAdd": solarize_add_arg,
-        "Color": _enhance_level_to_arg,
-        "Contrast": _enhance_level_to_arg,
-        "Brightness": _enhance_level_to_arg,
-        "Sharpness": _enhance_level_to_arg,
-        "ShearX": _shear_level_to_arg,
-        "ShearY": _shear_level_to_arg,
-        "Cutout": cutout_arg,
-        "TranslateX": translate_arg,
-        "TranslateY": translate_arg,
-    }
-    return args
-
+LEVEL_TO_ARG = {
+    "AutoContrast": lambda level: (),
+    "Equalize": lambda level: (),
+    "Invert": lambda level: (),
+    "Rotate": _rotate_level_to_arg,
+    # There are several variations of the posterize level scaling in various Tensorflow/Google repositories/papers
+    "Posterize": _posterize_level_to_arg,
+    'PosterizeIncreasing': _posterize_increasing_level_to_arg,
+    'PosterizeOriginal': _posterize_original_level_to_arg,
+    "Solarize": _solarize_level_to_arg,
+    'SolarizeIncreasing': _solarize_increasing_level_to_arg,
+    "SolarizeAdd": _solarize_add_level_to_arg,
+    "Color": _enhance_level_to_arg,
+    'ColorIncreasing': _enhance_increasing_level_to_arg,
+    "Contrast": _enhance_level_to_arg,
+    'ContrastIncreasing': _enhance_increasing_level_to_arg,
+    "Brightness": _enhance_level_to_arg,
+    'BrightnessIncreasing': _enhance_increasing_level_to_arg,
+    "Sharpness": _enhance_level_to_arg,
+    'SharpnessIncreasing': _enhance_increasing_level_to_arg,
+    "ShearX": _shear_level_to_arg,
+    "ShearY": _shear_level_to_arg,
+    'TranslateX': _translate_level_to_arg,
+    'TranslateY': _translate_level_to_arg,
+    'TranslateXRel': _translate_level_to_arg,
+    'TranslateYRel': _translate_level_to_arg,
+    'Cutout': _cutout_level_to_arg,
+}
 
 def _parse_policy_info(name: Text, prob: float, level: float, replace_value: List[int], cutout_const: float, translate_const: float) -> Tuple[Any, float, Any]:
     """Return the function that corresponds to `name` and update `level` param."""
     func = NAME_TO_FUNC[name]
-    args = level_to_arg(cutout_const, translate_const)[name](level)
+    level_func = LEVEL_TO_ARG[name]
+    if name == "Cutout":
+        args = level_func(level, cutout_const)
+    elif name in ["TranslateX", "TranslateY", "TranslateXRel", "TranslateYRel"]:
+        args = level_func(level, translate_const)
+    else:
+        args = level_func(level)
 
     if name in REPLACE_FUNCS:
         # Add in replace arg if it is required for the function that is called.
@@ -690,7 +758,7 @@ class ImageAugment(object):
         Returns:
           The augmented version of `image`.
         """
-        raise NotImplementedError()
+        return self.__call__(image)
 
 
 class AutoAugment(ImageAugment):
@@ -871,7 +939,20 @@ class RandAugment(ImageAugment):
     RandAugment is from the paper https://arxiv.org/abs/1909.13719,
     """
 
-    def __init__(self, num_layers: int = 2, magnitude: float = 10.0, cutout_const: float = 40.0, translate_const: float = 100.0):
+    def __init__(
+        self,
+        num_layers: int = 2,
+        magnitude: float = 10.0,
+        magnitude_max: float = _MAX_LEVEL,
+        magnitude_std: float = 0.5,
+        cutout_const: float = 40.0,
+        translate_const: float = 0.45, # (0, 1) for relative, > 1 for absolute.
+        use_cutout: bool = False,
+        use_relative_translate: bool = True,
+        use_color_increasing: bool = True,
+        apply_probability: float = 0.5,
+        image_mean: Union[list, tuple] = [124, 117, 104],
+    ):
         """Applies the RandAugment policy to images.
 
         Args:
@@ -886,30 +967,49 @@ class RandAugment(ImageAugment):
         """
         super(RandAugment, self).__init__()
 
-        self.num_layers = num_layers
-        self.magnitude = float(magnitude)
-        self.cutout_const = float(cutout_const)
-        self.translate_const = float(translate_const)
-        self.available_ops = [
+        self.num_layers, self.apply_probability, self.image_mean = num_layers, apply_probability, image_mean
+        self.magnitude, self.magnitude_max, self.magnitude_std = float(magnitude), float(magnitude_max), float(magnitude_std)
+        self.cutout_const, self.translate_const = float(cutout_const), float(translate_const)
+        self.basic_ops = [
             "AutoContrast",
             "Equalize",
             "Invert",
             "Rotate",
-            "Posterize",
-            "Solarize",
-            "Color",
-            "Contrast",
-            "Brightness",
-            "Sharpness",
+            "SolarizeAdd",
             "ShearX",
             "ShearY",
-            "TranslateX",
-            "TranslateY",
-            "Cutout",
-            "SolarizeAdd",
+        ]
+        self.color_ops = ["Posterize", "Solarize", "Color", "Contrast", "Brightness", "Sharpness"]
+        self.color_increasing_ops = [
+            "PosterizeIncreasing",
+            "SolarizeIncreasing",
+            "ColorIncreasing",
+            "ContrastIncreasing",
+            "BrightnessIncreasing",
+            "SharpnessIncreasing",
         ]
 
-    def distort(self, image: tf.Tensor) -> tf.Tensor:
+        self.available_ops = self.basic_ops
+        self.available_ops += self.color_increasing_ops if use_color_increasing else self.color_ops
+        self.available_ops += ["TranslateXRel", "TranslateYRel"] if use_relative_translate else ["TranslateX", "TranslateY"]
+        self.available_ops += ["Cutout"] if use_cutout else []
+
+    def __magnitude_with_noise__(self):
+        if self.magnitude_std > 0:
+            magnitude = tf.random.normal((), mean=self.magnitude, stddev=self.magnitude_std)
+        else:
+            magnitude = self.magnitude
+        return tf.clip_by_value(magnitude, 0, self.magnitude_max)
+
+    def __apply_randaug_with_magnitude__(self, image):
+        # op_to_select = tf.random.uniform([], maxval=len(self.available_ops), dtype='int32')
+        # op_name = self.available_ops[op_to_select]
+        op_name = random.choice(self.available_ops)
+        magnitude = self.__magnitude_with_noise__()
+        func, _, args = _parse_policy_info(op_name, 0.0, magnitude, self.image_mean, self.cutout_const, self.translate_const)
+        return func(image, *args)
+
+    def __call__(self, image: tf.Tensor) -> tf.Tensor:
         """Applies the RandAugment policy to `image`.
 
         Args:
@@ -924,26 +1024,8 @@ class RandAugment(ImageAugment):
             image = tf.clip_by_value(image, 0.0, 255.0)
             image = tf.cast(image, dtype=tf.uint8)
 
-        replace_value = [128] * 3
-        min_prob, max_prob = 0.2, 0.8
-
         for _ in range(self.num_layers):
-            op_to_select = tf.random.uniform([], maxval=len(self.available_ops) + 1, dtype=tf.int32)
-
-            branch_fns = []
-            for (i, op_name) in enumerate(self.available_ops):
-                prob = tf.random.uniform([], minval=min_prob, maxval=max_prob, dtype=tf.float32)
-                func, _, args = _parse_policy_info(op_name, prob, self.magnitude, replace_value, self.cutout_const, self.translate_const)
-                branch_fns.append(
-                    (
-                        i,
-                        # pylint:disable=g-long-lambda
-                        lambda selected_func=func, selected_args=args: selected_func(image, *selected_args),
-                    )
-                )
-                # pylint:enable=g-long-lambda
-
-            image = tf.switch_case(branch_index=op_to_select, branch_fns=branch_fns, default=lambda: tf.identity(image))
-
+            should_apply_op = tf.cast(tf.floor(tf.random.uniform([], dtype=tf.float32) + self.apply_probability), tf.bool)
+            image = tf.cond(should_apply_op, lambda: self.__apply_randaug_with_magnitude__(image), lambda: image)
         image = tf.cast(image, dtype=input_image_type)
         return image
