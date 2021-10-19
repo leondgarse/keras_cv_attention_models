@@ -203,8 +203,8 @@ def aot_stem(inputs, stem_width, stem_type=None, activation="relu", quad_stem_ac
 
 
 def AotNet(
-    num_blocks, # Stack parameters
-    preact=False,
+    num_blocks,  # Stack parameters
+    preact=False,  # False for resnet, True for resnetv2
     strides=[1, 2, 2, 2],
     strides_first=True,  # True for resnet, False for resnetv2
     out_channels=[64, 128, 256, 512],
@@ -273,25 +273,25 @@ def AotNet(
     return model
 
 
-def AotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
+def AotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 4, 6, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name=kwargs.pop("model_name", "aotnet50"), **kwargs)
 
 
-def AotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
+def AotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 4, 23, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name=kwargs.pop("model_name", "aotnet101"), **kwargs)
 
 
-def AotNet152(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
+def AotNet152(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 8, 36, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name=kwargs.pop("model_name", "aotnet152"), **kwargs)
 
 
-def AotNet200(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
+def AotNet200(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 24, 36, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name=kwargs.pop("model_name", "aotnet200"), **kwargs)
@@ -302,25 +302,25 @@ def AotNetV2(num_blocks, preact=True, strides=1, strides_first=False, **kwargs):
     return AotNet(num_blocks, preact=preact, strides=strides, strides_first=strides_first, **kwargs)
 
 
-def AotNet50V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
+def AotNet50V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 4, 6, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
     return AotNetV2(**locals(), model_name=kwargs.pop("model_name", "aotnet50v2"), **kwargs)
 
 
-def AotNet101V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
+def AotNet101V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 4, 23, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
     return AotNetV2(**locals(), model_name=kwargs.pop("model_name", "aotnet101v2"), **kwargs)
 
 
-def AotNet152V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
+def AotNet152V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 8, 36, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
     return AotNetV2(**locals(), model_name=kwargs.pop("model_name", "aotnet152v2"), **kwargs)
 
 
-def AotNet200V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=1, **kwargs):
+def AotNet200V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 24, 36, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
     return AotNetV2(**locals(), model_name=kwargs.pop("model_name", "aotnet200v2"), **kwargs)

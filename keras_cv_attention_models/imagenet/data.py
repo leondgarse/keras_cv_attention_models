@@ -30,10 +30,11 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
 
     Returns: cropped size `hh_crop, ww_crop`.
     """
-    area = size[0] * size[1]
+    height, width = tf.cast(size[0], "float32"), tf.cast(size[1], "float32")
+    area = height * width
     crop_area = tf.random.uniform((), *scale) * area
-    hh_fraction_min = tf.maximum(crop_area / size[1], tf.sqrt(crop_area / ratio[1]))
-    hh_fraction_max = tf.minimum(tf.cast(size[0], "float32"), tf.sqrt(crop_area / ratio[0]))
+    hh_fraction_min = tf.maximum(crop_area / width, tf.sqrt(crop_area / ratio[1]))
+    hh_fraction_max = tf.minimum(tf.cast(height, "float32"), tf.sqrt(crop_area / ratio[0]))
     if log_distribute:  # More likely to select a smaller value
         log_min, log_max = tf.math.log(hh_fraction_min), tf.math.log(hh_fraction_max)
         hh_fraction = tf.random.uniform((), log_min, log_max)
@@ -43,9 +44,10 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
     # hh_crop, ww_crop = tf.cast(tf.math.ceil(hh_fraction), "int32"), tf.cast(tf.math.ceil(crop_area / hh_fraction), "int32")
     hh_crop, ww_crop = tf.cast(tf.math.floor(hh_fraction), "int32"), tf.cast(tf.math.floor(crop_area / hh_fraction), "int32")
     # return hh_crop, ww_crop, crop_area, hh_fraction_min, hh_fraction_max, hh_fraction
-    return hh_crop, ww_crop
+    # return hh_crop, ww_crop
     # return hh_fraction, crop_area / hh_fraction # float value will stay in scale and ratio range exactly
-    # return tf.minimum(hh_crop, size[0] - 1), tf.minimum(ww_crop, size[1] - 1)
+    return tf.minimum(hh_crop, size[0] - 1), tf.minimum(ww_crop, size[1] - 1)
+
 
 def random_erasing_per_pixel(image, num_layers=1, scale=(0.02, 0.33333333), ratio=(0.3, 3.3333333), probability=0.5):
     """ https://github.com/rwightman/pytorch-image-models/blob/master/timm/data/random_erasing.py """
@@ -57,13 +59,14 @@ def random_erasing_per_pixel(image, num_layers=1, scale=(0.02, 0.33333333), rati
     height, width, _ = image.shape
     for _ in range(num_layers):
         hh, ww = random_crop_fraction((height, width), scale=scale, ratio=ratio)
-        hh_ss = tf.random.uniform((), 0, height - hh, dtype='int32')
-        ww_ss = tf.random.uniform((), 0, width - ww, dtype='int32')
+        hh_ss = tf.random.uniform((), 0, height - hh, dtype="int32")
+        ww_ss = tf.random.uniform((), 0, width - ww, dtype="int32")
         mask = tf.random.normal([hh, ww, 3], mean=mean, stddev=std)
-        mask = tf.clip_by_value(mask, 0.0, 255.0)    # value in [0, 255]
-        aa = tf.concat([image[:hh_ss, ww_ss:ww_ss + ww], mask, image[hh_ss + hh:, ww_ss:ww_ss + ww]], axis=0)
-        image = tf.concat([image[:, :ww_ss], aa, image[:, ww_ss + ww:]], axis=1)
+        mask = tf.clip_by_value(mask, 0.0, 255.0)  # value in [0, 255]
+        aa = tf.concat([image[:hh_ss, ww_ss : ww_ss + ww], mask, image[hh_ss + hh :, ww_ss : ww_ss + ww]], axis=0)
+        image = tf.concat([image[:, :ww_ss], aa, image[:, ww_ss + ww :]], axis=1)
     return image
+
 
 class RandomProcessImage:
     def __init__(
@@ -73,6 +76,7 @@ class RandomProcessImage:
         random_crop_min=1.0,
         resize_method="bilinear",
         random_erasing_prob=0.0,
+        random_erasing_layers=1,
         magnitude=0,
         num_layers=2,
         use_cutout=False,
@@ -85,7 +89,7 @@ class RandomProcessImage:
         self.central_crop, self.random_crop_min, self.resize_method = central_crop, random_crop_min, resize_method
 
         if random_erasing_prob > 0:
-            self.random_erasing = lambda img: random_erasing_per_pixel(img, num_layers=num_layers, probability=random_erasing_prob)
+            self.random_erasing = lambda img: random_erasing_per_pixel(img, num_layers=random_erasing_layers, probability=random_erasing_prob)
             use_cutout = False
         else:
             self.random_erasing = lambda img: img
@@ -94,8 +98,8 @@ class RandomProcessImage:
             from keras_cv_attention_models.imagenet import augment
 
             # for target_shape = 224, translate_const = 100 and cutout_const = 40
-            translate_const = 0.45 if use_relative_translate else min(target_shape) * 0.45
-            cutout_const = min(target_shape) * 0.18
+            translate_const = 0.45 if use_relative_translate else min(self.target_shape) * 0.45
+            cutout_const = min(self.target_shape) * 0.18
             print(">>>> RandAugment: magnitude = %d, translate_const = %f, cutout_const = %f" % (magnitude, translate_const, cutout_const))
 
             self.randaug = augment.RandAugment(
@@ -125,14 +129,14 @@ class RandomProcessImage:
     def __call__(self, datapoint):
         image = datapoint["image"]
         if self.random_crop_min > 0 and self.random_crop_min < 1:
-            hh, ww = random_crop_fraction(image.shape, scale=(self.random_crop_min, 1.0))
+            hh, ww = random_crop_fraction(tf.shape(image), scale=(self.random_crop_min, 1.0))
             input_image = tf.image.random_crop(image, (hh, ww, 3))
         else:
             input_image = tf.image.central_crop(image, self.central_crop)
         input_image = tf.image.resize(input_image, self.target_shape, method=self.resize_method)
         input_image = self.process(input_image)
         input_image = tf.cast(input_image, tf.float32)
-        # input_image.set_shape([*self.target_shape[:2], 3])
+        input_image.set_shape([*self.target_shape[:2], 3])
 
         label = datapoint["label"]
         return input_image, label
@@ -142,6 +146,7 @@ def sample_beta_distribution(size, concentration_0=0.4, concentration_1=0.4):
     gamma_1_sample = tf.random.gamma(shape=[size], alpha=concentration_1)
     gamma_2_sample = tf.random.gamma(shape=[size], alpha=concentration_0)
     return gamma_1_sample / (gamma_1_sample + gamma_2_sample)
+
 
 def mixup(image, label, alpha=0.4):
     """Applies Mixup regularization to a batch of images and labels.
@@ -168,12 +173,14 @@ def mixup(image, label, alpha=0.4):
     label = label * label_mix_weight + tf.gather(label, shuffle_index) * (1 - label_mix_weight)
     return image, label
 
+
 def get_box(mix_weight, height, width):
     cut_rate = tf.math.sqrt(1.0 - mix_weight) / 2
     cut_h, cut_w = tf.cast(cut_rate * float(height), tf.int32), tf.cast(cut_rate * float(width), tf.int32)
     center_y = tf.random.uniform((1,), minval=cut_h, maxval=height - cut_h, dtype=tf.int32)[0]
     center_x = tf.random.uniform((1,), minval=cut_w, maxval=width - cut_w, dtype=tf.int32)[0]
     return center_y - cut_h, center_x - cut_w, cut_h, cut_w
+
 
 def cutmix(images, labels, alpha=0.5, min_mix_weight=0.01):
     """
@@ -208,8 +215,9 @@ def cutmix(images, labels, alpha=0.5, min_mix_weight=0.01):
     labels = labels * label_mix_weight + tf.gather(labels, shuffle_index) * (1 - label_mix_weight)
     return images, labels
 
+
 def init_dataset(
-    data_name="imagenet2012",   # dataset params
+    data_name="imagenet2012",  # dataset params
     input_shape=(224, 224),
     batch_size=64,
     buffer_size=1000,
@@ -217,13 +225,13 @@ def init_dataset(
     mixup_alpha=0,  # mixup / cutmix params
     cutmix_alpha=0,
     rescale_mode="tf",  # rescale mode, ["tf", "torch"]
-    central_crop=1.0,    # randaug params
+    central_crop=1.0,  # augment params
     random_crop_min=1.0,
-    resize_method="bilinear",   # ["bilinear", "bicubic"]
+    resize_method="bilinear",  # ["bilinear", "bicubic"]
     random_erasing_prob=0.0,
     magnitude=0,
     num_layers=2,
-    **randaug_kwargs,   # Too many...
+    **augment_kwargs,  # Too many...
 ):
     """Init dataset by name.
     returns train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
@@ -244,7 +252,7 @@ def init_dataset(
         random_erasing_prob=random_erasing_prob,
         magnitude=magnitude,
         num_layers=num_layers,
-        **randaug_kwargs,
+        **augment_kwargs,
     )
     train = dataset["train"].map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE)
     test_process = RandomProcessImage(input_shape, magnitude=-1, central_crop=central_crop, random_crop_min=1.0, resize_method=resize_method)
@@ -267,7 +275,7 @@ def init_dataset(
     if mixup_alpha > 0 and mixup_alpha <= 1 and cutmix_alpha > 0 and cutmix_alpha <= 1:
         print(">>>> Both mixup_alpha and cutmix_alpha provided: mixup_alpha = {}, cutmix_alpha = {}".format(mixup_alpha, cutmix_alpha))
         mixup_cutmix = lambda xx, yy: tf.cond(
-            tf.random.uniform(()) > 0.5,    # switch_prob = 0.5
+            tf.random.uniform(()) > 0.5,  # switch_prob = 0.5
             lambda: mixup(rescaling(xx), as_one_hot(yy), alpha=mixup_alpha),
             lambda: cutmix(rescaling(xx), as_one_hot(yy), alpha=cutmix_alpha),
         )

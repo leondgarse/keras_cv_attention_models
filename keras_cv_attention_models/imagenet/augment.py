@@ -301,6 +301,7 @@ def solarize(image: tf.Tensor, threshold: int = 128) -> tf.Tensor:
     # For each pixel in the image, select the pixel
     # if the value is less than the threshold.
     # Otherwise, subtract 255 from the pixel.
+    threshold = tf.cast(threshold, image.dtype)
     return tf.where(image < threshold, image, 255 - image)
 
 
@@ -311,6 +312,7 @@ def solarize_add(image: tf.Tensor, addition: int = 0, threshold: int = 128) -> t
     # of 'addition' is between -128 and 128.
     added_image = tf.cast(image, tf.int64) + addition
     added_image = tf.cast(tf.clip_by_value(added_image, 0, 255), tf.uint8)
+    threshold = tf.cast(threshold, image.dtype)
     return tf.where(image < threshold, added_image, image)
 
 
@@ -345,7 +347,7 @@ def brightness(image: tf.Tensor, factor: float) -> tf.Tensor:
 
 def posterize(image: tf.Tensor, bits: int) -> tf.Tensor:
     """Equivalent of PIL Posterize."""
-    shift = 8 - bits
+    shift = tf.cast(8 - bits, image.dtype)
     return tf.bitwise.left_shift(tf.bitwise.right_shift(image, shift), shift)
 
 
@@ -602,8 +604,10 @@ def _translate_level_to_arg(level: float, translate_const: float):
     level = _randomly_negate_tensor(level)
     return (level,)
 
+
 def _cutout_level_to_arg(level: float, cutout_const: float):
     return (int((level / _MAX_LEVEL) * cutout_const),)
+
 
 def _posterize_level_to_arg(level: float):
     # As per Tensorflow TPU EfficientNet impl
@@ -611,11 +615,13 @@ def _posterize_level_to_arg(level: float):
     # intensity/severity of augmentation decreases with level
     return (int((level / _MAX_LEVEL) * 4),)
 
+
 def _posterize_increasing_level_to_arg(level: float):
     # As per Tensorflow models research and UDA impl
     # range [4, 0], 'keep 4 down to 0 MSB of original image',
     # intensity/severity of augmentation increases with level
     return (4 - int((level / _MAX_LEVEL) * 4),)
+
 
 def _posterize_original_level_to_arg(level: float):
     # As per original AutoAugment paper description
@@ -623,19 +629,23 @@ def _posterize_original_level_to_arg(level: float):
     # intensity/severity of augmentation decreases with level
     return (int((level / _MAX_LEVEL) * 4) + 4,)
 
+
 def _solarize_level_to_arg(level: float):
     # range [0, 256]
     # intensity/severity of augmentation decreases with level
     return (int((level / _MAX_LEVEL) * 256),)
+
 
 def _solarize_increasing_level_to_arg(level: float):
     # range [0, 256]
     # intensity/severity of augmentation increases with level
     return (256 - int((level / _MAX_LEVEL) * 256),)
 
+
 def _solarize_add_level_to_arg(level: float):
     # range [0, 110]
     return (int((level / _MAX_LEVEL) * 110),)
+
 
 def _apply_func_with_prob(func: Any, image: tf.Tensor, args: Any, prob: float):
     """Apply `func` to image w/ `args` as input with probability `prob`."""
@@ -663,19 +673,19 @@ NAME_TO_FUNC = {
     "Invert": invert,
     "Rotate": wrapped_rotate,
     "Posterize": posterize,
-    'PosterizeIncreasing': posterize,
-    'PosterizeOriginal': posterize,
+    "PosterizeIncreasing": posterize,
+    "PosterizeOriginal": posterize,
     "Solarize": solarize,
-    'SolarizeIncreasing': solarize,
+    "SolarizeIncreasing": solarize,
     "SolarizeAdd": solarize_add,
     "Color": color,
-    'ColorIncreasing': color,
+    "ColorIncreasing": color,
     "Contrast": contrast,
-    'ContrastIncreasing': contrast,
+    "ContrastIncreasing": contrast,
     "Brightness": brightness,
-    'BrightnessIncreasing': brightness,
+    "BrightnessIncreasing": brightness,
     "Sharpness": sharpness,
-    'SharpnessIncreasing': sharpness,
+    "SharpnessIncreasing": sharpness,
     "ShearX": shear_x,
     "ShearY": shear_y,
     "TranslateX": translate_x,
@@ -706,27 +716,28 @@ LEVEL_TO_ARG = {
     "Rotate": _rotate_level_to_arg,
     # There are several variations of the posterize level scaling in various Tensorflow/Google repositories/papers
     "Posterize": _posterize_level_to_arg,
-    'PosterizeIncreasing': _posterize_increasing_level_to_arg,
-    'PosterizeOriginal': _posterize_original_level_to_arg,
+    "PosterizeIncreasing": _posterize_increasing_level_to_arg,
+    "PosterizeOriginal": _posterize_original_level_to_arg,
     "Solarize": _solarize_level_to_arg,
-    'SolarizeIncreasing': _solarize_increasing_level_to_arg,
+    "SolarizeIncreasing": _solarize_increasing_level_to_arg,
     "SolarizeAdd": _solarize_add_level_to_arg,
     "Color": _enhance_level_to_arg,
-    'ColorIncreasing': _enhance_increasing_level_to_arg,
+    "ColorIncreasing": _enhance_increasing_level_to_arg,
     "Contrast": _enhance_level_to_arg,
-    'ContrastIncreasing': _enhance_increasing_level_to_arg,
+    "ContrastIncreasing": _enhance_increasing_level_to_arg,
     "Brightness": _enhance_level_to_arg,
-    'BrightnessIncreasing': _enhance_increasing_level_to_arg,
+    "BrightnessIncreasing": _enhance_increasing_level_to_arg,
     "Sharpness": _enhance_level_to_arg,
-    'SharpnessIncreasing': _enhance_increasing_level_to_arg,
+    "SharpnessIncreasing": _enhance_increasing_level_to_arg,
     "ShearX": _shear_level_to_arg,
     "ShearY": _shear_level_to_arg,
-    'TranslateX': _translate_level_to_arg,
-    'TranslateY': _translate_level_to_arg,
-    'TranslateXRel': _translate_level_to_arg,
-    'TranslateYRel': _translate_level_to_arg,
-    'Cutout': _cutout_level_to_arg,
+    "TranslateX": _translate_level_to_arg,
+    "TranslateY": _translate_level_to_arg,
+    "TranslateXRel": _translate_level_to_arg,
+    "TranslateYRel": _translate_level_to_arg,
+    "Cutout": _cutout_level_to_arg,
 }
+
 
 def _parse_policy_info(name: Text, prob: float, level: float, replace_value: List[int], cutout_const: float, translate_const: float) -> Tuple[Any, float, Any]:
     """Return the function that corresponds to `name` and update `level` param."""
@@ -946,7 +957,7 @@ class RandAugment(ImageAugment):
         magnitude_max: float = _MAX_LEVEL,
         magnitude_std: float = 0.5,
         cutout_const: float = 40.0,
-        translate_const: float = 0.45, # (0, 1) for relative, > 1 for absolute.
+        translate_const: float = 0.45,  # (0, 1) for relative, > 1 for absolute.
         use_cutout: bool = False,
         use_relative_translate: bool = True,
         use_color_increasing: bool = True,

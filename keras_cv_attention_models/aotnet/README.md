@@ -3,6 +3,7 @@
 
 ## Summary
   - `AotNet` is just a `ResNet` / `ResNetV2` like framework, that set parameters like `attn_types` and `attn_params` and others, which is used to apply different types attention layers. Works like `byoanet` / `byobnet` from `timm`.
+  - Default parameters set is a typical `ResNet` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
   - `AotNet` means `Attention Over Template network`! Honestly, just a name after `BotNet` and `CotNet`...
 ***
 
