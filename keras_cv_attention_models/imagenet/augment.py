@@ -23,10 +23,8 @@ RandAugment Reference: https://arxiv.org/abs/1909.13719
 """
 
 import math
-import random
 import tensorflow as tf
 from typing import Any, Dict, List, Optional, Text, Tuple, Union
-
 from tensorflow.python.keras.layers.preprocessing import image_preprocessing as image_ops
 
 # This signifies the max integer that the controller RNN could predict for the
@@ -310,7 +308,7 @@ def solarize_add(image: tf.Tensor, addition: int = 0, threshold: int = 128) -> t
     # we add 'addition' amount to it and then clip the
     # pixel value to be between 0 and 255. The value
     # of 'addition' is between -128 and 128.
-    added_image = tf.cast(image, tf.int64) + addition
+    added_image = tf.cast(image, tf.int32) + addition
     added_image = tf.cast(tf.clip_by_value(added_image, 0, 255), tf.uint8)
     threshold = tf.cast(threshold, image.dtype)
     return tf.where(image < threshold, added_image, image)
@@ -1012,13 +1010,21 @@ class RandAugment(ImageAugment):
             magnitude = self.magnitude
         return tf.clip_by_value(magnitude, 0, self.magnitude_max)
 
-    def __apply_randaug_with_magnitude__(self, image):
-        # op_to_select = tf.random.uniform([], maxval=len(self.available_ops), dtype='int32')
-        # op_name = self.available_ops[op_to_select]
-        op_name = random.choice(self.available_ops)
+    def apply_policy(self, policy, image):
+        # print(f">>>> {policy = }")
         magnitude = self.__magnitude_with_noise__()
-        func, _, args = _parse_policy_info(op_name, 0.0, magnitude, self.image_mean, self.cutout_const, self.translate_const)
+        # policy = random.choice(self.available_ops)
+        func, _, args = _parse_policy_info(policy, 0.0, magnitude, self.image_mean, self.cutout_const, self.translate_const)
         return func(image, *args)
+
+    def select_and_apply_random_policy(self, image):
+        """Select a random policy from `policies` and apply it to `image`."""
+        policy_to_select = tf.random.uniform([], maxval=len(self.available_ops), dtype=tf.int32)
+        # Note that using tf.case instead of tf.conds would result in significantly
+        # larger graphs and would even break export for some larger policies.
+        for (i, policy) in enumerate(self.available_ops):
+            image = tf.cond(tf.equal(i, policy_to_select), lambda policy=policy: self.apply_policy(policy, image), lambda: image)
+        return image
 
     def __call__(self, image: tf.Tensor) -> tf.Tensor:
         """Applies the RandAugment policy to `image`.
@@ -1037,6 +1043,6 @@ class RandAugment(ImageAugment):
 
         for _ in range(self.num_layers):
             should_apply_op = tf.cast(tf.floor(tf.random.uniform([], dtype=tf.float32) + self.apply_probability), tf.bool)
-            image = tf.cond(should_apply_op, lambda: self.__apply_randaug_with_magnitude__(image), lambda: image)
+            image = tf.cond(should_apply_op, lambda: self.select_and_apply_random_policy(image), lambda: image)
         image = tf.cast(image, dtype=input_image_type)
         return image

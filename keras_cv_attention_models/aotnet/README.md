@@ -9,11 +9,11 @@
 
 ## Usage
   - **attn_types** is a `string` or `list`, indicates attention layer type for each stack. Each element can also be a `string` or `list`, indicates attention layer type for each block.
-    - `"bot"`: `mhsa_with_relative_position_embedding` from `botnet`. Default values: `num_heads=4, relative=True, out_bias=False`.
-    - `"cot"`: `cot_attention` from `cotnet`. Default values: `kernel_size=3`.
-    - `"halo"`: `halo_attention` from `halonet`. Default values: `num_heads=8, block_size=4, halo_size=1, out_bias=True`.
-    - `"outlook"`: `outlook_attention` from `volo`. Default values: `num_head=8, kernel_size=3`.
-    - `"sa"`: `split_attention_conv2d` from `resnest`. Default values: `kernel_size=3, groups=2`.
+    - `"bot"`: `mhsa_with_relative_position_embedding` from `botnet`.
+    - `"cot"`: `cot_attention` from `cotnet`.
+    - `"halo"`: `halo_attention` from `halonet`.
+    - `"outlook"`: `outlook_attention` from `volo`.
+    - `"sa"`: `split_attention_conv2d` from `resnest`.
     - `None`: `Conv2D`. Can add `groups` like `ResNeXt` or add `se` and `eca` attention.
   - **attn_params**: like `attn_types`, is a dict or list, each element in list can also be a dict or list. Indicates specific attention layer parameters for relative `attn_types`.
   - **se_ratio**: value in `(0, 1)`, where `0` means not using `se_module`. Should be a `number` or `list`, indicates `se_ratio` for each stack. Each element can also be a `number` or `list`, indicates `se_ratio` for each block.
@@ -36,8 +36,7 @@
   - **Definition of `CotNet101`**
     ```py
     from keras_cv_attention_models import aotnet
-    model = aotnet.AotNet(
-        num_blocks = [3, 4, 23, 3],
+    model = aotnet.AotNet101(
         attn_types="cot",
         bn_after_attn=False,
         avg_pool_down=True,
@@ -54,8 +53,7 @@
         [None, {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False}] * 3,
         [None, {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False}, None],
     ]
-    model = aotnet.AotNet(
-        num_blocks=[3, 4, 6, 3],
+    model = aotnet.AotNet50(
         expansion=4,
         attn_types=[None, [None, None, None, "halo"], [None, "halo"] * 3, [None, "halo", None]],
         attn_params=attn_params,

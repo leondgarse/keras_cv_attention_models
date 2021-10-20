@@ -8,7 +8,11 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
     """https://github.com/tensorflow/models/blob/master/official/vision/image_classification/preprocessing.py
     RandomResizedCrop related function.
 
-    hh_crop * ww_crop = crop_area = crop_fraction * area, crop_fraction in scale=(0.08, 1.0)
+    For hh_crop = height, max_ww_crop = height * ratio[1], max_area_crop_1 = height * height * ratio[1]
+    For ww_crop = width, max_hh_crop = width / ratio[0], max_area_crop_2 = width * width / ratio[0]
+    ==> scale_max < min(max_area_crop_1, max_area_crop_2, scale[1])
+
+    hh_crop * ww_crop = crop_area = crop_fraction * area, crop_fraction in scale=(scale[0], scale_max)
     ww_crop / hh_crop > ratio[0]
     ww_crop / hh_crop < ratio[1]
     ==> hh_crop > sqrt(crop_area / ratio[1])
@@ -21,7 +25,18 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
     # Scale range: (0.075, 0.9801)
     >>> print("Ratio range:", ((aa[:, 0] / aa[:, 1]).min(), (aa[:, 0] / aa[:, 1]).max()))
     # Ratio range: (0.7272727272727273, 1.375)
-    >>> _ = plt.hist(aa[:, 1] / aa[:, 0], bins=1000, histtype='step', linewidth=0.5, label='ratio distribute')
+
+    >>> fig, axes = plt.subplots(4, 1, figsize=(6, 8))
+    >>> pp = {
+    >>>     "ratio distribute": aa[:, 1] / aa[:, 0],
+    >>>     "scale distribute": aa[:, 1] * aa[:, 0] / 1e4,
+    >>>     "height distribute": aa[:, 0],
+    >>>     "width distribute": aa[:, 1],
+    >>> }
+    >>> for ax, kk in zip(axes, pp.keys()):
+    >>>     _ = ax.hist(pp[kk], bins=1000, label=kk)
+    >>>     ax.set_title(kk)
+    >>> fig.tight_layout()
 
     Args:
       size (tuple of int): input image shape. `area = size[0] * size[1]`.
@@ -32,7 +47,8 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
     """
     height, width = tf.cast(size[0], "float32"), tf.cast(size[1], "float32")
     area = height * width
-    crop_area = tf.random.uniform((), *scale) * area
+    scale_max = tf.minimum(tf.minimum(height * height * ratio[1] / area, width * width / ratio[0] / area), scale[1])
+    crop_area = tf.random.uniform((), scale[0], scale_max) * area
     hh_fraction_min = tf.maximum(crop_area / width, tf.sqrt(crop_area / ratio[1]))
     hh_fraction_max = tf.minimum(tf.cast(height, "float32"), tf.sqrt(crop_area / ratio[0]))
     if log_distribute:  # More likely to select a smaller value
@@ -43,10 +59,11 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
         hh_fraction = tf.random.uniform((), hh_fraction_min, hh_fraction_max)
     # hh_crop, ww_crop = tf.cast(tf.math.ceil(hh_fraction), "int32"), tf.cast(tf.math.ceil(crop_area / hh_fraction), "int32")
     hh_crop, ww_crop = tf.cast(tf.math.floor(hh_fraction), "int32"), tf.cast(tf.math.floor(crop_area / hh_fraction), "int32")
+    # tf.print(">>>> height, width, hh_crop, ww_crop, hh_fraction_min, hh_fraction_max:", height, width, hh_crop, ww_crop, hh_fraction_min, hh_fraction_max)
     # return hh_crop, ww_crop, crop_area, hh_fraction_min, hh_fraction_max, hh_fraction
-    # return hh_crop, ww_crop
+    return hh_crop, ww_crop
     # return hh_fraction, crop_area / hh_fraction # float value will stay in scale and ratio range exactly
-    return tf.minimum(hh_crop, size[0] - 1), tf.minimum(ww_crop, size[1] - 1)
+    # return tf.minimum(hh_crop, size[0] - 1), tf.minimum(ww_crop, size[1] - 1)
 
 
 def random_erasing_per_pixel(image, num_layers=1, scale=(0.02, 0.33333333), ratio=(0.3, 3.3333333), probability=0.5):
@@ -130,6 +147,7 @@ class RandomProcessImage:
         image = datapoint["image"]
         if self.random_crop_min > 0 and self.random_crop_min < 1:
             hh, ww = random_crop_fraction(tf.shape(image), scale=(self.random_crop_min, 1.0))
+            # tf.print(tf.shape(image), hh, ww)
             input_image = tf.image.random_crop(image, (hh, ww, 3))
         else:
             input_image = tf.image.central_crop(image, self.central_crop)
@@ -175,11 +193,11 @@ def mixup(image, label, alpha=0.4):
 
 
 def get_box(mix_weight, height, width):
-    cut_rate = tf.math.sqrt(1.0 - mix_weight) / 2
-    cut_h, cut_w = tf.cast(cut_rate * float(height), tf.int32), tf.cast(cut_rate * float(width), tf.int32)
-    center_y = tf.random.uniform((1,), minval=cut_h, maxval=height - cut_h, dtype=tf.int32)[0]
-    center_x = tf.random.uniform((1,), minval=cut_w, maxval=width - cut_w, dtype=tf.int32)[0]
-    return center_y - cut_h, center_x - cut_w, cut_h, cut_w
+    cut_rate_half = tf.math.sqrt(1.0 - mix_weight) / 2
+    cut_h_half, cut_w_half = tf.cast(cut_rate_half * float(height), tf.int32), tf.cast(cut_rate_half * float(width), tf.int32)
+    center_y = tf.random.uniform((1,), minval=cut_h_half, maxval=height - cut_h_half, dtype=tf.int32)[0]
+    center_x = tf.random.uniform((1,), minval=cut_w_half, maxval=width - cut_w_half, dtype=tf.int32)[0]
+    return center_y - cut_h_half, center_x - cut_w_half, cut_h_half * 2, cut_w_half * 2
 
 
 def cutmix(images, labels, alpha=0.5, min_mix_weight=0.01):

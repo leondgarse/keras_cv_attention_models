@@ -12,10 +12,10 @@ from keras_cv_attention_models.aotnet.aotnet import (
     DEFAULT_PARAMS,
 )
 
-
 __head_doc__ = """
 AotNet is just a `ResNet` / `ResNetV2` like framework.
 Set parameters like `attn_types` and `attn_params` and others, which is used to apply different types attention layers.
+Default parameters set is a typical `ResNet` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
 """
 
 __tail_doc__ = """
@@ -42,10 +42,10 @@ __tail_doc__ = """
   attn_types: is a `string` or `list`, indicates attention layer type for each stack.
       Each element can also be a `string` or `list`, indicates attention layer type for each block.
       - `"bot"`: `mhsa_with_relative_position_embedding` from `botnet`. Default values: `num_heads=4, relative=True, out_bias=False`.
-      - `"cot"`: `cot_attention` from `cotnet`. Default values: `kernel_size=3`.
-      - `"halo"`: `halo_attention` from `halonet`. Default values: `num_heads=8, block_size=4, halo_size=1, out_bias=True`.
+      - `"cot"`: `cot_attention` from `cotnet`. Default values: `kernel_size=3, downsample_first=True`.
+      - `"halo"`: `halo_attention` from `halonet`. Default values: `num_heads=8, block_size=4, halo_size=1`.
       - `"outlook"`: `outlook_attention` from `volo`. Default values: `num_head=8, kernel_size=3`.
-      - `"sa"`: `split_attention_conv2d` from `resnest`. Default values: `kernel_size=3, groups=2`.
+      - `"sa"`: `split_attention_conv2d` from `resnest`. Default values: `kernel_size=3, groups=2, downsample_first=False`.
       - `None`: `Conv2D`. Can add `groups` like `ResNeXt` or add `se` and `eca` attention.
   attn_params: like `attn_types`, is a dict or list, each element in list can also be a dict or list.
       Indicates specific attention layer parameters for relative `attn_types`.
