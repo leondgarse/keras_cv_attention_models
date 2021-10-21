@@ -3,7 +3,7 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias
-from keras_cv_attention_models.attention_layers import tpu_extract_patches_overlap_1
+from keras_cv_attention_models.attention_layers import tpu_compatible_extract_patches, fold_by_conv2d_transpose
 
 
 BATCH_NORM_EPSILON = 1e-5
@@ -14,121 +14,6 @@ PRETRAINED_DICT = {
     "volo_d4": {"224": "b4e94a026fa9debc6207c03f8f2c41be", "448": "966d59f584f772e7dd5f26757d39929d"},
     "volo_d5": {"224": "94a74fa461208ec6aa857516d0e12f9d", "448": "41e5e41bf03f23682cdf764136b8ea06", "512": "d3be44adf90607828003d41c7dec3f34"},
 }
-
-
-def patch_stem(inputs, hidden_dim=64, stem_width=384, patch_size=8, strides=2, activation="relu", name=""):
-    nn = conv2d_no_bias(inputs, hidden_dim, 7, strides=strides, padding="same", name=name + "1_")
-    nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
-    nn = conv2d_no_bias(nn, hidden_dim, 3, strides=1, padding="same", name=name + "2_")
-    nn = batchnorm_with_activation(nn, activation=activation, name=name + "2_")
-    nn = conv2d_no_bias(nn, hidden_dim, 3, strides=1, padding="same", name=name + "3_")
-    nn = batchnorm_with_activation(nn, activation=activation, name=name + "3_")
-
-    patch_step = patch_size // strides
-    return conv2d_no_bias(nn, stem_width, patch_step, strides=patch_step, use_bias=True, name=name + "patch_")
-
-
-@keras.utils.register_keras_serializable(package="volo")
-class UnfoldMatmulFold(keras.layers.Layer):
-    """
-    As the name `fold_overlap_1` indicates, works only if overlap happens once in fold, like `kernel_size=3, strides=2`.
-    For `kernel_size=3, strides=1`, overlap happens twice, will NOT work...
-    """
-
-    def __init__(self, final_output_shape, kernel_size=1, padding=1, strides=1, **kwargs):
-        super(UnfoldMatmulFold, self).__init__(**kwargs)
-        self.kernel_size, self.padding, self.strides = kernel_size, padding, strides
-
-        height, width, channel = final_output_shape
-        self.final_output_shape = (height, width, channel)
-        self.out_channel = channel
-
-        self.patch_kernel = [1, kernel_size, kernel_size, 1]
-        self.patch_strides = [1, strides, strides, 1]
-        overlap_pad = [0, 2 * strides - kernel_size]
-        hh_pad = [0, 0] if int(tf.math.ceil(height / 2)) % 2 == 0 else [0, 1]  # Make patches number even
-        ww_pad = [0, 0] if int(tf.math.ceil(width / 2)) % 2 == 0 else [0, 1]  # Make patches number even
-        self.fold_overlap_pad = [[0, 0], hh_pad, ww_pad, overlap_pad, overlap_pad, [0, 0]]
-
-        if padding == 1:
-            pad = kernel_size // 2
-            self.patch_pad = [[0, 0], [pad, pad], [pad, pad], [0, 0]]
-            self.out_start_h, self.out_start_w = pad, pad
-        else:
-            self.patch_pad = [[0, 0], [0, 0], [0, 0], [0, 0]]
-            self.out_start_h, self.out_start_w = 0, 0
-        self.out_end_h, self.out_end_w = self.out_start_h + height, self.out_start_w + width
-
-        if len(tf.config.experimental.list_logical_devices("TPU")) == 0:
-            self.extract_patches = tf.image.extract_patches
-        else:  # Using TPU, tf.image.extract_patches NOT working
-            # print(">>>> TPU extract_patches")
-            self.extract_patches = tpu_extract_patches_overlap_1
-
-    def pad_overlap(self, patches, start_h, start_w):
-        bb = patches[:, start_h::2, :, start_w::2, :, :]  # [1, 7, 4, 7, 4, 192]
-        bb = tf.reshape(bb, [-1, bb.shape[1] * bb.shape[2], bb.shape[3] * bb.shape[4], bb.shape[-1]])  # [1, 28, 28, 192]
-        pad_h = [0, self.strides] if start_h == 0 else [self.strides, 0]
-        pad_w = [0, self.strides] if start_w == 0 else [self.strides, 0]
-        padding = [[0, 0], pad_h, pad_w, [0, 0]]
-        bb = tf.pad(bb, padding)  # [1, 30, 30, 192]
-        return bb
-
-    def fold_overlap_1(self, patches):
-        aa = tf.pad(patches, self.fold_overlap_pad)  # [1, 14, 14, 4, 4, 192], 14 // 2 * 4 == 28
-        aa = tf.transpose(aa, [0, 1, 3, 2, 4, 5])  # [1, 14, 4, 14, 4, 192]
-        cc = self.pad_overlap(aa, 0, 0) + self.pad_overlap(aa, 0, 1) + self.pad_overlap(aa, 1, 0) + self.pad_overlap(aa, 1, 1)
-        return cc[:, self.out_start_h : self.out_end_h, self.out_start_w : self.out_end_w, :]  # [1, 28, 28, 192]
-
-    def call(self, inputs, **kwargs):
-        # vv: [1, 28, 28, 192], attn: [1, 14, 14, 6, 9, 9]
-        vv, attn = inputs[0], inputs[1]
-        hh, ww, num_head = attn.shape[1], attn.shape[2], attn.shape[3]
-
-        """ unfold """
-        # [1, 30, 30, 192], do SAME padding
-        pad_vv = tf.pad(vv, self.patch_pad)
-        # [1, 14, 14, 1728]
-        # patches = tf.image.extract_patches(pad_vv, self.patch_kernel, self.patch_strides, [1, 1, 1, 1], padding="VALID")
-        # patches = tpu_extract_patches_overlap_1(vv, kernel_size=self.kernel_size, strides=self.strides)
-        patches = self.extract_patches(pad_vv, self.patch_kernel, self.patch_strides, [1, 1, 1, 1], padding="VALID")
-
-        """ matmul """
-        # mm = einops.rearrange(patches, 'D H W (k h p) -> D H W h k p', h=num_head, k=self.kernel_size * self.kernel_size)
-        # mm = tf.matmul(attn, mm)
-        # mm = einops.rearrange(mm, 'D H W h (kh kw) p -> D H W kh kw (h p)', h=num_head, kh=self.kernel_size, kw=self.kernel_size)
-        # [1, 14, 14, 9, 6, 32], the last 2 dimenions are channel 6 * 32 == 192
-        mm = tf.reshape(patches, [-1, hh, ww, self.kernel_size * self.kernel_size, num_head, self.out_channel // num_head])
-        # [1, 14, 14, 6, 9, 32], meet the dimenion of attn for matmul
-        mm = tf.transpose(mm, [0, 1, 2, 4, 3, 5])
-        # [1, 14, 14, 6, 9, 32], The last two dimensions [9, 9] @ [9, 32] --> [9, 32]
-        mm = tf.matmul(attn, mm)
-        # [1, 14, 14, 9, 6, 32], transpose back
-        mm = tf.transpose(mm, [0, 1, 2, 4, 3, 5])
-        # [1, 14, 14, 3, 3, 192], split kernel_dimension: 9 --> [3, 3], merge channel_dimmension: [6, 32] --> 192
-        mm = tf.reshape(mm, [-1, hh, ww, self.kernel_size, self.kernel_size, self.out_channel])
-
-        """ fold """
-        # [1, 28, 28, 192]
-        output = self.fold_overlap_1(mm)
-        output.set_shape((None, *self.final_output_shape))
-        return output
-
-    def compute_output_shape(self, input_shape):
-        return (input_shape[0], *self.final_output_shape)
-
-    def get_config(self):
-        config = super(UnfoldMatmulFold, self).get_config()
-        config.update(
-            {
-                "final_output_shape": self.final_output_shape,
-                "kernel_size": self.kernel_size,
-                "padding": self.padding,
-                "strides": self.strides,
-            }
-        )
-        return config
-
 
 def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, strides=2, attn_dropout=0, output_dropout=0, name=""):
     _, height, width, channel = inputs.shape
@@ -150,8 +35,31 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
     if attn_dropout > 0:
         attention_weights = keras.layers.Dropout(attn_dropout)(attention_weights)
 
-    """ Unfold --> Matmul --> Fold, no weights in this process """
-    output = UnfoldMatmulFold((height, width, embed_dim), kernel_size, padding, strides)([vv, attention_weights])
+    """ unfold """
+    # [1, 14, 14, 1728] if compressed else [1, 14, 14, 3, 3, 192]
+    # patches = tf.image.extract_patches(pad_vv, patch_kernel, patch_strides, [1, 1, 1, 1], padding="VALID")
+    patches = tpu_compatible_extract_patches(vv, kernel_size, strides, padding="SAME", compressed=False, name=name)
+
+    """ matmul """
+    # mm = einops.rearrange(patches, 'D H W (k h p) -> D H W h k p', h=num_head, k=kernel_size * kernel_size)
+    # mm = tf.matmul(attn, mm)
+    # mm = einops.rearrange(mm, 'D H W h (kh kw) p -> D H W kh kw (h p)', h=num_head, kh=kernel_size, kw=kernel_size)
+    # [1, 14, 14, 9, 6, 32], the last 2 dimenions are channel 6 * 32 == 192
+    mm = tf.reshape(patches, [-1, hh, ww, kernel_size * kernel_size, num_heads, embed_dim // num_heads])
+    # [1, 14, 14, 6, 9, 32], meet the dimenion of attn for matmul
+    mm = tf.transpose(mm, [0, 1, 2, 4, 3, 5])
+    # [1, 14, 14, 6, 9, 32], The last two dimensions [9, 9] @ [9, 32] --> [9, 32]
+    mm = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_weights, mm])
+    # [1, 14, 14, 9, 6, 32], transpose back
+    mm = tf.transpose(mm, [0, 1, 2, 4, 3, 5])
+    # [1, 14, 14, 3, 3, 192], split kernel_dimension: 9 --> [3, 3], merge channel_dimmension: [6, 32] --> 192
+    mm = tf.reshape(mm, [-1, hh, ww, kernel_size, kernel_size, embed_dim])
+
+    """ fold """
+    # [1, 28, 28, 192]
+    output = fold_by_conv2d_transpose(mm, kernel_size, strides, padding="SAME", compressed=False, name=name)
+
+    # output = UnfoldMatmulFold((height, width, embed_dim), kernel_size, padding, strides)([vv, attention_weights])
     output = keras.layers.Dense(embed_dim, use_bias=True, name=name + "out")(output)
 
     if output_dropout > 0:
@@ -356,6 +264,18 @@ class MixupToken(keras.layers.Layer):
         config = super(MixupToken, self).get_config()
         config.update({"scale": self.scale, "beta": self.beta})
         return config
+
+
+def patch_stem(inputs, hidden_dim=64, stem_width=384, patch_size=8, strides=2, activation="relu", name=""):
+    nn = conv2d_no_bias(inputs, hidden_dim, 7, strides=strides, padding="same", name=name + "1_")
+    nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
+    nn = conv2d_no_bias(nn, hidden_dim, 3, strides=1, padding="same", name=name + "2_")
+    nn = batchnorm_with_activation(nn, activation=activation, name=name + "2_")
+    nn = conv2d_no_bias(nn, hidden_dim, 3, strides=1, padding="same", name=name + "3_")
+    nn = batchnorm_with_activation(nn, activation=activation, name=name + "3_")
+
+    patch_step = patch_size // strides
+    return conv2d_no_bias(nn, stem_width, patch_step, strides=patch_step, use_bias=True, name=name + "patch_")
 
 
 def VOLO(

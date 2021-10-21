@@ -226,29 +226,29 @@ def make_divisible(vv, divisor=4, min_value=None):
     return new_v
 
 
-def tpu_extract_patches_overlap_1(inputs, sizes=3, strides=2, rates=1, padding="SAME", name=None):
+def unfold_by_conv2d(inputs, kernel_size=3, strides=2, dilation_rate=1, padding="SAME", compressed=True, name=None):
     """For issue https://github.com/leondgarse/keras_cv_attention_models/issues/8,
     `tf.image.extract_patches` NOT working for TPU.
-    `overlap_1` means `1 < sizes / strides <= 2`.
-    `rates` and `name` not used, just keeping same perameters with `tf.image.extract_patches`.
 
     input: `[batch, height, width, channel]`.
-    output: `[batch, height // strides,  width // strides, sizes * sizes * channel]`.
+    output: `[batch, height // strides,  width // strides, kernel_size * kernel_size * channel]`.
 
     Examples:
 
     >>> from keras_cv_attention_models import attention_layers
-    >>> inputs = tf.ones([1, 64, 27, 192])
-    >>> print(attention_layers.tpu_extract_patches_overlap_1(inputs, sizes=3, strides=2).shape)
+    >>> aa = tf.ones([1, 64, 27, 192])
+    >>> print(attention_layers.unfold_by_conv2d(aa, kernel_size=3, strides=2).shape)
     # (1, 32, 14, 1728)
-    """
-    # kernel_size, strides = 3, 2
-    # inputs = np.random.uniform(size=[1, 64, 28, 192])
-    kernel_size = sizes[1] if isinstance(sizes, (list, tuple)) else sizes
-    strides = strides[1] if isinstance(strides, (list, tuple)) else strides
-    err_info = "Only supports overlap=1 for TPU, means 1 < sizes / strides <= 2, got sizes={}, strides={}".format(kernel_size, strides)
-    assert kernel_size / strides > 1 and kernel_size / strides <= 2, err_info
 
+    # Performs slower than `extract_patches`
+    >>> inputs = keras.layers.Input([64, 27, 192])
+    >>> mm = keras.models.Model(inputs, attention_layers.unfold_by_conv2d(inputs))
+    >>> %timeit mm(aa)
+    # 1.3 ms ± 4.93 µs per loop
+    >>> mm = keras.models.Model(inputs, tf.image.extract_patches(inputs, [1, 3, 3, 1], [1, 2, 2, 1], [1, 1, 1, 1], padding='SAME'))
+    >>> %timeit mm(aa)
+    # 208 µs ± 630 ns per loop
+    """
     if padding.upper() == "SAME":
         pad = kernel_size // 2
         pad_inputs = tf.pad(inputs, [[0, 0], [pad, pad], [pad, pad], [0, 0]])
@@ -256,36 +256,118 @@ def tpu_extract_patches_overlap_1(inputs, sizes=3, strides=2, rates=1, padding="
         pad_inputs = inputs
 
     _, hh, ww, cc = pad_inputs.shape
-    num_patches_hh, num_patches_ww = int(tf.math.ceil(hh / strides) - 1), int(tf.math.ceil(ww / strides) - 1)
-    valid_hh, valid_ww = num_patches_hh * strides, num_patches_ww * strides
-    overlap_s = kernel_size - strides
-    temp_shape = (-1, num_patches_hh, strides, num_patches_ww, strides, cc)
-    # print(f"{ww = }, {hh = }, {cc = }, {num_patches_hh = }, {num_patches_ww = }, {valid_hh = }, {valid_ww = }, {overlap_s = }")
-    # ww = 30, hh = 66, cc = 192, num_patches_hh = 32, num_patches_ww = 14, valid_hh = 64, valid_ww = 28, overlap_s = 1
+    merge_channel = tf.transpose(pad_inputs, [0, 3, 1, 2])
+    merge_channel = tf.reshape(merge_channel, [-1, hh, ww, 1])
 
-    center = tf.reshape(pad_inputs[:, :valid_hh, :valid_ww, :], temp_shape)  # (1, 32, 2, 14, 2, 192)
-    ww_overlap = tf.reshape(pad_inputs[:, :valid_hh, overlap_s : valid_ww + overlap_s, :], temp_shape)  # (1, 32, 2, 14, 2, 192)
-    hh_overlap = tf.reshape(pad_inputs[:, overlap_s : valid_hh + overlap_s, :valid_ww, :], temp_shape)  # (1, 32, 2, 14, 2, 192)
-    corner_overlap = tf.reshape(pad_inputs[:, overlap_s : valid_hh + overlap_s, overlap_s : valid_ww + overlap_s, :], temp_shape)  # (1, 32, 2, 14, 2, 192)
-    # print(f"{center.shape = }, {corner_overlap.shape = }")
-    # center.shape = TensorShape([1, 32, 2, 14, 2, 192]), corner_overlap.shape = TensorShape([1, 32, 2, 14, 2, 192])
-    # print(f"{ww_overlap.shape = }, {hh_overlap.shape = }")
-    # ww_overlap.shape = TensorShape([1, 32, 2, 14, 2, 192]), hh_overlap.shape = TensorShape([1, 32, 2, 14, 2, 192])
+    def unfold_filters_initializer(weight_shape, dtype="float32"):
+        kernel_size = weight_shape[0]
+        kernel_out = kernel_size * kernel_size
+        ww = tf.reshape(tf.eye(kernel_out), [kernel_size, kernel_size, 1, kernel_out])
+        return ww
 
-    center_ww = tf.concat([center, ww_overlap[:, :, :, :, -overlap_s:, :]], axis=4)  # (1, 32, 2, 14, 3, 192)
-    hh_corner = tf.concat([hh_overlap[:, :, -overlap_s:, :, :, :], corner_overlap[:, :, -overlap_s:, :, -overlap_s:, :]], axis=4)  # (1, 32, 1, 14, 3, 192)
-    out = tf.concat([center_ww, hh_corner], axis=2)  # (1, 32, 3, 14, 3, 192)
-    # print(f"{center_ww.shape = }, {hh_corner.shape = }, {out.shape = }")
-    # center_ww.shape = TensorShape([1, 32, 2, 14, 3, 192]), hh_corner.shape = TensorShape([1, 32, 1, 14, 3, 192]), out.shape = TensorShape([1, 32, 3, 14, 3, 192])
+    conv_rr = keras.layers.Conv2D(
+        filters=kernel_size * kernel_size,
+        kernel_size=kernel_size,
+        strides=strides,
+        dilation_rate=dilation_rate,
+        padding="VALID",
+        use_bias=False,
+        trainable=False,
+        kernel_initializer=unfold_filters_initializer,
+        name=name and name + "unfold_conv",
+    )(merge_channel)
 
-    out = tf.transpose(out, [0, 1, 3, 2, 4, 5])  # [batch, height, width, kernel, kernel, channel], [1, 32, 14, 3, 3, 192]
-    # print(f"{out.shape = }")
-    # out.shape = TensorShape([1, 32, 14, 3, 3, 192])
-    return tf.reshape(out, [-1, num_patches_hh, num_patches_ww, kernel_size * kernel_size * cc])
+    out = tf.reshape(conv_rr, [-1, cc, conv_rr.shape[1], conv_rr.shape[2], kernel_size, kernel_size])
+    out = tf.transpose(out, [0, 2, 3, 4, 5, 1]) # [batch, hh, ww, kernel, kernel, channnel]
+    if compressed:
+        out = tf.reshape(out, [-1, out.shape[1], out.shape[2], kernel_size * kernel_size * pad_inputs.shape[-1]])
+    return out
 
 
-def tpu_compatible_extract_patches(inputs, sizes=3, strides=2, rates=1, padding="SAME", name=None):
-    if len(tf.config.experimental.list_logical_devices("TPU")) == 0:
-        return tf.image.extract_patches(inputs, sizes, strides, rates, padding, name)
+def fold_by_conv2d_transpose(patches, kernel_size=3, strides=2, dilation_rate=1, padding="SAME", compressed=True, name=None):
+    """Fold function like `torch.nn.Fold` using `Conv2DTranspose`.
+
+    >>> inputs = np.random.uniform(size=[1, 64, 28, 192]).astype("float32")
+    >>> kernel_size, strides = 3, 2
+
+    >>> # ==== Torch unfold - fold ====
+    >>> import torch
+    >>> torch_inputs = torch.from_numpy(inputs).permute(0, 3, 1, 2)  # NCHW
+    >>> unfold = torch.nn.Unfold(kernel_size=kernel_size, dilation=1, padding=1, stride=strides)
+    >>> fold = torch.nn.Fold(output_size=torch_inputs.shape[2:4], kernel_size=kernel_size, dilation=1, padding=1, stride=strides)
+    >>> torch_patches = unfold(torch_inputs)
+    >>> torch_fold = fold(torch_patches)
+
+    >>> # ==== TF unfold - fold ====
+    >>> from keras_cv_attention_models import attention_layers
+    >>> tf_patches = attention_layers.unfold_by_conv2d(inputs, kernel_size, strides)
+    >>> tf_fold = attention_layers.fold_by_conv2d_transpose(tf_patches, kernel_size, strides)
+    >>> print(f"{np.allclose(tf_fold, torch_fold.permute([0, 2, 3, 1])) = }")
+    # np.allclose(tf_fold, torch_fold.permute([0, 2, 3, 1])) = True
+
+    >>> # ==== TF extract_patches ====
+    >>> pad = kernel_size // 2
+    >>> pad_inputs = tf.pad(inputs, [[0, 0], [pad, pad], [pad, pad], [0, 0]])
+    >>> patches = tf.image.extract_patches(pad_inputs, [1, kernel_size, kernel_size, 1], [1, strides, strides, 1], [1, 1, 1, 1], padding='VALID')
+    >>> print(f"{np.allclose(tf_patches, patches) = }")
+    # np.allclose(tf_patches, patches) = True
+    """
+    paded = kernel_size // 2 if padding else 0
+
+    if compressed:
+        _, hh, ww, cc = patches.shape
+        channel = cc // kernel_size // kernel_size
+        conv_rr = tf.reshape(patches, [-1, hh, ww, kernel_size, kernel_size, channel])
     else:
-        return tpu_extract_patches_overlap_1(inputs, sizes, strides, rates, padding, name)
+        _, hh, ww, _, _, channel = patches.shape
+        conv_rr = patches
+    conv_rr = tf.transpose(conv_rr, [0, 5, 1, 2, 3, 4]) # [batch, channnel, hh, ww, kernel, kernel]
+    conv_rr = tf.reshape(conv_rr, [-1, hh, ww, kernel_size * kernel_size])
+
+    def fold_filters_initializer(weight_shape, dtype="float32"):
+        kernel_size = weight_shape[0]
+        kernel_out = kernel_size * kernel_size
+        ww = tf.reshape(tf.eye(kernel_out), [kernel_size, kernel_size, 1, kernel_out])
+        return ww
+
+    convtrans_rr = keras.layers.Conv2DTranspose(
+        filters=1,
+        kernel_size=kernel_size,
+        strides=strides,
+        dilation_rate=dilation_rate,
+        padding="VALID",
+        output_padding=paded,
+        use_bias=False,
+        trainable=False,
+        kernel_initializer=fold_filters_initializer,
+        name=name and name + "fold_convtrans",
+    )(conv_rr)
+
+    out = tf.reshape(convtrans_rr[..., 0], [-1, channel, convtrans_rr.shape[1], convtrans_rr.shape[2]])
+    out = tf.transpose(out, [0, 2, 3, 1])[:, paded:-paded, paded:-paded]
+    return out
+
+
+def tpu_compatible_extract_patches(inputs, sizes=3, strides=2, rates=1, padding="SAME", compressed=True, tpu_test=False, name=None):
+    if len(tf.config.experimental.list_logical_devices("TPU")) == 0 and not tpu_test:
+        if padding.upper() == "SAME":
+            kernel_size = sizes[1] if isinstance(sizes, (list, tuple)) else sizes
+            pad = kernel_size // 2
+            pad_inputs = tf.pad(inputs, [[0, 0], [pad, pad], [pad, pad], [0, 0]])
+            padding = "VALID"
+        else:
+            pad_inputs = inputs
+
+        sizes = sizes if isinstance(sizes, (list, tuple)) else [1, sizes, sizes, 1]
+        strides = strides if isinstance(strides, (list, tuple)) else [1, strides, strides, 1]
+        rates = rates if isinstance(rates, (list, tuple)) else [1, rates, rates, 1]
+        patches = tf.image.extract_patches(pad_inputs, sizes, strides, rates, padding, name)
+        if not compressed:
+            # [batch, hh, ww, kernel, kernel, channnel]
+            patches = tf.reshape(patches, [-1, patches.shape[1], patches.shape[2], sizes[1], sizes[1], inputs.shape[-1]])
+        return patches
+    else:
+        kernel_size = sizes[1] if isinstance(sizes, (list, tuple)) else sizes
+        strides = strides[1] if isinstance(strides, (list, tuple)) else strides
+        dilation_rate = rates[1] if isinstance(rates, (list, tuple)) else rates
+        return unfold_by_conv2d(inputs, kernel_size, strides, dilation_rate, padding, compressed=compressed, name=name)

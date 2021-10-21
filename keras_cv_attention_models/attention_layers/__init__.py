@@ -6,6 +6,7 @@ from keras_cv_attention_models.common_layers import (
     conv2d_no_bias,
     depthwise_conv2d_no_bias,
     deep_stem,
+    fold_by_conv2d_transpose,
     quad_stem,
     tiered_stem,
     drop_block,
@@ -16,8 +17,8 @@ from keras_cv_attention_models.common_layers import (
     make_divisible,
     output_block,
     se_module,
-    tpu_extract_patches_overlap_1,
     tpu_compatible_extract_patches,
+    unfold_by_conv2d,
 )
 from keras_cv_attention_models.aotnet.aotnet import aot_stack, aot_block
 from keras_cv_attention_models.botnet.botnet import RelativePositionalEmbedding, mhsa_with_relative_position_embedding
