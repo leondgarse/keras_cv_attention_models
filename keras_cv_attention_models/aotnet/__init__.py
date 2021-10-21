@@ -35,7 +35,7 @@ __tail_doc__ = """
   stem_width: output dimension for stem block. Default 64.
   stem_type: string in value `[None, "deep", "quad", "tiered"]`. Indicates diffrerent stem type. Default None.
   quad_stem_act: boolean value if add `BN + act` after first `Conv` layer for `stem_type="quad"`. Default `False`.
-  stem_last_strides:
+  stem_last_strides: the last strides in stem block. Default `1`
   stem_downsample: boolean value if add `MaxPooling2D` layer after stem block. Default `True`.
 
   [Attention block parameters]
@@ -57,8 +57,12 @@ __tail_doc__ = """
   bn_after_attn: boolean value if add `batchnorm + activation` layers after attention layer. Default `True`.
 
   [Shortcut branch parameters]
-  avg_pool_down: boolean value if use `AvgPool2D` in shortcut branch. `True` for `ResNetD` model like.
-  anti_alias_down: boolean value if use `anti_alias_downsample` in shortcut branch.
+  shortcut_type: value in `["conv", "avg", "anti_alias", None]`. Indicates shortcut branch type if should apply `conv_shortcut`.
+      - "conv": basic `Resnet` like conv branch.
+      - "avg": `AvgPool2D + Conv2D`.
+      - "anti_alias": `anti_alias_downsample + Conv2D`.
+      - None: no shortcut.
+      Default is `"conv"`.
 
   [Model common parameters]
   input_shape: it should have exactly 3 inputs channels, default `(224, 224, 3)`.

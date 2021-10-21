@@ -96,8 +96,8 @@ def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activ
     return output
 
 
-def CotNet(input_shape=(224, 224, 3), bn_after_attn=False, avg_pool_down=True, attn_types="cot", pretrained="imagenet", **kwargs):
-    model = AotNet(input_shape=input_shape, attn_types=attn_types, bn_after_attn=bn_after_attn, avg_pool_down=avg_pool_down, **kwargs)
+def CotNet(input_shape=(224, 224, 3), bn_after_attn=False, shortcut_type="avg", attn_types="cot", pretrained="imagenet", **kwargs):
+    model = AotNet(input_shape=input_shape, attn_types=attn_types, bn_after_attn=bn_after_attn, shortcut_type=shortcut_type, **kwargs)
     request_resolution = "320" if input_shape[0] == 320 and model.name == "cotnet_se152d" else "224"
     pretrained = request_resolution if pretrained is not None else None
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="cotnet", input_shape=input_shape, pretrained=pretrained)

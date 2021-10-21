@@ -69,11 +69,14 @@ def attn_block(inputs, filters, strides=1, attn_type=None, attn_params={}, se_ra
     return nn
 
 
-def conv_shortcut_branch(inputs, expanded_filter, preact=False, strides=1, avg_pool_down=False, anti_alias_down=False, activation=None, name=""):
-    if strides > 1 and avg_pool_down:
+def conv_shortcut_branch(inputs, expanded_filter, preact=False, strides=1, shortcut_type="conv", activation=None, name=""):
+    if shortcut_type is None:
+        return None
+
+    if strides > 1 and shortcut_type == "avg":
         shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_down")(inputs)
         strides = 1
-    elif strides > 1 and anti_alias_down:
+    elif strides > 1 and shortcut_type == "anti_alias":
         shortcut = anti_alias_downsample(inputs, kernel_size=3, strides=2, name=name + "shortcut_down")
         strides = 1
     else:
@@ -111,8 +114,8 @@ def aot_block(
     preact=False,
     use_3x3_kernel=False,
     bn_after_attn=True,
-    avg_pool_down=False,
-    anti_alias_down=False,
+    shortcut_type="conv",
+    use_block_output_activation=True,
     activation="relu",
     attn_block_params={},
     name="",
@@ -135,7 +138,7 @@ def aot_block(
 
     if conv_shortcut:  # Set a new shortcut using conv
         # short_act = activation if attn_block_params["attn_type"] == "bot" else None
-        shortcut = conv_shortcut_branch(pre_inputs, expanded_filter, preact, strides, avg_pool_down, anti_alias_down, None, name=name)
+        shortcut = conv_shortcut_branch(pre_inputs, expanded_filter, preact, strides, shortcut_type, None, name=name)
     else:
         shortcut = keras.layers.MaxPooling2D(strides, strides=strides, padding="SAME")(inputs) if strides > 1 else inputs
 
@@ -148,8 +151,10 @@ def aot_block(
     else:
         deep = batchnorm_with_activation(deep, activation=None, zero_gamma=True, name=name + "3_")
         deep = drop_block(deep, drop_rate)
-        out = keras.layers.Add(name=name + "add")([shortcut, deep])
-        return keras.layers.Activation(activation, name=name + "out")(out)
+        out = keras.layers.Add(name=name + "add")([shortcut, deep]) if shortcut is not None else deep  # if no shortcut
+        if use_block_output_activation:
+            out = keras.layers.Activation(activation, name=name + "out")(out)
+        return out
 
 
 def aot_stack(
@@ -210,6 +215,7 @@ def AotNet(
     out_channels=[64, 128, 256, 512],
     expansion=4,
     use_3x3_kernel=False,
+    use_block_output_activation=True,
     stem_width=64,  # Stem params
     stem_type=None,
     quad_stem_act=False,
@@ -221,8 +227,7 @@ def AotNet(
     use_eca=False,
     groups=1,
     bn_after_attn=True,
-    avg_pool_down=False,  # shortcut_branch params
-    anti_alias_down=False,
+    shortcut_type="conv",  # shortcut_branch params, ["conv", "avg", "anti_alias", None]
     input_shape=(224, 224, 3),  # Model common params
     num_classes=1000,
     activation="relu",
@@ -246,9 +251,9 @@ def AotNet(
     block_params = {  # params same for all blocks
         "preact": preact,
         "use_3x3_kernel": use_3x3_kernel,
+        "use_block_output_activation": use_block_output_activation,
         "bn_after_attn": bn_after_attn,
-        "avg_pool_down": avg_pool_down,
-        "anti_alias_down": anti_alias_down,
+        "shortcut_type": shortcut_type,
         "activation": activation,
     }
 

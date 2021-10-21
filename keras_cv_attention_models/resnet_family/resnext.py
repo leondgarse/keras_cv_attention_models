@@ -21,7 +21,6 @@ def ResNeXt50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", cl
     num_blocks = [3, 4, 6, 3]
     out_channels = [128, 256, 512, 1024]
     expansion = 2
-    avg_pool_down = False
     return ResNeXt(**locals(), model_name="resnext50", **kwargs)
 
 
@@ -29,7 +28,6 @@ def ResNeXt101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", c
     num_blocks = [3, 4, 23, 3]
     out_channels = [128, 256, 512, 1024]
     expansion = 2
-    avg_pool_down = False
     return ResNeXt(**locals(), model_name="resnext101", **kwargs)
 
 
@@ -38,7 +36,7 @@ def ResNeXt50D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", c
     out_channels = [128, 256, 512, 1024]
     expansion = 2
     stem_type = "deep"
-    avg_pool_down = True
+    shortcut_type = "avg"
     return ResNeXt(**locals(), model_name="resnext50d", **kwargs)
 
 
@@ -46,5 +44,4 @@ def ResNeXt101W(input_shape=(224, 224, 3), num_classes=1000, activation="relu", 
     num_blocks = [3, 4, 23, 3]
     out_channels = [256, 512, 1024, 2048]
     expansion = 1
-    avg_pool_down = False
     return ResNeXt(**locals(), model_name="resnext101w", **kwargs)

@@ -8,12 +8,13 @@ from keras_cv_attention_models.attention_layers import tpu_compatible_extract_pa
 
 BATCH_NORM_EPSILON = 1e-5
 PRETRAINED_DICT = {
-    "volo_d1": {"224": "5b6ce55272a86b2f34c69cbef2cbdeb9", "384": "5262455b634c9cff15309a524958b0a2"},
-    "volo_d2": {"224": "c8c9159c7772f531b8f5ad0646440963", "384": "88496dc586366bdc757ab903bd467f9b"},
-    "volo_d3": {"224": "e0dc5f03bf66f6d76e1fd62e0ea26923", "448": "b6cbd7b7d8b442779706c118c719ac73"},
-    "volo_d4": {"224": "b4e94a026fa9debc6207c03f8f2c41be", "448": "966d59f584f772e7dd5f26757d39929d"},
-    "volo_d5": {"224": "94a74fa461208ec6aa857516d0e12f9d", "448": "41e5e41bf03f23682cdf764136b8ea06", "512": "d3be44adf90607828003d41c7dec3f34"},
+    "volo_d1": {"224": "b642d39b05da9f460035d5d5fa617774", "384": "c7632a783d43278608d84f9463743b2e"},
+    "volo_d2": {"224": "19c6c49d3a1020e9fafbcce775200e30", "384": "fc0435d59925e547d9003010a51e4a16"},
+    "volo_d3": {"224": "42ae5c1be8ceb644d4f7c3d894a0034f", "448": "62304a047f182265617c49f74991e6a0"},
+    "volo_d4": {"224": "b45c6518b5e7624b0f6a61f18a5a7bae", "448": "c3e48df2a555032608d48841d2f4a551"},
+    "volo_d5": {"224": "19c98591fb2a97c2a51d9723c2ff6e1d", "448": "6f9858b667cfef77339901c3121c85a1", "512": "f2aa0cb8e265cabee840a6b83858d086"},
 }
+
 
 def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, strides=2, attn_dropout=0, output_dropout=0, name=""):
     _, height, width, channel = inputs.shape
@@ -57,7 +58,7 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
 
     """ fold """
     # [1, 28, 28, 192]
-    output = fold_by_conv2d_transpose(mm, kernel_size, strides, padding="SAME", compressed=False, name=name)
+    output = fold_by_conv2d_transpose(mm, inputs.shape[1:], kernel_size, strides, padding="SAME", compressed=False, name=name)
 
     # output = UnfoldMatmulFold((height, width, embed_dim), kernel_size, padding, strides)([vv, attention_weights])
     output = keras.layers.Dense(embed_dim, use_bias=True, name=name + "out")(output)

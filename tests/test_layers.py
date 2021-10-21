@@ -56,6 +56,14 @@ def test_eca_module():
     assert out.shape == input_shape
 
 
+def test_fold_by_conv2d_transpose():
+    inputs = tf.random.uniform([1, 64, 27, 192])
+    pad_inputs = tf.pad(inputs, [[0, 0], [1, 1], [1, 1], [0, 0]])
+    pathes = attention_layers.unfold_by_conv2d(pad_inputs, kernel_size=3, strides=2, dilation_rate=1, padding="VALID")
+    reverse = attention_layers.fold_by_conv2d_transpose(pathes, inputs.shape[1:], kernel_size=3, strides=2, padding="SAME")
+    assert reverse.shape == inputs.shape
+
+
 def test_halo_attention():
     input_shape = [2, 12, 16, 256]
     out_shape = 384
@@ -154,12 +162,23 @@ def test_split_attention_conv2d():
     assert out.shape == [*input_shape[:3], filters]
 
 
-def test_tpu_extract_patches_overlap_1():
+def test_tpu_compatible_extract_patches():
+    inputs = tf.random.uniform([1, 64, 27, 192])
+    patches_1 = attention_layers.tpu_compatible_extract_patches(inputs, sizes=3, strides=2, rates=1, padding="SAME", compressed=False)
+    patches_tpu_1 = attention_layers.tpu_compatible_extract_patches(inputs, 3, 2, 1, padding="SAME", compressed=False, tpu_test=True)
+    tf.assert_less(tf.abs(patches_1 - patches_tpu_1), 1e-7)
+
+    patches_2 = attention_layers.tpu_compatible_extract_patches(inputs, sizes=3, strides=2, rates=1, padding="SAME", compressed=True)
+    patches_tpu_2 = attention_layers.tpu_compatible_extract_patches(inputs, 3, 2, 1, padding="SAME", compressed=True, tpu_test=True)
+    tf.assert_less(tf.abs(patches_2 - patches_tpu_2), 1e-7)
+
+
+def test_unfold_by_conv2d():
     inputs = tf.random.uniform([1, 64, 27, 192])
     pad_inputs = tf.pad(inputs, [[0, 0], [1, 1], [1, 1], [0, 0]])
+    patches_unfold = attention_layers.unfold_by_conv2d(pad_inputs, kernel_size=3, strides=2, dilation_rate=1, padding="VALID")
     pathes = tf.image.extract_patches(pad_inputs, [1, 3, 3, 1], [1, 2, 2, 1], [1, 1, 1, 1], padding="VALID")
-    tpu_pathes = attention_layers.tpu_extract_patches_overlap_1(pad_inputs, 3, 2, padding="VALID")
-    tf.assert_less(tf.abs(pathes - tpu_pathes), 1e-7)
+    tf.assert_less(tf.abs(pathes - patches_unfold), 1e-7)
 
 
 def test_ZeroInitGain():

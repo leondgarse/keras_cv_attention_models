@@ -74,7 +74,6 @@ Args:
   stem_width: output dimension for stem block. Default `32`.
   strides: a `number` or `list`, indicates strides used in the last stack or list value for all stacks.
       If a number, it will be `[1, 2, 2, strides]`. Default `2`.
-  avg_pool_down: Boolean value if use `AvgPool2D` in shortcut branch. `True` for `ResNetD` model.
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet"]) + """
 Model architectures:

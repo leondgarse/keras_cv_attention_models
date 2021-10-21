@@ -7,7 +7,6 @@ Paper [PDF 2107.12292 Contextual Transformer Networks for Visual Recognition](ht
 """
 
 __tail_doc__ = """  bn_after_attn: boolean value if add `batchnorm + activation` layers after attention layer. Default `True`.
-  avg_pool_down: boolean value if use `AvgPool2D` in shortcut branch. Default `True` for `ResNetD` model like.
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default `relu`.

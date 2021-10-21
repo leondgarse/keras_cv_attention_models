@@ -192,25 +192,26 @@ def drop_block(inputs, drop_rate=0, name=None):
         return inputs
 
 
+@tf.keras.utils.register_keras_serializable(package="kecamCommon")
+def __anti_alias_downsample_initializer__(weight_shape, dtype="float32"):
+    import numpy as np
+
+    kernel_size, channel = weight_shape[0], weight_shape[2]
+    ww = tf.cast(np.poly1d((0.5, 0.5)) ** (kernel_size - 1), dtype)
+    ww = tf.expand_dims(ww, 0) * tf.expand_dims(ww, 1)
+    ww = tf.repeat(ww[:, :, tf.newaxis, tf.newaxis], channel, axis=-2)
+    return ww
+
+
 def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trainable=False, name=None):
     """ DepthwiseConv2D performing anti-aliasing downsample, arxiv: https://arxiv.org/pdf/1904.11486.pdf """
-
-    def anti_alias_downsample_initializer(weight_shape, dtype="float32"):
-        import numpy as np
-
-        kernel_size, channel = weight_shape[0], weight_shape[2]
-        ww = tf.cast(np.poly1d((0.5, 0.5)) ** (kernel_size - 1), dtype)
-        ww = tf.expand_dims(ww, 0) * tf.expand_dims(ww, 1)
-        ww = tf.repeat(ww[:, :, tf.newaxis, tf.newaxis], channel, axis=-2)
-        return ww
-
     return keras.layers.DepthwiseConv2D(
         kernel_size=kernel_size,
         strides=strides,
         padding="SAME",
         use_bias=False,
         trainable=trainable,
-        depthwise_initializer=anti_alias_downsample_initializer,
+        depthwise_initializer=__anti_alias_downsample_initializer__,
         name=name and name + "anti_alias_down",
     )(inputs)
 
@@ -224,6 +225,14 @@ def make_divisible(vv, divisor=4, min_value=None):
     if new_v < 0.9 * vv:
         new_v += divisor
     return new_v
+
+
+@tf.keras.utils.register_keras_serializable(package="kecamCommon")
+def __unfold_filters_initializer__(weight_shape, dtype="float32"):
+    kernel_size = weight_shape[0]
+    kernel_out = kernel_size * kernel_size
+    ww = tf.reshape(tf.eye(kernel_out), [kernel_size, kernel_size, 1, kernel_out])
+    return ww
 
 
 def unfold_by_conv2d(inputs, kernel_size=3, strides=2, dilation_rate=1, padding="SAME", compressed=True, name=None):
@@ -259,12 +268,6 @@ def unfold_by_conv2d(inputs, kernel_size=3, strides=2, dilation_rate=1, padding=
     merge_channel = tf.transpose(pad_inputs, [0, 3, 1, 2])
     merge_channel = tf.reshape(merge_channel, [-1, hh, ww, 1])
 
-    def unfold_filters_initializer(weight_shape, dtype="float32"):
-        kernel_size = weight_shape[0]
-        kernel_out = kernel_size * kernel_size
-        ww = tf.reshape(tf.eye(kernel_out), [kernel_size, kernel_size, 1, kernel_out])
-        return ww
-
     conv_rr = keras.layers.Conv2D(
         filters=kernel_size * kernel_size,
         kernel_size=kernel_size,
@@ -273,18 +276,18 @@ def unfold_by_conv2d(inputs, kernel_size=3, strides=2, dilation_rate=1, padding=
         padding="VALID",
         use_bias=False,
         trainable=False,
-        kernel_initializer=unfold_filters_initializer,
+        kernel_initializer=__unfold_filters_initializer__,
         name=name and name + "unfold_conv",
     )(merge_channel)
 
     out = tf.reshape(conv_rr, [-1, cc, conv_rr.shape[1], conv_rr.shape[2], kernel_size, kernel_size])
-    out = tf.transpose(out, [0, 2, 3, 4, 5, 1]) # [batch, hh, ww, kernel, kernel, channnel]
+    out = tf.transpose(out, [0, 2, 3, 4, 5, 1])  # [batch, hh, ww, kernel, kernel, channnel]
     if compressed:
         out = tf.reshape(out, [-1, out.shape[1], out.shape[2], kernel_size * kernel_size * pad_inputs.shape[-1]])
     return out
 
 
-def fold_by_conv2d_transpose(patches, kernel_size=3, strides=2, dilation_rate=1, padding="SAME", compressed=True, name=None):
+def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=2, dilation_rate=1, padding="SAME", compressed=True, name=None):
     """Fold function like `torch.nn.Fold` using `Conv2DTranspose`.
 
     >>> inputs = np.random.uniform(size=[1, 64, 28, 192]).astype("float32")
@@ -301,7 +304,7 @@ def fold_by_conv2d_transpose(patches, kernel_size=3, strides=2, dilation_rate=1,
     >>> # ==== TF unfold - fold ====
     >>> from keras_cv_attention_models import attention_layers
     >>> tf_patches = attention_layers.unfold_by_conv2d(inputs, kernel_size, strides)
-    >>> tf_fold = attention_layers.fold_by_conv2d_transpose(tf_patches, kernel_size, strides)
+    >>> tf_fold = attention_layers.fold_by_conv2d_transpose(tf_patches, output_shape=inputs.shape[1:], kernel_size=kernel_size, strides=strides)
     >>> print(f"{np.allclose(tf_fold, torch_fold.permute([0, 2, 3, 1])) = }")
     # np.allclose(tf_fold, torch_fold.permute([0, 2, 3, 1])) = True
 
@@ -321,14 +324,8 @@ def fold_by_conv2d_transpose(patches, kernel_size=3, strides=2, dilation_rate=1,
     else:
         _, hh, ww, _, _, channel = patches.shape
         conv_rr = patches
-    conv_rr = tf.transpose(conv_rr, [0, 5, 1, 2, 3, 4]) # [batch, channnel, hh, ww, kernel, kernel]
+    conv_rr = tf.transpose(conv_rr, [0, 5, 1, 2, 3, 4])  # [batch, channnel, hh, ww, kernel, kernel]
     conv_rr = tf.reshape(conv_rr, [-1, hh, ww, kernel_size * kernel_size])
-
-    def fold_filters_initializer(weight_shape, dtype="float32"):
-        kernel_size = weight_shape[0]
-        kernel_out = kernel_size * kernel_size
-        ww = tf.reshape(tf.eye(kernel_out), [kernel_size, kernel_size, 1, kernel_out])
-        return ww
 
     convtrans_rr = keras.layers.Conv2DTranspose(
         filters=1,
@@ -339,12 +336,16 @@ def fold_by_conv2d_transpose(patches, kernel_size=3, strides=2, dilation_rate=1,
         output_padding=paded,
         use_bias=False,
         trainable=False,
-        kernel_initializer=fold_filters_initializer,
+        kernel_initializer=__unfold_filters_initializer__,
         name=name and name + "fold_convtrans",
     )(conv_rr)
 
     out = tf.reshape(convtrans_rr[..., 0], [-1, channel, convtrans_rr.shape[1], convtrans_rr.shape[2]])
-    out = tf.transpose(out, [0, 2, 3, 1])[:, paded:-paded, paded:-paded]
+    if output_shape is None:
+        output_shape = [-paded, -paded]
+    else:
+        output_shape = [output_shape[0] + paded, output_shape[1] + paded]
+    out = tf.transpose(out, [0, 2, 3, 1])[:, paded : output_shape[0], paded : output_shape[1]]
     return out
 
 

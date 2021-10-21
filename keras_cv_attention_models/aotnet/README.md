@@ -39,7 +39,7 @@
     model = aotnet.AotNet101(
         attn_types="cot",
         bn_after_attn=False,
-        avg_pool_down=True,
+        shortcut_type="avg",
         model_name="cotnet101",
     )
     model.summary()
@@ -68,7 +68,7 @@
     from keras_cv_attention_models import aotnet
     model = aotnet.AotNet50(
         stem_type="deep",
-        avg_pool_down=True,
+        shortcut_type="avg",
         attn_types="sa",
         bn_after_attn=False,
         model_name="resnest50",
