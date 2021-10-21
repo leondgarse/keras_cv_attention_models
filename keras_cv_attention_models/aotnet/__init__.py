@@ -28,12 +28,13 @@ __tail_doc__ = """
   strides_first: boolean value if use downsample in the first block in each stack.
       Default `True` for ResNet like, `False` for ResNetV2 like.
   out_channels: default as `[64, 128, 256, 512]`. Output channel for each stack.
-  expansion: filter expansion for each block output channel. The larger the wider. For default `ResNet` / `ResNetV2` like, it's `4`.
+  hidden_channel_ratio: filter expansion for each block hidden layers. The larger the wider. For default `ResNet` / `ResNetV2` like, it's `0.25`.
   use_3x3_kernel: boolean value if use two `3x3` conv instead of `1x1 + 3x3 + 1x1` conv in each block. Default `False`.
+  use_block_output_activation: boolean value if add activation after block `Add` layer. Default `True`.
 
   [Stem parameters]
   stem_width: output dimension for stem block. Default 64.
-  stem_type: string in value `[None, "deep", "quad", "tiered"]`. Indicates diffrerent stem type. Default None.
+  stem_type: string in value `[None, "deep", "quad", "tiered", "kernel_3x3"]`. Indicates diffrerent stem type. Default None.
   quad_stem_act: boolean value if add `BN + act` after first `Conv` layer for `stem_type="quad"`. Default `False`.
   stem_last_strides: the last strides in stem block. Default `1`
   stem_downsample: boolean value if add `MaxPooling2D` layer after stem block. Default `True`.
@@ -54,6 +55,8 @@ __tail_doc__ = """
   use_eca: boolean value if use `eca` attention. Can also be a list like `se_ratio`.
   groups: `groups` for `Conv2D` layer if relative `attn_types` is `None`. `ResNeXt` like archeticture. Note it's NOT the `group_size`.
       Default value `1` means not using group.
+  group_size: group size for `Conv2D` layer if relative `attn_types` is `None`. `groups = filters / group_size`.
+      Priority is higher than `groups`. Default `0` means not using group.
   bn_after_attn: boolean value if add `batchnorm + activation` layers after attention layer. Default `True`.
 
   [Shortcut branch parameters]
@@ -95,7 +98,6 @@ Definition of `BotNet26T`
 >>> from keras_cv_attention_models import aotnet
 >>> model = aotnet.AotNet(
 >>>     num_blocks=[2, 2, 2, 2],
->>>     expansion=4,
 >>>     attn_types=[None, None, [None, "bot"], "bot"],
 >>>     attn_params={"num_heads": 4, "out_weight": False},
 >>>     stem_type="tiered",
@@ -114,7 +116,6 @@ Definition of `HaloNet50T`
 >>> ]
 >>> model = aotnet.AotNet(
 >>>     num_blocks=[3, 4, 6, 3],
->>>     expansion=4,
 >>>     attn_types=[None, [None, None, None, "halo"], [None, "halo"] * 3, [None, "halo", None]],
 >>>     attn_params=attn_params,
 >>>     stem_type="tiered",

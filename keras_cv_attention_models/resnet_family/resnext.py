@@ -19,22 +19,19 @@ def ResNeXt(num_blocks, input_shape=(224, 224, 3), pretrained="imagenet", stride
 
 def ResNeXt50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
-    out_channels = [128, 256, 512, 1024]
-    expansion = 2
+    hidden_channel_ratio = 0.5
     return ResNeXt(**locals(), model_name="resnext50", **kwargs)
 
 
 def ResNeXt101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
-    out_channels = [128, 256, 512, 1024]
-    expansion = 2
+    hidden_channel_ratio = 0.5
     return ResNeXt(**locals(), model_name="resnext101", **kwargs)
 
 
 def ResNeXt50D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
-    out_channels = [128, 256, 512, 1024]
-    expansion = 2
+    hidden_channel_ratio = 0.5
     stem_type = "deep"
     shortcut_type = "avg"
     return ResNeXt(**locals(), model_name="resnext50d", **kwargs)
@@ -42,6 +39,5 @@ def ResNeXt50D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", c
 
 def ResNeXt101W(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
-    out_channels = [256, 512, 1024, 2048]
-    expansion = 1
+    hidden_channel_ratio = 1
     return ResNeXt(**locals(), model_name="resnext101w", **kwargs)

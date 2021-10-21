@@ -24,7 +24,6 @@
     from keras_cv_attention_models import aotnet
     model = aotnet.AotNet(
         num_blocks=[2, 2, 2, 2],
-        expansion=4,
         attn_types=[None, None, [None, "bot"], "bot"],
         attn_params={"num_heads": 4, "out_weight": False},
         stem_type="tiered",
@@ -54,7 +53,6 @@
         [None, {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False}, None],
     ]
     model = aotnet.AotNet50(
-        expansion=4,
         attn_types=[None, [None, None, None, "halo"], [None, "halo"] * 3, [None, "halo", None]],
         attn_params=attn_params,
         stem_type="tiered",

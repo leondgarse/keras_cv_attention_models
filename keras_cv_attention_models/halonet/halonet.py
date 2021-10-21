@@ -160,7 +160,7 @@ BLOCK_CONFIGS = {
 }
 
 
-def HaloNet(input_shape=(256, 256, 3), activation="swish", halo_block_size=4, halo_halo_size=1, halo_expansion=1, num_heads=8, pretrained=None, **kwargs):
+def HaloNet(input_shape=(256, 256, 3), activation="swish", expansion=4, halo_block_size=4, halo_halo_size=1, halo_expansion=1, num_heads=8, pretrained=None, **kwargs):
     attn_types = "halo"
     if isinstance(num_heads, (list, tuple)):
         attn_params = [
@@ -175,14 +175,15 @@ def HaloNet(input_shape=(256, 256, 3), activation="swish", halo_block_size=4, ha
             "num_heads": num_heads,
             "out_weight": False,
         }
-
-    model = AotNet(input_shape=input_shape, activation=activation, attn_types=attn_types, attn_params=attn_params, **kwargs)
+    out_channels = [ii * expansion for ii in [64, 128, 256, 512]]
+    hidden_channel_ratio = 1 / expansion
+    model = AotNet(input_shape=input_shape, out_channels=out_channels, hidden_channel_ratio=hidden_channel_ratio, activation=activation, attn_types=attn_types, attn_params=attn_params, **kwargs)
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
     return model
 
 
 def HaloNetH0(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return AaloNet(**BLOCK_CONFIGS["h0"], model_name="haloneth0", **locals(), **kwargs)
+    return HaloNet(**BLOCK_CONFIGS["h0"], model_name="haloneth0", **locals(), **kwargs)
 
 
 def HaloNetH0(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
@@ -213,8 +214,8 @@ def HaloNetH6(input_shape=(512, 512, 3), num_classes=1000, activation="swish", c
     return HaloNet(**BLOCK_CONFIGS["h6"], model_name="haloneth6", **locals(), **kwargs)
 
 
-def HaloNetH7(input_shape=(640, 640, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    # input_shape should be dividable by `int(tf.reduce_prod(strides) * halo_block_size)`, so using 640 here
+def HaloNetH7(input_shape=(600, 600, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    # input_shape should be dividable by `int(tf.reduce_prod(strides) * halo_block_size)`, may using 640 here
     return HaloNet(**BLOCK_CONFIGS["h7"], model_name="haloneth7", **locals(), **kwargs)
 
 
@@ -227,7 +228,6 @@ def HaloNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", c
         [None, {"block_size": 8, "halo_size": 2, "num_heads": 8, "out_weight": False}],
         {"block_size": 8, "halo_size": 2, "num_heads": 8, "out_weight": False},
     ]
-    expansion = 4
     # key_dim = 16
     stem_type = "tiered"
     model = AotNet(model_name="halonet26t", **locals(), **kwargs)
@@ -244,7 +244,6 @@ def HaloNet50T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", 
         [None, {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False}] * 3,
         [None, {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False}, None],
     ]
-    expansion = 4
     # key_dim = 16
     stem_type = "tiered"
     model = AotNet(model_name="halonet50t", **locals(), **kwargs)
@@ -261,8 +260,9 @@ def HaloNetSE33T(input_shape=(256, 256, 3), num_classes=1000, activation="swish"
         [None, None, {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False}],
         {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False},
     ]
-    se_ratio = 0.25
-    expansion = [4, 4, 4, 3]
+    se_ratio = 1 / 16
+    out_channels = [256, 512, 1024, 1536]
+    hidden_channel_ratio = [1/4, 1/4, 1/4, 1/3]
     # key_dim = 16
     stem_type = "tiered"
     stem_last_strides = 2
@@ -284,7 +284,6 @@ def HaloNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swis
     ]
     use_eca = True
     groups = [4, 8, 16, 32]
-    expansion = 4
     stem_type = "tiered"
     model = AotNet(model_name="halonext_eca26t", **locals(), **kwargs)
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)

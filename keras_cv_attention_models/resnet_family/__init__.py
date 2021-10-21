@@ -1,6 +1,7 @@
 from keras_cv_attention_models.resnet_family.resnext import ResNeXt, ResNeXt50, ResNeXt101, ResNeXt50D, ResNeXt101W
 from keras_cv_attention_models.resnet_family.resnet_quad import ResNetQ, ResNet51Q, ResNet61Q
 from keras_cv_attention_models.resnet_family.resnet_deep import ResNetD, ResNet50D, ResNet101D, ResNet152D, ResNet200D
+from keras_cv_attention_models.resnet_family.regnet import RegNetZB
 
 
 __resnext_head_doc__ = """
@@ -33,7 +34,6 @@ Args:
   out_channels: Output channel for each stack.
       `[128, 256, 512, 1024]`. for regular `32x4d` models,
       `[256, 512, 1024, 2048]` for `32x8d` wider models.
-  expansion: filter expansion in each block. `2` for regular `32x4d` models, `1` for `32x8d` wider models.
   strides: a `number` or `list`, indicates strides used in the last stack or list value for all stacks.
       If a number, it will be `[1, 2, 2, strides]`. Default `2`.
   model_name: string, model name.

@@ -179,6 +179,7 @@ def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
 
 
 def drop_connect_rates_split(num_blocks, start=0.0, end=0.0):
+    """ split drop connect rate in range `(start, end)` according to `num_blocks` """
     drop_connect_rates = tf.split(tf.linspace(start, end, sum(num_blocks)), num_blocks)
     return [ii.numpy().tolist() for ii in drop_connect_rates]
 
@@ -232,32 +233,12 @@ def __unfold_filters_initializer__(weight_shape, dtype="float32"):
     kernel_size = weight_shape[0]
     kernel_out = kernel_size * kernel_size
     ww = tf.reshape(tf.eye(kernel_out), [kernel_size, kernel_size, 1, kernel_out])
+    if len(weight_shape) == 5:  # Conv3D or Conv3DTranspose
+        ww = tf.expand_dims(ww, 2)
     return ww
 
 
 def unfold_by_conv2d(inputs, kernel_size=3, strides=2, dilation_rate=1, padding="SAME", compressed=True, name=None):
-    """For issue https://github.com/leondgarse/keras_cv_attention_models/issues/8,
-    `tf.image.extract_patches` NOT working for TPU.
-
-    input: `[batch, height, width, channel]`.
-    output: `[batch, height // strides,  width // strides, kernel_size * kernel_size * channel]`.
-
-    Examples:
-
-    >>> from keras_cv_attention_models import attention_layers
-    >>> aa = tf.ones([1, 64, 27, 192])
-    >>> print(attention_layers.unfold_by_conv2d(aa, kernel_size=3, strides=2).shape)
-    # (1, 32, 14, 1728)
-
-    # Performs slower than `extract_patches`
-    >>> inputs = keras.layers.Input([64, 27, 192])
-    >>> mm = keras.models.Model(inputs, attention_layers.unfold_by_conv2d(inputs))
-    >>> %timeit mm(aa)
-    # 1.3 ms ± 4.93 µs per loop
-    >>> mm = keras.models.Model(inputs, tf.image.extract_patches(inputs, [1, 3, 3, 1], [1, 2, 2, 1], [1, 1, 1, 1], padding='SAME'))
-    >>> %timeit mm(aa)
-    # 208 µs ± 630 ns per loop
-    """
     if padding.upper() == "SAME":
         pad = kernel_size // 2
         pad_inputs = tf.pad(inputs, [[0, 0], [pad, pad], [pad, pad], [0, 0]])
@@ -287,35 +268,10 @@ def unfold_by_conv2d(inputs, kernel_size=3, strides=2, dilation_rate=1, padding=
     return out
 
 
-def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=2, dilation_rate=1, padding="SAME", compressed=True, name=None):
-    """Fold function like `torch.nn.Fold` using `Conv2DTranspose`.
-
-    >>> inputs = np.random.uniform(size=[1, 64, 28, 192]).astype("float32")
-    >>> kernel_size, strides = 3, 2
-
-    >>> # ==== Torch unfold - fold ====
-    >>> import torch
-    >>> torch_inputs = torch.from_numpy(inputs).permute(0, 3, 1, 2)  # NCHW
-    >>> unfold = torch.nn.Unfold(kernel_size=kernel_size, dilation=1, padding=1, stride=strides)
-    >>> fold = torch.nn.Fold(output_size=torch_inputs.shape[2:4], kernel_size=kernel_size, dilation=1, padding=1, stride=strides)
-    >>> torch_patches = unfold(torch_inputs)
-    >>> torch_fold = fold(torch_patches)
-
-    >>> # ==== TF unfold - fold ====
-    >>> from keras_cv_attention_models import attention_layers
-    >>> tf_patches = attention_layers.unfold_by_conv2d(inputs, kernel_size, strides)
-    >>> tf_fold = attention_layers.fold_by_conv2d_transpose(tf_patches, output_shape=inputs.shape[1:], kernel_size=kernel_size, strides=strides)
-    >>> print(f"{np.allclose(tf_fold, torch_fold.permute([0, 2, 3, 1])) = }")
-    # np.allclose(tf_fold, torch_fold.permute([0, 2, 3, 1])) = True
-
-    >>> # ==== TF extract_patches ====
-    >>> pad = kernel_size // 2
-    >>> pad_inputs = tf.pad(inputs, [[0, 0], [pad, pad], [pad, pad], [0, 0]])
-    >>> patches = tf.image.extract_patches(pad_inputs, [1, kernel_size, kernel_size, 1], [1, strides, strides, 1], [1, 1, 1, 1], padding='VALID')
-    >>> print(f"{np.allclose(tf_patches, patches) = }")
-    # np.allclose(tf_patches, patches) = True
-    """
+def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=2, dilation_rate=1, padding="SAME", compressed="auto", name=None):
     paded = kernel_size // 2 if padding else 0
+    if compressed == "auto":
+        compressed = True if len(patches.shape) == 4 else False
 
     if compressed:
         _, hh, ww, cc = patches.shape
@@ -341,15 +297,17 @@ def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=
     )(conv_rr)
 
     out = tf.reshape(convtrans_rr[..., 0], [-1, channel, convtrans_rr.shape[1], convtrans_rr.shape[2]])
+    out = tf.transpose(out, [0, 2, 3, 1])
     if output_shape is None:
         output_shape = [-paded, -paded]
     else:
         output_shape = [output_shape[0] + paded, output_shape[1] + paded]
-    out = tf.transpose(out, [0, 2, 3, 1])[:, paded : output_shape[0], paded : output_shape[1]]
+    out = out[:, paded : output_shape[0], paded : output_shape[1]]
     return out
 
 
 def tpu_compatible_extract_patches(inputs, sizes=3, strides=2, rates=1, padding="SAME", compressed=True, tpu_test=False, name=None):
+    """ Use `unfold_by_conv2d` for TPU and `extract_patches` for others, also handle `padding` and `output_shape`. """
     if len(tf.config.experimental.list_logical_devices("TPU")) == 0 and not tpu_test:
         if padding.upper() == "SAME":
             kernel_size = sizes[1] if isinstance(sizes, (list, tuple)) else sizes
