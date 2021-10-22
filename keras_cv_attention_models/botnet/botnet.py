@@ -16,6 +16,7 @@ BATCH_NORM_EPSILON = 1e-5
 PRETRAINED_DICT = {
     # "botnet50": {"imagenet": "b221b45ca316166fc858fda1cf4fd946"},
     "botnet26t": {"imagenet": "6d7a9548f866b4971ca2c9d17dd815fc"},
+    "botnext_eca26t": {"imagenet": "170b9b4d7fba88dbcb41716047c047b9"},
 }
 
 
@@ -120,18 +121,24 @@ def mhsa_with_relative_position_embedding(
     key_dim = key_dim if key_dim > 0 else cc // num_heads
     qk_scale = 1.0 / tf.math.sqrt(tf.cast(key_dim, inputs.dtype))
     out_shape = cc if out_shape is None or not out_weight else out_shape
-    emb_dim = num_heads * key_dim
+    qk_out = num_heads * key_dim
+    vv_dim = out_shape // num_heads
     # final_out_shape = (None, hh, ww, out_shape)
 
     # qkv = keras.layers.Dense(emb_dim * 3, use_bias=False, name=name and name + "qkv")(inputs)
-    qkv = conv2d_no_bias(inputs, emb_dim * 3, kernel_size=1, name=name and name + "qkv_")
-    qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], 3, num_heads, key_dim])
-    query, key, value = tf.transpose(qkv, [2, 0, 3, 1, 4])  # [3, batch, num_heads, blocks, key_dim]
+    qkv = conv2d_no_bias(inputs, qk_out * 2 + out_shape, kernel_size=1, name=name and name + "qkv_")
+    qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
+    query, key, value = tf.split(qkv, [qk_out, qk_out, out_shape], axis=-1)
+    # query = [batch, num_heads, hh * ww, key_dim]
+    query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])
+    # key = [batch, num_heads, key_dim, hh * ww]
+    key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])
+    # value = [batch, num_heads, hh * ww, vv_dim]
+    value = tf.transpose(tf.reshape(value, [-1, value.shape[1], num_heads, vv_dim]), [0, 2, 1, 3])
 
-    # query = key = [batch, num_heads, hh * ww, key_dim]
     # query *= qk_scale
     # [batch, num_heads, hh * ww, hh * ww]
-    attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1], transpose_b=True))([query, key]) * qk_scale
+    attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale
     # pos_query = [batch, num_heads, hh, ww, key_dim]
     pos_query = tf.reshape(query, [-1, num_heads, inputs.shape[1], inputs.shape[2], key_dim])
     pos_emb = RelativePositionalEmbedding(use_absolute_pos=not relative, name=name and name + "pos_emb")(pos_query)
@@ -141,15 +148,15 @@ def mhsa_with_relative_position_embedding(
 
     if attn_dropout > 0:
         attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
-    # value = [batch, num_heads, hh * ww, key_dim]
-    # attention_output = tf.matmul(attention_scores, value)  # [batch, num_heads, hh * ww, key_dim]
+    # value = [batch, num_heads, hh * ww, vv_dim]
+    # attention_output = tf.matmul(attention_scores, value)  # [batch, num_heads, hh * ww, vv_dim]
     attention_output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
     attention_output = tf.transpose(attention_output, perm=[0, 2, 1, 3])
-    attention_output = tf.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * key_dim])
+    attention_output = tf.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * vv_dim])
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
     if out_weight:
-        # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
+        # [batch, hh, ww, num_heads * vv_dim] * [num_heads * vv_dim, out] --> [batch, hh, ww, out]
         attention_output = keras.layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
     # attention_output.set_shape(final_out_shape)
     return attention_output
@@ -187,6 +194,20 @@ def BotNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", cl
     stem_type = "tiered"
 
     model = AotNet(model_name="botnet26t", **locals(), **kwargs)
+    reload_model_weights_with_mismatch(
+        model, PRETRAINED_DICT, "botnet", RelativePositionalEmbedding, request_resolution=256, input_shape=input_shape, pretrained=pretrained
+    )
+    return model
+
+
+def BotNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [2, 2, 2, 2]
+    attn_types = [None, None, [None, "bot"], "bot"]
+    attn_params = {"num_heads": 4, "key_dim": 16, "out_weight": False}
+    use_eca = True
+    group_size = 16
+    stem_type = "tiered"
+    model = AotNet(model_name="botnext_eca26t", **locals(), **kwargs)
     reload_model_weights_with_mismatch(
         model, PRETRAINED_DICT, "botnet", RelativePositionalEmbedding, request_resolution=256, input_shape=input_shape, pretrained=pretrained
     )

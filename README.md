@@ -97,12 +97,13 @@
 ## BotNet
   - [Keras BotNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/botnet) is for [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://arxiv.org/pdf/2101.11605.pdf).
 
-  | Model        | Params | Image resolution | Top1 Acc | Download            |
-  | ------------ | ------ | ---------------- | -------- | ------------------- |
-  | BotNet50     | 21M    | 224              |          |  |
-  | BotNet101    | 41M    | 224              |          |  |
-  | BotNet152    | 56M    | 224              |          |  |
-  | BotNet26T    | 12.5M  | 256              | 79.246   | [botnet26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet26t_imagenet.h5) |
+  | Model         | Params | Image resolution | Top1 Acc | Download            |
+  | ------------- | ------ | ---------------- | -------- | ------------------- |
+  | BotNet50      | 21M    | 224              |          |  |
+  | BotNet101     | 41M    | 224              |          |  |
+  | BotNet152     | 56M    | 224              |          |  |
+  | BotNet26T     | 12.5M  | 256              | 79.246   | [botnet26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet26t_imagenet.h5) |
+  | BotNextECA26T | 10.59M | 256              | 79.270   | [botnext_eca26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnext_eca26t_imagenet.h5) |
 ## CMT
   - [Keras CMT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cmt) is for [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf).
 

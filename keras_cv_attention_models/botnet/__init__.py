@@ -1,4 +1,4 @@
-from keras_cv_attention_models.botnet.botnet import BotNet, BotNet50, BotNet101, BotNet152, BotNet26T, RelativePositionalEmbedding, mhsa_with_relative_position_embedding
+from keras_cv_attention_models.botnet.botnet import BotNet, BotNet50, BotNet101, BotNet152, BotNet26T, BotNextECA26T, RelativePositionalEmbedding, mhsa_with_relative_position_embedding
 
 
 __head_doc__ = """
@@ -31,12 +31,13 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model        | Params | Image resolution | Top1 Acc |
-  | ------------ | ------ | ---------------- | -------- |
-  | BotNet50     | 21M    | 224              |          |
-  | BotNet101    | 41M    | 224              |          |
-  | BotNet152    | 56M    | 224              |          |
-  | BotNet26T    | 12.5M  | 256              | 79.246   |
+  | Model         | Params | Image resolution | Top1 Acc |
+  | ------------- | ------ | ---------------- | -------- |
+  | BotNet50      | 21M    | 224              |          |
+  | BotNet101     | 41M    | 224              |          |
+  | BotNet152     | 56M    | 224              |          |
+  | BotNet26T     | 12.5M  | 256              | 79.246   |
+  | BotNextECA26T | 10.59M | 256              | 79.270   |
 """
 
 BotNet50.__doc__ = __head_doc__ + """
@@ -50,6 +51,7 @@ BotNet26T.__doc__ = __head_doc__ + """Model weights are reloaded from timm [Gith
 
 Args:
 """ + __tail_doc__
+BotNextECA26T.__doc__ = BotNet26T.__doc__
 
 mhsa_with_relative_position_embedding.__doc__ = __head_doc__ + """
 Multi head self attention with positional embedding. Defined as function, not layer.
