@@ -23,7 +23,7 @@ def RegNetZB(input_shape=(224, 224, 3), num_classes=1000, activation="swish", cl
     shortcut_type = None
     output_num_features = 1536
     model = AotNet(**locals(), model_name="regnetz_b", **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="regnet", input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
     return model
 
 def RegNetZC(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
@@ -42,7 +42,7 @@ def RegNetZC(input_shape=(256, 256, 3), num_classes=1000, activation="swish", cl
     shortcut_type = None
     output_num_features = 1536
     model = AotNet(**locals(), model_name="regnetz_c", **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="regnet", input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
     return model
 
 def RegNetZD(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
@@ -62,5 +62,5 @@ def RegNetZD(input_shape=(256, 256, 3), num_classes=1000, activation="swish", cl
     shortcut_type = None
     output_num_features = 1792
     model = AotNet(**locals(), model_name="regnetz_d", **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="regnet", input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
     return model

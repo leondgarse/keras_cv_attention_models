@@ -39,15 +39,15 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet", "swsl"]) + """
 Model architectures:
-  | Model                     | Params | Image  resolution | Top1 Acc |
-  | ------------------------- | ------ | ----------------- | -------- |
-  | ResNeXt50 (32x4d)         | 25M    | 224               | 79.768   |
-  | - SWSL                    | 25M    | 224               | 82.182   |
-  | ResNeXt50D (32x4d + deep) | 25M    | 224               | 79.676   |
-  | ResNeXt101 (32x4d)        | 42M    | 224               | 80.334   |
-  | - SWSL                    | 42M    | 224               | 83.230   |
-  | ResNeXt101W (32x8d)       | 89M    | 224               | 79.308   |
-  | - SWSL                    | 89M    | 224               | 84.284   |
+  | Model                     | Params | Image resolution | Top1 Acc |
+  | ------------------------- | ------ | ---------------- | -------- |
+  | ResNeXt50 (32x4d)         | 25M    | 224              | 79.768   |
+  | - SWSL                    | 25M    | 224              | 82.182   |
+  | ResNeXt50D (32x4d + deep) | 25M    | 224              | 79.676   |
+  | ResNeXt101 (32x4d)        | 42M    | 224              | 80.334   |
+  | - SWSL                    | 42M    | 224              | 83.230   |
+  | ResNeXt101W (32x8d)       | 89M    | 224              | 79.308   |
+  | - SWSL                    | 89M    | 224              | 84.284   |
 """
 
 __resnext_default_doc__ = __resnext_head_doc__ + """
@@ -77,12 +77,12 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet"]) + """
 Model architectures:
-  | Model      | Params | Image  resolution | Top1 Acc |
-  | ---------- | ------ | ----------------- | -------- |
-  | ResNet50D  | 25.58M | 224               | 80.530   |
-  | ResNet101D | 44.57M | 224               | 83.022   |
-  | ResNet152D | 60.21M | 224               | 83.680   |
-  | ResNet200D | 64.69  | 224               | 83.962   |
+  | Model      | Params | Image resolution | Top1 Acc |
+  | ---------- | ------ | ---------------- | -------- |
+  | ResNet50D  | 25.58M | 224              | 80.530   |
+  | ResNet101D | 44.57M | 224              | 83.022   |
+  | ResNet152D | 60.21M | 224              | 83.680   |
+  | ResNet200D | 64.69  | 224              | 83.962   |
 """
 
 __resnetd_default_doc__ = __resnetd_head_doc__ + """
@@ -136,10 +136,10 @@ Args:
   model_name: string, model name.
 """ + __resnetq_tail_doc__ + """
 Model architectures:
-  | Model     | Params | Image  resolution | Top1 Acc |
-  | --------- | ------ | ----------------- | -------- |
-  | ResNet51Q | 35.7M  | 224               | 82.36    |
-  | ResNet61Q | 36.8M  | 224               |          |
+  | Model     | Params | Image resolution | Top1 Acc |
+  | --------- | ------ | ---------------- | -------- |
+  | ResNet51Q | 35.7M  | 224              | 82.36    |
+  | ResNet61Q | 36.8M  | 224              |          |
 """
 
 ResNet51Q.__doc__ = __resnetq_head_doc__ + """
@@ -174,11 +174,11 @@ Returns:
     A `keras.Model` instance.
 
 Model architectures:
-  | Model     | Params | Image  resolution | Top1 Acc |
-  | --------- | ------ | ----------------- | -------- |
-  | RegNetZB  | 9.72M  | 224               | 79.868   |
-  | RegNetZC  | 13.46M | 256               | 82.164   |
-  | RegNetZD  | 27.58M | 256               | 83.422   |
+  | Model     | Params | Image resolution | Top1 Acc |
+  | --------- | ------ | ---------------- | -------- |
+  | RegNetZB  | 9.72M  | 224              | 79.868   |
+  | RegNetZC  | 13.46M | 256              | 82.164   |
+  | RegNetZD  | 27.58M | 256              | 83.422   |
 """
 
 RegNetZB.__doc__ = __regnetz_head_doc__ + """

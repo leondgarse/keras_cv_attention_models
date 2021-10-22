@@ -81,34 +81,34 @@
   - Model weights reloaded from [Tensorflow keras/applications](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/applications/resnet.py) and [Github rwightman/pytorch-image-models](https://github.com/rwightman/pytorch-image-models).
   - `SWSL` means `Semi-Weakly Supervised ResNe*t` from [Github facebookresearch/semi-supervised-ImageNet1K-models](https://github.com/facebookresearch/semi-supervised-ImageNet1K-models). **Please note the CC-BY-NC 4.0 license on theses weights, non-commercial use only**.
 
-  | Model                     | Params | Image  resolution | Top1 Acc | Download            |
-  | ------------------------- | ------ | ----------------- | -------- | ------------------- |
-  | ResNeXt50 (32x4d)         | 25M    | 224               | 79.768   | [resnext50_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext50_imagenet.h5)  |
-  | - SWSL                    | 25M    | 224               | 82.182   | [resnext50_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext50_swsl.h5)  |
-  | ResNeXt50D (32x4d + deep) | 25M    | 224               | 79.676   | [resnext50d_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext50d_imagenet.h5)  |
-  | ResNeXt101 (32x4d)        | 42M    | 224               | 80.334   | [resnext101_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_imagenet.h5)  |
-  | - SWSL                    | 42M    | 224               | 83.230   | [resnext101_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_swsl.h5)  |
-  | ResNeXt101W (32x8d)       | 89M    | 224               | 79.308   | [resnext101_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_imagenet.h5)  |
-  | - SWSL                    | 89M    | 224               | 84.284   | [resnext101w_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101w_swsl.h5)  |
+  | Model                     | Params | Image resolution | Top1 Acc | Download            |
+  | ------------------------- | ------ | ---------------- | -------- | ------------------- |
+  | ResNeXt50 (32x4d)         | 25M    | 224              | 79.768   | [resnext50_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext50_imagenet.h5)  |
+  | - SWSL                    | 25M    | 224              | 82.182   | [resnext50_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext50_swsl.h5)  |
+  | ResNeXt50D (32x4d + deep) | 25M    | 224              | 79.676   | [resnext50d_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext50d_imagenet.h5)  |
+  | ResNeXt101 (32x4d)        | 42M    | 224              | 80.334   | [resnext101_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_imagenet.h5)  |
+  | - SWSL                    | 42M    | 224              | 83.230   | [resnext101_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_swsl.h5)  |
+  | ResNeXt101W (32x8d)       | 89M    | 224              | 79.308   | [resnext101_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_imagenet.h5)  |
+  | - SWSL                    | 89M    | 224              | 84.284   | [resnext101w_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101w_swsl.h5)  |
 ## ResNetD
-  | Model      | Params | Image  resolution | Top1 Acc | Download |
-  | ---------- | ------ | ----------------- | -------- | -------- |
-  | ResNet50D  | 25.58M | 224               | 80.530   | [resnet50d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet50d_imagenet.h5) |
-  | ResNet101D | 44.57M | 224               | 83.022   | [resnet101d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet101d_imagenet.h5) |
-  | ResNet152D | 60.21M | 224               | 83.680   | [resnet152d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet152d_imagenet.h5) |
-  | ResNet200D | 64.69  | 224               | 83.962   | [resnet200d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet200d_imagenet.h5) |
+  | Model      | Params | Image resolution | Top1 Acc | Download |
+  | ---------- | ------ | ---------------- | -------- | -------- |
+  | ResNet50D  | 25.58M | 224              | 80.530   | [resnet50d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet50d_imagenet.h5) |
+  | ResNet101D | 44.57M | 224              | 83.022   | [resnet101d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet101d_imagenet.h5) |
+  | ResNet152D | 60.21M | 224              | 83.680   | [resnet152d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet152d_imagenet.h5) |
+  | ResNet200D | 64.69  | 224              | 83.962   | [resnet200d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet200d_imagenet.h5) |
 ## ResNetQ
   - Defined and model weights loaded from [Github timm/models/resnet.py](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/resnet.py).
 
-  | Model     | Params | Image  resolution | Top1 Acc | Download |
-  | --------- | ------ | ----------------- | -------- | -------- |
-  | ResNet51Q | 35.7M  | 224               | 82.36    | [resnet51q.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet51q_imagenet.h5) |
+  | Model     | Params | Image resolution | Top1 Acc | Download |
+  | --------- | ------ | ---------------- | -------- | -------- |
+  | ResNet51Q | 35.7M  | 224              | 82.36    | [resnet51q.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet51q_imagenet.h5) |
 ## RegNetZ
   - Defined and model weights loaded from [Github timm/models/byobnet.py](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/byobnet.py)
 
-  | Model     | Params | Image  resolution | Top1 Acc | Download |
-  | --------- | ------ | ----------------- | -------- | -------- |
-  | RegNetZB  | 9.72M  | 224               | 79.868   | [regnetz_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_b_imagenet.h5) |
-  | RegNetZC  | 13.46M | 256               | 82.164   | [regnetz_c_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_c_imagenet.h5) |
-  | RegNetZD  | 27.58M | 256               | 83.422   | [regnetz_d_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d_imagenet.h5) |
+  | Model     | Params | Image resolution | Top1 Acc | Download |
+  | --------- | ------ | ---------------- | -------- | -------- |
+  | RegNetZB  | 9.72M  | 224              | 79.868   | [regnetz_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_b_imagenet.h5) |
+  | RegNetZC  | 13.46M | 256              | 82.164   | [regnetz_c_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_c_imagenet.h5) |
+  | RegNetZD  | 27.58M | 256              | 83.422   | [regnetz_d_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d_imagenet.h5) |
 ***
