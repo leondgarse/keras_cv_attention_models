@@ -12,7 +12,7 @@ def RegNetZB(input_shape=(224, 224, 3), num_classes=1000, activation="swish", cl
     strides = [2, 2, 2, 2]
     out_channels = [48, 96, 192, 288]
     # timm bottle_in=True mode, the first ratio in each stack is `ratio * previous_channel`
-    hidden_channel_ratio = [[2, 3], [1.5] + [3] * 5, [1.5] + [3] * 11, [2, 3]]
+    hidden_channel_ratio = [[32 * 3 / 48, 3], [1.5] + [3] * 5, [1.5] + [3] * 11, [192 * 3 / 288, 3]]
     use_block_output_activation = False # timm linear_out=True mode
     stem_type = "kernel_3x3"
     stem_width = 32

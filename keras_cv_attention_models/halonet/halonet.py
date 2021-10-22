@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.aotnet import AotNet
-from keras_cv_attention_models.attention_layers import RelativePositionalEmbedding, conv2d_no_bias, tpu_compatible_extract_patches
+from keras_cv_attention_models.attention_layers import RelativePositionalEmbedding, conv2d_no_bias, tpu_compatible_extract_patches, make_divisible
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
@@ -10,6 +10,7 @@ PRETRAINED_DICT = {
     "halonet50t": {"imagenet": "25a7f03498830fa91b893d847c131ac0"},
     "halonet_se33t": {"imagenet": "7e0afb7f8fb6459491b8a46ad80bcd91"},
     "halonext_eca26t": {"imagenet": "fbb73481cf0317a3226e963a99dd7151"},
+    "haloregnetz_b": {"imagenet": "e889647682d1c554de032d376acf0c48"},
 }
 
 
@@ -17,12 +18,22 @@ def halo_attention(
     inputs, num_heads=8, key_dim=0, block_size=4, halo_size=1, strides=1, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
 ):
     _, hh, ww, cc = inputs.shape
-    key_dim = key_dim if key_dim > 0 else cc // num_heads
+    if key_dim > 1:
+        key_dim = key_dim   # Specified one
+    elif key_dim > 0:
+        key_dim = make_divisible(cc * key_dim, divisor=8) // num_heads    # regard as key_dim_ratio
+    else:
+        key_dim = cc // num_heads   # Default value
     qk_scale = 1.0 / tf.math.sqrt(tf.cast(key_dim, inputs.dtype))
     out_shape = cc if out_shape is None else out_shape
     emb_dim = num_heads * key_dim
-    query_block = block_size // strides
     kv_kernel = block_size + halo_size * 2
+    if block_size % strides != 0:
+        strides = 1
+        avg_pool_down = True
+    else:
+        avg_pool_down = False
+    query_block = block_size // strides
 
     query = conv2d_no_bias(inputs, emb_dim, kernel_size=1, strides=strides, name=name and name + "query_")
     _, hh, ww, cc = query.shape
@@ -78,6 +89,8 @@ def halo_attention(
     attention_output = tf.reshape(attention_output, [-1, hh_aa * query_block, ww_aa * query_block, heads * cc_aa])
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
+    if avg_pool_down:
+        attention_output = keras.layers.AvgPool2D(2, strides=2, name=name and name + "avg_pool")(attention_output)
     if out_weight:
         # [batch, hh, ww, num_heads * out_dim] * [out, out] --> [batch, hh, ww, out]
         attention_output = keras.layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
@@ -286,5 +299,27 @@ def HaloNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swis
     groups = [4, 8, 16, 32]
     stem_type = "tiered"
     model = AotNet(model_name="halonext_eca26t", **locals(), **kwargs)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    return model
+
+
+def HaloRegNetZB(input_shape=(224, 224, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [2, 6, 12, 2]
+    strides = [2, 2, 2, 2]
+    out_channels = [48, 96, 192, 288]
+    # timm bottle_in=True mode, the first ratio in each stack is `ratio * previous_channel`
+    hidden_channel_ratio = [[32 * 3 / 48, 3], [1.5] + [3] * 5, [1.5] + [3] * 11, [192 * 3 / 288, 3]]
+    use_block_output_activation = False # timm linear_out=True mode
+    stem_type = "kernel_3x3"
+    stem_width = 32
+    stem_downsample = False
+    attn_types = [None, None, [None, None, None, "halo"] * 3, "halo"]
+    # "activation": "relu" is for se module.
+    attn_params = {"block_size": 7, "halo_size": 2, "num_heads": 8, "key_dim": 0.33, "out_weight": False, "activation": "relu"}
+    se_ratio = 0.25
+    group_size = 16
+    shortcut_type = None
+    output_num_features = 1536
+    model = AotNet(model_name="haloregnetz_b", **locals(), **kwargs)
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
     return model

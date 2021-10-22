@@ -153,6 +153,24 @@ def test_VOLO_defination():
     assert isinstance(mm, keras.models.Model)
 
 
+def test_HaloRegNetZB_predict():
+    mm = keras_cv_attention_models.halonet.HaloRegNetZB(pretrained="imagenet")
+    imm = tf.image.resize(chelsea(), mm.input_shape[1:3])  # Chelsea the cat
+    pred = mm(tf.expand_dims(imm / 128 - 1, 0)).numpy()
+    out = keras.applications.imagenet_utils.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_RegNetZB_predict():
+    mm = keras_cv_attention_models.resnet_family.RegNetZB(pretrained="imagenet")
+    imm = tf.image.resize(chelsea(), mm.input_shape[1:3])  # Chelsea the cat
+    pred = mm(tf.expand_dims(imm / 128 - 1, 0)).numpy()
+    out = keras.applications.imagenet_utils.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_LeViT128S_predict():
     mm = keras_cv_attention_models.levit.LeViT128S(pretrained="imagenet")
     imm = tf.image.resize(chelsea(), mm.input_shape[1:3])  # Chelsea the cat

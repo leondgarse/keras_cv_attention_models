@@ -144,7 +144,7 @@ def aot_block(
 
     deep = deep_branch(pre_inputs, filters, strides, hidden_channel_ratio, use_3x3_kernel, bn_after_attn, activation, attn_block_params, name=name)
 
-    # print(">>>> shortcut:", shortcut if shortcut is None else shortcut.shape, "deep:", deep.shape, "filters:", filters)
+    # print(f">>>> {inputs.shape = }, {shortcut if shortcut is None else shortcut.shape = }, {deep.shape = }, {filters = }, {strides = }")
     if preact:  # ResNetV2
         deep = drop_block(deep, drop_rate)
         return keras.layers.Add(name=name + "add")([shortcut, deep])
