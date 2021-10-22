@@ -28,6 +28,15 @@
   print(mm(np.ones([1, 512, 512, 3])).shape)
   # (1, 16, 16, 2048)
   ```
+  **Set `input_shape=(None, None, 3)` for dynamic input shape**
+  ```py
+  from keras_cv_attention_models import resnet_family
+  mm = resnet_family.RegNetZB(input_shape=(None, None, 3), num_classes=0)
+  print(mm(np.ones([1, 320, 320, 3])).shape)
+  # (1, 10, 10, 1536)
+  print(mm(np.ones([1, 512, 512, 3])).shape)
+  # (1, 10, 10, 1536)
+  ```
 ## Bag of Tricks for ResNet
   - [PDF 1812.01187 Bag of Tricks for Image Classification with Convolutional Neural Networks](https://arxiv.org/pdf/1812.01187.pdf)
   - [PDF 2004.08955 ResNeSt: Split-Attention Networks](https://arxiv.org/pdf/2004.08955.pdf)
@@ -94,4 +103,12 @@
   | Model     | Params | Image  resolution | Top1 Acc | Download |
   | --------- | ------ | ----------------- | -------- | -------- |
   | ResNet51Q | 35.7M  | 224               | 82.36    | [resnet51q.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet51q_imagenet.h5) |
+## RegNetZ
+  - Defined and model weights loaded from [Github timm/models/byobnet.py](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/byobnet.py)
+
+  | Model     | Params | Image  resolution | Top1 Acc | Download |
+  | --------- | ------ | ----------------- | -------- | -------- |
+  | RegNetZB  | 9.72M  | 224               | 79.868   | [regnetz_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_b_imagenet.h5) |
+  | RegNetZC  | 13.46M | 256               | 82.164   | [regnetz_c_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_c_imagenet.h5) |
+  | RegNetZD  | 27.58M | 256               | 83.422   | [regnetz_d_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d_imagenet.h5) |
 ***

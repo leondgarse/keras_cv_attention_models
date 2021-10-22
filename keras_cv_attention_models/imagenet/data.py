@@ -4,7 +4,7 @@ from tensorflow import keras
 from tensorflow.keras.preprocessing.image import img_to_array, array_to_img
 
 
-def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_distribute=True):
+def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_distribute=True, compute_dtype="float32"):
     """https://github.com/tensorflow/models/blob/master/official/vision/image_classification/preprocessing.py
     RandomResizedCrop related function.
 
@@ -12,11 +12,16 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
     For ww_crop = width, max_hh_crop = width / ratio[0], max_area_crop_2 = width * width / ratio[0]
     ==> scale_max < min(max_area_crop_1, max_area_crop_2, scale[1])
 
-    hh_crop * ww_crop = crop_area = crop_fraction * area, crop_fraction in scale=(scale[0], scale_max)
-    ww_crop / hh_crop > ratio[0]
-    ww_crop / hh_crop < ratio[1]
-    ==> hh_crop > sqrt(crop_area / ratio[1])
-        hh_crop < sqrt(crop_area / ratio[0])
+    As target_area selected:
+    For ww_crop = width, max_aspect_ratio = width / (target_area / width) = width * width / target_area
+    For hh_crop = height, min_aspect_ratio = (target_area / height) / height = target_area / (height * height)
+    ==> ratio in range (min_aspect_ratio, max_aspect_ratio)
+
+    Result:
+    ww_crop * hh_crop = target_area
+    ww_crop / hh_crop = aspect_ratio
+    ==> ww_crop = int(round(math.sqrt(target_area * aspect_ratio)))
+        hh_crop = int(round(math.sqrt(target_area / aspect_ratio)))
 
     As outputs are converted int, for running 1e5 times, results are not exactly in scale and ratio range:
     >>> from keras_cv_attention_models.imagenet import data
@@ -40,30 +45,31 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
 
     Args:
       size (tuple of int): input image shape. `area = size[0] * size[1]`.
-      scale (tuple of float): scale range of the cropped image. crop_area in range `(scale[0] * area, sacle[1] * area)`.
+      scale (tuple of float): scale range of the cropped image. target_area in range `(scale[0] * area, sacle[1] * area)`.
       ratio (tuple of float): aspect ratio range of the cropped image. cropped `width / height`  in range `(ratio[0], ratio[1])`.
 
     Returns: cropped size `hh_crop, ww_crop`.
     """
-    height, width = tf.cast(size[0], "float32"), tf.cast(size[1], "float32")
+    height, width = tf.cast(size[0],  dtype=compute_dtype), tf.cast(size[1],  dtype=compute_dtype)
     area = height * width
     scale_max = tf.minimum(tf.minimum(height * height * ratio[1] / area, width * width / ratio[0] / area), scale[1])
-    crop_area = tf.random.uniform((), scale[0], scale_max) * area
-    hh_fraction_min = tf.maximum(crop_area / width, tf.sqrt(crop_area / ratio[1]))
-    hh_fraction_max = tf.minimum(tf.cast(height, "float32"), tf.sqrt(crop_area / ratio[0]))
+    target_area = tf.random.uniform((), scale[0], scale_max, dtype=compute_dtype) * area
+
+    ratio_min = tf.maximum(target_area / (height * height), ratio[0])
+    ratio_max = tf.minimum(width * width / target_area, ratio[1])
     if log_distribute:  # More likely to select a smaller value
-        log_min, log_max = tf.math.log(hh_fraction_min), tf.math.log(hh_fraction_max)
-        hh_fraction = tf.random.uniform((), log_min, log_max)
-        hh_fraction = tf.math.exp(hh_fraction)
+        log_min, log_max = tf.math.log(ratio_min), tf.math.log(ratio_max)
+        aspect_ratio = tf.random.uniform((), log_min, log_max, dtype=compute_dtype)
+        aspect_ratio = tf.math.exp(aspect_ratio)
     else:
-        hh_fraction = tf.random.uniform((), hh_fraction_min, hh_fraction_max)
-    # hh_crop, ww_crop = tf.cast(tf.math.ceil(hh_fraction), "int32"), tf.cast(tf.math.ceil(crop_area / hh_fraction), "int32")
-    hh_crop, ww_crop = tf.cast(tf.math.floor(hh_fraction), "int32"), tf.cast(tf.math.floor(crop_area / hh_fraction), "int32")
+        aspect_ratio = tf.random.uniform((), ratio_min, ratio_max, dtype=compute_dtype)
+
+    ww_crop = tf.cast(tf.math.floor(tf.sqrt(target_area * aspect_ratio)), "int32")
+    hh_crop = tf.cast(tf.math.floor(tf.sqrt(target_area / aspect_ratio)), "int32")
     # tf.print(">>>> height, width, hh_crop, ww_crop, hh_fraction_min, hh_fraction_max:", height, width, hh_crop, ww_crop, hh_fraction_min, hh_fraction_max)
-    # return hh_crop, ww_crop, crop_area, hh_fraction_min, hh_fraction_max, hh_fraction
+    # return hh_crop, ww_crop, target_area, hh_fraction_min, hh_fraction_max, hh_fraction
     return hh_crop, ww_crop
-    # return hh_fraction, crop_area / hh_fraction # float value will stay in scale and ratio range exactly
-    # return tf.minimum(hh_crop, size[0] - 1), tf.minimum(ww_crop, size[1] - 1)
+    # return hh_fraction, target_area / hh_fraction # float value will stay in scale and ratio range exactly
 
 
 def random_erasing_per_pixel(image, num_layers=1, scale=(0.02, 0.33333333), ratio=(0.3, 3.3333333), probability=0.5):

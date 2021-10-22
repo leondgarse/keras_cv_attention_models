@@ -1,7 +1,7 @@
 from keras_cv_attention_models.resnet_family.resnext import ResNeXt, ResNeXt50, ResNeXt101, ResNeXt50D, ResNeXt101W
 from keras_cv_attention_models.resnet_family.resnet_quad import ResNetQ, ResNet51Q, ResNet61Q
 from keras_cv_attention_models.resnet_family.resnet_deep import ResNetD, ResNet50D, ResNet101D, ResNet152D, ResNet200D
-from keras_cv_attention_models.resnet_family.regnet import RegNetZB
+from keras_cv_attention_models.resnet_family.regnet import RegNetZB, RegNetZC, RegNetZD
 
 
 __resnext_head_doc__ = """
@@ -148,3 +148,41 @@ Args:
 ResNet61Q.__doc__ = __resnetq_head_doc__ + """
 Args:
 """ + __resnetq_tail_doc__
+
+__regnetz_head_doc__ = """
+Github source [leondgarse/keras_cv_attention_models](https://github.com/leondgarse/keras_cv_attention_models).
+Defined and model weights loaded from [timm](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/byobnet.py).
+"""
+
+__regnetz_tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, default `(224, 224, 3)`.
+      Set `(None, None, 3)` for dynamic input shape.
+  num_classes: number of classes to classify images into. Set `0` to exclude top layers.
+  activation: activation used in whole model, default `swish`.
+  drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
+      Can be value like `0.2`, indicates the drop probability linearly changes from `0 --> 0.2` for `top --> bottom` layers.
+      A higher value means a higher probability will drop the deep branch.
+      or `0` to disable (default).
+  classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
+      Set `classifier_activation=None` to return the logits of the "top" layer.
+      Default is `softmax`.
+  pretrained: value in [None, "imagenet"].
+      Will try to download and load pre-trained model weights if not None.
+      Save path is `~/.keras/models/`.
+  **kwargs: other parameters in `keras_cv_attention_models.aotnet.AotNet` if not conflict.
+
+Returns:
+    A `keras.Model` instance.
+
+Model architectures:
+  | Model     | Params | Image  resolution | Top1 Acc |
+  | --------- | ------ | ----------------- | -------- |
+  | RegNetZB  | 9.72M  | 224               | 79.868   |
+  | RegNetZC  | 13.46M | 256               | 82.164   |
+  | RegNetZD  | 27.58M | 256               | 83.422   |
+"""
+
+RegNetZB.__doc__ = __regnetz_head_doc__ + """
+Args:
+""" + __regnetz_tail_doc__
+RegNetZC.__doc__ = RegNetZB.__doc__
+RegNetZD.__doc__ = RegNetZB.__doc__

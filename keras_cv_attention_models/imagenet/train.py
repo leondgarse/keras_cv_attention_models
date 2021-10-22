@@ -60,7 +60,7 @@ def train(
 
 def plot_and_peak_scatter(ax, array, peak_method, label, color=None, **kwargs):
     for id, ii in enumerate(array):
-        if np.isnan(ii):
+        if tf.math.is_nan(ii):
             array[id] = array[id - 1]
     ax.plot(array, label=label, color=color, **kwargs)
     pp = peak_method(array)
@@ -73,6 +73,7 @@ def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"]):
     import os
     import json
     import matplotlib.pyplot as plt
+    import numpy as np
 
     num_axes = 3 if addition_plots is not None and len(addition_plots) != 0 else 2
     fig, axes = plt.subplots(1, num_axes, figsize=(num_axes * base_size, base_size))

@@ -35,6 +35,7 @@ def attn_block(inputs, filters, strides=1, attn_type=None, attn_params={}, se_ra
     else:
         attn_params = DEFAULT_PARAMS.get(attn_type, {})
 
+    attn_act = attn_params.pop("activation", activation)
     if attn_type == "bot":  # mhsa_with_relative_position_embedding from botnet
         nn = attention_layers.mhsa_with_relative_position_embedding(nn, **attn_params, name=name + "mhsa_")
     elif attn_type == "halo":  # halo_attention from halonet
@@ -42,10 +43,9 @@ def attn_block(inputs, filters, strides=1, attn_type=None, attn_params={}, se_ra
         out_shape = int(filters * halo_expansion)
         nn = attention_layers.halo_attention(nn, **attn_params, strides=strides, out_shape=out_shape, name=name + "halo")
     elif attn_type == "sa":  # split_attention_conv2d from resnest
-        sa_act = attn_params.pop("activation", activation)
-        nn = attention_layers.split_attention_conv2d(nn, **attn_params, filters=filters, strides=strides, activation=sa_act, name=name + "sa_")
+        nn = attention_layers.split_attention_conv2d(nn, **attn_params, filters=filters, strides=strides, activation=attn_act, name=name + "sa_")
     elif attn_type == "cot":  # cot_attention from cotnet
-        nn = attention_layers.cot_attention(nn, **attn_params, strides=strides, activation=activation, name=name + "cot_")
+        nn = attention_layers.cot_attention(nn, **attn_params, strides=strides, activation=attn_act, name=name + "cot_")
     elif attn_type == "outlook":  # outlook_attention from volo
         nn = attention_layers.outlook_attention(nn, filters, **attn_params, name=name + "outlook_")
     # elif attn_type == "groups_conv":  # ResNeXt like
@@ -63,7 +63,7 @@ def attn_block(inputs, filters, strides=1, attn_type=None, attn_params={}, se_ra
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name)
 
     if attn_type is None and se_ratio:
-        nn = se_module(nn, se_ratio=se_ratio, activation=activation, name=name + "se_")
+        nn = se_module(nn, se_ratio=se_ratio, activation=attn_act, name=name + "se_")
 
     if attn_type is None and use_eca:
         nn = eca_module(nn, name=name + "eca_")
