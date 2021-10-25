@@ -170,7 +170,7 @@ ________________________________________________________________________________
 
 __resmlp_head_doc__ = """
 Github source [leondgarse/keras_cv_attention_models](https://github.com/leondgarse/keras_cv_attention_models).
-Keras implementation of [Github facebookresearch/deit](https://github.com/facebookresearch/deit).
+Keras implementation of [Github facebookresearch/resmlp_models.py](https://github.com/facebookresearch/deit/blob/main/resmlp_models.py).
 Paper [PDF 2105.03404 ResMLP: Feedforward networks for image classification with data-efficient training](https://arxiv.org/pdf/2105.03404.pdf).
 """
 
