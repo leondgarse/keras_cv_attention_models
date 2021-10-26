@@ -9,6 +9,14 @@ sys.path.append(".")
 import keras_cv_attention_models
 
 
+def test_Beit_defination():
+    mm = keras_cv_attention_models.beit.BeitBasePatch16(pretrained=None)
+    assert isinstance(mm, keras.models.Model)
+
+    mm = keras_cv_attention_models.beit.BeitLargePatch16(pretrained=None, num_classes=0)
+    assert isinstance(mm, keras.models.Model)
+
+
 def test_BotNet_defination():
     mm = keras_cv_attention_models.botnet.BotNet50(pretrained=None)
     assert isinstance(mm, keras.models.Model)

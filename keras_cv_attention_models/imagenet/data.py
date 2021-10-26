@@ -50,7 +50,7 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
 
     Returns: cropped size `hh_crop, ww_crop`.
     """
-    height, width = tf.cast(size[0],  dtype=compute_dtype), tf.cast(size[1],  dtype=compute_dtype)
+    height, width = tf.cast(size[0], dtype=compute_dtype), tf.cast(size[1], dtype=compute_dtype)
     area = height * width
     scale_max = tf.minimum(tf.minimum(height * height * ratio[1] / area, width * width / ratio[0] / area), scale[1])
     target_area = tf.random.uniform((), scale[0], scale_max, dtype=compute_dtype) * area
@@ -70,6 +70,29 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
     # return hh_crop, ww_crop, target_area, hh_fraction_min, hh_fraction_max, hh_fraction
     return hh_crop, ww_crop
     # return hh_fraction, target_area / hh_fraction # float value will stay in scale and ratio range exactly
+
+
+def random_crop_fraction_2(image, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), compute_dtype="float32"):
+    size = tf.shape(image)
+    height, width = tf.cast(size[0], dtype=compute_dtype), tf.cast(size[1], dtype=compute_dtype)
+    area = height * width
+    in_ratio = width / height
+
+    target_areas = tf.random.uniform((10,), scale[0], scale[1]) * area
+    log_min, log_max = tf.math.log(ratio[0]), tf.math.log(ratio[1])
+    aspect_ratios = tf.random.uniform((10,), log_min, log_max, dtype=compute_dtype)
+    aspect_ratios = tf.math.exp(aspect_ratios)
+
+    ww_crops, hh_crops = tf.sqrt(target_areas * aspect_ratios), tf.sqrt(target_areas / aspect_ratios)
+    pick = tf.argmax(tf.logical_and(hh_crops <= height, ww_crops <= width))
+    hh_crop = tf.cast(tf.math.floor(hh_crops[pick]), "int32")
+    ww_crop = tf.cast(tf.math.floor(ww_crops[pick]), "int32")
+    # return hh_crop, ww_crop
+    return tf.cond(
+        tf.logical_and(hh_crop <= size[0], ww_crop <= size[1]),
+        lambda: tf.image.random_crop(image, (hh_crop, ww_crop, 3)),
+        lambda: tf.image.central_crop(image, tf.minimum(tf.minimum(ratio[1] / in_ratio, in_ratio * ratio[0]), scale[1])),
+    )
 
 
 def random_erasing_per_pixel(image, num_layers=1, scale=(0.02, 0.33333333), ratio=(0.3, 3.3333333), probability=0.5):
@@ -152,9 +175,10 @@ class RandomProcessImage:
     def __call__(self, datapoint):
         image = datapoint["image"]
         if self.random_crop_min > 0 and self.random_crop_min < 1:
-            hh, ww = random_crop_fraction(tf.shape(image), scale=(self.random_crop_min, 1.0))
+            # hh, ww = random_crop_fraction(tf.shape(image), scale=(self.random_crop_min, 1.0))
             # tf.print(tf.shape(image), hh, ww)
-            input_image = tf.image.random_crop(image, (hh, ww, 3))
+            # input_image = tf.image.random_crop(image, (hh, ww, 3))
+            input_image = random_crop_fraction_2(image, scale=(self.random_crop_min, 1.0))
         else:
             input_image = tf.image.central_crop(image, self.central_crop)
         input_image = tf.image.resize(input_image, self.target_shape, method=self.resize_method)

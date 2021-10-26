@@ -19,11 +19,11 @@ def halo_attention(
 ):
     _, hh, ww, cc = inputs.shape
     if key_dim > 1:
-        key_dim = key_dim   # Specified one
+        key_dim = key_dim  # Specified one
     elif key_dim > 0:
-        key_dim = make_divisible(cc * key_dim, divisor=8) // num_heads    # regard as key_dim_ratio
+        key_dim = make_divisible(cc * key_dim, divisor=8) // num_heads  # regard as key_dim_ratio
     else:
-        key_dim = cc // num_heads   # Default value
+        key_dim = cc // num_heads  # Default value
     qk_scale = 1.0 / tf.math.sqrt(tf.cast(key_dim, inputs.dtype))
     out_shape = cc if out_shape is None else out_shape
     emb_dim = num_heads * key_dim
@@ -173,7 +173,9 @@ BLOCK_CONFIGS = {
 }
 
 
-def HaloNet(input_shape=(256, 256, 3), activation="swish", expansion=4, halo_block_size=4, halo_halo_size=1, halo_expansion=1, num_heads=8, pretrained=None, **kwargs):
+def HaloNet(
+    input_shape=(256, 256, 3), activation="swish", expansion=4, halo_block_size=4, halo_halo_size=1, halo_expansion=1, num_heads=8, pretrained=None, **kwargs
+):
     attn_types = "halo"
     if isinstance(num_heads, (list, tuple)):
         attn_params = [
@@ -190,7 +192,15 @@ def HaloNet(input_shape=(256, 256, 3), activation="swish", expansion=4, halo_blo
         }
     out_channels = [ii * expansion for ii in [64, 128, 256, 512]]
     hidden_channel_ratio = 1 / expansion
-    model = AotNet(input_shape=input_shape, out_channels=out_channels, hidden_channel_ratio=hidden_channel_ratio, activation=activation, attn_types=attn_types, attn_params=attn_params, **kwargs)
+    model = AotNet(
+        input_shape=input_shape,
+        out_channels=out_channels,
+        hidden_channel_ratio=hidden_channel_ratio,
+        activation=activation,
+        attn_types=attn_types,
+        attn_params=attn_params,
+        **kwargs
+    )
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
     return model
 
@@ -275,7 +285,7 @@ def HaloNetSE33T(input_shape=(256, 256, 3), num_classes=1000, activation="swish"
     ]
     se_ratio = 1 / 16
     out_channels = [256, 512, 1024, 1536]
-    hidden_channel_ratio = [1/4, 1/4, 1/4, 1/3]
+    hidden_channel_ratio = [1 / 4, 1 / 4, 1 / 4, 1 / 3]
     # key_dim = 16
     stem_type = "tiered"
     stem_last_strides = 2
@@ -309,7 +319,7 @@ def HaloRegNetZB(input_shape=(224, 224, 3), num_classes=1000, activation="swish"
     out_channels = [48, 96, 192, 288]
     # timm bottle_in=True mode, the first ratio in each stack is `ratio * previous_channel`
     hidden_channel_ratio = [[32 * 3 / 48, 3], [1.5] + [3] * 5, [1.5] + [3] * 11, [192 * 3 / 288, 3]]
-    use_block_output_activation = False # timm linear_out=True mode
+    use_block_output_activation = False  # timm linear_out=True mode
     stem_type = "kernel_3x3"
     stem_width = 32
     stem_downsample = False

@@ -104,6 +104,12 @@ def test_MultiHeadPositionalEmbedding():
     assert aa(tf.ones(input_shape)).shape == input_shape
 
 
+def test_MultiHeadRelativePositionalEmbedding():
+    aa = attention_layers.MultiHeadRelativePositionalEmbedding()
+    input_shape = [2, 8, 29 * 29 + 1, 29 * 29 + 1]
+    assert aa(tf.ones(input_shape)).shape == input_shape
+
+
 def test_outlook_attention():
     input_shape = [2, 28, 28, 192]
     out = attention_layers.outlook_attention(tf.ones(input_shape), embed_dim=192, num_heads=4)

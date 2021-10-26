@@ -1,6 +1,7 @@
 from .version import __version__
 from keras_cv_attention_models import attention_layers
 from keras_cv_attention_models import model_surgery
+from keras_cv_attention_models import beit
 from keras_cv_attention_models import botnet
 from keras_cv_attention_models import coat
 from keras_cv_attention_models import coatnet
@@ -12,6 +13,7 @@ from keras_cv_attention_models import mlp_family
 from keras_cv_attention_models.mlp_family import mlp_mixer
 from keras_cv_attention_models.mlp_family import res_mlp
 from keras_cv_attention_models.mlp_family import gated_mlp
+from keras_cv_attention_models import nfnets
 from keras_cv_attention_models import resnest
 from keras_cv_attention_models import resnet_family
 from keras_cv_attention_models.resnet_family import resnext
@@ -19,7 +21,6 @@ from keras_cv_attention_models.resnet_family import resnet_quad
 from keras_cv_attention_models.resnet_family import resnet_deep
 from keras_cv_attention_models.resnet_family import regnet
 from keras_cv_attention_models import volo
-from keras_cv_attention_models import nfnets
 from keras_cv_attention_models import download_and_load
 from keras_cv_attention_models import visualizing
 # Import efficientnetv1 and efficientnetv2 from my another project keras-efficientnet-v2

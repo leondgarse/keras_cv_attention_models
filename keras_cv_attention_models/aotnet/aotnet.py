@@ -26,7 +26,20 @@ DEFAULT_PARAMS = {
 }
 
 
-def attn_block(inputs, filters, strides=1, attn_type=None, attn_params={}, se_ratio=0, use_eca=False, groups=1, group_size=0, bn_after_attn=True, activation="relu", name=""):
+def attn_block(
+    inputs,
+    filters,
+    strides=1,
+    attn_type=None,
+    attn_params={},
+    se_ratio=0,
+    use_eca=False,
+    groups=1,
+    group_size=0,
+    bn_after_attn=True,
+    activation="relu",
+    name="",
+):
     nn = inputs
     if attn_params is not None and len(attn_params) != 0:
         default_attn_params = DEFAULT_PARAMS.get(attn_type, {}).copy()
@@ -88,7 +101,9 @@ def conv_shortcut_branch(inputs, filters, preact=False, strides=1, shortcut_type
     return shortcut
 
 
-def deep_branch(inputs, filters, strides=1, hidden_channel_ratio=0.25, use_3x3_kernel=False, bn_after_attn=True, activation="relu", attn_block_params={}, name=""):
+def deep_branch(
+    inputs, filters, strides=1, hidden_channel_ratio=0.25, use_3x3_kernel=False, bn_after_attn=True, activation="relu", attn_block_params={}, name=""
+):
     hidden_filter = int(filters * hidden_channel_ratio)
     if use_3x3_kernel:
         nn = conv2d_no_bias(inputs, hidden_filter, 3, strides=1, padding="SAME", name=name + "deep_1_")  # Using strides=1 for not changing input shape
@@ -222,7 +237,7 @@ def AotNet(
     use_3x3_kernel=False,
     use_block_output_activation=True,
     stem_width=64,  # Stem params
-    stem_type=None, # ["deep", "quad", "tiered", "kernel_3x3", None]
+    stem_type=None,  # ["deep", "quad", "tiered", "kernel_3x3", None]
     quad_stem_act=False,
     stem_last_strides=1,
     stem_downsample=True,

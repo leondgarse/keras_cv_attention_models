@@ -69,11 +69,33 @@ def state_dict_stack_by_layer(state_dict, skip_weights=["num_batches_tracked"], 
     return stacked_state_dict
 
 
+def match_layer_names_with_torch(target_names, tail_align_dict={}, full_name_align_dict={}, tail_split_position=2):
+    layer_names_matched_torch = [""] * len(target_names)
+    is_tail_align_dict_split_by_stack = len(tail_align_dict) > 0 and isinstance(list(tail_align_dict.values())[0], dict)
+    for id, ii in enumerate(target_names):
+        name_split = ii.split("_")
+        stack_name = name_split[0]
+        tail_name = "_".join(name_split[tail_split_position:])
+        cur_tail_align_dict = tail_align_dict[stack_name] if is_tail_align_dict_split_by_stack else tail_align_dict
+        # print("id = {}, ii = {}, stack_name = {}, tail_name = {}".format(id, ii, stack_name, tail_name))
+        if ii in full_name_align_dict:
+            align = full_name_align_dict[ii]
+            layer_names_matched_torch.insert(id + align, ii)
+            layer_names_matched_torch.pop(-1)
+        elif tail_name in cur_tail_align_dict:
+            align = cur_tail_align_dict[tail_name]
+            layer_names_matched_torch.insert(id + align, ii)
+            layer_names_matched_torch.pop(-1)
+        else:
+            layer_names_matched_torch[id] = ii
+    return layer_names_matched_torch
+
+
 def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_matched_torch, additional_transfer={}, save_name=None):
     import numpy as np
 
     for kk, tf_layer_name in zip(stacked_state_dict.keys(), layer_names_matched_torch):
-        print("torch layer name: {}, tf layer name: {}".format(kk, tf_layer_name))
+        print("  torch layer name: {}, tf layer name: {}".format(kk, tf_layer_name))
         tf_layer = model.get_layer(tf_layer_name)
         tf_weights = tf_layer.get_weights()
         torch_weight = stacked_state_dict[kk]
@@ -94,12 +116,84 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
         for add_layer, add_transfer in additional_transfer.items():
             if isinstance(tf_layer, add_layer):
                 torch_weight = add_transfer(torch_weight)
-        print("[{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
+        print("    [{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
 
         tf_layer.set_weights(torch_weight)
 
     if save_name is None:
         save_name = model.name + ".h5"
     if len(save_name) != 0:
+        print()
         print(">>>> Save model to:", save_name)
         model.save(save_name)
+
+
+def keras_reload_from_torch_model(
+    torch_model,
+    keras_model,
+    input_resolution=(224, 224),
+    skip_weights=["num_batches_tracked"],
+    unstack_weights=[],
+    tail_align_dict={},
+    full_name_align_dict={},
+    tail_split_position=2,
+    additional_transfer={},
+    save_name=None,
+    do_convert=True,
+):
+    import torch
+    import numpy as np
+    import tensorflow as tf
+    from torchsummary import summary
+    from skimage.data import chelsea
+
+    _ = torch_model.eval()
+    summary(torch_model, (3, *input_resolution))
+
+    """ Torch Run predict """
+    img = chelsea()
+    img = keras.applications.imagenet_utils.preprocess_input(tf.image.resize(img, input_resolution), mode="torch").numpy()
+    out = torch_model(torch.from_numpy(np.expand_dims(img.transpose(2, 0, 1), 0).astype("float32")))
+    out = out.detach().cpu().numpy()
+    # out = tf.nn.softmax(out).numpy()  # If classifier activation is not softmax
+    torch_out = keras.applications.imagenet_utils.decode_predictions(out)
+
+    """ Convert torch weights """
+    torch_params = {
+        kk: (np.cumproduct(vv.shape)[-1] if len(vv.shape) != 0 else 1) for kk, vv in torch_model.state_dict().items() if ".num_batches_tracked" not in kk
+    }
+    print(">>>> torch_model total_parameters :", np.sum(list(torch_params.values())))
+    stacked_state_dict = state_dict_stack_by_layer(torch_model.state_dict(), skip_weights=skip_weights, unstack_weights=unstack_weights)
+    aa = {kk: [1 if isinstance(jj, float) else jj.shape for jj in vv] for kk, vv in stacked_state_dict.items()}
+    print(">>>> Torch weights:")
+    _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
+    print()
+
+    """ Keras model weights """
+    target_names = [ii.name for ii in keras_model.layers if len(ii.weights) != 0]
+    aa = {keras_model.get_layer(ii).name: [jj.shape.as_list() for jj in keras_model.get_layer(ii).weights] for ii in target_names}
+    print(">>>> Keras weights:")
+    _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
+    print()
+
+    if not do_convert:
+        return
+
+    """ Load torch weights and save h5 """
+    layer_names_matched_torch = match_layer_names_with_torch(target_names, tail_align_dict, full_name_align_dict, tail_split_position)
+    aa = {keras_model.get_layer(ii).name: [jj.shape.as_list() for jj in keras_model.get_layer(ii).weights] for ii in layer_names_matched_torch}
+    print(">>>> Keras weights matched torch:")
+    _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
+    print()
+
+    save_name = save_name if save_name is not None else keras_model.name + "_imagenet.h5"
+    print(">>>> Keras reload torch weights:")
+    keras_reload_stacked_state_dict(keras_model, stacked_state_dict, layer_names_matched_torch, additional_transfer, save_name=save_name)
+    print()
+
+    """ Keras run predict """
+    pred = keras_model(tf.expand_dims(tf.image.resize(img, keras_model.input_shape[1:3]), 0)).numpy()
+    # pred = tf.nn.softmax(pred).numpy()  # If classifier activation is not softmax
+    print(">>>> Keras model prediction:", keras.applications.imagenet_utils.decode_predictions(pred)[0])
+    print()
+    print(">>>> Torch model prediction:", torch_out)

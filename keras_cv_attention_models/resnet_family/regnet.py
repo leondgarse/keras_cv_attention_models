@@ -7,13 +7,14 @@ PRETRAINED_DICT = {
     "regnetz_d": {"imagenet": "b76e7c68a309a3697ffb5f30c0aeeea6"},
 }
 
+
 def RegNetZB(input_shape=(224, 224, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 6, 12, 2]
     strides = [2, 2, 2, 2]
     out_channels = [48, 96, 192, 288]
     # timm bottle_in=True mode, the first ratio in each stack is `ratio * previous_channel`
     hidden_channel_ratio = [[32 * 3 / 48, 3], [1.5] + [3] * 5, [1.5] + [3] * 11, [192 * 3 / 288, 3]]
-    use_block_output_activation = False # timm linear_out=True mode
+    use_block_output_activation = False  # timm linear_out=True mode
     stem_type = "kernel_3x3"
     stem_width = 32
     stem_downsample = False
@@ -26,13 +27,14 @@ def RegNetZB(input_shape=(224, 224, 3), num_classes=1000, activation="swish", cl
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
     return model
 
+
 def RegNetZC(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 6, 12, 2]
     strides = [2, 2, 2, 2]
     out_channels = [48, 96, 192, 288]
     # timm bottle_in=True mode, the first ratio in each stack is `ratio * previous_channel`
     hidden_channel_ratio = [[32 * 4 / 48, 4], [2] + [4] * 5, [2] + [4] * 11, [192 * 4 / 288, 4]]
-    use_block_output_activation = False # timm linear_out=True mode
+    use_block_output_activation = False  # timm linear_out=True mode
     stem_type = "kernel_3x3"
     stem_width = 32
     stem_downsample = False
@@ -45,13 +47,14 @@ def RegNetZC(input_shape=(256, 256, 3), num_classes=1000, activation="swish", cl
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
     return model
 
+
 def RegNetZD(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 6, 12, 3]
     strides = [1, 2, 2, 2]
     out_channels = [64, 128, 256, 384]
     # timm bottle_in=True mode, the first ratio in each stack is `ratio * previous_channel`
     hidden_channel_ratio = [[64 * 4 / 64, 4, 4], [2] + [4] * 5, [2] + [4] * 11, [256 * 4 / 384, 4, 4]]
-    use_block_output_activation = False # timm linear_out=True mode
+    use_block_output_activation = False  # timm linear_out=True mode
     stem_type = "tiered"
     stem_last_strides = 2
     stem_width = 64

@@ -8,6 +8,7 @@
   - [Model surgery](#model-surgery)
   - [AotNet](#aotnet)
   - [BotNet](#botnet)
+  - [BEIT](#beit)
   - [CMT](#cmt)
   - [CoaT](#coat)
   - [CoAtNet](#coatnet)
@@ -94,6 +95,16 @@
   model = aotnet.AotNet50V2(attn_types=attn_types, se_ratio=se_ratio, stem_type="deep", strides=1)
   model.summary()
   ```
+## BEIT
+  - [Keras BEIT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) is for [PDF 2106.08254 BEIT: BERT Pre-Training of Image Transformers](https://arxiv.org/pdf/2106.08254.pdf).
+
+  | Model            | Params  | Image resolution | Top1 Acc | Download                         |
+  | ---------------- | ------- | ---------------- | -------- | -------------------------------- |
+  | BeitBasePatch16  | 86.53M  | 224              | 85.240   | [beit_base_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_224.h5)  |
+  |                  | 86.74M  | 384              | 86.808   | [beit_base_patch16_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_384.h5)  |
+  | BeitLargePatch16 | 304.43M | 224              | 87.476   | [beit_large_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_224.h5) |
+  |                  | 305.00M | 384              | 88.382   | [beit_large_patch16_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_384.h5) |
+  |                  | 305.67M | 512              | 88.584   | [beit_large_patch16_512.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_512.h5) |
 ## BotNet
   - [Keras BotNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/botnet) is for [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://arxiv.org/pdf/2101.11605.pdf).
 
