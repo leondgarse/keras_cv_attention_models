@@ -1,4 +1,4 @@
-from keras_cv_attention_models.coatnet.coatnet import CoAtNet, CoAtNetT, CoAtNet0, CoAtNet1, CoAtNet2, CoAtNet3, CoAtNet4, CoAtNet5
+from keras_cv_attention_models.coatnet.coatnet import CoAtNet, CoAtNetT, CoAtNet0, CoAtNet1, CoAtNet2, CoAtNet3, CoAtNet4, CoAtNet5, CoAtNet6, CoAtNet7
 
 __head_doc__ = """
 Keras implementation of `CoAtNet`, or `Conv + Transformer` networks.
@@ -56,6 +56,17 @@ Model architectures:
   | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 384              | 88.4     |
   | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
   | CoAtNet-5                            | 680M   |                  |          |
+
+  **JFT pre-trained models accuracy**
+
+  | Model    | Image resolution | Reported Params | self-defined Params | Top1 Acc |
+  | -------- | ---------------- | --------------- | ------------------- | -------- |
+  | CoAtNet3 | 384              | 168M            | 162.96M             | 88.52    |
+  | CoAtNet3 | 512              | 168M            | 163.57M             | 88.81    |
+  | CoAtNet4 | 512              | 275M            | 273.10M             | 89.11    |
+  | CoAtNet5 | 512              | 688M            | 680.47M             | 89.77    |
+  | CoAtNet6 | 512              | 1.47B           | 1.340B              | 90.45    |
+  | CoAtNet7 | 512              | 2.44B           | 2.422B              | 90.88    |
 """
 
 CoAtNet0.__doc__ = __head_doc__ + """
@@ -67,3 +78,5 @@ CoAtNet2.__doc__ = CoAtNet0.__doc__
 CoAtNet3.__doc__ = CoAtNet0.__doc__
 CoAtNet4.__doc__ = CoAtNet0.__doc__
 CoAtNet5.__doc__ = CoAtNet0.__doc__
+CoAtNet6.__doc__ = CoAtNet0.__doc__
+CoAtNet7.__doc__ = CoAtNet0.__doc__

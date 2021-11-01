@@ -148,6 +148,17 @@
   | CoAtNet-3, ImageNet-21k pretrain     | 168M   | 512              | 87.9     |
   | CoAtNet-4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |
   | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
+
+  **JFT pre-trained models accuracy**
+
+  | Model    | Image resolution | Reported Params | self-defined Params | Top1 Acc |
+  | -------- | ---------------- | --------------- | ------------------- | -------- |
+  | CoAtNet3 | 384              | 168M            | 162.96M             | 88.52    |
+  | CoAtNet3 | 512              | 168M            | 163.57M             | 88.81    |
+  | CoAtNet4 | 512              | 275M            | 273.10M             | 89.11    |
+  | CoAtNet5 | 512              | 688M            | 680.47M             | 89.77    |
+  | CoAtNet6 | 512              | 1.47B           | 1.340B              | 90.45    |
+  | CoAtNet7 | 512              | 2.44B           | 2.422B              | 90.88    |
 ## CoTNet
   - [Keras CoTNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cotnet) is for [PDF 2107.12292 Contextual Transformer Networks for Visual Recognition](https://arxiv.org/pdf/2107.12292.pdf).
 

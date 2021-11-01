@@ -128,6 +128,7 @@ def CoAtNet(
     out_channels,
     stem_width=64,
     block_types=["conv", "conv", "transfrom", "transform"],
+    strides=[2, 2, 2, 2],
     expansion=4,
     se_ratio=0.25,
     head_dimension=32,
@@ -154,17 +155,18 @@ def CoAtNet(
     for stack_id, (num_block, out_channel, block_type) in enumerate(zip(num_blocks, out_channels, block_types)):
         is_conv_block = True if block_type[0].lower() == "c" else False
         stack_se_ratio = se_ratio[stack_id] if isinstance(se_ratio, (list, tuple)) else se_ratio
+        stack_strides = strides[stack_id] if isinstance(strides, (list, tuple)) else strides
         for block_id in range(num_block):
             name = "stage_{}_block_{}_".format(stack_id + 1, block_id + 1)
-            strides = 2 if block_id == 0 else 1
+            stride = stack_strides if block_id == 0 else 1
             conv_short_cut = True if block_id == 0 else False
             block_se_ratio = stack_se_ratio[block_id] if isinstance(stack_se_ratio, (list, tuple)) else stack_se_ratio
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             global_block_id += 1
             if is_conv_block:
-                nn = res_MBConv(nn, out_channel, conv_short_cut, strides, expansion, block_se_ratio, block_drop_rate, activation=activation, name=name)
+                nn = res_MBConv(nn, out_channel, conv_short_cut, stride, expansion, block_se_ratio, block_drop_rate, activation=activation, name=name)
             else:
-                nn = res_mhsa(nn, out_channel, conv_short_cut, strides, head_dimension, block_drop_rate, activation=activation, name=name)
+                nn = res_mhsa(nn, out_channel, conv_short_cut, stride, head_dimension, block_drop_rate, activation=activation, name=name)
                 nn = res_ffn(nn, expansion=expansion, drop_rate=block_drop_rate, activation=activation, name=name + "ffn_")
 
     if num_classes > 0:
@@ -225,3 +227,22 @@ def CoAtNet5(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cla
     stem_width = 192
     head_dimension = 64
     return CoAtNet(**locals(), model_name="coatnet5", **kwargs)
+
+
+def CoAtNet6(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
+    num_blocks = [2, 4, 8, 42, 2]
+    out_channels = [192, 384, 768, 1536, 2048]
+    block_types = ["conv", "conv", "conv", "transfrom", "transform"]
+    strides = [2, 2, 2, 1, 2]
+    stem_width = 192
+    head_dimension = 128
+    return CoAtNet(**locals(), model_name="coatnet6", **kwargs)
+
+def CoAtNet7(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
+    num_blocks = [2, 4, 8, 42, 2]
+    out_channels = [256, 512, 1024, 2048, 3072]
+    block_types = ["conv", "conv", "conv", "transfrom", "transform"]
+    strides = [2, 2, 2, 1, 2]
+    stem_width = 192
+    head_dimension = 128
+    return CoAtNet(**locals(), model_name="coatnet7", **kwargs)
