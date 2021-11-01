@@ -42,7 +42,7 @@ setup(
     keywords="tensorflow keras cv attension pretrained models",
     packages=find_packages(exclude=["tests"]),
     include_package_data=True,
-    install_requires=["tensorflow", "tensorflow-addons", "einops"],
+    install_requires=["tensorflow", "tensorflow-addons", "tensorflow-datasets"],
     python_requires=">=3.6",
     license="Apache 2.0",
 )
