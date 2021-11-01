@@ -22,11 +22,21 @@ PRETRAINED_DICT = {
 
 @tf.keras.utils.register_keras_serializable(package="beit")
 class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
+    def __init__(self, with_cls_token=True, **kwargs):
+        super(MultiHeadRelativePositionalEmbedding, self).__init__(**kwargs)
+        self.with_cls_token = with_cls_token
+        if with_cls_token:
+            self.cls_token_len = 1
+            self.cls_token_pos_len = 3
+        else:
+            self.cls_token_len = 0
+            self.cls_token_pos_len = 0
+
     def build(self, attn_shape):
         # print(attn_shape)
-        height = width = int(tf.math.sqrt(float(attn_shape[2] - 1)))  # assume hh == ww, e.g. 14
+        height = width = int(tf.math.sqrt(float(attn_shape[2] - self.cls_token_len)))  # assume hh == ww, e.g. 14
         num_heads = attn_shape[1]
-        num_relative_distance = (2 * height - 1) * (2 * width - 1) + 3
+        num_relative_distance = (2 * height - 1) * (2 * width - 1) + self.cls_token_pos_len
         self.relative_position_bias_table = self.add_weight(name="pos_emb", shape=(num_relative_distance, num_heads), initializer="zeros", trainable=True)
 
         xx, yy = tf.meshgrid(range(height), range(width))  # tf.meshgrid is same with np.meshgrid 'xy' mode, while torch.meshgrid 'ij' mode
@@ -38,28 +48,36 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         relative_coords = tf.stack([xx, yy], axis=-1)
 
         relative_position_index = tf.reduce_sum(relative_coords, axis=-1)  # [196, 196]
-        top = tf.ones((1, relative_position_index.shape[1]), dtype=relative_position_index.dtype) * (num_relative_distance - 3)
-        left = tf.ones((relative_position_index.shape[0], 1), dtype=relative_position_index.dtype) * (num_relative_distance - 2)
-        corner = tf.ones((1, 1), dtype=relative_position_index.dtype) * (num_relative_distance - 1)
-        # print(f">>>> {top.shape = }, {left.shape = }, {corner.shape = }")
-        # >>>> top.shape = TensorShape([1, 196]), left.shape = TensorShape([196, 1]), corner.shape = TensorShape([1, 1])
-        left_corner = tf.concat([corner, left], axis=0)
-        relative_position_index = tf.concat([top, relative_position_index], axis=0)
-        self.relative_position_index = tf.concat([left_corner, relative_position_index], axis=1)  # [197, 197]
+        if self.with_cls_token:
+            top = tf.ones((1, relative_position_index.shape[1]), dtype=relative_position_index.dtype) * (num_relative_distance - 3)
+            left = tf.ones((relative_position_index.shape[0], 1), dtype=relative_position_index.dtype) * (num_relative_distance - 2)
+            corner = tf.ones((1, 1), dtype=relative_position_index.dtype) * (num_relative_distance - 1)
+            # print(f">>>> {top.shape = }, {left.shape = }, {corner.shape = }")
+            # >>>> top.shape = TensorShape([1, 196]), left.shape = TensorShape([196, 1]), corner.shape = TensorShape([1, 1])
+            left_corner = tf.concat([corner, left], axis=0)
+            relative_position_index = tf.concat([top, relative_position_index], axis=0)
+            relative_position_index = tf.concat([left_corner, relative_position_index], axis=1)  # [197, 197]
+        self.relative_position_index = relative_position_index
 
     def call(self, attention_scores, **kwargs):
         pos_emb = tf.gather(self.relative_position_bias_table, self.relative_position_index)
         pos_emb = tf.transpose(pos_emb, [2, 0, 1])
         return attention_scores + pos_emb
 
+    def get_config(self):
+        base_config = super(MultiHeadRelativePositionalEmbedding, self).get_config()
+        base_config.update({"with_cls_token": self.with_cls_token})
+        return base_config
+
     def load_resized_pos_emb(self, source_layer):
-        hh = ww = int(tf.math.sqrt(float(source_layer.relative_position_bias_table.shape[0] - 3)))
+        hh = ww = int(tf.math.sqrt(float(source_layer.relative_position_bias_table.shape[0] - source_layer.cls_token_pos_len)))
         num_heads = source_layer.relative_position_bias_table.shape[-1]
-        ss = tf.reshape(source_layer.relative_position_bias_table[:-3], (hh, ww, num_heads))  # [hh, ww, num_heads]
-        target_hh = target_ww = int(tf.math.sqrt(float(self.relative_position_bias_table.shape[0] - 3)))
+        ss = tf.reshape(source_layer.relative_position_bias_table[:hh * ww], (hh, ww, num_heads))  # [hh, ww, num_heads]
+        target_hh = target_ww = int(tf.math.sqrt(float(self.relative_position_bias_table.shape[0] - self.cls_token_pos_len)))
         tt = tf.image.resize(ss, [target_hh, target_ww])  # [target_hh, target_ww, num_heads]
         tt = tf.reshape(tt, (tt.shape[0] * tt.shape[1], num_heads))  # [target_hh * target_ww, num_heads]
-        tt = tf.concat([tt, source_layer.relative_position_bias_table[-3:]], axis=0)
+        if self.with_cls_token:
+            tt = tf.concat([tt, source_layer.relative_position_bias_table[-source_layer.cls_token_pos_len:]], axis=0)
         self.relative_position_bias_table.assign(tt)
 
 

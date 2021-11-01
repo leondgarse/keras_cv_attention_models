@@ -9,8 +9,52 @@ from keras_cv_attention_models.attention_layers import (
     drop_block,
     layer_norm,
     se_module,
-    mhsa_with_relative_position_embedding,
+    MultiHeadRelativePositionalEmbedding,
 )
+
+
+def mhsa_with_multi_head_relative_position_embedding(
+    inputs, num_heads=4, key_dim=0, relative=True, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
+):
+    _, hh, ww, cc = inputs.shape
+    key_dim = key_dim if key_dim > 0 else cc // num_heads
+    qk_scale = 1.0 / tf.math.sqrt(tf.cast(key_dim, inputs.dtype))
+    out_shape = cc if out_shape is None or not out_weight else out_shape
+    qk_out = num_heads * key_dim
+    vv_dim = out_shape // num_heads
+    # final_out_shape = (None, hh, ww, out_shape)
+
+    # qkv = keras.layers.Dense(emb_dim * 3, use_bias=False, name=name and name + "qkv")(inputs)
+    qkv = conv2d_no_bias(inputs, qk_out * 2 + out_shape, kernel_size=1, name=name and name + "qkv_")
+    qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
+    query, key, value = tf.split(qkv, [qk_out, qk_out, out_shape], axis=-1)
+    # query = [batch, num_heads, hh * ww, key_dim]
+    query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])
+    # key = [batch, num_heads, key_dim, hh * ww]
+    key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])
+    # value = [batch, num_heads, hh * ww, vv_dim]
+    value = tf.transpose(tf.reshape(value, [-1, value.shape[1], num_heads, vv_dim]), [0, 2, 1, 3])
+
+    # query *= qk_scale
+    # [batch, num_heads, hh * ww, hh * ww]
+    attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale
+    attention_scores = MultiHeadRelativePositionalEmbedding(with_cls_token=False, name=name and name + "pos_emb")(attention_scores)
+    attention_scores = tf.nn.softmax(attention_scores, axis=-1)
+
+    if attn_dropout > 0:
+        attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
+    # value = [batch, num_heads, hh * ww, vv_dim]
+    # attention_output = tf.matmul(attention_scores, value)  # [batch, num_heads, hh * ww, vv_dim]
+    attention_output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
+    attention_output = tf.transpose(attention_output, perm=[0, 2, 1, 3])
+    attention_output = tf.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * vv_dim])
+    # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
+
+    if out_weight:
+        # [batch, hh, ww, num_heads * vv_dim] * [num_heads * vv_dim, out] --> [batch, hh, ww, out]
+        attention_output = keras.layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
+    # attention_output.set_shape(final_out_shape)
+    return attention_output
 
 
 def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion=4, se_ratio=0, drop_rate=0, activation="gelu", name=""):
@@ -73,7 +117,7 @@ def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, head_dimens
         # nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
         nn = keras.layers.MaxPool2D(pool_size=2, strides=strides, padding="SAME", name=name + "pool")(nn)
     num_heads = nn.shape[-1] // head_dimension
-    nn = mhsa_with_relative_position_embedding(nn, num_heads=num_heads, key_dim=head_dimension, out_shape=output_channel, name=name + "mhsa")
+    nn = mhsa_with_multi_head_relative_position_embedding(nn, num_heads=num_heads, key_dim=head_dimension, out_shape=output_channel, name=name + "mhsa")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
     # print(f"{name = }, {inputs.shape = }, {shortcut.shape = }, {nn.shape = }")
     return keras.layers.Add()([shortcut, nn])
