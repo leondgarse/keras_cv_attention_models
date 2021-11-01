@@ -165,6 +165,24 @@ def replace_ReLU(model, target_activation="PReLU", **kwargs):
     return keras.models.clone_model(model, input_tensors=input_tensors, clone_function=convert_ReLU)
 
 
+def change_model_input_shape(model, new_input_shape):
+    import json
+    import os
+
+    if model.input_shape[1:-1] == new_input_shape[:2]:
+        return model
+
+    aa = json.loads(model.to_json())
+    aa['config']['layers'][0]['config']['batch_input_shape'] = [None, *new_input_shape[:2], 3]
+    bb = tf.keras.models.model_from_json(json.dumps(aa))
+    temp_name = "__change_model_input_shape_temp__.h5"
+    model.save_weights(temp_name)
+    bb.load_weights(temp_name)
+    os.remove(temp_name)
+    print(">>> Changed model input shape from {} to {}".format(model.input_shape, bb.input_shape))
+    return bb
+
+
 def replace_add_with_stochastic_depth(model, survivals=(1, 0.8)):
     """
     - [Deep Networks with Stochastic Depth](https://arxiv.org/pdf/1603.09382.pdf)

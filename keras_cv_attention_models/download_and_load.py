@@ -112,7 +112,7 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
         elif isinstance(tf_layer, keras.layers.Conv1D):
             torch_weight[0] = np.transpose(torch_weight[0], (2, 1, 0))
         elif isinstance(tf_layer, keras.layers.Dense):
-            # fc layer after flatten, weights need to reshape according to NCHW --> NHWC
+            # [Note] if it's fc layer after flatten, weights need to reshape according to NCHW --> NHWC
             torch_weight[0] = torch_weight[0].T
 
         for add_layer, add_transfer in additional_transfer.items():
