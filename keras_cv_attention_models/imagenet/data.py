@@ -72,7 +72,7 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
     # return hh_fraction, target_area / hh_fraction # float value will stay in scale and ratio range exactly
 
 
-def random_crop_fraction_2(image, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), compute_dtype="float32"):
+def random_crop_fraction_timm(image, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), compute_dtype="float32"):
     size = tf.shape(image)
     height, width = tf.cast(size[0], dtype=compute_dtype), tf.cast(size[1], dtype=compute_dtype)
     area = height * width
@@ -175,10 +175,10 @@ class RandomProcessImage:
     def __call__(self, datapoint):
         image = datapoint["image"]
         if self.random_crop_min > 0 and self.random_crop_min < 1:
-            # hh, ww = random_crop_fraction(tf.shape(image), scale=(self.random_crop_min, 1.0))
-            # tf.print(tf.shape(image), hh, ww)
-            # input_image = tf.image.random_crop(image, (hh, ww, 3))
-            input_image = random_crop_fraction_2(image, scale=(self.random_crop_min, 1.0))
+            hh, ww = random_crop_fraction(tf.shape(image), scale=(self.random_crop_min, 1.0))
+            input_image = tf.image.random_crop(image, (hh, ww, 3))
+        elif self.random_crop_min == 0:
+            input_image = random_crop_fraction_timm(image, scale=(0.08, 1.0))
         else:
             input_image = tf.image.central_crop(image, self.central_crop)
         input_image = tf.image.resize(input_image, self.target_shape, method=self.resize_method)
@@ -188,6 +188,33 @@ class RandomProcessImage:
 
         label = datapoint["label"]
         return input_image, label
+
+def evaluation_process_crop_resize(datapoint, target_shape=(224, 224), central_crop=1.0, resize_method="bilinear"):
+    image = datapoint["image"]
+    shape = tf.shape(image)
+    height, width = shape[0], shape[1]
+    crop_size = tf.cast((central_crop * tf.cast(tf.minimum(height, width), tf.float32)), tf.int32)
+    y, x = (height - crop_size) // 2, (width - crop_size) // 2
+    image = tf.image.crop_to_bounding_box(image, y, x, crop_size, crop_size)
+    image = tf.image.resize(image, target_shape, method=resize_method)
+    label = datapoint["label"]
+    return image, label
+
+def evaluation_process_resize_crop(datapoint, target_shape=(224, 224), central_crop=1.0, resize_method="bilinear"):
+    image = datapoint["image"]
+    shape = tf.shape(image)
+    height, width = shape[0], shape[1]
+    min_border = tf.cast(tf.minimum(height, width), tf.float32)
+    scale_size = tf.cast(tf.minimum(*target_shape), tf.float32) / central_crop
+    hh_scale = tf.cast(tf.floor(tf.cast(height, tf.float32) * scale_size / min_border), tf.int32)
+    ww_scale = tf.cast(tf.floor(tf.cast(width, tf.float32) * scale_size / min_border), tf.int32)
+    image = tf.image.resize(image, (hh_scale, ww_scale), method=resize_method)
+
+    y, x = (hh_scale - target_shape[0]) // 2, (ww_scale - target_shape[1]) // 2
+    image = tf.image.crop_to_bounding_box(image, y, x, target_shape[0], target_shape[1])
+
+    label = datapoint["label"]
+    return image, label
 
 
 def sample_beta_distribution(size, concentration_0=0.4, concentration_1=0.4):
@@ -272,7 +299,7 @@ def init_dataset(
     info_only=False,
     mixup_alpha=0,  # mixup / cutmix params
     cutmix_alpha=0,
-    rescale_mode="tf",  # rescale mode, ["tf", "torch"]
+    rescale_mode="tf",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`
     central_crop=1.0,  # augment params
     random_crop_min=1.0,
     resize_method="bilinear",  # ["bilinear", "bicubic"]
@@ -302,24 +329,22 @@ def init_dataset(
         num_layers=num_layers,
         **augment_kwargs,
     )
-    train = dataset["train"].map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE)
-    test_process = RandomProcessImage(input_shape, magnitude=-1, central_crop=central_crop, random_crop_min=1.0, resize_method=resize_method)
-    if "validation" in dataset:
-        test = dataset["validation"].map(lambda xx: test_process(xx))
-    elif "test" in dataset:
-        test = dataset["test"].map(lambda xx: test_process(xx))
+    train_dataset = dataset["train"].shuffle(buffer_size).map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE)
 
-    if rescale_mode == "torch":
+    if isinstance(rescale_mode, (list, tuple)): # Specific mean and std
+        mean, std = rescale_mode
+        rescaling = lambda xx: (xx - mean) / std
+    elif rescale_mode == "torch":
         mean = tf.constant([0.485, 0.456, 0.406]) * 255.0
         std = tf.constant([0.229, 0.224, 0.225]) * 255.0
         rescaling = lambda xx: (xx - mean) / std
     else:
+        # rescaling = lambda xx: (xx - 128.0) / 128.0
+        # rescaling = lambda xx: (xx - 127.5) / 127.5
         rescaling = lambda xx: (xx - 127.5) * 0.0078125
-
     as_one_hot = lambda yy: tf.one_hot(yy, num_classes)
-    train_dataset = train.shuffle(buffer_size).batch(batch_size).prefetch(buffer_size=AUTOTUNE)
-    test_dataset = test.batch(batch_size).map(lambda xx, yy: (rescaling(xx), as_one_hot(yy)))
 
+    train_dataset = train_dataset.batch(batch_size)
     if mixup_alpha > 0 and mixup_alpha <= 1 and cutmix_alpha > 0 and cutmix_alpha <= 1:
         print(">>>> Both mixup_alpha and cutmix_alpha provided: mixup_alpha = {}, cutmix_alpha = {}".format(mixup_alpha, cutmix_alpha))
         mixup_cutmix = lambda xx, yy: tf.cond(
@@ -336,4 +361,14 @@ def init_dataset(
         train_dataset = train_dataset.map(lambda xx, yy: cutmix(rescaling(xx), as_one_hot(yy), alpha=cutmix_alpha))
     else:
         train_dataset = train_dataset.map(lambda xx, yy: (rescaling(xx), as_one_hot(yy)))
+    train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE)
+
+    """ Test dataset """
+    test_process = lambda xx: evaluation_process_crop_resize(xx, input_shape[:2], central_crop, resize_method)
+    # test_process = lambda xx: evaluation_process_resize_crop(xx, input_shape[:2], central_crop, resize_method)  # timm
+    if "validation" in dataset:
+        test_dataset = dataset["validation"].map(lambda xx: test_process(xx))
+    elif "test" in dataset:
+        test_dataset = dataset["test"].map(lambda xx: test_process(xx))
+    test_dataset = test_dataset.batch(batch_size).map(lambda xx, yy: (rescaling(xx), as_one_hot(yy)))
     return train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
