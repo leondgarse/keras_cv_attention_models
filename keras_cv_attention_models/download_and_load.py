@@ -99,9 +99,11 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
         tf_layer = model.get_layer(tf_layer_name)
         tf_weights = tf_layer.get_weights()
         torch_weight = stacked_state_dict[kk]
-        # print("[{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
+        print("    Before: [{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
 
-        if isinstance(tf_layer, keras.layers.Conv2D):
+        if isinstance(tf_layer, keras.layers.DepthwiseConv2D):  # DepthwiseConv2D is instance of Conv2D, put it first
+            torch_weight[0] = np.transpose(torch_weight[0], (2, 3, 0, 1))
+        elif isinstance(tf_layer, keras.layers.Conv2D):
             torch_weight[0] = np.transpose(torch_weight[0], (2, 3, 1, 0))
             if len(torch_weight) > 2:  # gain
                 torch_weight[2] = np.squeeze(torch_weight[2])
@@ -116,7 +118,7 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
         for add_layer, add_transfer in additional_transfer.items():
             if isinstance(tf_layer, add_layer):
                 torch_weight = add_transfer(torch_weight)
-        print("    [{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
+        print("    After: [{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
 
         tf_layer.set_weights(torch_weight)
 
@@ -129,8 +131,8 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
 
 
 def keras_reload_from_torch_model(
-    torch_model,
-    keras_model,
+    torch_model,    # Torch model, Torch state_dict wights or Torch model weights file
+    keras_model=None,
     input_resolution=(224, 224),
     skip_weights=["num_batches_tracked"],
     unstack_weights=[],
@@ -144,30 +146,44 @@ def keras_reload_from_torch_model(
     import torch
     import numpy as np
     import tensorflow as tf
-    from torchsummary import summary
     from skimage.data import chelsea
 
-    _ = torch_model.eval()
-    summary(torch_model, (3, *input_resolution))
+    if isinstance(torch_model, str):
+        print(">>>> Reload Torch weight file:", torch_model)
+        torch_model = torch.load(torch_model, map_location=torch.device('cpu'))
+    is_state_dict = isinstance(torch_model, dict)
 
-    """ Torch Run predict """
+    """ Chelsea the cat  """
     img = chelsea()
     img = keras.applications.imagenet_utils.preprocess_input(tf.image.resize(img, input_resolution), mode="torch").numpy()
-    out = torch_model(torch.from_numpy(np.expand_dims(img.transpose(2, 0, 1), 0).astype("float32")))
-    out = out.detach().cpu().numpy()
-    # out = tf.nn.softmax(out).numpy()  # If classifier activation is not softmax
-    torch_out = keras.applications.imagenet_utils.decode_predictions(out)
+
+    if not is_state_dict:
+        from torchsummary import summary
+        _ = torch_model.eval()
+        summary(torch_model, (3, *input_resolution))
+        state_dict = torch_model.state_dict()
+
+        """ Torch Run predict """
+        out = torch_model(torch.from_numpy(np.expand_dims(img.transpose(2, 0, 1), 0).astype("float32")))
+        out = out.detach().cpu().numpy()
+        # out = tf.nn.softmax(out).numpy()  # If classifier activation is not softmax
+        torch_out = keras.applications.imagenet_utils.decode_predictions(out)
+    else:
+        state_dict = torch_model
 
     """ Convert torch weights """
     torch_params = {
-        kk: (np.cumproduct(vv.shape)[-1] if len(vv.shape) != 0 else 1) for kk, vv in torch_model.state_dict().items() if ".num_batches_tracked" not in kk
+        kk: (np.cumproduct(vv.shape)[-1] if len(vv.shape) != 0 else 1) for kk, vv in state_dict.items() if ".num_batches_tracked" not in kk
     }
     print(">>>> torch_model total_parameters :", np.sum(list(torch_params.values())))
-    stacked_state_dict = state_dict_stack_by_layer(torch_model.state_dict(), skip_weights=skip_weights, unstack_weights=unstack_weights)
+    stacked_state_dict = state_dict_stack_by_layer(state_dict, skip_weights=skip_weights, unstack_weights=unstack_weights)
     aa = {kk: [1 if isinstance(jj, float) else jj.shape for jj in vv] for kk, vv in stacked_state_dict.items()}
     print(">>>> Torch weights:")
     _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
     print()
+
+    if keras_model is None:
+        return
 
     """ Keras model weights """
     target_names = [ii.name for ii in keras_model.layers if len(ii.weights) != 0]
@@ -192,8 +208,9 @@ def keras_reload_from_torch_model(
     print()
 
     """ Keras run predict """
-    pred = keras_model(tf.expand_dims(tf.image.resize(img, keras_model.input_shape[1:3]), 0)).numpy()
+    pred = keras_model(tf.expand_dims(img, 0)).numpy()
     # pred = tf.nn.softmax(pred).numpy()  # If classifier activation is not softmax
     print(">>>> Keras model prediction:", keras.applications.imagenet_utils.decode_predictions(pred)[0])
     print()
-    print(">>>> Torch model prediction:", torch_out)
+    if not is_state_dict:
+        print(">>>> Torch model prediction:", torch_out)
