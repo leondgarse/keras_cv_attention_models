@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-import numpy as np
-from tqdm import tqdm
 from keras_cv_attention_models.imagenet import evaluation
-from keras_cv_attention_models.model_surgery import change_model_input_shape
 import tensorflow as tf
 
 
