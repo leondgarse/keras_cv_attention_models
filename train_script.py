@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import os
 import tensorflow as tf
-from tensorflow import keras
-from keras_cv_attention_models.imagenet import callbacks
 import tensorflow_addons as tfa
+import keras_cv_attention_models
+from tensorflow import keras
+from keras_cv_attention_models.imagenet import data, callbacks
 
 
 def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoch=0, lr_scheduler=None, basic_save_name=None):
@@ -51,50 +52,6 @@ def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoc
     )
 
 
-def plot_and_peak_scatter(ax, array, peak_method, label, color=None, **kwargs):
-    for id, ii in enumerate(array):
-        if tf.math.is_nan(ii):
-            array[id] = array[id - 1]
-    ax.plot(array, label=label, color=color, **kwargs)
-    pp = peak_method(array)
-    vv = array[pp]
-    ax.scatter(pp, vv, color=color, marker="v")
-    ax.text(pp, vv, "{:.4f}".format(vv), va="bottom", ha="right", fontsize=9, rotation=0)
-
-
-def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"]):
-    import os
-    import json
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    num_axes = 3 if addition_plots is not None and len(addition_plots) != 0 else 2
-    fig, axes = plt.subplots(1, num_axes, figsize=(num_axes * base_size, base_size))
-    for id, hist in enumerate(hists):
-        name = names[id] if names != None else None
-        if isinstance(hist, str):
-            name = name if name != None else os.path.splitext(os.path.basename(hist))[0]
-            with open(hist, "r") as ff:
-                hist = json.load(ff)
-        name = name if name != None else str(id)
-
-        plot_and_peak_scatter(axes[0], hist["loss"], peak_method=np.argmin, label=name + " loss", color=None)
-        color = axes[0].lines[-1].get_color()
-        plot_and_peak_scatter(axes[0], hist["val_loss"], peak_method=np.argmin, label=name + " val_loss", color=color, linestyle="--")
-        acc = hist.get("acc", hist.get("accuracy", []))
-        plot_and_peak_scatter(axes[1], acc, peak_method=np.argmax, label=name + " accuracy", color=color)
-        val_acc = hist.get("val_acc", hist.get("val_accuracy", []))
-        plot_and_peak_scatter(axes[1], val_acc, peak_method=np.argmax, label=name + " val_accuracy", color=color, linestyle="--")
-        if addition_plots is not None and len(addition_plots) != 0:
-            for ii in addition_plots:
-                plot_and_peak_scatter(axes[2], hist[ii], peak_method=np.argmin, label=name + " " + ii, color=color)
-    for ax in axes:
-        ax.legend()
-        ax.grid(True)
-    fig.tight_layout()
-    return fig
-
-
 def parse_arguments(argv):
     import argparse
 
@@ -104,18 +61,29 @@ def parse_arguments(argv):
     parser.add_argument("-b", "--batch_size", type=int, default=256, help="Batch size")
     parser.add_argument("-e", "--epochs", type=int, default=105, help="Total epochs")
     parser.add_argument("-d", "--data_name", type=str, default="imagenet2012", help="Dataset name from tensorflow_datasets like imagenet2012 cifar10")
-    parser.add_argument("-p", "--optimizer", type=str, default="LAMB", help="Optimizer name")
+    parser.add_argument("-p", "--optimizer", type=str, default="LAMB", help="Optimizer name. One of [SGD, LAMB, AdamW].")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
     parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history. None means a combination of parameters")
     parser.add_argument("-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 file. Higher priority than model")
+    parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights")
 
     """ Loss parameters """
     parser.add_argument("--label_smoothing", type=float, default=0, help="[Loss] Label smoothing value")
 
     """ Learning rate and weight decay parameters """
     parser.add_argument("--lr_base_512", type=float, default=8e-3, help="[Learning_rate] Lr for batch_size=512")
-    parser.add_argument("--weight_decay", type=float, default=0.02, help="[Weight_decay] For SGD, it's L2 value. For AdamW, it will multiply with learning_rate. For LAMB, it's directly used")
-    parser.add_argument("--lr_decay_steps", type=str, default="100", help="[Learning_rate] Lr decay steps. Single value like 100 for cosine decay. Set 30,60,90 for constant decay steps")
+    parser.add_argument(
+        "--weight_decay",
+        type=float,
+        default=0.02,
+        help="[Weight_decay] For SGD, it's L2 value. For AdamW, it will multiply with learning_rate. For LAMB, it's directly used",
+    )
+    parser.add_argument(
+        "--lr_decay_steps",
+        type=str,
+        default="100",
+        help="[Learning_rate] Lr decay steps. Single value like 100 for cosine decay. Set 30,60,90 for constant decay steps",
+    )
     parser.add_argument("--lr_warmup", type=int, default=5, help="[Learning_rate] Lr warmup epochs")
     parser.add_argument("--lr_min", type=float, default=1e-6, help="[Learning_rate] Lr minimum value")
 
@@ -148,13 +116,10 @@ if __name__ == "__main__":
         tf.config.experimental.set_memory_growth(gpu, True)
     strategy = tf.distribute.MirroredStrategy() if len(gpus) > 1 else tf.distribute.OneDeviceStrategy(device="/gpu:0")
 
-    import tensorflow_addons as tfa
-    import keras_cv_attention_models
-    from keras_cv_attention_models import imagenet
-    from keras_cv_attention_models.imagenet import data, callbacks, train
     # from keras_cv_attention_models import aotnet, coatnet, cmt
 
     import sys
+
     args = parse_arguments(sys.argv[1:])
     print(args)
 
@@ -172,6 +137,7 @@ if __name__ == "__main__":
     initial_epoch = args.initial_epoch
     basic_save_name = args.basic_save_name
     restore_path = args.restore_path
+    pretrained = args.pretrained
 
     train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = data.init_dataset(
         data_name=args.data_name,
@@ -210,9 +176,9 @@ if __name__ == "__main__":
             # model = keras.applications.ResNet50(weights=None, input_shape=input_shape)
             # model = aotnet.AotNet50(num_classes=num_classes, input_shape=input_shape)
             if len(model) == 1:
-                model = getattr(keras.applications, model[0])(classes=num_classes, weights=None, input_shape=input_shape)
+                model = getattr(keras.applications, model[0])(classes=num_classes, weights=pretrained, input_shape=input_shape)
             else:
-                model = getattr(getattr(keras_cv_attention_models, model[0]), model[1])(num_classes=num_classes, input_shape=input_shape)
+                model = getattr(getattr(keras_cv_attention_models, model[0]), model[1])(num_classes=num_classes, input_shape=input_shape, pretrained=pretrained)
             print(">>>> Built model name:", model.name)
         # sys.exit()
 

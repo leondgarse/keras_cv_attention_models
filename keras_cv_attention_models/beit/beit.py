@@ -72,12 +72,12 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
     def load_resized_pos_emb(self, source_layer):
         hh = ww = int(tf.math.sqrt(float(source_layer.relative_position_bias_table.shape[0] - source_layer.cls_token_pos_len)))
         num_heads = source_layer.relative_position_bias_table.shape[-1]
-        ss = tf.reshape(source_layer.relative_position_bias_table[:hh * ww], (hh, ww, num_heads))  # [hh, ww, num_heads]
+        ss = tf.reshape(source_layer.relative_position_bias_table[: hh * ww], (hh, ww, num_heads))  # [hh, ww, num_heads]
         target_hh = target_ww = int(tf.math.sqrt(float(self.relative_position_bias_table.shape[0] - self.cls_token_pos_len)))
         tt = tf.image.resize(ss, [target_hh, target_ww])  # [target_hh, target_ww, num_heads]
         tt = tf.reshape(tt, (tt.shape[0] * tt.shape[1], num_heads))  # [target_hh * target_ww, num_heads]
         if self.with_cls_token:
-            tt = tf.concat([tt, source_layer.relative_position_bias_table[-source_layer.cls_token_pos_len:]], axis=0)
+            tt = tf.concat([tt, source_layer.relative_position_bias_table[-source_layer.cls_token_pos_len :]], axis=0)
         self.relative_position_bias_table.assign(tt)
 
 

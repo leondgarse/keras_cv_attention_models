@@ -131,7 +131,7 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
 
 
 def keras_reload_from_torch_model(
-    torch_model,    # Torch model, Torch state_dict wights or Torch model weights file
+    torch_model,  # Torch model, Torch state_dict wights or Torch model weights file
     keras_model=None,
     input_resolution=(224, 224),
     skip_weights=["num_batches_tracked"],
@@ -150,7 +150,7 @@ def keras_reload_from_torch_model(
 
     if isinstance(torch_model, str):
         print(">>>> Reload Torch weight file:", torch_model)
-        torch_model = torch.load(torch_model, map_location=torch.device('cpu'))
+        torch_model = torch.load(torch_model, map_location=torch.device("cpu"))
     is_state_dict = isinstance(torch_model, dict)
 
     """ Chelsea the cat  """
@@ -159,6 +159,7 @@ def keras_reload_from_torch_model(
 
     if not is_state_dict:
         from torchsummary import summary
+
         _ = torch_model.eval()
         summary(torch_model, (3, *input_resolution))
         state_dict = torch_model.state_dict()
@@ -172,9 +173,7 @@ def keras_reload_from_torch_model(
         state_dict = torch_model
 
     """ Convert torch weights """
-    torch_params = {
-        kk: (np.cumproduct(vv.shape)[-1] if len(vv.shape) != 0 else 1) for kk, vv in state_dict.items() if ".num_batches_tracked" not in kk
-    }
+    torch_params = {kk: (np.cumproduct(vv.shape)[-1] if len(vv.shape) != 0 else 1) for kk, vv in state_dict.items() if ".num_batches_tracked" not in kk}
     print(">>>> torch_model total_parameters :", np.sum(list(torch_params.values())))
     stacked_state_dict = state_dict_stack_by_layer(state_dict, skip_weights=skip_weights, unstack_weights=unstack_weights)
     aa = {kk: [1 if isinstance(jj, float) else jj.shape for jj in vv] for kk, vv in stacked_state_dict.items()}

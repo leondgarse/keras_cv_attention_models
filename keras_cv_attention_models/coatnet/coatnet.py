@@ -238,6 +238,7 @@ def CoAtNet6(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cla
     head_dimension = 128
     return CoAtNet(**locals(), model_name="coatnet6", **kwargs)
 
+
 def CoAtNet7(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
     num_blocks = [2, 4, 8, 42, 2]
     out_channels = [256, 512, 1024, 2048, 3072]

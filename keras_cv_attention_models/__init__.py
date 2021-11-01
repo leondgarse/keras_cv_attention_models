@@ -23,6 +23,7 @@ from keras_cv_attention_models.resnet_family import regnet
 from keras_cv_attention_models import volo
 from keras_cv_attention_models import download_and_load
 from keras_cv_attention_models import visualizing
+from keras_cv_attention_models import imagenet
 # Import efficientnetv1 and efficientnetv2 from my another project keras-efficientnet-v2
 # Detail in github: https://github.com/leondgarse/keras_efficientnet_v2
 # import keras_efficientnet_v2 as efficientnet

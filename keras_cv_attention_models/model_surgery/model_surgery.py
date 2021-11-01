@@ -173,7 +173,7 @@ def change_model_input_shape(model, new_input_shape):
         return model
 
     aa = json.loads(model.to_json())
-    aa['config']['layers'][0]['config']['batch_input_shape'] = [None, *new_input_shape[:2], 3]
+    aa["config"]["layers"][0]["config"]["batch_input_shape"] = [None, *new_input_shape[:2], 3]
     bb = tf.keras.models.model_from_json(json.dumps(aa))
     temp_name = "__change_model_input_shape_temp__.h5"
     model.save_weights(temp_name)

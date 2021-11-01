@@ -189,6 +189,7 @@ class RandomProcessImage:
         label = datapoint["label"]
         return input_image, label
 
+
 def evaluation_process_crop_resize(datapoint, target_shape=(224, 224), central_crop=1.0, resize_method="bilinear"):
     image = datapoint["image"]
     shape = tf.shape(image)
@@ -199,6 +200,7 @@ def evaluation_process_crop_resize(datapoint, target_shape=(224, 224), central_c
     image = tf.image.resize(image, target_shape, method=resize_method)
     label = datapoint["label"]
     return image, label
+
 
 def evaluation_process_resize_crop(datapoint, target_shape=(224, 224), central_crop=1.0, resize_method="bilinear"):
     image = datapoint["image"]
@@ -331,7 +333,7 @@ def init_dataset(
     )
     train_dataset = dataset["train"].shuffle(buffer_size).map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE)
 
-    if isinstance(rescale_mode, (list, tuple)): # Specific mean and std
+    if isinstance(rescale_mode, (list, tuple)):  # Specific mean and std
         mean, std = rescale_mode
         rescaling = lambda xx: (xx - mean) / std
     elif rescale_mode == "torch":

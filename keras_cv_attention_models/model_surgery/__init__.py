@@ -2,6 +2,7 @@ from keras_cv_attention_models.model_surgery.model_surgery import (
     SAMModel,
     DropConnect,
     add_l2_regularizer_2_model,
+    change_model_input_shape,
     convert_to_mixed_float16,
     convert_mixed_float16_to_float32,
     convert_to_fused_conv_bn_model,
