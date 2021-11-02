@@ -1,7 +1,7 @@
 from keras_cv_attention_models.resnet_family.resnext import ResNeXt, ResNeXt50, ResNeXt101, ResNeXt50D, ResNeXt101W
 from keras_cv_attention_models.resnet_family.resnet_quad import ResNetQ, ResNet51Q, ResNet61Q
 from keras_cv_attention_models.resnet_family.resnet_deep import ResNetD, ResNet50D, ResNet101D, ResNet152D, ResNet200D
-from keras_cv_attention_models.resnet_family.regnet import RegNetZB, RegNetZC, RegNetZD
+from keras_cv_attention_models.resnet_family.regnet import RegNetY, RegNetY040, RegNetY080, RegNetY160, RegNetY320, RegNetZB, RegNetZC, RegNetZD
 
 
 __resnext_head_doc__ = """
@@ -14,8 +14,13 @@ Pre-trained `swsl` means `Semi-Weakly Supervised ResNe*t`
 """
 
 __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, default `(224, 224, 3)`.
+    Set `(None, None, 3)` for dynamic input shape.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
-  activation: activation used in whole model, default `relu`.
+  activation: activation used in whole model.
+  drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
+      Can be value like `0.2`, indicates the drop probability linearly changes from `0 --> 0.2` for `top --> bottom` layers.
+      A higher value means a higher probability will drop the deep branch.
+      or `0` to disable (default).
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `softmax`.
@@ -149,30 +154,45 @@ ResNet61Q.__doc__ = __resnetq_head_doc__ + """
 Args:
 """ + __resnetq_tail_doc__
 
+__regnety_head_doc__ = """
+Keras implementation of [Github facebookresearch/regnet](https://github.com/facebookresearch/pycls/blob/main/pycls/models/regnet.py).
+Paper [PDF 2003.13678 Designing Network Design Spaces](https://arxiv.org/pdf/2003.13678.pdf).
+Model weights loaded from [timm/regnet](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/regnet.py).
+Paper [PDF 2110.00476 ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf).
+"""
+
+RegNetY.__doc__ = __regnety_head_doc__ + """
+Args:
+  num_blocks: number of blocks in each stack.
+  out_channels: Output channel for each stack.
+  model_name: string, model name.
+""" + __tail_doc__.format(pretrained_list=[None, "imagenet"]) + """
+Model architectures:
+  | Model      | Params  | Image resolution | Top1 Acc |
+  | ---------- | ------- | ---------------- | -------- |
+  | RegNetY040 | 20.65M  | 224              | 81.5     |
+  | RegNetY080 | 39.18M  | 224              | 82.2     |
+  | RegNetY160 | 83.59M  | 224              | 82.0     |
+  | RegNetY320 | 145.05M | 224              | 82.5     |
+"""
+
+__regnety_default_doc__ = __regnety_head_doc__ + """
+Args:
+""" + __tail_doc__.format(pretrained_list=[None, "imagenet"])
+
+RegNetY040.__doc__ = __regnety_default_doc__
+RegNetY080.__doc__ = __regnety_default_doc__
+RegNetY160.__doc__ = __regnety_default_doc__
+RegNetY320.__doc__ = __regnety_default_doc__
+
 __regnetz_head_doc__ = """
 Github source [leondgarse/keras_cv_attention_models](https://github.com/leondgarse/keras_cv_attention_models).
 Defined and model weights loaded from [timm](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/byobnet.py).
 """
 
-__regnetz_tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, default `(224, 224, 3)`.
-      Set `(None, None, 3)` for dynamic input shape.
-  num_classes: number of classes to classify images into. Set `0` to exclude top layers.
-  activation: activation used in whole model, default `swish`.
-  drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
-      Can be value like `0.2`, indicates the drop probability linearly changes from `0 --> 0.2` for `top --> bottom` layers.
-      A higher value means a higher probability will drop the deep branch.
-      or `0` to disable (default).
-  classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
-      Set `classifier_activation=None` to return the logits of the "top" layer.
-      Default is `softmax`.
-  pretrained: value in [None, "imagenet"].
-      Will try to download and load pre-trained model weights if not None.
-      Save path is `~/.keras/models/`.
-  **kwargs: other parameters in `keras_cv_attention_models.aotnet.AotNet` if not conflict.
-
-Returns:
-    A `keras.Model` instance.
-
+__regnetz_default_doc__ = __regnetz_head_doc__ + """
+Args:
+""" + __tail_doc__.format(pretrained_list=[None, "imagenet"]) + """
 Model architectures:
   | Model     | Params | Image resolution | Top1 Acc |
   | --------- | ------ | ---------------- | -------- |
@@ -181,8 +201,6 @@ Model architectures:
   | RegNetZD  | 27.58M | 256              | 83.422   |
 """
 
-RegNetZB.__doc__ = __regnetz_head_doc__ + """
-Args:
-""" + __regnetz_tail_doc__
-RegNetZC.__doc__ = RegNetZB.__doc__
-RegNetZD.__doc__ = RegNetZB.__doc__
+RegNetZB.__doc__ = __regnetz_default_doc__
+RegNetZC.__doc__ = __regnetz_default_doc__
+RegNetZD.__doc__ = __regnetz_default_doc__

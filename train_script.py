@@ -25,7 +25,8 @@ def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoc
     cur_callbacks = [callbacks.MyCheckpoint(basic_save_name, monitor="val_acc")]
     hist_file = os.path.join("checkpoints", basic_save_name + "_hist.json")
     if initial_epoch == 0 and os.path.exists(hist_file):
-        os.remove(hist_file)
+        # os.remove(hist_file)
+        os.rename(hist_file, hist_file + ".bak")
     cur_callbacks.append(callbacks.MyHistory(initial_file=hist_file))
     cur_callbacks.append(keras.callbacks.TerminateOnNaN())
     if lr_scheduler is not None:
@@ -66,6 +67,7 @@ def parse_arguments(argv):
     parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history. None means a combination of parameters")
     parser.add_argument("-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 file. Higher priority than model")
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights")
+    parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
 
     """ Loss parameters """
     parser.add_argument("--label_smoothing", type=float, default=0, help="[Loss] Label smoothing value")
@@ -117,11 +119,13 @@ if __name__ == "__main__":
     strategy = tf.distribute.MirroredStrategy() if len(gpus) > 1 else tf.distribute.OneDeviceStrategy(device="/gpu:0")
 
     # from keras_cv_attention_models import aotnet, coatnet, cmt
-
     import sys
 
     args = parse_arguments(sys.argv[1:])
     print(args)
+    if args.seed is not None:
+        print(">>>> Set random seed:", args.seed)
+        tf.random.set_seed(args.seed)
 
     model = args.model.strip().split(".")
     input_shape = (args.input_shape, args.input_shape, 3)
@@ -197,7 +201,9 @@ if __name__ == "__main__":
 
         compiled_opt = model.optimizer
         compiled_opt = compiled_opt.inner_optimizer if isinstance(compiled_opt, keras.mixed_precision.LossScaleOptimizer) else compiled_opt
-        if basic_save_name is None:
+        if basic_save_name is None and restore_path is not None:
+            basic_save_name = os.path.splitext(os.path.basename(restore_path))[0]
+        elif basic_save_name is None:
             basic_save_name = "{}_{}_{}_lr{}_wd{}".format(model.name, combined_name, compiled_opt.__class__.__name__, lr_base_512, weight_decay)
         print(">>>> basic_save_name =", basic_save_name)
         # sys.exit()

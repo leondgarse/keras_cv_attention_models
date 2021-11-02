@@ -2,10 +2,73 @@ from keras_cv_attention_models.aotnet import AotNet
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
+    "regnety_040": {"imagenet": "1d479a6e84635283e5f6340d945f1866"},
+    "regnety_080": {"imagenet": "537d6e015de12be18458776e6d911555"},
+    "regnety_160": {"imagenet": "7a039bfb1e006571991a19b5e3fbd0d1"},
+    "regnety_320": {"imagenet": "20fbbf6de39635b89ae284ac0574c4cf"},
     "regnetz_b": {"imagenet": "9f03b9e885c6918db54374b74f355eb9"},
     "regnetz_c": {"imagenet": "cfa0cf70aa724d8e79633641208d7d39"},
     "regnetz_d": {"imagenet": "b76e7c68a309a3697ffb5f30c0aeeea6"},
 }
+
+
+def RegNetY(num_blocks, out_channels, input_shape=(224, 224, 3), hidden_channel_ratio=1, stem_width=32, se_ratio=0.25, pretrained="imagenet", **kwargs):
+    strides = [2, 2, 2, 2]
+    stem_type = "kernel_3x3"
+    stem_downsample = False
+    # se_ratio using input_channel
+    # se_ratio = [[se_ratio * (stem_width if id == 0 else out_channels[id - 1]) / out_channels[id]] + [se_ratio] * bb for id, bb in enumerate(num_blocks)]
+    se_ratio = [
+        [se_ratio * stem_width / out_channels[0]] + [se_ratio] * num_blocks[0],
+        [se_ratio * out_channels[0] / out_channels[1]] + [se_ratio] * num_blocks[1],
+        [se_ratio * out_channels[1] / out_channels[2]] + [se_ratio] * num_blocks[2],
+        [se_ratio * out_channels[2] / out_channels[3]] + [se_ratio] * num_blocks[3],
+    ]
+    attn_params = {"se_divisor": 1}
+    kwargs.pop("kwargs", None)
+    model = AotNet(**locals(), **kwargs)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
+    return model
+
+
+def RegNetY032(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [2, 5, 13, 1]
+    out_channels = [72, 216, 576, 1512]
+    group_size = 24
+    model = RegNetY(**locals(), model_name="regnety_032", **kwargs)
+    return model
+
+
+def RegNetY040(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [2, 6, 12, 2]
+    out_channels = [128, 192, 512, 1088]
+    group_size = 64
+    model = RegNetY(**locals(), model_name="regnety_040", **kwargs)
+    return model
+
+
+def RegNetY080(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [2, 4, 10, 1]
+    out_channels = [168, 448, 896, 2016]
+    group_size = 56
+    model = RegNetY(**locals(), model_name="regnety_080", **kwargs)
+    return model
+
+
+def RegNetY160(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [2, 4, 11, 1]
+    out_channels = [224, 448, 1232, 3024]
+    group_size = 112
+    model = RegNetY(**locals(), model_name="regnety_160", **kwargs)
+    return model
+
+
+def RegNetY320(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [2, 5, 12, 1]
+    out_channels = [232, 696, 1392, 3712]
+    group_size = 232
+    model = RegNetY(**locals(), model_name="regnety_320", **kwargs)
+    return model
 
 
 def RegNetZB(input_shape=(224, 224, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):

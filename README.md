@@ -18,6 +18,7 @@
   - [LeViT](#levit)
   - [MLP mixer](#mlp-mixer)
   - [NFNets](#nfnets)
+  - [RegNetY](#regnety)
   - [RegNetZ](#regnetz)
   - [ResMLP](#resmlp)
   - [ResNeSt](#resnest)
@@ -242,6 +243,15 @@
   | ECA_NFNetL1 | 41.41M | 320               | 84.01    | [eca_nfnetl1_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/eca_nfnetl1_imagenet.h5) |
   | ECA_NFNetL2 | 56.72M | 384               | 84.70    | [eca_nfnetl2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/eca_nfnetl2_imagenet.h5) |
   | ECA_NFNetL3 | 72.04M | 448               |          |          |
+## RegNetY
+  - [Keras RegNetY](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnet_family#regnety) is for [PDF 2003.13678 Designing Network Design Spaces](https://arxiv.org/pdf/2003.13678.pdf).
+
+  | Model      | Params  | Image resolution | Top1 Acc | Download |
+  | ---------- | ------- | ---------------- | -------- | -------- |
+  | RegNetY040 | 20.65M  | 224              | 81.5     | [regnety_040_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_040_imagenet.h5) |
+  | RegNetY080 | 39.18M  | 224              | 82.2     | [regnety_080_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_080_imagenet.h5) |
+  | RegNetY160 | 83.59M  | 224              | 82.0     | [regnety_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_160_imagenet.h5) |
+  | RegNetY320 | 145.05M | 224              | 82.5     | [regnety_320_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_320_imagenet.h5) |
 ## RegNetZ
   - [Keras RegNetZ](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnet_family#regnetz) includes implementation of [Github timm/models/byobnet.py](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/byobnet.py).
 

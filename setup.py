@@ -14,7 +14,7 @@ exec(open("keras_cv_attention_models/version.py").read())
 setup(
     name="keras-cv-attention-models",
     version=__version__,
-    description="Tensorflow keras computer vision  attention models",
+    description="Tensorflow keras computer vision attention models. Including beit,botnet,CoaT,CoAtNet,CMT,cotnet,gmlp,halonet,levit,mlp-mixer,nfnets,regnet,resmlp,resnest,resnext,resnetd,volo",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/leondgarse/keras_cv_attention_models",
@@ -39,7 +39,7 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
     # Note that this is a string of words separated by whitespace, not a list.
-    keywords="tensorflow keras cv attension pretrained models",
+    keywords="tensorflow keras cv attention pretrained models beit botnet coat coatnet cmt cotnet gmlp halonet levit mlp-mixer nfnets regnet resmlp resnest resnext resnetd volo",
     packages=find_packages(exclude=["tests"]),
     include_package_data=True,
     install_requires=["tensorflow", "tensorflow-addons", "tensorflow-datasets"],

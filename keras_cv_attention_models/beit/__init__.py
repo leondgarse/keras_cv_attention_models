@@ -63,9 +63,13 @@ BeitLargePatch16.__doc__ = BeitBasePatch16.__doc__
 MultiHeadRelativePositionalEmbedding.__doc__ = __head_doc__ + """
 Multi Head Relative Positional Embedding layer.
 
-input: `[batch, num_heads, attn_blocks, attn_blocks]`. where `attn_blocks = attn_height * attn_width + class_token`
+input (with_cls_token=True): `[batch, num_heads, attn_blocks, attn_blocks]`. where `attn_blocks = attn_height * attn_width + class_token`
+input (with_cls_token=False): `[batch, num_heads, attn_blocks, attn_blocks]`. where `attn_blocks = attn_height * attn_width`
 output: `[batch, num_heads, attn_blocks, attn_blocks] + positional_bias`.
 conditions: attn_height == attn_width
+
+Args:
+  with_cls_token: boolean value if input is with class_token.
 
 Examples:
 
@@ -73,9 +77,14 @@ Examples:
 >>> aa = attention_layers.MultiHeadRelativePositionalEmbedding()
 >>> print(f"{aa(tf.ones([1, 8, 29 * 29 + 1, 29 * 29 + 1])).shape = }")
 # aa(tf.ones([1, 8, 29 * 29 + 1, 29 * 29 + 1])).shape = TensorShape([1, 8, 842, 842])
-
 >>> print({ii.name:ii.numpy().shape for ii in aa.weights})
 # {'multi_head_relative_positional_embedding/pos_emb:0': (3252, 8)}
+
+>>> aa = attention_layers.MultiHeadRelativePositionalEmbedding(with_cls_token=False)
+>>> print(f"{aa(tf.ones([1, 8, 29 * 29, 29 * 29])).shape = }")
+# aa(tf.ones([1, 8, 29 * 29, 29 * 29])).shape = TensorShape([1, 8, 841, 841])
+>>> print({ii.name:ii.numpy().shape for ii in aa.weights})
+# {'multi_head_relative_positional_embedding_1/pos_emb:0': (3249, 8)}
 
 >>> plt.imshow(aa.relative_position_index)
 """

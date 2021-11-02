@@ -25,19 +25,19 @@ def test_BotNet_defination():
     assert isinstance(mm, keras.models.Model)
 
 
-def test_CoaT_defination():
-    mm = keras_cv_attention_models.coat.CoaTLiteMini(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
-
-    mm = keras_cv_attention_models.coat.CoaTLiteSmall(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
-
-
 def test_CMT_defination():
     mm = keras_cv_attention_models.cmt.CMTTiny(pretrained=None)
     assert isinstance(mm, keras.models.Model)
 
     mm = keras_cv_attention_models.cmt.CMTXS(pretrained=None, num_classes=0)
+    assert isinstance(mm, keras.models.Model)
+
+
+def test_CoaT_defination():
+    mm = keras_cv_attention_models.coat.CoaTLiteMini(pretrained=None)
+    assert isinstance(mm, keras.models.Model)
+
+    mm = keras_cv_attention_models.coat.CoaTLiteSmall(pretrained=None, num_classes=0)
     assert isinstance(mm, keras.models.Model)
 
 
@@ -118,6 +118,14 @@ def test_ECA_NFNetL_defination():
     assert isinstance(mm, keras.models.Model)
 
     mm = keras_cv_attention_models.nfnets.ECA_NFNetL1(pretrained=None, num_classes=0)
+    assert isinstance(mm, keras.models.Model)
+
+
+def test_RegNet_defination():
+    mm = keras_cv_attention_models.resnet_family.RegNetY040(pretrained=None)
+    assert isinstance(mm, keras.models.Model)
+
+    mm = keras_cv_attention_models.resnest.RegNetZC(pretrained=None, num_classes=0)
     assert isinstance(mm, keras.models.Model)
 
 

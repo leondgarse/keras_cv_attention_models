@@ -49,6 +49,7 @@ def attn_block(
         attn_params = DEFAULT_PARAMS.get(attn_type, {})
 
     attn_act = attn_params.pop("activation", activation)
+    se_divisor = attn_params.pop("se_divisor", 8)
     if attn_type == "bot":  # mhsa_with_relative_position_embedding from botnet
         nn = attention_layers.mhsa_with_relative_position_embedding(nn, **attn_params, name=name + "mhsa_")
     elif attn_type == "halo":  # halo_attention from halonet
@@ -76,7 +77,7 @@ def attn_block(
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name)
 
     if attn_type is None and se_ratio:
-        nn = se_module(nn, se_ratio=se_ratio, activation=attn_act, name=name + "se_")
+        nn = se_module(nn, se_ratio=se_ratio, divisor=se_divisor, activation=attn_act, name=name + "se_")
 
     if attn_type is None and use_eca:
         nn = eca_module(nn, name=name + "eca_")
@@ -162,7 +163,7 @@ def aot_block(
     # print(f">>>> {inputs.shape = }, {shortcut if shortcut is None else shortcut.shape = }, {deep.shape = }, {filters = }, {strides = }")
     if preact:  # ResNetV2
         deep = drop_block(deep, drop_rate)
-        return keras.layers.Add(name=name + "add")([shortcut, deep])
+        return keras.layers.Add(name=name + "add")([shortcut, deep]) if shortcut is not None else deep  # if no shortcut
     else:
         deep = batchnorm_with_activation(deep, activation=None, zero_gamma=True, name=name + "3_")
         deep = drop_block(deep, drop_rate)
