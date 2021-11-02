@@ -104,10 +104,8 @@
   | --------- | ------ | ---------------- | -------- | -------- |
   | ResNet51Q | 35.7M  | 224              | 82.36    | [resnet51q.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet51q_imagenet.h5) |
 ## RegNetY
-  - Keras implementation of [Github facebookresearch/regnet](https://github.com/facebookresearch/pycls/blob/main/pycls/models/regnet.py).
-  - Paper [PDF 2003.13678 Designing Network Design Spaces](https://arxiv.org/pdf/2003.13678.pdf).
-  - Model weights loaded from [timm/regnet](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/regnet.py).
-  - Paper [PDF 2110.00476 ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf).
+  - Keras implementation of [Github facebookresearch/regnet](https://github.com/facebookresearch/pycls/blob/main/pycls/models/regnet.py). Paper [PDF 2003.13678 Designing Network Design Spaces](https://arxiv.org/pdf/2003.13678.pdf).
+  - Model weights loaded from [timm/regnet](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/regnet.py). Paper [PDF 2110.00476 ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf).
 
   | Model      | Params  | Image resolution | Top1 Acc | Download |
   | ---------- | ------- | ---------------- | -------- | -------- |
