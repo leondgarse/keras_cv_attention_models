@@ -69,35 +69,38 @@ def parse_arguments(argv):
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights")
     parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
 
-    """ Loss parameters """
-    parser.add_argument("--label_smoothing", type=float, default=0, help="[Loss] Label smoothing value")
+    """ Loss arguments """
+    loss_group = parser.add_argument_group("Loss arguments")
+    loss_group.add_argument("--label_smoothing", type=float, default=0, help="Loss label smoothing value")
 
-    """ Learning rate and weight decay parameters """
-    parser.add_argument("--lr_base_512", type=float, default=8e-3, help="[Learning_rate] Lr for batch_size=512")
-    parser.add_argument(
+    """ Learning rate and weight decay arguments """
+    lr_group = parser.add_argument_group("Learning rate and weight decay arguments")
+    lr_group.add_argument("--lr_base_512", type=float, default=8e-3, help="Learning rate for batch_size=512")
+    lr_group.add_argument(
         "--weight_decay",
         type=float,
         default=0.02,
-        help="[Weight_decay] For SGD, it's L2 value. For AdamW, it will multiply with learning_rate. For LAMB, it's directly used",
+        help="Weight decay. For SGD, it's L2 value. For AdamW, it will multiply with learning_rate. For LAMB, it's directly used",
     )
-    parser.add_argument(
+    lr_group.add_argument(
         "--lr_decay_steps",
         type=str,
         default="100",
-        help="[Learning_rate] Lr decay steps. Single value like 100 for cosine decay. Set 30,60,90 for constant decay steps",
+        help="Learning rate decay steps. Single value like 100 for cosine decay. Set 30,60,90 for constant decay steps",
     )
-    parser.add_argument("--lr_warmup", type=int, default=5, help="[Learning_rate] Lr warmup epochs")
-    parser.add_argument("--lr_min", type=float, default=1e-6, help="[Learning_rate] Lr minimum value")
+    lr_group.add_argument("--lr_warmup", type=int, default=5, help="Learning rate warmup epochs")
+    lr_group.add_argument("--lr_min", type=float, default=1e-6, help="Learning rate minimum value")
 
     """ Dataset parameters """
-    parser.add_argument("--magnitude", type=int, default=6, help="[Dataset] Randaug magnitude value")
-    parser.add_argument("--mixup_alpha", type=float, default=0.1, help="[Dataset] Mixup alpha value")
-    parser.add_argument("--cutmix_alpha", type=float, default=1.0, help="[Dataset] Cutmix alpha value")
-    parser.add_argument("--random_crop_min", type=float, default=0.08, help="[Dataset] Random crop min value for RRC. Set 1 to disable RRC")
-    parser.add_argument("--random_erasing_prob", type=float, default=0, help="[Dataset] Random erasing prob, can be used to replace cutout. Set 0 to disable")
-    parser.add_argument("--rescale_mode", type=str, default="torch", help="[Dataset] Rescale mode, one of [tf, torch]")
-    parser.add_argument("--central_crop", type=float, default=1.0, help="[Dataset] Central crop fraction. Set 1 to disable")
-    parser.add_argument("--resize_method", type=str, default="bicubic", help="[Dataset] Resize method from tf.image.resize, like [bilinear, bicubic]")
+    ds_group = parser.add_argument_group("Dataset arguments")
+    ds_group.add_argument("--magnitude", type=int, default=6, help="Randaug magnitude value")
+    ds_group.add_argument("--mixup_alpha", type=float, default=0.1, help="Mixup alpha value")
+    ds_group.add_argument("--cutmix_alpha", type=float, default=1.0, help="Cutmix alpha value")
+    ds_group.add_argument("--random_crop_min", type=float, default=0.08, help="Random crop min value for RRC. Set 1 to disable RRC")
+    ds_group.add_argument("--random_erasing_prob", type=float, default=0, help="Random erasing prob, can be used to replace cutout. Set 0 to disable")
+    ds_group.add_argument("--rescale_mode", type=str, default="torch", help="Rescale mode, one of [tf, torch]")
+    ds_group.add_argument("--central_crop", type=float, default=1.0, help="Central crop fraction. Set 1 to disable")
+    ds_group.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
 
     args = parser.parse_known_args(argv)[0]
 
@@ -203,6 +206,7 @@ if __name__ == "__main__":
         compiled_opt = compiled_opt.inner_optimizer if isinstance(compiled_opt, keras.mixed_precision.LossScaleOptimizer) else compiled_opt
         if basic_save_name is None and restore_path is not None:
             basic_save_name = os.path.splitext(os.path.basename(restore_path))[0]
+            basic_save_name = basic_save_name[:-7] if basic_save_name.endswith("_latest") else basic_save_name
         elif basic_save_name is None:
             basic_save_name = "{}_{}_{}_lr{}_wd{}".format(model.name, combined_name, compiled_opt.__class__.__name__, lr_base_512, weight_decay)
         print(">>>> basic_save_name =", basic_save_name)

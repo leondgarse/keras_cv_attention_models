@@ -12,7 +12,7 @@ Paper [PDF 2106.08254 BEIT: BERT Pre-Training of Image Transformers](https://arx
 
 __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
-  activation: activation used in whole model, default `hard_swish`.
+  activation: activation used in whole model, default `gelu`.
   drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
       Can be a constant value like `0.2`,
       or a tuple value like `(0, 0.2)` indicates the drop probability linearly changes from `0 --> 0.2` for `top --> bottom` layers.
