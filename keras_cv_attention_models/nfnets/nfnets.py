@@ -54,7 +54,10 @@ class ScaledStandardizedConv2D(tf.keras.layers.Conv2D):
     def build(self, input_shape):
         super(ScaledStandardizedConv2D, self).build(input_shape)
         # Wrap a standardization around the conv OP.
-        default_conv_op = self._convolution_op
+        if hasattr(self, "_convolution_op"):
+            default_conv_op = self._convolution_op  # TF < 2.7.0
+        else:
+            default_conv_op = self.convolution_op  # TF 2.7.0
         self.gain = self.add_weight(name="gain", shape=(self.filters,), initializer="ones", trainable=True, dtype=self.dtype)
         self.fan_in = tf.cast(tf.reduce_prod(self.kernel.shape[:-1]), self.dtype)
 
@@ -65,7 +68,10 @@ class ScaledStandardizedConv2D(tf.keras.layers.Conv2D):
             scale = tf.math.rsqrt(tf.math.maximum(var * self.fan_in, self.__eps__)) * (self.gain * self.__gamma__)
             return default_conv_op(inputs, (kernel - mean) * scale)
 
-        self._convolution_op = standardized_conv_op
+        if hasattr(self, "_convolution_op"):
+            self._convolution_op = standardized_conv_op  # TF < 2.7.0
+        else:
+            self.convolution_op = standardized_conv_op  # TF 2.7.0
         self.built = True
 
     def get_config(self):
