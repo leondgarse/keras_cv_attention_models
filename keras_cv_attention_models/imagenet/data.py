@@ -302,7 +302,7 @@ def init_dataset(
     mixup_alpha=0,  # mixup / cutmix params
     cutmix_alpha=0,
     rescale_mode="tf",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`
-    central_crop=1.0,  # augment params
+    eval_central_crop=1.0,  # augment params
     random_crop_min=1.0,
     resize_method="bilinear",  # ["bilinear", "bicubic"]
     random_erasing_prob=0.0,
@@ -310,6 +310,7 @@ def init_dataset(
     num_layers=2,
     **augment_kwargs,  # Too many...
 ):
+    print(">>>> Dataset args:", locals())
     """Init dataset by name.
     returns train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
     """
@@ -323,7 +324,7 @@ def init_dataset(
     AUTOTUNE = tf.data.AUTOTUNE
     train_process = RandomProcessImage(
         target_shape=input_shape,
-        central_crop=central_crop,
+        central_crop=1.0,
         random_crop_min=random_crop_min,
         resize_method=resize_method,
         random_erasing_prob=random_erasing_prob,
@@ -366,11 +367,12 @@ def init_dataset(
     train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE)
 
     """ Test dataset """
-    test_process = lambda xx: evaluation_process_crop_resize(xx, input_shape[:2], central_crop, resize_method)
-    # test_process = lambda xx: evaluation_process_resize_crop(xx, input_shape[:2], central_crop, resize_method)  # timm
+    test_process = lambda xx: evaluation_process_crop_resize(xx, input_shape[:2], eval_central_crop, resize_method)
+    # test_process = lambda xx: evaluation_process_resize_crop(xx, input_shape[:2], eval_central_crop, resize_method)  # timm
     if "validation" in dataset:
         test_dataset = dataset["validation"].map(lambda xx: test_process(xx))
     elif "test" in dataset:
         test_dataset = dataset["test"].map(lambda xx: test_process(xx))
-    test_dataset = test_dataset.batch(batch_size).map(lambda xx, yy: (rescaling(xx), as_one_hot(yy)))
+    # test_dataset = test_dataset.batch(batch_size).map(lambda xx, yy: (rescaling(xx), as_one_hot(yy)))
+    test_dataset = test_dataset.batch(batch_size).map(lambda xx, yy: (rescaling(xx), tf.expand_dims(yy, -1)))
     return train_dataset, test_dataset, total_images, num_classes, steps_per_epoch

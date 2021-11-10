@@ -6,6 +6,7 @@
   - [Basic Usage](#basic-usage)
   - [Layers](#layers)
   - [Model surgery](#model-surgery)
+  - [ImageNet Training](#imagenet-training)
   - [AotNet](#aotnet)
   - [BotNet](#botnet)
   - [BEIT](#beit)
@@ -85,6 +86,13 @@
   # Replace all ReLU with PReLU
   mm = model_surgery.replace_ReLU(keras.applications.ResNet50(), target_activation='PReLU')
   ```
+## ImageNet Training
+  - [Init Imagenet dataset using tensorflow_datasets](https://github.com/leondgarse/keras_cv_attention_models/discussions/9).
+  - Default params for `train_script.py` is like `A3` configuration from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf).
+  ```sh
+  CUDA_VISIBLE_DEVICES='0' ./train_script.py -h
+  ```
+  ![](aotnet50_train.svg)
 ## AotNet
   - [Keras AotNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/aotnet) is just a `ResNet` / `ResNetV2` like framework, that set parameters like `attn_types` and `se_ratio` and others, which is used to apply different types attention layer. Works like `byoanet` / `byobnet` from `timm`.
   ```py

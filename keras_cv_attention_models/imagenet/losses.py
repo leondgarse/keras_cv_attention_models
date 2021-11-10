@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+
 @tf.keras.utils.register_keras_serializable(package="kecamLoss")
 class BinaryCrossEntropyTimm(tf.keras.losses.BinaryCrossentropy):
     def __init__(self, target_threshold=0.0, label_smoothing=0.0, **kwargs):

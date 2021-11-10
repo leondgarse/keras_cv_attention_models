@@ -45,6 +45,64 @@ def evaluation(model, data_name="imagenet2012", input_shape=None, batch_size=64,
     return y_true, y_pred_top_1, y_pred_top_5
 
 
+def parse_timm_log(log_filee):
+    with open(log_filee, "r") as ff:
+        aa = ff.readlines()
+
+    """ Find pattern for train epoch end """
+    train_epoch_started, train_epoch_end_pattern, previous_line = False, "", ""
+    for ii in aa:
+        if ii.startswith("Train:"):
+            train_epoch_started = True
+            previous_line = ii
+        elif train_epoch_started and not ii.startswith("Train:"):
+            train_epoch_end_pattern = previous_line.split("[")[1].split("]")[0].strip()
+            break
+
+    """ Find pattern for test end """
+    test_epoch_started, test_epoch_end_pattern, previous_line = False, "", ""
+    for ii in aa:
+        if ii.startswith("Test:"):
+            test_epoch_started = True
+            previous_line = ii
+        elif test_epoch_started and not ii.startswith("Test:"):
+            test_epoch_end_pattern = previous_line.split("[")[1].split("]")[0].strip()
+            break
+    print(f"{train_epoch_end_pattern = }, {test_epoch_end_pattern = }")
+
+    split_func = lambda xx, ss, ee: float(xx.split(ss)[1].strip().split(ee)[0].split("(")[-1].split(")")[0])
+    train_loss = [split_func(ii, "Loss:", "Time:") for ii in aa if train_epoch_end_pattern in ii]
+    lr = [split_func(ii, "LR:", "Data:") for ii in aa if train_epoch_end_pattern in ii]
+    val_loss = [split_func(ii, "Loss:", "Acc@1:") for ii in aa if test_epoch_end_pattern in ii]
+    val_acc = [split_func(ii, "Acc@1:", "Acc@5:") for ii in aa if test_epoch_end_pattern in ii]
+    if val_acc[-1] > 1:
+        val_acc = [ii / 100.0 for ii in val_acc]
+
+    # train_loss = [float(ii.split('Loss:')[1].strip().split(" ")[1][1:-1]) for ii in aa if train_epoch_end_pattern in ii]
+    # lr = [float(ii.split('LR:')[1].strip().split(" ")[0]) for ii in aa if train_epoch_end_pattern in ii]
+    # val_loss = [float(ii.split('Loss:')[1].strip().split(" ")[1][1:-1]) for ii in aa if test_epoch_end_pattern in ii]
+    # val_acc = [float(ii.split('Acc@1:')[1].strip().split("Acc@5:")[0].split("(")[1].split(")")[0]) for ii in aa if test_epoch_end_pattern in ii]
+
+    print(f"{len(train_loss) = }, {len(lr) = }, {len(val_loss) = }, {len(val_acc) = }")
+    return {"loss": train_loss, "lr": lr, "val_loss": val_loss, "val_acc": val_acc}
+
+
+def combine_hist_into_one(hist_list, save_file=None):
+    import json
+
+    hh = {}
+    for hist in hist_list:
+        with open(hist, "r") as ff:
+            aa = json.load(ff)
+        for kk, vv in aa.items():
+            hh.setdefault(kk, []).extend(vv)
+
+    if save_file:
+        with open(save_file, "w") as ff:
+            json.dump(hh, ff)
+    return hh
+
+
 def plot_and_peak_scatter(ax, array, peak_method, label, color=None, **kwargs):
     for id, ii in enumerate(array):
         if tf.math.is_nan(ii):
@@ -64,8 +122,10 @@ def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"]):
 
     num_axes = 3 if addition_plots is not None and len(addition_plots) != 0 else 2
     fig, axes = plt.subplots(1, num_axes, figsize=(num_axes * base_size, base_size))
+    hists = [hists] if isinstance(hists, (str, dict)) else hists
+    names = names if isinstance(names, (list, tuple)) else [names]
     for id, hist in enumerate(hists):
-        name = names[id] if names != None else None
+        name = names[min(id, len(names) - 1)] if names != None else None
         if isinstance(hist, str):
             name = name if name != None else os.path.splitext(os.path.basename(hist))[0]
             with open(hist, "r") as ff:
@@ -76,7 +136,8 @@ def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"]):
         color = axes[0].lines[-1].get_color()
         plot_and_peak_scatter(axes[0], hist["val_loss"], peak_method=np.argmin, label=name + " val_loss", color=color, linestyle="--")
         acc = hist.get("acc", hist.get("accuracy", []))
-        plot_and_peak_scatter(axes[1], acc, peak_method=np.argmax, label=name + " accuracy", color=color)
+        if len(acc) > 0:  # For timm log
+            plot_and_peak_scatter(axes[1], acc, peak_method=np.argmax, label=name + " accuracy", color=color)
         val_acc = hist.get("val_acc", hist.get("val_accuracy", []))
         plot_and_peak_scatter(axes[1], val_acc, peak_method=np.argmax, label=name + " val_accuracy", color=color, linestyle="--")
         if addition_plots is not None and len(addition_plots) != 0:

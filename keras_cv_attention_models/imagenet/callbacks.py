@@ -155,6 +155,8 @@ class MyHistory(keras.callbacks.Callback):
 
 
 class MyCheckpoint(keras.callbacks.Callback):
+    """ Save latest and best one """
+
     def __init__(self, basic_save_name, monitor="val_acc", mode="auto", save_path="checkpoints"):
         super(MyCheckpoint, self).__init__()
         self.monitor_save = os.path.join(save_path, basic_save_name + "_epoch_{}_" + monitor + "_{}.h5")
