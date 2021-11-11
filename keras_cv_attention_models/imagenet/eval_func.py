@@ -26,7 +26,7 @@ def evaluation(model, data_name="imagenet2012", input_shape=None, batch_size=64,
 
     input_shape = model.input_shape[1:-1] if input_shape is None else input_shape[:2]
     _, test_dataset, _, _, _ = data.init_dataset(
-        data_name, input_shape=input_shape, batch_size=batch_size, central_crop=central_crop, resize_method=resize_method, rescale_mode=rescale_mode
+        data_name, input_shape=input_shape, batch_size=batch_size, eval_central_crop=central_crop, resize_method=resize_method, rescale_mode=rescale_mode
     )
 
     model_interf = change_model_input_shape(model, input_shape) if isinstance(model, tf.keras.models.Model) else Torch_model_interf(model)
