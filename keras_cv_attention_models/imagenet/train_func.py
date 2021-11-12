@@ -57,6 +57,8 @@ def init_loss(bce_threshold=1.0, label_smoothing=0):
 def init_model(model, input_shape=(224, 224, 3), num_classes=1000, pretrained=None, restore_path=None):
     model = model.strip().split(".")
     if restore_path:
+        import tensorflow_addons as tfa
+
         print(">>>> Restore model from:", restore_path)
         model = keras.models.load_model(restore_path)
     else:
