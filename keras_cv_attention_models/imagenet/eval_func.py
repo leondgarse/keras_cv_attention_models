@@ -20,13 +20,13 @@ class Torch_model_interf:
         return output.cpu().detach().numpy()
 
 
-def evaluation(model, data_name="imagenet2012", input_shape=None, batch_size=64, central_crop=1.0, resize_method="bicubic", rescale_mode="torch"):
+def evaluation(model, data_name="imagenet2012", input_shape=None, batch_size=64, central_crop=1.0, resize_method="bicubic", antialias=False, rescale_mode="torch"):
     from tqdm import tqdm
     import numpy as np
 
     input_shape = model.input_shape[1:-1] if input_shape is None else input_shape[:2]
     _, test_dataset, _, _, _ = data.init_dataset(
-        data_name, input_shape=input_shape, batch_size=batch_size, eval_central_crop=central_crop, resize_method=resize_method, rescale_mode=rescale_mode
+        data_name, input_shape=input_shape, batch_size=batch_size, eval_central_crop=central_crop, resize_method=resize_method, eval_antialias=antialias, rescale_mode=rescale_mode
     )
 
     model_interf = change_model_input_shape(model, input_shape) if isinstance(model, tf.keras.models.Model) else Torch_model_interf(model)
@@ -68,7 +68,7 @@ def parse_timm_log(log_filee):
         elif test_epoch_started and not ii.startswith("Test:"):
             test_epoch_end_pattern = previous_line.split("[")[1].split("]")[0].strip()
             break
-    print(f"{train_epoch_end_pattern = }, {test_epoch_end_pattern = }")
+    # print("train_epoch_end_pattern = {}, test_epoch_end_pattern = {}".format(train_epoch_end_pattern, test_epoch_end_pattern))
 
     split_func = lambda xx, ss, ee: float(xx.split(ss)[1].strip().split(ee)[0].split("(")[-1].split(")")[0])
     train_loss = [split_func(ii, "Loss:", "Time:") for ii in aa if train_epoch_end_pattern in ii]
@@ -83,7 +83,7 @@ def parse_timm_log(log_filee):
     # val_loss = [float(ii.split('Loss:')[1].strip().split(" ")[1][1:-1]) for ii in aa if test_epoch_end_pattern in ii]
     # val_acc = [float(ii.split('Acc@1:')[1].strip().split("Acc@5:")[0].split("(")[1].split(")")[0]) for ii in aa if test_epoch_end_pattern in ii]
 
-    print(f"{len(train_loss) = }, {len(lr) = }, {len(val_loss) = }, {len(val_acc) = }")
+    # print(f"{len(train_loss) = }, {len(lr) = }, {len(val_loss) = }, {len(val_acc) = }")
     return {"loss": train_loss, "lr": lr, "val_loss": val_loss, "val_acc": val_acc}
 
 

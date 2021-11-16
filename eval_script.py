@@ -11,9 +11,10 @@ def parse_arguments(argv):
     parser.add_argument("-i", "--input_shape", type=int, default=-1, help="Model input shape, Set -1 for using model.input_shape")
     parser.add_argument("-b", "--batch_size", type=int, default=64, help="Batch size")
     parser.add_argument("-d", "--data_name", type=str, default="imagenet2012", help="Dataset name from tensorflow_datasets like imagenet2012 cifar10")
-    parser.add_argument("--rescale_mode", type=str, default="torch", help="[Dataset] Rescale mode, one of [tf, torch]")
-    parser.add_argument("--central_crop", type=float, default=1.0, help="[Dataset] Central crop fraction. Set 1 to disable")
-    parser.add_argument("--resize_method", type=str, default="bicubic", help="[Dataset] Resize method from tf.image.resize, like [bilinear, bicubic]")
+    parser.add_argument("--rescale_mode", type=str, default="torch", help="Rescale mode, one of [tf, torch]")
+    parser.add_argument("--central_crop", type=float, default=1.0, help="Central crop fraction. Set 1 to disable")
+    parser.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
+    parser.add_argument("--antialias", action="store_true", help="Set use antialias=True for tf.image.resize")
 
     args = parser.parse_known_args(argv)[0]
     return args
@@ -32,4 +33,4 @@ if __name__ == "__main__":
 
     model = tf.keras.models.load_model(args.model_path)
     input_shape = None if args.input_shape == -1 else (args.input_shape, args.input_shape)
-    evaluation(model, args.data_name, input_shape, args.batch_size, args.central_crop, args.resize_method, args.rescale_mode)
+    evaluation(model, args.data_name, input_shape, args.batch_size, args.central_crop, args.resize_method, args.antialias, args.rescale_mode)

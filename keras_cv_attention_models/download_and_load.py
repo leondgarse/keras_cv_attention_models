@@ -151,6 +151,7 @@ def keras_reload_from_torch_model(
     if isinstance(torch_model, str):
         print(">>>> Reload Torch weight file:", torch_model)
         torch_model = torch.load(torch_model, map_location=torch.device("cpu"))
+        torch_model = torch_model.get('state_dict', torch_model)
     is_state_dict = isinstance(torch_model, dict)
 
     """ Chelsea the cat  """
