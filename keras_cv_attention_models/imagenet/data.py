@@ -344,8 +344,8 @@ def init_dataset(
         # rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
         rescaling = lambda xx: (xx - mean) / std
     else:
-        # rescaling = lambda xx: (xx - 128.0) / 128.0
-        # rescaling = lambda xx: (xx - 127.5) / 127.5
+        # rescaling = lambda xx: (tf.clip_by_value(xx) - 128.0) / 128.0
+        # rescaling = lambda xx: (tf.clip_by_value(xx) - 127.5) / 127.5
         rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - 127.5) * 0.0078125
     as_one_hot = lambda yy: tf.one_hot(yy, num_classes)
 

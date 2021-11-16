@@ -20,13 +20,21 @@ class Torch_model_interf:
         return output.cpu().detach().numpy()
 
 
-def evaluation(model, data_name="imagenet2012", input_shape=None, batch_size=64, central_crop=1.0, resize_method="bicubic", antialias=False, rescale_mode="torch"):
+def evaluation(
+    model, data_name="imagenet2012", input_shape=None, batch_size=64, central_crop=1.0, resize_method="bicubic", antialias=False, rescale_mode="torch"
+):
     from tqdm import tqdm
     import numpy as np
 
     input_shape = model.input_shape[1:-1] if input_shape is None else input_shape[:2]
     _, test_dataset, _, _, _ = data.init_dataset(
-        data_name, input_shape=input_shape, batch_size=batch_size, eval_central_crop=central_crop, resize_method=resize_method, eval_antialias=antialias, rescale_mode=rescale_mode
+        data_name,
+        input_shape=input_shape,
+        batch_size=batch_size,
+        eval_central_crop=central_crop,
+        resize_method=resize_method,
+        eval_antialias=antialias,
+        rescale_mode=rescale_mode,
     )
 
     model_interf = change_model_input_shape(model, input_shape) if isinstance(model, tf.keras.models.Model) else Torch_model_interf(model)

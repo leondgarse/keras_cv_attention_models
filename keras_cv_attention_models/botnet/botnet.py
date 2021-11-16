@@ -105,11 +105,17 @@ class RelativePositionalEmbedding(keras.layers.Layer):
 
     def load_resized_pos_emb(self, source_layer):
         # For input 224 --> [128, 27], convert to 480 --> [128, 30]
-        image_like_w = tf.expand_dims(tf.transpose(source_layer.pos_emb_w, [1, 0]), 0)
+        if isinstance(source_layer, dict):
+            source_pos_emb_h = source_layer["r_height:0"]  # weights
+            source_pos_emb_w = source_layer["r_width:0"]  # weights
+        else:
+            source_pos_emb_h = source_layer.pos_emb_h  # layer
+            source_pos_emb_w = source_layer.pos_emb_w  # layer
+        image_like_w = tf.expand_dims(tf.transpose(source_pos_emb_w, [1, 0]), 0)
         resize_w = tf.image.resize(image_like_w, (1, self.pos_emb_w.shape[1]))[0]
         self.pos_emb_w.assign(tf.transpose(resize_w, [1, 0]))
 
-        image_like_h = tf.expand_dims(tf.transpose(source_layer.pos_emb_h, [1, 0]), 0)
+        image_like_h = tf.expand_dims(tf.transpose(source_pos_emb_h, [1, 0]), 0)
         resize_h = tf.image.resize(image_like_h, (1, self.pos_emb_h.shape[1]))[0]
         self.pos_emb_h.assign(tf.transpose(resize_h, [1, 0]))
 

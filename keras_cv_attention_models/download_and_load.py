@@ -1,4 +1,5 @@
 import os
+import tensorflow as tf
 from tensorflow import keras
 
 
@@ -31,12 +32,27 @@ def reload_model_weights_with_mismatch(
 
     if input_shape[0] != request_resolution or input_shape[1] != request_resolution:  # May be non-square
         try:
+            import h5py
+
             print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
-            bb = keras.models.load_model(pretrained_model)
+            ff = h5py.File(pretrained_model, mode="r")
+            weights = ff["model_weights"]
             for ii in model.layers:
-                if isinstance(ii, mismatch_class):
+                if isinstance(ii, mismatch_class) and ii.name in weights:
                     print(">>>> Reload layer:", ii.name)
-                    model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
+                    ss = weights[ii.name]
+                    # ss = {ww.decode().split("/")[-1] : tf.convert_to_tensor(ss[ww]) for ww in ss.attrs['weight_names']}
+                    ss = {ww.decode("utf8") if hasattr(ww, "decode") else ww: tf.convert_to_tensor(ss[ww]) for ww in ss.attrs["weight_names"]}
+                    ss = {kk.split("/")[-1]: vv for kk, vv in ss.items()}
+                    model.get_layer(ii.name).load_resized_pos_emb(ss)
+            ff.close()
+
+        # print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
+        # bb = keras.models.load_model(pretrained_model)
+        # for ii in model.layers:
+        #     if isinstance(ii, mismatch_class):
+        #         print(">>>> Reload layer:", ii.name)
+        #         model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
         except:
             pass
 
@@ -151,7 +167,7 @@ def keras_reload_from_torch_model(
     if isinstance(torch_model, str):
         print(">>>> Reload Torch weight file:", torch_model)
         torch_model = torch.load(torch_model, map_location=torch.device("cpu"))
-        torch_model = torch_model.get('state_dict', torch_model)
+        torch_model = torch_model.get("state_dict", torch_model)
     is_state_dict = isinstance(torch_model, dict)
 
     """ Chelsea the cat  """

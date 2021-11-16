@@ -195,7 +195,11 @@ class PositionalEmbedding(keras.layers.Layer):
 
     def load_resized_pos_emb(self, source_layer):
         # For input 224 --> [1, 14, 14, 384], convert to 384 --> [1, 24, 24, 384]
-        self.pp.assign(tf.image.resize(source_layer.pp, self.pp.shape[1:3]))
+        if isinstance(source_layer, dict):
+            source_pp = source_layer["positional_embedding:0"]  # weights
+        else:
+            source_pp = source_layer.pp  # layer
+        self.pp.assign(tf.image.resize(source_pp, self.pp.shape[1:3]))
 
 
 @tf.keras.utils.register_keras_serializable(package="volo")

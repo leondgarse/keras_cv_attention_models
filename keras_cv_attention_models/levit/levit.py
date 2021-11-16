@@ -43,8 +43,12 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
         return inputs + pos_bias
 
     def load_resized_pos_emb(self, source_layer):
-        hh = ww = int(tf.math.sqrt(float(source_layer.bb.shape[0])))
-        ss = tf.reshape(source_layer.bb, (hh, ww, source_layer.bb.shape[-1]))  # [hh, ww, num_heads]
+        if isinstance(source_layer, dict):
+            source_bb = source_layer["positional_embedding:0"]  # weights
+        else:
+            source_bb = source_layer.bb  # layer
+        hh = ww = int(tf.math.sqrt(float(source_bb.shape[0])))
+        ss = tf.reshape(source_bb, (hh, ww, source_bb.shape[-1]))  # [hh, ww, num_heads]
         target_hh = target_ww = int(tf.math.sqrt(float(self.bb.shape[0])))
         tt = tf.image.resize(ss, [target_hh, target_ww])  # [target_hh, target_ww, num_heads]
         tt = tf.reshape(tt, (self.bb.shape))  # [target_hh * target_ww, num_heads]
