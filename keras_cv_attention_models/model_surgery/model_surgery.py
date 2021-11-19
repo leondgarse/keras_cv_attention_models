@@ -370,6 +370,7 @@ def convert_to_fused_conv_bn_model(model):
     layers = []
     fused_bn_dict = dict(zip(fuse_bns, fuse_convs))
     fused_conv_dict = dict(zip(fuse_convs, fuse_bns))
+    is_inbound_elem = lambda xx: isinstance(xx, list) and isinstance(xx[0], str)
     for layer in model_config["config"]["layers"]:
         if layer["name"] in fuse_convs:
             print(">>>> Fuse conv bn:", layer["name"])
@@ -377,11 +378,17 @@ def convert_to_fused_conv_bn_model(model):
         elif layer["name"] in fuse_bns:
             continue
 
-        if len(layer["inbound_nodes"]) != 0:
-            for ii in layer["inbound_nodes"][0]:
-                if isinstance(ii, list) and ii[0] in fused_bn_dict:
-                    print(">>>> Replace inbound_nodes: {}, {} --> {}".format(layer["name"], ii[0], fused_bn_dict[ii[0]]))
-                    ii[0] = fused_bn_dict[ii[0]]
+        for ii in layer["inbound_nodes"]:
+            # print(ii)
+            if is_inbound_elem(ii):
+                # print(">>>> Replace inbound_nodes: {}, {} --> {}".format(layer["name"], ii[0], fused_bn_dict[ii[0]]))
+                ii[0] = fused_bn_dict.get(ii[0], ii[0])
+                ii[3] = {kk: [fused_bn_dict.get(vv[0], vv[0]), *vv[1:]] if is_inbound_elem(vv) else vv for kk, vv in ii[3].items()}
+            elif isinstance(ii, list) and isinstance(ii[0], list):
+                for jj in ii:
+                    jj[0] = fused_bn_dict.get(jj[0], jj[0])
+                    jj[3] = {kk: [fused_bn_dict.get(vv[0], vv[0]), *vv[1:]] if is_inbound_elem(vv) else vv for kk, vv in jj[3].items()}
+
         layers.append(layer)
     model_config["config"]["layers"] = layers
     new_model = keras.models.model_from_json(json.dumps(model_config))
