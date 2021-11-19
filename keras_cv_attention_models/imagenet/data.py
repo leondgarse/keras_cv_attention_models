@@ -26,17 +26,18 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
     As outputs are converted int, for running 1e5 times, results are not exactly in scale and ratio range:
     >>> from keras_cv_attention_models.imagenet import data
     >>> aa = np.array([data.random_crop_fraction(size=(100, 100), ratio=(0.75, 4./3)) for _ in range(100000)])
-    >>> print("Scale range:", ((aa[:, 0] * aa[:, 1]).min() / 1e4, (aa[:, 0] * aa[:, 1]).max() / 1e4))
+    >>> hhs, wws = aa[:, 0], aa[:, 1]
+    >>> print("Scale range:", ((hhs * wws).min() / 1e4, (hhs * wws).max() / 1e4))
     # Scale range: (0.075, 0.9801)
-    >>> print("Ratio range:", ((aa[:, 0] / aa[:, 1]).min(), (aa[:, 0] / aa[:, 1]).max()))
+    >>> print("Ratio range:", ((wws / hhs).min(), (wws / hhs).max()))
     # Ratio range: (0.7272727272727273, 1.375)
 
     >>> fig, axes = plt.subplots(4, 1, figsize=(6, 8))
     >>> pp = {
-    >>>     "ratio distribute": aa[:, 1] / aa[:, 0],
-    >>>     "scale distribute": aa[:, 1] * aa[:, 0] / 1e4,
-    >>>     "height distribute": aa[:, 0],
-    >>>     "width distribute": aa[:, 1],
+    >>>     "ratio distribute": wws / hhs,
+    >>>     "scale distribute": wws * hhs / 1e4,
+    >>>     "height distribute": hhs,
+    >>>     "width distribute": wws,
     >>> }
     >>> for ax, kk in zip(axes, pp.keys()):
     >>>     _ = ax.hist(pp[kk], bins=1000, label=kk)

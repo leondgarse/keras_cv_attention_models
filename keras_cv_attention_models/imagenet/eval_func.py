@@ -63,7 +63,7 @@ def parse_timm_log(log_filee):
         if ii.startswith("Train:"):
             train_epoch_started = True
             previous_line = ii
-        elif train_epoch_started and not ii.startswith("Train:"):
+        elif train_epoch_started and ii.startswith("Test:"):
             train_epoch_end_pattern = previous_line.split("[")[1].split("]")[0].strip()
             break
 
@@ -73,10 +73,10 @@ def parse_timm_log(log_filee):
         if ii.startswith("Test:"):
             test_epoch_started = True
             previous_line = ii
-        elif test_epoch_started and not ii.startswith("Test:"):
+        elif test_epoch_started and not ii.startswith("Train:"):
             test_epoch_end_pattern = previous_line.split("[")[1].split("]")[0].strip()
             break
-    # print("train_epoch_end_pattern = {}, test_epoch_end_pattern = {}".format(train_epoch_end_pattern, test_epoch_end_pattern))
+    print("train_epoch_end_pattern = {}, test_epoch_end_pattern = {}".format(train_epoch_end_pattern, test_epoch_end_pattern))
 
     split_func = lambda xx, ss, ee: float(xx.split(ss)[1].strip().split(ee)[0].split("(")[-1].split(")")[0])
     train_loss = [split_func(ii, "Loss:", "Time:") for ii in aa if train_epoch_end_pattern in ii]
@@ -111,46 +111,50 @@ def combine_hist_into_one(hist_list, save_file=None):
     return hh
 
 
-def plot_and_peak_scatter(ax, array, peak_method, label, color=None, **kwargs):
+def plot_and_peak_scatter(ax, array, peak_method, label, color=None, va="bottom", **kwargs):
     for id, ii in enumerate(array):
         if tf.math.is_nan(ii):
             array[id] = array[id - 1]
     ax.plot(array, label=label, color=color, **kwargs)
+    color = ax.lines[-1].get_color() if color is None else color
     pp = peak_method(array)
     vv = array[pp]
     ax.scatter(pp, vv, color=color, marker="v")
-    ax.text(pp, vv, "{:.4f}".format(vv), va="bottom", ha="right", fontsize=9, rotation=0)
+    ax.text(pp, vv, "{:.4f}".format(vv), va=va, ha="right", color=color, fontsize=9, rotation=0)
 
 
-def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"]):
+def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["bottom"]):
     import os
     import json
     import matplotlib.pyplot as plt
     import numpy as np
 
-    num_axes = 3 if addition_plots is not None and len(addition_plots) != 0 else 2
+    num_axes = (2 + len(addition_plots)) if addition_plots is not None and len(addition_plots) != 0 else 2
     fig, axes = plt.subplots(1, num_axes, figsize=(num_axes * base_size, base_size))
     hists = [hists] if isinstance(hists, (str, dict)) else hists
     names = names if isinstance(names, (list, tuple)) else [names]
     for id, hist in enumerate(hists):
         name = names[min(id, len(names) - 1)] if names != None else None
+        cur_va = text_va[id % len(text_va)]
         if isinstance(hist, str):
             name = name if name != None else os.path.splitext(os.path.basename(hist))[0]
             with open(hist, "r") as ff:
                 hist = json.load(ff)
         name = name if name != None else str(id)
 
-        plot_and_peak_scatter(axes[0], hist["loss"], peak_method=np.argmin, label=name + " loss", color=None)
+        plot_and_peak_scatter(axes[0], hist["loss"], peak_method=np.argmin, label=name + " loss", color=None, va=cur_va)
         color = axes[0].lines[-1].get_color()
-        plot_and_peak_scatter(axes[0], hist["val_loss"], peak_method=np.argmin, label=name + " val_loss", color=color, linestyle="--")
+        if "val_loss" not in addition_plots:
+            plot_and_peak_scatter(axes[0], hist["val_loss"], np.argmin, label=name + " val_loss", color=color, va=cur_va, linestyle="--")
         acc = hist.get("acc", hist.get("accuracy", []))
         if len(acc) > 0:  # For timm log
-            plot_and_peak_scatter(axes[1], acc, peak_method=np.argmax, label=name + " accuracy", color=color)
+            plot_and_peak_scatter(axes[1], acc, peak_method=np.argmax, label=name + " accuracy", color=color, va=cur_va)
         val_acc = hist.get("val_acc", hist.get("val_accuracy", []))
-        plot_and_peak_scatter(axes[1], val_acc, peak_method=np.argmax, label=name + " val_accuracy", color=color, linestyle="--")
+        plot_and_peak_scatter(axes[1], val_acc, peak_method=np.argmax, label=name + " val_accuracy", color=color, va=cur_va, linestyle="--")
         if addition_plots is not None and len(addition_plots) != 0:
-            for ii in addition_plots:
-                plot_and_peak_scatter(axes[2], hist[ii], peak_method=np.argmin, label=name + " " + ii, color=color)
+            for id, ii in enumerate(addition_plots):
+                peak_method = np.argmin if "loss" in ii else np.argmax
+                plot_and_peak_scatter(axes[2 + id], hist[ii], peak_method=peak_method, label=name + " " + ii, color=color, va=cur_va)
     for ax in axes:
         ax.legend()
         ax.grid(True)
