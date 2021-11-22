@@ -342,8 +342,8 @@ def init_dataset(
     elif rescale_mode == "torch":
         mean = tf.constant([0.485, 0.456, 0.406]) * 255.0
         std = tf.constant([0.229, 0.224, 0.225]) * 255.0
-        # rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
-        rescaling = lambda xx: (xx - mean) / std
+        # rescaling = lambda xx: (xx - mean) / std
+        rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
     else:
         # rescaling = lambda xx: (tf.clip_by_value(xx) - 128.0) / 128.0
         # rescaling = lambda xx: (tf.clip_by_value(xx) - 127.5) / 127.5
