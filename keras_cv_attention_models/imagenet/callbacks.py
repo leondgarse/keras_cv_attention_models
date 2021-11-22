@@ -7,37 +7,52 @@ from tensorflow.keras import backend as K
 
 
 class CosineLrScheduler(keras.callbacks.Callback):
-    def __init__(self, lr_base, first_restart_step, steps_per_epoch=-1, m_mul=0.5, t_mul=2.0, lr_min=1e-5, warmup=0):
+    def __init__(self, lr_base, first_restart_step, steps_per_epoch=-1, m_mul=0.5, t_mul=2.0, lr_min=1e-5, lr_warmup=1e-4, warmup_steps=0, cooldown_steps=0):
         super(CosineLrScheduler, self).__init__()
-        self.lr_base, self.m_mul, self.t_mul, self.lr_min = lr_base, m_mul, t_mul, lr_min
-        self.first_restart_step, self.warmup, self.steps_per_epoch = first_restart_step, warmup, steps_per_epoch
-        self.init_step_num, self.cur_epoch = 0, 0
+        self.lr_base, self.m_mul, self.t_mul, self.lr_min, self.steps_per_epoch = lr_base, m_mul, t_mul, lr_min, steps_per_epoch
+        self.first_restart_step, self.warmup_steps, self.cooldown_steps = first_restart_step, warmup_steps, cooldown_steps
+        self.init_step_num, self.cur_epoch, self.is_cooldown_epoch, self.previous_cooldown_steps = 0, 0, False, 0
         if steps_per_epoch != -1:
             self.build(steps_per_epoch)
 
     def build(self, steps_per_epoch):
         self.steps_per_epoch = steps_per_epoch
-        self.warmup *= steps_per_epoch
+        self.warmup_steps *= steps_per_epoch
         self.first_restart_step *= steps_per_epoch
         alpha = self.lr_min / self.lr_base
         if self.lr_min == self.lr_base * self.m_mul:  # Without restart
             self.schedule = keras.experimental.CosineDecay(self.lr_base, self.first_restart_step, alpha=alpha)
+            self.cooldown_steps_start, self.cooldown_steps_end = np.array([]), np.array([])
         else:
             self.schedule = keras.experimental.CosineDecayRestarts(self.lr_base, self.first_restart_step, t_mul=self.t_mul, m_mul=self.m_mul, alpha=alpha)
+            aa = [self.first_restart_step / steps_per_epoch * (self.t_mul ** ii) for ii in range(5)]
+            self.cooldown_steps_start = np.array([int(sum(aa[:ii]) + self.cooldown_steps * (ii - 1)) for ii in range(1, 5)])
+            self.cooldown_steps_end = np.array([ii + self.cooldown_steps for ii in self.cooldown_steps_start])
 
-        if self.warmup != 0:
-            self.warmup_lr_func = lambda ii: self.lr_min + (self.lr_base - self.lr_min) * ii / self.warmup
+        if self.warmup_steps != 0:
+            self.warmup_lr_func = lambda ii: self.lr_min + (self.lr_base - self.lr_min) * ii / self.warmup_steps
 
     def on_epoch_begin(self, cur_epoch, logs=None):
         self.init_step_num = int(self.steps_per_epoch * cur_epoch)
         self.cur_epoch = cur_epoch
 
+        if self.cooldown_steps_end.shape[0] != 0:
+            cooldown_end_pos = (self.cooldown_steps_end > cur_epoch).argmax()
+            self.previous_cooldown_steps = self.cooldown_steps * cooldown_end_pos * self.steps_per_epoch
+            if cur_epoch >= self.cooldown_steps_end[cooldown_end_pos] - self.cooldown_steps:
+                self.is_cooldown_epoch = True
+            else:
+                self.is_cooldown_epoch = False
+
     def on_train_batch_begin(self, iterNum, logs=None):
         global_iterNum = iterNum + self.init_step_num
-        if global_iterNum < self.warmup:
+        if global_iterNum < self.warmup_steps:
             lr = self.warmup_lr_func(global_iterNum)
+        elif self.is_cooldown_epoch:
+            lr = self.lr_min  # cooldown
         else:
-            lr = self.schedule(global_iterNum - self.warmup)
+            # lr = self.schedule(global_iterNum - self.warmup_steps - self.previous_cooldown_steps)
+            lr = self.schedule(global_iterNum - self.previous_cooldown_steps)
 
         if self.model is not None:
             K.set_value(self.model.optimizer.lr, lr)
@@ -47,23 +62,35 @@ class CosineLrScheduler(keras.callbacks.Callback):
 
 
 class CosineLrSchedulerEpoch(keras.callbacks.Callback):
-    def __init__(self, lr_base, first_restart_step, m_mul=0.5, t_mul=2.0, lr_min=1e-5, warmup=0):
+    def __init__(self, lr_base, first_restart_step, m_mul=0.5, t_mul=2.0, lr_min=1e-6, lr_warmup=1e-4, warmup_steps=0, cooldown_steps=0):
         super(CosineLrSchedulerEpoch, self).__init__()
-        self.warmup = warmup
+        self.warmup_steps, self.cooldown_steps, self.lr_min = warmup_steps, cooldown_steps, lr_min
 
         if lr_min == lr_base * m_mul:
             self.schedule = keras.experimental.CosineDecay(lr_base, first_restart_step, alpha=lr_min / lr_base)
+            self.cooldown_steps_start, self.cooldown_steps_end = np.array([]), np.array([])
         else:
             self.schedule = keras.experimental.CosineDecayRestarts(lr_base, first_restart_step, t_mul=t_mul, m_mul=m_mul, alpha=lr_min / lr_base)
+            aa = [first_restart_step * (t_mul ** ii) for ii in range(5)]
+            self.cooldown_steps_start = np.array([int(sum(aa[:ii]) + cooldown_steps * (ii - 1)) for ii in range(1, 5)])
+            self.cooldown_steps_end = np.array([ii + cooldown_steps for ii in self.cooldown_steps_start])
 
-        if warmup != 0:
-            self.warmup_lr_func = lambda ii: lr_min + (lr_base - lr_min) * ii / warmup
+        if warmup_steps != 0:
+            self.warmup_lr_func = lambda ii: lr_warmup + (lr_base - lr_warmup) * ii / warmup_steps
 
     def on_epoch_begin(self, epoch, logs=None):
-        if epoch < self.warmup:
+        if epoch < self.warmup_steps:
             lr = self.warmup_lr_func(epoch)
+        elif self.cooldown_steps_end.shape[0] != 0:
+            cooldown_end_pos = (self.cooldown_steps_end > epoch).argmax()
+            if epoch >= self.cooldown_steps_end[cooldown_end_pos] - self.cooldown_steps:
+                lr = self.lr_min  # cooldown
+            else:
+                # lr = self.schedule(epoch - self.warmup_steps)
+                lr = self.schedule(epoch - self.cooldown_steps * cooldown_end_pos)
         else:
-            lr = self.schedule(epoch - self.warmup)
+            lr = self.schedule(epoch)
+
         if self.model is not None:
             K.set_value(self.model.optimizer.lr, lr)
 
@@ -71,21 +98,21 @@ class CosineLrSchedulerEpoch(keras.callbacks.Callback):
         return lr
 
 
-def constant_scheduler(epoch, lr_base, lr_decay_steps, decay_rate=0.1, warmup=0):
-    if epoch < warmup:
-        lr = lr_base * (epoch + 1) / (warmup + 1)
+def constant_scheduler(epoch, lr_base, lr_decay_steps, decay_rate=0.1, warmup_steps=0):
+    if epoch < warmup_steps:
+        lr = lr_base * (epoch + 1) / (warmup_steps + 1)
     else:
-        epoch -= warmup
+        # epoch -= warmup_steps
         lr = lr_base * decay_rate ** np.sum(epoch >= np.array(lr_decay_steps))
     print("\nLearning rate for iter {} is {}".format(epoch + 1, lr))
     return lr
 
 
-def exp_scheduler(epoch, lr_base=0.1, decay_step=1, decay_rate=0.9, lr_min=0, warmup=0):
-    if epoch < warmup:
-        lr = (lr_base - lr_min) * (epoch + 1) / (warmup + 1)
+def exp_scheduler(epoch, lr_base=0.1, decay_step=1, decay_rate=0.9, lr_min=0, warmup_steps=0):
+    if epoch < warmup_steps:
+        lr = (lr_base - lr_min) * (epoch + 1) / (warmup_steps + 1)
     else:
-        epoch -= warmup
+        # epoch -= warmup_steps
         lr = lr_base * decay_rate ** (epoch / decay_step)
         lr = lr if lr > lr_min else lr_min
     # print("Learning rate for iter {} is {}".format(epoch + 1, lr))

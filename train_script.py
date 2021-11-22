@@ -45,7 +45,9 @@ def parse_arguments(argv):
         help="Learning rate decay epoch steps. Single value like 100 for cosine decay. Set 30,60,90 for constant decay steps",
     )
     lr_group.add_argument("--lr_decay_on_batch", action="store_true", help="Learning rate decay on each batch, or on epoch")
-    lr_group.add_argument("--lr_warmup", type=int, default=5, help="Learning rate warmup epochs")
+    lr_group.add_argument("--lr_warmup", type=float, default=1e-4, help="Learning rate warmup value")
+    lr_group.add_argument("--lr_warmup_steps", type=int, default=5, help="Learning rate warmup epochs")
+    lr_group.add_argument("--lr_cooldown_steps", type=int, default=5, help="Learning rate cooldown epochs")
     lr_group.add_argument("--lr_min", type=float, default=1e-6, help="Learning rate minimum value")
 
     """ Dataset parameters """
@@ -116,7 +118,9 @@ if __name__ == "__main__":
     )
 
     lr_base = args.lr_base_512 * batch_size / 512
-    lr_scheduler, lr_total_epochs = init_lr_scheduler(lr_base, args.lr_decay_steps, args.lr_warmup, args.lr_min, args.lr_decay_on_batch)
+    lr_scheduler, lr_total_epochs = init_lr_scheduler(
+        lr_base, args.lr_decay_steps, args.lr_min, args.lr_decay_on_batch, args.lr_warmup, args.lr_warmup_steps, args.lr_cooldown_steps
+    )
     epochs = args.epochs if args.epochs != 0 else lr_total_epochs
 
     with strategy.scope():

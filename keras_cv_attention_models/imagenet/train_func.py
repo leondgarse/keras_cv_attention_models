@@ -4,19 +4,21 @@ from tensorflow import keras
 from keras_cv_attention_models.imagenet import callbacks, losses
 
 
-def init_lr_scheduler(lr_base, lr_decay_steps, lr_warmup=4, lr_min=1e-5, lr_decay_on_batch=False):
+def init_lr_scheduler(lr_base, lr_decay_steps, lr_min=1e-5, lr_decay_on_batch=False, lr_warmup=1e-4, lr_warmup_steps=0, lr_cooldown_steps=0):
     if isinstance(lr_decay_steps, list):
-        constant_lr_sch = lambda epoch: callbacks.constant_scheduler(epoch, lr_base=lr_base, lr_decay_steps=lr_decay_steps, warmup=lr_warmup)
+        constant_lr_sch = lambda epoch: callbacks.constant_scheduler(epoch, lr_base=lr_base, lr_decay_steps=lr_decay_steps, warmup_steps=lr_warmup_steps)
         lr_scheduler = keras.callbacks.LearningRateScheduler(constant_lr_sch)
-        lr_total_epochs = lr_decay_steps[-1] + lr_decay_steps[0] + lr_warmup  # 124 for lr_decay_steps=[30, 60, 90], lr_warmup=4
+        lr_total_epochs = lr_decay_steps[-1] + lr_decay_steps[0]  # 120 for lr_decay_steps=[30, 60, 90], lr_warmup_steps=4
     elif lr_decay_on_batch:
         lr_scheduler = callbacks.CosineLrScheduler(
-            lr_base, first_restart_step=lr_decay_steps, m_mul=0.5, t_mul=2.0, lr_min=lr_min, warmup=lr_warmup, steps_per_epoch=-1
+            lr_base, lr_decay_steps, m_mul=0.5, t_mul=2.0, lr_min=lr_min, lr_warmup=lr_warmup, warmup_steps=lr_warmup_steps, cooldown_steps=lr_cooldown_steps
         )
-        lr_total_epochs = lr_decay_steps * 3 + lr_warmup  # 94 for lr_decay_steps=30, lr_warmup=4
+        lr_total_epochs = lr_decay_steps + lr_cooldown_steps  # 105 for lr_decay_steps=100, lr_warmup_steps=4, lr_cooldown_steps=5
     else:
-        lr_scheduler = callbacks.CosineLrSchedulerEpoch(lr_base, first_restart_step=lr_decay_steps, m_mul=0.5, t_mul=2.0, lr_min=lr_min, warmup=lr_warmup)
-        lr_total_epochs = lr_decay_steps * 3 + lr_warmup  # 94 for lr_decay_steps=30, lr_warmup=4
+        lr_scheduler = callbacks.CosineLrSchedulerEpoch(
+            lr_base, lr_decay_steps, m_mul=0.5, t_mul=2.0, lr_min=lr_min, lr_warmup=lr_warmup, warmup_steps=lr_warmup_steps, cooldown_steps=lr_cooldown_steps
+        )
+        lr_total_epochs = lr_decay_steps + lr_cooldown_steps  # 105 for lr_decay_steps=100, lr_warmup_steps=4, lr_cooldown_steps=5
     return lr_scheduler, lr_total_epochs
 
 
@@ -87,6 +89,7 @@ def compile_model(model, optimizer, lr_base, weight_decay, bce_threshold, label_
     return model
 
 
+# @tf.function(jit_compile=True)
 def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoch=0, lr_scheduler=None, basic_save_name=None):
     if compiled_model.compiled_loss is None:
         print(">>>> Error: Model NOT compiled.")
