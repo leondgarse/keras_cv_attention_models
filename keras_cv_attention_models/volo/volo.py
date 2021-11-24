@@ -32,7 +32,8 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
     attn = keras.layers.Dense(kernel_size ** 4 * num_heads, name=name + "attn")(attn) / qk_scale
     # [1, 14, 14, 6, 9, 9]
     attn = tf.reshape(attn, (-1, hh, ww, num_heads, kernel_size * kernel_size, kernel_size * kernel_size))
-    attention_weights = tf.nn.softmax(attn, axis=-1)
+    # attention_weights = tf.nn.softmax(attn, axis=-1)
+    attention_weights = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attn)
     if attn_dropout > 0:
         attention_weights = keras.layers.Dropout(attn_dropout)(attention_weights)
 

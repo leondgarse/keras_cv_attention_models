@@ -111,7 +111,8 @@ def attention_block(inputs, num_heads=4, key_dim=0, out_weight=True, out_bias=Fa
     # [batch, num_heads, hh * ww, hh * ww]
     attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key])
     attention_scores = MultiHeadRelativePositionalEmbedding(name=name and name + "pos_emb")(attention_scores)
-    attention_scores = tf.nn.softmax(attention_scores, axis=-1)
+    # attention_scores = tf.nn.softmax(attention_scores, axis=-1, name=name and name + "_attention_scores")
+    attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
 
     if attn_dropout > 0:
         attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
