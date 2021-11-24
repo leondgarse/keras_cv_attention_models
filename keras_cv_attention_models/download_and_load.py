@@ -87,12 +87,13 @@ def state_dict_stack_by_layer(state_dict, skip_weights=["num_batches_tracked"], 
 
 def match_layer_names_with_torch(target_names, tail_align_dict={}, full_name_align_dict={}, tail_split_position=2):
     layer_names_matched_torch = [""] * len(target_names)
-    is_tail_align_dict_split_by_stack = len(tail_align_dict) > 0 and isinstance(list(tail_align_dict.values())[0], dict)
+    # is_tail_align_dict_split_by_stack = len(tail_align_dict) > 0 and isinstance(list(tail_align_dict.values())[0], dict)
     for id, ii in enumerate(target_names):
         name_split = ii.split("_")
         stack_name = name_split[0]
         tail_name = "_".join(name_split[tail_split_position:])
-        cur_tail_align_dict = tail_align_dict[stack_name] if is_tail_align_dict_split_by_stack else tail_align_dict
+        # cur_tail_align_dict = tail_align_dict[stack_name] if is_tail_align_dict_split_by_stack else tail_align_dict
+        cur_tail_align_dict = tail_align_dict.get(stack_name, tail_align_dict)
         # print("id = {}, ii = {}, stack_name = {}, tail_name = {}".format(id, ii, stack_name, tail_name))
         if ii in full_name_align_dict:
             align = full_name_align_dict[ii]
