@@ -154,7 +154,8 @@ def mhsa_with_relative_position_embedding(
     pos_emb = RelativePositionalEmbedding(use_absolute_pos=not relative, name=name and name + "pos_emb")(pos_query)
     pos_emb = tf.reshape(pos_emb, [-1, *attention_scores.shape[1:]])
     attention_scores = keras.layers.Add()([attention_scores, pos_emb])
-    attention_scores = tf.nn.softmax(attention_scores, axis=-1)
+    # attention_scores = tf.nn.softmax(attention_scores, axis=-1)
+    attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
 
     if attn_dropout > 0:
         attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)

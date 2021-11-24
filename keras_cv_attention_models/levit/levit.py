@@ -64,7 +64,8 @@ def scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_dim, ac
     attn = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1], transpose_b=True))([qq, kk]) / qk_scale
     # print(f"{attn.shape = }")
     attn = MultiHeadPositionalEmbedding(name=name + "attn_pos")(attn)
-    attn = tf.nn.softmax(attn, axis=-1)
+    # attn = tf.nn.softmax(attn, axis=-1)
+    attn = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attn)
 
     # output = tf.matmul(attn, vv)    # [batch, num_heads, q_blocks, key_dim * attn_ratio]
     output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attn, vv])

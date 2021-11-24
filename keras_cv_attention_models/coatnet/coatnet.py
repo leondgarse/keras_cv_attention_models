@@ -43,7 +43,8 @@ def mhsa_with_multi_head_relative_position_embedding(
     # [batch, num_heads, hh * ww, hh * ww]
     attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale
     attention_scores = MultiHeadRelativePositionalEmbedding(with_cls_token=False, name=name and name + "pos_emb")(attention_scores)
-    attention_scores = tf.nn.softmax(attention_scores, axis=-1)
+    # attention_scores = tf.nn.softmax(attention_scores, axis=-1)
+    attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
 
     if attn_dropout > 0:
         attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)

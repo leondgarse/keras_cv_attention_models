@@ -52,7 +52,8 @@ def light_multi_head_self_attention(inputs, num_heads=4, key_dim=0, sr_ratio=1, 
     pos = pos[..., -key_hh:, -key_ww:]
     pos = tf.reshape(pos, [-1, *attention_scores.shape[1:]])
     attention_scores = keras.layers.Add()([attention_scores, pos])
-    attention_scores = tf.nn.softmax(attention_scores, axis=-1)
+    # attention_scores = tf.nn.softmax(attention_scores, axis=-1)
+    attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
 
     if attn_dropout > 0:
         attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)

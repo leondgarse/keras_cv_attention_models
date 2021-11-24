@@ -138,7 +138,8 @@ def factor_attention_conv_relative_positional_encoding(inputs, shared_crpe=None,
     # print(f">>>> {qkv.shape = }, {qq.shape = }, {kk.shape = }, {vv.shape = }")
 
     # Factorized attention.
-    kk = tf.nn.softmax(kk, axis=2)  # On `blocks` dimension
+    # kk = tf.nn.softmax(kk, axis=2)  # On `blocks` dimension
+    kk = keras.layers.Softmax(axis=2, name=name and name + "attention_scores")(kk)  # On `blocks` dimension
     # attn = tf.matmul(kk, vv, transpose_a=True)  # 'b h n k, b h n v -> b h k v', [batch, num_heads, key_dim, key_dim]
     # factor_att = tf.matmul(qq, attn)    # 'b h n k, b h k v -> b h n v', [batch, num_heads, blocks, key_dim]
     attn = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1], transpose_a=True))([kk, vv])

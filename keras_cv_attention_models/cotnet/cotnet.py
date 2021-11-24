@@ -83,7 +83,8 @@ def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activ
     # attn = keras.layers.Dense(filters * randix, use_bias=True, name=name and name + "attn_se_dense_2")(attn)
     attn = conv2d_no_bias(attn, filters * randix, 1, use_bias=True, name=name and name + "attn_se_2_")
     attn = tf.reshape(attn, [-1, 1, 1, filters, randix])
-    attn = tf.nn.softmax(attn, axis=-1)
+    # attn = tf.nn.softmax(attn, axis=-1)
+    attn = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attn)
 
     # value and output
     value = keras.layers.Concatenate(axis=-1)([tf.expand_dims(embed_out, -1), tf.expand_dims(key, -1)])
