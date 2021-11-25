@@ -208,3 +208,45 @@ def make_and_apply_gradcam_heatmap(orign_image, processed_image, model, last_con
     superimposed_img = (jet_heatmap * alpha + orign_image).numpy()
     superimposed_img /= superimposed_img.max()
     return superimposed_img, heatmap, preds
+
+
+def matmul_prod(aa):
+    vv = np.ones_like(aa[0], dtype='float64')
+    for ii in aa[::-1]:
+        vv = np.matmul(vv, ii)
+    return vv
+
+
+def apply_mask_2_image(image, mask, width, height):
+    # mask = vv[0]
+    mask = mask[- width * height:].reshape(width, height, 1)
+    mask = tf.image.resize(mask / mask.max(), image.shape[:2]).numpy()
+    return (mask * image).astype("uint8")
+
+
+def plot_attention_score_maps(model, image, rescale_mode="tf", use_cumulate=True, base_size=3):
+    import matplotlib.pyplot as plt
+
+    stem_out = [ii for ii in model.layers if ii.name.startswith('stem_')][-1]
+    _, hh, ww, _ = stem_out.output_shape
+
+    imm_inputs = tf.keras.applications.imagenet_utils.preprocess_input(image, mode=rescale_mode)
+    imm_inputs = tf.expand_dims(tf.image.resize(imm_inputs, model.input_shape[1:3]), 0)
+    bb = tf.keras.models.Model(model.inputs[0], [ii.output for ii in model.layers if ii.name.endswith('attention_scores')])
+    attn_scores = bb(imm_inputs)
+
+    heads_axis = 1
+    _, _, blocks = attn_scores[0].shape[:3]
+    attn_scores = np.concatenate(attn_scores, axis=0)
+    attn_scores = attn_scores.mean(axis=heads_axis) + np.eye(blocks)
+    attn_scores = attn_scores / attn_scores.sum(axis=(1, 2))[:, np.newaxis, np.newaxis]
+
+    fig = plt.figure(figsize=(base_size * attn_scores.shape[0], base_size))
+    if use_cumulate:
+        plt.imshow(np.hstack([apply_mask_2_image(image, matmul_prod(attn_scores[-ii-1:])[0], ww, hh) for ii in range(len(attn_scores))]))
+    else:
+        plt.imshow(np.hstack([apply_mask_2_image(image, matmul_prod([attn_scores[-ii-1]])[0], ww, hh) for ii in range(len(attn_scores))]))
+    plt.axis('off')
+    plt.grid(False)
+    fig.tight_layout()
+    return fig
