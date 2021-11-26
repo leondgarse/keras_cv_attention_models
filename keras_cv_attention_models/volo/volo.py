@@ -92,7 +92,8 @@ def outlook_attention_simple(inputs, embed_dim, num_heads=6, kernel_size=3, attn
     attn = keras.layers.AveragePooling2D(pool_size=kernel_size, strides=kernel_size)(inputs)
     attn = keras.layers.Dense(kernel_size ** 4 * num_heads, use_bias=True, name=name + "attn")(attn) / qk_scale
     attn = tf.reshape(attn, [-1, hh, ww, num_heads, kernel_size * kernel_size, kernel_size * kernel_size])  # [1, 14, 14, 6, 4, 4]
-    attn = tf.nn.softmax(attn, axis=-1)
+    # attn = tf.nn.softmax(attn, axis=-1)
+    attn = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attn)
     if attn_dropout > 0:
         attn = keras.layers.Dropout(attn_dropout)(attn)
 

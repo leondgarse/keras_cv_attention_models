@@ -94,21 +94,21 @@ def attention_block(inputs, num_heads=4, key_dim=0, out_weight=True, out_bias=Fa
     qkv = keras.layers.Dense(emded_dim * 3, use_bias=False, name=name and name + "qkv")(inputs)
     qkv = tf.reshape(qkv, [-1, bb, qkv.shape[-1]])
     query, key, value = tf.split(qkv, 3, axis=-1)
-    # query = [batch, num_heads, hh * ww, key_dim]
+    # query = [batch, num_heads, cls_token + hh * ww, key_dim]
     if qv_bias:
         query = BiasLayer(name=name + "query_bias")(query)
     query = tf.reshape(query, [-1, query.shape[1], num_heads, key_dim])
     query = tf.transpose(query, [0, 2, 1, 3])
-    # key = [batch, num_heads, key_dim, hh * ww]
+    # key = [batch, num_heads, key_dim, cls_token + hh * ww]
     key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])
-    # value = [batch, num_heads, hh * ww, key_dim]
+    # value = [batch, num_heads, cls_token + hh * ww, key_dim]
     if qv_bias:
         value = BiasLayer(name=name + "value_bias")(value)
     value = tf.reshape(value, [-1, value.shape[1], num_heads, key_dim])
     value = tf.transpose(value, [0, 2, 1, 3])
 
     query *= qk_scale
-    # [batch, num_heads, hh * ww, hh * ww]
+    # [batch, num_heads, cls_token + hh * ww, cls_token + hh * ww]
     attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key])
     attention_scores = MultiHeadRelativePositionalEmbedding(name=name and name + "pos_emb")(attention_scores)
     # attention_scores = tf.nn.softmax(attention_scores, axis=-1, name=name and name + "_attention_scores")
@@ -116,15 +116,15 @@ def attention_block(inputs, num_heads=4, key_dim=0, out_weight=True, out_bias=Fa
 
     if attn_dropout > 0:
         attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
-    # value = [batch, num_heads, hh * ww, key_dim]
-    # attention_output = tf.matmul(attention_scores, value)  # [batch, num_heads, hh * ww, key_dim]
+    # value = [batch, num_heads, cls_token + hh * ww, key_dim]
+    # attention_output = tf.matmul(attention_scores, value)  # [batch, num_heads, cls_token + hh * ww, key_dim]
     attention_output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
     attention_output = tf.transpose(attention_output, perm=[0, 2, 1, 3])
     attention_output = tf.reshape(attention_output, [-1, bb, emded_dim])
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
     if out_weight:
-        # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
+        # [batch, cls_token + hh * ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, cls_token + hh * ww, out]
         attention_output = keras.layers.Dense(emded_dim, use_bias=out_bias, name=name and name + "output")(attention_output)
     return attention_output
 

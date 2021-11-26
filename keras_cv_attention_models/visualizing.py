@@ -217,36 +217,53 @@ def matmul_prod(aa):
     return vv
 
 
-def apply_mask_2_image(image, mask, width, height):
-    # mask = vv[0]
-    mask = mask[- width * height:].reshape(width, height, 1)
+def apply_mask_2_image(image, mask):
+    if len(mask.shape) == 1:
+        width = height = int(np.sqrt(mask.shape[0]))
+    else:
+        height, width = mask.shape[:2]
+    mask = mask.reshape(width, height, 1)
     mask = tf.image.resize(mask / mask.max(), image.shape[:2]).numpy()
     return (mask * image).astype("uint8")
 
 
-def plot_attention_score_maps(model, image, rescale_mode="tf", use_cumulate=True, base_size=3):
+def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="beit", base_size=3):
     import matplotlib.pyplot as plt
-
-    stem_out = [ii for ii in model.layers if ii.name.startswith('stem_')][-1]
-    _, hh, ww, _ = stem_out.output_shape
 
     imm_inputs = tf.keras.applications.imagenet_utils.preprocess_input(image, mode=rescale_mode)
     imm_inputs = tf.expand_dims(tf.image.resize(imm_inputs, model.input_shape[1:3]), 0)
     bb = tf.keras.models.Model(model.inputs[0], [ii.output for ii in model.layers if ii.name.endswith('attention_scores')])
     attn_scores = bb(imm_inputs)
 
-    heads_axis = 1
-    _, _, blocks = attn_scores[0].shape[:3]
-    attn_scores = np.concatenate(attn_scores, axis=0)
-    attn_scores = attn_scores.mean(axis=heads_axis) + np.eye(blocks)
-    attn_scores = attn_scores / attn_scores.sum(axis=(1, 2))[:, np.newaxis, np.newaxis]
-
-    fig = plt.figure(figsize=(base_size * attn_scores.shape[0], base_size))
-    if use_cumulate:
-        plt.imshow(np.hstack([apply_mask_2_image(image, matmul_prod(attn_scores[-ii-1:])[0], ww, hh) for ii in range(len(attn_scores))]))
+    attn_type = attn_type.lower()
+    if attn_type.startswith("beit"):
+        # beit attn_score [batch, num_heads, cls_token + hh * ww, cls_token + hh * ww]
+        mask = [ii.numpy()[0].mean(0) + np.eye(ii.shape[-1]) for ii in attn_scores]
+        mask = [(ii / ii.sum()) for ii in mask]
+        cum_mask = [matmul_prod(mask[-ii-1:])[0][1:] for ii in range(len(mask))]
+        mask = [ii[0][1:]for ii in mask]
+    elif attn_type.startswith("bot") or attn_type.startswith("halo") or attn_type.startswith("levit"):
+        # bot attn_score [batch, num_heads, hh * ww, hh * ww]
+        # halo attn_score [batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]
+        # levit attn_score [batch, num_heads, q_blocks, k_blocks]
+        mean_axis = tuple(range(len(attn_scores[0].shape) - 2))
+        mask = [ii.numpy()[0].mean(mean_axis) for ii in attn_scores]
+        ss = [int(np.sqrt(ii.shape[-1])) for ii in mask]
+        cum_mask = [tf.image.resize(tf.reshape(ii, [jj, jj, 1]), image.shape[:2])[:, :, 0] for ii, jj in zip(mask, ss)]
+        cum_mask = [tf.reduce_prod(cum_mask[-ii-1:], axis=0).numpy() for ii in range(len(mask))]
     else:
-        plt.imshow(np.hstack([apply_mask_2_image(image, matmul_prod([attn_scores[-ii-1]])[0], ww, hh) for ii in range(len(attn_scores))]))
-    plt.axis('off')
-    plt.grid(False)
+        # cot attn_score [batch, 1, 1, filters, randix]
+        # volo attn_score [batch, hh, ww, num_heads, kernel_size * kernel_size, kernel_size * kernel_size]
+        print("[{}] still don't know how...".format(attn_type))
+        return
+
+    fig, axes = plt.subplots(2, 1, figsize=(base_size * len(mask), base_size * 2))
+    axes[0].imshow(np.hstack([apply_mask_2_image(image, ii) for ii in cum_mask]))
+    axes[0].set_title('Attention scores: attn_scores[{}] --> attn_scores[0]\nLayer name: {} --> {}'.format(len(mask), bb.output_names[-1], bb.output_names[0]))
+    axes[1].imshow(np.hstack([apply_mask_2_image(image, ii) for ii in mask[::-1]]))
+    axes[1].set_title('Accumulated attention scores: attn_scores[{}:] --> attn_scores[0:]\nLayer name: {} --> {}'.format(len(mask) - 1, bb.output_names[-1], bb.output_names[0]))
+    for ax in axes:
+        ax.axis('off')
+        ax.grid(False)
     fig.tight_layout()
     return fig
