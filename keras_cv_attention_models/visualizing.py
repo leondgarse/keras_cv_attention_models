@@ -211,8 +211,8 @@ def make_and_apply_gradcam_heatmap(orign_image, processed_image, model, last_con
 
 
 def matmul_prod(aa):
-    vv = np.ones_like(aa[0], dtype='float64')
-    for ii in aa[::-1]:
+    vv = aa[0]
+    for ii in aa[1:]:
         vv = np.matmul(vv, ii)
     return vv
 
@@ -220,6 +220,7 @@ def matmul_prod(aa):
 def apply_mask_2_image(image, mask):
     if len(mask.shape) == 1:
         width = height = int(np.sqrt(mask.shape[0]))
+        mask = mask[- width * height:]
     else:
         height, width = mask.shape[:2]
     mask = mask.reshape(width, height, 1)
@@ -227,7 +228,7 @@ def apply_mask_2_image(image, mask):
     return (mask * image).astype("uint8")
 
 
-def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="beit", base_size=3):
+def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto", rows=-1, base_size=3):
     import matplotlib.pyplot as plt
 
     imm_inputs = tf.keras.applications.imagenet_utils.preprocess_input(image, mode=rescale_mode)
@@ -236,31 +237,65 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="beit",
     attn_scores = bb(imm_inputs)
 
     attn_type = attn_type.lower()
-    if attn_type.startswith("beit"):
+    check_type_is = lambda tt: (tt in model.name.lower()) if attn_type == "auto" else (attn_type.startswith(tt))
+    if check_type_is("beit"):
         # beit attn_score [batch, num_heads, cls_token + hh * ww, cls_token + hh * ww]
-        mask = [ii.numpy()[0].mean(0) + np.eye(ii.shape[-1]) for ii in attn_scores]
+        print(">>>> Attention type: beit")
+        mask = [ii.numpy()[0].mean(0) + np.eye(ii.shape[-1]) for ii in attn_scores][::-1]
         mask = [(ii / ii.sum()) for ii in mask]
-        cum_mask = [matmul_prod(mask[-ii-1:])[0][1:] for ii in range(len(mask))]
-        mask = [ii[0][1:]for ii in mask]
-    elif attn_type.startswith("bot") or attn_type.startswith("halo") or attn_type.startswith("levit"):
-        # bot attn_score [batch, num_heads, hh * ww, hh * ww]
-        # halo attn_score [batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]
+        cum_mask = [matmul_prod(mask[:ii+1])[0] for ii in range(len(mask))]
+        mask = [ii[0] for ii in mask]
+    elif check_type_is("levit"):
         # levit attn_score [batch, num_heads, q_blocks, k_blocks]
-        mean_axis = tuple(range(len(attn_scores[0].shape) - 2))
-        mask = [ii.numpy()[0].mean(mean_axis) for ii in attn_scores]
-        ss = [int(np.sqrt(ii.shape[-1])) for ii in mask]
-        cum_mask = [tf.image.resize(tf.reshape(ii, [jj, jj, 1]), image.shape[:2])[:, :, 0] for ii, jj in zip(mask, ss)]
-        cum_mask = [tf.reduce_prod(cum_mask[-ii-1:], axis=0).numpy() for ii in range(len(mask))]
+        print(">>>> Attention type: levit")
+        mask = [ii.numpy()[0].mean(0) for ii in attn_scores][::-1]
+        cum_mask = [matmul_prod(mask[:ii+1]).mean(0) for ii in range(len(mask))]
+        mask = [ii.mean(0) for ii in mask]
+    elif check_type_is("bot"):
+        # bot attn_score [batch, num_heads, hh * ww, hh * ww]
+        print(">>>> Attention type: bot")
+        mask = [ii.numpy()[0].mean((0)) for ii in attn_scores][::-1]
+        down_sample = lambda xx, rr: tf.nn.max_pool(xx[tf.newaxis, :, :, tf.newaxis], rr, rr, 'VALID')[0, :, :, 0].numpy()
+        cum_mask = [mask[0] if ii == 0 else down_sample(mask[ii], int(mask[ii].shape[0] / mask[0].shape[0])) for ii in range(len(mask))]
+        cum_mask = [matmul_prod(cum_mask[:ii+1]).mean(0) for ii in range(len(cum_mask))]
+        mask = [ii.mean(0) for ii in mask]
+    elif check_type_is("halo"):
+        # halo attn_score [batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]
+        print(">>>> Attention type: halo")
+        from einops import rearrange
+        from keras_cv_attention_models.attention_layers import tpu_compatible_extract_patches
+
+        mask = [ii.numpy()[0].mean(0) for ii in attn_scores][::-1]
+
+        qqs = [int(np.sqrt(ii.shape[2])) for ii in mask]    # query_kernel
+        vvs = [int(np.sqrt(ii.shape[3])) for ii in mask]    # kv_kernel
+        hhs = [(jj - ii) // 2 for ii, jj in zip(qqs, vvs)]  # halo_size
+        tt = [rearrange(ii, "hh ww (hb wb) cc -> (hh hb) (ww wb) cc", hb=qq, wb=qq) for ii, qq in zip(mask, qqs)]
+        tt = [tf.expand_dims(tf.pad(ii, [[hh, hh], [hh, hh], [0, 0]]), 0) for ii, hh in zip(tt, hhs)]
+        tt = [tpu_compatible_extract_patches(ii, vv, qq, padding='VALID', compressed=False).numpy()[0] for ii, vv, qq in zip(tt, vvs, qqs)]
+        # tt = [rearrange(ii, "hh ww hb wb cc -> hh ww (hb wb) cc").mean((0, 1)) for ii in tt]
+        tt = [tf.reduce_max(rearrange(ii, "hh ww hb wb cc -> hh ww (hb wb) cc"), axis=(0, 1)).numpy() for ii in tt]
+        cum_mask = [matmul_prod(tt[:ii+1]).mean(0) for ii in range(len(tt))]
+        mask = [ii.mean((0, 1, 2)) for ii in mask]
     else:
+        print(">>>> Attention type: cot / volo / unknown")
         # cot attn_score [batch, 1, 1, filters, randix]
         # volo attn_score [batch, hh, ww, num_heads, kernel_size * kernel_size, kernel_size * kernel_size]
         print("[{}] still don't know how...".format(attn_type))
         return
 
-    fig, axes = plt.subplots(2, 1, figsize=(base_size * len(mask), base_size * 2))
-    axes[0].imshow(np.hstack([apply_mask_2_image(image, ii) for ii in cum_mask]))
+    total = len(mask)
+    if rows == -1:
+        rr = int(np.floor(np.sqrt(total)))
+        for ii in range(1, rr + 1)[::-1]:
+            if total % ii == 0:
+                rows = ii
+                break
+    cols = int(np.ceil(total / rows))
+    fig, axes = plt.subplots(2, 1, figsize=(base_size * cols, base_size * rows * 2))
+    axes[0].imshow(np.vstack([np.hstack([apply_mask_2_image(image, ii) for ii in mask[rr * cols: (rr + 1) * cols]]) for rr in range(rows)]))
     axes[0].set_title('Attention scores: attn_scores[{}] --> attn_scores[0]\nLayer name: {} --> {}'.format(len(mask), bb.output_names[-1], bb.output_names[0]))
-    axes[1].imshow(np.hstack([apply_mask_2_image(image, ii) for ii in mask[::-1]]))
+    axes[1].imshow(np.vstack([np.hstack([apply_mask_2_image(image, ii) for ii in cum_mask[rr * cols: (rr + 1) * cols]]) for rr in range(rows)]))
     axes[1].set_title('Accumulated attention scores: attn_scores[{}:] --> attn_scores[0:]\nLayer name: {} --> {}'.format(len(mask) - 1, bb.output_names[-1], bb.output_names[0]))
     for ax in axes:
         ax.axis('off')
