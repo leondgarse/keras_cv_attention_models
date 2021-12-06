@@ -122,6 +122,7 @@ class RandomProcessImage:
         central_crop=1.0,
         random_crop_min=1.0,
         resize_method="bilinear",
+        resize_antialias=False,
         random_erasing_prob=0.0,
         random_erasing_layers=1,
         magnitude=0,
@@ -133,7 +134,8 @@ class RandomProcessImage:
     ):
         self.magnitude = magnitude
         self.target_shape = target_shape if len(target_shape) == 2 else target_shape[:2]
-        self.central_crop, self.random_crop_min, self.resize_method = central_crop, random_crop_min, resize_method
+        self.central_crop, self.random_crop_min = central_crop, random_crop_min
+        self.resize_method, self.resize_antialias = resize_method, resize_antialias
 
         if random_erasing_prob > 0:
             self.random_erasing = lambda img: random_erasing_per_pixel(img, num_layers=random_erasing_layers, probability=random_erasing_prob)
@@ -182,7 +184,7 @@ class RandomProcessImage:
             input_image = random_crop_fraction_timm(image, scale=(0.08, 1.0))
         else:
             input_image = tf.image.central_crop(image, self.central_crop)
-        input_image = tf.image.resize(input_image, self.target_shape, method=self.resize_method)
+        input_image = tf.image.resize(input_image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
         input_image = self.process(input_image)
         input_image = tf.cast(input_image, tf.float32)
         input_image.set_shape([*self.target_shape[:2], 3])
@@ -220,13 +222,13 @@ def evaluation_process_resize_crop(datapoint, target_shape=(224, 224), central_c
     return image, label
 
 
-def sample_beta_distribution(size, concentration_0=0.4, concentration_1=0.4):
-    gamma_1_sample = tf.random.gamma(shape=[size], alpha=concentration_1)
-    gamma_2_sample = tf.random.gamma(shape=[size], alpha=concentration_0)
+def sample_beta_distribution(shape, concentration_0=0.4, concentration_1=0.4):
+    gamma_1_sample = tf.random.gamma(shape=shape, alpha=concentration_1)
+    gamma_2_sample = tf.random.gamma(shape=shape, alpha=concentration_0)
     return gamma_1_sample / (gamma_1_sample + gamma_2_sample)
 
 
-def mixup(image, label, alpha=0.4):
+def mixup(images, labels, alpha=0.4, min_mix_weight=0.0):
     """Applies Mixup regularization to a batch of images and labels.
 
     [1] Hongyi Zhang, Moustapha Cisse, Yann N. Dauphin, David Lopez-Paz
@@ -234,33 +236,33 @@ def mixup(image, label, alpha=0.4):
     ICLR'18, https://arxiv.org/abs/1710.09412
     """
     # mix_weight = tfp.distributions.Beta(alpha, alpha).sample([batch_size, 1])
-    batch_size = tf.shape(image)[0]
-    mix_weight = sample_beta_distribution(batch_size, alpha, alpha)
+    batch_size = tf.shape(images)[0]
+    mix_weight = sample_beta_distribution([batch_size], alpha, alpha)
     mix_weight = tf.maximum(mix_weight, 1.0 - mix_weight)
 
-    # Regard values with `> 0.9` as no mixup, this probability is near `1 - alpha`
-    # alpha: no_mixup --> {0.2: 0.6714, 0.4: 0.47885, 0.6: 0.35132, 0.8: 0.26354, 1.0: 0.19931}
-    mix_weight = tf.where(mix_weight > 0.9, tf.ones_like(mix_weight), mix_weight)
+    # For min_mix_weight=0.1, regard values with `> 0.9` as no mixup, this probability is near `1 - alpha`
+    # alpha: no_mixup --> {0.1: 0.8128, 0.2: 0.6736, 0.4: 0.4793, 0.6: 0.3521, 0.8: 0.2636, 1.0: 0.2000}
+    if min_mix_weight > 0:
+        mix_weight = tf.where(mix_weight > 1 - min_mix_weight, tf.ones_like(mix_weight), mix_weight)
 
     label_mix_weight = tf.cast(tf.expand_dims(mix_weight, -1), "float32")
-    img_mix_weight = tf.cast(tf.reshape(mix_weight, [batch_size, 1, 1, 1]), image.dtype)
+    img_mix_weight = tf.cast(tf.reshape(mix_weight, [batch_size, 1, 1, 1]), images.dtype)
 
     shuffle_index = tf.random.shuffle(tf.range(batch_size))
-    image = image * img_mix_weight + tf.gather(image, shuffle_index) * (1.0 - img_mix_weight)
-    label = tf.cast(label, "float32")
-    label = label * label_mix_weight + tf.gather(label, shuffle_index) * (1 - label_mix_weight)
-    return image, label
+    images = images * img_mix_weight + tf.gather(images, shuffle_index) * (1.0 - img_mix_weight)
+    labels = tf.cast(labels, "float32")
+    labels = labels * label_mix_weight + tf.gather(labels, shuffle_index) * (1 - label_mix_weight)
+    return images, labels
 
-
-def get_box(mix_weight, height, width):
+def get_box_0(mix_weight, height, width):
     cut_rate_half = tf.math.sqrt(1.0 - mix_weight) / 2
     cut_h_half, cut_w_half = tf.cast(cut_rate_half * float(height), tf.int32), tf.cast(cut_rate_half * float(width), tf.int32)
-    center_y = tf.random.uniform((1,), minval=cut_h_half, maxval=height - cut_h_half, dtype=tf.int32)[0]
-    center_x = tf.random.uniform((1,), minval=cut_w_half, maxval=width - cut_w_half, dtype=tf.int32)[0]
+    cut_h_half, cut_w_half = tf.maximum(1, cut_h_half), tf.maximum(1, cut_w_half)
+    center_y = tf.random.uniform((), minval=cut_h_half, maxval=height - cut_h_half, dtype=tf.int32)
+    center_x = tf.random.uniform((), minval=cut_w_half, maxval=width - cut_w_half, dtype=tf.int32)
     return center_y - cut_h_half, center_x - cut_w_half, cut_h_half * 2, cut_w_half * 2
 
-
-def cutmix(images, labels, alpha=0.5, min_mix_weight=0.01):
+def cutmix_0(images, labels, alpha=0.5, min_mix_weight=0.0):
     """
     Copied and modified from https://keras.io/examples/vision/cutmix/
 
@@ -277,7 +279,7 @@ def cutmix(images, labels, alpha=0.5, min_mix_weight=0.01):
     # Get a sample from the Beta distribution
     batch_size = tf.shape(images)[0]
     _, hh, ww, _ = images.shape
-    mix_weight = sample_beta_distribution(1, alpha, alpha)[0]  # same value in batch
+    mix_weight = sample_beta_distribution((), alpha, alpha)  # same value in batch
     if mix_weight < min_mix_weight or 1 - mix_weight < min_mix_weight:
         # For input_shape=224, min_mix_weight=0.01, min_height = 224 * 0.1 = 22.4
         return images, labels
@@ -293,6 +295,34 @@ def cutmix(images, labels, alpha=0.5, min_mix_weight=0.01):
     labels = labels * label_mix_weight + tf.gather(labels, shuffle_index) * (1 - label_mix_weight)
     return images, labels
 
+def get_box(mix_weight, height, width):
+    cut_rate_half = tf.math.sqrt(1.0 - mix_weight) / 2
+    cut_h_half, cut_w_half = tf.cast(cut_rate_half * float(height), tf.int32), tf.cast(cut_rate_half * float(width), tf.int32)
+    cut_h_half, cut_w_half = tf.maximum(1, cut_h_half), tf.maximum(1, cut_w_half)
+    # Can be non-square on border
+    center_y = tf.random.uniform((), minval=0, maxval=height, dtype=tf.int32)
+    center_x = tf.random.uniform((), minval=0, maxval=width, dtype=tf.int32)
+    yl = tf.clip_by_value(center_y - cut_h_half, 0, height)
+    yr = tf.clip_by_value(center_y + cut_h_half, 0, height)
+    xl = tf.clip_by_value(center_x - cut_w_half, 0, width)
+    xr = tf.clip_by_value(center_x + cut_w_half, 0, width)
+    return yl, xl, yr - yl, xr - xl
+
+def cutmix(images, labels, alpha=0.5):
+    # Get a sample from the Beta distribution
+    _, hh, ww, _ = images.shape
+    mix_weight = sample_beta_distribution((), alpha, alpha)
+
+    offset_height, offset_width, target_height, target_width = get_box(mix_weight, hh, ww)
+    mix_weight = 1.0 - tf.cast(target_height * target_width, "float32") / tf.cast(hh * ww, "float32")
+    crops = tf.image.crop_to_bounding_box(images, offset_height, offset_width, target_height, target_width)
+    pad_crops = tf.image.pad_to_bounding_box(crops, offset_height, offset_width, hh, ww)
+
+    images = images - pad_crops + pad_crops[::-1]
+    labels = tf.cast(labels, "float32")
+    labels = labels * mix_weight + labels[::-1] * (1.0 - mix_weight)
+    return images, labels
+
 
 def init_dataset(
     data_name="imagenet2012",  # dataset params
@@ -306,7 +336,7 @@ def init_dataset(
     eval_central_crop=1.0,  # augment params
     random_crop_min=1.0,
     resize_method="bilinear",  # ["bilinear", "bicubic"]
-    eval_antialias=False,
+    resize_antialias=False,
     random_erasing_prob=0.0,
     magnitude=0,
     num_layers=2,
@@ -329,6 +359,7 @@ def init_dataset(
         central_crop=1.0,
         random_crop_min=random_crop_min,
         resize_method=resize_method,
+        resize_antialias=resize_antialias,
         random_erasing_prob=random_erasing_prob,
         magnitude=magnitude,
         num_layers=num_layers,
@@ -342,8 +373,8 @@ def init_dataset(
     elif rescale_mode == "torch":
         mean = tf.constant([0.485, 0.456, 0.406]) * 255.0
         std = tf.constant([0.229, 0.224, 0.225]) * 255.0
-        # rescaling = lambda xx: (xx - mean) / std
-        rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
+        rescaling = lambda xx: (xx - mean) / std
+        # rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
     else:
         # rescaling = lambda xx: (tf.clip_by_value(xx) - 128.0) / 128.0
         # rescaling = lambda xx: (tf.clip_by_value(xx) - 127.5) / 127.5
@@ -370,8 +401,8 @@ def init_dataset(
     train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE)
 
     """ Test dataset """
-    test_process = lambda xx: evaluation_process_crop_resize(xx, input_shape[:2], eval_central_crop, resize_method, eval_antialias)
-    # test_process = lambda xx: evaluation_process_resize_crop(xx, input_shape[:2], eval_central_crop, resize_method, eval_antialias)  # timm
+    test_process = lambda xx: evaluation_process_crop_resize(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)
+    # test_process = lambda xx: evaluation_process_resize_crop(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)  # timm
     if "validation" in dataset:
         test_dataset = dataset["validation"].map(test_process)
     elif "test" in dataset:

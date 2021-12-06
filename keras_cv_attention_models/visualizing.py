@@ -299,10 +299,8 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
     cols = int(np.ceil(total / rows))
     fig, axes = plt.subplots(2, 1, figsize=(base_size * cols, base_size * rows * 2))
     axes[0].imshow(np.vstack([np.hstack([apply_mask_2_image(image, ii) for ii in mask[rr * cols : (rr + 1) * cols]]) for rr in range(rows)]))
-    # axes[0].set_title('Attention scores: attn_scores[{}] --> attn_scores[0]\nLayer name: {} --> {}'.format(len(mask), bb.output_names[-1], bb.output_names[0]))
     axes[0].set_title("Attention scores: attn_scores[{}] --> attn_scores[0]".format(len(mask)) + layer_name_title)
     axes[1].imshow(np.vstack([np.hstack([apply_mask_2_image(image, ii) for ii in cum_mask[rr * cols : (rr + 1) * cols]]) for rr in range(rows)]))
-    # axes[1].set_title('Accumulated attention scores: attn_scores[{}:] --> attn_scores[0:]\nLayer name: {} --> {}'.format(len(mask) - 1, bb.output_names[-1], bb.output_names[0]))
     axes[1].set_title("Accumulated attention scores: attn_scores[{}:] --> attn_scores[0:]".format(len(mask) - 1) + layer_name_title)
     for ax in axes:
         ax.axis("off")

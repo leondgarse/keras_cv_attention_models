@@ -26,7 +26,7 @@ def parse_arguments(argv):
     loss_group = parser.add_argument_group("Loss arguments")
     loss_group.add_argument("--label_smoothing", type=float, default=0, help="Loss label smoothing value")
     loss_group.add_argument(
-        "--bce_threshold", type=float, default=1, help="Value [0, 1) for BCE loss target_threshold, otherwise using CategoricalCrossentropy"
+        "--bce_threshold", type=float, default=0.2, help="Value [0, 1) for BCE loss target_threshold, set 1 for using CategoricalCrossentropy"
     )
 
     """ Learning rate and weight decay arguments """
@@ -61,6 +61,7 @@ def parse_arguments(argv):
     ds_group.add_argument("--rescale_mode", type=str, default="torch", help="Rescale mode, one of [tf, torch]")
     ds_group.add_argument("--eval_central_crop", type=float, default=0.95, help="Evaluation central crop fraction. Set 1 to disable")
     ds_group.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
+    ds_group.add_argument("--resize_antialias", action="store_true", help="Set use antialias=True for tf.image.resize")
 
     args = parser.parse_known_args(argv)[0]
 
@@ -112,6 +113,7 @@ if __name__ == "__main__":
         eval_central_crop=args.eval_central_crop,
         random_crop_min=args.random_crop_min,
         resize_method=args.resize_method,
+        resize_antialias=args.resize_antialias,
         random_erasing_prob=args.random_erasing_prob,
         magnitude=args.magnitude,
         num_layers=args.num_layers,

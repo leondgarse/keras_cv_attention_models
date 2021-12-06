@@ -113,7 +113,7 @@ def deep_branch(
     else:
         nn = conv2d_no_bias(inputs, hidden_filter, 1, strides=1, padding="VALID", name=name + "deep_1_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "deep_1_")
-    bn_after_attn = False if use_3x3_kernel else bn_after_attn
+    # bn_after_attn = False if use_3x3_kernel else bn_after_attn
     nn = attn_block(nn, hidden_filter, strides, **attn_block_params, bn_after_attn=bn_after_attn, activation=activation, name=name + "deep_2_")
 
     if not use_3x3_kernel:
@@ -165,7 +165,8 @@ def aot_block(
         deep = drop_block(deep, drop_rate)
         return keras.layers.Add(name=name + "add")([shortcut, deep]) if shortcut is not None else deep  # if no shortcut
     else:
-        deep = batchnorm_with_activation(deep, activation=None, zero_gamma=True, name=name + "3_")
+        if not (use_3x3_kernel and bn_after_attn):
+            deep = batchnorm_with_activation(deep, activation=None, zero_gamma=True, name=name + "3_")
         deep = drop_block(deep, drop_rate)
         out = keras.layers.Add(name=name + "add")([shortcut, deep]) if shortcut is not None else deep  # if no shortcut
         if use_block_output_activation:
