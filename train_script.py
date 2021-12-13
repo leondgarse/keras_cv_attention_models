@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import json
 import tensorflow as tf
 from tensorflow import keras
 from keras_cv_attention_models.imagenet import init_dataset
@@ -20,6 +21,7 @@ def parse_arguments(argv):
     parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history. None means a combination of parameters")
     parser.add_argument("-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 file. Higher priority than model")
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights")
+    parser.add_argument("--additional_model_kwargs", type=str, default=None, help="Additional model kwargs in format like '{\"drop_connect_rate\": 0.05}'")
     parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
 
     """ Loss arguments """
@@ -126,7 +128,9 @@ if __name__ == "__main__":
     epochs = args.epochs if args.epochs != 0 else lr_total_epochs
 
     with strategy.scope():
-        model = init_model(args.model, input_shape, num_classes, args.pretrained, args.restore_path)
+        # additional_model_kwargs = {"drop_connect_rate": 0.05}
+        additional_model_kwargs = json.loads(args.additional_model_kwargs) if args.additional_model_kwargs else {}
+        model = init_model(args.model, input_shape, num_classes, args.pretrained, args.restore_path, **additional_model_kwargs)
         if model.optimizer is None:
             model = compile_model(model, args.optimizer, lr_base, args.weight_decay, args.bce_threshold, args.label_smoothing)
         print(">>>> basic_save_name =", args.basic_save_name)

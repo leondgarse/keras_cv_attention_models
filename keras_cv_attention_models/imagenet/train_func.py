@@ -57,7 +57,8 @@ def init_loss(bce_threshold=1.0, label_smoothing=0):
     return loss
 
 
-def init_model(model, input_shape=(224, 224, 3), num_classes=1000, pretrained=None, restore_path=None):
+def init_model(model, input_shape=(224, 224, 3), num_classes=1000, pretrained=None, restore_path=None, **kwargs):
+    print(">>> init_model kwargs:", kwargs)
     model = model.strip().split(".")
     if restore_path:
         import tensorflow_addons as tfa
@@ -69,9 +70,10 @@ def init_model(model, input_shape=(224, 224, 3), num_classes=1000, pretrained=No
         # model = keras.applications.ResNet50(weights=None, input_shape=input_shape)
         # model = aotnet.AotNet50(num_classes=num_classes, input_shape=input_shape)
         if len(model) == 1:
-            model = getattr(keras.applications, model[0])(classes=num_classes, weights=pretrained, input_shape=input_shape)
+            model = getattr(keras.applications, model[0])(classes=num_classes, weights=pretrained, input_shape=input_shape, **kwargs)
         else:
-            model = getattr(getattr(keras_cv_attention_models, model[0]), model[1])(num_classes=num_classes, input_shape=input_shape, pretrained=pretrained)
+            model_class = getattr(getattr(keras_cv_attention_models, model[0]), model[1])
+            model = model_class(num_classes=num_classes, input_shape=input_shape, pretrained=pretrained, **kwargs)
         print(">>>> Built model name:", model.name)
     return model
 
