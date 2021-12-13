@@ -48,8 +48,6 @@ class ScaledStandardizedConv2D(tf.keras.layers.Conv2D):
     def __init__(self, gamma=1.0, eps=1e-5, *args, **kwargs):
         super(ScaledStandardizedConv2D, self).__init__(*args, **kwargs)
         self.eps, self.gamma = eps, gamma
-        self.__eps__ = tf.cast(eps, self.dtype)
-        self.__gamma__ = tf.cast(gamma, self.dtype)
 
     def build(self, input_shape):
         super(ScaledStandardizedConv2D, self).build(input_shape)
@@ -59,12 +57,15 @@ class ScaledStandardizedConv2D(tf.keras.layers.Conv2D):
         else:
             default_conv_op = self.convolution_op  # TF 2.7.0
         self.gain = self.add_weight(name="gain", shape=(self.filters,), initializer="ones", trainable=True, dtype=self.dtype)
-        self.fan_in = tf.cast(tf.reduce_prod(self.kernel.shape[:-1]), self.dtype)
+        self.fan_in = tf.cast(tf.reduce_prod(self.kernel.shape[:-1]), self._compute_dtype)
+        self.__eps__ = tf.cast(self.eps, self._compute_dtype)
+        self.__gamma__ = tf.cast(self.gamma, self._compute_dtype)
 
         def standardized_conv_op(inputs, kernel):
             # Kernel has shape HWIO, normalize over HWI
             mean, var = tf.nn.moments(kernel, axes=[0, 1, 2], keepdims=True)
             # Manually fused normalization, eq. to (w - mean) * gain / sqrt(N * var)
+            # print(">>>>", mean.dtype, var.dtype, self.fan_in.dtype, self.__eps__.dtype, self.__gamma__.dtype, self.gain.dtype)
             scale = tf.math.rsqrt(tf.math.maximum(var * self.fan_in, self.__eps__)) * (self.gain * self.__gamma__)
             return default_conv_op(inputs, (kernel - mean) * scale)
 
