@@ -89,6 +89,7 @@
 ## ImageNet Training
   - [Init Imagenet dataset using tensorflow_datasets](https://github.com/leondgarse/keras_cv_attention_models/discussions/9).
   - It took me weeks figuring out what is wrong in training, that should use `LAMB` with excluding `batch norm` layers on weight decay...
+  - For model training, currently would recommend `TF 2.6.2` or `tf-nightly`, as `TF 2.7.0` has some issues with `XLA`, and lower versions may meet other issues.
   - Default params for `train_script.py` is like `A3` configuration from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf) with `batch_size=256, input_shape=(160, 160)`.
   ```sh
   # Not sure about how useful is resize_antialias, default behavior for timm using `bicubic`
@@ -96,12 +97,14 @@
   ```
   ![](keras_cv_attention_models/imagenet/aotnet50_train.svg)
   ```sh
-  # Evaluation using input_shape (224, 224)
+  # Evaluation using input_shape (224, 224).
+  # `antialias` usage should be same with training.
   CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m aotnet50_epoch_103_val_acc_0.7674.h5 -i 224 --central_crop 0.95 --antialias
   # >>>> Accuracy top1: 0.78466 top5: 0.94088
   ```
 ## AotNet
   - [Keras AotNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/aotnet) is just a `ResNet` / `ResNetV2` like framework, that set parameters like `attn_types` and `se_ratio` and others, which is used to apply different types attention layer. Works like `byoanet` / `byobnet` from `timm`.
+  - Default parameters set is a typical `ResNet` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
   ```py
   from keras_cv_attention_models import aotnet
   # Mixing se and outlook and halo and mhsa and cot_attention, 21M parameters.

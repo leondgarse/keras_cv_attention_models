@@ -73,6 +73,7 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
     # return hh_fraction, target_area / hh_fraction # float value will stay in scale and ratio range exactly
 
 
+# Not using
 def random_crop_fraction_timm(image, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), compute_dtype="float32"):
     size = tf.shape(image)
     height, width = tf.cast(size[0], dtype=compute_dtype), tf.cast(size[1], dtype=compute_dtype)
@@ -205,6 +206,7 @@ def evaluation_process_crop_resize(datapoint, target_shape=(224, 224), central_c
     return image, label
 
 
+# Not using
 def evaluation_process_resize_crop(datapoint, target_shape=(224, 224), central_crop=1.0, resize_method="bilinear", antialias=False):
     image = datapoint["image"]
     shape = tf.shape(image)
@@ -228,7 +230,7 @@ def sample_beta_distribution(shape, concentration_0=0.4, concentration_1=0.4):
     return gamma_1_sample / (gamma_1_sample + gamma_2_sample)
 
 
-def mixup(images, labels, alpha=0.4, min_mix_weight=0.0):
+def mixup(images, labels, alpha=0.4, min_mix_weight=0):
     """Applies Mixup regularization to a batch of images and labels.
 
     [1] Hongyi Zhang, Moustapha Cisse, Yann N. Dauphin, David Lopez-Paz
@@ -254,15 +256,25 @@ def mixup(images, labels, alpha=0.4, min_mix_weight=0.0):
     labels = labels * label_mix_weight + tf.gather(labels, shuffle_index) * (1 - label_mix_weight)
     return images, labels
 
-def get_box_0(mix_weight, height, width):
+
+def get_box(mix_weight, height, width):
     cut_rate_half = tf.math.sqrt(1.0 - mix_weight) / 2
     cut_h_half, cut_w_half = tf.cast(cut_rate_half * float(height), tf.int32), tf.cast(cut_rate_half * float(width), tf.int32)
     cut_h_half, cut_w_half = tf.maximum(1, cut_h_half), tf.maximum(1, cut_w_half)
-    center_y = tf.random.uniform((), minval=cut_h_half, maxval=height - cut_h_half, dtype=tf.int32)
-    center_x = tf.random.uniform((), minval=cut_w_half, maxval=width - cut_w_half, dtype=tf.int32)
-    return center_y - cut_h_half, center_x - cut_w_half, cut_h_half * 2, cut_w_half * 2
+    # center_y = tf.random.uniform((), minval=cut_h_half, maxval=height - cut_h_half, dtype=tf.int32)
+    # center_x = tf.random.uniform((), minval=cut_w_half, maxval=width - cut_w_half, dtype=tf.int32)
+    # return center_y - cut_h_half, center_x - cut_w_half, cut_h_half * 2, cut_w_half * 2
+    # Can be non-square on border
+    center_y = tf.random.uniform((), minval=0, maxval=height, dtype=tf.int32)
+    center_x = tf.random.uniform((), minval=0, maxval=width, dtype=tf.int32)
+    yl = tf.clip_by_value(center_y - cut_h_half, 0, height)
+    yr = tf.clip_by_value(center_y + cut_h_half, 0, height)
+    xl = tf.clip_by_value(center_x - cut_w_half, 0, width)
+    xr = tf.clip_by_value(center_x + cut_w_half, 0, width)
+    return yl, xl, yr - yl, xr - xl
 
-def cutmix_0(images, labels, alpha=0.5, min_mix_weight=0.0):
+
+def cutmix(images, labels, alpha=0.5, min_mix_weight=0):
     """
     Copied and modified from https://keras.io/examples/vision/cutmix/
 
@@ -280,47 +292,19 @@ def cutmix_0(images, labels, alpha=0.5, min_mix_weight=0.0):
     batch_size = tf.shape(images)[0]
     _, hh, ww, _ = images.shape
     mix_weight = sample_beta_distribution((), alpha, alpha)  # same value in batch
+    offset_height, offset_width, target_height, target_width = get_box(mix_weight, hh, ww)
+    mix_weight = 1.0 - tf.cast(target_height * target_width, "float32") / tf.cast(hh * ww, "float32")
     if mix_weight < min_mix_weight or 1 - mix_weight < min_mix_weight:
-        # For input_shape=224, min_mix_weight=0.01, min_height = 224 * 0.1 = 22.4
+        # For input_shape=224, min_mix_weight=0.1, min_height = 224 * sqrt(0.1) = 70.835
         return images, labels
 
-    offset_height, offset_width, target_height, target_width = get_box(mix_weight, hh, ww)
     crops = tf.image.crop_to_bounding_box(images, offset_height, offset_width, target_height, target_width)
     pad_crops = tf.image.pad_to_bounding_box(crops, offset_height, offset_width, hh, ww)
 
     shuffle_index = tf.random.shuffle(tf.range(batch_size))
     images = images - pad_crops + tf.gather(pad_crops, shuffle_index)
     labels = tf.cast(labels, "float32")
-    label_mix_weight = tf.cast(tf.expand_dims(mix_weight, -1), "float32")
-    labels = labels * label_mix_weight + tf.gather(labels, shuffle_index) * (1 - label_mix_weight)
-    return images, labels
-
-def get_box(mix_weight, height, width):
-    cut_rate_half = tf.math.sqrt(1.0 - mix_weight) / 2
-    cut_h_half, cut_w_half = tf.cast(cut_rate_half * float(height), tf.int32), tf.cast(cut_rate_half * float(width), tf.int32)
-    cut_h_half, cut_w_half = tf.maximum(1, cut_h_half), tf.maximum(1, cut_w_half)
-    # Can be non-square on border
-    center_y = tf.random.uniform((), minval=0, maxval=height, dtype=tf.int32)
-    center_x = tf.random.uniform((), minval=0, maxval=width, dtype=tf.int32)
-    yl = tf.clip_by_value(center_y - cut_h_half, 0, height)
-    yr = tf.clip_by_value(center_y + cut_h_half, 0, height)
-    xl = tf.clip_by_value(center_x - cut_w_half, 0, width)
-    xr = tf.clip_by_value(center_x + cut_w_half, 0, width)
-    return yl, xl, yr - yl, xr - xl
-
-def cutmix(images, labels, alpha=0.5):
-    # Get a sample from the Beta distribution
-    _, hh, ww, _ = images.shape
-    mix_weight = sample_beta_distribution((), alpha, alpha)
-
-    offset_height, offset_width, target_height, target_width = get_box(mix_weight, hh, ww)
-    mix_weight = 1.0 - tf.cast(target_height * target_width, "float32") / tf.cast(hh * ww, "float32")
-    crops = tf.image.crop_to_bounding_box(images, offset_height, offset_width, target_height, target_width)
-    pad_crops = tf.image.pad_to_bounding_box(crops, offset_height, offset_width, hh, ww)
-
-    images = images - pad_crops + pad_crops[::-1]
-    labels = tf.cast(labels, "float32")
-    labels = labels * mix_weight + labels[::-1] * (1.0 - mix_weight)
+    labels = labels * mix_weight + tf.gather(labels, shuffle_index) * (1.0 - mix_weight)
     return images, labels
 
 

@@ -31,7 +31,7 @@ def init_optimizer(optimizer, lr_base, weight_decay):
     elif optimizer == "rmsprop":
         optimizer = keras.optimizers.RMSprop(learning_rate=lr_base, momentum=0.9)
     elif optimizer == "lamb":
-        bn_weights = ["bn/gamma", "bn/beta"]    # ["bn/moving_mean", "bn/moving_variance"] not in weights
+        bn_weights = ["bn/gamma", "bn/beta"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
         optimizer = tfa.optimizers.LAMB(learning_rate=lr_base, weight_decay_rate=weight_decay, exclude_from_weight_decay=bn_weights, global_clipnorm=1.0)
     elif optimizer == "adamw":
         optimizer = tfa.optimizers.AdamW(learning_rate=lr_base, weight_decay=lr_base * weight_decay)
