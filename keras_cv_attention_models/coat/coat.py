@@ -187,7 +187,7 @@ def serial_block(inputs, embed_dim, shared_cpe=None, shared_crpe=None, num_heads
 
 def resample(image, class_token=None, factor=1):
     out_hh, out_ww = int(image.shape[1] * factor), int(image.shape[2] * factor)
-    out_image = tf.image.resize(image, [out_hh, out_ww], method="bilinear")
+    out_image = tf.cast(tf.image.resize(image, [out_hh, out_ww], method="bilinear"), image.dtype)
     if class_token is not None:
         out_image = tf.reshape(out_image, [-1, out_hh * out_ww, out_image.shape[-1]])
         return tf.concat([class_token, out_image], axis=1)
