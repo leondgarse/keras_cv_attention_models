@@ -7,7 +7,13 @@ def parse_arguments(argv):
     import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-m", "--model_path", type=str, required=True, help="Saved h5 model path")
+    parser.add_argument(
+        "-m",
+        "--model_path",
+        type=str,
+        required=True,
+        help="Could be: 1. Saved h5 model path. 2. Model name defined in this repo, format [sub_dir].[model_name] like regnet.RegNetZD8. 3. timm model like timm.models.resmlp_12_224",
+    )
     parser.add_argument("-i", "--input_shape", type=int, default=-1, help="Model input shape, Set -1 for using model.input_shape")
     parser.add_argument("-b", "--batch_size", type=int, default=64, help="Batch size")
     parser.add_argument("-d", "--data_name", type=str, default="imagenet2012", help="Dataset name from tensorflow_datasets like imagenet2012 cifar10")
@@ -30,7 +36,16 @@ if __name__ == "__main__":
     import sys
 
     args = parse_arguments(sys.argv[1:])
+    input_shape = None if args.input_shape == -1 else (args.input_shape, args.input_shape, 3)
 
-    model = tf.keras.models.load_model(args.model_path)
-    input_shape = None if args.input_shape == -1 else (args.input_shape, args.input_shape)
+    if args.model_path.startswith("timm."):  # model_path like: timm.models.resmlp_12_224
+        import timm
+
+        model = getattr(timm.models, args.model_path)(pretrained=True)
+    elif args.model_path.endswith(".h5"):
+        model = tf.keras.models.load_model(args.model_path)
+    else:  # model_path like: volo.VOLO_d1
+        model = args.model_path.strip().split(".")
+        model_class = getattr(getattr(keras_cv_attention_models, model[0]), model[1])
+        model = model_class(num_classes=1000, input_shape=input_shape)
     evaluation(model, args.data_name, input_shape, args.batch_size, args.central_crop, args.resize_method, args.antialias, args.rescale_mode)
