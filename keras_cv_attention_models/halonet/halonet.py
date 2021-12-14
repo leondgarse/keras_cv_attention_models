@@ -11,6 +11,7 @@ PRETRAINED_DICT = {
     "halonet_se33t": {"imagenet": "7e0afb7f8fb6459491b8a46ad80bcd91"},
     "halonext_eca26t": {"imagenet": "630037a5c135bceacd0691a22855eb7e"},
     "haloregnetz_b": {"imagenet": "e889647682d1c554de032d376acf0c48"},
+    "halobotnet50t": {"imagenet": "0af1faad1a81e468d6e670e9fc253edc"},
 }
 
 
@@ -332,5 +333,23 @@ def HaloRegNetZB(input_shape=(224, 224, 3), num_classes=1000, activation="swish"
     shortcut_type = None
     output_num_features = 1536
     model = AotNet(model_name="haloregnetz_b", **locals(), **kwargs)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    return model
+
+
+def HaloBotNet50T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 4, 6, 3]
+    attn_types = [None, [None, "halo"] * 2, [None, "halo"] * 3, [None, "bot", None]]
+    attn_params = [
+        None,
+        [None, {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False}] * 2,
+        [None, {"block_size": 8, "halo_size": 3, "num_heads": 8, "out_weight": False}] * 3,
+        [None, {"num_heads": 4, "out_weight": False}, None],
+    ]
+    # key_dim = 16
+    stem_type = "tiered"
+    stem_last_strides = 2
+    stem_downsample = False
+    model = AotNet(model_name="halobotnet50t", **locals(), **kwargs)
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
     return model

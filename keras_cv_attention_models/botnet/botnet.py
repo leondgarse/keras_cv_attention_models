@@ -211,8 +211,6 @@ def BotNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", cl
     return model
 
 
-
-
 def BotNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 2, 2]
     attn_types = [None, None, [None, "bot"], "bot"]
@@ -225,6 +223,7 @@ def BotNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swish
         model, PRETRAINED_DICT, "botnet", RelativePositionalEmbedding, request_resolution=256, input_shape=input_shape, pretrained=pretrained
     )
     return model
+
 
 def BotNetSE33T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     stem_type = "tiered"
