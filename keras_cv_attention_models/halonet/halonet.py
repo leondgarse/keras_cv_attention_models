@@ -7,9 +7,9 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
     "halonet26t": {"imagenet": "6e8848ce6e98a13cd45f65dd68435d00"},
-    "halonet50t": {"imagenet": "25a7f03498830fa91b893d847c131ac0"},
+    "halonet50t": {"imagenet": "6c353144df942cb81a3eb7c140fc9791"},
     "halonet_se33t": {"imagenet": "7e0afb7f8fb6459491b8a46ad80bcd91"},
-    "halonext_eca26t": {"imagenet": "fbb73481cf0317a3226e963a99dd7151"},
+    "halonext_eca26t": {"imagenet": "630037a5c135bceacd0691a22855eb7e"},
     "haloregnetz_b": {"imagenet": "e889647682d1c554de032d376acf0c48"},
 }
 

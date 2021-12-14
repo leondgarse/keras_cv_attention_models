@@ -134,6 +134,7 @@
   | BotNet152     | 56M    | 224              |          |  |
   | BotNet26T     | 12.5M  | 256              | 79.246   | [botnet26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet26t_imagenet.h5) |
   | BotNextECA26T | 10.59M | 256              | 79.270   | [botnext_eca26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnext_eca26t_imagenet.h5) |
+  | BotNetSE33T   | 13.7M  | 256              | 81.2     | [botnet_se33t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet_se33t_imagenet.h5) |
 ## CMT
   - [Keras CMT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cmt) is for [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf).
 
@@ -213,11 +214,11 @@
   | HaloNetH5      | 30.7M  | 448              | 84.0     |          |
   | HaloNetH6      | 43.4M  | 512              | 84.4     |          |
   | HaloNetH7      | 67.4M  | 600              | 84.9     |          |
-  | HaloNextECA26T | 10.7M  | 256              | 78.84    | [halonext_eca26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonext_eca26t_imagenet.h5) |
+  | HaloNextECA26T | 10.7M  | 256              | 79.50    | [halonext_eca26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonext_eca26t_imagenet.h5) |
   | HaloNet26T     | 12.5M  | 256              | 79.13    | [halonet26t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet26t_imagenet.h5) |
   | HaloNetSE33T   | 13.7M  | 256              | 80.99    | [halonet_se33t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet_se33t_imagenet.h5) |
   | HaloRegNetZB   | 11.68M | 224              | 81.042   | [haloregnetz_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/haloregnetz_b_imagenet.h5) |
-  | HaloNet50T     | 22.7M  | 256              | 81.35    | [halonet50t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet50t_imagenet.h5) |
+  | HaloNet50T     | 22.7M  | 256              | 81.70    | [halonet50t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet50t_imagenet.h5) |
 ## LeViT
   - [Keras LeViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/levit) is for [PDF 2104.01136 LeViT: a Vision Transformer in ConvNet’s Clothing for Faster Inference](https://arxiv.org/pdf/2104.01136.pdf).
 
@@ -273,11 +274,13 @@
 ## RegNetZ
   - [Keras RegNetZ](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnet_family#regnetz) includes implementation of [Github timm/models/byobnet.py](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/byobnet.py).
 
-  | Model     | Params | Image resolution | Top1 Acc | Download |
-  | --------- | ------ | ---------------- | -------- | -------- |
-  | RegNetZB  | 9.72M  | 224              | 79.868   | [regnetz_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_b_imagenet.h5) |
-  | RegNetZC  | 13.46M | 256              | 82.164   | [regnetz_c_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_c_imagenet.h5) |
-  | RegNetZD  | 27.58M | 256              | 83.422   | [regnetz_d_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d_imagenet.h5) |
+  | Model      | Params | Image resolution | Top1 Acc | Download |
+  | ---------- | ------ | ---------------- | -------- | -------- |
+  | RegNetZB16 | 9.72M  | 224              | 79.868   | [regnetz_b16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_b16_imagenet.h5) |
+  | RegNetZC16 | 13.46M | 256              | 82.164   | [regnetz_c16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_c16_imagenet.h5) |
+  | RegNetZD32 | 27.58M | 256              | 83.422   | [regnetz_d32_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d32_imagenet.h5) |
+  | RegNetZD8  | 23.37M | 256              | 83.5     | [regnetz_d8_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d8_imagenet.h5)   |
+  | RegNetZE8  | 57.70M | 256              | 84.5     | [regnetz_e8_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_e8_imagenet.h5)   |
 ## ResMLP
   - [Keras ResMLP](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#resmlp) includes implementation of [PDF 2105.03404 ResMLP: Feedforward networks for image classification with data-efficient training](https://arxiv.org/pdf/2105.03404.pdf)
 

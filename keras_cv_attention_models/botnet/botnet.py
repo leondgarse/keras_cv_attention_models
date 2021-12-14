@@ -17,6 +17,7 @@ PRETRAINED_DICT = {
     # "botnet50": {"imagenet": "b221b45ca316166fc858fda1cf4fd946"},
     "botnet26t": {"imagenet": "6d7a9548f866b4971ca2c9d17dd815fc"},
     "botnext_eca26t": {"imagenet": "170b9b4d7fba88dbcb41716047c047b9"},
+    "botnet_se33t": {"imagenet": "f612743ec59d430f197bc38b3a7f8837"},
 }
 
 
@@ -210,6 +211,8 @@ def BotNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", cl
     return model
 
 
+
+
 def BotNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 2, 2]
     attn_types = [None, None, [None, "bot"], "bot"]
@@ -218,6 +221,24 @@ def BotNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swish
     group_size = 16
     stem_type = "tiered"
     model = AotNet(model_name="botnext_eca26t", **locals(), **kwargs)
+    reload_model_weights_with_mismatch(
+        model, PRETRAINED_DICT, "botnet", RelativePositionalEmbedding, request_resolution=256, input_shape=input_shape, pretrained=pretrained
+    )
+    return model
+
+def BotNetSE33T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    stem_type = "tiered"
+    stem_last_strides = 2
+    stem_downsample = False
+    out_channels = [256, 512, 1024, 1536]
+    hidden_channel_ratio = [1 / 4, 1 / 4, 1 / 4, 1 / 3]
+    num_blocks = [2, 3, 3, 2]
+    attn_types = [None, [None, None, "bot"], [None, None, "bot"], "bot"]
+    attn_params = {"num_heads": 4, "out_weight": False}
+    se_ratio = 1 / 16
+    output_num_features = 1280
+
+    model = AotNet(model_name="botnet_se33t", **locals(), **kwargs)
     reload_model_weights_with_mismatch(
         model, PRETRAINED_DICT, "botnet", RelativePositionalEmbedding, request_resolution=256, input_shape=input_shape, pretrained=pretrained
     )

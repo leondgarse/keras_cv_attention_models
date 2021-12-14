@@ -101,7 +101,7 @@ def test_RegNet_defination():
     mm = keras_cv_attention_models.resnet_family.RegNetY040(pretrained=None)
     assert isinstance(mm, keras.models.Model)
 
-    mm = keras_cv_attention_models.resnet_family.RegNetZC(pretrained=None, num_classes=0)
+    mm = keras_cv_attention_models.resnet_family.RegNetZC16(pretrained=None, num_classes=0)
     assert isinstance(mm, keras.models.Model)
 
 
@@ -180,8 +180,8 @@ def test_HaloRegNetZB_predict():
     assert out[1] == "Egyptian_cat"
 
 
-def test_RegNetZB_predict():
-    mm = keras_cv_attention_models.resnet_family.RegNetZB(pretrained="imagenet")
+def test_RegNetZB16_predict():
+    mm = keras_cv_attention_models.resnet_family.RegNetZB16(pretrained="imagenet")
     imm = tf.image.resize(chelsea(), mm.input_shape[1:3])  # Chelsea the cat
     pred = mm(tf.expand_dims(imm / 128 - 1, 0)).numpy()
     out = keras.applications.imagenet_utils.decode_predictions(pred)[0][0]

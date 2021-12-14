@@ -1,7 +1,18 @@
 from keras_cv_attention_models.resnet_family.resnext import ResNeXt, ResNeXt50, ResNeXt101, ResNeXt50D, ResNeXt101W
 from keras_cv_attention_models.resnet_family.resnet_quad import ResNetQ, ResNet51Q, ResNet61Q
 from keras_cv_attention_models.resnet_family.resnet_deep import ResNetD, ResNet50D, ResNet101D, ResNet152D, ResNet200D
-from keras_cv_attention_models.resnet_family.regnet import RegNetY, RegNetY040, RegNetY080, RegNetY160, RegNetY320, RegNetZB, RegNetZC, RegNetZD
+from keras_cv_attention_models.resnet_family.regnet import (
+    RegNetY,
+    RegNetY040,
+    RegNetY080,
+    RegNetY160,
+    RegNetY320,
+    RegNetZB16,
+    RegNetZC16,
+    RegNetZD32,
+    RegNetZD8,
+    RegNetZE8
+)
 
 
 __resnext_head_doc__ = """
@@ -194,13 +205,17 @@ __regnetz_default_doc__ = __regnetz_head_doc__ + """
 Args:
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet"]) + """
 Model architectures:
-  | Model     | Params | Image resolution | Top1 Acc |
-  | --------- | ------ | ---------------- | -------- |
-  | RegNetZB  | 9.72M  | 224              | 79.868   |
-  | RegNetZC  | 13.46M | 256              | 82.164   |
-  | RegNetZD  | 27.58M | 256              | 83.422   |
+  | Model      | Params | Image resolution | Top1 Acc |
+  | ---------- | ------ | ---------------- | -------- |
+  | RegNetZB16 | 9.72M  | 224              | 79.868   |
+  | RegNetZC16 | 13.46M | 256              | 82.164   |
+  | RegNetZD32 | 27.58M | 256              | 83.422   |
+  | RegNetZD8  | 23.37M | 256              | 83.5     |
+  | RegNetZE8  | 57.70M | 256              | 84.5     |
 """
 
-RegNetZB.__doc__ = __regnetz_default_doc__
-RegNetZC.__doc__ = __regnetz_default_doc__
-RegNetZD.__doc__ = __regnetz_default_doc__
+RegNetZB16.__doc__ = __regnetz_default_doc__
+RegNetZC16.__doc__ = __regnetz_default_doc__
+RegNetZD32.__doc__ = __regnetz_default_doc__
+RegNetZD8.__doc__ = __regnetz_default_doc__
+RegNetZE8.__doc__ = __regnetz_default_doc__
