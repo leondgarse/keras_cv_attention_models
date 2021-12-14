@@ -21,6 +21,7 @@ def parse_arguments(argv):
     parser.add_argument("--central_crop", type=float, default=1.0, help="Central crop fraction. Set 1 to disable")
     parser.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
     parser.add_argument("--antialias", action="store_true", help="Set use antialias=True for tf.image.resize")
+    parser.add_argument("--num_classes", type=int, default=1000, help="num_classes if not imagenet2012 dataset and not inited from h5 file")
 
     args = parser.parse_known_args(argv)[0]
     return args
@@ -47,5 +48,5 @@ if __name__ == "__main__":
     else:  # model_path like: volo.VOLO_d1
         model = args.model_path.strip().split(".")
         model_class = getattr(getattr(keras_cv_attention_models, model[0]), model[1])
-        model = model_class(num_classes=1000, input_shape=input_shape)
+        model = model_class(num_classes=args.num_classes, input_shape=input_shape) if input_shape else model_class(num_classes=args.num_classes)
     evaluation(model, args.data_name, input_shape, args.batch_size, args.central_crop, args.resize_method, args.antialias, args.rescale_mode)

@@ -83,8 +83,13 @@
   - [model_surgery](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/model_surgery) including functions used to change model parameters after built.
   ```py
   from keras_cv_attention_models import model_surgery
-  # Replace all ReLU with PReLU
-  mm = model_surgery.replace_ReLU(keras.applications.ResNet50(), target_activation='PReLU')
+  mm = keras.applications.ResNet50()  # Trainable params: 25,583,592
+
+  # Replace all ReLU with PReLU. Trainable params: 25,606,312
+  mm = model_surgery.replace_ReLU(mm, target_activation='PReLU')
+
+  # Fuse conv and batch_norm layers. Trainable params: 25,553,192
+  mm = model_surgery.convert_to_fused_conv_bn_model(mm)
   ```
 ## ImageNet Training
   - [Init Imagenet dataset using tensorflow_datasets](https://github.com/leondgarse/keras_cv_attention_models/discussions/9).

@@ -11,4 +11,56 @@
   - `replace_ReLU`: replace all `ReLU` with other activations, default target is `PReLU`.
   - `replace_add_with_stochastic_depth`: replace all `Add` layers with `StochasticDepth`.
   - `replace_stochastic_depth_with_add`: replace all `StochasticDepth` layers with `add` + `multiply`.
+## Usage
+  - **Convert add layers to stochastic depth**
+    ```py
+    from keras_cv_attention_models import model_surgery
+    mm = keras.applications.ResNet50()
+    mm = model_surgery.replace_add_with_drop_connect(mm, drop_rate=(0, 0.2))
+    print(model_surgery.get_actual_drop_connect_rates(mm))
+    # [0.0, 0.0125, 0.025, 0.0375, 0.05, 0.0625, 0.075, 0.0875, 0.1, 0.1125, 0.125, 0.1375, 0.15, 0.1625, 0.175, 0.1875]
+    ```
+  - **Convert model between float16 and float32**
+    ```py
+    from keras_cv_attention_models import model_surgery
+    mm = keras.applications.ResNet50()
+    print(mm.layers[-1].compute_dtype)
+    # float32
+    mm = model_surgery.convert_to_mixed_float16(mm)
+    print(mm.layers[-1].compute_dtype)
+    # float16
+    mm = model_surgery.convert_mixed_float16_to_float32(mm)
+    print(mm.layers[-1].compute_dtype)
+    # float32
+    ```
+  - **Change model input_shape after built**
+    ```py
+    from keras_cv_attention_models import model_surgery
+    mm = keras.applications.ResNet50()
+    print(mm.input_shape)
+    # (None, 224, 224, 3)
+    mm = model_surgery.change_model_input_shape(mm, (320, 320))
+    print(mm.input_shape)
+    # (None, 320, 320, 3)
+    ```
+  - **Replace ReLU activation layers**
+    ```py
+    from keras_cv_attention_models import model_surgery
+    mm = keras.applications.ResNet50()
+    print(mm.layers[-3].activation.__name__)
+    # relu
+    mm = model_surgery.replace_ReLU(mm, "PReLU")
+    print(mm.layers[-3].__class__.__name__)
+    # PReLU
+    ```
+  - **Fuse convolution and batchnorm layers for inference**
+    ```py
+    from keras_cv_attention_models import model_surgery
+    mm = keras.applications.ResNet50()
+    mm.summary()
+    # Trainable params: 25,583,592
+    mm = model_surgery.convert_to_fused_conv_bn_model(mm)
+    mm.summary()
+    # Trainable params: 25,530,472
+    ```
 ***
