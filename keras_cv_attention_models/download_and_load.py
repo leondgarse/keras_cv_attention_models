@@ -168,6 +168,7 @@ def keras_reload_from_torch_model(
     import tensorflow as tf
     from skimage.data import chelsea
 
+    input_shape = input_shape[:2]
     if isinstance(torch_model, str):
         print(">>>> Reload Torch weight file:", torch_model)
         torch_model = torch.load(torch_model, map_location=torch.device("cpu"))
@@ -182,7 +183,7 @@ def keras_reload_from_torch_model(
         from torchsummary import summary
 
         _ = torch_model.eval()
-        summary(torch_model, (3, *input_shape))
+        summary(torch_model, (3, *input_shape), device="cpu")
         state_dict = torch_model.state_dict()
 
         """ Torch Run predict """

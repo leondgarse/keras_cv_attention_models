@@ -326,10 +326,10 @@ def init_dataset(
     num_layers=2,
     **augment_kwargs,  # Too many...
 ):
-    print(">>>> Dataset args:", locals())
     """Init dataset by name.
     returns train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
     """
+    # print(">>>> Dataset args:", locals())
     dataset, info = tfds.load(data_name, with_info=True)
     num_classes = info.features["label"].num_classes
     total_images = info.splits["train"].num_examples
