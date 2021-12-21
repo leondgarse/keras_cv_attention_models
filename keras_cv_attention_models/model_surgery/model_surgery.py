@@ -407,3 +407,55 @@ def convert_to_fused_conv_bn_model(model):
         else:
             layer.set_weights(orign_layer.get_weights())
     return new_model
+
+
+@keras.utils.register_keras_serializable(package="model_surgery")
+class SplitConv2D(keras.layers.Conv2D):
+    def __init__(self, groups, filters, **kwargs):
+        super().__init__(filters=filters // groups, **kwargs)
+        self.groups = groups
+        self.filters = filters
+
+    def build(self, input_shape):
+        cc = self.get_config().copy()
+        cc.update({"groups": 1, "filters": self.filters // self.groups})
+        grouped_input_shape = (*input_shape[:-1], input_shape[-1] // self.groups)
+        self.convs = []
+        for ii in range(self.groups):
+            name_scope = self.name + "_{}".format(ii)
+            with tf.name_scope(name_scope) as scope:
+                cc["name"] = self.name + "_{}".format(ii)
+                conv = keras.layers.Conv2D.from_config(cc)
+                conv.build(grouped_input_shape)
+            self.convs.append(conv)
+
+    def call(self, inputs, **kwargs):
+        return tf.concat([conv(ii) for conv, ii in zip(self.convs, tf.split(inputs, self.groups, axis=-1))], axis=-1)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"groups": self.groups, "filters": self.filters})
+        return config
+
+
+def convert_groups_conv2d_2_split_conv2d(model):
+    from tensorflow.keras.layers import Conv2D
+
+    def convert_groups_conv2d(layer):
+        # print(layer.name)
+        if isinstance(layer, Conv2D) and layer.groups != 1:
+            aa = layer.get_config()
+            bb = SplitConv2D.from_config(aa)
+            # bb.build(layer.input_shape)   # looks like build not working [ ??? ]
+            bb(tf.ones([1, *layer.input_shape[1:]]))
+            wws = tf.split(layer.get_weights()[0], bb.groups, axis=-1)
+            for id in range(bb.groups):
+                if bb.use_bias:
+                    bb.convs[id].set_weights([wws[id].numpy(), bbs[id].numpy()])
+                else:
+                    bb.convs[id].set_weights([wws[id].numpy()])
+            return bb
+        return layer
+
+    input_tensors = keras.layers.Input(model.input_shape[1:])
+    return keras.models.clone_model(model, input_tensors=input_tensors, clone_function=convert_groups_conv2d)
