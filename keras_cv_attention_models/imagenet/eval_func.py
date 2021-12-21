@@ -3,7 +3,7 @@ from keras_cv_attention_models.model_surgery import change_model_input_shape
 import tensorflow as tf
 
 
-class Torch_model_interf:
+class TorchModelInterf:
     def __init__(self, model):
         import torch
         import os
@@ -18,6 +18,47 @@ class Torch_model_interf:
         # print(imgs.shape, imgs[0])
         output = self.model(self.torch.from_numpy(imgs).permute([0, 3, 1, 2]).to(self.device).float())
         return output.cpu().detach().numpy()
+
+
+class TFLiteModelInterf:
+    def __init__(self, model_path):
+        self.interpreter = tf.lite.Interpreter(model_path=model_path)
+        input_details = self.interpreter.get_input_details()[0]
+        output_details = self.interpreter.get_output_details()[0]
+        self.input_dtype = input_details["dtype"]
+        self.output_dtype = output_details["dtype"]
+        self.input_index = input_details["index"]
+        self.output_index = output_details["index"]
+
+        if self.input_dtype == tf.uint8 or self.output_dtype == tf.uint8:
+            self.input_scale, self.input_zero_point = input_details.get("quantization", (1.0, 0.0))
+            self.output_scale, self.output_zero_point = output_details.get("quantization", (1.0, 0.0))
+            self.__interf__ = self.__uint8_interf__
+        else:
+            self.__interf__ = self.__float_interf__
+
+        self.interpreter.allocate_tensors()
+
+    def __float_interf__(self, img):
+        img = img.astype(self.input_dtype)
+        self.interpreter.set_tensor(self.input_index, tf.expand_dims(img, 0))
+        self.interpreter.invoke()
+        return self.interpreter.get_tensor(self.output_index).copy()
+
+    def __uint8_interf__(self, img):
+        img = (img / self.input_scale + self.input_zero_point).astype(self.input_dtype)
+        self.interpreter.set_tensor(self.input_index, tf.expand_dims(img, 0))
+        self.interpreter.invoke()
+        pred = self.interpreter.get_tensor(self.output_index).copy()
+        return (pred.astype("float32") - self.output_zero_point) * self.output_scale
+
+    def __call__(self, imgs):
+        # print(imgs.shape, imgs[0])
+        preds = []
+        for img in imgs:
+            pred = self.__interf__(img)
+            preds.append(pred)
+        return tf.concat(preds, 0).numpy()
 
 
 def evaluation(
@@ -37,7 +78,12 @@ def evaluation(
         rescale_mode=rescale_mode,
     )
 
-    model_interf = change_model_input_shape(model, input_shape) if isinstance(model, tf.keras.models.Model) else Torch_model_interf(model)
+    if isinstance(model, tf.keras.models.Model):
+        model_interf = change_model_input_shape(model, input_shape)
+    elif isinstance(model, str) and model.endswith(".tflite"):
+        model_interf = TFLiteModelInterf(model)
+    else:
+        model_interf = TorchModelInterf(model)
 
     y_true, y_pred_top_1, y_pred_top_5 = [], [], []
     for img_batch, true_labels in tqdm(test_dataset.as_numpy_iterator(), "Evaluating", total=len(test_dataset)):
