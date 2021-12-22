@@ -12,7 +12,7 @@ def parse_arguments(argv):
         "--model_path",
         type=str,
         required=True,
-        help="Could be: 1. Saved h5 model path. 2. Model name defined in this repo, format [sub_dir].[model_name] like regnet.RegNetZD8. 3. timm model like timm.models.resmlp_12_224",
+        help="Could be: 1. Saved h5 / tflite model path. 2. Model name defined in this repo, format [sub_dir].[model_name] like regnet.RegNetZD8. 3. timm model like timm.models.resmlp_12_224",
     )
     parser.add_argument("-i", "--input_shape", type=int, default=-1, help="Model input shape, Set -1 for using model.input_shape")
     parser.add_argument("-b", "--batch_size", type=int, default=64, help="Batch size")
@@ -45,6 +45,8 @@ if __name__ == "__main__":
         model = getattr(timm.models, args.model_path)(pretrained=True)
     elif args.model_path.endswith(".h5"):
         model = tf.keras.models.load_model(args.model_path)
+    elif args.model_path.endswith(".tflite"):
+        model = args.model_path
     else:  # model_path like: volo.VOLO_d1
         model = args.model_path.strip().split(".")
         model_class = getattr(getattr(keras_cv_attention_models, model[0]), model[1])

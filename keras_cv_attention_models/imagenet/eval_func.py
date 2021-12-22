@@ -29,6 +29,7 @@ class TFLiteModelInterf:
         self.output_dtype = output_details["dtype"]
         self.input_index = input_details["index"]
         self.output_index = output_details["index"]
+        self.input_shape = input_details['shape'].tolist()[1:-1]
 
         if self.input_dtype == tf.uint8 or self.output_dtype == tf.uint8:
             self.input_scale, self.input_zero_point = input_details.get("quantization", (1.0, 0.0))
@@ -40,13 +41,13 @@ class TFLiteModelInterf:
         self.interpreter.allocate_tensors()
 
     def __float_interf__(self, img):
-        img = img.astype(self.input_dtype)
+        img = tf.cast(img, self.input_dtype)
         self.interpreter.set_tensor(self.input_index, tf.expand_dims(img, 0))
         self.interpreter.invoke()
         return self.interpreter.get_tensor(self.output_index).copy()
 
     def __uint8_interf__(self, img):
-        img = (img / self.input_scale + self.input_zero_point).astype(self.input_dtype)
+        img = tf.cast(img / self.input_scale + self.input_zero_point, self.input_dtype)
         self.interpreter.set_tensor(self.input_index, tf.expand_dims(img, 0))
         self.interpreter.invoke()
         pred = self.interpreter.get_tensor(self.output_index).copy()
@@ -67,7 +68,17 @@ def evaluation(
     from tqdm import tqdm
     import numpy as np
 
-    input_shape = model.input_shape[1:-1] if input_shape is None else input_shape[:2]
+    if isinstance(model, tf.keras.models.Model):
+        input_shape = model.input_shape[1:-1] if input_shape is None else input_shape[:2]
+        model_interf = change_model_input_shape(model, input_shape)
+    elif isinstance(model, TFLiteModelInterf) or (isinstance(model, str) and model.endswith(".tflite")):
+        model_interf = model if isinstance(model, TFLiteModelInterf) else TFLiteModelInterf(model)
+        input_shape = model_interf.input_shape
+        print(">>>> Using input_shape {} for TFLite model.".format(input_shape))
+    else:
+        model_interf = TorchModelInterf(model)
+        assert input_shape is not None
+
     _, test_dataset, _, _, _ = data.init_dataset(
         data_name,
         input_shape=input_shape,
@@ -77,13 +88,6 @@ def evaluation(
         resize_antialias=antialias,
         rescale_mode=rescale_mode,
     )
-
-    if isinstance(model, tf.keras.models.Model):
-        model_interf = change_model_input_shape(model, input_shape)
-    elif isinstance(model, str) and model.endswith(".tflite"):
-        model_interf = TFLiteModelInterf(model)
-    else:
-        model_interf = TorchModelInterf(model)
 
     y_true, y_pred_top_1, y_pred_top_5 = [], [], []
     for img_batch, true_labels in tqdm(test_dataset.as_numpy_iterator(), "Evaluating", total=len(test_dataset)):
