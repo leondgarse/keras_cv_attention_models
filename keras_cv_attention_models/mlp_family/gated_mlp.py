@@ -2,6 +2,7 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 import tensorflow as tf
 from keras_cv_attention_models.download_and_load import reload_model_weights
+from keras_cv_attention_models.attention_layers import activation_by_name
 
 BATCH_NORM_EPSILON = 1e-5
 PRETRAINED_DICT = {
@@ -31,7 +32,7 @@ def spatial_gating_block(inputs, name=None):
 def res_gated_mlp_block(inputs, channels_mlp_dim, drop_rate=0, activation="gelu", name=None):
     nn = layer_norm(inputs, name=name + "pre_ln")
     nn = keras.layers.Dense(channels_mlp_dim, name=name + "pre_dense")(nn)
-    nn = keras.layers.Activation(activation, name=name + "gelu")(nn)
+    nn = activation_by_name(nn, activation, name=name and name + activation)
     # Drop
 
     # SpatialGatingUnit

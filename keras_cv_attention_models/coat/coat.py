@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.python.keras import backend as K
 from keras_cv_attention_models.download_and_load import reload_model_weights
-from keras_cv_attention_models.attention_layers import layer_norm, conv2d_no_bias
+from keras_cv_attention_models.attention_layers import layer_norm, conv2d_no_bias, activation_by_name
 
 
 PRETRAINED_DICT = {
@@ -16,7 +16,7 @@ PRETRAINED_DICT = {
 
 def mlp_block(inputs, hidden_dim, activation="gelu", name=None):
     nn = keras.layers.Dense(hidden_dim, name=name + "dense_0")(inputs)
-    nn = keras.layers.Activation(activation, name=name + activation)(nn)
+    nn = activation_by_name(nn, activation, name=name and name + activation)
     nn = keras.layers.Dense(inputs.shape[-1], name=name + "dense_1")(nn)
     return nn
 

@@ -1,6 +1,7 @@
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.download_and_load import reload_model_weights
+from keras_cv_attention_models.attention_layers import activation_by_name
 
 BATCH_NORM_EPSILON = 1e-5
 
@@ -23,7 +24,7 @@ def layer_norm(inputs, name=None):
 
 def mlp_block(inputs, hidden_dim, activation="gelu", name=None):
     nn = keras.layers.Dense(hidden_dim, name=name and name + "Dense_0")(inputs)
-    nn = keras.layers.Activation(activation, name=name and name + "gelu")(nn)
+    nn = activation_by_name(nn, activation, name=name and name + activation)
     nn = keras.layers.Dense(inputs.shape[-1], name=name and name + "Dense_1")(nn)
     return nn
 
