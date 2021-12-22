@@ -411,10 +411,8 @@ def convert_to_fused_conv_bn_model(model):
 
 @keras.utils.register_keras_serializable(package="model_surgery")
 class SplitConv2D(keras.layers.Conv2D):
-    def __init__(self, groups, filters, **kwargs):
-        super().__init__(filters=filters // groups, **kwargs)
-        self.groups = groups
-        self.filters = filters
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def build(self, input_shape):
         cc = self.get_config().copy()
@@ -432,23 +430,20 @@ class SplitConv2D(keras.layers.Conv2D):
     def call(self, inputs, **kwargs):
         return tf.concat([conv(ii) for conv, ii in zip(self.convs, tf.split(inputs, self.groups, axis=-1))], axis=-1)
 
-    def get_config(self):
-        config = super().get_config()
-        config.update({"groups": self.groups, "filters": self.filters})
-        return config
 
 
 def convert_groups_conv2d_2_split_conv2d(model):
     from tensorflow.keras.layers import Conv2D
 
     def convert_groups_conv2d(layer):
-        # print(layer.name)
         if isinstance(layer, Conv2D) and layer.groups != 1:
             aa = layer.get_config()
             bb = SplitConv2D.from_config(aa)
             # bb.build(layer.input_shape)   # looks like build not working [ ??? ]
             bb(tf.ones([1, *layer.input_shape[1:]]))
             wws = tf.split(layer.get_weights()[0], bb.groups, axis=-1)
+            if bb.use_bias:
+                bbs = tf.split(layer.get_weights()[1], bb.groups, axis=-1)
             for id in range(bb.groups):
                 if bb.use_bias:
                     bb.convs[id].set_weights([wws[id].numpy(), bbs[id].numpy()])
