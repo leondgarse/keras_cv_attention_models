@@ -1,4 +1,5 @@
 from tensorflow import keras
+from keras_cv_attention_models.attention_layers import activation_by_name
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
@@ -56,7 +57,7 @@ def res_mlp_block(inputs, channels_mlp_dim, drop_rate=0, activation="gelu", name
 
     nn = ChannelAffine(use_bias=True, name=name + "norm_2")(token_out)
     nn = keras.layers.Dense(channels_mlp_dim, name=name + "channel_mixing_1")(nn)
-    nn = keras.layers.Activation(activation, name=name + activation)(nn)
+    nn = activation_by_name(nn, activation, name=name + activation)
     nn = keras.layers.Dense(inputs.shape[-1], name=name + "channel_mixing_2")(nn)
     channel_out = ChannelAffine(use_bias=False, name=name + "gamma_2")(nn)
     if drop_rate > 0:

@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.attention_layers import (
+    activation_by_name,
     BiasLayer,
     ChannelAffine,
     ClassToken,
@@ -69,7 +70,7 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         base_config.update({"with_cls_token": self.with_cls_token})
         return base_config
 
-    def load_resized_pos_emb(self, source_layer):
+    def load_resized_pos_emb(self, source_layer, method="nearest"):
         if isinstance(source_layer, dict):
             source_tt = source_layer["pos_emb:0"]  # weights
         else:
@@ -78,11 +79,23 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         num_heads = source_tt.shape[-1]
         ss = tf.reshape(source_tt[: hh * ww], (hh, ww, num_heads))  # [hh, ww, num_heads]
         target_hh = target_ww = int(tf.math.sqrt(float(self.relative_position_bias_table.shape[0] - self.cls_token_pos_len)))
-        tt = tf.image.resize(ss, [target_hh, target_ww])  # [target_hh, target_ww, num_heads]
+        tt = tf.image.resize(ss, [target_hh, target_ww], method=method)  # [target_hh, target_ww, num_heads]
         tt = tf.reshape(tt, (tt.shape[0] * tt.shape[1], num_heads))  # [target_hh * target_ww, num_heads]
         if self.with_cls_token:
             tt = tf.concat([tt, source_tt[-self.cls_token_pos_len :]], axis=0)
         self.relative_position_bias_table.assign(tt)
+
+    def show_pos_emb(self, rows=1, base_size=2):
+        import matplotlib.pyplot as plt
+
+        hh = ww = int(tf.math.sqrt(float(self.relative_position_bias_table.shape[0] - self.cls_token_pos_len)))
+        ss = tf.reshape(self.relative_position_bias_table[: hh * ww], (hh, ww, -1)).numpy()
+        cols = int(tf.math.ceil(ss.shape[-1] / rows))
+        fig, axes = plt.subplots(rows, cols, figsize=(base_size * cols, base_size * rows))
+        for id, ax in enumerate(axes.flatten()):
+            ax.imshow(ss[:, :, id])
+            ax.set_axis_off()
+        fig.tight_layout()
 
 
 def attention_block(inputs, num_heads=4, key_dim=0, out_weight=True, out_bias=False, qv_bias=True, attn_dropout=0, name=None):
@@ -140,7 +153,7 @@ def attention_mlp_block(inputs, embed_dim, gamma_init_value=0.1, mlp_ratio=4, dr
     """ MLP """
     nn = layer_norm(attn_out, epsilon=LAYER_NORM_EPSILON, name=name + "mlp_")
     nn = keras.layers.Dense(embed_dim * mlp_ratio, name=name + "mlp_dense_1")(nn)
-    nn = keras.layers.Activation(activation, name=name + "mlp_" + activation)(nn)
+    nn = activation_by_name(nn, activation, name=name + "mlp_" + activation)
     nn = keras.layers.Dense(embed_dim, name=name + "mlp_dense_2")(nn)
     nn = ChannelAffine(use_bias=False, weight_init_value=gamma_init_value, name=name + "mlp_gamma")(nn)
     nn = drop_block(nn, drop_rate)
