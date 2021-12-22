@@ -25,6 +25,9 @@ def activation_by_name(inputs, activation="relu", name=None):
         shared_axes.pop(-1 if K.image_data_format() == "channels_last" else 0)
         # print(f"{shared_axes = }")
         return keras.layers.PReLU(shared_axes=shared_axes, alpha_initializer=tf.initializers.Constant(0.25), name=layer_name)(inputs)
+    elif activation.lower().startswith("gelu_app"):
+        # gelu_approximate
+        return tf.nn.gelu(inputs, approximate=True, name=layer_name)
     elif activation:
         return keras.layers.Activation(activation=activation, name=layer_name)(inputs)
     else:
@@ -261,10 +264,13 @@ def unfold_by_conv2d(inputs, kernel_size=3, strides=2, dilation_rate=1, padding=
         name=name and name + "unfold_conv",
     )(merge_channel)
 
-    out = tf.reshape(conv_rr, [-1, cc, conv_rr.shape[1], conv_rr.shape[2], kernel_size, kernel_size])
-    out = tf.transpose(out, [0, 2, 3, 4, 5, 1])  # [batch, hh, ww, kernel, kernel, channnel]
+    # TFLite not supporting `tf.transpose` with len(perm) > 4...
+    out = tf.reshape(conv_rr, [-1, cc, conv_rr.shape[1] * conv_rr.shape[2], kernel_size * kernel_size])
+    out = tf.transpose(out, [0, 2, 3, 1])  # [batch, hh * ww, kernel * kernel, channnel]
     if compressed:
-        out = tf.reshape(out, [-1, out.shape[1], out.shape[2], kernel_size * kernel_size * pad_inputs.shape[-1]])
+        out = tf.reshape(out, [-1, conv_rr.shape[1], conv_rr.shape[2], kernel_size * kernel_size * cc])
+    else:
+        out = tf.reshape(out, [-1, conv_rr.shape[1], conv_rr.shape[2], kernel_size, kernel_size, cc])
     return out
 
 
@@ -276,11 +282,12 @@ def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=
     if compressed:
         _, hh, ww, cc = patches.shape
         channel = cc // kernel_size // kernel_size
-        conv_rr = tf.reshape(patches, [-1, hh, ww, kernel_size, kernel_size, channel])
+        conv_rr = tf.reshape(patches, [-1, hh * ww, kernel_size * kernel_size, channel])
     else:
         _, hh, ww, _, _, channel = patches.shape
-        conv_rr = patches
-    conv_rr = tf.transpose(conv_rr, [0, 5, 1, 2, 3, 4])  # [batch, channnel, hh, ww, kernel, kernel]
+        # conv_rr = patches
+        conv_rr = tf.reshape(patches, [-1, hh * ww, kernel_size * kernel_size, channel])
+    conv_rr = tf.transpose(conv_rr, [0, 3, 1, 2])  # [batch, channnel, hh * ww, kernel * kernel]
     conv_rr = tf.reshape(conv_rr, [-1, hh, ww, kernel_size * kernel_size])
 
     convtrans_rr = keras.layers.Conv2DTranspose(
