@@ -1,4 +1,4 @@
-from keras_cv_attention_models.cotnet.cotnet import CotNet, CotNet50, CotNet101, CotNetSE50D, CotNetSE101D, CotNetSE152D, cot_attention
+from keras_cv_attention_models.cotnet.cotnet import CotNet, CotNet50, CotNet101, CotNetSE50D, CotNetSE101D, CotNetSE152D, cot_attention, set_global_tpu_test
 
 
 __head_doc__ = """
