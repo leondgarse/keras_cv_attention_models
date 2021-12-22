@@ -413,9 +413,10 @@ def convert_to_fused_conv_bn_model(model):
 class SplitConv2D(keras.layers.Conv2D):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.super_class = keras.layers.Conv2D
 
-    def build(self, input_shape):
-        cc = self.get_config().copy()
+    def build(self, input_shape, config=None):
+        cc = self.get_config().copy() if config is None else config.copy()
         cc.update({"groups": 1, "filters": self.filters // self.groups})
         grouped_input_shape = (*input_shape[:-1], input_shape[-1] // self.groups)
         self.convs = []
@@ -423,7 +424,7 @@ class SplitConv2D(keras.layers.Conv2D):
             name_scope = self.name + "_{}".format(ii)
             with tf.name_scope(name_scope) as scope:
                 cc["name"] = self.name + "_{}".format(ii)
-                conv = keras.layers.Conv2D.from_config(cc)
+                conv = self.super_class.from_config(cc)
                 conv.build(grouped_input_shape)
             self.convs.append(conv)
 
@@ -431,24 +432,48 @@ class SplitConv2D(keras.layers.Conv2D):
         return tf.concat([conv(ii) for conv, ii in zip(self.convs, tf.split(inputs, self.groups, axis=-1))], axis=-1)
 
 
+@keras.utils.register_keras_serializable(package="model_surgery")
+class SplitScaledStandardizedConv2D(SplitConv2D):
+    def __init__(self, gamma=1.0, eps=1e-5, **kwargs):
+        from keras_cv_attention_models import attention_layers
+
+        super().__init__(**kwargs)
+        self.super_class = attention_layers.ScaledStandardizedConv2D
+        self.eps, self.gamma = eps, gamma
+
+    def build(self, input_shape):
+        cc = self.get_config().copy()
+        super().build(input_shape, config=cc)
+
+    def get_config(self):
+        base_config = super(SplitScaledStandardizedConv2D, self).get_config()
+        base_config.update({"eps": self.eps, "gamma": self.gamma})
+        return base_config
+
 
 def convert_groups_conv2d_2_split_conv2d(model):
     from tensorflow.keras.layers import Conv2D
 
     def convert_groups_conv2d(layer):
-        if isinstance(layer, Conv2D) and layer.groups != 1:
+        if isinstance(layer, Conv2D) and not isinstance(layer, SplitConv2D) and layer.groups != 1:
             aa = layer.get_config()
-            bb = SplitConv2D.from_config(aa)
+            # Check if ScaledStandardizedConv2D or typical Conv2D
+            bb = SplitScaledStandardizedConv2D.from_config(aa) if hasattr(layer, "gain") else SplitConv2D.from_config(aa)
             # bb.build(layer.input_shape)   # looks like build not working [ ??? ]
             bb(tf.ones([1, *layer.input_shape[1:]]))
             wws = tf.split(layer.get_weights()[0], bb.groups, axis=-1)
             if bb.use_bias:
                 bbs = tf.split(layer.get_weights()[1], bb.groups, axis=-1)
+            if hasattr(layer, "gain"):
+                # ScaledStandardizedConv2D with gain from NFNets
+                ggs = tf.split(layer.get_weights()[-1], bb.groups, axis=-1)
             for id in range(bb.groups):
+                sub_weights = [wws[id].numpy()]
                 if bb.use_bias:
-                    bb.convs[id].set_weights([wws[id].numpy(), bbs[id].numpy()])
-                else:
-                    bb.convs[id].set_weights([wws[id].numpy()])
+                    sub_weights.append(bbs[id].numpy())
+                if hasattr(layer, "gain"):
+                    sub_weights.append(ggs[id].numpy())
+                bb.convs[id].set_weights(sub_weights)
             return bb
         return layer
 
