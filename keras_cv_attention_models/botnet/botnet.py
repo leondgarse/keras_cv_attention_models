@@ -81,14 +81,14 @@ class RelativePositionalEmbedding(keras.layers.Layer):
 
     def relative_logits(self, inputs):
         bs, heads, hh, ww, cc = inputs.shape  # e.g.: [1, 4, 14, 16, 128]
-        inputs = tf.reshape(inputs, [-1, hh, ww, cc])   # Merge bs and heads, for supporting TFLite conversion
+        inputs = tf.reshape(inputs, [-1, hh, ww, cc])  # Merge bs and heads, for supporting TFLite conversion
         rel_logits_w = tf.matmul(inputs, self.pos_emb_w)  # [4, 14, 16, 31], 2 * 16 - 1 == 31
         rel_logits_w = self.rel_to_abs(rel_logits_w)  # [4, 14, 16, 16]
 
         query_h = tf.transpose(inputs, [0, 2, 1, 3])  # [4, 16, 14, 128], [bs+heads, ww, hh, dims], Exchange `ww` and `hh`
         rel_logits_h = tf.matmul(query_h, self.pos_emb_h)  # [4, 16, 14, 27], 2 * 14 - 1 == 27
         rel_logits_h = self.rel_to_abs(rel_logits_h)  # [4, 16, 14, 14]
-        rel_logits_h = tf.transpose(rel_logits_h, [0, 2, 1, 3]) # [4, 14, 16, 14], transpose back
+        rel_logits_h = tf.transpose(rel_logits_h, [0, 2, 1, 3])  # [4, 14, 16, 14], transpose back
 
         logits = tf.expand_dims(rel_logits_w, axis=-2) + tf.expand_dims(rel_logits_h, axis=-1)  # [4, 14, 16, 14, 16]
         return tf.reshape(logits, [-1, heads, hh, ww, hh, ww])  # [1, 4, 14, 16, 14, 16]

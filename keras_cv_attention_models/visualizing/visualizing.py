@@ -219,7 +219,7 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
         imm_inputs = tf.expand_dims(tf.image.resize(imm_inputs, model.input_shape[1:3]), 0)
         try:
             pred = model(imm_inputs).numpy()
-            if model.layers[-1].activation.__name__ != 'softmax':
+            if model.layers[-1].activation.__name__ != "softmax":
                 pred = tf.nn.softmax(pred).numpy()  # If classifier activation is not softmax
             print(">>>> Prediction:", tf.keras.applications.imagenet_utils.decode_predictions(pred)[0])
         except:
@@ -251,7 +251,7 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
         # bot attn_score [batch, num_heads, hh * ww, hh * ww]
         print(">>>> Attention type: bot / coatnet")
         mask = [np.array(ii)[0].mean((0)) for ii in attn_scores][::-1]
-        mask = [clip_max_value_matrix(ii) for ii in mask]   # Or it will be too dark.
+        mask = [clip_max_value_matrix(ii) for ii in mask]  # Or it will be too dark.
         method = "max" if check_type_is("coatnet") else "avg"
         cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], method) for ii in range(1, len(mask))]
         cum_mask = [matmul_prod(cum_mask[: ii + 1]).mean(0) for ii in range(len(cum_mask))]
@@ -283,7 +283,7 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
 
     total = len(mask)
     if rows == -1 and total < 8:
-        rows = 1    # for total in [1, 7], plot 1 row only
+        rows = 1  # for total in [1, 7], plot 1 row only
     elif rows == -1:
         rr = int(np.floor(np.sqrt(total)))
         for ii in range(1, rr + 1)[::-1]:

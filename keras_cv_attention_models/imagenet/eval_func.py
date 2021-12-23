@@ -29,7 +29,7 @@ class TFLiteModelInterf:
         self.output_dtype = output_details["dtype"]
         self.input_index = input_details["index"]
         self.output_index = output_details["index"]
-        self.input_shape = input_details['shape'].tolist()[1:-1]
+        self.input_shape = input_details["shape"].tolist()[1:-1]
 
         if self.input_dtype == tf.uint8 or self.output_dtype == tf.uint8:
             self.input_scale, self.input_zero_point = input_details.get("quantization", (1.0, 0.0))

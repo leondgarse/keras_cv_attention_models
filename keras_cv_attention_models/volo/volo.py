@@ -139,6 +139,7 @@ class BiasLayer(keras.layers.Layer):
         config.update({"axis": self.axis})
         return config
 
+
 def attention_mlp_block(inputs, embed_dim, num_heads=1, mlp_ratio=3, attention_type=None, drop_rate=0, mlp_activation="gelu", dropout=0, name=""):
     # print(f">>>> {drop_rate = }")
     nn_0 = inputs[:, :1] if attention_type == "class" else inputs
@@ -453,6 +454,7 @@ def VOLO_d5(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", 
     mlp_ratios = [4, 4]
     stem_hidden_dim = 128
     return VOLO(**locals(), model_name="volo_d5", **kwargs)
+
 
 def set_global_tpu_test(tpu_test=False):
     """ Set True for force using `Conv2D` instead of `tf.image.extract_patches`. Also works for TFLite conversion. """

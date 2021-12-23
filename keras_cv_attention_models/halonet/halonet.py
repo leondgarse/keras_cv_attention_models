@@ -355,6 +355,7 @@ def HaloBotNet50T(input_shape=(256, 256, 3), num_classes=1000, activation="swish
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
     return model
 
+
 def set_global_tpu_test(tpu_test=False):
     """ Set True for force using `Conv2D` instead of `tf.image.extract_patches`. Also works for TFLite conversion. """
     global GLOBAL_TPU_TEST
