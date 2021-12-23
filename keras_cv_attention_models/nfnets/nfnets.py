@@ -217,9 +217,10 @@ def NormFreeNet(
     kwargs=None,
 ):
     if gamma_in_act:
-        conv_gamma, act_gamma = 1.0, NON_LINEAR_GAMMA.get(activation, 1.0)
+        # activation.split("/")[0] for supporting `gelu/app`
+        conv_gamma, act_gamma = 1.0, NON_LINEAR_GAMMA.get(activation.split("/")[0], 1.0)
     else:
-        act_gamma, conv_gamma = 1.0, NON_LINEAR_GAMMA.get(activation, 1.0)
+        act_gamma, conv_gamma = 1.0, NON_LINEAR_GAMMA.get(activation.split("/")[0], 1.0)
 
     inputs = keras.layers.Input(shape=input_shape)
     stem_width = make_divisible(stem_width * width_factor, 8)

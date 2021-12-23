@@ -415,8 +415,8 @@ class SplitConv2D(keras.layers.Conv2D):
         super().__init__(**kwargs)
         self.super_class = keras.layers.Conv2D
 
-    def build(self, input_shape, config=None):
-        cc = self.get_config().copy() if config is None else config.copy()
+    def build(self, input_shape):
+        cc = self.get_config().copy()
         cc.update({"groups": 1, "filters": self.filters // self.groups})
         grouped_input_shape = (*input_shape[:-1], input_shape[-1] // self.groups)
         self.convs = []
@@ -441,12 +441,8 @@ class SplitScaledStandardizedConv2D(SplitConv2D):
         self.super_class = attention_layers.ScaledStandardizedConv2D
         self.eps, self.gamma = eps, gamma
 
-    def build(self, input_shape):
-        cc = self.get_config().copy()
-        super().build(input_shape, config=cc)
-
     def get_config(self):
-        base_config = super(SplitScaledStandardizedConv2D, self).get_config()
+        base_config = super().get_config()
         base_config.update({"eps": self.eps, "gamma": self.gamma})
         return base_config
 

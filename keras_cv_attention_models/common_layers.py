@@ -25,8 +25,8 @@ def activation_by_name(inputs, activation="relu", name=None):
         shared_axes.pop(-1 if K.image_data_format() == "channels_last" else 0)
         # print(f"{shared_axes = }")
         return keras.layers.PReLU(shared_axes=shared_axes, alpha_initializer=tf.initializers.Constant(0.25), name=layer_name)(inputs)
-    elif activation.lower().startswith("gelu_app"):
-        # gelu_approximate
+    elif activation.lower().startswith("gelu/app"):
+        # gelu/approximate
         return tf.nn.gelu(inputs, approximate=True, name=layer_name)
     elif activation:
         return keras.layers.Activation(activation=activation, name=layer_name)(inputs)
