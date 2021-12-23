@@ -1,4 +1,5 @@
 ## Visualizing
+  - Visualizing convnet filters or attention map scores.
 ***
 
 ## Visualize filters

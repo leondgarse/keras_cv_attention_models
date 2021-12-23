@@ -1,31 +1,34 @@
 # Keras_cv_attention_models
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
-- [Usage](#usage)
-  - [Basic Usage](#basic-usage)
-  - [Layers](#layers)
-  - [Model surgery](#model-surgery)
-  - [ImageNet Training](#imagenet-training)
-  - [AotNet](#aotnet)
-  - [BotNet](#botnet)
-  - [BEIT](#beit)
-  - [CMT](#cmt)
-  - [CoaT](#coat)
-  - [CoAtNet](#coatnet)
-  - [CoTNet](#cotnet)
-  - [GMLP](#gmlp)
-  - [HaloNet](#halonet)
-  - [LeViT](#levit)
-  - [MLP mixer](#mlp-mixer)
-  - [NFNets](#nfnets)
-  - [RegNetY](#regnety)
-  - [RegNetZ](#regnetz)
-  - [ResMLP](#resmlp)
-  - [ResNeSt](#resnest)
-  - [ResNetD](#resnetd)
-  - [ResNetQ](#resnetq)
-  - [ResNeXt](#resnext)
-  - [VOLO](#volo)
+- [General Usage](#general-usage)
+	- [Basic Usage](#basic-usage)
+	- [Layers](#layers)
+	- [Model surgery](#model-surgery)
+	- [ImageNet Training](#imagenet-training)
+	- [Visualizing](#visualizing)
+	- [TFLite converting](#tflite-converting)
+- [Models](#models)
+	- [AotNet](#aotnet)
+	- [BEIT](#beit)
+	- [BotNet](#botnet)
+	- [CMT](#cmt)
+	- [CoaT](#coat)
+	- [CoAtNet](#coatnet)
+	- [CoTNet](#cotnet)
+	- [GMLP](#gmlp)
+	- [HaloNet](#halonet)
+	- [LeViT](#levit)
+	- [MLP mixer](#mlp-mixer)
+	- [NFNets](#nfnets)
+	- [RegNetY](#regnety)
+	- [RegNetZ](#regnetz)
+	- [ResMLP](#resmlp)
+	- [ResNeSt](#resnest)
+	- [ResNetD](#resnetd)
+	- [ResNetQ](#resnetq)
+	- [ResNeXt](#resnext)
+	- [VOLO](#volo)
 - [Other implemented tensorflow or keras models](#other-implemented-tensorflow-or-keras-models)
 
 <!-- /TOC -->
@@ -34,8 +37,17 @@
 # [Roadmap and todo list](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)
 ***
 
-# Usage
+# General Usage
 ## Basic Usage
+  - **Default import**
+    ```py
+    import os
+    import tensorflow as tf
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from tensorflow import keras
+    ```
   - Install as pip package:
     ```sh
     pip install -U keras-cv-attention-models
@@ -94,6 +106,7 @@
   - [Init Imagenet dataset using tensorflow_datasets](https://github.com/leondgarse/keras_cv_attention_models/discussions/9).
   - It took me weeks figuring out what is wrong in training, that should use `LAMB` with excluding `batch norm` layers on weight decay...
   - For model training, currently would recommend `TF 2.6.2` or `tf-nightly`, as `TF 2.7.0` has some issues with `XLA`, and lower versions may meet other issues.
+  - `aotnet.AotNet50` default parameters set is a typical `ResNet50` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
   - Default params for `train_script.py` is like `A3` configuration from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf) with `batch_size=256, input_shape=(160, 160)`.
   ```sh
   # Not sure about how useful is resize_antialias, default behavior for timm using `bicubic`
@@ -106,6 +119,80 @@
   CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m aotnet50_epoch_103_val_acc_0.7674.h5 -i 224 --central_crop 0.95 --antialias
   # >>>> Accuracy top1: 0.78466 top5: 0.94088
   ```
+## Visualizing
+  - [Visualizing](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/visualizing) is for visualizing convnet filters or attention map scores.
+  - **make_and_apply_gradcam_heatmap** is for Grad-CAM class activation visualization.
+    ```py
+    from keras_cv_attention_models import visualizing, resnest
+    mm = resnest.ResNest50()
+    url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
+    img = plt.imread(keras.utils.get_file('aa.jpg', url))
+    superimposed_img, heatmap, preds = visualizing.make_and_apply_gradcam_heatmap(mm, img, "stack4_block3_out")
+    ```
+    ![](https://user-images.githubusercontent.com/5744524/147209399-9fe5f08f-c93e-4b0d-b1ed-f6f72f0a9a5b.png)
+  - **plot_attention_score_maps** is model attention score maps visualization.
+    ```py
+    from keras_cv_attention_models import visualizing, botnet
+    mm = resnest.ResNest50()
+    url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
+    img = plt.imread(keras.utils.get_file('aa.jpg', url))
+    _ = visualizing.plot_attention_score_maps(botnet.BotNetSE33T(), imm)
+    ```
+    ![](https://user-images.githubusercontent.com/5744524/147209511-f5194d73-9e4c-457e-a763-45a4025f452b.png)
+## TFLite converting
+  - Currently `TFLite` not supporting `Conv2D with groups>1` / `gelu` / `tf.image.extract_patches` / `tf.transpose with len(perm) > 4`.
+  - Some operations are supported in `tf-nightly` version. May try if encountering issue. More discussion can be found [Converting a trained keras CV attention model to TFLite #17](https://github.com/leondgarse/keras_cv_attention_models/discussions/17).
+  - For models using `Conv2D with groups>1`, convert by `model_surgery.convert_groups_conv2d_2_split_conv2d`:
+    ```py
+    from keras_cv_attention_models.model_surgery import model_surgery
+    from keras_cv_attention_models.imagenet import eval_func
+    from keras_cv_attention_models import regnet
+
+    bb = regnet.RegNetZD32()
+    mm = model_surgery.convert_groups_conv2d_2_split_conv2d(bb)  # converts all `Conv2D` using `groups` to `SplitConv2D`
+    test_inputs = np.random.uniform(size=[1, *mm.input_shape[1:]])
+    print(np.allclose(mm(test_inputs), bb(test_inputs)))
+    # True
+
+    converter = tf.lite.TFLiteConverter.from_keras_model(mm)
+    open(mm.name + ".tflite", "wb").write(converter.convert())
+    print(np.allclose(mm(test_inputs), eval_func.TFLiteModelInterf(mm.name + '.tflite')(test_inputs), atol=1e-7))
+    # True
+    ```
+  - For `gelu` activation, define model with `activation="gelu/approximate"` or `activation="gelu/app"` instead. This will set `approximate=True` for `gelu`. **Should better decide before training, or there will be accuracy loss**.
+    ```py
+    from keras_cv_attention_models.imagenet import eval_func
+    from keras_cv_attention_models import beit
+
+    mm = beit.BeitBasePatch16(activation="gelu/app")
+    # mm.load_weights("xxx.h5")  # May load weights from trained model
+
+    converter = tf.lite.TFLiteConverter.from_keras_model(mm)
+    open(mm.name + ".tflite", "wb").write(converter.convert())
+    test_inputs = np.random.uniform(size=[1, *mm.input_shape[1:]])
+    print(np.allclose(mm(test_inputs), eval_func.TFLiteModelInterf(mm.name + '.tflite')(test_inputs), atol=1e-7))
+    # True
+    ```
+  - For models using `tf.image.extract_patches` operation, force using `Conv2D` instead of `extract_patches` in model definition by `.set_global_tpu_test(True)`. Reload weights with `mm.load_weights(..., by_name=True)` then.
+    ```py
+    from keras_cv_attention_models import model_surgery
+    from keras_cv_attention_models.imagenet import eval_func
+    from keras_cv_attention_models import cotnet
+
+    cotnet.set_global_tpu_test(True)  # force using `Conv2D` instead of `extract_patches`
+    mm = cotnet.CotNetSE50D()
+    # mm.load_weights("xxx.h5", by_name=True)  # May load weights from trained model
+    mm = model_surgery.convert_groups_conv2d_2_split_conv2d(mm)
+    converter = tf.lite.TFLiteConverter.from_keras_model(mm)
+    open(mm.name + ".tflite", "wb").write(converter.convert())
+    test_inputs = np.random.uniform(size=[1, *mm.input_shape[1:]])
+    print(np.allclose(mm(test_inputs), eval_func.TFLiteModelInterf(mm.name + '.tflite')(test_inputs), atol=1e-7))
+    # True
+    ```
+  - Not supporting `VOLO` / `HaloNet` models converting, cause they need a longer `tf.transpose` `perm`.
+***
+
+# Models
 ## AotNet
   - [Keras AotNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/aotnet) is just a `ResNet` / `ResNetV2` like framework, that set parameters like `attn_types` and `se_ratio` and others, which is used to apply different types attention layer. Works like `byoanet` / `byobnet` from `timm`.
   - Default parameters set is a typical `ResNet` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
