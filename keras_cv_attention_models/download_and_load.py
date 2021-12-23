@@ -57,15 +57,23 @@ def reload_model_weights_with_mismatch(
             pass
 
 
-def load_weights_with_mismatch(model, weight_file, mismatch_class=None, custom_objects={}):
+def load_weights_with_mismatch(model, weight_file, mismatch_class=None, method="nearest", custom_objects={}):
     model.load_weights(weight_file, by_name=True, skip_mismatch=True)
     if mismatch_class is not None:
+        import h5py
+
         print(">>>> Reload mismatched weights.")
-        bb = keras.models.load_model(weight_file, custom_objects=custom_objects)
+        ff = h5py.File(weight_file, mode="r")
+        weights = ff["model_weights"]
         for ii in model.layers:
-            if isinstance(ii, mismatch_class):
+            if isinstance(ii, mismatch_class) and ii.name in weights:
                 print(">>>> Reload layer:", ii.name)
-                model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
+                ss = weights[ii.name]
+                # ss = {ww.decode().split("/")[-1] : tf.convert_to_tensor(ss[ww]) for ww in ss.attrs['weight_names']}
+                ss = {ww.decode("utf8") if hasattr(ww, "decode") else ww: tf.convert_to_tensor(ss[ww]) for ww in ss.attrs["weight_names"]}
+                ss = {kk.split("/")[-1]: vv for kk, vv in ss.items()}
+                model.get_layer(ii.name).load_resized_pos_emb(ss, method=method)
+        ff.close()
 
 
 def state_dict_stack_by_layer(state_dict, skip_weights=["num_batches_tracked"], unstack_weights=[]):
