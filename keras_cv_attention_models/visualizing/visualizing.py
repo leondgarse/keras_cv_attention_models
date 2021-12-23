@@ -48,63 +48,77 @@ def __deprocess_image__(img):
     img = np.clip(img, 0, 255).astype("uint8")
     return img
 
+def __get_cols_rows__(total, rows=-1):
+    if rows == -1 and total < 8:
+        rows = 1  # for total in [1, 7], plot 1 row only
+    elif rows == -1:
+        rr = int(np.floor(np.sqrt(total)))
+        for ii in range(1, rr + 1)[::-1]:
+            if total % ii == 0:
+                rows = ii
+                break
+    cols = total // rows
+    return cols, rows
 
-def visualize_filters(model, layer_name, image=None, filter_index_list=[0], input_shape=None, iterations=30, learning_rate=10.0):
+def stack_and_plot_images(images, margin=5, margin_value=0, rows=-1, ax=None, base_size=3):
+    """ Stack and plot a list of images. Returns ax, stacked_images """
+    import matplotlib.pyplot as plt
+
+    cols, rows = __get_cols_rows__(len(images), rows)
+    images = images[: rows * cols]
+    # print(">>>> rows:", rows, ", cols:", cols, ", total:", len(images))
+
+    if ax is None:
+        _, ax = plt.subplots(1, 1, figsize=(base_size * cols, base_size * rows))
+
+    if margin > 0:
+        channel = images[0].shape[-1]
+        ww_margin = np.zeros([images[0].shape[0], margin, channel], dtype=images[0].dtype) + margin_value
+        ww_margined_images = [np.hstack([ii, ww_margin]) for ii in images]
+        hstacked_images = [np.hstack(ww_margined_images[ii : ii + cols]) for ii in range(0, len(ww_margined_images), cols)]
+
+        hh_margin = np.zeros([margin, hstacked_images[0].shape[1], channel], dtype=hstacked_images[0].dtype) + margin_value
+        hh_margined_images = [np.vstack([ii, hh_margin]) for ii in hstacked_images]
+        vstacked_images = np.vstack(hh_margined_images)
+
+        stacked_images = vstacked_images[:-margin, :-margin]
+    else:
+        stacked_images = np.vstack([np.hstack(images[ii * cols: (rr + 1) * cols]) for ii in range(rows)])
+
+    ax.imshow(stacked_images)
+    ax.set_axis_off()
+    ax.grid(False)
+    plt.tight_layout()
+    return ax, stacked_images
+
+
+def visualize_filters(model, layer_name, filter_index_list=[0], input_shape=None, iterations=30, learning_rate=10.0, base_size=3):
     # Set up a model that returns the activation values for our target layer
     layer = model.get_layer(name=layer_name)
     feature_extractor = tf.keras.Model(inputs=model.inputs, outputs=layer.output)
-    print(">>>> Total filters for layer {}: {}".format(layer_name, layer.output_shape[-1]))
-
-    input_shape = model.input_shape[:2] if input_shape is None else input_shape[:2]
-    image = model.input_shape[:2] if input_shape is None else input_shape[:2]
+    input_shape = model.input_shape[1:-1] if input_shape is None else input_shape[:2]
+    print(">>>> Total filters for layer {}: {}, input_shape: {}".format(layer_name, layer.output_shape[-1], input_shape))
 
     # We run gradient ascent for [iterations] steps
-    losses, all_images = [], []
+    losses, filter_images = [], []
     for filter_index in filter_index_list:
         print("Processing filter %d" % (filter_index,))
-        image = __initialize_image__(img_width, img_height) if image is None else image
+        image = __initialize_image__(input_shape[0], input_shape[1])
         for iteration in range(iterations):
             loss, image = __gradient_ascent_step__(feature_extractor, image, filter_index, learning_rate)
         # Decode the resulting input image
         image = __deprocess_image__(image[0].numpy())
-        losses.append(loss)
-        all_images.append(image)
+        losses.append(loss.numpy())
+        filter_images.append(image)
 
-    return losses, all_images
-
-
-def visualize_filters_result_to_single_image(all_images, margin=5, width=-1):
-    channel = all_images[0].shape[-1]
-    total = len(all_images)
-    width = int(np.ceil(np.sqrt(total))) if width < 1 else width
-    for ww in range(width, total + 1):
-        if total % ww == 0:
-            width = ww
-            break
-    height = total // width
-    all_images = all_images[: height * width]
-    print(">>>> width:", width, ", height:", height, ", len(all_images):", len(all_images))
-
-    ww_margin = np.zeros([all_images[0].shape[0], margin, channel], dtype=all_images[0].dtype)
-    ww_margined_images = [np.hstack([ii, ww_margin]) for ii in all_images]
-    hstacked_images = [np.hstack(ww_margined_images[ii : ii + width]) for ii in range(0, len(ww_margined_images), width)]
-
-    hh_margin = np.zeros([margin, hstacked_images[0].shape[1], channel], dtype=hstacked_images[0].dtype)
-    hh_margined_images = [np.vstack([ii, hh_margin]) for ii in hstacked_images]
-    vstacked_images = np.vstack(hh_margined_images)
-
-    stacked_image = vstacked_images[:-margin, :-margin]
-    fig = plt.figure()
-    plt.imshow(stacked_image)
-    plt.axis("off")
-    plt.tight_layout()
-    return stacked_image
+    ax, _ = stack_and_plot_images(filter_images, base_size=base_size)
+    return losses, np.stack(filter_images), ax
 
 
-def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
+def make_gradcam_heatmap(model, img_array, layer_name, pred_index=None):
     # First, we create a model that maps the input image to the activations
     # of the last conv layer as well as the output predictions
-    grad_model = tf.keras.models.Model([model.inputs], [model.get_layer(last_conv_layer_name).output, model.output])
+    grad_model = tf.keras.models.Model(model.inputs[0], [model.get_layer(layer_name).output, model.output])
 
     # Then, we compute the gradient of the top predicted class for our input image
     # with respect to the activations of the last conv layer
@@ -120,7 +134,7 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
 
     # This is a vector where each entry is the mean intensity of the gradient
     # over a specific feature map channel
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+    pooled_grads = tf.reduce_mean(grads, axis=list(range(0, len(grads.shape)-1)))
 
     # We multiply each channel in the feature map array
     # by "how important this channel is" with regard to the top predicted class
@@ -128,19 +142,21 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
     last_conv_layer_output = last_conv_layer_output[0]
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
     heatmap = tf.squeeze(heatmap)
+    if len(heatmap.shape) > 2:
+        heatmap = tf.reduce_mean(heatmap, list(range(0, len(heatmap.shape) - 2)))
 
     # For visualization purpose, we will also normalize the heatmap between 0 & 1
     heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
     return heatmap.numpy().astype("float32"), preds.numpy()
 
 
-def make_and_apply_gradcam_heatmap(model, image, last_conv_layer_name, rescale_mode="tf", pred_index=None, alpha=0.4):
+def make_and_apply_gradcam_heatmap(model, image, layer_name, rescale_mode="tf", pred_index=None, alpha=0.4):
     import matplotlib.cm as cm
     import matplotlib.pyplot as plt
 
     processed_image = tf.expand_dims(tf.image.resize(image, model.input_shape[1:-1]), 0)
     processed_image = tf.keras.applications.imagenet_utils.preprocess_input(processed_image, mode=rescale_mode)
-    heatmap, preds = make_gradcam_heatmap(processed_image, model, last_conv_layer_name, pred_index=pred_index)
+    heatmap, preds = make_gradcam_heatmap(model, processed_image, layer_name, pred_index=pred_index)
 
     # Use jet colormap to colorize heatmap. Use RGB values of the colormap
     jet = cm.get_cmap("jet")
@@ -156,6 +172,7 @@ def make_and_apply_gradcam_heatmap(model, image, last_conv_layer_name, rescale_m
     superimposed_img /= superimposed_img.max()
 
     print(">>>> Prediction:", tf.keras.applications.imagenet_utils.decode_predictions(preds)[0])
+    print(">>>> Top 5 prediction indexes:", np.argsort(preds[0])[-5:])
     fig = plt.figure()
     plt.imshow(superimposed_img)
     plt.axis("off")
@@ -250,7 +267,7 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
     elif check_type_is("bot") or check_type_is("coatnet"):
         # bot attn_score [batch, num_heads, hh * ww, hh * ww]
         print(">>>> Attention type: bot / coatnet")
-        mask = [np.array(ii)[0].mean((0)) for ii in attn_scores][::-1]
+        mask = [np.array(ii)[0].mean((0)) for ii in attn_scores if len(ii.shape) == 4][::-1]
         mask = [clip_max_value_matrix(ii) for ii in mask]  # Or it will be too dark.
         method = "max" if check_type_is("coatnet") else "avg"
         cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], method) for ii in range(1, len(mask))]
@@ -262,7 +279,7 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
         from einops import rearrange
         from keras_cv_attention_models.attention_layers import tpu_compatible_extract_patches
 
-        mask = [np.array(ii)[0].mean(0) for ii in attn_scores][::-1]
+        mask = [np.array(ii)[0].mean(0) for ii in attn_scores if len(ii.shape) == 6][::-1]
 
         qqs = [int(np.sqrt(ii.shape[2])) for ii in mask]  # query_kernel
         vvs = [int(np.sqrt(ii.shape[3])) for ii in mask]  # kv_kernel
@@ -281,23 +298,14 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
         print("[{}] still don't know how...".format(attn_type))
         return None, None
 
-    total = len(mask)
-    if rows == -1 and total < 8:
-        rows = 1  # for total in [1, 7], plot 1 row only
-    elif rows == -1:
-        rr = int(np.floor(np.sqrt(total)))
-        for ii in range(1, rr + 1)[::-1]:
-            if total % ii == 0:
-                rows = ii
-                break
-    cols = int(np.floor(total / rows))
+    masked_image = [apply_mask_2_image(image, ii) for ii in mask]
+    cum_masked_image = [apply_mask_2_image(image, ii) for ii in cum_mask]
+
+    cols, rows = __get_cols_rows__(len(mask), rows)
     fig, axes = plt.subplots(2, 1, figsize=(base_size * cols, base_size * rows * 2))
-    axes[0].imshow(np.vstack([np.hstack([apply_mask_2_image(image, ii) for ii in mask[rr * cols : (rr + 1) * cols]]) for rr in range(rows)]))
+    stack_and_plot_images(masked_image, margin=5, rows=rows, ax=axes[0])
     axes[0].set_title("Attention scores: attn_scores[{}] --> attn_scores[0]".format(len(mask)) + layer_name_title)
-    axes[1].imshow(np.vstack([np.hstack([apply_mask_2_image(image, ii) for ii in cum_mask[rr * cols : (rr + 1) * cols]]) for rr in range(rows)]))
+    stack_and_plot_images(cum_masked_image, margin=5, rows=rows, ax=axes[1])
     axes[1].set_title("Accumulated attention scores: attn_scores[{}:] --> attn_scores[0:]".format(len(mask) - 1) + layer_name_title)
-    for ax in axes:
-        ax.axis("off")
-        ax.grid(False)
     fig.tight_layout()
-    return mask, cum_mask
+    return mask, cum_mask, fig

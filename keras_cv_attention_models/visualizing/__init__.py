@@ -1,94 +1,112 @@
 from keras_cv_attention_models.visualizing.visualizing import (
+    stack_and_plot_images,
     visualize_filters,
-    visualize_filters_result_to_single_image,
     make_gradcam_heatmap,
     make_and_apply_gradcam_heatmap,
     plot_attention_score_maps,
 )
 
 visualize_filters.__doc__ = """
-Copied and modified from https://keras.io/examples/vision/visualizing_what_convnets_learn/
-Set up a model that returns the activation values for our target layer.
+Copied and modified from: https://keras.io/examples/vision/visualizing_what_convnets_learn/
+Displaying the visual patterns that convnet filters respond to.
+Will create input images that maximize the activation of specific filters in a target layer.
+Such images represent a visualization of the pattern that the filter responds to.
+
+Note: models using `Conv2D` with `groups != 1` not supporting on CPU. Needs backward steps.
 
 Args:
   model: keras model used for visualizing.
-  layer_name: target layer name in model.
+  layer_name: target layer name in model for visualizing.
   filter_index_list: channel indexes for visualizing.
   input_shape: model input_shape. Default `None` means using `model.input_shape`.
   iterations: total steps runnung gradient ascent.
   learning_rate: learning rate in runnung gradient ascent.
-  
-Returns: losses, all_images
+  base_size: base plotting size for a single image.
+
+Returns:
+  losses, filter_images, ax
 
 Example:
->>> from keras_cv_attention_models import visualizing
->>> model = keras.applications.ResNet50V2(input_shape=(224, 224, 3), weights="imagenet", include_top=False)
->>> losses, all_images = visualizing.visualize_filters(model, "conv3_block4_out", [0], 180, 180)
->>> print(f"{losses[0].numpy() = }, {all_images[0].shape = }")
-# losses[0].numpy() = 13.749493, all_images[0].shape = (130, 130, 3)
->>> plt.imshow(all_images[0])
-"""
-
-visualize_filters_result_to_single_image.__doc__ = """
-Copied and modified from https://keras.io/examples/vision/visualizing_what_convnets_learn/
-
-Returns: stacked_image
-
-Example:
->>> from keras_cv_attention_models import visualizing
->>> model = keras.applications.ResNet50V2(weights="imagenet", include_top=False)
->>> losses, all_images = visualizing.visualize_filters(model, "conv3_block4_out", range(10), 180, 180)
->>> print(f"{losses[0].numpy() = }, {len(all_images) = }, {all_images[0].shape = }")
-# losses[0].numpy() = 13.749493, len(all_images) = 10, all_images[0].shape = (130, 130, 3)
->>> image = visualizing.visualize_filters_result_to_single_image(all_images)
->>> print(f"{image.shape = }")
-# image.shape = (265, 670, 3)
->>> plt.imshow(image)
+>>> from keras_cv_attention_models import visualizing, resnest
+>>> mm = resnest.ResNest50()
+>>> losses, filter_images, ax = visualizing.visualize_filters(mm, "stack3_block6_out", range(10))
+>>> print(f"{losses[0] = }, {filter_images[0].shape = }")
+# losses[0] = 23.950336, filter_images[0].shape = (174, 174, 3)
 """
 
 make_gradcam_heatmap.__doc__ = """
-Copied From: https://keras.io/examples/vision/grad_cam/
+Copied and modified from: https://keras.io/examples/vision/grad_cam/
+Grad-CAM class activation visualization. Obtain a class activation heatmap for an image classification model.
 
-Returns: heatmap, preds
+Args:
+  model: keras model used for visualizing.
+  img_array: preprocessed image can be directly used as model input.
+  layer_name: target layer name in model for visualizing.
+  pred_index: specified visualizing prediction index. Used for image containing multi classes.
+      Default `None` means using max probability one.
+
+Returns:
+  heatmap, preds
 
 Example:
->>> from keras_cv_attention_models import visualizing
->>> from skimage.data import chelsea
->>> mm = keras.applications.Xception()
->>> orign_image = chelsea().astype('float32')
->>> img = tf.expand_dims(tf.image.resize(orign_image, mm.input_shape[1:-1]), 0)
->>> img = keras.applications.imagenet_utils.preprocess_input(img, mode='tf')
->>> heatmap, preds = visualizing.make_gradcam_heatmap(img, mm, 'block14_sepconv2_act')
+>>> from keras_cv_attention_models import visualizing, resnest
+>>> mm = resnest.ResNest50()
+>>> url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
+>>> img = plt.imread(keras.utils.get_file('aa.jpg', url))
+>>> img = tf.expand_dims(tf.image.resize(img, mm.input_shape[1:-1]), 0)
+>>> img = keras.applications.imagenet_utils.preprocess_input(img, mode='torch')
+>>> heatmap, preds = visualizing.make_gradcam_heatmap(mm, img, 'stack4_block3_out')
 >>> print(f"{preds.shape = }, {heatmap.shape = }, {heatmap.max() = }, {heatmap.min() = }")
-# preds.shape = (1, 1000), heatmap.shape = (10, 10), heatmap.max() = 1.0, heatmap.min() = 0.0
+# preds.shape = (1, 1000), heatmap.shape = (7, 7), heatmap.max() = 1.0, heatmap.min() = 0.0
 >>> print(keras.applications.imagenet_utils.decode_predictions(preds)[0][0])
-# ('n02124075', 'Egyptian_cat', 0.8749054)
+# ('n02110063', 'malamute', 0.54736596)
 
 >>> plt.imshow(heatmap)
 """
 
 make_and_apply_gradcam_heatmap.__doc__ = """
-Copied From: https://keras.io/examples/vision/grad_cam/
+Copied and modified from: https://keras.io/examples/vision/grad_cam/
+Grad-CAM class activation visualization. Create and plot a superimposed visualization heatmap on image.
 
-Returns: superimposed_img, heatmap, preds
+Args:
+  model: keras model used for visualizing.
+  image: Original image for visualizing.
+  layer_name: target layer name in model for visualizing.
+  rescale_mode: image value rescale mode. Mostly used one is "tf" or "torch".
+  pred_index: specified visualizing prediction index. Used for image containing multi classes.
+      Default `None` means using max probability one.
+  alpha: heatmap superimposed alpha over image.
+
+Returns:
+  superimposed_img, heatmap, preds
 
 Example:
->>> from keras_cv_attention_models import visualizing
->>> from skimage.data import chelsea
->>> mm = keras.applications.Xception()
->>> orign_image = chelsea().astype('float32')
->>> superimposed_img, heatmap, preds = visualizing.make_and_apply_gradcam_heatmap(mm, orign_image, "block14_sepconv2_act")
-
->>> # Ouput info
->>> print(f"{preds.shape = }, {heatmap.shape = }, {heatmap.max() = }, {heatmap.min() = }")
-# preds.shape = (1, 1000), heatmap.shape = (10, 10), heatmap.max() = 1.0, heatmap.min() = 0.0
->>> print(keras.applications.imagenet_utils.decode_predictions(preds)[0][0])
-# ('n02124075', 'Egyptian_cat', 0.8749054)
->>> print(f"{superimposed_img.shape = }, {superimposed_img.max() = }, {superimposed_img.min() = }")
-# superimposed_img.shape = (300, 451, 3), superimposed_img.max() = 1.0, superimposed_img.min() = 0.0
+>>> from keras_cv_attention_models import visualizing, resnest
+>>> mm = resnest.ResNest50()
+>>> url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
+>>> img = plt.imread(keras.utils.get_file('aa.jpg', url))
+>>> superimposed_img, heatmap, preds = visualizing.make_and_apply_gradcam_heatmap(mm, img, "stack4_block3_out")
 """
 
 plot_attention_score_maps.__doc__ = """
+Visualizing model attention score maps, superimposed with specific image.
 
-Returns: mask, cum_mask
+Args:
+  model: keras model used for visualizing.
+  image: Original image for visualizing.
+  rescale_mode: image value rescale mode. Mostly used one is "tf" or "torch".
+  attn_type: Specify model attention type. Currently supporting `["beit", "levit", "bot", "coatnet", "halo"]`.
+      Default "auto" means decide from model name. Technically any attention scores in the same format with
+      specified `attn_type` can be supported. Like using `attn_type="beit"` for `VIT` models.
+  rows: Specify number of plotted rows. Default `-1` means auto adjust.
+  base_size: base plotting size for a single image.
+
+Returns:
+  mask, cum_mask, fig
+
+Example:
+>>> from keras_cv_attention_models import botnet, halonet, beit, levit, visualizing
+>>> url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
+>>> imm = plt.imread(keras.utils.get_file('aa.jpg', url))
+>>> _ = visualizing.plot_attention_score_maps(beit.BeitBasePatch16(), imm, rescale_mode='tf', rows=2)
 """
