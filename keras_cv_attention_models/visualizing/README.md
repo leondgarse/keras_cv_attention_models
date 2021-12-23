@@ -1,8 +1,9 @@
 ## Visualizing
 ***
 
-## Usage
-- **visualize_filters** Displaying the visual patterns that convnet filters respond to. Will create input images that maximize the activation of specific filters in a target layer. Such images represent a visualization of the pattern that the filter responds to. Copied and modified from [keras.io/examples Visualizing what convnets learn](https://keras.io/examples/vision/visualizing_what_convnets_learn/).
+## Visualize filters
+  - Displaying the visual patterns that convnet filters respond to. Will create input images that maximize the activation of specific filters in a target layer. Such images represent a visualization of the pattern that the filter responds to. Copied and modified from [keras.io/examples Visualizing what convnets learn](https://keras.io/examples/vision/visualizing_what_convnets_learn/).
+  - Note: models using `Conv2D` with `groups != 1` not supporting on CPU. Needs backward steps.
   ```py
   from keras_cv_attention_models import visualizing, resnest
   mm = resnest.ResNest50()
@@ -11,9 +12,9 @@
   # losses[0] = 23.950336, filter_images[0].shape = (174, 174, 3)
   ```
   ![](https://user-images.githubusercontent.com/5744524/147209311-02dbb24c-6971-439f-9413-4724a34a4fc7.png)
-
-  Note: models using `Conv2D` with `groups != 1` not supporting on CPU. Needs backward steps.
-- **make_gradcam_heatmap** Grad-CAM class activation visualization. Obtain a class activation heatmap for an image classification model. Copied and modified from: [keras.io/examples Grad-CAM class activation visualization](https://keras.io/examples/vision/grad_cam/).
+## Make gradcam heatmap
+  - Grad-CAM class activation visualization. Obtain a class activation heatmap for an image classification model. Copied and modified from: [keras.io/examples Grad-CAM class activation visualization](https://keras.io/examples/vision/grad_cam/).
+  - Note: models using `Conv2D` with `groups != 1` not supporting on CPU. Needs backward steps.
   ```py
   from keras_cv_attention_models import visualizing, resnest
   mm = resnest.ResNest50()
@@ -30,9 +31,9 @@
   plt.imshow(heatmap)
   ```
   ![](https://user-images.githubusercontent.com/5744524/147209356-2a32f930-4af9-4b8f-ad2f-1b91acbb4bc3.png)
-
-  Note: models using `Conv2D` with `groups != 1` not supporting on CPU. Needs backward steps.
-- **make_and_apply_gradcam_heatmap** Grad-CAM class activation visualization. Create and plot a superimposed visualization heatmap on image. Copied and modified from: [keras.io/examples Grad-CAM class activation visualization](https://keras.io/examples/vision/grad_cam/).
+## Make and apply gradcam heatmap
+  - Grad-CAM class activation visualization. Create and plot a superimposed visualization heatmap on image. Copied and modified from: [keras.io/examples Grad-CAM class activation visualization](https://keras.io/examples/vision/grad_cam/).
+  - Note: models using `Conv2D` with `groups != 1` not supporting on CPU. Needs backward steps.
   ```py
   from keras_cv_attention_models import visualizing, resnest
   mm = resnest.ResNest50()
@@ -41,41 +42,47 @@
   superimposed_img, heatmap, preds = visualizing.make_and_apply_gradcam_heatmap(mm, img, "stack4_block3_out")
   ```
   ![](https://user-images.githubusercontent.com/5744524/147209399-9fe5f08f-c93e-4b0d-b1ed-f6f72f0a9a5b.png)
-
-  Note: models using `Conv2D` with `groups != 1` not supporting on CPU. Needs backward steps.
-- **plot_attention_score_maps** Visualizing model attention score maps, superimposed with specific image.
+## Plot attention score maps
+  - Visualizing model attention score maps, superimposed with specific image.
   ```py
   from keras_cv_attention_models import botnet, halonet, beit, levit, visualizing
   url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
   imm = plt.imread(keras.utils.get_file('aa.jpg', url))
-
-  """ beit model attention score maps """
+  ```
+#### BEIT
+  - BEIT model attention score format `[batch, num_heads, cls_token + hh * ww, cls_token + hh * ww]`.
+  ```py
   _ = visualizing.plot_attention_score_maps(beit.BeitBasePatch16(), imm, rescale_mode='tf', rows=2)
   ```
   ![](https://user-images.githubusercontent.com/5744524/147209433-9dfdd736-9c92-4264-b6af-6b12d886ad36.png)
+#### LeViT
+  - LeViT model attention score format `[batch, num_heads, q_blocks, k_blocks]`.
   ```py
-  """ levit model attention score maps """
   _ = visualizing.plot_attention_score_maps(levit.LeViT128S(), imm, rescale_mode='torch')
   ```
   ![](https://user-images.githubusercontent.com/5744524/147209475-fa4dfdbd-9a3a-4568-b139-85389cbd612e.png)
+#### BotNet
+  - BotNet model attention score format `[batch, num_heads, hh * ww, hh * ww]`.
   ```py
-  """ botnet model attention score maps """
   _ = visualizing.plot_attention_score_maps(botnet.BotNetSE33T(), imm)
   ```
   ![](https://user-images.githubusercontent.com/5744524/147209511-f5194d73-9e4c-457e-a763-45a4025f452b.png)
+#### HaloNet
+  - HaloNet model attention score format `[batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]`.
+  - **This one seems not right**.
   ```py
-  """ halonet model attention score maps """
-  # This one seems not right.
   _ = visualizing.plot_attention_score_maps(halonet.HaloNet50T(), imm, rescale_mode='torch')
   ```
   ![](https://user-images.githubusercontent.com/5744524/147209558-2c1c1590-20d6-4c09-9686-11521ac51b37.png)
+#### CoAtNet
+  - CoAtNet model attention score format `[batch, num_heads, hh * ww, hh * ww]`. Plot by load_model from file.
   ```py
-  """ coatnet model attention score maps, by load_model and plot """
   _ = visualizing.plot_attention_score_maps(keras.models.load_model("checkpoints/coatnet.CoAtNet0_160.h5"), imm)
   ```
   ![](https://user-images.githubusercontent.com/5744524/147209593-094a7294-7022-4a58-898e-b967570847f0.png)
+#### VIT
+  - VIT model attention score format is same with `BEIT`. Plot by extract attention scores and specify attn_type.
   ```py
-  """ vit model attention score maps, by extract attention scores and specify attn_type """
   from vit_keras import vit, layers
   mm = vit.vit_b16(image_size=384, activation='sigmoid', pretrained=True, include_top=True, pretrained_top=True)
   img = vit.preprocess_inputs(tf.image.resize(imm, mm.input_shape[1:-1]))[np.newaxis, :]
