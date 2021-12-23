@@ -2,7 +2,7 @@
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [General Usage](#general-usage)
-	- [Basic Usage](#basic-usage)
+	- [Basic](#basic)
 	- [Layers](#layers)
 	- [Model surgery](#model-surgery)
 	- [ImageNet Training](#imagenet-training)
@@ -38,7 +38,7 @@
 ***
 
 # General Usage
-## Basic Usage
+## Basic
   - **Default import**
     ```py
     import os
@@ -141,8 +141,8 @@
     ![](https://user-images.githubusercontent.com/5744524/147209511-f5194d73-9e4c-457e-a763-45a4025f452b.png)
 ## TFLite converting
   - Currently `TFLite` not supporting `Conv2D with groups>1` / `gelu` / `tf.image.extract_patches` / `tf.transpose with len(perm) > 4`.
-  - Some operations are supported in `tf-nightly` version. May try if encountering issue. More discussion can be found [Converting a trained keras CV attention model to TFLite #17](https://github.com/leondgarse/keras_cv_attention_models/discussions/17).
-  - For models using `Conv2D with groups>1`, convert by `model_surgery.convert_groups_conv2d_2_split_conv2d`:
+  - Some operations could be supported in `tf-nightly` version. May try if encountering issue. More discussion can be found [Converting a trained keras CV attention model to TFLite #17](https://github.com/leondgarse/keras_cv_attention_models/discussions/17).
+  - For models using `Conv2D with groups>1`, convert by `model_surgery.convert_groups_conv2d_2_split_conv2d` first:
     ```py
     from keras_cv_attention_models.model_surgery import model_surgery
     from keras_cv_attention_models.imagenet import eval_func
