@@ -91,7 +91,7 @@ class RelativePositionalEmbedding(keras.layers.Layer):
         rel_logits_h = tf.transpose(rel_logits_h, [0, 2, 1, 3])  # [4, 14, 16, 14], transpose back
 
         logits = tf.expand_dims(rel_logits_w, axis=-2) + tf.expand_dims(rel_logits_h, axis=-1)  # [4, 14, 16, 14, 16]
-        return tf.reshape(logits, [-1, heads, hh, ww, hh, ww])  # [1, 4, 14, 16, 14, 16]
+        return tf.reshape(logits, [-1, heads, hh, ww, self.position_height, self.position_width])  # [1, 4, 14, 16, 14, 16]
 
     def absolute_logits(self, inputs):
         # pos_emb = tf.expand_dims(self.pos_emb_w, -2) + tf.expand_dims(self.pos_emb_h, -1)
