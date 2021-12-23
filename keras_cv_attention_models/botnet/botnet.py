@@ -63,38 +63,42 @@ class RelativePositionalEmbedding(keras.layers.Layer):
     def rel_to_abs(self, rel_pos):
         """
         Converts relative indexing to absolute.
-        Input: [bs, heads, height, width, 2 * pos_dim - 1]
-        Output: [bs, heads, height, width, pos_dim]
+        Input: [bs+heads, height, width, 2 * pos_dim - 1]
+        Output: [bs+heads, height, width, pos_dim]
         """
-        _, heads, hh, ww, dim = rel_pos.shape  # [bs, heads, height, width, 2 * width - 1]
+        bs_heads, hh, ww, dim = rel_pos.shape  # [bs+heads, height, width, 2 * width - 1]
         pos_dim = (dim + 1) // 2
         if pos_dim == 1:
             return rel_pos
         if ww == 1:
-            return rel_pos[..., -pos_dim:]
+            return rel_pos[:, :, :, -pos_dim:]
         full_rank_gap = pos_dim - ww
-        # [bs, heads, height, width * (2 * pos_dim - 1)] --> [bs, heads, height, width * (2 * pos_dim - 1) - width]
-        flat_x = tf.reshape(rel_pos, [-1, heads, hh, ww * dim])[:, :, :, ww - 1 : -1]
-        # [bs, heads, height, width, 2 * (pos_dim - 1)] --> [bs, heads, height, width, pos_dim]
+        # [bs+heads, height, width * (2 * pos_dim - 1)] --> [bs+heads, height, width * (2 * pos_dim - 1) - width]
+        flat_x = tf.reshape(rel_pos, [-1, hh, ww * dim])[:, :, ww - 1 : -1]
+        # [bs+heads, height, width, 2 * (pos_dim - 1)] --> [bs+heads, height, width, pos_dim]
         # print(f">>>> {full_rank_gap = }, {flat_x.shape = }")
-        return tf.reshape(flat_x, [-1, heads, hh, ww, 2 * (pos_dim - 1)])[:, :, :, :, full_rank_gap : pos_dim + full_rank_gap]
+        return tf.reshape(flat_x, [-1, hh, ww, 2 * (pos_dim - 1)])[:, :, :, full_rank_gap : pos_dim + full_rank_gap]
 
     def relative_logits(self, inputs):
-        query_w = inputs  # e.g.: [1, 4, 14, 16, 128], [bs, heads, hh, ww, dims]
-        rel_logits_w = tf.matmul(query_w, self.pos_emb_w)  # [1, 4, 14, 16, 31], 2 * 16 - 1 == 31
-        rel_logits_w = self.rel_to_abs(rel_logits_w)  # [1, 4, 14, 16, 16]
+        bs, heads, hh, ww, cc = inputs.shape  # e.g.: [1, 4, 14, 16, 128]
+        inputs = tf.reshape(inputs, [-1, hh, ww, cc])   # Merge bs and heads, for supporting TFLite conversion
+        rel_logits_w = tf.matmul(inputs, self.pos_emb_w)  # [4, 14, 16, 31], 2 * 16 - 1 == 31
+        rel_logits_w = self.rel_to_abs(rel_logits_w)  # [4, 14, 16, 16]
 
-        query_h = tf.transpose(inputs, [0, 1, 3, 2, 4])  # [1, 4, 16, 14, 128], [bs, heads, ww, hh, dims], Exchange `ww` and `hh`
-        rel_logits_h = tf.matmul(query_h, self.pos_emb_h)  # [1, 4, 16, 14, 27], 2 * 14 - 1 == 27
-        rel_logits_h = self.rel_to_abs(rel_logits_h)  # [1, 4, 16, 14, 14]
-        rel_logits_h = tf.transpose(rel_logits_h, [0, 1, 3, 2, 4])  # [1, 4, 14, 16, 14], transpose back
+        query_h = tf.transpose(inputs, [0, 2, 1, 3])  # [4, 16, 14, 128], [bs+heads, ww, hh, dims], Exchange `ww` and `hh`
+        rel_logits_h = tf.matmul(query_h, self.pos_emb_h)  # [4, 16, 14, 27], 2 * 14 - 1 == 27
+        rel_logits_h = self.rel_to_abs(rel_logits_h)  # [4, 16, 14, 14]
+        rel_logits_h = tf.transpose(rel_logits_h, [0, 2, 1, 3]) # [4, 14, 16, 14], transpose back
 
-        return tf.expand_dims(rel_logits_w, axis=-2) + tf.expand_dims(rel_logits_h, axis=-1)  # [1, 4, 14, 16, 14, 16]
+        logits = tf.expand_dims(rel_logits_w, axis=-2) + tf.expand_dims(rel_logits_h, axis=-1)  # [4, 14, 16, 14, 16]
+        return tf.reshape(logits, [-1, heads, hh, ww, hh, ww])  # [1, 4, 14, 16, 14, 16]
 
     def absolute_logits(self, inputs):
-        pos_emb = tf.expand_dims(self.pos_emb_h, 2) + tf.expand_dims(self.pos_emb_w, 1)
-        abs_logits = tf.einsum("bxyhd,dpq->bhxypq", inputs, pos_emb)
-        return abs_logits
+        # pos_emb = tf.expand_dims(self.pos_emb_w, -2) + tf.expand_dims(self.pos_emb_h, -1)
+        # return tf.einsum("bxyhd,dpq->bhxypq", inputs, pos_emb)
+        rel_logits_w = tf.matmul(inputs, self.pos_emb_w)
+        rel_logits_h = tf.matmul(inputs, self.pos_emb_h)
+        return tf.expand_dims(rel_logits_w, axis=-2) + tf.expand_dims(rel_logits_h, axis=-1)
 
     def call(self, inputs):
         pos_emb = self.absolute_logits(inputs) if self.use_absolute_pos else self.relative_logits(inputs)
@@ -133,19 +137,14 @@ def mhsa_with_relative_position_embedding(
 
     # qkv = keras.layers.Dense(emb_dim * 3, use_bias=False, name=name and name + "qkv")(inputs)
     qkv = conv2d_no_bias(inputs, qk_out * 2 + out_shape, kernel_size=1, name=name and name + "qkv_")
-    if vv_dim == key_dim:
-        qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], 3, num_heads, key_dim])
-        query, key, value = tf.transpose(qkv, [2, 0, 3, 1, 4])  # [qkv, batch, num_heads, hh * ww, key_dim]
-        key = tf.transpose(key, [0, 1, 3, 2])
-    else:
-        qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
-        query, key, value = tf.split(qkv, [qk_out, qk_out, out_shape], axis=-1)
-        # query = [batch, num_heads, hh * ww, key_dim]
-        query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])
-        # key = [batch, num_heads, key_dim, hh * ww]
-        key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])
-        # value = [batch, num_heads, hh * ww, vv_dim]
-        value = tf.transpose(tf.reshape(value, [-1, value.shape[1], num_heads, vv_dim]), [0, 2, 1, 3])
+    qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
+    query, key, value = tf.split(qkv, [qk_out, qk_out, out_shape], axis=-1)
+    # query = [batch, num_heads, hh * ww, key_dim]
+    query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])
+    # key = [batch, num_heads, key_dim, hh * ww]
+    key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])
+    # value = [batch, num_heads, hh * ww, vv_dim]
+    value = tf.transpose(tf.reshape(value, [-1, value.shape[1], num_heads, vv_dim]), [0, 2, 1, 3])
 
     # query *= qk_scale
     # [batch, num_heads, hh * ww, hh * ww]
