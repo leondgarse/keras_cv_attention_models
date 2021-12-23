@@ -2,8 +2,13 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
-from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias
-from keras_cv_attention_models.attention_layers import tpu_compatible_extract_patches, fold_by_conv2d_transpose
+from keras_cv_attention_models.attention_layers import (
+    activation_by_name,
+    batchnorm_with_activation,
+    conv2d_no_bias,
+    fold_by_conv2d_transpose,
+    tpu_compatible_extract_patches,
+)
 
 
 BATCH_NORM_EPSILON = 1e-5
@@ -14,12 +19,12 @@ PRETRAINED_DICT = {
     "volo_d4": {"224": "b45c6518b5e7624b0f6a61f18a5a7bae", "448": "c3e48df2a555032608d48841d2f4a551"},
     "volo_d5": {"224": "19c98591fb2a97c2a51d9723c2ff6e1d", "448": "6f9858b667cfef77339901c3121c85a1", "512": "f2aa0cb8e265cabee840a6b83858d086"},
 }
+GLOBAL_TPU_TEST = False
 
 
 def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, strides=2, attn_dropout=0, output_dropout=0, name=""):
     _, height, width, channel = inputs.shape
-    FLOAT_DTYPE = tf.keras.mixed_precision.global_policy().compute_dtype
-    qk_scale = tf.math.sqrt(tf.cast(embed_dim // num_heads, FLOAT_DTYPE))
+    qk_scale = tf.math.sqrt(tf.cast(embed_dim // num_heads, inputs.dtype))
     hh, ww = int(tf.math.ceil(height / strides)), int(tf.math.ceil(width / strides))
 
     vv = keras.layers.Dense(embed_dim, use_bias=False, name=name + "v")(inputs)
@@ -40,7 +45,7 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
     """ unfold """
     # [1, 14, 14, 1728] if compressed else [1, 14, 14, 3, 3, 192]
     # patches = tf.image.extract_patches(pad_vv, patch_kernel, patch_strides, [1, 1, 1, 1], padding="VALID")
-    patches = tpu_compatible_extract_patches(vv, kernel_size, strides, padding="SAME", compressed=False, name=name)
+    patches = tpu_compatible_extract_patches(vv, kernel_size, strides, padding="SAME", compressed=False, tpu_test=GLOBAL_TPU_TEST, name=name)
 
     """ matmul """
     # mm = einops.rearrange(patches, 'D H W (k h p) -> D H W h k p', h=num_head, k=kernel_size * kernel_size)
@@ -134,7 +139,6 @@ class BiasLayer(keras.layers.Layer):
         config.update({"axis": self.axis})
         return config
 
-
 def attention_mlp_block(inputs, embed_dim, num_heads=1, mlp_ratio=3, attention_type=None, drop_rate=0, mlp_activation="gelu", dropout=0, name=""):
     # print(f">>>> {drop_rate = }")
     nn_0 = inputs[:, :1] if attention_type == "class" else inputs
@@ -151,7 +155,7 @@ def attention_mlp_block(inputs, embed_dim, num_heads=1, mlp_ratio=3, attention_t
         )(nn_1[:, :1, :], nn_1)
         nn_1 = BiasLayer(name=name + "attn_bias")(nn_1)  # bias for output dense
     elif attention_type == "mhsa":
-        # nn_1 = multi_head_self_attention(nn_1, embed_dim, num_heads=num_heads, name=name + "attn_")
+        # nn_1 = multi_head_self_attention(nn_1, num_heads=num_heads, key_dim=embed_dim // num_heads, out_shape=embed_dim, out_weight=True, out_bias=True, name=name + "attn_")
         nn_1 = keras.layers.MultiHeadAttention(
             num_heads=num_heads, key_dim=embed_dim // num_heads, output_shape=embed_dim, use_bias=False, name=name + "attn_mhsa"
         )(nn_1, nn_1)
@@ -166,8 +170,9 @@ def attention_mlp_block(inputs, embed_dim, num_heads=1, mlp_ratio=3, attention_t
     nn_2 = keras.layers.Dense(embed_dim * mlp_ratio, name=name + "mlp_dense_1")(nn_2)
     # gelu with approximate=False using `erf` leads to GPU memory leak...
     # nn_2 = keras.layers.Activation("gelu", name=name + "mlp_" + mlp_activation)(nn_2)
-    approximate = True if tf.keras.mixed_precision.global_policy().compute_dtype == "float16" else False
-    nn_2 = tf.nn.gelu(nn_2, approximate=approximate)
+    # approximate = True if tf.keras.mixed_precision.global_policy().compute_dtype == "float16" else False
+    # nn_2 = tf.nn.gelu(nn_2, approximate=approximate)
+    nn_2 = activation_by_name(nn_2, mlp_activation, name=name + mlp_activation)
     nn_2 = keras.layers.Dense(embed_dim, name=name + "mlp_dense_2")(nn_2)
     if dropout > 0:
         nn_2 = keras.layers.Dropout(dropout)(nn_2)
@@ -292,6 +297,7 @@ def VOLO(
     mlp_ratios,
     stem_hidden_dim=64,
     patch_size=8,
+    mlp_activation="gelu",
     input_shape=(224, 224, 3),
     num_classes=1000,
     drop_connect_rate=0,
@@ -328,7 +334,7 @@ def VOLO(
     for ii in range(num_block):
         name = "outlook_block{}_".format(ii)
         block_drop_rate = drop_connect_rate * global_block_id / total_blocks
-        nn = attention_mlp_block(nn, embed_dim, num_head, mlp_ratio=mlp_ratio, attention_type=first_attn_type, drop_rate=block_drop_rate, name=name)
+        nn = attention_mlp_block(nn, embed_dim, num_head, mlp_ratio, first_attn_type, block_drop_rate, mlp_activation, name=name)
         global_block_id += 1
 
     # downsample
@@ -341,7 +347,7 @@ def VOLO(
     for ii in range(num_block):
         name = "MHSA_block{}_".format(ii)
         block_drop_rate = drop_connect_rate * global_block_id / total_blocks
-        nn = attention_mlp_block(nn, embed_dim, num_head, mlp_ratio=mlp_ratio, attention_type="mhsa", drop_rate=block_drop_rate, name=name)
+        nn = attention_mlp_block(nn, embed_dim, num_head, mlp_ratio, "mhsa", block_drop_rate, mlp_activation, name=name)
         global_block_id += 1
 
     if num_classes == 0:
@@ -358,7 +364,7 @@ def VOLO(
     embed_dim, num_head, mlp_ratio = embed_dims[-1], num_heads[-1], mlp_ratios[-1]
     for id in range(classfiers):
         name = "classfiers{}_".format(id)
-        nn = attention_mlp_block(nn, embed_dim=embed_dim, num_heads=num_head, mlp_ratio=mlp_ratio, attention_type="class", name=name)
+        nn = attention_mlp_block(nn, embed_dim, num_head, mlp_ratio, "class", mlp_activation=mlp_activation, name=name)
     nn = keras.layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, name="pre_out_LN")(nn)
 
     if token_label_top:
@@ -447,3 +453,8 @@ def VOLO_d5(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", 
     mlp_ratios = [4, 4]
     stem_hidden_dim = 128
     return VOLO(**locals(), model_name="volo_d5", **kwargs)
+
+def set_global_tpu_test(tpu_test=False):
+    """ Set True for force using `Conv2D` instead of `tf.image.extract_patches`. Also works for TFLite conversion. """
+    global GLOBAL_TPU_TEST
+    GLOBAL_TPU_TEST = tpu_test

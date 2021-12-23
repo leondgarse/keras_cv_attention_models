@@ -1,4 +1,17 @@
-from keras_cv_attention_models.volo.volo import VOLO, VOLO_d1, VOLO_d2, VOLO_d3, VOLO_d4, VOLO_d5, outlook_attention, outlook_attention_simple, BiasLayer, PositionalEmbedding, ClassToken
+from keras_cv_attention_models.volo.volo import (
+    VOLO,
+    VOLO_d1,
+    VOLO_d2,
+    VOLO_d3,
+    VOLO_d4,
+    VOLO_d5,
+    outlook_attention,
+    outlook_attention_simple,
+    BiasLayer,
+    PositionalEmbedding,
+    ClassToken,
+    set_global_tpu_test,
+)
 
 __head_doc__ = """
 Keras implementation of [Github sail-sg/volo](https://github.com/sail-sg/volo).
