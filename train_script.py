@@ -23,6 +23,7 @@ def parse_arguments(argv):
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights")
     parser.add_argument("--additional_model_kwargs", type=str, default=None, help="Additional model kwargs in format like '{\"drop_connect_rate\": 0.05}'")
     parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
+    parser.add_argument("--disable_float16", action="store_true", help="Disable mixed_float16 training")
 
     """ Loss arguments """
     loss_group = parser.add_argument_group("Loss arguments")
@@ -80,25 +81,28 @@ def parse_arguments(argv):
         basic_save_name = os.path.splitext(os.path.basename(args.restore_path))[0]
         basic_save_name = basic_save_name[:-7] if basic_save_name.endswith("_latest") else basic_save_name
     elif basic_save_name is None:
-        basic_save_name = "{}_{}_{}_batchsize_{}".format(args.model, args.optimizer, args.data_name, args.batch_size)
+        basic_save_name = "{}_{}_{}_{}_batchsize_{}".format(args.model, args.input_shape, args.optimizer, args.data_name, args.batch_size)
         basic_save_name += "_randaug_{}_mixup_{}_cutmix_{}_RRC_{}".format(args.magnitude, args.mixup_alpha, args.cutmix_alpha, args.random_crop_min)
         basic_save_name += "_lr512_{}_wd_{}".format(args.lr_base_512, args.weight_decay)
     args.basic_save_name = basic_save_name
+    args.enable_float16 = not args.disable_float16
 
     return args
 
 
 if __name__ == "__main__":
-    keras.mixed_precision.set_global_policy("mixed_float16")
+    import sys
+
+    args = parse_arguments(sys.argv[1:])
+    print(">>>> ALl args:", args)
+
+    if args.enable_float16:
+        keras.mixed_precision.set_global_policy("mixed_float16")
     gpus = tf.config.experimental.get_visible_devices("GPU")
     for gpu in gpus:
         tf.config.experimental.set_memory_growth(gpu, True)
     strategy = tf.distribute.MirroredStrategy() if len(gpus) > 1 else tf.distribute.OneDeviceStrategy(device="/gpu:0")
 
-    import sys
-
-    args = parse_arguments(sys.argv[1:])
-    print(">>>> ALl args:", args)
     if args.seed is not None:
         print(">>>> Set random seed:", args.seed)
         tf.random.set_seed(args.seed)
