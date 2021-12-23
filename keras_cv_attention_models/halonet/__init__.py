@@ -15,6 +15,7 @@ from keras_cv_attention_models.halonet.halonet import (
     HaloNextECA26T,
     HaloRegNetZB,
     HaloBotNet50T,
+    set_global_tpu_test,
 )
 
 

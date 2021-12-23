@@ -168,5 +168,6 @@ def CotNetSE152D(input_shape=(224, 224, 3), num_classes=1000, activation="relu",
 
 
 def set_global_tpu_test(tpu_test=False):
+    """ Set True for force using `Conv2D` instead of `tf.image.extract_patches`. Also works for TFLite conversion. """
     global GLOBAL_TPU_TEST
     GLOBAL_TPU_TEST = tpu_test
