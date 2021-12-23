@@ -49,39 +49,33 @@
   url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
   imm = plt.imread(keras.utils.get_file('aa.jpg', url))
   ```
-#### BEIT
-  - BEIT model attention score format `[batch, num_heads, cls_token + hh * ww, cls_token + hh * ww]`.
+  - **BEIT** model attention score format `[batch, num_heads, cls_token + hh * ww, cls_token + hh * ww]`.
   ```py
   _ = visualizing.plot_attention_score_maps(beit.BeitBasePatch16(), imm, rescale_mode='tf', rows=2)
   ```
   ![](https://user-images.githubusercontent.com/5744524/147209433-9dfdd736-9c92-4264-b6af-6b12d886ad36.png)
-#### LeViT
-  - LeViT model attention score format `[batch, num_heads, q_blocks, k_blocks]`.
+  - **LeViT** model attention score format `[batch, num_heads, q_blocks, k_blocks]`.
   ```py
   _ = visualizing.plot_attention_score_maps(levit.LeViT128S(), imm, rescale_mode='torch')
   ```
   ![](https://user-images.githubusercontent.com/5744524/147209475-fa4dfdbd-9a3a-4568-b139-85389cbd612e.png)
-#### BotNet
-  - BotNet model attention score format `[batch, num_heads, hh * ww, hh * ww]`.
+  - **BotNet** model attention score format `[batch, num_heads, hh * ww, hh * ww]`.
   ```py
   _ = visualizing.plot_attention_score_maps(botnet.BotNetSE33T(), imm)
   ```
   ![](https://user-images.githubusercontent.com/5744524/147209511-f5194d73-9e4c-457e-a763-45a4025f452b.png)
-#### HaloNet
-  - HaloNet model attention score format `[batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]`.
+  - **HaloNet** model attention score format `[batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]`.
   - **This one seems not right**.
   ```py
   _ = visualizing.plot_attention_score_maps(halonet.HaloNet50T(), imm, rescale_mode='torch')
   ```
   ![](https://user-images.githubusercontent.com/5744524/147209558-2c1c1590-20d6-4c09-9686-11521ac51b37.png)
-#### CoAtNet
-  - CoAtNet model attention score format `[batch, num_heads, hh * ww, hh * ww]`. Plot by load_model from file.
+  - **CoAtNet** model attention score format `[batch, num_heads, hh * ww, hh * ww]`. Plot by load_model from file.
   ```py
   _ = visualizing.plot_attention_score_maps(keras.models.load_model("checkpoints/coatnet.CoAtNet0_160.h5"), imm)
   ```
   ![](https://user-images.githubusercontent.com/5744524/147209593-094a7294-7022-4a58-898e-b967570847f0.png)
-#### VIT
-  - VIT model attention score format is same with `BEIT`. Plot by extract attention scores and specify attn_type.
+  - **VIT** model attention score format is same with `BEIT`. Plot by extract attention scores and specify attn_type.
   ```py
   from vit_keras import vit, layers
   mm = vit.vit_b16(image_size=384, activation='sigmoid', pretrained=True, include_top=True, pretrained_top=True)
