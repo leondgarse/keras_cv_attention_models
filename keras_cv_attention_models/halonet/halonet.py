@@ -13,6 +13,8 @@ PRETRAINED_DICT = {
     "haloregnetz_b": {"imagenet": "e889647682d1c554de032d376acf0c48"},
     "halobotnet50t": {"imagenet": "0af1faad1a81e468d6e670e9fc253edc"},
 }
+
+
 def halo_attention(
     inputs, num_heads=8, key_dim=0, block_size=4, halo_size=1, strides=1, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
 ):

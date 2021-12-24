@@ -14,6 +14,7 @@ PRETRAINED_DICT = {
     "cotnet_se50d": {"224": "d1e40b172d26925794f0c9dea090dba7"},
 }
 
+
 def group_conv(inputs, filters, kernel_size, groups=4, name="", **kwargs):
     # Using groups=num in `Conv2D` is slow with `mixed_float16` policy
     return conv2d_no_bias(inputs, filters, kernel_size, groups=groups, name=name)

@@ -225,3 +225,48 @@ def test_VOLO_d2_new_shape_predict():
     out = keras.applications.imagenet_utils.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
+
+
+def test_EfficientNetV2B0_predict():
+    mm = keras_cv_attention_models.efficientnet.EfficientNetV2B0(pretrained="imagenet")
+    imm = tf.image.resize(chelsea(), mm.input_shape[1:3])  # Chelsea the cat
+    pred = mm(tf.expand_dims(imm / 128 - 1, 0)).numpy()
+    out = keras.applications.imagenet_utils.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_EfficientNetV2B1_preprocessing_predict():
+    mm = keras_cv_attention_models.efficientnet.EfficientNetV2B1(pretrained="imagenet", include_preprocessing=True)
+    imm = tf.image.resize(chelsea(), mm.input_shape[1:3])  # Chelsea the cat
+    pred = mm(tf.expand_dims(imm, 0)).numpy()
+    out = keras.applications.imagenet_utils.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_EfficientNetV2B2_imagenet21k_ft1k_predict():
+    mm = keras_cv_attention_models.efficientnet.EfficientNetV2B2(pretrained="imagenet21k-ft1k")
+    imm = tf.image.resize(chelsea(), mm.input_shape[1:3])  # Chelsea the cat
+    pred = mm(tf.expand_dims(imm / 128 - 1, 0)).numpy()
+    out = keras.applications.imagenet_utils.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_EfficientNetV1B0_predict():
+    mm = keras_cv_attention_models.efficientnet.EfficientNetV1B0(pretrained="imagenet")
+    imm = tf.image.resize(chelsea(), mm.input_shape[1:3])  # Chelsea the cat
+    pred = mm(tf.expand_dims(imm / 128 - 1, 0)).numpy()
+    out = keras.applications.imagenet_utils.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_EfficientNetV1B1_noisy_student_predict():
+    mm = keras_cv_attention_models.efficientnet.EfficientNetV1B1(pretrained="noisy_student")
+    imm = tf.image.resize(chelsea(), mm.input_shape[1:3])  # Chelsea the cat
+    pred = mm(tf.expand_dims(imm / 128 - 1, 0)).numpy()
+    out = keras.applications.imagenet_utils.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"

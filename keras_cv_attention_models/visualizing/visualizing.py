@@ -48,6 +48,7 @@ def __deprocess_image__(img):
     img = np.clip(img, 0, 255).astype("uint8")
     return img
 
+
 def __get_cols_rows__(total, rows=-1):
     if rows == -1 and total < 8:
         rows = 1  # for total in [1, 7], plot 1 row only
@@ -59,6 +60,7 @@ def __get_cols_rows__(total, rows=-1):
                 break
     cols = total // rows
     return cols, rows
+
 
 def stack_and_plot_images(images, margin=5, margin_value=0, rows=-1, ax=None, base_size=3):
     """ Stack and plot a list of images. Returns ax, stacked_images """
@@ -83,7 +85,7 @@ def stack_and_plot_images(images, margin=5, margin_value=0, rows=-1, ax=None, ba
 
         stacked_images = vstacked_images[:-margin, :-margin]
     else:
-        stacked_images = np.vstack([np.hstack(images[ii * cols: (rr + 1) * cols]) for ii in range(rows)])
+        stacked_images = np.vstack([np.hstack(images[ii * cols : (rr + 1) * cols]) for ii in range(rows)])
 
     ax.imshow(stacked_images)
     ax.set_axis_off()
@@ -134,7 +136,7 @@ def make_gradcam_heatmap(model, img_array, layer_name, pred_index=None):
 
     # This is a vector where each entry is the mean intensity of the gradient
     # over a specific feature map channel
-    pooled_grads = tf.reduce_mean(grads, axis=list(range(0, len(grads.shape)-1)))
+    pooled_grads = tf.reduce_mean(grads, axis=list(range(0, len(grads.shape) - 1)))
 
     # We multiply each channel in the feature map array
     # by "how important this channel is" with regard to the top predicted class

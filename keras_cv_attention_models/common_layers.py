@@ -4,6 +4,7 @@ from tensorflow.keras import backend as K
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
+TF_BATCH_NORM_EPSILON = 0.001
 LAYER_NORM_EPSILON = 1e-5
 CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
 # CONV_KERNEL_INITIALIZER = 'glorot_uniform'
@@ -43,7 +44,7 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, epsil
     nn = keras.layers.BatchNormalization(
         axis=bn_axis,
         momentum=BATCH_NORM_DECAY,
-        epsilon=BATCH_NORM_EPSILON,
+        epsilon=epsilon,
         gamma_initializer=gamma_initializer,
         name=name and name + "bn",
     )(inputs)
@@ -58,23 +59,24 @@ def layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, name=None):
     return keras.layers.LayerNormalization(axis=norm_axis, epsilon=LAYER_NORM_EPSILON, name=name and name + "ln")(inputs)
 
 
-def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, groups=1, name=None, **kwargs):
+def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, groups=1, use_torch_padding=True, name=None, **kwargs):
     """ Typical Conv2D with `use_bias` default as `False` and fixed padding """
     pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
-    if padding.upper() == "SAME" and pad != 0:
+    if use_torch_padding and padding.upper() == "SAME" and pad != 0:
         inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
+        padding = "VALID"
 
     groups = max(1, groups)
     if groups == filters:
         return keras.layers.DepthwiseConv2D(
-            kernel_size, strides=strides, padding="VALID", use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "conv", **kwargs
+            kernel_size, strides=strides, padding=padding, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "conv", **kwargs
         )(inputs)
     else:
         return keras.layers.Conv2D(
             filters,
             kernel_size,
             strides=strides,
-            padding="VALID",
+            padding=padding,
             use_bias=use_bias,
             groups=groups,
             kernel_initializer=CONV_KERNEL_INITIALIZER,
@@ -83,15 +85,16 @@ def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use
         )(inputs)
 
 
-def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", use_bias=False, name=None, **kwargs):
+def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", use_bias=False, use_torch_padding=True, name=None, **kwargs):
     """ Typical DepthwiseConv2D with `use_bias` default as `False` and fixed padding """
     pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
-    if padding.upper() == "SAME" and pad != 0:
+    if use_torch_padding and padding.upper() == "SAME" and pad != 0:
         inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "dw_pad")(inputs)
+        padding = "VALID"
     return keras.layers.DepthwiseConv2D(
         kernel_size,
         strides=strides,
-        padding="valid",
+        padding=padding,
         use_bias=use_bias,
         kernel_initializer=CONV_KERNEL_INITIALIZER,
         name=name and name + "dw_conv",
@@ -130,11 +133,12 @@ def tiered_stem(inputs, stem_width, activation="relu", last_strides=1, name=None
     return nn
 
 
-def output_block(inputs, num_features=0, activation="relu", num_classes=1000, drop_rate=0, classifier_activation="softmax"):
+def output_block(inputs, num_features=0, activation="relu", num_classes=1000, drop_rate=0, classifier_activation="softmax", is_torch_mode=True):
     nn = inputs
     if num_features > 0:  # efficientnet like
-        nn = conv2d_no_bias(nn, num_features, 1, strides=1, name="features_")
-        nn = batchnorm_with_activation(nn, activation=activation, name="features_")
+        bn_eps = BATCH_NORM_EPSILON if is_torch_mode else TF_BATCH_NORM_EPSILON
+        nn = conv2d_no_bias(nn, num_features, 1, strides=1, use_torch_padding=is_torch_mode, name="features_")
+        nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name="features_")
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
@@ -346,12 +350,14 @@ class CompatibleExtractPatches(keras.layers.Layer):
 
     def get_config(self):
         base_config = super().get_config()
-        base_config.update({
-            "sizes": self.sizes,
-            "strides": self.strides,
-            "rates": self.rates,
-            "padding": self.padding,
-            "compressed": self.compressed,
-            "force_conv": self.force_conv,
-        })
+        base_config.update(
+            {
+                "sizes": self.sizes,
+                "strides": self.strides,
+                "rates": self.rates,
+                "padding": self.padding,
+                "compressed": self.compressed,
+                "force_conv": self.force_conv,
+            }
+        )
         return base_config
