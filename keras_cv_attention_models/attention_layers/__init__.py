@@ -4,6 +4,7 @@ from keras_cv_attention_models.common_layers import (
     anti_alias_downsample,
     batchnorm_with_activation,
     conv2d_no_bias,
+    CompatibleExtractPatches,
     depthwise_conv2d_no_bias,
     deep_stem,
     fold_by_conv2d_transpose,
@@ -17,8 +18,6 @@ from keras_cv_attention_models.common_layers import (
     make_divisible,
     output_block,
     se_module,
-    tpu_compatible_extract_patches,
-    unfold_by_conv2d,
 )
 from keras_cv_attention_models.aotnet.aotnet import aot_stack, aot_block
 from keras_cv_attention_models.botnet.botnet import RelativePositionalEmbedding, mhsa_with_relative_position_embedding
@@ -34,39 +33,38 @@ from keras_cv_attention_models.levit.levit import MultiHeadPositionalEmbedding, 
 from keras_cv_attention_models.nfnets.nfnets import ScaledStandardizedConv2D, ZeroInitGain
 from keras_cv_attention_models.beit.beit import MultiHeadRelativePositionalEmbedding
 
-unfold_by_conv2d.__doc__ = """
+CompatibleExtractPatches.__doc__ = """
 For issue https://github.com/leondgarse/keras_cv_attention_models/issues/8,
-`tf.image.extract_patches` NOT working for TPU.
+Perform `tf.image.extract_patches` using `Conv2D` for TPU devices. Also for TFLite conversion.
 
 input: `[batch, height, width, channel]`.
 output (compressed=True): `[batch, height // strides,  width // strides, height_kernel * width_kernel * channel]`.
 output (compressed=False): `[batch, height // strides,  width // strides, height_kernel, width_kernel, channel]`.
 
 Args:
-  inputs: input tensor.
-  kernel_size: same as `Conv2D` kernel_size. Default `3`.
-  strides: same as `Conv2D` strides. Default `2`.
-  dilation_rate: same as `Conv2D` dilation_rate. Default `1`.
-  padding: "VALID" or "SAME", will perform padding in PyTorch way if "SAME". Default "SAME".
-  compressed: boolean value if compress extracted `height_kernel`, `width_kernel`, `channel` into 1 dimension. Default `True`.
+  sizes: could be `tf.image.extract_patches` sizes format `[1, 3, 3, 1]`, or `Conv2D` kernel_size format `3`.
+  strides: could be `tf.image.extract_patches` strides format `[1, 2, 2, 1]`, or `Conv2D` strides format `2`.
+  rates: could be `tf.image.extract_patches` rates format `[1, 1, 1, 1]`, or `Conv2D` dilation_rate format `1`.
+  padding: "VALID" or "SAME", will perform padding in PyTorch way if "SAME".
+  compressed: boolean value if compress extracted `height_kernel`, `width_kernel`, `channel` into 1 dimension.
+  force_conv: force using `Conv2D` instead of `tf.image.extract_patches`.
 
 Examples:
 
 >>> from keras_cv_attention_models import attention_layers
 >>> aa = tf.ones([1, 64, 27, 192])
->>> print(attention_layers.unfold_by_conv2d(aa, kernel_size=3, strides=2).shape)
+>>> print(attention_layers.CompatibleExtractPatches(sizes=3, strides=2)(aa).shape)
 # (1, 32, 14, 1728)
->>> print(attention_layers.unfold_by_conv2d(aa, kernel_size=3, strides=2, compressed=False).shape)
+>>> print(attention_layers.CompatibleExtractPatches(sizes=3, strides=2, compressed=False)(aa).shape)
 # (1, 32, 14, 3, 3, 192)
 
-# Performs slower than `extract_patches`
->>> inputs = keras.layers.Input([64, 27, 192])
->>> mm = keras.models.Model(inputs, attention_layers.unfold_by_conv2d(inputs))
->>> %timeit mm(aa)
-# 1.3 ms ± 4.93 µs per loop
->>> mm = keras.models.Model(inputs, tf.image.extract_patches(inputs, [1, 3, 3, 1], [1, 2, 2, 1], [1, 1, 1, 1], padding='SAME'))
->>> %timeit mm(aa)
-# 208 µs ± 630 ns per loop
+# `Conv2D` version Performs slower than `extract_patches`.
+>>> cc = attention_layers.CompatibleExtractPatches(sizes=3, strides=2, force_conv=True)
+>>> cc(aa).shape  # init run
+>>> %timeit cc(aa)
+# 772 µs ± 6.71 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+>>> %timeit tf.image.extract_patches(aa, [1, 3, 3, 1], [1, 2, 2, 1], [1, 1, 1, 1], padding='SAME')
+# 108 µs ± 153 ns per loop (mean ± std. dev. of 7 runs, 10000 loops each)
 """
 
 fold_by_conv2d_transpose.__doc__ = """
@@ -102,7 +100,7 @@ Examples:
 
 >>> # ==== TF unfold - fold ====
 >>> from keras_cv_attention_models import attention_layers
->>> tf_patches = attention_layers.unfold_by_conv2d(inputs, kernel_size, strides)
+>>> tf_patches = attention_layers.CompatibleExtractPatches(kernel_size, strides)(inputs)
 >>> tf_fold = attention_layers.fold_by_conv2d_transpose(tf_patches, output_shape=inputs.shape[1:], kernel_size=kernel_size, strides=strides)
 >>> print(f"{np.allclose(tf_fold, torch_fold.permute([0, 2, 3, 1])) = }")
 # np.allclose(tf_fold, torch_fold.permute([0, 2, 3, 1])) = True

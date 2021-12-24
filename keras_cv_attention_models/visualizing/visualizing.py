@@ -277,7 +277,7 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
         # halo attn_score [batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]
         print(">>>> Attention type: halo")
         from einops import rearrange
-        from keras_cv_attention_models.attention_layers import tpu_compatible_extract_patches
+        from keras_cv_attention_models.attention_layers import CompatibleExtractPatches
 
         mask = [np.array(ii)[0].mean(0) for ii in attn_scores if len(ii.shape) == 6][::-1]
 
@@ -286,7 +286,7 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
         hhs = [(jj - ii) // 2 for ii, jj in zip(qqs, vvs)]  # halo_size
         tt = [rearrange(ii, "hh ww (hb wb) cc -> (hh hb) (ww wb) cc", hb=qq, wb=qq) for ii, qq in zip(mask, qqs)]
         tt = [tf.expand_dims(tf.pad(ii, [[hh, hh], [hh, hh], [0, 0]]), 0) for ii, hh in zip(tt, hhs)]
-        tt = [tpu_compatible_extract_patches(ii, vv, qq, padding="VALID", compressed=False).numpy()[0] for ii, vv, qq in zip(tt, vvs, qqs)]
+        tt = [CompatibleExtractPatches(vv, qq, padding="VALID", compressed=False)(ii).numpy()[0] for ii, vv, qq in zip(tt, vvs, qqs)]
         tt = [rearrange(ii, "hh ww hb wb cc -> hh ww (hb wb) cc").mean((0, 1)) for ii in tt]
         # tt = [tf.reduce_max(rearrange(ii, "hh ww hb wb cc -> hh ww (hb wb) cc"), axis=(0, 1)).numpy() for ii in tt]
         cum_mask = [matmul_prod(tt[: ii + 1]).mean(0) for ii in range(len(tt))]

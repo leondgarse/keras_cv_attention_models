@@ -3,7 +3,7 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.aotnet import AotNet
 from keras_cv_attention_models.download_and_load import reload_model_weights
-from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, tpu_compatible_extract_patches
+from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, CompatibleExtractPatches
 
 BATCH_NORM_EPSILON = 1e-5
 PRETRAINED_DICT = {
@@ -13,8 +13,6 @@ PRETRAINED_DICT = {
     "cotnet_se152d": {"224": "6a2744af16b8cc4177fef52aba7ff083", "320": "9dad11a2ec3d2c8ecac9832fcf1e9ad3"},
     "cotnet_se50d": {"224": "d1e40b172d26925794f0c9dea090dba7"},
 }
-GLOBAL_TPU_TEST = False
-
 
 def group_conv(inputs, filters, kernel_size, groups=4, name="", **kwargs):
     # Using groups=num in `Conv2D` is slow with `mixed_float16` policy
@@ -66,7 +64,7 @@ def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activ
     # sizes, patch_strides = [1, kernel_size, kernel_size, 1], [1, 1, 1, 1]
     # embed = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "embed_pad")(embed)
     # embed = tf.image.extract_patches(embed, sizes=sizes, strides=patch_strides, rates=(1, 1, 1, 1), padding="VALID")
-    embed = tpu_compatible_extract_patches(embed, sizes=kernel_size, strides=1, tpu_test=GLOBAL_TPU_TEST, name=name and name + "patchs_")
+    embed = CompatibleExtractPatches(sizes=kernel_size, strides=1, name=name and name + "patchs_")(embed)
     embed = tf.reshape(embed, [-1, height, width, kernel_size * kernel_size, reduction, filters // reduction])
 
     embed_out = keras.layers.Multiply(name=name and name + "local_conv_mul")([embed, embed_ww])
@@ -165,9 +163,3 @@ def CotNetSE152D(input_shape=(224, 224, 3), num_classes=1000, activation="relu",
     stem_width = 128
     stem_downsample = False
     return CotNet(**locals(), **kwargs, model_name="cotnet_se152d")
-
-
-def set_global_tpu_test(tpu_test=False):
-    """ Set True for force using `Conv2D` instead of `tf.image.extract_patches`. Also works for TFLite conversion. """
-    global GLOBAL_TPU_TEST
-    GLOBAL_TPU_TEST = tpu_test

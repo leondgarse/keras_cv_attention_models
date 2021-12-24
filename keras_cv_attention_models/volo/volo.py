@@ -7,7 +7,7 @@ from keras_cv_attention_models.attention_layers import (
     batchnorm_with_activation,
     conv2d_no_bias,
     fold_by_conv2d_transpose,
-    tpu_compatible_extract_patches,
+    CompatibleExtractPatches,
 )
 
 
@@ -19,7 +19,6 @@ PRETRAINED_DICT = {
     "volo_d4": {"224": "b45c6518b5e7624b0f6a61f18a5a7bae", "448": "c3e48df2a555032608d48841d2f4a551"},
     "volo_d5": {"224": "19c98591fb2a97c2a51d9723c2ff6e1d", "448": "6f9858b667cfef77339901c3121c85a1", "512": "f2aa0cb8e265cabee840a6b83858d086"},
 }
-GLOBAL_TPU_TEST = False
 
 
 def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, strides=2, attn_dropout=0, output_dropout=0, name=""):
@@ -45,7 +44,7 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
     """ unfold """
     # [1, 14, 14, 1728] if compressed else [1, 14, 14, 3, 3, 192]
     # patches = tf.image.extract_patches(pad_vv, patch_kernel, patch_strides, [1, 1, 1, 1], padding="VALID")
-    patches = tpu_compatible_extract_patches(vv, kernel_size, strides, padding="SAME", compressed=False, tpu_test=GLOBAL_TPU_TEST, name=name)
+    patches = CompatibleExtractPatches(kernel_size, strides, padding="SAME", compressed=False, name=name)(vv)
 
     """ matmul """
     # mm = einops.rearrange(patches, 'D H W (k h p) -> D H W h k p', h=num_head, k=kernel_size * kernel_size)
@@ -454,9 +453,3 @@ def VOLO_d5(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", 
     mlp_ratios = [4, 4]
     stem_hidden_dim = 128
     return VOLO(**locals(), model_name="volo_d5", **kwargs)
-
-
-def set_global_tpu_test(tpu_test=False):
-    """ Set True for force using `Conv2D` instead of `tf.image.extract_patches`. Also works for TFLite conversion. """
-    global GLOBAL_TPU_TEST
-    GLOBAL_TPU_TEST = tpu_test

@@ -10,7 +10,6 @@ from keras_cv_attention_models.volo.volo import (
     BiasLayer,
     PositionalEmbedding,
     ClassToken,
-    set_global_tpu_test,
 )
 
 __head_doc__ = """

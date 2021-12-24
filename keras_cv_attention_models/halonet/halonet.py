@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.aotnet import AotNet
-from keras_cv_attention_models.attention_layers import RelativePositionalEmbedding, conv2d_no_bias, tpu_compatible_extract_patches, make_divisible
+from keras_cv_attention_models.attention_layers import RelativePositionalEmbedding, conv2d_no_bias, CompatibleExtractPatches, make_divisible
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
@@ -13,9 +13,6 @@ PRETRAINED_DICT = {
     "haloregnetz_b": {"imagenet": "e889647682d1c554de032d376acf0c48"},
     "halobotnet50t": {"imagenet": "0af1faad1a81e468d6e670e9fc253edc"},
 }
-GLOBAL_TPU_TEST = False
-
-
 def halo_attention(
     inputs, num_heads=8, key_dim=0, block_size=4, halo_size=1, strides=1, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
 ):
@@ -56,7 +53,7 @@ def halo_attention(
     sizes, strides = [1, kv_kernel, kv_kernel, 1], [1, block_size, block_size, 1]
     # kv_inp = [batch, hh, ww, kv_kernel * kv_kernel * (key_dim + out_shape)]
     # kv_inp = tf.image.extract_patches(kv_padded, sizes=sizes, strides=strides, rates=[1, 1, 1, 1], padding="VALID")
-    kv_inp = tpu_compatible_extract_patches(kv_padded, sizes=sizes, strides=strides, rates=[1, 1, 1, 1], padding="VALID")
+    kv_inp = CompatibleExtractPatches(sizes=sizes, strides=strides, rates=[1, 1, 1, 1], padding="VALID")(kv_padded)
     # kv_inp = rearrange(kv_inp, "B h w (hb wb hd c) -> B hd h w (hb wb) c", hb=kv_kernel, wb=kv_kernel, hd=num_heads)
     _, hh_kk, ww_kk, cc = kv_inp.shape
     cc_kk = cc // num_heads // kv_kernel // kv_kernel
@@ -354,9 +351,3 @@ def HaloBotNet50T(input_shape=(256, 256, 3), num_classes=1000, activation="swish
     model = AotNet(model_name="halobotnet50t", **locals(), **kwargs)
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
     return model
-
-
-def set_global_tpu_test(tpu_test=False):
-    """ Set True for force using `Conv2D` instead of `tf.image.extract_patches`. Also works for TFLite conversion. """
-    global GLOBAL_TPU_TEST
-    GLOBAL_TPU_TEST = tpu_test

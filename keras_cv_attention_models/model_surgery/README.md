@@ -8,7 +8,9 @@
   - `convert_to_mixed_float16`: convert `float32` model to `mixed_float16`.
   - `convert_mixed_float16_to_float32`: convert `mixed_float16` model to `float32`.
   - `convert_groups_conv2d_2_split_conv2d`: convert `Conv2D groups != 1` to `SplitConv2D` using `split -> conv -> concat`.
+  - `convert_gelu_and_extract_patches_for_tflite`: convert model `gelu` activation to `gelu approximate=True`, and `tf.image.extract_patches` to a `Conv2D` version.
   - `convert_to_fused_conv_bn_model`: fuse convolution and batchnorm layers for inference.
+  - `prepare_for_tflite`: a combination of `convert_groups_conv2d_2_split_conv2d` and `convert_gelu_and_extract_patches_for_tflite`.
   - `replace_ReLU`: replace all `ReLU` with other activations, default target is `PReLU`.
   - `replace_add_with_stochastic_depth`: replace all `Add` layers with `StochasticDepth`.
   - `replace_stochastic_depth_with_add`: replace all `StochasticDepth` layers with `add` + `multiply`.

@@ -241,39 +241,6 @@ def __unfold_filters_initializer__(weight_shape, dtype="float32"):
     return ww
 
 
-def unfold_by_conv2d(inputs, kernel_size=3, strides=2, dilation_rate=1, padding="SAME", compressed=True, name=None):
-    if padding.upper() == "SAME":
-        pad = kernel_size // 2
-        pad_inputs = tf.pad(inputs, [[0, 0], [pad, pad], [pad, pad], [0, 0]])
-    else:
-        pad_inputs = inputs
-
-    _, hh, ww, cc = pad_inputs.shape
-    merge_channel = tf.transpose(pad_inputs, [0, 3, 1, 2])
-    merge_channel = tf.reshape(merge_channel, [-1, hh, ww, 1])
-
-    conv_rr = keras.layers.Conv2D(
-        filters=kernel_size * kernel_size,
-        kernel_size=kernel_size,
-        strides=strides,
-        dilation_rate=dilation_rate,
-        padding="VALID",
-        use_bias=False,
-        trainable=False,
-        kernel_initializer=__unfold_filters_initializer__,
-        name=name and name + "unfold_conv",
-    )(merge_channel)
-
-    # TFLite not supporting `tf.transpose` with len(perm) > 4...
-    out = tf.reshape(conv_rr, [-1, cc, conv_rr.shape[1] * conv_rr.shape[2], kernel_size * kernel_size])
-    out = tf.transpose(out, [0, 2, 3, 1])  # [batch, hh * ww, kernel * kernel, channnel]
-    if compressed:
-        out = tf.reshape(out, [-1, conv_rr.shape[1], conv_rr.shape[2], kernel_size * kernel_size * cc])
-    else:
-        out = tf.reshape(out, [-1, conv_rr.shape[1], conv_rr.shape[2], kernel_size, kernel_size, cc])
-    return out
-
-
 def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=2, dilation_rate=1, padding="SAME", compressed="auto", name=None):
     paded = kernel_size // 2 if padding else 0
     if compressed == "auto":
@@ -313,27 +280,78 @@ def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=
     return out
 
 
-def tpu_compatible_extract_patches(inputs, sizes=3, strides=2, rates=1, padding="SAME", compressed=True, tpu_test=False, name=None):
-    """ Use `unfold_by_conv2d` for TPU and `extract_patches` for others, also handle `padding` and `output_shape`. """
-    if len(tf.config.experimental.list_logical_devices("TPU")) == 0 and not tpu_test:
-        if padding.upper() == "SAME":
-            kernel_size = sizes[1] if isinstance(sizes, (list, tuple)) else sizes
-            pad = kernel_size // 2
-            pad_inputs = tf.pad(inputs, [[0, 0], [pad, pad], [pad, pad], [0, 0]])
-            padding = "VALID"
-        else:
-            pad_inputs = inputs
+@tf.keras.utils.register_keras_serializable(package="kecamCommon")
+class CompatibleExtractPatches(keras.layers.Layer):
+    def __init__(self, sizes=3, strides=2, rates=1, padding="SAME", compressed=True, force_conv=False, **kwargs):
+        super().__init__(**kwargs)
+        self.sizes, self.strides, self.rates, self.padding = sizes, strides, rates, padding
+        self.compressed, self.force_conv = compressed, force_conv
 
-        sizes = sizes if isinstance(sizes, (list, tuple)) else [1, sizes, sizes, 1]
-        strides = strides if isinstance(strides, (list, tuple)) else [1, strides, strides, 1]
-        rates = rates if isinstance(rates, (list, tuple)) else [1, rates, rates, 1]
-        patches = tf.image.extract_patches(pad_inputs, sizes, strides, rates, padding, name)
-        if not compressed:
-            # [batch, hh, ww, kernel, kernel, channnel]
-            patches = tf.reshape(patches, [-1, patches.shape[1], patches.shape[2], sizes[1], sizes[1], inputs.shape[-1]])
-        return patches
-    else:
-        kernel_size = sizes[1] if isinstance(sizes, (list, tuple)) else sizes
-        strides = strides[1] if isinstance(strides, (list, tuple)) else strides
-        dilation_rate = rates[1] if isinstance(rates, (list, tuple)) else rates
-        return unfold_by_conv2d(inputs, kernel_size, strides, dilation_rate, padding, compressed=compressed, name=name)
+        self.kernel_size = sizes[1] if isinstance(sizes, (list, tuple)) else sizes
+        self.strides = strides[1] if isinstance(strides, (list, tuple)) else strides
+        self.dilation_rate = rates[1] if isinstance(rates, (list, tuple)) else rates
+        self.filters = self.kernel_size * self.kernel_size
+
+        if len(tf.config.experimental.list_logical_devices("TPU")) != 0 or self.force_conv:
+            self.use_conv = True
+        else:
+            self.use_conv = False
+
+    def build(self, input_shape):
+        _, self.height, self.width, self.channel = input_shape
+        if self.padding.upper() == "SAME":
+            pad = self.kernel_size // 2
+            self.pad_value = [[0, 0], [pad, pad], [pad, pad], [0, 0]]
+            self.height, self.width = self.height + pad * 2, self.width + pad * 2
+
+        if self.use_conv:
+            self.conv = keras.layers.Conv2D(
+                filters=self.filters,
+                kernel_size=self.kernel_size,
+                strides=self.strides,
+                dilation_rate=self.dilation_rate,
+                padding="VALID",
+                use_bias=False,
+                trainable=False,
+                kernel_initializer=__unfold_filters_initializer__,
+                name=self.name and self.name + "unfold_conv",
+            )
+        else:
+            self._sizes_ = [1, self.kernel_size, self.kernel_size, 1]
+            self._strides_ = [1, self.strides, self.strides, 1]
+            self._rates_ = [1, self.dilation_rate, self.dilation_rate, 1]
+
+    def call(self, inputs):
+        if self.padding.upper() == "SAME":
+            inputs = tf.pad(inputs, self.pad_value)
+
+        if self.use_conv:
+            merge_channel = tf.transpose(inputs, [0, 3, 1, 2])
+            merge_channel = tf.reshape(merge_channel, [-1, self.height, self.width, 1])
+            conv_rr = self.conv(merge_channel)
+
+            # TFLite not supporting `tf.transpose` with len(perm) > 4...
+            out = tf.reshape(conv_rr, [-1, self.channel, conv_rr.shape[1] * conv_rr.shape[2], self.filters])
+            out = tf.transpose(out, [0, 2, 3, 1])  # [batch, hh * ww, kernel * kernel, channnel]
+            if self.compressed:
+                out = tf.reshape(out, [-1, conv_rr.shape[1], conv_rr.shape[2], self.filters * self.channel])
+            else:
+                out = tf.reshape(out, [-1, conv_rr.shape[1], conv_rr.shape[2], self.kernel_size, self.kernel_size, self.channel])
+        else:
+            out = tf.image.extract_patches(inputs, self._sizes_, self._strides_, self._rates_, "VALID")
+            if not self.compressed:
+                # [batch, hh, ww, kernel, kernel, channnel]
+                out = tf.reshape(out, [-1, out.shape[1], out.shape[2], self.kernel_size, self.kernel_size, self.channel])
+        return out
+
+    def get_config(self):
+        base_config = super().get_config()
+        base_config.update({
+            "sizes": self.sizes,
+            "strides": self.strides,
+            "rates": self.rates,
+            "padding": self.padding,
+            "compressed": self.compressed,
+            "force_conv": self.force_conv,
+        })
+        return base_config

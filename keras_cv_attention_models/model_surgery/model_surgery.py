@@ -450,7 +450,7 @@ class SplitScaledStandardizedConv2D(SplitConv2D):
 def convert_groups_conv2d_2_split_conv2d(model):
     from tensorflow.keras.layers import Conv2D
 
-    def convert_groups_conv2d(layer):
+    def __convert_groups_conv2d_2_split_conv2d__(layer):
         if isinstance(layer, Conv2D) and not isinstance(layer, SplitConv2D) and layer.groups != 1:
             aa = layer.get_config()
             # Check if ScaledStandardizedConv2D or typical Conv2D
@@ -474,4 +474,29 @@ def convert_groups_conv2d_2_split_conv2d(model):
         return layer
 
     input_tensors = keras.layers.Input(model.input_shape[1:])
-    return keras.models.clone_model(model, input_tensors=input_tensors, clone_function=convert_groups_conv2d)
+    return keras.models.clone_model(model, input_tensors=input_tensors, clone_function=__convert_groups_conv2d_2_split_conv2d__)
+
+
+def convert_gelu_and_extract_patches_for_tflite(model):
+    from keras_cv_attention_models import attention_layers
+
+    def __convert_gelu_and_extract_patches_for_tflite__(layer):
+        if isinstance(layer, keras.layers.Activation) and layer.activation.__name__ == "gelu":
+            return keras.layers.Lambda(lambda xx: tf.nn.gelu(xx, approximate=True))
+        elif isinstance(layer, attention_layers.CompatibleExtractPatches):
+            aa = layer.get_config()
+            aa.update({"force_conv": True})
+            bb = attention_layers.CompatibleExtractPatches.from_config(aa)
+            bb.build(layer.input_shape)
+            bb.set_weights(layer.get_weights())
+            return bb
+        return layer
+
+    input_tensors = keras.layers.Input(model.input_shape[1:])
+    return keras.models.clone_model(model, input_tensors=input_tensors, clone_function=__convert_gelu_and_extract_patches_for_tflite__)
+
+
+def prepare_for_tflite(model):
+    model = convert_groups_conv2d_2_split_conv2d(model)
+    model = convert_gelu_and_extract_patches_for_tflite(model)
+    return model

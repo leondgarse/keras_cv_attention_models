@@ -2,33 +2,33 @@
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [General Usage](#general-usage)
-	- [Basic](#basic)
-	- [Layers](#layers)
-	- [Model surgery](#model-surgery)
-	- [ImageNet Training](#imagenet-training)
-	- [Visualizing](#visualizing)
-	- [TFLite converting](#tflite-converting)
+  - [Basic](#basic)
+  - [Layers](#layers)
+  - [Model surgery](#model-surgery)
+  - [ImageNet Training](#imagenet-training)
+  - [Visualizing](#visualizing)
+  - [TFLite Conversion](#tflite-conversion)
 - [Models](#models)
-	- [AotNet](#aotnet)
-	- [BEIT](#beit)
-	- [BotNet](#botnet)
-	- [CMT](#cmt)
-	- [CoaT](#coat)
-	- [CoAtNet](#coatnet)
-	- [CoTNet](#cotnet)
-	- [GMLP](#gmlp)
-	- [HaloNet](#halonet)
-	- [LeViT](#levit)
-	- [MLP mixer](#mlp-mixer)
-	- [NFNets](#nfnets)
-	- [RegNetY](#regnety)
-	- [RegNetZ](#regnetz)
-	- [ResMLP](#resmlp)
-	- [ResNeSt](#resnest)
-	- [ResNetD](#resnetd)
-	- [ResNetQ](#resnetq)
-	- [ResNeXt](#resnext)
-	- [VOLO](#volo)
+  - [AotNet](#aotnet)
+  - [BEIT](#beit)
+  - [BotNet](#botnet)
+  - [CMT](#cmt)
+  - [CoaT](#coat)
+  - [CoAtNet](#coatnet)
+  - [CoTNet](#cotnet)
+  - [GMLP](#gmlp)
+  - [HaloNet](#halonet)
+  - [LeViT](#levit)
+  - [MLP mixer](#mlp-mixer)
+  - [NFNets](#nfnets)
+  - [RegNetY](#regnety)
+  - [RegNetZ](#regnetz)
+  - [ResMLP](#resmlp)
+  - [ResNeSt](#resnest)
+  - [ResNetD](#resnetd)
+  - [ResNetQ](#resnetq)
+  - [ResNeXt](#resnext)
+  - [VOLO](#volo)
 - [Other implemented tensorflow or keras models](#other-implemented-tensorflow-or-keras-models)
 
 <!-- /TOC -->
@@ -133,20 +133,18 @@
   - **plot_attention_score_maps** is model attention score maps visualization.
     ```py
     from keras_cv_attention_models import visualizing, botnet
-    mm = resnest.ResNest50()
     url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
     img = plt.imread(keras.utils.get_file('aa.jpg', url))
-    _ = visualizing.plot_attention_score_maps(botnet.BotNetSE33T(), imm)
+    _ = visualizing.plot_attention_score_maps(botnet.BotNetSE33T(), img)
     ```
     ![](https://user-images.githubusercontent.com/5744524/147209511-f5194d73-9e4c-457e-a763-45a4025f452b.png)
-## TFLite converting
-  - Currently `TFLite` not supporting `Conv2D with groups>1` / `gelu` / `tf.image.extract_patches` / `tf.transpose with len(perm) > 4`.
-  - Some operations could be supported in `tf-nightly` version. May try if encountering issue. More discussion can be found [Converting a trained keras CV attention model to TFLite #17](https://github.com/leondgarse/keras_cv_attention_models/discussions/17).
-  - For models using `Conv2D with groups>1`, convert by `model_surgery.convert_groups_conv2d_2_split_conv2d` first:
+## TFLite Conversion
+  - Currently `TFLite` not supporting `Conv2D with groups>1` / `gelu` / `tf.image.extract_patches` / `tf.transpose with len(perm) > 4`. Some operations could be supported in `tf-nightly` version. May try if encountering issue. More discussion can be found [Converting a trained keras CV attention model to TFLite #17](https://github.com/leondgarse/keras_cv_attention_models/discussions/17).
+  - `tf.nn.gelu(inputs, approximate=True)` activation works for TFLite. Define model with `activation="gelu/approximate"` or `activation="gelu/app"` will set `approximate=True` for `gelu`. **Should better decide before training, or there may be accuracy loss**.
+  - **model_surgery.convert_groups_conv2d_2_split_conv2d** converts model `Conv2D with groups>1` layers to `SplitConv` using `split -> conv -> concat`:
     ```py
-    from keras_cv_attention_models.model_surgery import model_surgery
+    from keras_cv_attention_models import regnet, model_surgery
     from keras_cv_attention_models.imagenet import eval_func
-    from keras_cv_attention_models import regnet
 
     bb = regnet.RegNetZD32()
     mm = model_surgery.convert_groups_conv2d_2_split_conv2d(bb)  # converts all `Conv2D` using `groups` to `SplitConv2D`
@@ -159,35 +157,28 @@
     print(np.allclose(mm(test_inputs), eval_func.TFLiteModelInterf(mm.name + '.tflite')(test_inputs), atol=1e-7))
     # True
     ```
-  - For `gelu` activation, define model with `activation="gelu/approximate"` or `activation="gelu/app"` instead. This will set `approximate=True` for `gelu`. **Should better decide before training, or there will be accuracy loss**.
+  - **model_surgery.convert_gelu_and_extract_patches_for_tflite** converts model `gelu` activation to `gelu approximate=True`, and `tf.image.extract_patches` to a `Conv2D` version:
     ```py
+    from keras_cv_attention_models import cotnet, model_surgery
     from keras_cv_attention_models.imagenet import eval_func
-    from keras_cv_attention_models import beit
 
-    mm = beit.BeitBasePatch16(activation="gelu/app")
-    # mm.load_weights("xxx.h5")  # May load weights from trained model
-
+    mm = cotnet.CotNetSE50D()
+    mm = model_surgery.convert_groups_conv2d_2_split_conv2d(mm)
+    mm = model_surgery.convert_gelu_and_extract_patches_for_tflite(mm)
     converter = tf.lite.TFLiteConverter.from_keras_model(mm)
     open(mm.name + ".tflite", "wb").write(converter.convert())
     test_inputs = np.random.uniform(size=[1, *mm.input_shape[1:]])
     print(np.allclose(mm(test_inputs), eval_func.TFLiteModelInterf(mm.name + '.tflite')(test_inputs), atol=1e-7))
     # True
     ```
-  - For models using `tf.image.extract_patches` operation, force using `Conv2D` instead of `extract_patches` in model definition by `.set_global_tpu_test(True)`. Reload weights with `mm.load_weights(..., by_name=True)` then.
+  - **model_surgery.prepare_for_tflite** is just a combination of above 2 functions:
     ```py
-    from keras_cv_attention_models import model_surgery
-    from keras_cv_attention_models.imagenet import eval_func
-    from keras_cv_attention_models import cotnet
+    from keras_cv_attention_models import beit, model_surgery
 
-    cotnet.set_global_tpu_test(True)  # force using `Conv2D` instead of `extract_patches`
-    mm = cotnet.CotNetSE50D()
-    # mm.load_weights("xxx.h5", by_name=True)  # May load weights from trained model
-    mm = model_surgery.convert_groups_conv2d_2_split_conv2d(mm)
+    mm = beit.BeitBasePatch16()
+    mm = model_surgery.prepare_for_tflite(mm)
     converter = tf.lite.TFLiteConverter.from_keras_model(mm)
     open(mm.name + ".tflite", "wb").write(converter.convert())
-    test_inputs = np.random.uniform(size=[1, *mm.input_shape[1:]])
-    print(np.allclose(mm(test_inputs), eval_func.TFLiteModelInterf(mm.name + '.tflite')(test_inputs), atol=1e-7))
-    # True
     ```
   - Not supporting `VOLO` / `HaloNet` models converting, cause they need a longer `tf.transpose` `perm`.
 ***
