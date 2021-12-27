@@ -6,7 +6,7 @@ BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 TF_BATCH_NORM_EPSILON = 0.001
 LAYER_NORM_EPSILON = 1e-5
-CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
+CONV_KERNEL_INITIALIZER = keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
 # CONV_KERNEL_INITIALIZER = 'glorot_uniform'
 
 
@@ -320,6 +320,7 @@ class CompatibleExtractPatches(keras.layers.Layer):
                 kernel_initializer=__unfold_filters_initializer__,
                 name=self.name and self.name + "unfold_conv",
             )
+            self.conv.build([None, *input_shape[1:-1], 1])
         else:
             self._sizes_ = [1, self.kernel_size, self.kernel_size, 1]
             self._strides_ = [1, self.strides, self.strides, 1]

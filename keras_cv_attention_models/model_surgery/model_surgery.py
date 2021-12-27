@@ -3,7 +3,7 @@ from tensorflow import keras
 import tensorflow.keras.backend as K
 
 
-class SAMModel(tf.keras.models.Model):
+class SAMModel(keras.models.Model):
     """
     Arxiv article: [Sharpness-Aware Minimization for Efficiently Improving Generalization](https://arxiv.org/pdf/2010.01412.pdf)
     Implementation by: [Keras SAM (Sharpness-Aware Minimization)](https://qiita.com/T-STAR/items/8c3afe3a116a8fc08429)
@@ -487,8 +487,7 @@ def convert_gelu_and_extract_patches_for_tflite(model):
             aa = layer.get_config()
             aa.update({"force_conv": True})
             bb = attention_layers.CompatibleExtractPatches.from_config(aa)
-            bb.build(layer.input_shape)
-            bb.set_weights(layer.get_weights())
+            bb.build(layer.input_shape)  # No weights for this layer
             return bb
         return layer
 
