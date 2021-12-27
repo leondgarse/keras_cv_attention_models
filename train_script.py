@@ -28,7 +28,7 @@ def parse_arguments(argv):
     )
     parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
     parser.add_argument("--disable_float16", action="store_true", help="Disable mixed_float16 training")
-    parser.add_argument("--TPU", action="store_true", help="Run training on TPU")
+    parser.add_argument("--TPU", action="store_true", help="Run training on TPU [Not working]")
 
     """ Loss arguments """
     loss_group = parser.add_argument_group("Loss arguments")

@@ -105,7 +105,8 @@
   mm = model_surgery.convert_to_fused_conv_bn_model(mm)
   ```
 ## ImageNet Training
-  - [Init Imagenet dataset using tensorflow_datasets](https://github.com/leondgarse/keras_cv_attention_models/discussions/9).
+  - [Init Imagenet dataset using tensorflow_datasets #9](https://github.com/leondgarse/keras_cv_attention_models/discussions/9).
+  - Other training detail can be found [ImageNet Training #11](https://github.com/leondgarse/keras_cv_attention_models/discussions/11).
   - It took me weeks figuring out what is wrong in training, that should use `LAMB` with excluding `batch norm` layers on weight decay...
   - `aotnet.AotNet50` default parameters set is a typical `ResNet50` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
   - Default params for `train_script.py` is like `A3` configuration from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf) with `batch_size=256, input_shape=(160, 160)`.
@@ -113,13 +114,13 @@
   # Not sure about how useful is resize_antialias, default behavior for timm using `bicubic`
   CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py --seed 0 --resize_antialias -s aotnet50
   ```
-  ![](keras_cv_attention_models/imagenet/aotnet50_train.svg)
   ```sh
   # Evaluation using input_shape (224, 224).
   # `antialias` usage should be same with training.
   CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m aotnet50_epoch_103_val_acc_0.7674.h5 -i 224 --central_crop 0.95 --antialias
   # >>>> Accuracy top1: 0.78466 top5: 0.94088
   ```
+  ![](https://user-images.githubusercontent.com/5744524/147459813-9b35492a-9057-4a0b-92a5-e13eef99b362.png)
 ## Visualizing
   - [Visualizing](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/visualizing) is for visualizing convnet filters or attention map scores.
   - **make_and_apply_gradcam_heatmap** is for Grad-CAM class activation visualization.

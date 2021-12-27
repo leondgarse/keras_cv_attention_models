@@ -18,7 +18,7 @@ def parse_arguments(argv):
     parser.add_argument("-b", "--batch_size", type=int, default=64, help="Batch size")
     parser.add_argument("-d", "--data_name", type=str, default="imagenet2012", help="Dataset name from tensorflow_datasets like imagenet2012 cifar10")
     parser.add_argument("--rescale_mode", type=str, default="torch", help="Rescale mode, one of [tf, torch]")
-    parser.add_argument("--central_crop", type=float, default=1.0, help="Central crop fraction. Set 1 to disable")
+    parser.add_argument("--central_crop", type=float, default=0.95, help="Central crop fraction. Set 1 to disable")
     parser.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
     parser.add_argument("--antialias", action="store_true", help="Set use antialias=True for tf.image.resize")
     parser.add_argument("--num_classes", type=int, default=1000, help="num_classes if not imagenet2012 dataset and not inited from h5 file")
@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
         model = getattr(timm.models, args.model_path)(pretrained=True)
     elif args.model_path.endswith(".h5"):
-        model = tf.keras.models.load_model(args.model_path)
+        model = tf.keras.models.load_model(args.model_path, compile=False)
     elif args.model_path.endswith(".tflite"):
         model = args.model_path
     else:  # model_path like: volo.VOLO_d1

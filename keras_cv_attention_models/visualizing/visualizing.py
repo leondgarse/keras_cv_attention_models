@@ -270,8 +270,11 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
         # bot attn_score [batch, num_heads, hh * ww, hh * ww]
         print(">>>> Attention type: bot / coatnet")
         mask = [np.array(ii)[0].mean((0)) for ii in attn_scores if len(ii.shape) == 4][::-1]
-        mask = [clip_max_value_matrix(ii) for ii in mask]  # Or it will be too dark.
-        method = "max" if check_type_is("coatnet") else "avg"
+        if check_type_is("bot"):
+            mask = [clip_max_value_matrix(ii) for ii in mask]  # Or it will be too dark.
+            method = "avg"
+        else:
+            method = "max"
         cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], method) for ii in range(1, len(mask))]
         cum_mask = [matmul_prod(cum_mask[: ii + 1]).mean(0) for ii in range(len(cum_mask))]
         mask = [ii.mean(0) for ii in mask]

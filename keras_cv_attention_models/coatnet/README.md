@@ -43,6 +43,20 @@
   | CoAtNet5 | 512              | 688M            | 680.47M             | 89.77    |
   | CoAtNet6 | 512              | 1.47B           | 1.340B              | 90.45    |
   | CoAtNet7 | 512              | 2.44B           | 2.422B              | 90.88    |
+## Training
+  - As model structure not certain, these are most tests.
+  - **Model structure**
+    | Model       | stem                      | res_MBConv block      | res_mhsa block        | res_ffn block                 | Best top1 |
+    | ----------- | ------------------------- | --------------------- | --------------------- | ----------------------------- | ------------- |
+    | CoAtNet0_1  | conv,bn,gelu,conv         | prenorm bn + gelu, V2 | prenorm bn + gelu, V2 | bn,conv,gelu,conv             | 0.8010 |
+  - **Training**. Using `A3` recipe with `batch_size=256, input_shape=(160, 160)`.
+    ```py
+    CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py -m coatnet.CoAtNet0 \
+            --seed 0 --resize_antialias --batch_size 128 -s CoAtNet0_1
+    ```
+    Changing evaluating input_shape for `CoATNet` is not very helpful.
+  - **Plot**
+    ![coatnet0_1](https://user-images.githubusercontent.com/5744524/147462658-f0a266ee-c478-4975-bc0d-7886419d59fd.png)
 ## Usage
   ```py
   from keras_cv_attention_models import coatnet
@@ -80,7 +94,7 @@
 - On the other hand, BatchNorm and LayerNorm have almost the same performance, while BatchNorm is 10 - 20% faster on TPU depending on the per-core batch size.
 
 - while Norm corresponds to BatchNorm for MBConv and LayerNorm for Self-Attention and FFN.
-- We have experimented with using LayerNorm in the MBConv block, which achieves the same performance while being significantly slower on our accelerator (TPU).
+- We have experimented with using LayerNorm in the MBConv block, which achieves the same performance while being significantly slower on our accelerator (TPU).
 - In general, we recommend whichever is faster on your device.
 - Following the same spirit, Gaussian Error Linear Units (GELUs) [50] is used as the activation function in both the MBConv blocks and Transformer blocks.
 

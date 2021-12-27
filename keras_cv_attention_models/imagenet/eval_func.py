@@ -71,6 +71,7 @@ def evaluation(
     if isinstance(model, tf.keras.models.Model):
         input_shape = model.input_shape[1:-1] if input_shape is None else input_shape[:2]
         model_interf = change_model_input_shape(model, input_shape)
+        print(">>>> Using input_shape {} for Keras model.".format(input_shape))
     elif isinstance(model, TFLiteModelInterf) or (isinstance(model, str) and model.endswith(".tflite")):
         model_interf = model if isinstance(model, TFLiteModelInterf) else TFLiteModelInterf(model)
         input_shape = model_interf.input_shape
@@ -136,11 +137,6 @@ def parse_timm_log(log_file, pick_keys=None):
     if val_acc[-1] > 1:
         val_acc = [ii / 100.0 for ii in val_acc]
 
-    # train_loss = [float(ii.split('Loss:')[1].strip().split(" ")[1][1:-1]) for ii in aa if train_epoch_end_pattern in ii]
-    # lr = [float(ii.split('LR:')[1].strip().split(" ")[0]) for ii in aa if train_epoch_end_pattern in ii]
-    # val_loss = [float(ii.split('Loss:')[1].strip().split(" ")[1][1:-1]) for ii in aa if test_epoch_end_pattern in ii]
-    # val_acc = [float(ii.split('Acc@1:')[1].strip().split("Acc@5:")[0].split("(")[1].split(")")[0]) for ii in aa if test_epoch_end_pattern in ii]
-
     # print(f"{len(train_loss) = }, {len(lr) = }, {len(val_loss) = }, {len(val_acc) = }")
     hh = {"loss": train_loss, "lr": lr, "val_loss": val_loss, "val_acc": val_acc}
     return hh if pick_keys is None else {kk: hh[kk] for kk in pick_keys}
@@ -172,7 +168,7 @@ def plot_and_peak_scatter(ax, array, peak_method, label, skip_first=0, color=Non
     pp = peak_method(array)
     vv = array[pp]
     ax.scatter(pp + skip_first, vv, color=color, marker="v")
-    ax.text(pp + skip_first, vv, "{:.4f}".format(vv), va=va, ha="right", color=color, fontsize=9, rotation=0)
+    ax.text(pp + skip_first, vv, "{:.4f}".format(vv), va=va, ha="right", color=color, fontsize=10, rotation=0)
 
 
 def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["bottom"], skip_first=0):

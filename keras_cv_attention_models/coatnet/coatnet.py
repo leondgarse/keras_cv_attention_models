@@ -9,6 +9,7 @@ from keras_cv_attention_models.attention_layers import (
     drop_block,
     layer_norm,
     se_module,
+    output_block,
     MultiHeadRelativePositionalEmbedding,
 )
 
@@ -64,12 +65,12 @@ def mhsa_with_multi_head_relative_position_embedding(
 def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion=4, se_ratio=0, drop_rate=0, activation="gelu", name=""):
     """ x ← Proj(Pool(x)) + Conv (DepthConv (Conv (Norm(x), stride = 2)))) """
     # preact
-    preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, name=name + "preact_")
+    preact = batchnorm_with_activation(inputs, activation=activation, zero_gamma=False, name=name + "preact_")
 
     if conv_short_cut:
         # Avg or Max pool
-        shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
-        # shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
+        # shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
+        shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
         # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
         # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
         shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shortcut_")
@@ -92,16 +93,16 @@ def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion
 
 
 def res_ffn(inputs, expansion=4, kernel_size=1, drop_rate=0, activation="gelu", name=""):
-    """ x ← x + Module (Norm(x)) """
+    """ x ← x + Module (Norm(x)), similar with typical MLP block """
     # preact
-    # preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, name=name + "preact_")
-    preact = layer_norm(inputs, name=name + "preact_")
+    preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, name=name + "preact_")
+    # preact = layer_norm(inputs, name=name + "preact_")
 
     input_channel = inputs.shape[-1]
-    nn = conv2d_no_bias(preact, input_channel * expansion, kernel_size, name=name + "1_")
+    nn = conv2d_no_bias(preact, input_channel * expansion, kernel_size, use_bias=False, name=name + "1_")
     nn = activation_by_name(nn, activation=activation, name=name)
     # nn = batchnorm_with_activation(nn, activation=activation, name=name + "ffn_")
-    nn = conv2d_no_bias(nn, input_channel, kernel_size, name=name + "2_")
+    nn = conv2d_no_bias(nn, input_channel, kernel_size, use_bias=False, name=name + "2_")
     # nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "3_")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
     # return keras.layers.Add()([preact, nn])
@@ -111,13 +112,13 @@ def res_ffn(inputs, expansion=4, kernel_size=1, drop_rate=0, activation="gelu", 
 def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, head_dimension=32, drop_rate=0, activation="gelu", name=""):
     """ x ← Proj(Pool(x)) + Attention (Pool(Norm(x))) """
     # preact
-    # preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, name=name + "preact_")
-    preact = layer_norm(inputs, name=name + "preact_")
+    preact = batchnorm_with_activation(inputs, activation=activation, zero_gamma=False, name=name + "preact_")
+    # preact = layer_norm(inputs, name=name + "preact_")
 
     if conv_short_cut:
         # Avg or Max pool
-        shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
-        # shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
+        # shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
+        shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
         # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
         # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
         shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shortcut_")
@@ -130,7 +131,7 @@ def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, head_dimens
         # nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
         nn = keras.layers.MaxPool2D(pool_size=2, strides=strides, padding="SAME", name=name + "pool")(nn)
     num_heads = nn.shape[-1] // head_dimension
-    nn = mhsa_with_multi_head_relative_position_embedding(nn, num_heads=num_heads, key_dim=head_dimension, out_shape=output_channel, name=name + "mhsa")
+    nn = mhsa_with_multi_head_relative_position_embedding(nn, num_heads=num_heads, key_dim=head_dimension, out_shape=output_channel, name=name + "mhsa_")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
     # print(f"{name = }, {inputs.shape = }, {shortcut.shape = }, {nn.shape = }")
     return keras.layers.Add()([shortcut, nn])
@@ -161,7 +162,7 @@ def CoAtNet(
     nn = conv2d_no_bias(inputs, stem_width, 3, strides=2, padding="same", name="stem_1_")
     nn = batchnorm_with_activation(nn, activation=activation, name="stem_1_")
     nn = conv2d_no_bias(nn, stem_width, 3, strides=1, padding="same", name="stem_2_")
-    nn = batchnorm_with_activation(nn, activation=activation, name="stem_2_")
+    # nn = batchnorm_with_activation(nn, activation=activation, name="stem_2_")
 
     """ stage [1, 2, 3, 4] """
     total_blocks = sum(num_blocks)
@@ -183,12 +184,7 @@ def CoAtNet(
                 nn = res_mhsa(nn, out_channel, conv_short_cut, stride, head_dimension, block_drop_rate, activation=activation, name=name)
                 nn = res_ffn(nn, expansion=expansion, drop_rate=block_drop_rate, activation=activation, name=name + "ffn_")
 
-    if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        if drop_rate > 0:
-            nn = keras.layers.Dropout(drop_rate)(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
-
+    nn = output_block(nn, num_classes=num_classes, drop_rate=drop_rate, classifier_activation=classifier_activation)
     model = keras.models.Model(inputs, nn, name=model_name)
     return model
 
