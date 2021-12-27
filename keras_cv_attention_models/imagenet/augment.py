@@ -25,7 +25,8 @@ RandAugment Reference: https://arxiv.org/abs/1909.13719
 import math
 import tensorflow as tf
 from typing import Any, Dict, List, Optional, Text, Tuple, Union
-from tensorflow.python.keras.layers.preprocessing import image_preprocessing as image_ops
+# from tensorflow.python.keras.layers.preprocessing import image_preprocessing as image_ops
+from keras.layers.preprocessing import image_preprocessing as image_ops
 
 # This signifies the max integer that the controller RNN could predict for the
 # augmentation scheme.
