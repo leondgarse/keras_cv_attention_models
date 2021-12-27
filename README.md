@@ -40,6 +40,7 @@
 
 # General Usage
 ## Basic
+  - **Currently recommended TF version is `tensorflow==2.8.0rc0`. Expecially for training or TFLite conversion**.
   - **Default import**
     ```py
     import os
@@ -106,7 +107,6 @@
 ## ImageNet Training
   - [Init Imagenet dataset using tensorflow_datasets](https://github.com/leondgarse/keras_cv_attention_models/discussions/9).
   - It took me weeks figuring out what is wrong in training, that should use `LAMB` with excluding `batch norm` layers on weight decay...
-  - For model training, currently would recommend `TF 2.6.2` or `tf-nightly`, as `TF 2.7.0` has some issues with `XLA`, and lower versions may meet other issues.
   - `aotnet.AotNet50` default parameters set is a typical `ResNet50` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
   - Default params for `train_script.py` is like `A3` configuration from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf) with `batch_size=256, input_shape=(160, 160)`.
   ```sh
