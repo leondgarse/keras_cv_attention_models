@@ -8,7 +8,7 @@ def init_lr_scheduler(lr_base, lr_decay_steps, lr_min=1e-5, lr_decay_on_batch=Fa
     if isinstance(lr_decay_steps, list):
         constant_lr_sch = lambda epoch: callbacks.constant_scheduler(epoch, lr_base=lr_base, lr_decay_steps=lr_decay_steps, warmup_steps=lr_warmup_steps)
         lr_scheduler = keras.callbacks.LearningRateScheduler(constant_lr_sch)
-        lr_total_epochs = lr_decay_steps[-1] + lr_decay_steps[0]  # 120 for lr_decay_steps=[30, 60, 90], lr_warmup_steps=4
+        lr_total_epochs = lr_decay_steps[-1] + lr_cooldown_steps  # 120 for lr_decay_steps=[30, 60, 90], lr_warmup_steps=4, lr_cooldown_steps=30
     elif lr_decay_on_batch:
         lr_scheduler = callbacks.CosineLrScheduler(
             lr_base, lr_decay_steps, m_mul=0.5, t_mul=2.0, lr_min=lr_min, lr_warmup=lr_warmup, warmup_steps=lr_warmup_steps, cooldown_steps=lr_cooldown_steps
@@ -31,8 +31,8 @@ def init_optimizer(optimizer, lr_base, weight_decay):
     elif optimizer == "rmsprop":
         optimizer = keras.optimizers.RMSprop(learning_rate=lr_base, momentum=0.9)
     elif optimizer == "lamb":
-        bn_weights = ["bn/gamma", "bn/beta"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
-        optimizer = tfa.optimizers.LAMB(learning_rate=lr_base, weight_decay_rate=weight_decay, exclude_from_weight_decay=bn_weights, global_clipnorm=1.0)
+        norm_weights = ["bn/gamma", "bn/beta", "ln/gamma", "ln/beta"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
+        optimizer = tfa.optimizers.LAMB(learning_rate=lr_base, weight_decay_rate=weight_decay, exclude_from_weight_decay=norm_weights, global_clipnorm=1.0)
     elif optimizer == "adamw":
         optimizer = tfa.optimizers.AdamW(learning_rate=lr_base, weight_decay=lr_base * weight_decay)
     elif optimizer == "sgdw":
