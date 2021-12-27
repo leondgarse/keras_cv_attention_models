@@ -330,7 +330,8 @@ def init_dataset(
     returns train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
     """
     # print(">>>> Dataset args:", locals())
-    dataset, info = tfds.load(data_name, with_info=True)
+    try_gcs = True if len(tf.config.list_logical_devices('TPU')) > 0 else False
+    dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)
     num_classes = info.features["label"].num_classes
     total_images = info.splits["train"].num_examples
     steps_per_epoch = int(tf.math.ceil(total_images / float(batch_size)))

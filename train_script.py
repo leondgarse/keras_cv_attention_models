@@ -12,18 +12,23 @@ def parse_arguments(argv):
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-i", "--input_shape", type=int, default=160, help="Model input shape")
-    parser.add_argument("-m", "--model", type=str, default="aotnet.AotNet50", help="Model name defined in this repo, format [sub_dir].[model_name]")
+    parser.add_argument(
+        "-m", "--model", type=str, default="aotnet.AotNet50", help="Model name in format [sub_dir].[model_name]. Or name from keras.applications like MobileNet"
+    )
     parser.add_argument("-b", "--batch_size", type=int, default=256, help="Batch size")
-    parser.add_argument("-e", "--epochs", type=int, default=105, help="Total epochs")
+    parser.add_argument("-e", "--epochs", type=int, default=0, help="Total epochs. Set 0 means using lr_decay_steps + lr_cooldown_steps")
     parser.add_argument("-d", "--data_name", type=str, default="imagenet2012", help="Dataset name from tensorflow_datasets like imagenet2012 cifar10")
-    parser.add_argument("-p", "--optimizer", type=str, default="LAMB", help="Optimizer name. One of [SGD, LAMB, AdamW].")
+    parser.add_argument("-p", "--optimizer", type=str, default="LAMB", help="Optimizer name. One of [AdamW, LAMB, RMSprop, SGD, SGDW].")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
     parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history. None means a combination of parameters")
     parser.add_argument("-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 file. Higher priority than model")
-    parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights")
-    parser.add_argument("--additional_model_kwargs", type=str, default=None, help="Additional model kwargs in format like '{\"drop_connect_rate\": 0.05}'")
+    parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights. Mostly used is one of [imagenet, imagenet21k]")
+    parser.add_argument(
+        "--additional_model_kwargs", type=str, default=None, help="Json format model kwargs like '{\"drop_connect_rate\": 0.05}'. Note all these quote marks"
+    )
     parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
     parser.add_argument("--disable_float16", action="store_true", help="Disable mixed_float16 training")
+    parser.add_argument("--TPU", action="store_true", help="Run training on TPU")
 
     """ Loss arguments """
     loss_group = parser.add_argument_group("Loss arguments")
@@ -34,12 +39,12 @@ def parse_arguments(argv):
 
     """ Learning rate and weight decay arguments """
     lr_group = parser.add_argument_group("Learning rate and weight decay arguments")
-    lr_group.add_argument("--lr_base_512", type=float, default=8e-3, help="Learning rate for batch_size=512")
+    lr_group.add_argument("--lr_base_512", type=float, default=8e-3, help="Learning rate for batch_size=512, lr = lr_base_512 * 512 / batch_size")
     lr_group.add_argument(
         "--weight_decay",
         type=float,
         default=0.02,
-        help="Weight decay. For SGD, it's L2 value. For AdamW, it will multiply with learning_rate. For LAMB, it's directly used",
+        help="Weight decay. For SGD, it's L2 value. For AdamW / SGDW, it will multiply with learning_rate. For LAMB, it's directly used",
     )
     lr_group.add_argument(
         "--lr_decay_steps",
@@ -96,12 +101,25 @@ if __name__ == "__main__":
     args = parse_arguments(sys.argv[1:])
     print(">>>> ALl args:", args)
 
-    if args.enable_float16:
-        keras.mixed_precision.set_global_policy("mixed_float16")
     gpus = tf.config.experimental.get_visible_devices("GPU")
     for gpu in gpus:
         tf.config.experimental.set_memory_growth(gpu, True)
-    strategy = tf.distribute.MirroredStrategy() if len(gpus) > 1 else tf.distribute.OneDeviceStrategy(device="/gpu:0")
+
+    if args.TPU:
+        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu='')
+        tf.config.experimental_connect_to_cluster(resolver)
+        # This is the TPU initialization code that has to be at the beginning.
+        tf.tpu.experimental.initialize_tpu_system(resolver)
+        print("All devices: ", tf.config.list_logical_devices('TPU'))
+        strategy = tf.distribute.TPUStrategy(resolver)
+    elif len(gpus) > 1:
+        strategy = tf.distribute.MirroredStrategy()
+    else:
+        strategy = tf.distribute.OneDeviceStrategy(device="/gpu:0")
+
+    if args.enable_float16:
+        policy = "mixed_bfloat16" if args.TPU else "mixed_float16"
+        keras.mixed_precision.set_global_policy(policy)
 
     if args.seed is not None:
         print(">>>> Set random seed:", args.seed)
