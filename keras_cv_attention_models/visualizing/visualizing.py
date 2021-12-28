@@ -74,12 +74,11 @@ def stack_and_plot_images(images, margin=5, margin_value=0, rows=-1, ax=None, ba
         _, ax = plt.subplots(1, 1, figsize=(base_size * cols, base_size * rows))
 
     if margin > 0:
-        channel = images[0].shape[-1]
-        ww_margin = np.zeros([images[0].shape[0], margin, channel], dtype=images[0].dtype) + margin_value
+        ww_margin = np.zeros_like(images[0][:, :margin]) + margin_value
         ww_margined_images = [np.hstack([ii, ww_margin]) for ii in images]
         hstacked_images = [np.hstack(ww_margined_images[ii : ii + cols]) for ii in range(0, len(ww_margined_images), cols)]
 
-        hh_margin = np.zeros([margin, hstacked_images[0].shape[1], channel], dtype=hstacked_images[0].dtype) + margin_value
+        hh_margin = np.zeros_like(hstacked_images[0][:margin]) + margin_value
         hh_margined_images = [np.vstack([ii, hh_margin]) for ii in hstacked_images]
         vstacked_images = np.vstack(hh_margined_images)
 
@@ -196,7 +195,7 @@ def apply_mask_2_image(image, mask):
     else:
         height, width = mask.shape[:2]
     mask = mask.reshape(width, height, 1)
-    mask = tf.image.resize(mask / mask.max(), image.shape[:2]).numpy()
+    mask = tf.image.resize(mask / mask.max(), image.shape[:2], method='bilinear').numpy()
     return (mask * image).astype("uint8")
 
 
@@ -266,18 +265,21 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
         mask = [np.array(ii)[0].mean(0) for ii in attn_scores][::-1]
         cum_mask = [matmul_prod(mask[: ii + 1]).mean(0) for ii in range(len(mask))]
         mask = [ii.mean(0) for ii in mask]
-    elif check_type_is("bot") or check_type_is("coatnet"):
+    elif check_type_is("bot"):
         # bot attn_score [batch, num_heads, hh * ww, hh * ww]
-        print(">>>> Attention type: bot / coatnet")
+        print(">>>> Attention type: bot")
         mask = [np.array(ii)[0].mean((0)) for ii in attn_scores if len(ii.shape) == 4][::-1]
-        if check_type_is("bot"):
-            mask = [clip_max_value_matrix(ii) for ii in mask]  # Or it will be too dark.
-            method = "avg"
-        else:
-            method = "max"
-        cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], method) for ii in range(1, len(mask))]
+        mask = [clip_max_value_matrix(ii) for ii in mask]  # Or it will be too dark.
+        cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], "avg") for ii in range(1, len(mask))]
         cum_mask = [matmul_prod(cum_mask[: ii + 1]).mean(0) for ii in range(len(cum_mask))]
         mask = [ii.mean(0) for ii in mask]
+    elif check_type_is("coatnet"):
+        # bot attn_score [batch, num_heads, hh * ww, hh * ww]
+        print(">>>> Attention type: coatnet")
+        mask = [np.array(ii)[0].mean((0)) for ii in attn_scores if len(ii.shape) == 4][::-1]
+        cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], "max") for ii in range(1, len(mask))]
+        cum_mask = [matmul_prod(cum_mask[: ii + 1]).max(0) for ii in range(len(cum_mask))]
+        mask = [ii.max(0) for ii in mask]
     elif check_type_is("halo"):
         # halo attn_score [batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]
         print(">>>> Attention type: halo")

@@ -46,7 +46,7 @@
 ## Plot attention score maps
   - Visualizing model attention score maps, superimposed with specific image.
     ```py
-    from keras_cv_attention_models import botnet, halonet, beit, levit, visualizing
+    from keras_cv_attention_models import botnet, halonet, beit, levit, coatnet, visualizing
     url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
     imm = plt.imread(keras.utils.get_file('aa.jpg', url))
     ```
@@ -70,11 +70,11 @@
     _ = visualizing.plot_attention_score_maps(halonet.HaloNet50T(), imm, rescale_mode='torch')
     ```
     ![](https://user-images.githubusercontent.com/5744524/147209558-2c1c1590-20d6-4c09-9686-11521ac51b37.png)
-  - **CoAtNet** model attention score format `[batch, num_heads, hh * ww, hh * ww]`. Plot by load_model from file.
+  - **CoAtNet** model attention score format `[batch, num_heads, hh * ww, hh * ww]`. Similar with `BotNet`, but using `max_pooling`.
     ```py
-    _ = visualizing.plot_attention_score_maps(keras.models.load_model("checkpoints/coatnet.CoAtNet0_160.h5"), imm)
+    _ = visualizing.plot_attention_score_maps(coatnet.CoAtNet0(input_shape=(160, 160, 3)), imm)
     ```
-    ![](https://user-images.githubusercontent.com/5744524/147209593-094a7294-7022-4a58-898e-b967570847f0.png)
+    ![](https://user-images.githubusercontent.com/5744524/147530769-ec31dbc5-5f12-4ee1-b625-03f969ee2e0d.png)
   - **VIT** model attention score format is same with `BEIT`. Plot by extract attention scores and specify attn_type.
     ```py
     from vit_keras import vit, layers
