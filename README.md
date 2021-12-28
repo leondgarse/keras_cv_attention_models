@@ -84,6 +84,13 @@
     print(mm.output_shape)
     # (None, 7, 7, 2048)
     ```
+  - **Reload own model weights by set `pretrained="xxx.h5"`**. Better if reloading model with different `input_shape` and with weights shape not matching.
+    ```py
+    import os
+    from keras_cv_attention_models import coatnet
+    pretrained = os.path.expanduser('~/.keras/models/coatnet0_imagenet.h5')
+    mm = coatnet.CoAtNet1(input_shape=(384, 384, 3), pretrained=pretrained)
+    ```
 ## Layers
   - [attention_layers](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `RelativePositionalEmbedding` from `botnet`, `outlook_attention` from `volo`.
   ```py
