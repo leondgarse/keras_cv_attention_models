@@ -257,7 +257,7 @@ def AotNet(
     drop_connect_rate=0,
     classifier_activation="softmax",
     output_num_features=0,
-    drop_rate=0,
+    dropout=0,
     model_name="aotnet",
     pretrained=None,
     kwargs=None,
@@ -297,7 +297,7 @@ def AotNet(
     if preact:  # resnetv2 like
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name="post_")
 
-    nn = output_block(nn, output_num_features, activation, num_classes, drop_rate=drop_rate, classifier_activation=classifier_activation)
+    nn = output_block(nn, output_num_features, activation, num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
     model = keras.models.Model(inputs, nn, name=model_name)
     return model
 

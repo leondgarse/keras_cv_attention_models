@@ -130,7 +130,7 @@ def CMT(
     activation="gelu",
     drop_connect_rate=0,
     classifier_activation="softmax",
-    drop_rate=0,
+    dropout=0,
     pretrained=None,
     model_name="cmt",
     kwargs=None,
@@ -157,8 +157,8 @@ def CMT(
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         # nn = keras.layers.Dense(1280, name="post_dense")(nn)
-        if drop_rate > 0:
-            nn = keras.layers.Dropout(drop_rate)(nn)
+        if dropout > 0:
+            nn = keras.layers.Dropout(dropout)(nn)
         nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)

@@ -79,7 +79,7 @@ __tail_doc__ = """
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `softmax`.
   output_num_features: none `0` value to add another `conv2d + bn + activation` layers before `GlobalAveragePooling2D`.
-  drop_rate: dropout rate if top layers is included.
+  dropout: dropout rate if top layers is included.
   pretrained: mostly it's `None` or `"imagenet"` if any.
   kwargs: Not used, only recieving parameter.
 

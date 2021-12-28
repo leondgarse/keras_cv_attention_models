@@ -66,9 +66,6 @@ def init_model(model, input_shape=(224, 224, 3), num_classes=1000, pretrained=No
         print(">>>> Restore model from:", restore_path)
         model = keras.models.load_model(restore_path)
     else:
-        # model = cmt.CMTTiny(input_shape=input_shape, num_classes=num_classes, drop_connect_rate=0.2, drop_rate=0.2)
-        # model = keras.applications.ResNet50(weights=None, input_shape=input_shape)
-        # model = aotnet.AotNet50(num_classes=num_classes, input_shape=input_shape)
         if len(model) == 1:
             model = getattr(keras.applications, model[0])(classes=num_classes, weights=pretrained, input_shape=input_shape, **kwargs)
         else:

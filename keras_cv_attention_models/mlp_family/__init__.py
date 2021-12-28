@@ -116,10 +116,10 @@ MLP Mixer block
 
 Args:
   inputs: Input tensor.
-  tokens_mlp_dim:
-  channels_mlp_dim:
-  drop_rate:
-  activation:
+  tokens_mlp_dim: hidden_dim for the first mlp_block.
+  channels_mlp_dim: hidden_dim for the second mlp_block.
+  drop_rate: block dropout rate.
+  activation: activation for mlp_block.
 
 Examples:
 

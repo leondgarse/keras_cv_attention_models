@@ -14,9 +14,8 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
 
-PRETRAINED_DICT = {
-    "coatnet0": {"imagenet": "852d3768550fd9a22cc2dda97f9e353b"}
-}
+PRETRAINED_DICT = {"coatnet0": {"imagenet": "852d3768550fd9a22cc2dda97f9e353b"}}
+
 
 def mhsa_with_multi_head_relative_position_embedding(
     inputs, num_heads=4, key_dim=0, relative=True, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
@@ -154,7 +153,7 @@ def CoAtNet(
     activation="gelu",
     drop_connect_rate=0,
     classifier_activation="softmax",
-    drop_rate=0,
+    dropout=0,
     pretrained=None,
     model_name="coatnet",
     kwargs=None,
@@ -187,7 +186,7 @@ def CoAtNet(
                 nn = res_mhsa(nn, out_channel, conv_short_cut, stride, head_dimension, block_drop_rate, activation=activation, name=name)
                 nn = res_ffn(nn, expansion=expansion, drop_rate=block_drop_rate, activation=activation, name=name + "ffn_")
 
-    nn = output_block(nn, num_classes=num_classes, drop_rate=drop_rate, classifier_activation=classifier_activation)
+    nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
     model = keras.models.Model(inputs, nn, name=model_name)
     reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "coatnet", MultiHeadRelativePositionalEmbedding, 160, input_shape, pretrained)
     return model

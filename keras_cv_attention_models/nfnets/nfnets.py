@@ -211,7 +211,7 @@ def NormFreeNet(
     activation="gelu",
     drop_connect_rate=0,
     classifier_activation="softmax",
-    drop_rate=0,
+    dropout=0,
     pretrained="imagenet",
     model_name="nfnet",
     kwargs=None,
@@ -258,8 +258,8 @@ def NormFreeNet(
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        if drop_rate > 0:
-            nn = keras.layers.Dropout(drop_rate, name="head_drop")(nn)
+        if dropout > 0:
+            nn = keras.layers.Dropout(dropout, name="head_drop")(nn)
         nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
@@ -267,35 +267,35 @@ def NormFreeNet(
     return model
 
 
-def NFNetF0(input_shape=(256, 256, 3), num_classes=1000, activation="gelu", drop_rate=0.2, pretrained="imagenet", **kwargs):
+def NFNetF0(input_shape=(256, 256, 3), num_classes=1000, activation="gelu", dropout=0.2, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[1, 2, 6, 3], model_name="nfnetf0", **locals(), **kwargs)
 
 
-def NFNetF1(input_shape=(320, 320, 3), num_classes=1000, activation="gelu", drop_rate=0.3, pretrained="imagenet", **kwargs):
+def NFNetF1(input_shape=(320, 320, 3), num_classes=1000, activation="gelu", dropout=0.3, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[2, 4, 12, 6], model_name="nfnetf1", **locals(), **kwargs)
 
 
-def NFNetF2(input_shape=(352, 352, 3), num_classes=1000, activation="gelu", drop_rate=0.4, pretrained="imagenet", **kwargs):
+def NFNetF2(input_shape=(352, 352, 3), num_classes=1000, activation="gelu", dropout=0.4, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[3, 6, 18, 9], model_name="nfnetf2", **locals(), **kwargs)
 
 
-def NFNetF3(input_shape=(416, 416, 3), num_classes=1000, activation="gelu", drop_rate=0.4, pretrained="imagenet", **kwargs):
+def NFNetF3(input_shape=(416, 416, 3), num_classes=1000, activation="gelu", dropout=0.4, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[4, 8, 24, 12], model_name="nfnetf3", **locals(), **kwargs)
 
 
-def NFNetF4(input_shape=(512, 512, 3), num_classes=1000, activation="gelu", drop_rate=0.5, pretrained="imagenet", **kwargs):
+def NFNetF4(input_shape=(512, 512, 3), num_classes=1000, activation="gelu", dropout=0.5, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[5, 10, 30, 15], model_name="nfnetf4", **locals(), **kwargs)
 
 
-def NFNetF5(input_shape=(544, 544, 3), num_classes=1000, activation="gelu", drop_rate=0.5, pretrained="imagenet", **kwargs):
+def NFNetF5(input_shape=(544, 544, 3), num_classes=1000, activation="gelu", dropout=0.5, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[6, 12, 36, 18], model_name="nfnetf5", **locals(), **kwargs)
 
 
-def NFNetF6(input_shape=(576, 576, 3), num_classes=1000, activation="gelu", drop_rate=0.5, pretrained="imagenet", **kwargs):
+def NFNetF6(input_shape=(576, 576, 3), num_classes=1000, activation="gelu", dropout=0.5, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[7, 14, 42, 21], model_name="nfnetf6", **locals(), **kwargs)
 
 
-def NFNetF7(input_shape=(608, 608, 3), num_classes=1000, activation="gelu", drop_rate=0.5, pretrained=None, **kwargs):
+def NFNetF7(input_shape=(608, 608, 3), num_classes=1000, activation="gelu", dropout=0.5, pretrained=None, **kwargs):
     return NormFreeNet(num_blocks=[8, 16, 48, 24], model_name="nfnetf7", **locals(), **kwargs)
 
 
@@ -304,33 +304,33 @@ def NormFreeNet_Light(channel_ratio=0.25, group_size=64, torch_padding=True, use
     return NormFreeNet(**locals(), **kwargs)
 
 
-def NFNetL0(input_shape=(288, 288, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
+def NFNetL0(input_shape=(288, 288, 3), num_classes=1000, activation="swish", dropout=0.2, pretrained="imagenet", **kwargs):
     num_blocks = [1, 2, 6, 3]
     num_features_factor = 1.5
     se_ratio = 0.25
     return NormFreeNet_Light(model_name="nfnetl0", **locals(), **kwargs)
 
 
-def ECA_NFNetL0(input_shape=(288, 288, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
+def ECA_NFNetL0(input_shape=(288, 288, 3), num_classes=1000, activation="swish", dropout=0.2, pretrained="imagenet", **kwargs):
     num_blocks = [1, 2, 6, 3]
     num_features_factor = 1.5
     attn_type = "eca"
     return NormFreeNet_Light(model_name="eca_nfnetl0", **locals(), **kwargs)
 
 
-def ECA_NFNetL1(input_shape=(320, 320, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
+def ECA_NFNetL1(input_shape=(320, 320, 3), num_classes=1000, activation="swish", dropout=0.2, pretrained="imagenet", **kwargs):
     num_blocks = [2, 4, 12, 6]
     attn_type = "eca"
     return NormFreeNet_Light(model_name="eca_nfnetl1", **locals(), **kwargs)
 
 
-def ECA_NFNetL2(input_shape=(384, 384, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained="imagenet", **kwargs):
+def ECA_NFNetL2(input_shape=(384, 384, 3), num_classes=1000, activation="swish", dropout=0.2, pretrained="imagenet", **kwargs):
     num_blocks = [3, 6, 18, 9]
     attn_type = "eca"
     return NormFreeNet_Light(model_name="eca_nfnetl2", **locals(), **kwargs)
 
 
-def ECA_NFNetL3(input_shape=(448, 448, 3), num_classes=1000, activation="swish", drop_rate=0.2, pretrained=None, **kwargs):
+def ECA_NFNetL3(input_shape=(448, 448, 3), num_classes=1000, activation="swish", dropout=0.2, pretrained=None, **kwargs):
     num_blocks = [4, 8, 24, 12]
     attn_type = "eca"
     return NormFreeNet_Light(model_name="eca_nfnetl3", **locals(), **kwargs)

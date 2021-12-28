@@ -53,7 +53,7 @@ __tail_doc__ = """  stem_width: output dimension for stem block. Default 128.
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `softmax`.
-  drop_rate: dropout rate if top layers is included.
+  dropout: dropout rate if top layers is included.
   pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
       Will try to download and load pre-trained model weights if not None.
 

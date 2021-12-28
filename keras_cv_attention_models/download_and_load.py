@@ -4,7 +4,7 @@ from tensorflow import keras
 
 
 def reload_model_weights(model, pretrained_dict, sub_release, input_shape=(224, 224, 3), pretrained="imagenet"):
-    if pretrained.endswith(".h5"):
+    if isinstance(pretrained, str) and pretrained.endswith(".h5"):
         print(">>>> Load pretrained from:", pretrained)
         model.load_weights(pretrained, by_name=True, skip_mismatch=True)
         return pretrained

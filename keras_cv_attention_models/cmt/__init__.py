@@ -14,7 +14,7 @@ __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like 
       or `0` to disable (default).
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
-  drop_rate: dropout rate if top layers is included.
+  dropout: dropout rate if top layers is included.
   pretrained: None available.
   **kwargs: other parameters if available.
 
