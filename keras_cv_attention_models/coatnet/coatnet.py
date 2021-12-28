@@ -12,7 +12,11 @@ from keras_cv_attention_models.attention_layers import (
     output_block,
     MultiHeadRelativePositionalEmbedding,
 )
+from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
 
+PRETRAINED_DICT = {
+    "coatnet0": {"imagenet": "852d3768550fd9a22cc2dda97f9e353b"}
+}
 
 def mhsa_with_multi_head_relative_position_embedding(
     inputs, num_heads=4, key_dim=0, relative=True, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
@@ -44,7 +48,6 @@ def mhsa_with_multi_head_relative_position_embedding(
     # [batch, num_heads, hh * ww, hh * ww]
     attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale
     attention_scores = MultiHeadRelativePositionalEmbedding(with_cls_token=False, name=name and name + "pos_emb")(attention_scores)
-    # attention_scores = tf.nn.softmax(attention_scores, axis=-1)
     attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
 
     if attn_dropout > 0:
@@ -186,6 +189,7 @@ def CoAtNet(
 
     nn = output_block(nn, num_classes=num_classes, drop_rate=drop_rate, classifier_activation=classifier_activation)
     model = keras.models.Model(inputs, nn, name=model_name)
+    reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "coatnet", MultiHeadRelativePositionalEmbedding, 160, input_shape, pretrained)
     return model
 
 
@@ -196,7 +200,7 @@ def CoAtNetT(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cla
     return CoAtNet(**locals(), model_name="coatnett", **kwargs)
 
 
-def CoAtNet0(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
+def CoAtNet0(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 3, 5, 2]
     out_channels = [96, 192, 384, 768]
     stem_width = 64

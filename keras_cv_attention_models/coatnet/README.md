@@ -5,47 +5,15 @@
 - CoAtNet article: [PDF 2106.04803 CoAtNet: Marrying Convolution and Attention for All Data Sizes](https://arxiv.org/pdf/2106.04803.pdf)
 - [Github comvex/coatnet/model.py](https://github.com/blakechi/ComVEX/blob/master/comvex/coatnet/model.py)
 - No pretraind available. Architecture is guessed from article, so it's NOT certain.
+
+![](coatnet.png)
 ***
 
-## Models
-  ![](coatnet.png)
-
-  | Model                               | Params | Image resolution | Top1 Acc |
-  | ----------------------------------- | ------ | ---------------- | -------- |
-  | CoAtNet0                            | 25M    | 224              | 81.6     |
-  | CoAtNet0                            | 25M    | 384              | 83.9     |
-  | CoAtNet1                            | 42M    | 224              | 83.3     |
-  | CoAtNet1                            | 42M    | 384              | 85.1     |
-  | CoAtNet2                            | 75M    | 224              | 84.1     |
-  | CoAtNet2                            | 75M    | 384              | 85.7     |
-  | CoAtNet2                            | 75M    | 512              | 85.9     |
-  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 224              | 87.1     |
-  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 384              | 87.1     |
-  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 512              | 87.3     |
-  | CoAtNet3                            | 168M   | 224              | 84.5     |
-  | CoAtNet3                            | 168M   | 384              | 85.8     |
-  | CoAtNet3                            | 168M   | 512              | 86.0     |
-  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 224              | 87.6     |
-  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 384              | 87.6     |
-  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 512              | 87.9     |
-  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 384              | 87.9     |
-  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |
-  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 384              | 88.4     |
-  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
-
-  **JFT pre-trained models accuracy**
-
-  | Model    | Image resolution | Reported Params | self-defined Params | Top1 Acc |
-  | -------- | ---------------- | --------------- | ------------------- | -------- |
-  | CoAtNet3 | 384              | 168M            | 162.96M             | 88.52    |
-  | CoAtNet3 | 512              | 168M            | 163.57M             | 88.81    |
-  | CoAtNet4 | 512              | 275M            | 273.10M             | 89.11    |
-  | CoAtNet5 | 512              | 688M            | 680.47M             | 89.77    |
-  | CoAtNet6 | 512              | 1.47B           | 1.340B              | 90.45    |
-  | CoAtNet7 | 512              | 2.44B           | 2.422B              | 90.88    |
 ## Training
   - As model structure not certain, these are most tests.
   - **Model structure**
+    - `V1` means `ResNetV1` like. Conv shortcut branch: `output = conv_shortcut(input) + block(prenorm(input))`. Identify branch: `output = input + block(prenorm(input))`.
+    - `V2` means `ResNetV2` like. Conv shortcut branch: `prenorm_input = prenorm(input), output = conv_shortcut(prenorm_input) + block(prenorm_input)`. Identify branch: `output = input + block(prenorm(input))`.
     | Model       | stem                      | res_MBConv block      | res_mhsa block        | res_ffn block                 | Best top1 |
     | ----------- | ------------------------- | --------------------- | --------------------- | ----------------------------- | ------------- |
     | CoAtNet0_1  | conv,bn,gelu,conv         | prenorm bn + gelu, V2 | prenorm bn + gelu, V2 | bn,conv,gelu,conv             | 0.8010 |
@@ -57,13 +25,56 @@
     Changing evaluating input_shape for `CoATNet` is not very helpful.
   - **Plot**
     ![coatnet0_1](https://user-images.githubusercontent.com/5744524/147462658-f0a266ee-c478-4975-bc0d-7886419d59fd.png)
+## Models
+  | Model                               | Params | Image resolution | Top1 Acc | ImageNet |
+  | ----------------------------------- | ------ | ---------------- | -------- | -------- |
+  | CoAtNet0 (Self trained)             | 23.8M  | 160              | 80.1     | [coatnet0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_imagenet.h5) |
+  | CoAtNet0                            | 25M    | 224              | 81.6     |          |
+  | CoAtNet0                            | 25M    | 384              | 83.9     |          |
+  | CoAtNet1                            | 42M    | 224              | 83.3     |          |
+  | CoAtNet1                            | 42M    | 384              | 85.1     |          |
+  | CoAtNet2                            | 75M    | 224              | 84.1     |          |
+  | CoAtNet2                            | 75M    | 384              | 85.7     |          |
+  | CoAtNet2                            | 75M    | 512              | 85.9     |          |
+  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 224              | 87.1     |          |
+  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 384              | 87.1     |          |
+  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 512              | 87.3     |          |
+  | CoAtNet3                            | 168M   | 224              | 84.5     |          |
+  | CoAtNet3                            | 168M   | 384              | 85.8     |          |
+  | CoAtNet3                            | 168M   | 512              | 86.0     |          |
+  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 224              | 87.6     |          |
+  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 384              | 87.6     |          |
+  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 512              | 87.9     |          |
+  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 384              | 87.9     |          |
+  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |          |
+  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 384              | 88.4     |          |
+  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |          |
+
+  **JFT pre-trained models accuracy**
+
+  | Model    | Image resolution | Reported Params | self-defined Params | Top1 Acc |
+  | -------- | ---------------- | --------------- | ------------------- | -------- |
+  | CoAtNet3 | 384              | 168M            | 162.96M             | 88.52    |
+  | CoAtNet3 | 512              | 168M            | 163.57M             | 88.81    |
+  | CoAtNet4 | 512              | 275M            | 273.10M             | 89.11    |
+  | CoAtNet5 | 512              | 688M            | 680.47M             | 89.77    |
+  | CoAtNet6 | 512              | 1.47B           | 1.340B              | 90.45    |
+  | CoAtNet7 | 512              | 2.44B           | 2.422B              | 90.88    |
+
 ## Usage
   ```py
   from keras_cv_attention_models import coatnet
 
-  # No pretraind available.
+  # Only CoAtNet0 pre-trained.
   mm = coatnet.CoAtNet0()
-  mm.summary()
+
+  # Run prediction
+  import tensorflow as tf
+  from skimage.data import chelsea
+  imm = tf.keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
+  pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
+  print(tf.keras.applications.imagenet_utils.decode_predictions(pred)[0])
+  # [('n02124075', 'Egyptian_cat', 0.9886845), ('n02123159', 'tiger_cat', 0.00742623), ('n02123045', 'tabby', 0.0025222537), ... ]
   ```
 ***
 - L denotes the number of blocks and D denotes the hidden dimension (#channels).
