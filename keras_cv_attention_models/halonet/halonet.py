@@ -3,7 +3,7 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.aotnet import AotNet
 from keras_cv_attention_models.attention_layers import RelativePositionalEmbedding, conv2d_no_bias, CompatibleExtractPatches, make_divisible
-from keras_cv_attention_models.download_and_load import reload_model_weights
+from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
 
 PRETRAINED_DICT = {
     "halonet26t": {"imagenet": "6e8848ce6e98a13cd45f65dd68435d00"},
@@ -175,8 +175,21 @@ BLOCK_CONFIGS = {
 }
 
 
+def halonet_reload_weights(model, input_shape=(256, 256, 3), request_resolution=256, pretrained="imagenet"):
+    reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "halonet", RelativePositionalEmbedding, request_resolution, input_shape, pretrained)
+
+
 def HaloNet(
-    input_shape=(256, 256, 3), activation="swish", expansion=4, halo_block_size=4, halo_halo_size=1, halo_expansion=1, num_heads=8, pretrained=None, **kwargs
+    input_shape=(256, 256, 3),
+    activation="swish",
+    expansion=4,
+    halo_block_size=4,
+    halo_halo_size=1,
+    halo_expansion=1,
+    num_heads=8,
+    pretrained=None,
+    request_resolution=256,
+    **kwargs
 ):
     attn_types = "halo"
     if isinstance(num_heads, (list, tuple)):
@@ -203,45 +216,41 @@ def HaloNet(
         attn_params=attn_params,
         **kwargs
     )
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    halonet_reload_weights(model, input_shape, request_resolution, pretrained)
     return model
 
 
 def HaloNetH0(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(**BLOCK_CONFIGS["h0"], model_name="haloneth0", **locals(), **kwargs)
-
-
-def HaloNetH0(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(**BLOCK_CONFIGS["h0"], model_name="haloneth0", **locals(), **kwargs)
+    return HaloNet(**BLOCK_CONFIGS["h0"], model_name="haloneth0", request_resolution=256, **locals(), **kwargs)
 
 
 def HaloNetH1(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(**BLOCK_CONFIGS["h1"], model_name="haloneth1", **locals(), **kwargs)
+    return HaloNet(**BLOCK_CONFIGS["h1"], model_name="haloneth1", request_resolution=256, **locals(), **kwargs)
 
 
 def HaloNetH2(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(**BLOCK_CONFIGS["h2"], model_name="haloneth2", **locals(), **kwargs)
+    return HaloNet(**BLOCK_CONFIGS["h2"], model_name="haloneth2", request_resolution=256, **locals(), **kwargs)
 
 
 def HaloNetH3(input_shape=(320, 320, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(**BLOCK_CONFIGS["h3"], model_name="haloneth3", **locals(), **kwargs)
+    return HaloNet(**BLOCK_CONFIGS["h3"], model_name="haloneth3", request_resolution=320, **locals(), **kwargs)
 
 
 def HaloNetH4(input_shape=(384, 384, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(**BLOCK_CONFIGS["h4"], model_name="haloneth4", **locals(), **kwargs)
+    return HaloNet(**BLOCK_CONFIGS["h4"], model_name="haloneth4", request_resolution=384, **locals(), **kwargs)
 
 
 def HaloNetH5(input_shape=(448, 448, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(**BLOCK_CONFIGS["h5"], model_name="haloneth5", **locals(), **kwargs)
+    return HaloNet(**BLOCK_CONFIGS["h5"], model_name="haloneth5", request_resolution=448, **locals(), **kwargs)
 
 
 def HaloNetH6(input_shape=(512, 512, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return HaloNet(**BLOCK_CONFIGS["h6"], model_name="haloneth6", **locals(), **kwargs)
+    return HaloNet(**BLOCK_CONFIGS["h6"], model_name="haloneth6", request_resolution=512, **locals(), **kwargs)
 
 
 def HaloNetH7(input_shape=(600, 600, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     # input_shape should be dividable by `int(tf.reduce_prod(strides) * halo_block_size)`, may using 640 here
-    return HaloNet(**BLOCK_CONFIGS["h7"], model_name="haloneth7", **locals(), **kwargs)
+    return HaloNet(**BLOCK_CONFIGS["h7"], model_name="haloneth7", request_resolution=600, **locals(), **kwargs)
 
 
 def HaloNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
@@ -256,7 +265,7 @@ def HaloNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", c
     # key_dim = 16
     stem_type = "tiered"
     model = AotNet(model_name="halonet26t", **locals(), **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    halonet_reload_weights(model, input_shape, request_resolution=256, pretrained=pretrained)
     return model
 
 
@@ -272,7 +281,7 @@ def HaloNet50T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", 
     # key_dim = 16
     stem_type = "tiered"
     model = AotNet(model_name="halonet50t", **locals(), **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    halonet_reload_weights(model, input_shape, request_resolution=256, pretrained=pretrained)
     return model
 
 
@@ -294,7 +303,7 @@ def HaloNetSE33T(input_shape=(256, 256, 3), num_classes=1000, activation="swish"
     stem_downsample = False
     output_num_features = 1280
     model = AotNet(model_name="halonet_se33t", **locals(), **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    halonet_reload_weights(model, input_shape, request_resolution=256, pretrained=pretrained)
     return model
 
 
@@ -311,7 +320,7 @@ def HaloNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swis
     groups = [4, 8, 16, 32]
     stem_type = "tiered"
     model = AotNet(model_name="halonext_eca26t", **locals(), **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    halonet_reload_weights(model, input_shape, request_resolution=256, pretrained=pretrained)
     return model
 
 
@@ -333,7 +342,7 @@ def HaloRegNetZB(input_shape=(224, 224, 3), num_classes=1000, activation="swish"
     shortcut_type = None
     output_num_features = 1536
     model = AotNet(model_name="haloregnetz_b", **locals(), **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    halonet_reload_weights(model, input_shape, request_resolution=224, pretrained=pretrained)
     return model
 
 
@@ -351,5 +360,5 @@ def HaloBotNet50T(input_shape=(256, 256, 3), num_classes=1000, activation="swish
     stem_last_strides = 2
     stem_downsample = False
     model = AotNet(model_name="halobotnet50t", **locals(), **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="halonet", input_shape=input_shape, pretrained=pretrained)
+    halonet_reload_weights(model, input_shape, request_resolution=256, pretrained=pretrained)
     return model
