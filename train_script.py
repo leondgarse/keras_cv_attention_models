@@ -106,11 +106,11 @@ if __name__ == "__main__":
         tf.config.experimental.set_memory_growth(gpu, True)
 
     if args.TPU:
-        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu='')
+        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu="")
         tf.config.experimental_connect_to_cluster(resolver)
         # This is the TPU initialization code that has to be at the beginning.
         tf.tpu.experimental.initialize_tpu_system(resolver)
-        print("All devices: ", tf.config.list_logical_devices('TPU'))
+        print("All devices: ", tf.config.list_logical_devices("TPU"))
         strategy = tf.distribute.TPUStrategy(resolver)
     elif len(gpus) > 1:
         strategy = tf.distribute.MirroredStrategy()

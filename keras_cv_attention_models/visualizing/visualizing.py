@@ -195,7 +195,7 @@ def apply_mask_2_image(image, mask):
     else:
         height, width = mask.shape[:2]
     mask = mask.reshape(width, height, 1)
-    mask = tf.image.resize(mask / mask.max(), image.shape[:2], method='bilinear').numpy()
+    mask = tf.image.resize(mask / mask.max(), image.shape[:2], method="bilinear").numpy()
     return (mask * image).astype("uint8")
 
 
