@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 import os
+import sys
 import json
 import tensorflow as tf
 from tensorflow import keras
-from keras_cv_attention_models.imagenet import init_dataset
-from keras_cv_attention_models.imagenet import init_lr_scheduler, init_model, compile_model, train
+from keras_cv_attention_models.imagenet import (
+    compile_model,
+    init_global_strategy,
+    init_dataset,
+    init_lr_scheduler,
+    init_model,
+    train,
+)
 
 
 def parse_arguments(argv):
@@ -95,35 +102,11 @@ def parse_arguments(argv):
     return args
 
 
-if __name__ == "__main__":
-    import sys
-
-    args = parse_arguments(sys.argv[1:])
+def main(args):
     print(">>>> ALl args:", args)
+    # return None, None
 
-    gpus = tf.config.experimental.get_visible_devices("GPU")
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
-
-    if args.TPU:
-        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu="")
-        tf.config.experimental_connect_to_cluster(resolver)
-        # This is the TPU initialization code that has to be at the beginning.
-        tf.tpu.experimental.initialize_tpu_system(resolver)
-        print("All devices: ", tf.config.list_logical_devices("TPU"))
-        strategy = tf.distribute.TPUStrategy(resolver)
-    elif len(gpus) > 1:
-        strategy = tf.distribute.MirroredStrategy()
-    else:
-        strategy = tf.distribute.OneDeviceStrategy(device="/gpu:0")
-
-    if args.enable_float16:
-        policy = "mixed_bfloat16" if args.TPU else "mixed_float16"
-        keras.mixed_precision.set_global_policy(policy)
-
-    if args.seed is not None:
-        print(">>>> Set random seed:", args.seed)
-        tf.random.set_seed(args.seed)
+    strategy = init_global_strategy(args.enable_float16, args.seed, args.TPU)
 
     batch_size = args.batch_size * strategy.num_replicas_in_sync
     input_shape = (args.input_shape, args.input_shape, 3)
@@ -157,4 +140,10 @@ if __name__ == "__main__":
             model = compile_model(model, args.optimizer, lr_base, args.weight_decay, args.bce_threshold, args.label_smoothing)
         print(">>>> basic_save_name =", args.basic_save_name)
         # sys.exit()
-        train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name)
+        hist = train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name)
+    return model, hist
+
+
+if __name__ == "__main__":
+    args = parse_arguments(sys.argv[1:])
+    main(args)

@@ -1,7 +1,41 @@
 import os
 import keras_cv_attention_models
+import tensorflow as tf
 from tensorflow import keras
 from keras_cv_attention_models.imagenet import callbacks, losses
+
+GLOBAL_STRATEGY = None
+
+def init_global_strategy(enable_float16=True, seed=0, TPU=False):
+    global GLOBAL_STRATEGY
+    if GLOBAL_STRATEGY is not None:
+        return GLOBAL_STRATEGY
+
+    gpus = tf.config.experimental.get_visible_devices("GPU")
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+
+    if TPU:
+        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu="")
+        tf.config.experimental_connect_to_cluster(resolver)
+        # This is the TPU initialization code that has to be at the beginning.
+        tf.tpu.experimental.initialize_tpu_system(resolver)
+        print("All devices: ", tf.config.list_logical_devices("TPU"))
+        strategy = tf.distribute.TPUStrategy(resolver)
+    elif len(gpus) > 1:
+        strategy = tf.distribute.MirroredStrategy()
+    else:
+        strategy = tf.distribute.OneDeviceStrategy(device="/gpu:0")
+    GLOBAL_STRATEGY = strategy
+
+    if enable_float16:
+        policy = "mixed_bfloat16" if TPU else "mixed_float16"
+        keras.mixed_precision.set_global_policy(policy)
+
+    if seed is not None:
+        print(">>>> Set random seed:", seed)
+        tf.random.set_seed(seed)
+    return strategy
 
 
 def init_lr_scheduler(lr_base, lr_decay_steps, lr_min=1e-5, lr_decay_on_batch=False, lr_warmup=1e-4, lr_warmup_steps=0, lr_cooldown_steps=0):
@@ -76,13 +110,14 @@ def init_model(model, input_shape=(224, 224, 3), num_classes=1000, pretrained=No
 
 
 def compile_model(model, optimizer, lr_base, weight_decay, bce_threshold, label_smoothing):
-    optimizer = optimizer.lower()
-    if optimizer == "sgd" and weight_decay > 0:
-        # Add L2 regularizer
-        from keras_cv_attention_models import model_surgery
+    if isinstance(optimizer, str):
+        optimizer = optimizer.lower()
+        if optimizer == "sgd" and weight_decay > 0:
+            # Add L2 regularizer
+            from keras_cv_attention_models import model_surgery
 
-        model = model_surgery.add_l2_regularizer_2_model(model, weight_decay=weight_decay, apply_to_batch_normal=False)
-    optimizer = init_optimizer(optimizer, lr_base, weight_decay)
+            model = model_surgery.add_l2_regularizer_2_model(model, weight_decay=weight_decay, apply_to_batch_normal=False)
+        optimizer = init_optimizer(optimizer, lr_base, weight_decay)
     loss = init_loss(bce_threshold, label_smoothing)
     print(">>>> Loss: {}, Optimizer: {}".format(loss.__class__.__name__, optimizer.__class__.__name__))
     model.compile(optimizer=optimizer, loss=loss, metrics=["acc"])
@@ -121,7 +156,7 @@ def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoc
         wd_callback = callbacks.OptimizerWeightDecay(lr_base, wd_base, is_lr_on_batch=is_lr_on_batch)
         cur_callbacks.append(wd_callback)  # should be after lr_scheduler
 
-    compiled_model.fit(
+    return compiled_model.fit(
         train_dataset,
         epochs=epochs,
         verbose=1,
