@@ -156,7 +156,7 @@ def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoc
         wd_callback = callbacks.OptimizerWeightDecay(lr_base, wd_base, is_lr_on_batch=is_lr_on_batch)
         cur_callbacks.append(wd_callback)  # should be after lr_scheduler
 
-    return compiled_model.fit(
+    hist = compiled_model.fit(
         train_dataset,
         epochs=epochs,
         verbose=1,
@@ -167,3 +167,4 @@ def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoc
         use_multiprocessing=True,
         workers=8,
     )
+    return cur_callbacks[0].latest_save, hist

@@ -10,15 +10,23 @@ def progressive_train_parse_arguments(argv):
     import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--progressive_epochs", type=int, nargs="+", help="progressive epochs")
-    parser.add_argument("--progressive_batch_sizes", type=int, nargs="*", help="progressive batch sizes")
-    parser.add_argument("--progressive_input_shapes", type=int, nargs="*", help="progressive input shapes")
-    parser.add_argument("--progressive_dropouts", type=float, nargs="*", help="progressive dropouts")
-    parser.add_argument("--progressive_drop_connect_rates", type=float, nargs="*", help="progressive drop_connect_rates")
-    parser.add_argument("--progressive_magnitudes", type=int, nargs="*", help="progressive magnitudes")
-    parser.add_argument("--progressive_mixup_alphas", type=float, nargs="*", help="progressive mixup alphas")
-    parser.add_argument("--progressive_cutmix_alphas", type=float, nargs="*", help="progressive cutmix alphas")
-    parser.add_argument("--reuse_optimizer", action="store_true", help="reuse optimizer")
+    parser.add_argument(
+        "--progressive_epochs",
+        type=int,
+        nargs="+",
+        help="""Progressive epochs. Like `10 20 30` means training total 30 epochs, and 3 stages `[0, 10], [10, 20], [20, 30]`.
+                For other `progressive_` auguments, will reuse the last one if smaller length than `progressive_epochs`""",
+    )
+    parser.add_argument("--progressive_batch_sizes", type=int, nargs="*", help="Specify batch_size for each stage, or use `train_script.batch_size`")
+    parser.add_argument("--progressive_input_shapes", type=int, nargs="*", help="Specify input_shape for each stage, or use `train_script.input_shape`")
+    parser.add_argument("--progressive_dropouts", type=float, nargs="*", help="Specify model dropout for each stage, or use model default value")
+    parser.add_argument(
+        "--progressive_drop_connect_rates", type=float, nargs="*", help="Specify model drop_connect_rate for each stage, or use model default value"
+    )
+    parser.add_argument("--progressive_magnitudes", type=int, nargs="*", help="Specify magnitude for each stage, or use `train_script.magnitude`")
+    parser.add_argument("--progressive_mixup_alphas", type=float, nargs="*", help="Specify mixup_alpha for each stage, or use `train_script.mixup_alpha`")
+    parser.add_argument("--progressive_cutmix_alphas", type=float, nargs="*", help="Specify cutmix_alpha for each stage, or use `train_script.cutmix_alpha`")
+    parser.add_argument("--reuse_optimizer", action="store_true", help="If reuse optimizer from previous stage")
     if "-h" in argv or "--help" in argv:
         parser.print_help()
         print("")
@@ -59,14 +67,14 @@ if __name__ == "__main__":
 
         print("")
         cyan_print(
-            ">>>> [Stage {}] epochs: {}, batch_size: {}, input_shape: {}, magnitude: {}, dropout: {}".format(
-                stage, train_args.epochs, train_args.batch_size, train_args.input_shape, train_args.magnitude, dropout
+            ">>>> [Stage {}] epochs: {}, initial_epoch:{}, batch_size: {}, input_shape: {}, magnitude: {}, dropout: {}".format(
+                stage, train_args.epochs, train_args.initial_epoch, train_args.batch_size, train_args.input_shape, train_args.magnitude, dropout
             )
         )
-        model, _ = main(train_args)
+        model, latest_save, _ = main(train_args)
 
         train_args.initial_epoch += progressive_epochs[stage]
         train_args.restore_path = None
-        train_args.pretrained = train_args.basic_save_name + "_latest.h5"  # Build model and load weights
+        train_args.pretrained = latest_save  # Build model and load weights
         if progressive_args.reuse_optimizer:
             train_args.optimizer = model.optimizer

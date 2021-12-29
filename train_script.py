@@ -28,8 +28,15 @@ def parse_arguments(argv):
     parser.add_argument("-p", "--optimizer", type=str, default="LAMB", help="Optimizer name. One of [AdamW, LAMB, RMSprop, SGD, SGDW].")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
     parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history. None means a combination of parameters")
-    parser.add_argument("-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 file. Higher priority than model")
-    parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights. Mostly used is one of [imagenet, imagenet21k]")
+    parser.add_argument(
+        "-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 file by `keras.models.load_model` directly. Higher priority than model"
+    )
+    parser.add_argument(
+        "--pretrained",
+        type=str,
+        default=None,
+        help="If build model with pretrained weights. Mostly used is one of [imagenet, imagenet21k]. Or specified h5 file for build model -> restore weights",
+    )
     parser.add_argument(
         "--additional_model_kwargs", type=str, default=None, help="Json format model kwargs like '{\"drop_connect_rate\": 0.05}'. Note all these quote marks"
     )
@@ -140,8 +147,8 @@ def main(args):
             model = compile_model(model, args.optimizer, lr_base, args.weight_decay, args.bce_threshold, args.label_smoothing)
         print(">>>> basic_save_name =", args.basic_save_name)
         # sys.exit()
-        hist = train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name)
-    return model, hist
+        latest_save, hist = train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name)
+    return model, latest_save, hist
 
 
 if __name__ == "__main__":
