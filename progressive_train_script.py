@@ -3,7 +3,7 @@ import os
 import sys
 import json
 import tensorflow as tf
-from train_script import parse_arguments, main
+from train_script import parse_arguments, run_training_by_args
 
 
 def progressive_train_parse_arguments(argv):
@@ -71,7 +71,7 @@ if __name__ == "__main__":
                 stage, train_args.epochs, train_args.initial_epoch, train_args.batch_size, train_args.input_shape, train_args.magnitude, dropout
             )
         )
-        model, latest_save, _ = main(train_args)
+        model, latest_save, _ = run_training_by_args(train_args)
 
         train_args.initial_epoch += progressive_epochs[stage]
         train_args.restore_path = None

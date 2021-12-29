@@ -109,7 +109,7 @@ def parse_arguments(argv):
     return args
 
 
-def main(args):
+def run_training_by_args(args):
     print(">>>> ALl args:", args)
     # return None, None
 
@@ -153,4 +153,4 @@ def main(args):
 
 if __name__ == "__main__":
     args = parse_arguments(sys.argv[1:])
-    main(args)
+    run_training_by_args(args)
