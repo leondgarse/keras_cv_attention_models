@@ -154,6 +154,11 @@ def EfficientNetV2(
 
 
 def reload_model_weights(model, model_type, pretrained="imagenet"):
+    if isinstance(pretrained, str) and pretrained.endswith(".h5"):
+        print(">>>> Load pretrained from:", pretrained)
+        model.load_weights(pretrained, by_name=True, skip_mismatch=True)
+        return
+
     pretrained_dd = {"imagenet": "imagenet", "imagenet21k": "21k", "imagenet21k-ft1k": "21k-ft1k", "noisy_student": "noisy_student"}
     if not pretrained in pretrained_dd:
         print(">>>> No pretrained available, model will be randomly initialized")
