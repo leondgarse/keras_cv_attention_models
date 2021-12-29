@@ -22,7 +22,7 @@ def parse_arguments(argv):
         "-m", "--model", type=str, default="aotnet.AotNet50", help="Model name in format [sub_dir].[model_name]. Or name from keras.applications like MobileNet"
     )
     parser.add_argument("-b", "--batch_size", type=int, default=256, help="Batch size")
-    parser.add_argument("-e", "--epochs", type=int, default=0, help="Total epochs. Set 0 means using lr_decay_steps + lr_cooldown_steps")
+    parser.add_argument("-e", "--epochs", type=int, default=-1, help="Total epochs. Set -1 means using lr_decay_steps + lr_cooldown_steps")
     parser.add_argument("-d", "--data_name", type=str, default="imagenet2012", help="Dataset name from tensorflow_datasets like imagenet2012 cifar10")
     parser.add_argument("-p", "--optimizer", type=str, default="LAMB", help="Optimizer name. One of [AdamW, LAMB, RMSprop, SGD, SGDW].")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
@@ -34,7 +34,8 @@ def parse_arguments(argv):
         "--pretrained",
         type=str,
         default=None,
-        help="If build model with pretrained weights. Mostly used is one of [imagenet, imagenet21k]. Or specified h5 file for build model -> restore weights",
+        help="""If build model with pretrained weights. Mostly used is one of [imagenet, imagenet21k]. Or specified h5 file for build model -> restore weights.
+                This will drop model optimizer, used for `progressive_train_script.py`. Relatively, `restore_path` is used for restore from break point"""
     )
     parser.add_argument(
         "--additional_model_kwargs", type=str, default=None, help="Json format model kwargs like '{\"drop_connect_rate\": 0.05}'. Note all these quote marks"
@@ -137,7 +138,7 @@ def run_training_by_args(args):
     lr_scheduler, lr_total_epochs = init_lr_scheduler(
         lr_base, args.lr_decay_steps, args.lr_min, args.lr_decay_on_batch, args.lr_warmup, args.lr_warmup_steps, args.lr_cooldown_steps
     )
-    epochs = args.epochs if args.epochs != 0 else lr_total_epochs
+    epochs = args.epochs if args.epochs != -1 else lr_total_epochs
 
     with strategy.scope():
         # additional_model_kwargs = {"drop_connect_rate": 0.05}
