@@ -92,6 +92,10 @@ def init_loss(bce_threshold=1.0, label_smoothing=0):
 
 
 def init_model(model, input_shape=(224, 224, 3), num_classes=1000, pretrained=None, restore_path=None, **kwargs):
+    if isinstance(model, keras.models.Model):
+        print(">>> Got a keras.models.Model: {}, do nothing with it.".format(model.name))
+        return model
+
     print(">>> init_model kwargs:", kwargs)
     model = model.strip().split(".")
     if restore_path:

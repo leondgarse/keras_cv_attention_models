@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import sys
 import json
 import tensorflow as tf
 from tensorflow import keras
@@ -109,9 +108,10 @@ def parse_arguments(argv):
     return args
 
 
+# Wrapper this for reuse in progressive_train_script.py
 def run_training_by_args(args):
     print(">>>> ALl args:", args)
-    # return None, None
+    # return None, None, None
 
     strategy = init_global_strategy(args.enable_float16, args.seed, args.TPU)
 
@@ -146,11 +146,13 @@ def run_training_by_args(args):
         if model.optimizer is None:
             model = compile_model(model, args.optimizer, lr_base, args.weight_decay, args.bce_threshold, args.label_smoothing)
         print(">>>> basic_save_name =", args.basic_save_name)
-        # sys.exit()
+        # return None, None, None
         latest_save, hist = train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name)
     return model, latest_save, hist
 
 
 if __name__ == "__main__":
+    import sys
+
     args = parse_arguments(sys.argv[1:])
     run_training_by_args(args)
