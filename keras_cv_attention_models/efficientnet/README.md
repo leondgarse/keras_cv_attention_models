@@ -134,7 +134,7 @@
 
   - Progressive training settings for EfficientNetV2
 
-    |              | S min | S max | M min | M max | L min | M max |
+    |              | S min | S max | M min | M max | L min | L max |
     | ------------ | ----- | ----- | ----- | ----- | ----- | ----- |
     | Image Size   | 128   | 300   | 128   | 380   | 128   | 380   |
     | RandAugment  | 5     | 15    | 5     | 20    | 5     | 25    |
@@ -151,30 +151,4 @@
     - Mixup (Zhang et al., 2018)
     - Dropout (Srivastava et al., 2014)
     - and stochastic depth (Huang et al., 2016) with 0.8 survival probability
-## Progressive train test on cifar10
-  - [Colab efficientnetV2_basic_test.ipynb](https://colab.research.google.com/drive/1vmAEfF9tUgK2gkrS5qVftadTyUcX343D?usp=sharing)
-  ```py
-  from keras_cv_attention_models import efficientnet
-  from tensorflow import keras
-  from keras_cv_attention_models.efficientnet import progressive_train_test
-
-  model = efficientnet.EfficientNetV2S(input_shape=(None, None, 3), num_classes=10, classifier_activation='softmax', dropout=0.1)
-  model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
-
-  hhs = progressive_train_test.progressive_with_dropout_randaug(
-      model,
-      data_name="cifar10",
-      lr_scheduler=None,
-      total_epochs=36,
-      batch_size=64,
-      dropout_layer=-2,
-      target_shapes=[128, 160, 192, 224], # [128, 185, 242, 300] for final shape (300, 300)
-      dropouts=[0.1, 0.2, 0.3, 0.4],
-      magnitudes=[5, 8, 12, 15],
-  )
-
-  with open("history_ev2s_imagenet_progressive_224.json", "w") as ff:
-      json.dump(hhs, ff)
-  ```
-  ![](cifar10_progressive_train.svg)
 ***
