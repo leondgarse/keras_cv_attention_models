@@ -3,6 +3,7 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 import os
 from keras_cv_attention_models.attention_layers import (
+    activation_by_name,
     anti_alias_downsample,
     batchnorm_with_activation,
     conv2d_no_bias,
@@ -163,15 +164,15 @@ def aot_block(
     # print(f">>>> {inputs.shape = }, {shortcut if shortcut is None else shortcut.shape = }, {deep.shape = }, {filters = }, {strides = }")
     if preact:  # ResNetV2
         deep = drop_block(deep, drop_rate)
-        return keras.layers.Add(name=name + "add")([shortcut, deep]) if shortcut is not None else deep  # if no shortcut
+        return keras.layers.Add(name=name + "output")([shortcut, deep]) if shortcut is not None else deep  # if no shortcut
     else:
         if not (use_3x3_kernel and bn_after_attn):
             deep = batchnorm_with_activation(deep, activation=None, zero_gamma=True, name=name + "3_")
         deep = drop_block(deep, drop_rate)
         out = keras.layers.Add(name=name + "add")([shortcut, deep]) if shortcut is not None else deep  # if no shortcut
         if use_block_output_activation:
-            out = keras.layers.Activation(activation, name=name + "out")(out)
-        return out
+            out = activation_by_name(out, activation, name=name + "out_")
+        return keras.layers.Activation('linear', name=name + "output")(out)  # Identity, Just need a name here
 
 
 def aot_stack(

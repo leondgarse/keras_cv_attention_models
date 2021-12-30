@@ -103,7 +103,7 @@ def cmt_block(inputs, num_heads=4, sr_ratio=1, expansion=4, activation="gelu", d
     ffn = layer_norm(attn_out, name=name + "ffn_")
     ffn = inverted_residual_feed_forward(ffn, expansion=expansion, activation=activation, name=name + "ffn_")
     ffn = drop_block(ffn, drop_rate=drop_rate)
-    ffn_out = keras.layers.Add(name=name + "ffn_out")([attn_out, ffn])
+    ffn_out = keras.layers.Add(name=name + "ffn_output")([attn_out, ffn])
 
     return ffn_out
 

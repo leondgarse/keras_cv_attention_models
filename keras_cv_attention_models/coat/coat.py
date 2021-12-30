@@ -176,7 +176,7 @@ def __res_mlp_block__(cpe_out, crpe_out, mlp_ratio=4, drop_rate=0, activation="g
     nn = mlp_block(nn, nn.shape[-1] * mlp_ratio, activation=activation, name=name + "mlp_")
     if drop_rate > 0:
         nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop_2")(nn)
-    return keras.layers.Add()([cpe_crpe, nn])
+    return keras.layers.Add(name=name + "output")([cpe_crpe, nn])
 
 
 def serial_block(inputs, embed_dim, shared_cpe=None, shared_crpe=None, num_heads=8, mlp_ratio=4, drop_rate=0, activation="gelu", name=""):

@@ -43,7 +43,7 @@ def res_gated_mlp_block(inputs, channels_mlp_dim, drop_rate=0, activation="gelu"
     # Drop path
     if drop_rate > 0:
         nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop")(nn)
-    return keras.layers.Add(name=name + "out")([nn, inputs])
+    return keras.layers.Add(name=name + "output")([nn, inputs])
 
 
 def GMLP(

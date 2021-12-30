@@ -42,7 +42,7 @@ def mixer_block(inputs, tokens_mlp_dim, channels_mlp_dim, drop_rate=0, activatio
     channel_out = mlp_block(nn, channels_mlp_dim, activation, name=name and name + "channel_mixing/")
     if drop_rate > 0:
         channel_out = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name and name + "channel_drop")(channel_out)
-    return keras.layers.Add(name=name and name + "add_1")([channel_out, token_out])
+    return keras.layers.Add(name=name and name + "output")([channel_out, token_out])
 
 
 def MLPMixer(

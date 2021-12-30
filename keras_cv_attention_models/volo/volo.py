@@ -179,7 +179,7 @@ def attention_mlp_block(inputs, embed_dim, num_heads=1, mlp_ratio=3, attention_t
 
     if drop_rate > 0:
         nn_2 = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1, 1), name=name + "drop_2")(nn_2)
-    out = keras.layers.Add()([nn_1, nn_2])
+    out = keras.layers.Add(name=name + "output")([nn_1, nn_2])
 
     if attention_type == "class":
         out = tf.concat([out, inputs[:, 1:]], axis=1)

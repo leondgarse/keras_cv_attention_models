@@ -165,7 +165,7 @@ def block(
     if use_zero_init_gain:
         deep = ZeroInitGain(name=name + "deep_gain")(deep)
     deep *= alpha
-    return keras.layers.Add(name=name + "add")([shortcut, deep])
+    return keras.layers.Add(name=name + "output")([shortcut, deep])
 
 
 def stack(inputs, blocks, filters, betas=1.0, strides=2, stack_drop=0, block_params={}, name=""):

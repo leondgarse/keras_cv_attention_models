@@ -38,7 +38,7 @@ def quad_block(inputs, filters, groups_div=32, strides=1, conv_shortcut=False, e
     # print(">>>> shortcut:", shortcut.shape, "nn:", nn.shape)
     nn = drop_block(nn, drop_rate)
     nn = keras.layers.Add(name=name + "add")([shortcut, nn])
-    return keras.layers.Activation(activation, name=name + "out")(nn)
+    return keras.layers.Activation(activation, name=name + "output")(nn)
 
 
 def quad_stack(inputs, blocks, filters, groups_div, strides=2, expansion=4, extra_conv=False, stack_drop=0, activation="swish", name=""):

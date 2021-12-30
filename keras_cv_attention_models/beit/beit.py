@@ -157,7 +157,7 @@ def attention_mlp_block(inputs, embed_dim, gamma_init_value=0.1, mlp_ratio=4, dr
     nn = keras.layers.Dense(embed_dim, name=name + "mlp_dense_2")(nn)
     nn = ChannelAffine(use_bias=False, weight_init_value=gamma_init_value, name=name + "mlp_gamma")(nn)
     nn = drop_block(nn, drop_rate)
-    nn = keras.layers.Add(name=name + "mlp_out")([attn_out, nn])
+    nn = keras.layers.Add(name=name + "mlp_output")([attn_out, nn])
     return nn
 
 

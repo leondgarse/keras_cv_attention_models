@@ -14,6 +14,7 @@
   - **Model structure**
     - `V1` means `ResNetV1` like. Conv shortcut branch: `output = conv_shortcut(input) + block(prenorm(input))`. Identify branch: `output = input + block(prenorm(input))`.
     - `V2` means `ResNetV2` like. Conv shortcut branch: `prenorm_input = prenorm(input), output = conv_shortcut(prenorm_input) + block(prenorm_input)`. Identify branch: `output = input + block(prenorm(input))`.
+
     | Model       | stem                      | res_MBConv block      | res_mhsa block        | res_ffn block                 | Best top1 |
     | ----------- | ------------------------- | --------------------- | --------------------- | ----------------------------- | ------------- |
     | CoAtNet0_1  | conv,bn,gelu,conv         | prenorm bn + gelu, V2 | prenorm bn + gelu, V2 | bn,conv,gelu,conv             | 0.8010 |

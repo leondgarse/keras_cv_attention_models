@@ -62,7 +62,7 @@ def res_mlp_block(inputs, channels_mlp_dim, drop_rate=0, activation="gelu", name
     channel_out = ChannelAffine(use_bias=False, name=name + "gamma_2")(nn)
     if drop_rate > 0:
         channel_out = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "channel_drop")(channel_out)
-    nn = keras.layers.Add(name=name + "add_2")([channel_out, token_out])
+    nn = keras.layers.Add(name=name + "output")([channel_out, token_out])
     return nn
 
 
