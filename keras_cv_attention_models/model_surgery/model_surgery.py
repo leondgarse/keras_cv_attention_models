@@ -277,6 +277,22 @@ def get_actual_drop_connect_rates(model):
     return [ii.rate for ii in model.layers if isinstance(ii, keras.layers.Dropout) or isinstance(ii, DropConnect)]
 
 
+def get_pyramide_feture_layers(model):
+    """ Pick all stack output layers """
+    import re
+
+    dd = {}
+    for ii in model.layers:
+        matched = re.match("^stack_?(\\d+)_block_?(\\d+)_output$", ii.name)
+        if matched is not None:
+            cur_stack = "stack_" + matched[1] + "_output"
+            dd.update({cur_stack: ii})
+
+    """ Filter those have same downsample rate """
+    ee = {str(vv.output_shape[1]): vv for kk, vv in dd.items()}
+    return ee.values()
+
+
 def convert_to_mixed_float16(model, convert_batch_norm=False):
     policy = keras.mixed_precision.Policy("mixed_float16")
     policy_config = keras.utils.serialize_keras_object(policy)
