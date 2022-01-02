@@ -151,7 +151,7 @@ def make_gradcam_heatmap(model, img_array, layer_name, pred_index=None):
     return heatmap.numpy().astype("float32"), preds.numpy()
 
 
-def make_and_apply_gradcam_heatmap(model, image, layer_name, rescale_mode="tf", pred_index=None, alpha=0.4):
+def make_and_apply_gradcam_heatmap(model, image, layer_name, rescale_mode="tf", pred_index=None, alpha=0.4, plot=True):
     import matplotlib.cm as cm
     import matplotlib.pyplot as plt
 
@@ -172,12 +172,14 @@ def make_and_apply_gradcam_heatmap(model, image, layer_name, rescale_mode="tf", 
     superimposed_img = (jet_heatmap * alpha + image).numpy()
     superimposed_img /= superimposed_img.max()
 
-    print(">>>> Prediction:", tf.keras.applications.imagenet_utils.decode_predictions(preds)[0])
-    print(">>>> Top 5 prediction indexes:", np.argsort(preds[0])[-5:])
-    fig = plt.figure()
-    plt.imshow(superimposed_img)
-    plt.axis("off")
-    plt.tight_layout()
+    if model.output_shape[-1] == 1000:
+        print(">>>> Prediction:", tf.keras.applications.imagenet_utils.decode_predictions(preds)[0])
+        print(">>>> Top 5 prediction indexes:", np.argsort(preds[0])[-5:])
+    if plot:
+        fig = plt.figure()
+        plt.imshow(superimposed_img)
+        plt.axis("off")
+        plt.tight_layout()
     return superimposed_img, heatmap, preds
 
 
