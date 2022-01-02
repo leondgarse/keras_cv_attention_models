@@ -8,7 +8,7 @@
   ```py
   from keras_cv_attention_models import visualizing, resnest
   mm = resnest.ResNest50()
-  losses, filter_images, ax = visualizing.visualize_filters(mm, "stack3_block6_out", range(10))
+  losses, filter_images, ax = visualizing.visualize_filters(mm, "stack3_block6_output", range(10))
   print(f"{losses[0] = }, {filter_images[0].shape = }")
   # losses[0] = 23.950336, filter_images[0].shape = (174, 174, 3)
   ```
@@ -23,7 +23,7 @@
   img = plt.imread(keras.utils.get_file('aa.jpg', url))
   img = tf.expand_dims(tf.image.resize(img, mm.input_shape[1:-1]), 0)
   img = keras.applications.imagenet_utils.preprocess_input(img, mode='torch')
-  heatmap, preds = visualizing.make_gradcam_heatmap(mm, img, 'stack4_block3_out')
+  heatmap, preds = visualizing.make_gradcam_heatmap(mm, img, 'stack4_block3_output')
   print(f"{preds.shape = }, {heatmap.shape = }, {heatmap.max() = }, {heatmap.min() = }")
   # preds.shape = (1, 1000), heatmap.shape = (7, 7), heatmap.max() = 1.0, heatmap.min() = 0.0
   print(keras.applications.imagenet_utils.decode_predictions(preds)[0][0])
