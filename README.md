@@ -134,24 +134,26 @@
   ```sh
   # Normally training input_shape 224, magnitude 15, dropout 0.4
   CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py \
-          -m efficientnet.EfficientNetV2B0 --pretrained imagenet -d cifar10 --lr_decay_steps 36 -s effv2b0_cifar10_224_magnitude_15_dropout_0.4 \
-          --epochs -1 \
-          --input_shape 224 \
-          --additional_model_kwargs '{"dropout": 0.4}' \
-          --magnitude 15 \
-          --batch_size 240 \
-          --seed 0
+  -m efficientnet.EfficientNetV2B0 --pretrained imagenet -d cifar10 --lr_decay_steps 36 \
+  -s effv2b0_cifar10_224_magnitude_15_dropout_0.4 \
+  --epochs -1 \
+  --input_shape 224 \
+  --additional_model_kwargs '{"dropout": 0.4}' \
+  --magnitude 15 \
+  --batch_size 240 \
+  --seed 0 \
   ```
   ```sh
-  #  4 stages progressive training input_shape [128, 160, 192, 224]
+  # 4 stages progressive training input_shape [128, 160, 192, 224]
   CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./progressive_train_script.py \
-          -m efficientnet.EfficientNetV2B0 --pretrained imagenet -d cifar10 --lr_decay_steps 36 -s effv2b0_cifar10_224_progressive \
-          --progressive_epochs 10 20 30 -1 \
-          --progressive_input_shapes 128 160 192 224 \
-          --progressive_dropouts 0.1 0.2 0.3 0.4 \
-          --progressive_magnitudes 5 8 12 15 \
-          --progressive_batch_sizes 240 \
-          --seed 0
+  -m efficientnet.EfficientNetV2B0 --pretrained imagenet -d cifar10 --lr_decay_steps 36 \
+  -s effv2b0_cifar10_224_progressive \
+  --progressive_epochs 10 20 30 -1 \
+  --progressive_input_shapes 128 160 192 224 \
+  --progressive_dropouts 0.1 0.2 0.3 0.4 \
+  --progressive_magnitudes 5 8 12 15 \
+  --progressive_batch_sizes 240 \
+  --seed 0 \
   ```
   **Plot**
   ![progressive_cifar10](https://user-images.githubusercontent.com/5744524/147729276-fd9120dc-3692-4674-ad42-d197910bb588.png)
