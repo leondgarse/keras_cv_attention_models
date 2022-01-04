@@ -23,7 +23,7 @@
   img = plt.imread(keras.utils.get_file('aa.jpg', url))
   img = tf.expand_dims(tf.image.resize(img, mm.input_shape[1:-1]), 0)
   img = keras.applications.imagenet_utils.preprocess_input(img, mode='torch')
-  heatmap, preds = visualizing.make_gradcam_heatmap(mm, img, 'stack4_block3_output')
+  heatmap, preds = visualizing.make_gradcam_heatmap(mm, img, layer_name="auto")
   print(f"{preds.shape = }, {heatmap.shape = }, {heatmap.max() = }, {heatmap.min() = }")
   # preds.shape = (1, 1000), heatmap.shape = (7, 7), heatmap.max() = 1.0, heatmap.min() = 0.0
   print(keras.applications.imagenet_utils.decode_predictions(preds)[0][0])
@@ -40,9 +40,9 @@
   mm = resnest.ResNest50()
   url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
   img = plt.imread(keras.utils.get_file('aa.jpg', url))
-  superimposed_img, heatmap, preds = visualizing.make_and_apply_gradcam_heatmap(mm, img, "stack4_block3_out")
+  superimposed_img, heatmap, preds = visualizing.make_and_apply_gradcam_heatmap(mm, img, layer_name="auto")
   ```
-  ![](https://user-images.githubusercontent.com/5744524/147209399-9fe5f08f-c93e-4b0d-b1ed-f6f72f0a9a5b.png)
+  ![](https://user-images.githubusercontent.com/5744524/148047104-55b4156b-ba3b-415a-b7e0-e53bbb9e3253.png)
 ## Plot attention score maps
   - Visualizing model attention score maps, superimposed with specific image.
     ```py

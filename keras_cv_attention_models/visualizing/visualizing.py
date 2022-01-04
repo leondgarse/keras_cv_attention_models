@@ -120,9 +120,15 @@ def visualize_filters(model, layer_name, filter_index_list=[0], input_shape=None
     return losses, np.stack(filter_images), ax
 
 
-def make_gradcam_heatmap(model, img_array, layer_name, pred_index=None):
+def make_gradcam_heatmap(model, img_array, layer_name="auto", pred_index=None):
     # First, we create a model that maps the input image to the activations
     # of the last conv layer as well as the output predictions
+    if layer_name == "auto":
+        for ii in model.layers[::-1]:
+            if len(ii.output_shape) == 4:
+                layer_name = ii.name
+                print("Using layer_name:", layer_name)
+                break
     grad_model = tf.keras.models.Model(model.inputs[0], [model.get_layer(layer_name).output, model.output])
 
     # Then, we compute the gradient of the top predicted class for our input image
@@ -155,11 +161,12 @@ def make_gradcam_heatmap(model, img_array, layer_name, pred_index=None):
     return heatmap.numpy().astype("float32"), preds.numpy()
 
 
-def make_and_apply_gradcam_heatmap(model, image, layer_name, rescale_mode="tf", pred_index=None, alpha=0.4, plot=True):
+def make_and_apply_gradcam_heatmap(model, image, layer_name="auto", rescale_mode="tf", pred_index=None, alpha=0.8, plot=True):
     import matplotlib.cm as cm
     import matplotlib.pyplot as plt
 
-    image = image * 255 if image.max() < 2 else image   # Makse sure it's [0, 255]
+    image = np.array(image)
+    image = image * 255 if image.max() < 2 else image  # Makse sure it's [0, 255]
     processed_image = tf.expand_dims(tf.image.resize(image, model.input_shape[1:-1]), 0)
     processed_image = tf.keras.applications.imagenet_utils.preprocess_input(processed_image, mode=rescale_mode)
     heatmap, preds = make_gradcam_heatmap(model, processed_image, layer_name, pred_index=pred_index)
@@ -179,7 +186,7 @@ def make_and_apply_gradcam_heatmap(model, image, layer_name, rescale_mode="tf", 
 
     if model.output_shape[-1] == 1000:
         print(">>>> Prediction:", tf.keras.applications.imagenet_utils.decode_predictions(preds)[0])
-        print(">>>> Top 5 prediction indexes:", np.argsort(preds[0])[-5:])
+        print(">>>> Top 5 prediction indexes:", np.argsort(preds[0])[-5:][::-1])
     if plot:
         fig = plt.figure()
         plt.imshow(superimposed_img)

@@ -41,7 +41,7 @@ Grad-CAM class activation visualization. Obtain a class activation heatmap for a
 Args:
   model: keras model used for visualizing.
   img_array: preprocessed image can be directly used as model input.
-  layer_name: target layer name in model for visualizing.
+  layer_name: target layer name in model for visualizing. Default "auto" means using the last layer with `len(output_shape) == 4`.
   pred_index: specified visualizing prediction index. Used for image containing multi classes.
       Default `None` means using max probability one.
 
@@ -71,7 +71,7 @@ Grad-CAM class activation visualization. Create and plot a superimposed visualiz
 Args:
   model: keras model used for visualizing.
   image: Original image for visualizing.
-  layer_name: target layer name in model for visualizing.
+  layer_name: target layer name in model for visualizing. Default "auto" means using the last layer with `len(output_shape) == 4`.
   rescale_mode: image value rescale mode. Mostly used one is "tf" or "torch".
   pred_index: specified visualizing prediction index. Used for image containing multi classes.
       Default `None` means using max probability one.

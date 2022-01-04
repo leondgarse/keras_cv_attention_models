@@ -165,9 +165,9 @@
     mm = resnest.ResNest50()
     url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
     img = plt.imread(keras.utils.get_file('aa.jpg', url))
-    superimposed_img, heatmap, preds = visualizing.make_and_apply_gradcam_heatmap(mm, img, "stack4_block3_output")
+    superimposed_img, heatmap, preds = visualizing.make_and_apply_gradcam_heatmap(mm, img, layer_name="auto")
     ```
-    ![](https://user-images.githubusercontent.com/5744524/147209399-9fe5f08f-c93e-4b0d-b1ed-f6f72f0a9a5b.png)
+    ![](https://user-images.githubusercontent.com/5744524/148047104-55b4156b-ba3b-415a-b7e0-e53bbb9e3253.png)
   - **plot_attention_score_maps** is model attention score maps visualization.
     ```py
     from keras_cv_attention_models import visualizing, botnet
