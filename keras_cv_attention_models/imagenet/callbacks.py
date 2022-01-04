@@ -7,32 +7,41 @@ from tensorflow.keras import backend as K
 
 
 class CosineLrScheduler(keras.callbacks.Callback):
-    def __init__(self, lr_base, first_restart_step, steps_per_epoch=-1, m_mul=0.5, t_mul=2.0, lr_min=1e-5, lr_warmup=1e-4, warmup_steps=0, cooldown_steps=0):
+    def __init__(self, lr_base, first_restart_step, steps_per_epoch=-1, m_mul=0.5, t_mul=2.0, lr_min=1e-5, lr_warmup=-1, warmup_steps=0, cooldown_steps=0):
         super(CosineLrScheduler, self).__init__()
         self.lr_base, self.m_mul, self.t_mul, self.lr_min, self.steps_per_epoch = lr_base, m_mul, t_mul, lr_min, steps_per_epoch
-        self.first_restart_step, self.warmup_steps, self.cooldown_steps = first_restart_step, warmup_steps, cooldown_steps
+        self.first_restart_step, self.warmup_steps, self.cooldown_steps, self.lr_warmup = first_restart_step, warmup_steps, cooldown_steps, lr_warmup
         self.init_step_num, self.cur_epoch, self.is_cooldown_epoch, self.previous_cooldown_steps = 0, 0, False, 0
+        self.is_built = False
         if steps_per_epoch != -1:
             self.build(steps_per_epoch)
+            self.is_built = True
 
-    def build(self, steps_per_epoch):
-        self.steps_per_epoch = steps_per_epoch
-        self.warmup_steps *= steps_per_epoch
-        self.first_restart_step *= steps_per_epoch
+    def build(self, steps_per_epoch=-1):
+        if steps_per_epoch != -1:
+            self.steps_per_epoch = steps_per_epoch
+
+        self.first_restart_step *= self.steps_per_epoch
         alpha = self.lr_min / self.lr_base
         if self.lr_min == self.lr_base * self.m_mul:  # Without restart
             self.schedule = keras.experimental.CosineDecay(self.lr_base, self.first_restart_step, alpha=alpha)
             self.cooldown_steps_start, self.cooldown_steps_end = np.array([]), np.array([])
         else:
             self.schedule = keras.experimental.CosineDecayRestarts(self.lr_base, self.first_restart_step, t_mul=self.t_mul, m_mul=self.m_mul, alpha=alpha)
-            aa = [self.first_restart_step / steps_per_epoch * (self.t_mul ** ii) for ii in range(5)]
+            aa = [self.first_restart_step / self.steps_per_epoch * (self.t_mul ** ii) for ii in range(5)]
             self.cooldown_steps_start = np.array([int(sum(aa[:ii]) + self.cooldown_steps * (ii - 1)) for ii in range(1, 5)])
             self.cooldown_steps_end = np.array([ii + self.cooldown_steps for ii in self.cooldown_steps_start])
 
         if self.warmup_steps != 0:
-            self.warmup_lr_func = lambda ii: self.lr_min + (self.lr_base - self.lr_min) * ii / self.warmup_steps
+            self.warmup_steps *= self.steps_per_epoch
+            self.lr_warmup = self.lr_warmup if self.lr_warmup > 0 else self.lr_min
+            self.warmup_lr_func = lambda ii: self.lr_warmup + (self.lr_base - self.lr_warmup) * ii / self.warmup_steps
 
     def on_epoch_begin(self, cur_epoch, logs=None):
+        if not self.is_built:
+            self.build()
+            self.is_built = True
+
         self.init_step_num = int(self.steps_per_epoch * cur_epoch)
         self.cur_epoch = cur_epoch
 
@@ -62,7 +71,7 @@ class CosineLrScheduler(keras.callbacks.Callback):
 
 
 class CosineLrSchedulerEpoch(keras.callbacks.Callback):
-    def __init__(self, lr_base, first_restart_step, m_mul=0.5, t_mul=2.0, lr_min=1e-6, lr_warmup=1e-4, warmup_steps=0, cooldown_steps=0):
+    def __init__(self, lr_base, first_restart_step, m_mul=0.5, t_mul=2.0, lr_min=1e-6, lr_warmup=-1, warmup_steps=0, cooldown_steps=0):
         super(CosineLrSchedulerEpoch, self).__init__()
         self.warmup_steps, self.cooldown_steps, self.lr_min = warmup_steps, cooldown_steps, lr_min
 
@@ -76,7 +85,8 @@ class CosineLrSchedulerEpoch(keras.callbacks.Callback):
             self.cooldown_steps_end = np.array([ii + cooldown_steps for ii in self.cooldown_steps_start])
 
         if warmup_steps != 0:
-            self.warmup_lr_func = lambda ii: lr_warmup + (lr_base - lr_warmup) * ii / warmup_steps
+            self.lr_warmup = lr_warmup if lr_warmup > 0 else lr_min
+            self.warmup_lr_func = lambda ii: self.lr_warmup + (lr_base - self.lr_warmup) * ii / warmup_steps
 
     def on_epoch_begin(self, epoch, logs=None):
         if epoch < self.warmup_steps:
