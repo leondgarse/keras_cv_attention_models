@@ -17,7 +17,8 @@ from keras_cv_attention_models.attention_layers import (
     output_block,
 )
 from keras_cv_attention_models import attention_layers
-from keras_cv_attention_models.download_and_load import reload_model_weights
+
+# from keras_cv_attention_models.download_and_load import reload_model_weights
 
 DEFAULT_PARAMS = {
     "bot": {"num_heads": 4, "relative": True, "out_bias": False},
@@ -173,7 +174,7 @@ def aot_block(
         out = keras.layers.Add(name=name + "add")([shortcut, deep]) if shortcut is not None else deep  # if no shortcut
         if use_block_output_activation:
             out = activation_by_name(out, activation, name=name + "out_")
-        return keras.layers.Activation('linear', name=name + "output")(out)  # Identity, Just need a name here
+        return keras.layers.Activation("linear", name=name + "output")(out)  # Identity, Just need a name here
 
 
 def aot_stack(
@@ -301,7 +302,7 @@ def AotNet(
 
     nn = output_block(nn, output_num_features, activation, num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
     model = keras.models.Model(inputs, nn, name=model_name)
-    reload_model_weights(model, pretrained_dict={}, sub_release="aotnet", input_shape=input_shape, pretrained=pretrained)
+    # reload_model_weights(model, pretrained_dict={}, sub_release="aotnet", input_shape=input_shape, pretrained=pretrained)
     return model
 
 
