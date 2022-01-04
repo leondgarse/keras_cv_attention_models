@@ -16,6 +16,7 @@ from keras_cv_attention_models.attention_layers import (
     tiered_stem,
     output_block,
 )
+from keras_cv_attention_models import attention_layers
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 DEFAULT_PARAMS = {
