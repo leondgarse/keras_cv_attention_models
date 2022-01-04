@@ -5,7 +5,11 @@ import tensorflow as tf
 def __compute_loss__(feature_extractor, input_image, filter_index):
     activation = feature_extractor(input_image)
     # We avoid border artifacts by only involving non-border pixels in the loss.
-    filter_activation = activation[:, 2:-2, 2:-2, filter_index]
+    # filter_activation = activation[:, 2:-2, 2:-2, filter_index]
+    if len(activation.shape) == 4:
+        filter_activation = activation[:, 2:-2, 2:-2, filter_index]
+    else:
+        filter_activation = activation[..., filter_index]
     return tf.reduce_mean(filter_activation)
 
 
@@ -155,6 +159,7 @@ def make_and_apply_gradcam_heatmap(model, image, layer_name, rescale_mode="tf", 
     import matplotlib.cm as cm
     import matplotlib.pyplot as plt
 
+    image = image * 255 if image.max() < 2 else image   # Makse sure it's [0, 255]
     processed_image = tf.expand_dims(tf.image.resize(image, model.input_shape[1:-1]), 0)
     processed_image = tf.keras.applications.imagenet_utils.preprocess_input(processed_image, mode=rescale_mode)
     heatmap, preds = make_gradcam_heatmap(model, processed_image, layer_name, pred_index=pred_index)
@@ -168,7 +173,7 @@ def make_and_apply_gradcam_heatmap(model, image, layer_name, rescale_mode="tf", 
     jet_heatmap = tf.image.resize(jet_heatmap, (image.shape[:2]))  # [0, 1]
 
     # Superimpose the heatmap on original image
-    image = image.astype("float32") / 255 if image.max() > 127 else image
+    image = image.astype("float32") / 255
     superimposed_img = (jet_heatmap * alpha + image).numpy()
     superimposed_img /= superimposed_img.max()
 
@@ -280,8 +285,8 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
         print(">>>> Attention type: coatnet")
         mask = [np.array(ii)[0].mean((0)) for ii in attn_scores if len(ii.shape) == 4][::-1]
         cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], "max") for ii in range(1, len(mask))]
-        cum_mask = [matmul_prod(cum_mask[: ii + 1]).max(0) for ii in range(len(cum_mask))]
-        mask = [ii.max(0) for ii in mask]
+        cum_mask = [matmul_prod(cum_mask[: ii + 1]).mean(0) for ii in range(len(cum_mask))]
+        mask = [ii.mean(0) for ii in mask]
     elif check_type_is("halo"):
         # halo attn_score [batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]
         print(">>>> Attention type: halo")

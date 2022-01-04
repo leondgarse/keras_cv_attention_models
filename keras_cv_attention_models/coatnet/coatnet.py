@@ -188,7 +188,7 @@ def CoAtNet(
 
 
 def CoAtNetT(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", **kwargs):
-    num_blocks = [2, 3, 5, 2]
+    num_blocks = [3, 4, 6, 3]
     out_channels = [64, 128, 256, 512]
     stem_width = 64
     return CoAtNet(**locals(), model_name="coatnett", **kwargs)

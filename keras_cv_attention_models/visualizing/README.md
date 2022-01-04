@@ -72,9 +72,9 @@
     ![](https://user-images.githubusercontent.com/5744524/147209558-2c1c1590-20d6-4c09-9686-11521ac51b37.png)
   - **CoAtNet** model attention score format `[batch, num_heads, hh * ww, hh * ww]`. Similar with `BotNet`, but using `max_pooling`.
     ```py
-    _ = visualizing.plot_attention_score_maps(coatnet.CoAtNet0(input_shape=(160, 160, 3)), imm)
+    _ = visualizing.plot_attention_score_maps(coatnet.CoAtNet0(input_shape=(160, 160, 3)), imm, rescale_mode='torch')
     ```
-    ![](https://user-images.githubusercontent.com/5744524/147530769-ec31dbc5-5f12-4ee1-b625-03f969ee2e0d.png)
+    ![](https://user-images.githubusercontent.com/5744524/148001256-8d123cef-0ced-491b-ae23-d59ecec418c3.png)
   - **VIT** model attention score format is same with `BEIT`. Plot by extract attention scores and specify attn_type.
     ```py
     from vit_keras import vit, layers

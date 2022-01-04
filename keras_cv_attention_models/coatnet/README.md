@@ -29,6 +29,21 @@
     Changing evaluating input_shape for `CoATNet` is not very helpful.
   - **Plot**
     ![coatnet0_1](https://user-images.githubusercontent.com/5744524/147998495-b081c0f8-b0e9-43f3-b8e7-fd910c87c03b.png)
+## Usage
+  ```py
+  from keras_cv_attention_models import coatnet
+
+  # Only CoAtNet0 pre-trained.
+  mm = coatnet.CoAtNet0()
+
+  # Run prediction
+  import tensorflow as tf
+  from skimage.data import chelsea
+  imm = tf.keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
+  pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
+  print(tf.keras.applications.imagenet_utils.decode_predictions(pred)[0])
+  # [('n02124075', 'Egyptian_cat', 0.9886845), ('n02123159', 'tiger_cat', 0.00742623), ('n02123045', 'tabby', 0.0025222537), ... ]
+  ```
 ## Models
   | Model                               | Params | Image resolution | Top1 Acc | ImageNet |
   | ----------------------------------- | ------ | ---------------- | -------- | -------- |
@@ -65,22 +80,7 @@
   | CoAtNet6 | 512              | 1.47B           | 1.340B              | 90.45    |
   | CoAtNet7 | 512              | 2.44B           | 2.422B              | 90.88    |
 
-## Usage
-  ```py
-  from keras_cv_attention_models import coatnet
-
-  # Only CoAtNet0 pre-trained.
-  mm = coatnet.CoAtNet0()
-
-  # Run prediction
-  import tensorflow as tf
-  from skimage.data import chelsea
-  imm = tf.keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
-  pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
-  print(tf.keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.9886845), ('n02123159', 'tiger_cat', 0.00742623), ('n02123045', 'tabby', 0.0025222537), ... ]
-  ```
-## Article detial info
+## Article detail info
   - L denotes the number of blocks and D denotes the hidden dimension (#channels).
   - For all Conv and MBConv blocks, we always use the kernel size 3.
   - For all Transformer blocks, we set the size of each attention head to 32, following [22].
