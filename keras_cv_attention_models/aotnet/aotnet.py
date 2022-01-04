@@ -16,7 +16,7 @@ from keras_cv_attention_models.attention_layers import (
     tiered_stem,
     output_block,
 )
-from keras_cv_attention_models import attention_layers
+from keras_cv_attention_models.download_and_load import reload_model_weights
 
 DEFAULT_PARAMS = {
     "bot": {"num_heads": 4, "relative": True, "out_bias": False},
@@ -300,6 +300,7 @@ def AotNet(
 
     nn = output_block(nn, output_num_features, activation, num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
     model = keras.models.Model(inputs, nn, name=model_name)
+    reload_model_weights(model, pretrained_dict={}, sub_release="aotnet", input_shape=input_shape, pretrained=pretrained)
     return model
 
 
