@@ -6,6 +6,7 @@ from keras_cv_attention_models.imagenet import callbacks, losses
 
 GLOBAL_STRATEGY = None
 
+
 def init_global_strategy(enable_float16=True, seed=0, TPU=False):
     global GLOBAL_STRATEGY
     if GLOBAL_STRATEGY is not None:
@@ -97,19 +98,24 @@ def init_model(model, input_shape=(224, 224, 3), num_classes=1000, pretrained=No
         return model
 
     print(">>> init_model kwargs:", kwargs)
-    model = model.strip().split(".")
+    model_name = model.strip().split(".")
     if restore_path:
         import tensorflow_addons as tfa
 
         print(">>>> Restore model from:", restore_path)
         model = keras.models.load_model(restore_path)
     else:
-        if len(model) == 1:
-            model = getattr(keras.applications, model[0])(classes=num_classes, weights=pretrained, input_shape=input_shape, **kwargs)
+        if len(model_name) == 1:
+            model = getattr(keras.applications, model_name[0])(classes=num_classes, weights=pretrained, input_shape=input_shape, **kwargs)
         else:
-            model_class = getattr(getattr(keras_cv_attention_models, model[0]), model[1])
+            model_class = getattr(getattr(keras_cv_attention_models, model_name[0]), model_name[1])
             model = model_class(num_classes=num_classes, input_shape=input_shape, pretrained=pretrained, **kwargs)
         print(">>>> Built model name:", model.name)
+
+    if model_name[0] == "aotnet" and pretrained is not None and pretrained.endswith(".h5"):
+        # Currently aotnet not loading from pretrained...
+        print(">>>> Load pretrained from:", pretrained)
+        model.load_weights(pretrained, by_name=True, skip_mismatch=True)
     return model
 
 
