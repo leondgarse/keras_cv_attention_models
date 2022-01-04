@@ -14,7 +14,7 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
 
-PRETRAINED_DICT = {"coatnet0": {"imagenet": "852d3768550fd9a22cc2dda97f9e353b"}}
+PRETRAINED_DICT = {"coatnet0": {"imagenet": "030e0e79b0624ab6511a1213b3f5d814"}}
 
 
 def mhsa_with_multi_head_relative_position_embedding(
@@ -66,13 +66,12 @@ def mhsa_with_multi_head_relative_position_embedding(
 
 def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion=4, se_ratio=0, drop_rate=0, activation="gelu", name=""):
     """ x ← Proj(Pool(x)) + Conv (DepthConv (Conv (Norm(x), stride = 2)))) """
-    # preact
-    preact = batchnorm_with_activation(inputs, activation=activation, zero_gamma=False, name=name + "preact_")
+    preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, name=name + "preact_")
 
     if conv_short_cut:
         # Avg or Max pool
-        # shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
-        shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
+        shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
+        # shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
         # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
         # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
         shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shortcut_")
@@ -91,36 +90,32 @@ def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion
     nn = conv2d_no_bias(nn, output_channel, 1, strides=1, padding="same", name=name + "MB_pw_")
     # nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "MB_pw_")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
-    return keras.layers.Add()([shortcut, nn])
+    return keras.layers.Add(name=name + "output")([shortcut, nn])
 
 
 def res_ffn(inputs, expansion=4, kernel_size=1, drop_rate=0, activation="gelu", name=""):
     """ x ← x + Module (Norm(x)), similar with typical MLP block """
-    # preact
-    preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, name=name + "preact_")
-    # preact = layer_norm(inputs, name=name + "preact_")
+    # preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, name=name + "preact_")
+    preact = layer_norm(inputs, name=name + "preact_")
 
     input_channel = inputs.shape[-1]
-    nn = conv2d_no_bias(preact, input_channel * expansion, kernel_size, use_bias=False, name=name + "1_")
+    nn = conv2d_no_bias(preact, input_channel * expansion, kernel_size, name=name + "1_")
     nn = activation_by_name(nn, activation=activation, name=name)
-    # nn = batchnorm_with_activation(nn, activation=activation, name=name + "ffn_")
-    nn = conv2d_no_bias(nn, input_channel, kernel_size, use_bias=False, name=name + "2_")
-    # nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "3_")
+    nn = conv2d_no_bias(nn, input_channel, kernel_size, name=name + "2_")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
-    # return keras.layers.Add()([preact, nn])
-    return keras.layers.Add()([inputs, nn])
+    # return keras.layers.Add(name=name + "output")([preact, nn])
+    return keras.layers.Add(name=name + "output")([inputs, nn])
 
 
 def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, head_dimension=32, drop_rate=0, activation="gelu", name=""):
     """ x ← Proj(Pool(x)) + Attention (Pool(Norm(x))) """
-    # preact
-    preact = batchnorm_with_activation(inputs, activation=activation, zero_gamma=False, name=name + "preact_")
-    # preact = layer_norm(inputs, name=name + "preact_")
+    # preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, name=name + "preact_")
+    preact = layer_norm(inputs, name=name + "preact_")
 
     if conv_short_cut:
         # Avg or Max pool
-        # shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
-        shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
+        shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
+        # shortcut = keras.layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
         # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
         # shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(preact) if strides > 1 else preact
         shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shortcut_")
@@ -136,7 +131,7 @@ def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, head_dimens
     nn = mhsa_with_multi_head_relative_position_embedding(nn, num_heads=num_heads, key_dim=head_dimension, out_shape=output_channel, name=name + "mhsa_")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
     # print(f"{name = }, {inputs.shape = }, {shortcut.shape = }, {nn.shape = }")
-    return keras.layers.Add()([shortcut, nn])
+    return keras.layers.Add(name=name + "output")([shortcut, nn])
 
 
 def CoAtNet(
@@ -174,7 +169,7 @@ def CoAtNet(
         stack_se_ratio = se_ratio[stack_id] if isinstance(se_ratio, (list, tuple)) else se_ratio
         stack_strides = strides[stack_id] if isinstance(strides, (list, tuple)) else strides
         for block_id in range(num_block):
-            name = "stage_{}_block_{}_".format(stack_id + 1, block_id + 1)
+            name = "stack_{}_block_{}_".format(stack_id + 1, block_id + 1)
             stride = stack_strides if block_id == 0 else 1
             conv_short_cut = True if block_id == 0 else False
             block_se_ratio = stack_se_ratio[block_id] if isinstance(stack_se_ratio, (list, tuple)) else stack_se_ratio
@@ -192,49 +187,50 @@ def CoAtNet(
     return model
 
 
-def CoAtNetT(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
+def CoAtNetT(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 3, 5, 2]
     out_channels = [64, 128, 256, 512]
     stem_width = 64
     return CoAtNet(**locals(), model_name="coatnett", **kwargs)
 
 
-def CoAtNet0(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def CoAtNet0(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 3, 5, 2]
     out_channels = [96, 192, 384, 768]
     stem_width = 64
+
     return CoAtNet(**locals(), model_name="coatnet0", **kwargs)
 
 
-def CoAtNet1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
+def CoAtNet1(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.3, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 6, 14, 2]
     out_channels = [96, 192, 384, 768]
     stem_width = 64
     return CoAtNet(**locals(), model_name="coatnet1", **kwargs)
 
 
-def CoAtNet2(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
+def CoAtNet2(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.5, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 6, 14, 2]
     out_channels = [128, 256, 512, 1024]
     stem_width = 128
     return CoAtNet(**locals(), model_name="coatnet2", **kwargs)
 
 
-def CoAtNet3(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
+def CoAtNet3(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.7, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 6, 14, 2]
     out_channels = [192, 384, 768, 1536]
     stem_width = 192
     return CoAtNet(**locals(), model_name="coatnet3", **kwargs)
 
 
-def CoAtNet4(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
+def CoAtNet4(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.2, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 12, 28, 2]
     out_channels = [192, 384, 768, 1536]
     stem_width = 192
     return CoAtNet(**locals(), model_name="coatnet4", **kwargs)
 
 
-def CoAtNet5(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
+def CoAtNet5(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.2, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 12, 28, 2]
     out_channels = [256, 512, 1280, 2048]
     stem_width = 192
@@ -242,7 +238,7 @@ def CoAtNet5(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cla
     return CoAtNet(**locals(), model_name="coatnet5", **kwargs)
 
 
-def CoAtNet6(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
+def CoAtNet6(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.2, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 4, 8, 42, 2]
     out_channels = [192, 384, 768, 1536, 2048]
     block_types = ["conv", "conv", "conv", "transfrom", "transform"]
@@ -252,7 +248,7 @@ def CoAtNet6(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cla
     return CoAtNet(**locals(), model_name="coatnet6", **kwargs)
 
 
-def CoAtNet7(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", **kwargs):
+def CoAtNet7(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.2, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 4, 8, 42, 2]
     out_channels = [256, 512, 1024, 2048, 3072]
     block_types = ["conv", "conv", "conv", "transfrom", "transform"]
