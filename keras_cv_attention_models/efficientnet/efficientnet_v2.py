@@ -79,7 +79,7 @@ def MBConv(inputs, output_channel, stride, expand_ratio, shortcut, kernel_size=3
         nn = drop_block(nn, drop_rate, name=name + "drop")
         return keras.layers.Add(name=name + "output")([inputs, nn])
     else:
-        return keras.layers.Activation('linear', name=name + "output")(nn)  # Identity, Just need a name here
+        return keras.layers.Activation("linear", name=name + "output")(nn)  # Identity, Just need a name here
 
 
 def EfficientNetV2(

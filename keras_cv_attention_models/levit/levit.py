@@ -150,7 +150,7 @@ def attention_mlp_stack(inputs, out_channel, num_heads, depth, key_dim, attn_rat
         nn = mhsa_with_multi_head_position_and_strides(nn, out_channel, ds_num_heads, key_dim, ds_attn_ratio, strides, name=block_name)
         if mlp_ratio > 0:
             nn = res_mlp_block(nn, mlp_ratio, drop_rate, activation=activation, name=block_name + "mlp_")
-    return keras.layers.Activation('linear', name=name + "output")(nn)  # Identity, Just need a name here
+    return keras.layers.Activation("linear", name=name + "output")(nn)  # Identity, Just need a name here
 
 
 def patch_stem(inputs, stem_width, activation="hard_swish", name=""):
