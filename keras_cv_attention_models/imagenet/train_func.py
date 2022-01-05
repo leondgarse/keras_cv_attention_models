@@ -97,7 +97,7 @@ def init_model(model, input_shape=(224, 224, 3), num_classes=1000, pretrained=No
         print(">>> Got a keras.models.Model: {}, do nothing with it.".format(model.name))
         return model
 
-    print(">>> init_model kwargs:", kwargs)
+    print(">>>> init_model kwargs:", kwargs)
     model_name = model.strip().split(".")
     if restore_path:
         import tensorflow_addons as tfa

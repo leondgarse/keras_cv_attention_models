@@ -161,18 +161,16 @@
   - [Visualizing](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/visualizing) is for visualizing convnet filters or attention map scores.
   - **make_and_apply_gradcam_heatmap** is for Grad-CAM class activation visualization.
     ```py
-    from keras_cv_attention_models import visualizing, resnest
+    from keras_cv_attention_models import visualizing, test_images, resnest
     mm = resnest.ResNest50()
-    url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
-    img = plt.imread(keras.utils.get_file('aa.jpg', url))
+    img = test_images.dog()
     superimposed_img, heatmap, preds = visualizing.make_and_apply_gradcam_heatmap(mm, img, layer_name="auto")
     ```
-    ![](https://user-images.githubusercontent.com/5744524/148047104-55b4156b-ba3b-415a-b7e0-e53bbb9e3253.png)
+    ![](https://user-images.githubusercontent.com/5744524/148199374-4944800e-a1fb-4df2-b9ba-43ce3dde88f2.png)
   - **plot_attention_score_maps** is model attention score maps visualization.
     ```py
-    from keras_cv_attention_models import visualizing, botnet
-    url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
-    img = plt.imread(keras.utils.get_file('aa.jpg', url))
+    from keras_cv_attention_models import visualizing, test_images, botnet
+    img = test_images.dog()
     _ = visualizing.plot_attention_score_maps(botnet.BotNetSE33T(), img)
     ```
     ![](https://user-images.githubusercontent.com/5744524/147209511-f5194d73-9e4c-457e-a763-45a4025f452b.png)

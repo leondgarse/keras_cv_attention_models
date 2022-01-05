@@ -44,6 +44,7 @@ Args:
   layer_name: target layer name in model for visualizing. Default "auto" means using the last layer with `len(output_shape) == 4`.
   pred_index: specified visualizing prediction index. Used for image containing multi classes.
       Default `None` means using max probability one.
+  use_v2: set False for a simple version, not a big difference.
 
 Returns:
   heatmap, preds
@@ -76,6 +77,8 @@ Args:
   pred_index: specified visualizing prediction index. Used for image containing multi classes.
       Default `None` means using max probability one.
   alpha: heatmap superimposed alpha over image.
+  use_v2: set False for a simple version, not a big difference.
+  plot: set False to disable plot image.
 
 Returns:
   superimposed_img, heatmap, preds

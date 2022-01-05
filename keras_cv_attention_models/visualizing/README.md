@@ -17,10 +17,9 @@
   - Grad-CAM class activation visualization. Obtain a class activation heatmap for an image classification model. Copied and modified from: [keras.io/examples Grad-CAM class activation visualization](https://keras.io/examples/vision/grad_cam/).
   - Note: models using `Conv2D` with `groups != 1` not supporting on CPU. Needs backward steps.
   ```py
-  from keras_cv_attention_models import visualizing, resnest
+  from keras_cv_attention_models import visualizing, test_images, resnest
   mm = resnest.ResNest50()
-  url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
-  img = plt.imread(keras.utils.get_file('aa.jpg', url))
+  img = test_images.dog()
   img = tf.expand_dims(tf.image.resize(img, mm.input_shape[1:-1]), 0)
   img = keras.applications.imagenet_utils.preprocess_input(img, mode='torch')
   heatmap, preds = visualizing.make_gradcam_heatmap(mm, img, layer_name="auto")
@@ -31,24 +30,29 @@
 
   plt.imshow(heatmap)
   ```
-  ![](https://user-images.githubusercontent.com/5744524/147209356-2a32f930-4af9-4b8f-ad2f-1b91acbb4bc3.png)
+  ![](https://user-images.githubusercontent.com/5744524/148199420-539f259e-f845-488f-87e1-366ff93c65dc.png)
 ## Make and apply gradcam heatmap
   - Grad-CAM class activation visualization. Create and plot a superimposed visualization heatmap on image. Copied and modified from: [keras.io/examples Grad-CAM class activation visualization](https://keras.io/examples/vision/grad_cam/).
   - Note: models using `Conv2D` with `groups != 1` not supporting on CPU. Needs backward steps.
   ```py
-  from keras_cv_attention_models import visualizing, resnest
+  from keras_cv_attention_models import visualizing, test_images, resnest
   mm = resnest.ResNest50()
-  url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
-  img = plt.imread(keras.utils.get_file('aa.jpg', url))
+  img = test_images.dog_cat()
   superimposed_img, heatmap, preds = visualizing.make_and_apply_gradcam_heatmap(mm, img, layer_name="auto")
+  # >>>> Prediction: [('n02106662', 'German_shepherd', 0.83640593), ('n02123045', 'tabby', 0.016732752), ...]
+  # >>>> Top 5 prediction indexes: [235 281 282 285 225]
   ```
-  ![](https://user-images.githubusercontent.com/5744524/148047104-55b4156b-ba3b-415a-b7e0-e53bbb9e3253.png)
+  ![](https://user-images.githubusercontent.com/5744524/148197367-73cb1f9b-3edf-4e95-83e1-4a77d1f4a9fd.png)
+  ```py
+  # Plot cat heatmap
+  _ = visualizing.make_and_apply_gradcam_heatmap(mm, img, layer_name="auto", pred_index=281)
+  ```
+  ![](https://user-images.githubusercontent.com/5744524/148199220-8120cd4c-132a-4ca4-8694-e6c550edbb13.png)
 ## Plot attention score maps
   - Visualizing model attention score maps, superimposed with specific image.
     ```py
-    from keras_cv_attention_models import botnet, halonet, beit, levit, coatnet, visualizing
-    url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
-    imm = plt.imread(keras.utils.get_file('aa.jpg', url))
+    from keras_cv_attention_models import visualizing, test_images, botnet, halonet, beit, levit, coatnet
+    imm = test_images.dog()
     ```
   - **BEIT** model attention score format `[batch, num_heads, cls_token + hh * ww, cls_token + hh * ww]`.
     ```py
@@ -62,7 +66,7 @@
     ![](https://user-images.githubusercontent.com/5744524/147209475-fa4dfdbd-9a3a-4568-b139-85389cbd612e.png)
   - **BotNet** model attention score format `[batch, num_heads, hh * ww, hh * ww]`.
     ```py
-    _ = visualizing.plot_attention_score_maps(botnet.BotNetSE33T(), imm)
+    _ = visualizing.plot_attention_score_maps(botnet.BotNetSE33T(), imm, rescale_mode='torch')
     ```
     ![](https://user-images.githubusercontent.com/5744524/147209511-f5194d73-9e4c-457e-a763-45a4025f452b.png)
   - **HaloNet** model attention score format `[batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]`. **This one seems not right**.

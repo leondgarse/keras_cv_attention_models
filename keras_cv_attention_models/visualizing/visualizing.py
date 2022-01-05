@@ -120,12 +120,13 @@ def visualize_filters(model, layer_name, filter_index_list=[0], input_shape=None
     return losses, np.stack(filter_images), ax
 
 
-def make_gradcam_heatmap(model, img_array, layer_name="auto", pred_index=None):
+def make_gradcam_heatmap(model, img_array, layer_name="auto", pred_index=None, use_v2=True):
     # First, we create a model that maps the input image to the activations
     # of the last conv layer as well as the output predictions
     if layer_name == "auto":
         for ii in model.layers[::-1]:
             if len(ii.output_shape) == 4:
+                # if isinstance(ii, tf.keras.layers.Conv2D):
                 layer_name = ii.name
                 print("Using layer_name:", layer_name)
                 break
@@ -143,15 +144,33 @@ def make_gradcam_heatmap(model, img_array, layer_name="auto", pred_index=None):
     # with regard to the output feature map of the last conv layer
     grads = tape.gradient(class_channel, last_conv_layer_output)
 
-    # This is a vector where each entry is the mean intensity of the gradient
-    # over a specific feature map channel
-    pooled_grads = tf.reduce_mean(grads, axis=list(range(0, len(grads.shape) - 1)))
+    if use_v2:
+        # gradcam_plus_plus from: https://github.com/keisen/tf-keras-vis/blob/master/tf_keras_vis/gradcam_plus_plus.py
+        score_values = tf.reduce_sum(tf.math.exp(class_channel))
+        first_derivative = score_values * grads
+        second_derivative = first_derivative * grads
+        third_derivative = second_derivative * grads
+
+        reduction_axis = list(range(1, len(last_conv_layer_output.shape) - 1))
+        global_sum = tf.reduce_sum(last_conv_layer_output, axis=reduction_axis, keepdims=True)
+        alpha_denom = second_derivative * 2.0 + third_derivative * global_sum
+        alpha_denom = tf.where(second_derivative == 0.0, tf.ones_like(alpha_denom), alpha_denom)
+        alphas = second_derivative / alpha_denom
+
+        alpha_norm_constant = tf.reduce_sum(alphas, axis=reduction_axis, keepdims=True)
+        alpha_norm_constant = tf.where(alpha_norm_constant == 0.0, tf.ones_like(alpha_norm_constant), alpha_norm_constant)
+        alphas = alphas / alpha_norm_constant
+
+        deep_linearization_weights = first_derivative * alphas
+        deep_linearization_weights = tf.reduce_sum(deep_linearization_weights, axis=reduction_axis)
+    else:
+        # This is a vector where each entry is the mean intensity of the gradient over a specific feature map channel
+        deep_linearization_weights = tf.reduce_mean(grads, axis=list(range(0, len(grads.shape) - 1)))
 
     # We multiply each channel in the feature map array
     # by "how important this channel is" with regard to the top predicted class
     # then sum all the channels to obtain the heatmap class activation
-    last_conv_layer_output = last_conv_layer_output[0]
-    heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
+    heatmap = last_conv_layer_output @ deep_linearization_weights[..., tf.newaxis]
     heatmap = tf.squeeze(heatmap)
     if len(heatmap.shape) > 2:
         heatmap = tf.reduce_mean(heatmap, list(range(0, len(heatmap.shape) - 2)))
@@ -161,7 +180,7 @@ def make_gradcam_heatmap(model, img_array, layer_name="auto", pred_index=None):
     return heatmap.numpy().astype("float32"), preds.numpy()
 
 
-def make_and_apply_gradcam_heatmap(model, image, layer_name="auto", rescale_mode="tf", pred_index=None, alpha=0.8, plot=True):
+def make_and_apply_gradcam_heatmap(model, image, layer_name="auto", rescale_mode="tf", pred_index=None, alpha=0.8, use_v2=True, plot=True):
     import matplotlib.cm as cm
     import matplotlib.pyplot as plt
 
@@ -169,7 +188,7 @@ def make_and_apply_gradcam_heatmap(model, image, layer_name="auto", rescale_mode
     image = image * 255 if image.max() < 2 else image  # Makse sure it's [0, 255]
     processed_image = tf.expand_dims(tf.image.resize(image, model.input_shape[1:-1]), 0)
     processed_image = tf.keras.applications.imagenet_utils.preprocess_input(processed_image, mode=rescale_mode)
-    heatmap, preds = make_gradcam_heatmap(model, processed_image, layer_name, pred_index=pred_index)
+    heatmap, preds = make_gradcam_heatmap(model, processed_image, layer_name, pred_index=pred_index, use_v2=use_v2)
 
     # Use jet colormap to colorize heatmap. Use RGB values of the colormap
     jet = cm.get_cmap("jet")
