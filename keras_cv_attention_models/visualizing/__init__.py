@@ -16,11 +16,18 @@ Note: models using `Conv2D` with `groups != 1` not supporting on CPU. Needs back
 
 Args:
   model: keras model used for visualizing.
-  layer_name: target layer name in model for visualizing.
+  layer_name: target layer name in model for visualizing. Default "auto" means using the last layer.
   filter_index_list: channel indexes for visualizing.
   input_shape: model input_shape. Default `None` means using `model.input_shape`.
-  iterations: total steps runnung gradient ascent.
-  learning_rate: learning rate in runnung gradient ascent.
+  rescale_mode: one of ["tf", "torch", "caffe"].
+  iterations: total steps running gradient ascent.
+  optimizer: one of ["SGD", "RMSprop", "Adam"] or specified inited optimizer.
+  learning_rate: learning rate in runnung gradient ascent. Default "auto" means {"SGD": 10.0, "RMSprop": 1.0, "Adam": 0.1}.
+  value_range: indicates input image value range, processed to `[128 - 128 * value_range, 128 + 128 * value_range]`.
+  random_magnitude: random magnitude for `tf.roll` and `random_rotation`. basic random value is `4` and `1`.
+  crop_border: crop output image border pixels, calculated as:
+      `hh_crop, ww_crop = input_shape[0] * crop_border, input_shape[1] * crop_border`
+      `img = img[hh_crop:-hh_crop, ww_crop:-ww_crop]`
   base_size: base plotting size for a single image.
 
 Returns:
@@ -40,7 +47,7 @@ Grad-CAM class activation visualization. Obtain a class activation heatmap for a
 
 Args:
   model: keras model used for visualizing.
-  img_array: preprocessed image can be directly used as model input.
+  processed_image: preprocessed image that can be directly used as model input.
   layer_name: target layer name in model for visualizing. Default "auto" means using the last layer with `len(output_shape) == 4`.
   pred_index: specified visualizing prediction index. Used for image containing multi classes.
       Default `None` means using max probability one.

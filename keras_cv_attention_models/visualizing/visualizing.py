@@ -1,47 +1,42 @@
 import numpy as np
 import tensorflow as tf
+from tqdm import tqdm
 
 
-def __compute_loss__(feature_extractor, input_image, filter_index):
-    activation = feature_extractor(input_image)
-    # We avoid border artifacts by only involving non-border pixels in the loss.
-    # filter_activation = activation[:, 2:-2, 2:-2, filter_index]
-    if len(activation.shape) == 4:
-        filter_activation = activation[:, 2:-2, 2:-2, filter_index]
-    else:
-        filter_activation = activation[..., filter_index]
-    return tf.reduce_mean(filter_activation)
-
-
-@tf.function
-def __gradient_ascent_step__(feature_extractor, img, filter_index, learning_rate):
+def __gradient_ascent_step__(feature_extractor, image_var, filter_index, optimizer):
     with tf.GradientTape() as tape:
-        tape.watch(img)
-        loss = __compute_loss__(feature_extractor, img, filter_index)
+        tape.watch(image_var)
+        activation = feature_extractor(tf.expand_dims(image_var[0], 0))
+        # We avoid border artifacts by only involving non-border pixels in the loss.
+        # filter_activation = activation[:, 2:-2, 2:-2, filter_index]
+        filter_activation = activation[..., filter_index]
+        loss = tf.reduce_mean(filter_activation)
     # Compute gradients.
-    grads = tape.gradient(loss, img)
+    grads = tape.gradient(loss, image_var)
     # Normalize gradients.
     grads = tf.math.l2_normalize(grads)
-    img += learning_rate * grads
-    return loss, img
+    # image_var += 10.0 * grads # 10.0 is learning_rate
+    optimizer.apply_gradients(zip(grads * -1, image_var))    # For SGD, w = w - learning_rate * g
+    return loss, image_var
 
 
-def __initialize_image__(img_width, img_height):
-    # We start from a gray image with some random noise
-    img = tf.random.uniform((1, img_width, img_height, 3))
-    # ResNet50V2 expects inputs in the range [-1, +1].
-    # Here we scale our random inputs to [-0.125, +0.125]
-    return (img - 0.5) * 0.25
+def __initialize_image__(img_width, img_height, rescale_mode="tf", value_range=0.125):
+    # We start from a gray image with some random noise. Pick image vvalue range in middle
+    min_val, max_val = int(128 - 128 * value_range), int(128 + 128 * value_range)
+    img = tf.random.uniform((img_width, img_height, 3), min_val, max_val)
+    # For ResNet50V2 expects inputs in the range [-1, +1], results in `[-0.25, 0.25]`
+    return tf.keras.applications.imagenet_utils.preprocess_input(img, mode=rescale_mode).numpy()
 
 
-def __deprocess_image__(img):
+def __deprocess_image__(img, crop_border=0.1):
     # Normalize array: center on 0., ensure variance is 0.15
     img -= img.mean()
     img /= img.std() + 1e-5
     img *= 0.15
 
     # Center crop
-    img = img[25:-25, 25:-25, :]
+    hh_crop, ww_crop = int(img.shape[0] * crop_border), int(img.shape[1] * crop_border)
+    img = img[hh_crop:-hh_crop, ww_crop:-ww_crop]
 
     # Clip to [0, 1]
     img += 0.5
@@ -97,22 +92,57 @@ def stack_and_plot_images(images, margin=5, margin_value=0, rows=-1, ax=None, ba
     return ax, stacked_images
 
 
-def visualize_filters(model, layer_name, filter_index_list=[0], input_shape=None, iterations=30, learning_rate=10.0, base_size=3):
+def visualize_filters(
+    model,
+    layer_name="auto",
+    filter_index_list=[0],
+    input_shape=None,
+    rescale_mode="tf",
+    iterations=30,
+    optimizer="SGD",    # "SGD" / "RMSprop" / "Adam"
+    learning_rate="auto",
+    value_range=0.125,
+    random_magnitude=1.0, # basic random value for `tf.roll` and `random_rotation` is `4` and `1`.
+    crop_border=0.1,
+    base_size=3
+):
+    from tensorflow.keras.preprocessing.image import random_rotation
+
     # Set up a model that returns the activation values for our target layer
-    layer = model.get_layer(name=layer_name)
-    feature_extractor = tf.keras.Model(inputs=model.inputs, outputs=layer.output)
+    # model = tf.keras.models.clone_model(model)
+    if layer_name == "auto":
+        layer = model.layers[-1]
+        layer_name = layer.name
+    else:
+        layer = model.get_layer(name=layer_name)
+    feature_extractor = tf.keras.Model(inputs=model.inputs[0], outputs=layer.output)
     input_shape = model.input_shape[1:-1] if input_shape is None else input_shape[:2]
+    assert input_shape[0] is not None and input_shape[1] is not None
     print(">>>> Total filters for layer {}: {}, input_shape: {}".format(layer_name, layer.output_shape[-1], input_shape))
+
+    auto_lr = {"ada": 0.1, "rms": 1.0, "sgd": 10.0}
+    if isinstance(optimizer, str):
+        optimizer = optimizer.lower()
+        learning_rate = auto_lr.get(optimizer[:3], 1.0) if learning_rate == "auto" else learning_rate
+        if optimizer.startswith("rms"):
+            optimizer = tf.optimizers.RMSprop(learning_rate, rho=0.999)
+        elif optimizer == "adam":
+            optimizer = tf.optimizers.Adam(learning_rate)
+        elif optimizer == "sgd":
+            optimizer = tf.optimizers.SGD(learning_rate)
 
     # We run gradient ascent for [iterations] steps
     losses, filter_images = [], []
     for filter_index in filter_index_list:
-        print("Processing filter %d" % (filter_index,))
-        image = __initialize_image__(input_shape[0], input_shape[1])
-        for iteration in range(iterations):
-            loss, image = __gradient_ascent_step__(feature_extractor, image, filter_index, learning_rate)
+        image = __initialize_image__(input_shape[0], input_shape[1], rescale_mode, value_range=value_range)
+        for iteration in tqdm(range(iterations), desc="Processing filter %d" % (filter_index,)):
+            image = random_rotation(image, 1 * random_magnitude, row_axis=0, col_axis=1, channel_axis=2, fill_mode="reflect")
+            image = tf.roll(image, shift=np.random.randint(-4 * random_magnitude, 4 * random_magnitude, size=2), axis=[0, 1])
+            image_var = [tf.Variable(image)]
+            loss, image_var = __gradient_ascent_step__(feature_extractor, image_var, filter_index, optimizer)
+            image = image_var[0].numpy()
         # Decode the resulting input image
-        image = __deprocess_image__(image[0].numpy())
+        image = __deprocess_image__(image, crop_border)
         losses.append(loss.numpy())
         filter_images.append(image)
 
@@ -120,7 +150,7 @@ def visualize_filters(model, layer_name, filter_index_list=[0], input_shape=None
     return losses, np.stack(filter_images), ax
 
 
-def make_gradcam_heatmap(model, img_array, layer_name="auto", pred_index=None, use_v2=True):
+def make_gradcam_heatmap(model, processed_image, layer_name="auto", pred_index=None, use_v2=True):
     # First, we create a model that maps the input image to the activations
     # of the last conv layer as well as the output predictions
     if layer_name == "auto":
@@ -135,7 +165,7 @@ def make_gradcam_heatmap(model, img_array, layer_name="auto", pred_index=None, u
     # Then, we compute the gradient of the top predicted class for our input image
     # with respect to the activations of the last conv layer
     with tf.GradientTape() as tape:
-        last_conv_layer_output, preds = grad_model(img_array)
+        last_conv_layer_output, preds = grad_model(processed_image)
         if pred_index is None:
             pred_index = tf.argmax(preds[0])
         class_channel = preds[:, pred_index]
@@ -204,8 +234,9 @@ def make_and_apply_gradcam_heatmap(model, image, layer_name="auto", rescale_mode
     superimposed_img /= superimposed_img.max()
 
     if model.output_shape[-1] == 1000:
-        print(">>>> Prediction:", tf.keras.applications.imagenet_utils.decode_predictions(preds)[0])
-        print(">>>> Top 5 prediction indexes:", np.argsort(preds[0])[-5:][::-1])
+        decode_pred = tf.keras.applications.imagenet_utils.decode_predictions(preds, top=5)[0]
+        top_5_idxes = np.argsort(preds[0])[-5:][::-1]
+        print(">>>> Top5 predictions:", [[ii, *jj] for ii, jj in zip(top_5_idxes, decode_pred)])
     if plot:
         fig = plt.figure()
         plt.imshow(superimposed_img)

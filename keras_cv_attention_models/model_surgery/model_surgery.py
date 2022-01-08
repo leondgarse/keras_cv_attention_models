@@ -179,7 +179,7 @@ def change_model_input_shape(model, new_input_shape):
     model.save_weights(temp_name)
     bb.load_weights(temp_name)
     os.remove(temp_name)
-    print(">>> Changed model input shape from {} to {}".format(model.input_shape, bb.input_shape))
+    print(">>>> Changed model input shape from {} to {}".format(model.input_shape, bb.input_shape))
     return bb
 
 

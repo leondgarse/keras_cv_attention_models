@@ -8,11 +8,11 @@
   ```py
   from keras_cv_attention_models import visualizing, resnest
   mm = resnest.ResNest50()
-  losses, filter_images, ax = visualizing.visualize_filters(mm, "stack3_block6_output", range(10))
+  losses, filter_images, ax = visualizing.visualize_filters(mm, "stack3_block6_output", filter_index_list=range(10))
   print(f"{losses[0] = }, {filter_images[0].shape = }")
-  # losses[0] = 23.950336, filter_images[0].shape = (174, 174, 3)
+  # losses[0] = 9.274959, filter_images[0].shape = (180, 180, 3)
   ```
-  ![](https://user-images.githubusercontent.com/5744524/147209311-02dbb24c-6971-439f-9413-4724a34a4fc7.png)
+  ![](https://user-images.githubusercontent.com/5744524/148632851-ec1fe51c-4c4b-4cc5-ab50-2b03db981e08.png)
 ## Make gradcam heatmap
   - Grad-CAM class activation visualization. Obtain a class activation heatmap for an image classification model. Copied and modified from: [keras.io/examples Grad-CAM class activation visualization](https://keras.io/examples/vision/grad_cam/).
   - Note: models using `Conv2D` with `groups != 1` not supporting on CPU. Needs backward steps.
