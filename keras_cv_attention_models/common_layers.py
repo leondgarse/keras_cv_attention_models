@@ -16,11 +16,32 @@ def hard_swish(inputs):
     return inputs * tf.nn.relu6(inputs + 3) / 6
 
 
+@tf.keras.utils.register_keras_serializable(package="common")
+def mish(inputs):
+    """Mish: A Self Regularized Non-Monotonic Neural Activation Function.
+    Paper: [Mish: A Self Regularized Non-Monotonic Neural Activation Function](https://arxiv.org/abs/1908.08681)
+    Copied from https://github.com/tensorflow/addons/blob/master/tensorflow_addons/activations/mish.py
+    """
+    return inputs * tf.math.tanh(tf.math.softplus(inputs))
+
+
+@tf.keras.utils.register_keras_serializable(package="common")
+def phish(inputs):
+    """Phish is defined as f(x) = xTanH(GELU(x)) with no discontinuities in the f(x) derivative.
+    Paper: https://www.techrxiv.org/articles/preprint/Phish_A_Novel_Hyper-Optimizable_Activation_Function/17283824
+    """
+    return inputs * tf.math.tanh(tf.nn.gelu(inputs))
+
+
 def activation_by_name(inputs, activation="relu", name=None):
     """ Typical Activation layer added hard_swish and prelu. """
     layer_name = name and activation and name + activation
     if activation == "hard_swish":
         return keras.layers.Activation(activation=hard_swish, name=layer_name)(inputs)
+    elif activation == "mish":
+        return keras.layers.Activation(activation=mish, name=layer_name)(inputs)
+    elif activation == "phish":
+        return keras.layers.Activation(activation=phish, name=layer_name)(inputs)
     elif activation.lower() == "prelu":
         shared_axes = list(range(1, len(inputs.shape)))
         shared_axes.pop(-1 if K.image_data_format() == "channels_last" else 0)
