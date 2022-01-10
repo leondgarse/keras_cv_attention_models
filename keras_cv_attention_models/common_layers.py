@@ -10,13 +10,13 @@ CONV_KERNEL_INITIALIZER = keras.initializers.VarianceScaling(scale=2.0, mode="fa
 # CONV_KERNEL_INITIALIZER = 'glorot_uniform'
 
 
-@tf.keras.utils.register_keras_serializable(package="common")
+@tf.keras.utils.register_keras_serializable(package="kecamCommon")
 def hard_swish(inputs):
     """ `out = xx * relu6(xx + 3) / 6`, arxiv: https://arxiv.org/abs/1905.02244 """
     return inputs * tf.nn.relu6(inputs + 3) / 6
 
 
-@tf.keras.utils.register_keras_serializable(package="common")
+@tf.keras.utils.register_keras_serializable(package="kecamCommon")
 def mish(inputs):
     """Mish: A Self Regularized Non-Monotonic Neural Activation Function.
     Paper: [Mish: A Self Regularized Non-Monotonic Neural Activation Function](https://arxiv.org/abs/1908.08681)
@@ -25,7 +25,7 @@ def mish(inputs):
     return inputs * tf.math.tanh(tf.math.softplus(inputs))
 
 
-@tf.keras.utils.register_keras_serializable(package="common")
+@tf.keras.utils.register_keras_serializable(package="kecamCommon")
 def phish(inputs):
     """Phish is defined as f(x) = xTanH(GELU(x)) with no discontinuities in the f(x) derivative.
     Paper: https://www.techrxiv.org/articles/preprint/Phish_A_Novel_Hyper-Optimizable_Activation_Function/17283824
