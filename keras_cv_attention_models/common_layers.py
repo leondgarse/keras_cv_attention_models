@@ -383,3 +383,35 @@ class CompatibleExtractPatches(keras.layers.Layer):
             }
         )
         return base_config
+
+
+class PreprocessInput:
+    """ `rescale_mode` `torch` means `(image - [0.485, 0.456, 0.406]) / [0.229, 0.224, 0.225]`, `tf` means `(image - 0.5) / 0.5` """
+    def __init__(self, input_shape=(224, 224, 3), rescale_mode="torch"):
+        self.rescale_mode = rescale_mode
+        self.input_shape = input_shape[1:-1] if len(input_shape) == 4 else input_shape[:2]
+
+    def __call__(self, image, resize_method='bilinear'):
+        image = tf.convert_to_tensor(image)
+        if tf.reduce_max(image) < 2:
+            image *= 255
+        image = tf.image.resize(image, self.input_shape, method=resize_method)
+        if len(image.shape) == 3:
+            image = tf.expand_dims(image, 0)
+
+        if self.rescale_mode == "raw":
+            return image
+        else:
+            return tf.keras.applications.imagenet_utils.preprocess_input(image, mode=self.rescale_mode)
+
+
+def decode_predictions(preds, top=5):
+    preds = preds.numpy() if isinstance(preds, tf.Tensor) else preds
+    return tf.keras.applications.imagenet_utils.decode_predictions(preds, top=5)
+
+
+def add_pre_post_process(model, rescale_mode="tf", input_shape=None):
+    input_shape = model.input_shape[1:-1] if input_shape is None else input_shape
+    model.preprocess_input = PreprocessInput(input_shape, rescale_mode=rescale_mode)
+    model.decode_predictions = decode_predictions
+    model.rescale_mode = rescale_mode

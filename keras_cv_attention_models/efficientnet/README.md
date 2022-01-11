@@ -37,7 +37,7 @@
     - `rescale_mode` `torch` means `(image - [0.485, 0.456, 0.406]) / [[0.229, 0.224, 0.225]]`, `tf` means `(image - 0.5) / 0.5`
     - All `resize_method` is `bicubic`.
     - Some testing detail is not clear, so not exactly matching official reported results.
-    - Testing Detail is [EfficientNetV2 self tested imagenet accuracy](https://github.com/leondgarse/keras_efficientnet_v2/discussions/16).
+    - Testing Detail is [EfficientNetV2 self tested imagenet accuracy](https://github.com/leondgarse/keras_cv_attention_models/discussions/19).
 
   | model        | input | rescale_mode | central_crop | top 1   | top 5   | Reported top1     |
   | ------------ | ----- | ------------ | ------------ | ------- | ------- | ----------------- |

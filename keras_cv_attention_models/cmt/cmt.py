@@ -8,6 +8,7 @@ from keras_cv_attention_models.attention_layers import (
     drop_block,
     layer_norm,
     RelativePositionalEmbedding,
+    add_pre_post_process,
 )
 
 
@@ -162,6 +163,7 @@ def CMT(
         nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
+    add_pre_post_process(model, rescale_mode="torch")
     return model
 
 

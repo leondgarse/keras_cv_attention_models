@@ -2,7 +2,7 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 import tensorflow as tf
 from keras_cv_attention_models.download_and_load import reload_model_weights
-from keras_cv_attention_models.attention_layers import activation_by_name
+from keras_cv_attention_models.attention_layers import activation_by_name, add_pre_post_process
 
 BATCH_NORM_EPSILON = 1e-5
 PRETRAINED_DICT = {
@@ -86,6 +86,7 @@ def GMLP(
         model = SAMModel(inputs, nn, name=model_name)
     else:
         model = keras.Model(inputs, nn, name=model_name)
+    add_pre_post_process(model, rescale_mode="tf")
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="mlp_family", input_shape=input_shape, pretrained=pretrained)
     return model
 

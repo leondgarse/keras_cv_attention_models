@@ -8,6 +8,7 @@ from keras_cv_attention_models.attention_layers import (
     conv2d_no_bias,
     fold_by_conv2d_transpose,
     CompatibleExtractPatches,
+    add_pre_post_process,
 )
 
 
@@ -398,6 +399,7 @@ def VOLO(
         nn = keras.layers.Add()([nn_cls, tf.reduce_max(nn_aux, 1) * 0.5])
 
     model = tf.keras.models.Model(inputs, nn, name=model_name)
+    add_pre_post_process(model, rescale_mode="torch")
     volo_reload_model_weights(model, input_shape, pretrained)
     return model
 

@@ -1,5 +1,5 @@
 from tensorflow import keras
-from keras_cv_attention_models.attention_layers import activation_by_name
+from keras_cv_attention_models.attention_layers import activation_by_name, add_pre_post_process
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
@@ -106,6 +106,7 @@ def ResMLP(
         model = SAMModel(inputs, nn, name=model_name)
     else:
         model = keras.Model(inputs, nn, name=model_name)
+    add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="mlp_family", input_shape=input_shape, pretrained=pretrained)
     return model
 

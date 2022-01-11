@@ -30,8 +30,8 @@ def __initialize_image__(img_width, img_height, rescale_mode="tf", value_range=0
 
 def __deprocess_image__(img, crop_border=0.1):
     # Normalize array: center on 0., ensure variance is 0.15
-    img -= img.mean()
-    img /= img.std() + 1e-5
+    img -= img.mean(axis=(0, 1))
+    img /= img.std(axis=(0, 1)) + 1e-5
     img *= 0.15
 
     # Center crop
@@ -89,6 +89,7 @@ def stack_and_plot_images(images, margin=5, margin_value=0, rows=-1, ax=None, ba
     ax.set_axis_off()
     ax.grid(False)
     plt.tight_layout()
+    plt.show()
     return ax, stacked_images
 
 
@@ -97,7 +98,7 @@ def visualize_filters(
     layer_name="auto",
     filter_index_list=[0],
     input_shape=None,
-    rescale_mode="tf",
+    rescale_mode="auto",
     iterations=30,
     optimizer="SGD",    # "SGD" / "RMSprop" / "Adam"
     learning_rate="auto",
@@ -130,6 +131,10 @@ def visualize_filters(
             optimizer = tf.optimizers.Adam(learning_rate)
         elif optimizer == "sgd":
             optimizer = tf.optimizers.SGD(learning_rate)
+
+    if rescale_mode.lower() == "auto":
+        rescale_mode = getattr(model, "rescale_mode", "torch")
+        print(">>>> rescale_mode:", rescale_mode)
 
     # We run gradient ascent for [iterations] steps
     losses, filter_images = [], []
@@ -210,9 +215,13 @@ def make_gradcam_heatmap(model, processed_image, layer_name="auto", pred_index=N
     return heatmap.numpy().astype("float32"), preds.numpy()
 
 
-def make_and_apply_gradcam_heatmap(model, image, layer_name="auto", rescale_mode="tf", pred_index=None, alpha=0.8, use_v2=True, plot=True):
+def make_and_apply_gradcam_heatmap(model, image, layer_name="auto", rescale_mode="auto", pred_index=None, alpha=0.8, use_v2=True, plot=True):
     import matplotlib.cm as cm
     import matplotlib.pyplot as plt
+
+    if rescale_mode.lower() == "auto":
+        rescale_mode = getattr(model, "rescale_mode", "torch")
+        print(">>>> rescale_mode:", rescale_mode)
 
     image = np.array(image)
     image = image * 255 if image.max() < 2 else image  # Makse sure it's [0, 255]
@@ -242,6 +251,7 @@ def make_and_apply_gradcam_heatmap(model, image, layer_name="auto", rescale_mode
         plt.imshow(superimposed_img)
         plt.axis("off")
         plt.tight_layout()
+        plt.show()
     return superimposed_img, heatmap, preds
 
 
@@ -293,7 +303,7 @@ def down_sample_matrix_axis_0(dd, target, method="avg"):
     return dd
 
 
-def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto", rows=-1, base_size=3):
+def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto", rows=-1, base_size=3):
     import matplotlib.pyplot as plt
 
     if isinstance(model, tf.keras.models.Model):
@@ -313,6 +323,10 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
         attn_scores = model
         layer_name_title = ""
         assert attn_type != "auto"
+
+    if rescale_mode.lower() == "auto":
+        rescale_mode = getattr(model, "rescale_mode", "torch")
+        print(">>>> rescale_mode:", rescale_mode)
 
     attn_type = attn_type.lower()
     check_type_is = lambda tt: (tt in model.name.lower()) if attn_type == "auto" else (attn_type.startswith(tt))
@@ -344,6 +358,15 @@ def plot_attention_score_maps(model, image, rescale_mode="tf", attn_type="auto",
         cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], "max") for ii in range(1, len(mask))]
         cum_mask = [matmul_prod(cum_mask[: ii + 1]).mean(0) for ii in range(len(cum_mask))]
         mask = [ii.mean(0) for ii in mask]
+    elif check_type_is("coat"):
+        # coat attn_score [batch, num_heads, cls_token + hh * ww, key_dim]
+        print(">>>> Attention type: coat")
+        mask = [np.array(ii)[0].mean((0))[1:] for ii in attn_scores if len(ii.shape) == 4][::-1]
+        mask = [ii.max(-1, keepdims=True) for ii in mask]
+        target_shape = np.min([ii.shape[0] for ii in mask])
+        cum_mask = [down_sample_matrix_axis_0(mask[ii], target_shape, "max") for ii in range(len(mask))]
+        cum_mask = [ii[:, 0] for ii in cum_mask]
+        mask = [ii[:, 0] for ii in mask]
     elif check_type_is("halo"):
         # halo attn_score [batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]
         print(">>>> Attention type: halo")

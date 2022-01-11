@@ -11,6 +11,7 @@ from keras_cv_attention_models.attention_layers import (
     se_module,
     output_block,
     MultiHeadRelativePositionalEmbedding,
+    add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
 
@@ -183,6 +184,7 @@ def CoAtNet(
 
     nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
     model = keras.models.Model(inputs, nn, name=model_name)
+    add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "coatnet", MultiHeadRelativePositionalEmbedding, 160, input_shape, pretrained)
     return model
 

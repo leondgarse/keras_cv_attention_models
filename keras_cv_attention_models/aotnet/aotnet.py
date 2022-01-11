@@ -15,6 +15,7 @@ from keras_cv_attention_models.attention_layers import (
     quad_stem,
     tiered_stem,
     output_block,
+    add_pre_post_process,
 )
 from keras_cv_attention_models import attention_layers
 
@@ -302,6 +303,7 @@ def AotNet(
 
     nn = output_block(nn, output_num_features, activation, num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
     model = keras.models.Model(inputs, nn, name=model_name)
+    add_pre_post_process(model, rescale_mode="torch")
     # reload_model_weights(model, pretrained_dict={}, sub_release="aotnet", input_shape=input_shape, pretrained=pretrained)
     return model
 

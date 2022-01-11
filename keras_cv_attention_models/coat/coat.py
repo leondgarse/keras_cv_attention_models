@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.python.keras import backend as K
 from keras_cv_attention_models.download_and_load import reload_model_weights
-from keras_cv_attention_models.attention_layers import layer_norm, conv2d_no_bias, activation_by_name
+from keras_cv_attention_models.attention_layers import layer_norm, conv2d_no_bias, activation_by_name, add_pre_post_process
 
 
 PRETRAINED_DICT = {
@@ -302,6 +302,7 @@ def CoaT(
         nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     model = keras.models.Model(inputs, nn, name=model_name)
+    add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="coat", input_shape=input_shape, pretrained=pretrained)
     return model
 

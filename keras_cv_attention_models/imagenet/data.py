@@ -250,9 +250,11 @@ def mixup(images, labels, alpha=0.4, min_mix_weight=0):
     label_mix_weight = tf.cast(tf.expand_dims(mix_weight, -1), "float32")
     img_mix_weight = tf.cast(tf.reshape(mix_weight, [batch_size, 1, 1, 1]), images.dtype)
 
+    labels = tf.cast(labels, "float32")
+    # images = images * img_mix_weight + images[::-1] * (1.0 - img_mix_weight)
+    # labels = labels * label_mix_weight + labels[::-1] * (1 - label_mix_weight)
     shuffle_index = tf.random.shuffle(tf.range(batch_size))
     images = images * img_mix_weight + tf.gather(images, shuffle_index) * (1.0 - img_mix_weight)
-    labels = tf.cast(labels, "float32")
     labels = labels * label_mix_weight + tf.gather(labels, shuffle_index) * (1 - label_mix_weight)
     return images, labels
 
@@ -264,6 +266,7 @@ def get_box(mix_weight, height, width):
     # center_y = tf.random.uniform((), minval=cut_h_half, maxval=height - cut_h_half, dtype=tf.int32)
     # center_x = tf.random.uniform((), minval=cut_w_half, maxval=width - cut_w_half, dtype=tf.int32)
     # return center_y - cut_h_half, center_x - cut_w_half, cut_h_half * 2, cut_w_half * 2
+
     # Can be non-square on border
     center_y = tf.random.uniform((), minval=0, maxval=height, dtype=tf.int32)
     center_x = tf.random.uniform((), minval=0, maxval=width, dtype=tf.int32)
@@ -301,9 +304,11 @@ def cutmix(images, labels, alpha=0.5, min_mix_weight=0):
     crops = tf.image.crop_to_bounding_box(images, offset_height, offset_width, target_height, target_width)
     pad_crops = tf.image.pad_to_bounding_box(crops, offset_height, offset_width, hh, ww)
 
+    labels = tf.cast(labels, "float32")
+    # images = images - pad_crops + pad_crops[::-1]
+    # labels = labels * mix_weight + labels[::-1] * (1.0 - mix_weight)
     shuffle_index = tf.random.shuffle(tf.range(batch_size))
     images = images - pad_crops + tf.gather(pad_crops, shuffle_index)
-    labels = tf.cast(labels, "float32")
     labels = labels * mix_weight + tf.gather(labels, shuffle_index) * (1.0 - mix_weight)
     return images, labels
 
@@ -354,16 +359,19 @@ def init_dataset(
 
     if isinstance(rescale_mode, (list, tuple)):  # Specific mean and std
         mean, std = rescale_mode
-        rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
+        # rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
+        rescaling = lambda xx: (xx - mean) / std
     elif rescale_mode == "torch":
         mean = tf.constant([0.485, 0.456, 0.406]) * 255.0
         std = tf.constant([0.229, 0.224, 0.225]) * 255.0
         rescaling = lambda xx: (xx - mean) / std
         # rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
-    else:
+    elif rescale_mode == "tf":
         # rescaling = lambda xx: (tf.clip_by_value(xx) - 128.0) / 128.0
         # rescaling = lambda xx: (tf.clip_by_value(xx) - 127.5) / 127.5
-        rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - 127.5) * 0.0078125
+        rescaling = lambda xx: (xx - 127.5) * 0.0078125
+    else:
+        rescaling = lambda xx: xx   # raw inputs [0, 255]
     as_one_hot = lambda yy: tf.one_hot(yy, num_classes)
 
     train_dataset = train_dataset.batch(batch_size)

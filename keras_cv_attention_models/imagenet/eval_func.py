@@ -63,10 +63,11 @@ class TFLiteModelInterf:
 
 
 def evaluation(
-    model, data_name="imagenet2012", input_shape=None, batch_size=64, central_crop=1.0, resize_method="bicubic", antialias=False, rescale_mode="torch"
+    model, data_name="imagenet2012", input_shape=None, batch_size=64, central_crop=1.0, resize_method="bicubic", antialias=False, rescale_mode="auto"
 ):
     from tqdm import tqdm
     import numpy as np
+    import types
 
     if isinstance(model, tf.keras.models.Model):
         input_shape = model.input_shape[1:-1] if input_shape is None else input_shape[:2]
@@ -76,9 +77,15 @@ def evaluation(
         model_interf = model if isinstance(model, TFLiteModelInterf) else TFLiteModelInterf(model)
         input_shape = model_interf.input_shape
         print(">>>> Using input_shape {} for TFLite model.".format(input_shape))
+    elif isinstance(model, types.LambdaType):
+        model_interf = model
     else:
         model_interf = TorchModelInterf(model)
         assert input_shape is not None
+
+    if rescale_mode.lower() == "auto":
+        rescale_mode = getattr(model, "rescale_mode", "torch")
+        print(">>>> rescale_mode:", rescale_mode)
 
     _, test_dataset, _, _, _ = data.init_dataset(
         data_name,

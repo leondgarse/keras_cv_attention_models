@@ -10,6 +10,7 @@ from keras_cv_attention_models.attention_layers import (
     drop_block,
     drop_connect_rates_split,
     layer_norm,
+    add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
 
@@ -222,6 +223,7 @@ def Beit(
             num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=head_init, name="predictions"
         )(nn)
     model = tf.keras.models.Model(inputs, nn, name=model_name)
+    add_pre_post_process(model, rescale_mode="tf")
 
     """ Reload model weights by input_shape """
     pre_resolutions = PRETRAINED_DICT[model.name]
