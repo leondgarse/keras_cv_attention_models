@@ -110,11 +110,13 @@ def match_layer_names_with_torch(target_names, tail_align_dict={}, full_name_ali
         # print("id = {}, ii = {}, stack_name = {}, tail_name = {}".format(id, ii, stack_name, tail_name))
         if ii in full_name_align_dict:
             align = full_name_align_dict[ii]
-            layer_names_matched_torch.insert(id + align, ii)
+            align = id + align if align < 0 else align
+            layer_names_matched_torch.insert(align, ii)
             layer_names_matched_torch.pop(-1)
         elif tail_name in cur_tail_align_dict:
             align = cur_tail_align_dict[tail_name]
-            layer_names_matched_torch.insert(id + align, ii)
+            align = id + align if align < 0 else align
+            layer_names_matched_torch.insert(align, ii)
             layer_names_matched_torch.pop(-1)
         else:
             layer_names_matched_torch[id] = ii
@@ -163,6 +165,40 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
         model.save(save_name)
 
 
+def try_save_pth_and_onnx(torch_model, input_shape=(224, 224), save_pth=False, save_onnx=False):
+    import torch
+
+    input_shape = input_shape[:2]
+    if save_pth:
+        try:
+            output_name = torch_model.__class__.__name__ + ".pth"
+            traced_cell = torch.jit.trace(torch_model, (torch.randn(10, 3, *input_shape)))
+            torch.jit.save(traced_cell, output_name)
+            print(">>>> Saved to:", output_name)
+        except:
+            print(">>>> Saved pth failed")
+            pass
+
+
+    if save_onnx:
+        try:
+            output_name = torch_model.__class__.__name__ + ".onnx"
+            torch.onnx.export(
+                model=torch_model,
+                args=torch.randn(10, 3, *input_shape),
+                f=output_name,
+                verbose=False,
+                keep_initializers_as_inputs=True,
+                training=torch.onnx.TrainingMode.PRESERVE,
+                do_constant_folding=True,
+                opset_version=13,
+            )
+            print(">>>> Saved to:", output_name)
+        except:
+            print(">>>> Saved onnx failed")
+            pass
+
+
 def keras_reload_from_torch_model(
     torch_model,  # Torch model, Torch state_dict wights or Torch model weights file
     keras_model=None,
@@ -179,17 +215,17 @@ def keras_reload_from_torch_model(
     import torch
     import numpy as np
     import tensorflow as tf
-    from skimage.data import chelsea
+    from keras_cv_attention_models import test_images
 
     input_shape = input_shape[:2]
     if isinstance(torch_model, str):
         print(">>>> Reload Torch weight file:", torch_model)
         torch_model = torch.load(torch_model, map_location=torch.device("cpu"))
-        torch_model = torch_model.get("state_dict", torch_model)
+        torch_model = torch_model.get("model", torch_model.get("state_dict", torch_model))
     is_state_dict = isinstance(torch_model, dict)
 
     """ Chelsea the cat  """
-    img = chelsea()
+    img = test_images.cat()
     img = keras.applications.imagenet_utils.preprocess_input(tf.image.resize(img, input_shape), mode="torch").numpy()
 
     if not is_state_dict:
@@ -226,15 +262,16 @@ def keras_reload_from_torch_model(
     _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
     print()
 
+    """ Load torch weights and save h5 """
+    if len(tail_align_dict) != 0 or len(full_name_align_dict) != 0:
+        layer_names_matched_torch = match_layer_names_with_torch(target_names, tail_align_dict, full_name_align_dict, tail_split_position)
+        aa = {keras_model.get_layer(ii).name: [jj.shape.as_list() for jj in keras_model.get_layer(ii).weights] for ii in layer_names_matched_torch}
+        print(">>>> Keras weights matched torch:")
+        _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
+        print()
+
     if not do_convert:
         return
-
-    """ Load torch weights and save h5 """
-    layer_names_matched_torch = match_layer_names_with_torch(target_names, tail_align_dict, full_name_align_dict, tail_split_position)
-    aa = {keras_model.get_layer(ii).name: [jj.shape.as_list() for jj in keras_model.get_layer(ii).weights] for ii in layer_names_matched_torch}
-    print(">>>> Keras weights matched torch:")
-    _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
-    print()
 
     save_name = save_name if save_name is not None else keras_model.name + "_imagenet.h5"
     print(">>>> Keras reload torch weights:")
