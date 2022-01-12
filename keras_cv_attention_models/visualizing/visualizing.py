@@ -61,13 +61,29 @@ def __get_cols_rows__(total, rows=-1):
     return cols, rows
 
 
-def stack_and_plot_images(images, margin=5, margin_value=0, rows=-1, ax=None, base_size=3):
+def put_text_on_image(image, text, coord=(5, 5), color=(255, 0, 0)):
+    from PIL import Image
+    from PIL import ImageDraw
+    # from PIL import ImageFont
+
+    image = image * 255 if image.max() < 2 else image
+    img = Image.fromarray(image.astype('uint8'))
+    draw = ImageDraw.Draw(img)
+    draw.text(coord, str(text), color)
+    return np.array(img)
+
+
+def stack_and_plot_images(images, texts=None, margin=5, margin_value=0, rows=-1, ax=None, base_size=3):
     """ Stack and plot a list of images. Returns ax, stacked_images """
     import matplotlib.pyplot as plt
 
     cols, rows = __get_cols_rows__(len(images), rows)
     images = images[: rows * cols]
     # print(">>>> rows:", rows, ", cols:", cols, ", total:", len(images))
+
+    if texts is not None:
+        images = [put_text_on_image(imm, itt) for imm, itt in zip(images, texts)] + list(images[len(texts):])
+        images = np.array(images)
 
     if ax is None:
         _, ax = plt.subplots(1, 1, figsize=(base_size * cols, base_size * rows))

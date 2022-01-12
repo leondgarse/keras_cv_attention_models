@@ -19,7 +19,7 @@ Args:
   layer_name: target layer name in model for visualizing. Default "auto" means using the last layer.
   filter_index_list: channel indexes for visualizing.
   input_shape: model input_shape. Default `None` means using `model.input_shape`.
-  rescale_mode: one of ["tf", "torch", "caffe"].
+  rescale_mode: one of ["tf", "torch", "caffe"]. Default `auto` means using model preset.
   iterations: total steps running gradient ascent.
   optimizer: one of ["SGD", "RMSprop", "Adam"] or specified inited optimizer.
   learning_rate: learning rate in runnung gradient ascent. Default "auto" means {"SGD": 10.0, "RMSprop": 1.0, "Adam": 0.1}.
@@ -80,7 +80,7 @@ Args:
   model: keras model used for visualizing.
   image: Original image for visualizing.
   layer_name: target layer name in model for visualizing. Default "auto" means using the last layer with `len(output_shape) == 4`.
-  rescale_mode: image value rescale mode. Mostly used one is "tf" or "torch".
+  rescale_mode: image value rescale mode. Mostly used one is "tf" or "torch". Default `auto` means using model preset.
   pred_index: specified visualizing prediction index. Used for image containing multi classes.
       Default `None` means using max probability one.
   alpha: heatmap superimposed alpha over image.
@@ -104,7 +104,7 @@ Visualizing model attention score maps, superimposed with specific image.
 Args:
   model: keras model used for visualizing.
   image: Original image for visualizing.
-  rescale_mode: image value rescale mode. Mostly used one is "tf" or "torch".
+  rescale_mode: image value rescale mode. Mostly used one is "tf" or "torch". Default `auto` means using model preset.
   attn_type: Specify model attention type. Currently supporting `["beit", "levit", "bot", "coatnet", "halo"]`.
       Default "auto" means decide from model name. Technically any attention scores in the same format with
       specified `attn_type` can be supported. Like using `attn_type="beit"` for `VIT` models.
