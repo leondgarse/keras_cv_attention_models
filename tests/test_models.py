@@ -57,6 +57,14 @@ def test_CotNet_defination():
     assert isinstance(mm, keras.models.Model)
 
 
+def test_CovNeXt_defination():
+    mm = keras_cv_attention_models.convnext.ConvNeXtSmall(pretrained=None)
+    assert isinstance(mm, keras.models.Model)
+
+    mm = keras_cv_attention_models.cotnet.ConvNeXtBase(pretrained=None, num_classes=0)
+    assert isinstance(mm, keras.models.Model)
+
+
 def test_GMLP_defination():
     mm = keras_cv_attention_models.mlp_family.GMLPB16(pretrained=None)
     assert isinstance(mm, keras.models.Model)
@@ -167,6 +175,14 @@ def test_BotNet_new_shape_predict():
     imm = tf.image.resize(chelsea(), mm.input_shape[1:3])  # Chelsea the cat
     pred = mm(tf.expand_dims(imm / 128 - 1, 0)).numpy()
     out = keras.applications.imagenet_utils.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_ConvNeXt_predict():
+    mm = keras_cv_attention_models.convnext.ConvNeXtTiny(pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea())) # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
 

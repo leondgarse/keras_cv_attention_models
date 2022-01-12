@@ -34,7 +34,7 @@ from keras_cv_attention_models.mlp_family.res_mlp import ChannelAffine
 from keras_cv_attention_models.mlp_family.gated_mlp import spatial_gating_block
 from keras_cv_attention_models.levit.levit import MultiHeadPositionalEmbedding, mhsa_with_multi_head_position_and_strides
 from keras_cv_attention_models.nfnets.nfnets import ScaledStandardizedConv2D, ZeroInitGain
-from keras_cv_attention_models.beit.beit import MultiHeadRelativePositionalEmbedding
+from keras_cv_attention_models.beit.beit import MultiHeadRelativePositionalEmbedding, HeadInitializer
 
 CompatibleExtractPatches.__doc__ = """
 For issue https://github.com/leondgarse/keras_cv_attention_models/issues/8,

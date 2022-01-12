@@ -16,6 +16,7 @@
   - [CMT](#cmt)
   - [CoaT](#coat)
   - [CoAtNet](#coatnet)
+  - [ConvNeXt](#convnext)
   - [CoTNet](#cotnet)
   - [EfficientNet](#efficientnet)
   - [GMLP](#gmlp)
@@ -298,6 +299,23 @@
   | CoAtNet5 | 512              | 688M            | 680.47M             | 89.77    |
   | CoAtNet6 | 512              | 1.47B           | 1.340B              | 90.45    |
   | CoAtNet7 | 512              | 2.44B           | 2.422B              | 90.88    |
+## ConvNeXt
+  - [Keras ConvNeXt](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/convnext) is for [PDF 2201.03545 A ConvNet for the 2020s](https://arxiv.org/pdf/2201.03545.pdf).
+
+  | Model               | Params | Image resolution | Top1 Acc | Model link |
+  | ------------------- | ------ | ---------------- | -------- | ---------- |
+  | ConvNeXtTiny        | 28M    | 224              | 82.1     | [convnext_tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_tiny_imagenet.h5) |
+  | ConvNeXtSmall       | 50M    | 224              | 83.1     | [convnext_small_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_small_imagenet.h5) |
+  | ConvNeXtBase        | 89M    | 224              | 83.8     | [convnext_base_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_imagenet.h5) |
+  | ConvNeXtBase        | 89M    | 384              | 85.1     |            |
+  | - ImageNet21k-ft1k  | 89M    | 224              | 85.8     | [convnext_base_imagenet-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_imagenet-ft1k.h5) |
+  | - ImageNet21k-ft1k  | 89M    | 384              | 86.8     |            |
+  | ConvNeXtLarge       | 198M   | 224              | 84.3     | [convnext_large_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_imagenet.h5) |
+  | ConvNeXtLarge       | 198M   | 384              | 85.5     |            |
+  | - ImageNet21k-ft1k  | 198M   | 224              | 86.6     | [convnext_large_imagenet-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_imagenet-ft1k.h5) |
+  | - ImageNet21k-ft1k  | 198M   | 384              | 87.5     |            |
+  | ConvNeXtXLarge, 21k | 350M   | 224              | 87.0     | [convnext_xlarge_imagenet-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_xlarge_imagenet-ft1k.h5) |
+  | ConvNeXtXLarge, 21k | 350M   | 384              | 87.8     |            |
 ## CoTNet
   - [Keras CoTNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cotnet) is for [PDF 2107.12292 Contextual Transformer Networks for Visual Recognition](https://arxiv.org/pdf/2107.12292.pdf).
 

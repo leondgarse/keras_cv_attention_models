@@ -163,9 +163,18 @@ def attention_mlp_block(inputs, embed_dim, gamma_init_value=0.1, mlp_ratio=4, dr
 
 
 @tf.keras.utils.register_keras_serializable(package="beit")
-def head_init(shape, dtype="float32"):
-    return tf.initializers.TruncatedNormal(stddev=0.02)(shape, dtype=dtype) * 0.001
+class HeadInitializer(tf.initializers.Initializer):
+    def __init__(self, stddev=0.02, scale=0.001, **kwargs):
+        super().__init__(**kwargs)
+        self.stddev, self.scale = stddev, scale
 
+    def __call__(self, shape, dtype="float32"):
+        return tf.initializers.TruncatedNormal(stddev=self.stddev)(shape, dtype=dtype) * self.scale
+
+    def get_config(self):
+        base_config = super().get_config()
+        base_config.update({"stddev": self.stddev, "scale": self.scale})
+        return base_config
 
 def Beit(
     depth=12,
@@ -219,6 +228,7 @@ def Beit(
         nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="out_")[:, 0]
 
     if num_classes > 0:
+        head_init = HeadInitializer()
         nn = keras.layers.Dense(
             num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=head_init, name="predictions"
         )(nn)
