@@ -61,7 +61,7 @@ def test_CovNeXt_defination():
     mm = keras_cv_attention_models.convnext.ConvNeXtSmall(pretrained=None)
     assert isinstance(mm, keras.models.Model)
 
-    mm = keras_cv_attention_models.cotnet.ConvNeXtBase(pretrained=None, num_classes=0)
+    mm = keras_cv_attention_models.convnext.ConvNeXtBase(pretrained=None, num_classes=0)
     assert isinstance(mm, keras.models.Model)
 
 
