@@ -9,14 +9,22 @@ def reload_model_weights(model, pretrained_dict, sub_release, input_shape=(224, 
         model.load_weights(pretrained, by_name=True, skip_mismatch=True)
         return pretrained
 
-    if model.name not in pretrained_dict or pretrained not in pretrained_dict[model.name]:
+    file_hash = pretrained_dict.get(model.name, {}).get(pretrained, None)
+    if file_hash is None:
         print(">>>> No pretrained available, model will be randomly initialized")
         return None
+
+    if isinstance(file_hash, dict):
+        # file_hash is a dict like {224: "aa", 384: "bb", 480: "cc"}
+        request_resolution = min(file_hash.keys(), key=lambda ii: abs(ii - input_shape[0]))
+        if request_resolution != 224:
+            pretrained = "{}_".format(request_resolution) + pretrained
+        file_hash = file_hash[request_resolution]
+        # print(f"{request_resolution = }, {pretrained = }, {file_hash = }")
 
     pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/{}/{}_{}.h5"
     url = pre_url.format(sub_release, model.name, pretrained)
     file_name = os.path.basename(url)
-    file_hash = pretrained_dict[model.name][pretrained]
     try:
         pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models", file_hash=file_hash)
     except:
@@ -59,6 +67,7 @@ def reload_model_weights_with_mismatch(
         #         print(">>>> Reload layer:", ii.name)
         #         model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
         except:
+            print("[Error] something went wrong in reload_model_weights_with_mismatch")
             pass
 
 

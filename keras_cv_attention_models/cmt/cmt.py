@@ -143,11 +143,11 @@ def CMT(
     total_blocks = sum(num_blocks)
     global_block_id = 0
     for stack_id, (num_block, out_channel, num_head, sr_ratio) in enumerate(zip(num_blocks, out_channels, num_heads, sr_ratios)):
-        stage_name = "stack_{}_".format(stack_id + 1)
+        stage_name = "stack{}_".format(stack_id + 1)
         nn = conv2d_no_bias(nn, out_channel, kernel_size=2, strides=2, name=stage_name + "down_sample")
         # nn = layer_norm(nn, name=stage_name)
         for block_id in range(num_block):
-            name = stage_name + "block_{}_".format(block_id + 1)
+            name = stage_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             global_block_id += 1
             nn = cmt_block(nn, num_head, sr_ratio, ffn_expansion, activation=activation, drop_rate=block_drop_rate, name=name)

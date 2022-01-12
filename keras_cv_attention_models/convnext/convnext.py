@@ -15,9 +15,15 @@ LAYER_NORM_EPSILON = 1e-6
 PRETRAINED_DICT = {
     "convnext_tiny": {"imagenet": "1deac703865e190528899d5c489afa37"},
     "convnext_small": {"imagenet": "7e75873348d445eb2aab4200a5d49f80"},
-    "convnext_base": {"imagenet": "dddac5dcd13bffc1e05688f529726f8c", "imagenet21k-ft1k": "40f78cec6cd327392a9d24f968f9e76b"},
-    "convnext_large": {"imagenet": "32d401c254b623d36c22f232884000ba", "imagenet21k-ft1k": "dc211e955875f8ab6de7518253e41a46"},
-    "convnext_xlarge": {"imagenet21k-ft1k": "7c7ab46f41ac34655f3e035b873a2163"},
+    "convnext_base": {
+        "imagenet": {224: "dddac5dcd13bffc1e05688f529726f8c", 384: "ae8dc9bbca6472dc12de30db95ea1018"},
+        "imagenet21k-ft1k": {224: "40f78cec6cd327392a9d24f968f9e76b", 384: "4829ff932a930117525920317083d317"},
+    },
+    "convnext_large": {
+        "imagenet": {224: "32d401c254b623d36c22f232884000ba", 384: "01b4e72ca589c2f0ac15551e06d29818"},
+        "imagenet21k-ft1k": {224: "dc211e955875f8ab6de7518253e41a46", 384: "68ef87754d6ca634e32d2326c34ddd0b"},
+    },
+    "convnext_xlarge": {"imagenet21k-ft1k": {224: "7c7ab46f41ac34655f3e035b873a2163", 384: "636db850c0a73ba10e8ab32e91c38df6"}},
 }
 
 

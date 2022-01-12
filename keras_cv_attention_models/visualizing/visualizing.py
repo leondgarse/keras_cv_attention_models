@@ -262,7 +262,7 @@ def make_and_apply_gradcam_heatmap(model, image, layer_name="auto", rescale_mode
     if model.output_shape[-1] == 1000:
         decode_pred = tf.keras.applications.imagenet_utils.decode_predictions(preds, top=5)[0]
         top_5_idxes = np.argsort(preds[0])[-5:][::-1]
-        print(">>>> Top5 predictions:", [[ii, *jj] for ii, jj in zip(top_5_idxes, decode_pred)])
+        print(">>>> Top5 predictions:", np.array([[ii, *jj] for ii, jj in zip(top_5_idxes, decode_pred)]))
     if plot:
         fig = plt.figure()
         plt.imshow(superimposed_img)

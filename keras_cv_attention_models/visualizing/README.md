@@ -39,8 +39,11 @@
   mm = resnest.ResNest50()
   img = test_images.dog_cat()
   superimposed_img, heatmap, preds = visualizing.make_and_apply_gradcam_heatmap(mm, img, layer_name="auto")
-  # >>>> Prediction: [('n02106662', 'German_shepherd', 0.83640593), ('n02123045', 'tabby', 0.016732752), ...]
-  # >>>> Top 5 prediction indexes: [235 281 282 285 225]
+  # >>>> Top5 predictions: [['235' 'n02106662' 'German_shepherd' '0.7492399']
+  #  ['281' 'n02123045' 'tabby' '0.033892266']
+  #  ['285' 'n02124075' 'Egyptian_cat' '0.017182153']
+  #  ['282' 'n02123159' 'tiger_cat' '0.015299492']
+  #  ['225' 'n02105162' 'malinois' '0.012337279']]
   ```
   ![](https://user-images.githubusercontent.com/5744524/148197367-73cb1f9b-3edf-4e95-83e1-4a77d1f4a9fd.png)
   ```py
