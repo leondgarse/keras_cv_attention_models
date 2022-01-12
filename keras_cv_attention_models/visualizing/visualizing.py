@@ -16,7 +16,7 @@ def __gradient_ascent_step__(feature_extractor, image_var, filter_index, optimiz
     # Normalize gradients.
     grads = tf.math.l2_normalize(grads)
     # image_var += 10.0 * grads # 10.0 is learning_rate
-    optimizer.apply_gradients(zip(grads * -1, image_var))    # For SGD, w = w - learning_rate * g
+    optimizer.apply_gradients(zip(grads * -1, image_var))  # For SGD, w = w - learning_rate * g
     return loss, image_var
 
 
@@ -64,10 +64,11 @@ def __get_cols_rows__(total, rows=-1):
 def put_text_on_image(image, text, coord=(5, 5), color=(255, 0, 0)):
     from PIL import Image
     from PIL import ImageDraw
+
     # from PIL import ImageFont
 
     image = image * 255 if image.max() < 2 else image
-    img = Image.fromarray(image.astype('uint8'))
+    img = Image.fromarray(image.astype("uint8"))
     draw = ImageDraw.Draw(img)
     draw.text(coord, str(text), color)
     return np.array(img)
@@ -82,7 +83,7 @@ def stack_and_plot_images(images, texts=None, margin=5, margin_value=0, rows=-1,
     # print(">>>> rows:", rows, ", cols:", cols, ", total:", len(images))
 
     if texts is not None:
-        images = [put_text_on_image(imm, itt) for imm, itt in zip(images, texts)] + list(images[len(texts):])
+        images = [put_text_on_image(imm, itt) for imm, itt in zip(images, texts)] + list(images[len(texts) :])
         images = np.array(images)
 
     if ax is None:
@@ -116,12 +117,12 @@ def visualize_filters(
     input_shape=None,
     rescale_mode="auto",
     iterations=30,
-    optimizer="SGD",    # "SGD" / "RMSprop" / "Adam"
+    optimizer="SGD",  # "SGD" / "RMSprop" / "Adam"
     learning_rate="auto",
     value_range=0.125,
-    random_magnitude=1.0, # basic random value for `tf.roll` and `random_rotation` is `4` and `1`.
+    random_magnitude=1.0,  # basic random value for `tf.roll` and `random_rotation` is `4` and `1`.
     crop_border=0.1,
-    base_size=3
+    base_size=3,
 ):
     from tensorflow.keras.preprocessing.image import random_rotation
 

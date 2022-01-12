@@ -122,7 +122,7 @@ def EfficientNetV2(
         nn = Normalization(mean=mean, variance=std, axis=channel_axis)(inputs)
     elif include_preprocessing and rescale_mode == "tf":
         Rescaling = keras.layers.Rescaling if hasattr(keras.layers, "Rescaling") else keras.layers.experimental.preprocessing.Rescaling
-        nn = Rescaling(scale=1. / 128.0, offset=-1)(inputs)
+        nn = Rescaling(scale=1.0 / 128.0, offset=-1)(inputs)
     else:
         nn = inputs
     out_channel = make_divisible(first_conv_filter, 8)

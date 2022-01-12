@@ -176,6 +176,7 @@ class HeadInitializer(tf.initializers.Initializer):
         base_config.update({"stddev": self.stddev, "scale": self.scale})
         return base_config
 
+
 def Beit(
     depth=12,
     embed_dim=768,

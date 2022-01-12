@@ -179,7 +179,6 @@ def try_save_pth_and_onnx(torch_model, input_shape=(224, 224), save_pth=False, s
             print(">>>> Saved pth failed")
             pass
 
-
     if save_onnx:
         try:
             output_name = torch_model.__class__.__name__ + ".onnx"

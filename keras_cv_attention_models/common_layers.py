@@ -387,11 +387,12 @@ class CompatibleExtractPatches(keras.layers.Layer):
 
 class PreprocessInput:
     """ `rescale_mode` `torch` means `(image - [0.485, 0.456, 0.406]) / [0.229, 0.224, 0.225]`, `tf` means `(image - 0.5) / 0.5` """
+
     def __init__(self, input_shape=(224, 224, 3), rescale_mode="torch"):
         self.rescale_mode = rescale_mode
         self.input_shape = input_shape[1:-1] if len(input_shape) == 4 else input_shape[:2]
 
-    def __call__(self, image, resize_method='bilinear'):
+    def __call__(self, image, resize_method="bilinear"):
         image = tf.convert_to_tensor(image)
         if tf.reduce_max(image) < 2:
             image *= 255
