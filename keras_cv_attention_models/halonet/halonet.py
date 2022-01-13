@@ -3,15 +3,15 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.aotnet import AotNet
 from keras_cv_attention_models.attention_layers import RelativePositionalEmbedding, conv2d_no_bias, CompatibleExtractPatches, make_divisible
-from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
+from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
-    "halonet26t": {"imagenet": "6e8848ce6e98a13cd45f65dd68435d00"},
-    "halonet50t": {"imagenet": "6c353144df942cb81a3eb7c140fc9791"},
-    "halonet_se33t": {"imagenet": "7e0afb7f8fb6459491b8a46ad80bcd91"},
-    "halonext_eca26t": {"imagenet": "630037a5c135bceacd0691a22855eb7e"},
-    "haloregnetz_b": {"imagenet": "e889647682d1c554de032d376acf0c48"},
-    "halobotnet50t": {"imagenet": "0af1faad1a81e468d6e670e9fc253edc"},
+    "halonet26t": {"imagenet": {256: "6e8848ce6e98a13cd45f65dd68435d00"}},
+    "halonet50t": {"imagenet": {256: "6c353144df942cb81a3eb7c140fc9791"}},
+    "halonet_se33t": {"imagenet": {256: "7e0afb7f8fb6459491b8a46ad80bcd91"}},
+    "halonext_eca26t": {"imagenet": {256: "630037a5c135bceacd0691a22855eb7e"}},
+    "haloregnetz_b": {"imagenet": {224: "e889647682d1c554de032d376acf0c48"}},
+    "halobotnet50t": {"imagenet": {256: "0af1faad1a81e468d6e670e9fc253edc"}},
 }
 
 
@@ -175,10 +175,6 @@ BLOCK_CONFIGS = {
 }
 
 
-def halonet_reload_weights(model, input_shape=(256, 256, 3), request_resolution=256, pretrained="imagenet"):
-    reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "halonet", RelativePositionalEmbedding, request_resolution, input_shape, pretrained)
-
-
 def HaloNet(
     input_shape=(256, 256, 3),
     activation="swish",
@@ -216,7 +212,7 @@ def HaloNet(
         attn_params=attn_params,
         **kwargs
     )
-    halonet_reload_weights(model, input_shape, request_resolution, pretrained)
+    reload_model_weights(model, PRETRAINED_DICT, "halonet", pretrained, RelativePositionalEmbedding)
     return model
 
 
@@ -265,7 +261,7 @@ def HaloNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", c
     # key_dim = 16
     stem_type = "tiered"
     model = AotNet(model_name="halonet26t", **locals(), **kwargs)
-    halonet_reload_weights(model, input_shape, request_resolution=256, pretrained=pretrained)
+    reload_model_weights(model, PRETRAINED_DICT, "halonet", pretrained, RelativePositionalEmbedding)
     return model
 
 
@@ -281,7 +277,7 @@ def HaloNet50T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", 
     # key_dim = 16
     stem_type = "tiered"
     model = AotNet(model_name="halonet50t", **locals(), **kwargs)
-    halonet_reload_weights(model, input_shape, request_resolution=256, pretrained=pretrained)
+    reload_model_weights(model, PRETRAINED_DICT, "halonet", pretrained, RelativePositionalEmbedding)
     return model
 
 
@@ -303,7 +299,7 @@ def HaloNetSE33T(input_shape=(256, 256, 3), num_classes=1000, activation="swish"
     stem_downsample = False
     output_num_features = 1280
     model = AotNet(model_name="halonet_se33t", **locals(), **kwargs)
-    halonet_reload_weights(model, input_shape, request_resolution=256, pretrained=pretrained)
+    reload_model_weights(model, PRETRAINED_DICT, "halonet", pretrained, RelativePositionalEmbedding)
     return model
 
 
@@ -320,7 +316,7 @@ def HaloNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swis
     groups = [4, 8, 16, 32]
     stem_type = "tiered"
     model = AotNet(model_name="halonext_eca26t", **locals(), **kwargs)
-    halonet_reload_weights(model, input_shape, request_resolution=256, pretrained=pretrained)
+    reload_model_weights(model, PRETRAINED_DICT, "halonet", pretrained, RelativePositionalEmbedding)
     return model
 
 
@@ -342,7 +338,7 @@ def HaloRegNetZB(input_shape=(224, 224, 3), num_classes=1000, activation="swish"
     shortcut_type = None
     output_num_features = 1536
     model = AotNet(model_name="haloregnetz_b", **locals(), **kwargs)
-    halonet_reload_weights(model, input_shape, request_resolution=224, pretrained=pretrained)
+    reload_model_weights(model, PRETRAINED_DICT, "halonet", pretrained, RelativePositionalEmbedding)
     return model
 
 
@@ -360,5 +356,5 @@ def HaloBotNet50T(input_shape=(256, 256, 3), num_classes=1000, activation="swish
     stem_last_strides = 2
     stem_downsample = False
     model = AotNet(model_name="halobotnet50t", **locals(), **kwargs)
-    halonet_reload_weights(model, input_shape, request_resolution=256, pretrained=pretrained)
+    reload_model_weights(model, PRETRAINED_DICT, "halonet", pretrained, RelativePositionalEmbedding)
     return model

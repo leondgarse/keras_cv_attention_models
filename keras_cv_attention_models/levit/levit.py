@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
+from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, activation_by_name, add_pre_post_process
 
 
@@ -42,7 +42,7 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
         pos_bias = tf.transpose(pos_bias, [2, 0, 1])
         return inputs + pos_bias
 
-    def load_resized_pos_emb(self, source_layer):
+    def load_resized_pos_emb(self, source_layer, method="nearest"):
         if isinstance(source_layer, dict):
             source_bb = source_layer["positional_embedding:0"]  # weights
         else:
@@ -50,9 +50,22 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
         hh = ww = int(tf.math.sqrt(float(source_bb.shape[0])))
         ss = tf.reshape(source_bb, (hh, ww, source_bb.shape[-1]))  # [hh, ww, num_heads]
         target_hh = target_ww = int(tf.math.sqrt(float(self.bb.shape[0])))
-        tt = tf.image.resize(ss, [target_hh, target_ww])  # [target_hh, target_ww, num_heads]
+        tt = tf.image.resize(ss, [target_hh, target_ww], method=method)  # [target_hh, target_ww, num_heads]
         tt = tf.reshape(tt, (self.bb.shape))  # [target_hh * target_ww, num_heads]
         self.bb.assign(tt)
+
+    def show_pos_emb(self, rows=1, base_size=2):
+        import matplotlib.pyplot as plt
+
+        hh = ww = int(tf.math.sqrt(float(self.bb.shape[0])))
+        ss = tf.reshape(self.bb, (hh, ww, -1)).numpy()
+        cols = int(tf.math.ceil(ss.shape[-1] / rows))
+        fig, axes = plt.subplots(rows, cols, figsize=(base_size * cols, base_size * rows))
+        for id, ax in enumerate(axes.flatten()):
+            ax.imshow(ss[:, :, id])
+            ax.set_axis_off()
+        fig.tight_layout()
+        return fig
 
 
 def scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_dim, activation="hard_swish", name=""):
@@ -218,7 +231,7 @@ def LeViT(
 
     model = keras.models.Model(inputs, out, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
-    reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "levit", MultiHeadPositionalEmbedding, input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, PRETRAINED_DICT, "levit", pretrained, MultiHeadPositionalEmbedding)
     return model
 
 

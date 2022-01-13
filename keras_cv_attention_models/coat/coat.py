@@ -303,7 +303,7 @@ def CoaT(
 
     model = keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="coat", input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="coat", pretrained=pretrained)
     return model
 
 

@@ -62,6 +62,7 @@ def ConvNeXt(
     nn = conv2d_no_bias(inputs, stem_width, kernel_size=4, strides=4, padding="VALID", use_bias=True, name="stem_")
     nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="stem_")
 
+    """ Blocks """
     total_blocks = sum(num_blocks)
     global_block_id = 0
     for stack_id, (num_block, out_channel) in enumerate(zip(num_blocks, out_channels)):
@@ -75,6 +76,7 @@ def ConvNeXt(
             nn = block(nn, out_channel, layer_scale_init_value, block_drop_rate, activation, name=block_name)
             global_block_id += 1
 
+    """  Output head """
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         if dropout > 0:
@@ -87,7 +89,7 @@ def ConvNeXt(
 
     model = keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
-    reload_model_weights(model, PRETRAINED_DICT, "convnext", input_shape, pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="convnext", pretrained=pretrained)
     return model
 
 

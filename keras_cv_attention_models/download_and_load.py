@@ -3,10 +3,11 @@ import tensorflow as tf
 from tensorflow import keras
 
 
-def reload_model_weights(model, pretrained_dict, sub_release, input_shape=(224, 224, 3), pretrained="imagenet"):
+def reload_model_weights(model, pretrained_dict, sub_release, pretrained="imagenet", mismatch_class=None, request_resolution=-1, method="bilinear"):
     if isinstance(pretrained, str) and pretrained.endswith(".h5"):
         print(">>>> Load pretrained from:", pretrained)
-        model.load_weights(pretrained, by_name=True, skip_mismatch=True)
+        # model.load_weights(pretrained, by_name=True, skip_mismatch=True)
+        load_weights_with_mismatch(model, pretrained, mismatch_class, request_resolution, method)
         return pretrained
 
     file_hash = pretrained_dict.get(model.name, {}).get(pretrained, None)
@@ -16,11 +17,17 @@ def reload_model_weights(model, pretrained_dict, sub_release, input_shape=(224, 
 
     if isinstance(file_hash, dict):
         # file_hash is a dict like {224: "aa", 384: "bb", 480: "cc"}
-        request_resolution = min(file_hash.keys(), key=lambda ii: abs(ii - input_shape[0]))
-        if request_resolution != 224:
+        if request_resolution == -1:
+            input_height = model.input_shape[1]
+            request_resolution = min(file_hash.keys(), key=lambda ii: abs(ii - input_height))
+        if pretrained == "":  # Compatible with previous defined model wights file name, beit and volo
+            pretrained = str(request_resolution)
+        elif request_resolution != 224:
             pretrained = "{}_".format(request_resolution) + pretrained
         file_hash = file_hash[request_resolution]
         # print(f"{request_resolution = }, {pretrained = }, {file_hash = }")
+    elif request_resolution == -1:
+        request_resolution = 224  # Default is 224
 
     pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/{}/{}_{}.h5"
     url = pre_url.format(sub_release, model.name, pretrained)
@@ -32,23 +39,20 @@ def reload_model_weights(model, pretrained_dict, sub_release, input_shape=(224, 
         return None
     else:
         print(">>>> Load pretrained from:", pretrained_model)
-        model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
+        # model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
+        load_weights_with_mismatch(model, pretrained_model, mismatch_class, request_resolution, method)
         return pretrained_model
 
 
-def reload_model_weights_with_mismatch(
-    model, pretrained_dict, sub_release, mismatch_class, request_resolution=224, input_shape=(224, 224, 3), pretrained="imagenet"
-):
-    pretrained_model = reload_model_weights(model, pretrained_dict, sub_release, input_shape=input_shape, pretrained=pretrained)
-    if pretrained_model is None:
-        return
-
-    if input_shape[0] != request_resolution or input_shape[1] != request_resolution:  # May be non-square
+def load_weights_with_mismatch(model, weight_file, mismatch_class=None, request_resolution=-1, method="nearest"):
+    model.load_weights(weight_file, by_name=True, skip_mismatch=True)
+    input_height = model.input_shape[1]
+    if mismatch_class is not None and request_resolution != input_height:
         try:
             import h5py
 
-            print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
-            ff = h5py.File(pretrained_model, mode="r")
+            print(">>>> Reload mismatched weights: {} -> {}".format(request_resolution, input_height))
+            ff = h5py.File(weight_file, mode="r")
             weights = ff["model_weights"]
             for ii in model.layers:
                 if isinstance(ii, mismatch_class) and ii.name in weights:
@@ -57,7 +61,7 @@ def reload_model_weights_with_mismatch(
                     # ss = {ww.decode().split("/")[-1] : tf.convert_to_tensor(ss[ww]) for ww in ss.attrs['weight_names']}
                     ss = {ww.decode("utf8") if hasattr(ww, "decode") else ww: tf.convert_to_tensor(ss[ww]) for ww in ss.attrs["weight_names"]}
                     ss = {kk.split("/")[-1]: vv for kk, vv in ss.items()}
-                    model.get_layer(ii.name).load_resized_pos_emb(ss)
+                    model.get_layer(ii.name).load_resized_pos_emb(ss, method=method)
             ff.close()
 
         # print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
@@ -67,27 +71,8 @@ def reload_model_weights_with_mismatch(
         #         print(">>>> Reload layer:", ii.name)
         #         model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
         except:
-            print("[Error] something went wrong in reload_model_weights_with_mismatch")
+            print("[Error] something went wrong in load_weights_with_mismatch")
             pass
-
-
-def load_weights_with_mismatch(model, weight_file, mismatch_class=None, method="nearest", custom_objects={}):
-    model.load_weights(weight_file, by_name=True, skip_mismatch=True)
-    if mismatch_class is not None:
-        import h5py
-
-        print(">>>> Reload mismatched weights.")
-        ff = h5py.File(weight_file, mode="r")
-        weights = ff["model_weights"]
-        for ii in model.layers:
-            if isinstance(ii, mismatch_class) and ii.name in weights:
-                print(">>>> Reload layer:", ii.name)
-                ss = weights[ii.name]
-                # ss = {ww.decode().split("/")[-1] : tf.convert_to_tensor(ss[ww]) for ww in ss.attrs['weight_names']}
-                ss = {ww.decode("utf8") if hasattr(ww, "decode") else ww: tf.convert_to_tensor(ss[ww]) for ww in ss.attrs["weight_names"]}
-                ss = {kk.split("/")[-1]: vv for kk, vv in ss.items()}
-                model.get_layer(ii.name).load_resized_pos_emb(ss, method=method)
-        ff.close()
 
 
 def state_dict_stack_by_layer(state_dict, skip_weights=["num_batches_tracked"], unstack_weights=[]):

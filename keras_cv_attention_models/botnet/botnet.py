@@ -8,16 +8,16 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.aotnet import AotNet
 from keras_cv_attention_models.attention_layers import conv2d_no_bias
-from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
+from keras_cv_attention_models.download_and_load import reload_model_weights
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 
 PRETRAINED_DICT = {
     # "botnet50": {"imagenet": "b221b45ca316166fc858fda1cf4fd946"},
-    "botnet26t": {"imagenet": "6d7a9548f866b4971ca2c9d17dd815fc"},
-    "botnext_eca26t": {"imagenet": "170b9b4d7fba88dbcb41716047c047b9"},
-    "botnet_se33t": {"imagenet": "f612743ec59d430f197bc38b3a7f8837"},
+    "botnet26t": {"imagenet": {256: "6d7a9548f866b4971ca2c9d17dd815fc"}},
+    "botnext_eca26t": {"imagenet": {256: "170b9b4d7fba88dbcb41716047c047b9"}},
+    "botnet_se33t": {"imagenet": {256: "f612743ec59d430f197bc38b3a7f8837"}},
 }
 
 
@@ -47,6 +47,7 @@ class RelativePositionalEmbedding(keras.layers.Layer):
         initializer = tf.random_normal_initializer(stddev=stddev)
         self.pos_emb_h = self.add_weight(name="r_height", shape=hh_shape, initializer=initializer, trainable=True)
         self.pos_emb_w = self.add_weight(name="r_width", shape=ww_shape, initializer=initializer, trainable=True)
+        self.input_height, self.input_width = height, width
 
     def get_config(self):
         base_config = super(RelativePositionalEmbedding, self).get_config()
@@ -108,7 +109,7 @@ class RelativePositionalEmbedding(keras.layers.Layer):
                 pos_emb = pos_emb[:, :, :, :, :hh, :ww]
         return pos_emb
 
-    def load_resized_pos_emb(self, source_layer):
+    def load_resized_pos_emb(self, source_layer, method="nearest"):
         # For input 224 --> [128, 27], convert to 480 --> [128, 30]
         if isinstance(source_layer, dict):
             source_pos_emb_h = source_layer["r_height:0"]  # weights
@@ -117,12 +118,28 @@ class RelativePositionalEmbedding(keras.layers.Layer):
             source_pos_emb_h = source_layer.pos_emb_h  # layer
             source_pos_emb_w = source_layer.pos_emb_w  # layer
         image_like_w = tf.expand_dims(tf.transpose(source_pos_emb_w, [1, 0]), 0)
-        resize_w = tf.image.resize(image_like_w, (1, self.pos_emb_w.shape[1]))[0]
+        resize_w = tf.image.resize(image_like_w, (1, self.pos_emb_w.shape[1]), method=method)[0]
         self.pos_emb_w.assign(tf.transpose(resize_w, [1, 0]))
 
         image_like_h = tf.expand_dims(tf.transpose(source_pos_emb_h, [1, 0]), 0)
-        resize_h = tf.image.resize(image_like_h, (1, self.pos_emb_h.shape[1]))[0]
+        resize_h = tf.image.resize(image_like_h, (1, self.pos_emb_h.shape[1]), method=method)[0]
         self.pos_emb_h.assign(tf.transpose(resize_h, [1, 0]))
+
+    def show_pos_emb(self, base_size=4):
+        import matplotlib.pyplot as plt
+
+        fig, axes = plt.subplots(1, 3, figsize=(base_size * 3, base_size * 1))
+        axes[0].imshow(self.pos_emb_h)
+        axes[1].imshow(self.pos_emb_w)
+        hh_sum = tf.ones([1, self.pos_emb_h.shape[0]]) @ self.pos_emb_h
+        ww_sum = tf.ones([1, self.pos_emb_w.shape[0]]) @ self.pos_emb_w
+        axes[2].imshow(tf.transpose(hh_sum) + ww_sum)
+        titles = ["pos_emb_h", "pos_emb_w", "sum"]
+        for ax, title in zip(axes.flatten(), titles):
+            ax.set_title(title)
+            ax.set_axis_off()
+        fig.tight_layout()
+        return fig
 
 
 def mhsa_with_relative_position_embedding(
@@ -178,7 +195,7 @@ def BotNet(input_shape=(224, 224, 3), strides=1, pretrained="imagenet", **kwargs
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
 
     model = AotNet(input_shape=input_shape, attn_types=attn_types, attn_params=attn_params, strides=strides, **kwargs)
-    reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "botnet", RelativePositionalEmbedding, input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, PRETRAINED_DICT, "botnet", pretrained, RelativePositionalEmbedding)
     return model
 
 
@@ -204,9 +221,7 @@ def BotNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", cl
     stem_type = "tiered"
 
     model = AotNet(model_name="botnet26t", **locals(), **kwargs)
-    reload_model_weights_with_mismatch(
-        model, PRETRAINED_DICT, "botnet", RelativePositionalEmbedding, request_resolution=256, input_shape=input_shape, pretrained=pretrained
-    )
+    reload_model_weights(model, PRETRAINED_DICT, "botnet", pretrained, RelativePositionalEmbedding)
     return model
 
 
@@ -218,9 +233,7 @@ def BotNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swish
     group_size = 16
     stem_type = "tiered"
     model = AotNet(model_name="botnext_eca26t", **locals(), **kwargs)
-    reload_model_weights_with_mismatch(
-        model, PRETRAINED_DICT, "botnet", RelativePositionalEmbedding, request_resolution=256, input_shape=input_shape, pretrained=pretrained
-    )
+    reload_model_weights(model, PRETRAINED_DICT, "botnet", pretrained, RelativePositionalEmbedding)
     return model
 
 
@@ -237,7 +250,5 @@ def BotNetSE33T(input_shape=(256, 256, 3), num_classes=1000, activation="swish",
     output_num_features = 1280
 
     model = AotNet(model_name="botnet_se33t", **locals(), **kwargs)
-    reload_model_weights_with_mismatch(
-        model, PRETRAINED_DICT, "botnet", RelativePositionalEmbedding, request_resolution=256, input_shape=input_shape, pretrained=pretrained
-    )
+    reload_model_weights(model, PRETRAINED_DICT, "botnet", pretrained, RelativePositionalEmbedding)
     return model

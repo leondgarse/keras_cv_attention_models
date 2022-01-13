@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
+from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -14,11 +14,11 @@ from keras_cv_attention_models.attention_layers import (
 
 BATCH_NORM_EPSILON = 1e-5
 PRETRAINED_DICT = {
-    "volo_d1": {"224": "b642d39b05da9f460035d5d5fa617774", "384": "c7632a783d43278608d84f9463743b2e"},
-    "volo_d2": {"224": "19c6c49d3a1020e9fafbcce775200e30", "384": "fc0435d59925e547d9003010a51e4a16"},
-    "volo_d3": {"224": "42ae5c1be8ceb644d4f7c3d894a0034f", "448": "62304a047f182265617c49f74991e6a0"},
-    "volo_d4": {"224": "b45c6518b5e7624b0f6a61f18a5a7bae", "448": "c3e48df2a555032608d48841d2f4a551"},
-    "volo_d5": {"224": "19c98591fb2a97c2a51d9723c2ff6e1d", "448": "6f9858b667cfef77339901c3121c85a1", "512": "f2aa0cb8e265cabee840a6b83858d086"},
+    "volo_d1": {"": {224: "b642d39b05da9f460035d5d5fa617774", 384: "c7632a783d43278608d84f9463743b2e"}},
+    "volo_d2": {"": {224: "19c6c49d3a1020e9fafbcce775200e30", 384: "fc0435d59925e547d9003010a51e4a16"}},
+    "volo_d3": {"": {224: "42ae5c1be8ceb644d4f7c3d894a0034f", 448: "62304a047f182265617c49f74991e6a0"}},
+    "volo_d4": {"": {224: "b45c6518b5e7624b0f6a61f18a5a7bae", 448: "c3e48df2a555032608d48841d2f4a551"}},
+    "volo_d5": {"": {224: "19c98591fb2a97c2a51d9723c2ff6e1d", 448: "6f9858b667cfef77339901c3121c85a1", 512: "f2aa0cb8e265cabee840a6b83858d086"}},
 }
 
 
@@ -201,13 +201,25 @@ class PositionalEmbedding(keras.layers.Layer):
     def call(self, inputs, **kwargs):
         return inputs + self.pp
 
-    def load_resized_pos_emb(self, source_layer):
+    def load_resized_pos_emb(self, source_layer, method="nearest"):
         # For input 224 --> [1, 14, 14, 384], convert to 384 --> [1, 24, 24, 384]
         if isinstance(source_layer, dict):
             source_pp = source_layer["positional_embedding:0"]  # weights
         else:
             source_pp = source_layer.pp  # layer
-        self.pp.assign(tf.image.resize(source_pp, self.pp.shape[1:3]))
+        self.pp.assign(tf.image.resize(source_pp, self.pp.shape[1:3], method=method))
+
+    def show_pos_emb(self, rows=16, base_size=1):
+        import matplotlib.pyplot as plt
+
+        ss = self.pp[0]
+        cols = int(tf.math.ceil(ss.shape[-1] / rows))
+        fig, axes = plt.subplots(rows, cols, figsize=(base_size * cols, base_size * rows))
+        for id, ax in enumerate(axes.flatten()):
+            ax.imshow(ss[:, :, id])
+            ax.set_axis_off()
+        fig.tight_layout()
+        return fig
 
 
 @tf.keras.utils.register_keras_serializable(package="volo")
@@ -353,7 +365,8 @@ def VOLO(
 
     if num_classes == 0:
         model = tf.keras.models.Model(inputs, nn, name=model_name)
-        volo_reload_model_weights(model, input_shape, pretrained)
+        pretrained = "" if pretrained is not None else None
+        reload_model_weights(model, PRETRAINED_DICT, "volo", pretrained, PositionalEmbedding)
         return model
 
     _, height, width, channel = nn.shape
@@ -400,16 +413,9 @@ def VOLO(
 
     model = tf.keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
-    volo_reload_model_weights(model, input_shape, pretrained)
+    pretrained = "" if pretrained is not None else None
+    reload_model_weights(model, PRETRAINED_DICT, "volo", pretrained, PositionalEmbedding)
     return model
-
-
-def volo_reload_model_weights(model, input_shape, pretrained):
-    pre_resolutions = PRETRAINED_DICT[model.name]
-    max_resolution = max([int(ii) for ii in pre_resolutions.keys()])
-    request_resolution = input_shape[0] if str(input_shape[0]) in pre_resolutions else max_resolution
-    pretrained = str(request_resolution) if pretrained is not None else None
-    reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "volo", PositionalEmbedding, request_resolution, input_shape, pretrained)
 
 
 def VOLO_d1(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", **kwargs):

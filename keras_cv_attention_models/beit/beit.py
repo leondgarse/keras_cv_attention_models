@@ -12,13 +12,13 @@ from keras_cv_attention_models.attention_layers import (
     layer_norm,
     add_pre_post_process,
 )
-from keras_cv_attention_models.download_and_load import reload_model_weights_with_mismatch
+from keras_cv_attention_models.download_and_load import reload_model_weights
 
 LAYER_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
-    "beit_base_patch16": {"224": "0a86897f764f9555e44f1dc2a2e9ca87", "384": "58dea9700340ed403c7561b9cab1930f"},
-    "beit_large_patch16": {"224": "d5a06dce4ed287f8ca58cdda797e58a9", "384": "ddc46a352d5d9a36ca3f599b9ac0cff2", "512": "42c1bfd8385f8af8b9aa0ddf0e96ed66"},
+    "beit_base_patch16": {"": {224: "0a86897f764f9555e44f1dc2a2e9ca87", 384: "58dea9700340ed403c7561b9cab1930f"}},
+    "beit_large_patch16": {"": {224: "d5a06dce4ed287f8ca58cdda797e58a9", 384: "ddc46a352d5d9a36ca3f599b9ac0cff2", 512: "42c1bfd8385f8af8b9aa0ddf0e96ed66"}},
 }
 
 
@@ -97,6 +97,7 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
             ax.imshow(ss[:, :, id])
             ax.set_axis_off()
         fig.tight_layout()
+        return fig
 
 
 def attention_block(inputs, num_heads=4, key_dim=0, out_weight=True, out_bias=False, qv_bias=True, attn_dropout=0, name=None):
@@ -235,13 +236,8 @@ def Beit(
         )(nn)
     model = tf.keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="tf")
-
-    """ Reload model weights by input_shape """
-    pre_resolutions = PRETRAINED_DICT[model.name]
-    max_resolution = max([int(ii) for ii in pre_resolutions.keys()])
-    request_resolution = input_shape[0] if str(input_shape[0]) in pre_resolutions else max_resolution
-    pretrained = str(request_resolution) if pretrained is not None else None
-    reload_model_weights_with_mismatch(model, PRETRAINED_DICT, "beit", MultiHeadRelativePositionalEmbedding, request_resolution, input_shape, pretrained)
+    pretrained = "" if pretrained is not None else None
+    reload_model_weights(model, PRETRAINED_DICT, "beit", pretrained, MultiHeadRelativePositionalEmbedding)
     return model
 
 

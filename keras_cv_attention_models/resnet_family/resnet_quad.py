@@ -105,7 +105,7 @@ def ResNetQ(
 
     model = keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", pretrained=pretrained)
     return model
 
 

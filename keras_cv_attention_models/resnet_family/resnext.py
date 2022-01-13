@@ -13,7 +13,7 @@ PRETRAINED_DICT = {
 def ResNeXt(num_blocks, input_shape=(224, 224, 3), pretrained="imagenet", strides=2, groups=32, **kwargs):
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     model = AotNet(num_blocks, input_shape=input_shape, strides=strides, groups=groups, **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", pretrained=pretrained)
     return model
 
 

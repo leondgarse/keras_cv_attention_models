@@ -29,7 +29,7 @@ def RegNetY(num_blocks, out_channels, input_shape=(224, 224, 3), hidden_channel_
     attn_params = {"se_divisor": 1}
     kwargs.pop("kwargs", None)
     model = AotNet(**locals(), **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", pretrained=pretrained)
     return model
 
 
@@ -89,7 +89,7 @@ def RegNetZB16(input_shape=(224, 224, 3), num_classes=1000, activation="swish", 
     shortcut_type = None
     output_num_features = 1536
     model = AotNet(**locals(), model_name="regnetz_b16", **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", pretrained=pretrained)
     return model
 
 
@@ -109,7 +109,7 @@ def RegNetZC16(input_shape=(256, 256, 3), num_classes=1000, activation="swish", 
     shortcut_type = None
     output_num_features = 1536
     model = AotNet(**locals(), model_name="regnetz_c16", **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", pretrained=pretrained)
     return model
 
 
@@ -130,7 +130,7 @@ def RegNetZD32(input_shape=(256, 256, 3), num_classes=1000, activation="swish", 
     shortcut_type = None
     output_num_features = 1792
     model = AotNet(**locals(), model_name="regnetz_d32", **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", pretrained=pretrained)
     return model
 
 
@@ -151,7 +151,7 @@ def RegNetZD8(input_shape=(256, 256, 3), num_classes=1000, activation="swish", c
     shortcut_type = None
     output_num_features = 1792
     model = AotNet(**locals(), model_name="regnetz_d8", **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", pretrained=pretrained)
     return model
 
 
@@ -172,5 +172,5 @@ def RegNetZE8(input_shape=(256, 256, 3), num_classes=1000, activation="swish", c
     shortcut_type = None
     output_num_features = 2048
     model = AotNet(**locals(), model_name="regnetz_e8", **kwargs)
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", pretrained=pretrained)
     return model

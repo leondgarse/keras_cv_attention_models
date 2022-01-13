@@ -371,7 +371,7 @@ def init_dataset(
         # rescaling = lambda xx: (tf.clip_by_value(xx) - 127.5) / 127.5
         rescaling = lambda xx: (xx - 127.5) * 0.0078125
     else:
-        rescaling = lambda xx: xx   # raw inputs [0, 255]
+        rescaling = lambda xx: xx  # raw inputs [0, 255]
     as_one_hot = lambda yy: tf.one_hot(yy, num_classes)
 
     train_dataset = train_dataset.batch(batch_size)

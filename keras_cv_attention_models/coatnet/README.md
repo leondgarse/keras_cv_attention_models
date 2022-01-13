@@ -47,7 +47,7 @@
 ## Models
   | Model                               | Params | Image resolution | Top1 Acc | ImageNet |
   | ----------------------------------- | ------ | ---------------- | -------- | -------- |
-  | CoAtNet0 (Self trained)             | 23.8M  | 160              | 80.19    | [coatnet0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_imagenet.h5) |
+  | CoAtNet0 (Self trained)             | 23.8M  | 160              | 80.19    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
   | CoAtNet0                            | 25M    | 224              | 81.6     |          |
   | CoAtNet0                            | 25M    | 384              | 83.9     |          |
   | CoAtNet1                            | 42M    | 224              | 83.3     |          |

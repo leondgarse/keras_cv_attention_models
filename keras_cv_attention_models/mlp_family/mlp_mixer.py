@@ -86,7 +86,7 @@ def MLPMixer(
     else:
         model = keras.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="tf")
-    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="mlp_family", input_shape=input_shape, pretrained=pretrained)
+    reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="mlp_family", pretrained=pretrained)
     return model
 
 

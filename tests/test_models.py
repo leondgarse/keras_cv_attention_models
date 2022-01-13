@@ -179,6 +179,14 @@ def test_BotNet_new_shape_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_CoAtNet_new_shape_predict():
+    mm = keras_cv_attention_models.coatnet.CoAtNet0(input_shape=(320, 320, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_ConvNeXt_predict():
     mm = keras_cv_attention_models.convnext.ConvNeXtTiny(pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
