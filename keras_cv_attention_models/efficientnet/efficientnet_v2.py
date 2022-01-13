@@ -109,7 +109,7 @@ def EfficientNetV2(
     first_conv_filter = blocks_config.get("first_conv_filter", out_channels[0])
     output_conv_filter = blocks_config.get("output_conv_filter", 1280)
     kernel_sizes = blocks_config.get("kernel_sizes", [3] * len(depthes))
-    rescale_mode = blocks_config.get("rescale_mode", "tf")
+    rescale_mode = "tf" if pretrained is not None and pretrained.startswith("imagenet21k") else "torch"
 
     inputs = keras.layers.Input(shape=input_shape)
     bn_eps = TORCH_BATCH_NORM_EPSILON if is_torch_mode else TF_BATCH_NORM_EPSILON
@@ -196,7 +196,6 @@ BLOCK_CONFIGS = {
         "depthes": [1, 2, 2, 3, 5, 8],
         "strides": [1, 2, 2, 2, 1, 2],
         "use_ses": [0, 0, 0, 1, 1, 1],
-        "rescale_mode": "torch",
     },
     "b1": {  # width 1.0, depth 1.1
         "first_conv_filter": 32,
@@ -205,7 +204,6 @@ BLOCK_CONFIGS = {
         "depthes": [2, 3, 3, 4, 6, 9],
         "strides": [1, 2, 2, 2, 1, 2],
         "use_ses": [0, 0, 0, 1, 1, 1],
-        "rescale_mode": "torch",
     },
     "b2": {  # width 1.1, depth 1.2
         "first_conv_filter": 32,
@@ -215,7 +213,6 @@ BLOCK_CONFIGS = {
         "depthes": [2, 3, 3, 4, 6, 10],
         "strides": [1, 2, 2, 2, 1, 2],
         "use_ses": [0, 0, 0, 1, 1, 1],
-        "rescale_mode": "torch",
     },
     "b3": {  # width 1.2, depth 1.4
         "first_conv_filter": 40,
@@ -225,7 +222,6 @@ BLOCK_CONFIGS = {
         "depthes": [2, 3, 3, 5, 7, 12],
         "strides": [1, 2, 2, 2, 1, 2],
         "use_ses": [0, 0, 0, 1, 1, 1],
-        "rescale_mode": "torch",
     },
     "t": {  # width 1.4 * 0.8, depth 1.8 * 0.9, from timm
         "first_conv_filter": 24,
@@ -235,7 +231,6 @@ BLOCK_CONFIGS = {
         "depthes": [2, 4, 4, 6, 9, 14],
         "strides": [1, 2, 2, 2, 1, 2],
         "use_ses": [0, 0, 0, 1, 1, 1],
-        "rescale_mode": "torch",
     },
     "s": {  # width 1.4, depth 1.8
         "first_conv_filter": 24,
@@ -245,7 +240,6 @@ BLOCK_CONFIGS = {
         "depthes": [2, 4, 4, 6, 9, 15],
         "strides": [1, 2, 2, 2, 1, 2],
         "use_ses": [0, 0, 0, 1, 1, 1],
-        "rescale_mode": "tf",
     },
     "early": {  # S model discribed in paper early version https://arxiv.org/pdf/2104.00298v2.pdf
         "first_conv_filter": 24,
@@ -255,7 +249,6 @@ BLOCK_CONFIGS = {
         "depthes": [2, 4, 4, 6, 9, 15],
         "strides": [1, 2, 2, 2, 1, 2],
         "use_ses": [0, 0, 0, 1, 1, 1],
-        "rescale_mode": "tf",
     },
     "m": {  # width 1.6, depth 2.2
         "first_conv_filter": 24,
@@ -265,7 +258,6 @@ BLOCK_CONFIGS = {
         "depthes": [3, 5, 5, 7, 14, 18, 5],
         "strides": [1, 2, 2, 2, 1, 2, 1],
         "use_ses": [0, 0, 0, 1, 1, 1, 1],
-        "rescale_mode": "tf",
     },
     "l": {  # width 2.0, depth 3.1
         "first_conv_filter": 32,
@@ -275,7 +267,6 @@ BLOCK_CONFIGS = {
         "depthes": [4, 7, 7, 10, 19, 25, 7],
         "strides": [1, 2, 2, 2, 1, 2, 1],
         "use_ses": [0, 0, 0, 1, 1, 1, 1],
-        "rescale_mode": "tf",
     },
     "xl": {
         "first_conv_filter": 32,
@@ -285,7 +276,6 @@ BLOCK_CONFIGS = {
         "depthes": [4, 8, 8, 16, 24, 32, 8],
         "strides": [1, 2, 2, 2, 1, 2, 1],
         "use_ses": [0, 0, 0, 1, 1, 1, 1],
-        "rescale_mode": "tf",
     },
 }
 

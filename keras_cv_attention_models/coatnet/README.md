@@ -45,7 +45,7 @@
   # [('n02124075', 'Egyptian_cat', 0.9886845), ('n02123159', 'tiger_cat', 0.00742623), ('n02123045', 'tabby', 0.0025222537), ... ]
   ```
 ## Models
-  | Model                               | Params | Image resolution | Top1 Acc | ImageNet |
+  | Model                               | Params | Image resolution | Top1 Acc | Download |
   | ----------------------------------- | ------ | ---------------- | -------- | -------- |
   | CoAtNet0 (Self trained)             | 23.8M  | 160              | 80.19    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
   | CoAtNet0                            | 25M    | 224              | 81.6     |          |

@@ -215,5 +215,5 @@ class MyCheckpoint(keras.callbacks.Callback):
             if len(pre_monitor_saves) != 0:
                 os.remove(pre_monitor_saves[0])
             monitor_save = self.monitor_save.format(epoch, "{:.4f}".format(cur_monitor_val))
-            tf.print(">>>> Save best to:", monitor_save)
+            tf.print("\n>>>> Save best to:", monitor_save)
             self.model.save(monitor_save)
