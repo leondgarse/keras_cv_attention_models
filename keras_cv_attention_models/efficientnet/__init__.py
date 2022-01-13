@@ -41,9 +41,11 @@ __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels. Set `
       The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `softmax`.
-  include_preprocessing: Boolean value if add preprocessing `Rescale + Normalization` after `Input`.
-      `True` means using input value in range `[0, 255]`.
-      `False` means using input value in range `[-1, 1]`.
+  include_preprocessing: Boolean value if add preprocessing `Rescale` / `Normalization` after `Input`, will expect input value in range `[0, 255]`.
+      Note that different preprocessing will applied for different `rescale_mode`. It depends on `pretained` and `model_type`.
+      - For all V1 models, `rescale_mode`s are "torch".
+      - For "21k" pretrained V2 models, `rescale_mode`s are all "tf"
+      - For "imagenet" pretrained V2 models, "bx" models are all "torch", ["s", "m", "l", "xl"] are "tf".
       Default `False`.
   pretrained: value in {pretrained}.
       Will try to download and load pre-trained model weights if not None.
