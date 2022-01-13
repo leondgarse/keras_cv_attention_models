@@ -38,7 +38,7 @@
   ```py
   from keras_cv_attention_models import botnet
   mm = botnet.BotNet26T(input_shape=(320, 320, 3), num_classes=1000, pretrained="imagenet")
-  # >>>> Load pretrained from: /home/leondgarse/.keras/models/botnet26t_imagenet.h5
+  # >>>> Load pretrained from: /home/leondgarse/.keras/models/botnet26t_256_imagenet.h5
   # WARNING:tensorflow:Skipping loading of weights for layer stack3_block2_deep_2_mhsa_pos_emb due to mismatch in shape ((64, 39) vs (64, 31)).
   # WARNING:tensorflow:Skipping loading of weights for layer stack3_block2_deep_2_mhsa_pos_emb due to mismatch in shape ((64, 39) vs (64, 31)).
   # WARNING:tensorflow:Skipping loading of weights for layer stack4_block1_deep_2_mhsa_pos_emb due to mismatch in shape ((128, 39) vs (128, 31)).
@@ -55,7 +55,7 @@
   imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.7170328), ('n02123045', 'tabby', 0.047512695), ...]
+  # [('n02124075', 'Egyptian_cat', 0.6976793), ('n02123045', 'tabby', 0.055820007), ...]
   ```
 ## Relative to absolute positional embedding detail
   - [How Positional Embeddings work in Self-Attention (code in Pytorch)](https://theaisummer.com/positional-embeddings/)

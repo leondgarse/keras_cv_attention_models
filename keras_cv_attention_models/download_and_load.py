@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow import keras
 
 
-def reload_model_weights(model, pretrained_dict, sub_release, pretrained="imagenet", mismatch_class=None, request_resolution=-1, method="bilinear"):
+def reload_model_weights(model, pretrained_dict, sub_release, pretrained="imagenet", mismatch_class=None, request_resolution=-1, method="nearest"):
     if isinstance(pretrained, str) and pretrained.endswith(".h5"):
         print(">>>> Load pretrained from:", pretrained)
         # model.load_weights(pretrained, by_name=True, skip_mismatch=True)

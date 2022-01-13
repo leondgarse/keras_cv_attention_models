@@ -24,18 +24,13 @@
   from keras_cv_attention_models import volo
 
   # Will download and load pretrained imagenet weights.
-  mm = volo.VOLO_d5(input_shape=(512, 512, 3), classfiers=2, num_classes=1000, pretrained="imagenet")
+  mm = volo.VOLO_d2(input_shape=(384, 384, 3), classfiers=2, num_classes=1000, pretrained="imagenet")
 
   # Run prediction
   from skimage.data import chelsea
-  imm = chelsea()  # Chelsea the cat
-  pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]) / 255, 0)).numpy()
-  print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 12.844851),
-  #  ('n02123045', 'tabby', 8.998214),
-  #  ('n02123159', 'tiger_cat', 8.249916),
-  #  ('n02127052', 'lynx', 3.9177818),
-  #  ('n02123597', 'Siamese_cat', 2.0154262)]
+  pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+  print(mm.decode_predictions(pred)[0])
+  # [('n02124075', 'Egyptian_cat', 12.834192), ('n02123045', 'tabby', 7.9686913), ...]
   ```
   **Change input resolution** if input_shape is not within pretraind, will load `PositionalEmbedding` weights by `load_resized_pos_emb`.
   ```py
@@ -49,12 +44,9 @@
 
   # Run prediction on Chelsea with (512, 512) resolution
   from skimage.data import chelsea
-  imm = chelsea()  # Chelsea the cat
-  pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]) / 255, 0)).numpy()
-  print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 12.932459), ('n02123045', 'tabby', 9.104419), ...]
-
-  mm.save("volo_d1_512.h5")
+  pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+  print(mm.decode_predictions(pred)[0])
+  # [('n02124075', 'Egyptian_cat', 12.914974), ('n02123045', 'tabby', 9.339718), ...]
   ```
   **Mixup token**
   ```py
@@ -62,13 +54,12 @@
   mm = volo.VOLO_d1(input_shape=(224, 224, 3), classfiers=2, num_classes=1000, mix_token=True, token_label_top=True)
 
   from skimage.data import chelsea
-  imm = chelsea()  # Chelsea the cat
-  out = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]) / 255, 0))
+  out = mm(mm.preprocess_input(chelsea()))
   print(f"{len(out) = }, {out[0].shape = }, {out[1].shape = }")
   # len(out) = 2, out[0].shape = TensorShape([1, 1001]), out[1].shape = TensorShape([1, 196, 1000])
   pred = out[0][:, :-1] + 0.5 * tf.reduce_max(out[1], 1)
-  print(keras.applications.imagenet_utils.decode_predictions(pred.numpy())[0])
-  # [('n02124075', 'Egyptian_cat', 12.910139), ('n02123045', 'tabby', 8.122887), ... ]
+  print(mm.decode_predictions(pred.numpy())[0])
+  # [('n02124075', 'Egyptian_cat', 12.737301), ('n02123045', 'tabby', 8.866584), ... ]
   ```
 ## Verification with Pytorch model
   ```py

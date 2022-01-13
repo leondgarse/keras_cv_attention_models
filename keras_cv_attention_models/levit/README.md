@@ -39,6 +39,7 @@
   ```
   **Change input resolution**
   ```py
+  from keras_cv_attention_models import levit
   # Will download and load pretrained imagenet weights.
   mm = levit.LeViT256(input_shape=(320, 320, 3), pretrained="imagenet", use_distillation=True, classifier_activation=None)
   # >>>> Load pretraind from: /home/leondgarse/.keras/models/levit256_imagenet.h5
@@ -54,7 +55,7 @@
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0))
   pred = tf.nn.softmax((pred[0] + pred[1]) / 2).numpy()
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.81994164), ('n02123159', 'tiger_cat', 0.1425549), ...]
+  # [('n02124075', 'Egyptian_cat', 0.88537), ('n02123159', 'tiger_cat', 0.09331669), ...]
   ```
 ## Verification with PyTorch version
   ```py
