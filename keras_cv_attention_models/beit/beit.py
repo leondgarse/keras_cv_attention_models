@@ -24,9 +24,9 @@ PRETRAINED_DICT = {
 
 @tf.keras.utils.register_keras_serializable(package="beit")
 class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
-    def __init__(self, with_cls_token=True, **kwargs):
+    def __init__(self, with_cls_token=True, input_height=-1, **kwargs):
         super(MultiHeadRelativePositionalEmbedding, self).__init__(**kwargs)
-        self.with_cls_token = with_cls_token
+        self.with_cls_token, self.input_height = with_cls_token, input_height
         if with_cls_token:
             self.cls_token_len = 1
             self.cls_token_pos_len = 3
@@ -36,7 +36,11 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
 
     def build(self, attn_shape):
         # print(attn_shape)
-        height = width = int(tf.math.sqrt(float(attn_shape[2] - self.cls_token_len)))  # assume hh == ww, e.g. 14
+        if self.input_height == -1:
+            height = width = int(tf.math.sqrt(float(attn_shape[2] - self.cls_token_len)))  # assume hh == ww, e.g. 14
+        else:
+            height = self.input_height
+            width = int(float(attn_shape[2] - self.cls_token_len) / height)
         num_heads = attn_shape[1]
         num_relative_distance = (2 * height - 1) * (2 * width - 1) + self.cls_token_pos_len
         self.relative_position_bias_table = self.add_weight(name="pos_emb", shape=(num_relative_distance, num_heads), initializer="zeros", trainable=True)
@@ -45,8 +49,8 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         coords = tf.stack([yy, xx], axis=-1)  # [14, 14, 2]
         coords_flatten = tf.reshape(coords, [-1, 2])  # [196, 2]
         relative_coords = coords_flatten[:, None, :] - coords_flatten[None, :, :]  # [196, 196, 2]
-        xx = (relative_coords[:, :, 0] + height - 1) * (2 * width - 1)
-        yy = relative_coords[:, :, 1] + width - 1
+        xx = (relative_coords[:, :, 0] + width - 1) * (2 * height - 1)
+        yy = relative_coords[:, :, 1] + height - 1
         relative_coords = tf.stack([xx, yy], axis=-1)
 
         relative_position_index = tf.reduce_sum(relative_coords, axis=-1)  # [196, 196]
