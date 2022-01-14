@@ -24,9 +24,9 @@ PRETRAINED_DICT = {
 
 @tf.keras.utils.register_keras_serializable(package="beit")
 class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
-    def __init__(self, with_cls_token=True, input_height=-1, **kwargs):
+    def __init__(self, with_cls_token=True, attn_height=-1, **kwargs):
         super(MultiHeadRelativePositionalEmbedding, self).__init__(**kwargs)
-        self.with_cls_token, self.input_height = with_cls_token, input_height
+        self.with_cls_token, self.attn_height = with_cls_token, attn_height
         if with_cls_token:
             self.cls_token_len = 1
             self.cls_token_pos_len = 3
@@ -36,10 +36,10 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
 
     def build(self, attn_shape):
         # print(attn_shape)
-        if self.input_height == -1:
+        if self.attn_height == -1:
             height = width = int(tf.math.sqrt(float(attn_shape[2] - self.cls_token_len)))  # assume hh == ww, e.g. 14
         else:
-            height = self.input_height
+            height = self.attn_height
             width = int(float(attn_shape[2] - self.cls_token_len) / height)
         num_heads = attn_shape[1]
         num_relative_distance = (2 * height - 1) * (2 * width - 1) + self.cls_token_pos_len
