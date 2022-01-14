@@ -1,4 +1,16 @@
-from keras_cv_attention_models.coatnet.coatnet import CoAtNet, CoAtNetT, CoAtNet0, CoAtNet1, CoAtNet2, CoAtNet3, CoAtNet4, CoAtNet5, CoAtNet6, CoAtNet7
+from keras_cv_attention_models.coatnet.coatnet import (
+    CoAtNet,
+    CoAtNetT,
+    CoAtNet0,
+    CoAtNet1,
+    CoAtNet2,
+    CoAtNet3,
+    CoAtNet4,
+    CoAtNet5,
+    CoAtNet6,
+    CoAtNet7,
+    mhsa_with_multi_head_relative_position_embedding,
+)
 
 __head_doc__ = """
 Keras implementation of `CoAtNet`, or `Conv + Transformer` networks.
@@ -80,3 +92,31 @@ CoAtNet4.__doc__ = CoAtNet0.__doc__
 CoAtNet5.__doc__ = CoAtNet0.__doc__
 CoAtNet6.__doc__ = CoAtNet0.__doc__
 CoAtNet7.__doc__ = CoAtNet0.__doc__
+
+mhsa_with_multi_head_relative_position_embedding.__doc__ = __head_doc__ + """
+Multi head self attention with multi head relative positional embedding. Defined as function, not layer.
+
+Args:
+  inputs: input tensor.
+  num_heads: Number of attention heads.
+  key_dim: Size of each attention head for query and key. Default `0` for `key_dim = inputs.shape[-1] // num_heads`.
+  out_shape: The expected shape of an output tensor. If not specified, projects back to the input dim.
+  out_weight: Boolean, whether use an ouput dense.
+  out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
+  attn_dropout: Dropout probability for attention.
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> inputs = keras.layers.Input([14, 16, 256])
+>>> nn = attention_layers.mhsa_with_multi_head_relative_position_embedding(inputs, num_heads=4, out_shape=512)
+>>> print(f"{nn.shape = }")
+nn.shape = TensorShape([None, 14, 16, 512])
+
+>>> mm = keras.models.Model(inputs, nn)
+>>> mm.summary()
+>>> print({ii.name: ii.shape for ii in mm.weights})
+{'conv2d_2/kernel:0': TensorShape([1, 1, 256, 1024]),
+ 'multi_head_relative_positional_embedding_1/pos_emb:0': TensorShape([837, 4]),
+ 'dense_2/kernel:0': TensorShape([512, 512])}
+"""

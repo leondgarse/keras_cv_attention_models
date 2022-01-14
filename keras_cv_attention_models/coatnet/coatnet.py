@@ -18,9 +18,7 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 PRETRAINED_DICT = {"coatnet0": {"imagenet": {160: "030e0e79b0624ab6511a1213b3f5d814"}}}
 
 
-def mhsa_with_multi_head_relative_position_embedding(
-    inputs, num_heads=4, key_dim=0, relative=True, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
-):
+def mhsa_with_multi_head_relative_position_embedding(inputs, num_heads=4, key_dim=0, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None):
     _, hh, ww, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
     qk_scale = 1.0 / tf.math.sqrt(tf.cast(key_dim, inputs.dtype))
@@ -30,19 +28,14 @@ def mhsa_with_multi_head_relative_position_embedding(
 
     # qkv = keras.layers.Dense(emb_dim * 3, use_bias=False, name=name and name + "qkv")(inputs)
     qkv = conv2d_no_bias(inputs, qk_out * 2 + out_shape, kernel_size=1, name=name and name + "qkv_")
-    if vv_dim == key_dim:
-        qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], 3, num_heads, key_dim])
-        query, key, value = tf.transpose(qkv, [2, 0, 3, 1, 4])
-        key = tf.transpose(key, [0, 1, 3, 2])
-    else:
-        qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
-        query, key, value = tf.split(qkv, [qk_out, qk_out, out_shape], axis=-1)
-        # query = [batch, num_heads, hh * ww, key_dim]
-        query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])
-        # key = [batch, num_heads, key_dim, hh * ww]
-        key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])
-        # value = [batch, num_heads, hh * ww, vv_dim]
-        value = tf.transpose(tf.reshape(value, [-1, value.shape[1], num_heads, vv_dim]), [0, 2, 1, 3])
+    qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
+    query, key, value = tf.split(qkv, [qk_out, qk_out, out_shape], axis=-1)
+    # query = [batch, num_heads, hh * ww, key_dim]
+    query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])
+    # key = [batch, num_heads, key_dim, hh * ww]
+    key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])
+    # value = [batch, num_heads, hh * ww, vv_dim]
+    value = tf.transpose(tf.reshape(value, [-1, value.shape[1], num_heads, vv_dim]), [0, 2, 1, 3])
 
     # query *= qk_scale
     # [batch, num_heads, hh * ww, hh * ww]

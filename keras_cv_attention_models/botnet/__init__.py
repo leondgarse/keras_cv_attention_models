@@ -79,7 +79,7 @@ nn.shape = TensorShape([None, 14, 16, 256])
 >>> mm = keras.models.Model(inputs, nn)
 >>> mm.summary()
 >>> print({ii.name: ii.shape for ii in mm.weights})
-{'dense/kernel:0': TensorShape([256, 768]),
+{'dense/kernel:0': TensorShape([1, 1, 256, 768]),
  'relative_positional_embedding/r_height:0': TensorShape([64, 27]),
  'relative_positional_embedding/r_width:0': TensorShape([64, 31]),
  'dense_1/kernel:0': TensorShape([256, 256])}
