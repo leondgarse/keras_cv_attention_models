@@ -211,7 +211,7 @@ def test_RegNetZB16_predict():
 def test_LeViT128S_predict():
     mm = keras_cv_attention_models.levit.LeViT128S(pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
-    pred = ((pred[0] + pred[1]) / 2)
+    pred = (pred[0] + pred[1]) / 2
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
@@ -220,7 +220,7 @@ def test_LeViT128S_predict():
 def test_LeViT128S_new_shape_predict():
     mm = keras_cv_attention_models.levit.LeViT128S(input_shape=(320, 320, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
-    pred = ((pred[0] + pred[1]) / 2)
+    pred = (pred[0] + pred[1]) / 2
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"

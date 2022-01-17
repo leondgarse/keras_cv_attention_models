@@ -7,7 +7,50 @@ sys.path.append(".")
 from keras_cv_attention_models import attention_layers
 
 
-# Not included: batchnorm_with_activation, conv2d_no_bias, drop_block, hard_swish, layer_norm
+# Not included: batchnorm_with_activation, conv2d_no_bias, drop_block, hard_swish, phish, mish, layer_norm
+def test_add_pre_post_process_tf():
+    input_shape = (224, 224, 3)
+    fake_input = tf.random.uniform([1, *input_shape]) * 255
+    mm = keras.models.Sequential()
+    rescale_mode = "tf"
+
+    attention_layers.add_pre_post_process(mm, rescale_mode=rescale_mode, input_shape=input_shape)
+    aa = mm.preprocess_input(fake_input)
+    bb = keras.applications.imagenet_utils.preprocess_input(fake_input, mode=rescale_mode)
+    tf.assert_less(tf.abs(aa - bb), 1e-7)
+
+    aa = mm.preprocess_input(fake_input[0])
+    bb = keras.applications.imagenet_utils.preprocess_input(fake_input, mode=rescale_mode)
+    tf.assert_less(tf.abs(aa - bb), 1e-7)
+
+
+def test_add_pre_post_process_torch():
+    input_shape = (224, 224, 3)
+    fake_input = tf.random.uniform([1, *input_shape]) * 255
+    mm = keras.models.Sequential()
+    rescale_mode = "torch"
+
+    attention_layers.add_pre_post_process(mm, rescale_mode=rescale_mode, input_shape=input_shape)
+    aa = mm.preprocess_input(fake_input)
+    bb = keras.applications.imagenet_utils.preprocess_input(fake_input, mode=rescale_mode)
+    tf.assert_less(tf.abs(aa - bb), 1e-7)
+
+    aa = mm.preprocess_input(fake_input[0])
+    bb = keras.applications.imagenet_utils.preprocess_input(fake_input, mode=rescale_mode)
+    tf.assert_less(tf.abs(aa - bb), 1e-7)
+
+
+def test_add_pre_post_process_raw():
+    input_shape = (224, 224, 3)
+    fake_input = tf.random.uniform([1, *input_shape]) * 255
+    mm = keras.models.Sequential()
+    rescale_mode = "raw"
+
+    attention_layers.add_pre_post_process(mm, rescale_mode=rescale_mode, input_shape=input_shape)
+    aa = mm.preprocess_input(fake_input)
+    tf.assert_less(tf.abs(aa - fake_input), 1e-7)
+
+
 def test_anti_alias_downsample():
     input_shape = [2, 28, 28, 192]
     strides = 2
@@ -83,6 +126,13 @@ def test_mhsa_with_relative_position_embedding():
     input_shape = [2, 14, 16, 256]
     out_shape = 384
     out = attention_layers.mhsa_with_relative_position_embedding(tf.ones(input_shape), num_heads=4, out_shape=out_shape)
+    assert out.shape == [input_shape[0], input_shape[1], input_shape[2], out_shape]
+
+
+def test_mhsa_with_multi_head_relative_position_embedding():
+    input_shape = [2, 14, 16, 256]
+    out_shape = 384
+    out = attention_layers.mhsa_with_multi_head_relative_position_embedding(tf.ones(input_shape), num_heads=4, out_shape=out_shape)
     assert out.shape == [input_shape[0], input_shape[1], input_shape[2], out_shape]
 
 
