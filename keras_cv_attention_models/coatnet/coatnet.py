@@ -18,7 +18,9 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 PRETRAINED_DICT = {"coatnet0": {"imagenet": {160: "030e0e79b0624ab6511a1213b3f5d814"}}}
 
 
-def mhsa_with_multi_head_relative_position_embedding(inputs, num_heads=4, key_dim=0, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None):
+def mhsa_with_multi_head_relative_position_embedding(
+    inputs, num_heads=4, key_dim=0, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
+):
     _, hh, ww, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
     qk_scale = 1.0 / tf.math.sqrt(tf.cast(key_dim, inputs.dtype))
