@@ -75,7 +75,7 @@
   - [PDF 2105.03404 ResMLP: Feedforward networks for image classification with data-efficient training](https://arxiv.org/pdf/2105.03404.pdf)
   - [Github facebookresearch/deit](https://github.com/facebookresearch/deit)
   - **Models** reloaded `imagenet` weights are the `distilled` version from official.
-    | Model      | Params | Image resolution | Top1 Acc | ImageNet |
+    | Model      | Params | Image resolution | Top1 Acc | Download |
     | ---------- | ------ | ---------------- | -------- | -------- |
     | ResMLP12   | 15M    | 224              | 77.8     | [resmlp12_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/resmlp12_imagenet.h5) |
     | ResMLP24   | 30M    | 224              | 80.8     | [resmlp24_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/resmlp24_imagenet.h5) |
@@ -88,7 +88,7 @@
   - [PDF 2105.08050 Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050.pdf).
   - Model weights reloaded from [Github timm/models/mlp_mixer](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/mlp_mixer.py).
   - **Models**
-    | Model      | Params | Image resolution | Top1 Acc | ImageNet |
+    | Model      | Params | Image resolution | Top1 Acc | Download |
     | ---------- | ------ | ---------------- | -------- | -------- |
     | GMLPTiny16 | 6M     | 224              | 72.3     |          |
     | GMLPS16    | 20M    | 224              | 79.6     | [gmlp_s16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/gmlp_s16_imagenet.h5) |

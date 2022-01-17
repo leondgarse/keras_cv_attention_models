@@ -73,12 +73,12 @@
 
   | Model    | Image resolution | Reported Params | self-defined Params | Top1 Acc |
   | -------- | ---------------- | --------------- | ------------------- | -------- |
-  | CoAtNet3 | 384              | 168M            | 162.96M             | 88.52    |
-  | CoAtNet3 | 512              | 168M            | 163.57M             | 88.81    |
-  | CoAtNet4 | 512              | 275M            | 273.10M             | 89.11    |
-  | CoAtNet5 | 512              | 688M            | 680.47M             | 89.77    |
-  | CoAtNet6 | 512              | 1.47B           | 1.340B              | 90.45    |
-  | CoAtNet7 | 512              | 2.44B           | 2.422B              | 90.88    |
+  | CoAtNet3 | 384              | 168M            | 162.85M             | 88.52    |
+  | CoAtNet3 | 512              | 168M            | 163.45M             | 88.81    |
+  | CoAtNet4 | 512              | 275M            | 272.90M             | 89.11    |
+  | CoAtNet5 | 512              | 688M            | 680.15M             | 89.77    |
+  | CoAtNet6 | 512              | 1.47B           | 1.339B              | 90.45    |
+  | CoAtNet7 | 512              | 2.44B           | 2.421B              | 90.88    |
 
 ## Article detail info
   - L denotes the number of blocks and D denotes the hidden dimension (#channels).
