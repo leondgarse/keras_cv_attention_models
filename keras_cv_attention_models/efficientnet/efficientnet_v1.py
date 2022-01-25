@@ -41,7 +41,7 @@ def EfficientNetV1(
     include_preprocessing=False,
     pretrained="noisy_student",
     model_name="EfficientNetV1",
-    kwargs=None,  # Not used, just recieving parameter
+    **kwargs,
 ):
     blocks_config = copy.deepcopy(BLOCK_CONFIGS["base"])
     exp_config = BLOCK_CONFIGS.get(model_type.lower(), BLOCK_CONFIGS["b0"])
@@ -49,6 +49,10 @@ def EfficientNetV1(
     blocks_config.update({"output_conv_filter": exp_config["width"] * blocks_config["output_conv_filter"]})
     blocks_config.update({"out_channels": [ii * exp_config["width"] for ii in blocks_config["out_channels"]]})
     blocks_config.update({"depthes": [int(math.ceil(ii * exp_config["depth"])) for ii in blocks_config["depthes"]]})
+
+    kwargs.pop("kwargs", None)
+    if len(kwargs) != 0:
+        blocks_config.update(kwargs)
 
     return EfficientNetV2(
         model_type={"v1-" + model_type: blocks_config},

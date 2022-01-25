@@ -277,13 +277,13 @@ def get_actual_drop_connect_rates(model):
     return [ii.rate for ii in model.layers if isinstance(ii, keras.layers.Dropout) or isinstance(ii, DropConnect)]
 
 
-def get_pyramide_feture_layers(model):
+def get_pyramide_feture_layers(model, match_reg="^stack_?(\\d+)_block_?(\\d+)_output$"):
     """ Pick all stack output layers """
     import re
 
     dd = {}
     for ii in model.layers:
-        matched = re.match("^stack_?(\\d+)_block_?(\\d+)_output$", ii.name)
+        matched = re.match(match_reg, ii.name)
         if matched is not None:
             cur_stack = "stack_" + matched[1] + "_output"
             dd.update({cur_stack: ii})
