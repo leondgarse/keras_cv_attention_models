@@ -95,12 +95,17 @@ def EfficientNetV2(
     include_preprocessing=False,
     pretrained="imagenet",
     model_name="EfficientNetV2",
-    kwargs=None,  # Not used, just recieving parameter
+    **kwargs,
 ):
     if isinstance(model_type, dict):  # For EfficientNetV1 configures
         model_type, blocks_config = model_type.popitem()
     else:
         blocks_config = BLOCK_CONFIGS.get(model_type.lower(), BLOCK_CONFIGS["s"])
+    kwargs.pop("kwargs", None)
+    if len(kwargs) != 0:
+        # print(kwargs)
+        blocks_config = blocks_config.copy()
+        blocks_config.update(kwargs)
     expands = blocks_config["expands"]
     out_channels = blocks_config["out_channels"]
     depthes = blocks_config["depthes"]
@@ -146,9 +151,10 @@ def EfficientNetV2(
             pre_out = out
             global_block_id += 1
 
-    output_conv_filter = make_divisible(output_conv_filter, 8)
-    nn = conv2d_no_bias(nn, output_conv_filter, 1, strides=1, padding="valid", use_torch_padding=is_torch_mode, name="post_")
-    nn = batchnorm_with_activation(nn, activation="swish", epsilon=bn_eps, name="post_")
+    if output_conv_filter > 0:
+        output_conv_filter = make_divisible(output_conv_filter, 8)
+        nn = conv2d_no_bias(nn, output_conv_filter, 1, strides=1, padding="valid", use_torch_padding=is_torch_mode, name="post_")
+        nn = batchnorm_with_activation(nn, activation="swish", epsilon=bn_eps, name="post_")
     nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
 
     model = keras.models.Model(inputs=inputs, outputs=nn, name=model_name)
