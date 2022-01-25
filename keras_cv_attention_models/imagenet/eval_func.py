@@ -165,8 +165,26 @@ def combine_hist_into_one(hist_list, save_file=None):
     return hh
 
 
-def plot_and_peak_scatter(ax, array, peak_method, label, skip_first=0, color=None, va="bottom", fontsize=12, **kwargs):
-    array = array[skip_first:]
+def curve_fit(source, target_len=10, skip=5, use_recent=40):
+    from scipy.optimize import curve_fit
+    import numpy as np
+
+    def func_curv(x, a, b, c, d):
+        pp = np.log(x)
+        # pp = 1 / x
+        return a * pp ** 3 + b * pp ** 2 + c * pp + d
+
+    recent_source = source[skip:]
+    use_recent = len(source) if use_recent == -1 else use_recent
+    if len(recent_source) > use_recent:
+        recent_source = recent_source[-use_recent:]
+    start_pos = len(source) - len(recent_source)
+    popt, pcov = curve_fit(func_curv, np.arange(start_pos, len(source)), recent_source)
+    return list(source[: -len(recent_source)]) + func_curv(np.arange(start_pos, len(source) + target_len), *popt).tolist()
+
+
+def plot_and_peak_scatter(ax, source_array, peak_method, label, skip_first=0, color=None, va="bottom", fontsize=12, pred_curve=0, **kwargs):
+    array = source_array[skip_first:]
     for id, ii in enumerate(array):
         if tf.math.is_nan(ii):
             array[id] = array[id - 1]
@@ -177,8 +195,13 @@ def plot_and_peak_scatter(ax, array, peak_method, label, skip_first=0, color=Non
     ax.scatter(pp + skip_first, vv, color=color, marker="v")
     ax.text(pp + skip_first, vv, "{:.4f}".format(vv), va=va, ha="right", color=color, fontsize=fontsize, rotation=0)
 
+    if pred_curve > 0:
+        kwargs.pop("linestyle", None)
+        pred_array = curve_fit(source_array, pred_curve)[skip_first:]
+        ax.plot(range(skip_first, skip_first + len(pred_array)), pred_array, color=color, linestyle=":", **kwargs)
 
-def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["bottom"], skip_first=0):
+
+def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["bottom"], skip_first=0, pred_curve=0):
     import os
     import json
     import matplotlib.pyplot as plt
@@ -198,21 +221,22 @@ def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["
                 hist = json.load(ff)
         name = name if name != None else str(id)
 
-        plot_and_peak_scatter(axes[0], hist["loss"], np.argmin, name + " loss", skip_first, color=None, va=cur_va, fontsize=fontsize)
+        cur_pred_curve = pred_curve[min(id, len(pred_curve) - 1)] if isinstance(pred_curve, (list, tuple)) else pred_curve
+        plot_and_peak_scatter(axes[0], hist["loss"], np.argmin, name + " loss", skip_first, None, cur_va, fontsize, pred_curve=cur_pred_curve)
         color = axes[0].lines[-1].get_color()
         val_loss = hist.get("val_loss", [])
         if len(val_loss) > 0 and "val_loss" not in addition_plots:
-            plot_and_peak_scatter(axes[0], val_loss, np.argmin, name + " val_loss", skip_first, color, cur_va, fontsize, linestyle="--")
+            plot_and_peak_scatter(axes[0], val_loss, np.argmin, name + " val_loss", skip_first, color, cur_va, fontsize, cur_pred_curve, linestyle="--")
         acc = hist.get("acc", hist.get("accuracy", []))
         if len(acc) > 0:  # For timm log
-            plot_and_peak_scatter(axes[1], acc, np.argmax, name + " accuracy", skip_first, color=color, va=cur_va, fontsize=fontsize)
+            plot_and_peak_scatter(axes[1], acc, np.argmax, name + " accuracy", skip_first, color, cur_va, fontsize, cur_pred_curve)
         val_acc = hist.get("val_acc", hist.get("val_accuracy", []))
-        plot_and_peak_scatter(axes[1], val_acc, np.argmax, name + " val_accuracy", skip_first, color, cur_va, fontsize, linestyle="--")
+        plot_and_peak_scatter(axes[1], val_acc, np.argmax, name + " val_accuracy", skip_first, color, cur_va, fontsize, cur_pred_curve, linestyle="--")
         if addition_plots is not None and len(addition_plots) != 0:
             for id, ii in enumerate(addition_plots):
                 if len(hist.get(ii, [])) > 0:
                     peak_method = np.argmin if "loss" in ii else np.argmax
-                    plot_and_peak_scatter(axes[2 + id], hist[ii], peak_method, name + " " + ii, skip_first, color, cur_va, fontsize=fontsize)
+                    plot_and_peak_scatter(axes[2 + id], hist[ii], peak_method, name + " " + ii, skip_first, color, cur_va, fontsize, cur_pred_curve)
     for ax in axes:
         ax.legend()
         ax.grid(True)
