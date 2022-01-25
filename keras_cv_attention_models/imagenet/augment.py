@@ -962,6 +962,7 @@ class RandAugment(ImageAugment):
         use_cutout: bool = False,
         use_relative_translate: bool = True,
         use_color_increasing: bool = True,
+        use_positional_related_ops: bool = True,  # Set False to exlude [shear, rotate, translate]
         apply_probability: float = 0.5,
         image_mean: Union[list, tuple] = [124, 117, 104],
     ):
@@ -986,10 +987,7 @@ class RandAugment(ImageAugment):
             "AutoContrast",
             "Equalize",
             "Invert",
-            "Rotate",
             "SolarizeAdd",
-            "ShearX",
-            "ShearY",
         ]
         self.color_ops = ["Posterize", "Solarize", "Color", "Contrast", "Brightness", "Sharpness"]
         self.color_increasing_ops = [
@@ -1003,8 +1001,10 @@ class RandAugment(ImageAugment):
 
         self.available_ops = self.basic_ops
         self.available_ops += self.color_increasing_ops if use_color_increasing else self.color_ops
-        self.available_ops += ["TranslateXRel", "TranslateYRel"] if use_relative_translate else ["TranslateX", "TranslateY"]
         self.available_ops += ["Cutout"] if use_cutout else []
+        if use_positional_related_ops:
+            self.available_ops += ["Rotate", "ShearX", "ShearY"]
+            self.available_ops += ["TranslateXRel", "TranslateYRel"] if use_relative_translate else ["TranslateX", "TranslateY"]
 
     def __magnitude_with_noise__(self):
         if self.magnitude_std > 0:
