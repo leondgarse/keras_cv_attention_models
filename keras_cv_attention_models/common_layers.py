@@ -35,6 +35,9 @@ def phish(inputs):
 
 def activation_by_name(inputs, activation="relu", name=None):
     """ Typical Activation layer added hard_swish and prelu. """
+    if activation is None:
+        return inputs
+
     layer_name = name and activation and name + activation
     if activation == "hard_swish":
         return keras.layers.Activation(activation=hard_swish, name=layer_name)(inputs)
@@ -50,10 +53,8 @@ def activation_by_name(inputs, activation="relu", name=None):
     elif activation.lower().startswith("gelu/app"):
         # gelu/approximate
         return tf.nn.gelu(inputs, approximate=True, name=layer_name)
-    elif activation:
-        return keras.layers.Activation(activation=activation, name=layer_name)(inputs)
     else:
-        return inputs
+        return keras.layers.Activation(activation=activation, name=layer_name)(inputs)
 
 
 def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, epsilon=BATCH_NORM_EPSILON, act_first=False, name=None):

@@ -48,7 +48,7 @@ def __deprocess_image__(img, crop_border=0.1):
     return img
 
 
-def __get_cols_rows__(total, rows=-1):
+def get_plot_cols_rows(total, rows=-1, ceil_mode=False):
     if rows == -1 and total < 8:
         rows = 1  # for total in [1, 7], plot 1 row only
     elif rows == -1:
@@ -57,7 +57,10 @@ def __get_cols_rows__(total, rows=-1):
             if total % ii == 0:
                 rows = ii
                 break
-    cols = total // rows
+    if ceil_mode:
+        cols = int(np.ceil(total / rows))
+    else:
+        cols = total // rows
     return cols, rows
 
 
@@ -78,7 +81,7 @@ def stack_and_plot_images(images, texts=None, margin=5, margin_value=0, rows=-1,
     """ Stack and plot a list of images. Returns ax, stacked_images """
     import matplotlib.pyplot as plt
 
-    cols, rows = __get_cols_rows__(len(images), rows)
+    cols, rows = get_plot_cols_rows(len(images), rows)
     images = images[: rows * cols]
     # print(">>>> rows:", rows, ", cols:", cols, ", total:", len(images))
 
@@ -412,7 +415,7 @@ def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto
     masked_image = [apply_mask_2_image(image, ii) for ii in mask]
     cum_masked_image = [apply_mask_2_image(image, ii) for ii in cum_mask]
 
-    cols, rows = __get_cols_rows__(len(mask), rows)
+    cols, rows = get_plot_cols_rows(len(mask), rows)
     fig, axes = plt.subplots(2, 1, figsize=(base_size * cols, base_size * rows * 2))
     stack_and_plot_images(masked_image, margin=5, rows=rows, ax=axes[0])
     axes[0].set_title("Attention scores: attn_scores[{}] --> attn_scores[0]".format(len(mask)) + layer_name_title)

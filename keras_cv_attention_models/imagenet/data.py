@@ -181,8 +181,6 @@ class RandomProcessImage:
         if self.random_crop_min > 0 and self.random_crop_min < 1:
             hh, ww = random_crop_fraction(tf.shape(image), scale=(self.random_crop_min, 1.0))
             input_image = tf.image.random_crop(image, (hh, ww, 3))
-        elif self.random_crop_min == 0:
-            input_image = random_crop_fraction_timm(image, scale=(0.08, 1.0))
         else:
             input_image = tf.image.central_crop(image, self.central_crop)
         input_image = tf.image.resize(input_image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
@@ -313,6 +311,20 @@ def cutmix(images, labels, alpha=0.5, min_mix_weight=0):
     return images, labels
 
 
+def init_mean_std_by_rescale_mode(rescale_mode):
+    if isinstance(rescale_mode, (list, tuple)):  # Specific mean and std
+        mean, std = rescale_mode
+    elif rescale_mode == "torch":
+        mean = tf.constant([0.485, 0.456, 0.406]) * 255.0
+        std = tf.constant([0.229, 0.224, 0.225]) * 255.0
+    elif rescale_mode == "tf":
+        # mean, std = 128.0, 128.0
+        mean, std = 127.5, 128.0
+    else:
+        mean, std = 0, 1  # raw inputs [0, 255]
+    return mean, std
+
+
 def init_dataset(
     data_name="imagenet2012",  # dataset params
     input_shape=(224, 224),
@@ -357,21 +369,9 @@ def init_dataset(
     )
     train_dataset = dataset["train"].shuffle(buffer_size).map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE)
 
-    if isinstance(rescale_mode, (list, tuple)):  # Specific mean and std
-        mean, std = rescale_mode
-        # rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
-        rescaling = lambda xx: (xx - mean) / std
-    elif rescale_mode == "torch":
-        mean = tf.constant([0.485, 0.456, 0.406]) * 255.0
-        std = tf.constant([0.229, 0.224, 0.225]) * 255.0
-        rescaling = lambda xx: (xx - mean) / std
-        # rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
-    elif rescale_mode == "tf":
-        # rescaling = lambda xx: (tf.clip_by_value(xx) - 128.0) / 128.0
-        # rescaling = lambda xx: (tf.clip_by_value(xx) - 127.5) / 127.5
-        rescaling = lambda xx: (xx - 127.5) * 0.0078125
-    else:
-        rescaling = lambda xx: xx  # raw inputs [0, 255]
+    mean, std = init_mean_std_by_rescale_mode(rescale_mode)
+    # rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
+    rescaling = lambda xx: (xx - mean) / std
     as_one_hot = lambda yy: tf.one_hot(yy, num_classes)
 
     train_dataset = train_dataset.batch(batch_size)

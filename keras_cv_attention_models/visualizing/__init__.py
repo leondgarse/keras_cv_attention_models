@@ -1,4 +1,5 @@
 from keras_cv_attention_models.visualizing.visualizing import (
+    get_plot_cols_rows,
     stack_and_plot_images,
     visualize_filters,
     make_gradcam_heatmap,

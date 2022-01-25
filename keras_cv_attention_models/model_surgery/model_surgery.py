@@ -290,7 +290,7 @@ def get_pyramide_feture_layers(model):
 
     """ Filter those have same downsample rate """
     ee = {str(vv.output_shape[1]): vv for kk, vv in dd.items()}
-    return ee.values()
+    return list(ee.values())
 
 
 def convert_to_mixed_float16(model, convert_batch_norm=False):
