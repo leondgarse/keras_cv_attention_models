@@ -39,21 +39,21 @@ def init_global_strategy(enable_float16=True, seed=0, TPU=False):
     return strategy
 
 
-def init_lr_scheduler(lr_base, lr_decay_steps, lr_min=1e-5, lr_decay_on_batch=False, lr_warmup=1e-4, lr_warmup_steps=0, lr_cooldown_steps=0):
+def init_lr_scheduler(lr_base, lr_decay_steps, lr_min=1e-5, lr_decay_on_batch=False, lr_warmup=1e-4, warmup_steps=0, cooldown_steps=0, t_mul=2, m_mul=0.5):
     if isinstance(lr_decay_steps, list):
-        constant_lr_sch = lambda epoch: callbacks.constant_scheduler(epoch, lr_base=lr_base, lr_decay_steps=lr_decay_steps, warmup_steps=lr_warmup_steps)
+        constant_lr_sch = lambda epoch: callbacks.constant_scheduler(epoch, lr_base=lr_base, lr_decay_steps=lr_decay_steps, warmup_steps=warmup_steps)
         lr_scheduler = keras.callbacks.LearningRateScheduler(constant_lr_sch)
-        lr_total_epochs = lr_decay_steps[-1] + lr_cooldown_steps  # 120 for lr_decay_steps=[30, 60, 90], lr_warmup_steps=4, lr_cooldown_steps=30
+        lr_total_epochs = lr_decay_steps[-1] + cooldown_steps  # 120 for lr_decay_steps=[30, 60, 90], warmup_steps=4, cooldown_steps=30
     elif lr_decay_on_batch:
         lr_scheduler = callbacks.CosineLrScheduler(
-            lr_base, lr_decay_steps, m_mul=0.5, t_mul=2.0, lr_min=lr_min, lr_warmup=lr_warmup, warmup_steps=lr_warmup_steps, cooldown_steps=lr_cooldown_steps
+            lr_base, lr_decay_steps, m_mul=m_mul, t_mul=t_mul, lr_min=lr_min, lr_warmup=lr_warmup, warmup_steps=warmup_steps, cooldown_steps=cooldown_steps
         )
-        lr_total_epochs = lr_decay_steps + lr_cooldown_steps  # 105 for lr_decay_steps=100, lr_warmup_steps=4, lr_cooldown_steps=5
+        lr_total_epochs = lr_decay_steps + cooldown_steps  # 105 for lr_decay_steps=100, warmup_steps=4, cooldown_steps=5
     else:
         lr_scheduler = callbacks.CosineLrSchedulerEpoch(
-            lr_base, lr_decay_steps, m_mul=0.5, t_mul=2.0, lr_min=lr_min, lr_warmup=lr_warmup, warmup_steps=lr_warmup_steps, cooldown_steps=lr_cooldown_steps
+            lr_base, lr_decay_steps, m_mul=m_mul, t_mul=t_mul, lr_min=lr_min, lr_warmup=lr_warmup, warmup_steps=warmup_steps, cooldown_steps=cooldown_steps
         )
-        lr_total_epochs = lr_decay_steps + lr_cooldown_steps  # 105 for lr_decay_steps=100, lr_warmup_steps=4, lr_cooldown_steps=5
+        lr_total_epochs = lr_decay_steps + cooldown_steps  # 105 for lr_decay_steps=100, warmup_steps=4, cooldown_steps=5
     return lr_scheduler, lr_total_epochs
 
 
@@ -61,17 +61,21 @@ def init_optimizer(optimizer, lr_base, weight_decay):
     import tensorflow_addons as tfa
 
     optimizer = optimizer.lower()
+    norm_weights = ["bn/gamma", "bn/beta", "ln/gamma", "ln/beta"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
     if optimizer == "sgd":
         optimizer = keras.optimizers.SGD(learning_rate=lr_base, momentum=0.9)
     elif optimizer == "rmsprop":
         optimizer = keras.optimizers.RMSprop(learning_rate=lr_base, momentum=0.9)
     elif optimizer == "lamb":
-        norm_weights = ["bn/gamma", "bn/beta", "ln/gamma", "ln/beta"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
         optimizer = tfa.optimizers.LAMB(learning_rate=lr_base, weight_decay_rate=weight_decay, exclude_from_weight_decay=norm_weights, global_clipnorm=1.0)
     elif optimizer == "adamw":
-        optimizer = tfa.optimizers.AdamW(learning_rate=lr_base, weight_decay=lr_base * weight_decay)
+        optimizer = tfa.optimizers.AdamW(learning_rate=lr_base, weight_decay=lr_base * weight_decay, global_clipnorm=1.0)
+        if hasattr(optimizer, "exclude_from_weight_decay"):
+            setattr(optimizer, "exclude_from_weight_decay", norm_weights)
     elif optimizer == "sgdw":
         optimizer = tfa.optimizers.SGDW(learning_rate=lr_base, momentum=0.9, weight_decay=lr_base * weight_decay)
+        if hasattr(optimizer, "exclude_from_weight_decay"):
+            setattr(optimizer, "exclude_from_weight_decay", norm_weights)
     else:
         optimizer = getattr(keras.optimizers, optimizer.capitalize())(learning_rate=lr_base)
     return optimizer

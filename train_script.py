@@ -41,6 +41,7 @@ def parse_arguments(argv):
         "--additional_model_kwargs", type=str, default=None, help="Json format model kwargs like '{\"drop_connect_rate\": 0.05}'. Note all these quote marks"
     )
     parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
+    parser.add_argument("--summary", action="store_true", help="show model summary")
     parser.add_argument("--disable_float16", action="store_true", help="Disable mixed_float16 training")
     parser.add_argument("--TPU", action="store_true", help="Run training on TPU [Not working]")
 
@@ -71,6 +72,8 @@ def parse_arguments(argv):
     lr_group.add_argument("--lr_warmup_steps", type=int, default=5, help="Learning rate warmup epochs")
     lr_group.add_argument("--lr_cooldown_steps", type=int, default=5, help="Learning rate cooldown epochs")
     lr_group.add_argument("--lr_min", type=float, default=1e-6, help="Learning rate minimum value")
+    lr_group.add_argument("--lr_t_mul", type=float, default=2, help="For CosineDecayRestarts, derive the number of iterations in the i-th period")
+    lr_group.add_argument("--lr_m_mul", type=float, default=0.5, help="For CosineDecayRestarts, derive the initial learning rate of the i-th period")
 
     """ Dataset parameters """
     ds_group = parser.add_argument_group("Dataset arguments")
@@ -135,8 +138,9 @@ def run_training_by_args(args):
     )
 
     lr_base = args.lr_base_512 * batch_size / 512
+    warmup_steps, cooldown_steps, t_mul, m_mul = args.lr_warmup_steps, args.lr_cooldown_steps, args.lr_t_mul, args.lr_m_mul  # Save line-width
     lr_scheduler, lr_total_epochs = init_lr_scheduler(
-        lr_base, args.lr_decay_steps, args.lr_min, args.lr_decay_on_batch, args.lr_warmup, args.lr_warmup_steps, args.lr_cooldown_steps
+        lr_base, args.lr_decay_steps, args.lr_min, args.lr_decay_on_batch, args.lr_warmup, warmup_steps, cooldown_steps, t_mul, m_mul
     )
     epochs = args.epochs if args.epochs != -1 else lr_total_epochs
 
@@ -144,6 +148,8 @@ def run_training_by_args(args):
         # additional_model_kwargs = {"drop_connect_rate": 0.05}
         additional_model_kwargs = json.loads(args.additional_model_kwargs) if args.additional_model_kwargs else {}
         model = init_model(args.model, input_shape, num_classes, args.pretrained, args.restore_path, **additional_model_kwargs)
+        if args.summary:
+            model.summary()
         if model.optimizer is None:
             model = compile_model(model, args.optimizer, lr_base, args.weight_decay, args.bce_threshold, args.label_smoothing)
         print(">>>> basic_save_name =", args.basic_save_name)
