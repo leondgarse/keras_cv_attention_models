@@ -32,12 +32,17 @@
     data.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=90)
     ```
     ![effdetd0_dog_cat](https://user-images.githubusercontent.com/5744524/151114104-b8e0d625-66b5-4ccd-89cb-fe3c47dbf1a7.png)
-  - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. Actually used `input_shape` should be dividable by `64`.
+  - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. Actually used `input_shape` should be dividable by `64`, and min size is `128`.
     ```py
     from keras_cv_attention_models import efficientdet
     model = efficientdet.EfficientDetD1(input_shape=(None, None, 3), pretrained="coco")
+    # >>>> Load pretrained from: /home/leondgarse/.keras/models/efficientdet_d1_640_coco.h5
     print(model.input_shape, model.output_shape)
     # (None, None, None, 3) (None, None, 94)
+    print(model(tf.ones([1, 256, 256, 3])).shape)
+    # (1, 12276, 94)
+    print(model(tf.ones([1, 768, 768, 3])).shape)
+    # (1, 110484, 94)
 
     from keras_cv_attention_models import test_images
     imm = test_images.dog_cat()
@@ -54,7 +59,11 @@
     ```py
     from keras_cv_attention_models import efficientdet, coatnet
     bb = coatnet.CoAtNet0(input_shape=(256, 256, 3), num_classes=0)
-    mm = efficientdet.EfficientDet(bb)
+    mm = efficientdet.EfficientDet(backbone=bb)
+    # >>>> features: {'stack_2_block_3_output': (None, 32, 32, 192),
+    #                 'stack_3_block_5_output': (None, 16, 16, 384),
+    #                 'stack_4_block_2_output': (None, 8, 8, 768)}
+
     mm.summary()  # Trainable params: 18,773,185
     ```
 ***

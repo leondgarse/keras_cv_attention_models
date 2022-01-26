@@ -144,11 +144,12 @@ def EfficientDet(
         backbone.trainable = False
 
     if isinstance(features_pick[0], str):
-        fpn_features = [backbone.get_layer(layer_name).output for layer_name in features_pick]
+        fpn_features = [backbone.get_layer(layer_name) for layer_name in features_pick]
     else:
         features = model_surgery.get_pyramide_feture_layers(backbone)
-        print(">>>> features:", {ii.name: ii.output_shape for ii in features})
-        fpn_features = [features[id].output for id in features_pick]
+        fpn_features = [features[id] for id in features_pick]
+    print(">>>> features:", {ii.name: ii.output_shape for ii in fpn_features})
+    fpn_features = [ii.output for ii in fpn_features]
 
     # Build additional input features that are not from backbone.
     for id in range(additional_features):
