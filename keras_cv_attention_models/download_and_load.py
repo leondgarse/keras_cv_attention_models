@@ -4,6 +4,8 @@ from tensorflow import keras
 
 
 def reload_model_weights(model, pretrained_dict, sub_release, pretrained="imagenet", mismatch_class=None, request_resolution=-1, method="nearest"):
+    if pretrained is None:
+        return
     if isinstance(pretrained, str) and pretrained.endswith(".h5"):
         print(">>>> Load pretrained from:", pretrained)
         # model.load_weights(pretrained, by_name=True, skip_mismatch=True)
@@ -19,7 +21,10 @@ def reload_model_weights(model, pretrained_dict, sub_release, pretrained="imagen
         # file_hash is a dict like {224: "aa", 384: "bb", 480: "cc"}
         if request_resolution == -1:
             input_height = model.input_shape[1]
-            request_resolution = min(file_hash.keys(), key=lambda ii: abs(ii - input_height))
+            if input_height is None:  # input_shape is (None, None, 3)
+                request_resolution = max(file_hash.keys())
+            else:
+                request_resolution = min(file_hash.keys(), key=lambda ii: abs(ii - input_height))
         if pretrained == "":  # Compatible with previous defined model wights file name, beit and volo
             pretrained = str(request_resolution)
         elif request_resolution != 224:

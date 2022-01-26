@@ -19,7 +19,7 @@ from keras_cv_attention_models.common_layers import (
     se_module,
     tiered_stem,
     PreprocessInput,
-    decode_predictions,
+    imagenet_decode_predictions,
     add_pre_post_process,
 )
 from keras_cv_attention_models.aotnet.aotnet import aot_stack, aot_block

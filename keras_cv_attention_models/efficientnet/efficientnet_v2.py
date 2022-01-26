@@ -164,6 +164,8 @@ def EfficientNetV2(
 
 
 def reload_model_weights(model, model_type, pretrained="imagenet"):
+    if pretrained is None:
+        return
     if isinstance(pretrained, str) and pretrained.endswith(".h5"):
         print(">>>> Load pretrained from:", pretrained)
         model.load_weights(pretrained, by_name=True, skip_mismatch=True)
