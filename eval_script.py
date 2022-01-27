@@ -20,7 +20,7 @@ def parse_arguments(argv):
     parser.add_argument("--rescale_mode", type=str, default="auto", help="Rescale mode, one of [tf, torch]. Default `auto` means using model preset")
     parser.add_argument("--central_crop", type=float, default=0.95, help="Central crop fraction. Set 1 to disable")
     parser.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
-    parser.add_argument("--antialias", action="store_true", help="Set use antialias=True for tf.image.resize")
+    parser.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
     parser.add_argument("--num_classes", type=int, default=1000, help="num_classes if not imagenet2012 dataset and not inited from h5 file")
     parser.add_argument(
         "--pretrained",
@@ -60,4 +60,5 @@ if __name__ == "__main__":
             model = model_class(num_classes=args.num_classes, input_shape=input_shape, pretrained=args.pretrained)
         else:
             model = model_class(num_classes=args.num_classes, pretrained=args.pretrained)
-    evaluation(model, args.data_name, input_shape, args.batch_size, args.central_crop, args.resize_method, args.antialias, args.rescale_mode)
+    antialias = not args.disable_antialias
+    evaluation(model, args.data_name, input_shape, args.batch_size, args.central_crop, args.resize_method, antialias, args.rescale_mode)

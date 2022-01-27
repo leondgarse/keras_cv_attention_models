@@ -299,7 +299,7 @@ def show_image_with_bboxes(image, bboxes, labels=None, confidences=None, ax=None
             label = int(labels[id])
             label = COCO_90_LABEL_DICT[label] if num_classes == 90 else COCO_LABEL_DICT[label]
             if confidences is not None:
-                label += ":, {:.4f}".format(confidences[id])
+                label += ": {:.4f}".format(confidences[id])
             color = ax.lines[-1].get_color()
             # ax.text(bb[1], bb[0] - 5, "label: {}, {}".format(label, COCO_LABEL_DICT[label]), color=color, fontsize=8)
             ax.text(bb[1], bb[0] - 5, label, color=color, fontsize=label_font_size)

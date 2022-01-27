@@ -285,7 +285,7 @@ def test_EfficientNetV1B1_noisy_student_predict():
 def test_EfficientDetD0_predict():
     mm = keras_cv_attention_models.efficientdet.EfficientDetD0(pretrained="coco")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
-    assert pred.shape == [1, 49104, 94]
+    assert pred.shape == (1, 49104, 94)
 
     pred_label = mm.decode_predictions(pred)[0][1]
     assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
@@ -295,7 +295,7 @@ def test_EfficientDetD1_dynamic_predict():
     mm = keras_cv_attention_models.efficientdet.EfficientDetD1(input_shape=(None, None, 3), pretrained="coco")
     input_shape = (256, 256, 3)
     pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
-    assert pred.shape == [1, 12276, 94]
+    assert pred.shape == (1, 12276, 94)
 
     pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1]
     assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
@@ -305,4 +305,4 @@ def test_EfficientDet_header():
     bb = keras_cv_attention_models.coatnet.CoAtNet0(input_shape=(256, 256, 3), num_classes=0, pretrained=None)
     mm = keras_cv_attention_models.efficientdet.EfficientDet(bb)
 
-    assert mm.output_shape == [1, 12276, 94]
+    assert mm.output_shape == (None, 12276, 94)

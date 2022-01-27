@@ -15,12 +15,13 @@
     - `V1` means `ResNetV1` like. Conv shortcut branch: `output = conv_shortcut(input) + block(prenorm(input))`. Identity branch: `output = input + block(prenorm(input))`.
     - `V2` means `ResNetV2` like. Conv shortcut branch: `prenorm_input = prenorm(input), output = conv_shortcut(prenorm_input) + block(prenorm_input)`. Identity branch: `output = input + block(prenorm(input))`.
 
-    | Model       | stem              | res_MBConv block      | res_mhsa block        | res_ffn block     | Best top1  |
-    | ----------- | ----------------- | --------------------- | --------------------- | ----------------- | ---------- |
-    | CoAtNet0_8  | conv,bn,gelu,conv | prenorm bn + gelu, V2 | prenorm bn + gelu, V2 | bn,conv,gelu,conv | 0.8010     |
-    | CoAtNet0_11 | conv,bn,gelu,conv | prenorm bn, V2        | prenorm bn, V2        | bn,conv,gelu,conv | 0.8016     |
-    | CoAtNet0_15 | conv,bn,gelu,conv | prenorm bn, V2        | prenorm ln, V2        | ln,conv,gelu,conv | 0.7999     |
-    | CoAtNet0_16 | conv,bn,gelu,conv | prenorm bn, V1        | prenorm ln, V1        | ln,conv,gelu,conv | **0.8019** |
+    | Model               | stem              | res_MBConv block   | res_mhsa block     | res_ffn block     | Best top1  |
+    | ------------------- | ----------------- | ------------------ | ------------------ | ----------------- | ---------- |
+    | CoAtNet0_8          | conv,bn,gelu,conv | prenorm bn+gelu,V2 | prenorm bn+gelu,V2 | bn,conv,gelu,conv | 0.8010     |
+    | CoAtNet0_11         | conv,bn,gelu,conv | prenorm bn,V2      | prenorm bn,V2      | bn,conv,gelu,conv | 0.8016     |
+    | CoAtNet0_15         | conv,bn,gelu,conv | prenorm bn,V2      | prenorm ln,V2      | ln,conv,gelu,conv | 0.7999     |
+    | CoAtNet0_16         | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | **0.8019** |
+    | - drop_connect 0.05 | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | 0.8017     |
   - **Training**. Using `A3` recipe with `batch_size=128, input_shape=(160, 160)`.
     ```py
     CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py -m coatnet.CoAtNet0 \
@@ -28,7 +29,7 @@
     ```
     Changing evaluating input_shape for `CoATNet` is not very helpful.
   - **Plot**
-    ![coatnet0_1](https://user-images.githubusercontent.com/5744524/147998495-b081c0f8-b0e9-43f3-b8e7-fd910c87c03b.png)
+    ![coatnet0_160](https://user-images.githubusercontent.com/5744524/151287935-aff3f8ba-5eca-4434-aac4-dccab05ba198.png)
 ## Usage
   ```py
   from keras_cv_attention_models import coatnet

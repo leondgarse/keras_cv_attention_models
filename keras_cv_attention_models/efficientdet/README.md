@@ -36,7 +36,7 @@
     ```py
     from keras_cv_attention_models import efficientdet
     model = efficientdet.EfficientDetD1(input_shape=(None, None, 3), pretrained="coco")
-    # >>>> Load pretrained from: /home/leondgarse/.keras/models/efficientdet_d1_640_coco.h5
+    # >>>> Load pretrained from: ~/.keras/models/efficientdet_d1_640_coco.h5
     print(model.input_shape, model.output_shape)
     # (None, None, None, 3) (None, None, 94)
     print(model(tf.ones([1, 256, 256, 3])).shape)

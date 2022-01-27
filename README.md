@@ -6,10 +6,9 @@
   - [Layers](#layers)
   - [Model surgery](#model-surgery)
   - [ImageNet Training](#imagenet-training)
-  - [Progressive training](#progressive-training)
   - [Visualizing](#visualizing)
   - [TFLite Conversion](#tflite-conversion)
-- [Models](#models)
+- [Recognition Models](#recognition-models)
   - [AotNet](#aotnet)
   - [BEIT](#beit)
   - [BotNet](#botnet)
@@ -18,7 +17,6 @@
   - [CoAtNet](#coatnet)
   - [ConvNeXt](#convnext)
   - [CoTNet](#cotnet)
-  - [EfficientDet](#efficientdet)
   - [EfficientNet](#efficientnet)
   - [GMLP](#gmlp)
   - [HaloNet](#halonet)
@@ -33,6 +31,8 @@
   - [ResNetQ](#resnetq)
   - [ResNeXt](#resnext)
   - [VOLO](#volo)
+- [Detection Models](#detection-models)
+  - [EfficientDet](#efficientdet)
 - [Other implemented tensorflow or keras models](#other-implemented-tensorflow-or-keras-models)
 
 <!-- /TOC -->
@@ -116,49 +116,30 @@
   ```
 ## ImageNet Training
   - [Init Imagenet dataset using tensorflow_datasets #9](https://github.com/leondgarse/keras_cv_attention_models/discussions/9).
+  - [ImageNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/imagenet) contains more detail usage and some comparing results.
   - It took me weeks figuring out what is wrong in training, that should use `LAMB` with excluding `batch norm` layers on weight decay...
   - `aotnet.AotNet50` default parameters set is a typical `ResNet50` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
   - Default params for `train_script.py` is like `A3` configuration from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf) with `batch_size=256, input_shape=(160, 160)`.
     ```sh
-    # Not sure about how useful is resize_antialias, default behavior for timm using `bicubic`
-    CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py --seed 0 --resize_antialias -s aotnet50
+    # `antialias` is default enabled for resize, can be turned off be set `--disable_antialias`.
+    CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py --seed 0 -s aotnet50
     ```
     ```sh
     # Evaluation using input_shape (224, 224).
     # `antialias` usage should be same with training.
-    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m aotnet50_epoch_103_val_acc_0.7674.h5 -i 224 --central_crop 0.95 --antialias
+    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m aotnet50_epoch_103_val_acc_0.7674.h5 -i 224 --central_crop 0.95
     # >>>> Accuracy top1: 0.78466 top5: 0.94088
     ```
-  - **Plot**. Other training detail can be found [ImageNet Training #11](https://github.com/leondgarse/keras_cv_attention_models/discussions/11).
     ![](https://user-images.githubusercontent.com/5744524/147459813-9b35492a-9057-4a0b-92a5-e13eef99b362.png)
-## Progressive training
-  - **EfficientNetV2B0 cifar10 basic test**. Refer to [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/pdf/2104.00298.pdf).
-  ```sh
-  # Normally training input_shape 224, magnitude 15, dropout 0.4
-  CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py \
-  -m efficientnet.EfficientNetV2B0 --pretrained imagenet -d cifar10 --lr_decay_steps 36 \
-  -s effv2b0_cifar10_224_magnitude_15_dropout_0.4 \
-  --epochs -1 \
-  --input_shape 224 \
-  --additional_model_kwargs '{"dropout": 0.4}' \
-  --magnitude 15 \
-  --batch_size 240 \
-  --seed 0 \
-  ```
-  ```sh
-  # 4 stages progressive training input_shape [128, 160, 192, 224]
-  CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./progressive_train_script.py \
-  -m efficientnet.EfficientNetV2B0 --pretrained imagenet -d cifar10 --lr_decay_steps 36 \
-  -s effv2b0_cifar10_224_progressive \
-  --progressive_epochs 10 20 30 -1 \
-  --progressive_input_shapes 128 160 192 224 \
-  --progressive_dropouts 0.1 0.2 0.3 0.4 \
-  --progressive_magnitudes 5 8 12 15 \
-  --progressive_batch_sizes 240 \
-  --seed 0 \
-  ```
-  **Plot**
-  ![progressive_cifar10](https://user-images.githubusercontent.com/5744524/147729276-fd9120dc-3692-4674-ad42-d197910bb588.png)
+  - **Progressive training** refer to [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/pdf/2104.00298.pdf). AotNet50 A3 progressive input shapes `96 128 160`:
+    ```sh
+    CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py \
+    --progressive_epochs 33 66 -1 \
+    --progressive_input_shapes 96 128 160 \
+    --progressive_magnitudes 2 4 6 \
+    -s aotnet50_progressive_3_lr_steps_100 --seed 0
+    ```
+    ![aotnet50_progressive_160](https://user-images.githubusercontent.com/5744524/151286851-221ff8eb-9fe9-4685-aa60-4a3ba98c654e.png)
 ## Visualizing
   - [Visualizing](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/visualizing) is for visualizing convnet filters or attention map scores.
   - **make_and_apply_gradcam_heatmap** is for Grad-CAM class activation visualization.
@@ -221,7 +202,7 @@
   - Not supporting `VOLO` / `HaloNet` models converting, cause they need a longer `tf.transpose` `perm`.
 ***
 
-# Models
+# Recognition Models
 ## AotNet
   - [Keras AotNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/aotnet) is just a `ResNet` / `ResNetV2` like framework, that set parameters like `attn_types` and `se_ratio` and others, which is used to apply different types attention layer. Works like `byoanet` / `byobnet` from `timm`.
   - Default parameters set is a typical `ResNet` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
@@ -330,20 +311,6 @@
   | CotNetSE101D | 40.9M  | 224              | 8.5   |   83.2   | [cotnet_se101d_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se101d_224.h5) |
   | CotNetSE152D | 55.8M  | 224              | 17.0  |   84.0   | [cotnet_se152d_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_224.h5) |
   | CotNetSE152D | 55.8M  | 320              | 26.5  |   84.6   | [cotnet_se152d_320.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_320.h5) |
-## EfficientDet
-  - [Keras EfficientDet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientdet) includes implementation of [Paper 1911.09070 EfficientDet: Scalable and Efficient Object Detection](https://arxiv.org/pdf/1911.09070.pdf).
-
-  | Model            | Params | Image resolution | COCO test AP | Download |
-  | ---------------- | ------ | ---------------- | ------------ | -------- |
-  | EfficientDet-D0  | 3.9M   | 512              | 34.6         | [efficientdet_d0.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d0_512_coco.h5) |
-  | EfficientDet-D1  | 6.6M   | 640              | 40.5         | [efficientdet_d1.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d1_640_coco.h5) |
-  | EfficientDet-D2  | 8.1M   | 768              | 43.9         | [efficientdet_d2.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d2_768_coco.h5) |
-  | EfficientDet-D3  | 12.0M  | 896              | 47.2         | [efficientdet_d3.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d3_896_coco.h5) |
-  | EfficientDet-D4  | 20.7M  | 1024             | 49.7         | [efficientdet_d4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d4_1024_coco.h5) |
-  | EfficientDet-D5  | 33.7M  | 1280             | 51.5         | [efficientdet_d5.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d5_1280_coco.h5) |
-  | EfficientDet-D6  | 51.9M  | 1280             | 52.6         | [efficientdet_d6.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d6_1280_coco.h5) |
-  | EfficientDet-D7  | 51.9M  | 1536             | 53.7         | [efficientdet_d7.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d7_1536_coco.h5) |
-  | EfficientDet-D7x | 77.0M  | 1536             | 55.1         | [efficientdet_d7x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d7x_1536_coco.h5) |
 ## EfficientNet
   - [Keras EfficientNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientnet) includes implementation of [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298).
 
@@ -538,6 +505,23 @@
   | volo_d5      | 296M   | 224              | 86.1     | [volo_d5_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_224.h5) |
   | volo_d5 ↑448 | 296M   | 448              | 87.0     | [volo_d5_448.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_448.h5) |
   | volo_d5 ↑512 | 296M   | 512              | 87.1     | [volo_d5_512.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_512.h5) |
+***
+
+# Detection Models
+## EfficientDet
+  - [Keras EfficientDet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientdet) includes implementation of [Paper 1911.09070 EfficientDet: Scalable and Efficient Object Detection](https://arxiv.org/pdf/1911.09070.pdf).
+
+  | Model            | Params | Image resolution | COCO test AP | Download |
+  | ---------------- | ------ | ---------------- | ------------ | -------- |
+  | EfficientDet-D0  | 3.9M   | 512              | 34.6         | [efficientdet_d0.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d0_512_coco.h5) |
+  | EfficientDet-D1  | 6.6M   | 640              | 40.5         | [efficientdet_d1.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d1_640_coco.h5) |
+  | EfficientDet-D2  | 8.1M   | 768              | 43.9         | [efficientdet_d2.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d2_768_coco.h5) |
+  | EfficientDet-D3  | 12.0M  | 896              | 47.2         | [efficientdet_d3.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d3_896_coco.h5) |
+  | EfficientDet-D4  | 20.7M  | 1024             | 49.7         | [efficientdet_d4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d4_1024_coco.h5) |
+  | EfficientDet-D5  | 33.7M  | 1280             | 51.5         | [efficientdet_d5.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d5_1280_coco.h5) |
+  | EfficientDet-D6  | 51.9M  | 1280             | 52.6         | [efficientdet_d6.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d6_1280_coco.h5) |
+  | EfficientDet-D7  | 51.9M  | 1536             | 53.7         | [efficientdet_d7.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d7_1536_coco.h5) |
+  | EfficientDet-D7x | 77.0M  | 1536             | 55.1         | [efficientdet_d7x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d7x_1536_coco.h5) |
 ***
 
 # Other implemented tensorflow or keras models
