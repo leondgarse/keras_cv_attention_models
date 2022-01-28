@@ -51,17 +51,17 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
         bbox_true, class_true, anchor_mark = y_true[:, :, :4], y_true[:, :, 4:-1], y_true[:, :, -1]
         exclude_ignored_pick = tf.where(anchor_mark != -1)
         valid_pick = tf.where(anchor_mark == 1)
-        num_positive_anchors = tf.cast(tf.maximum(valid_pick.shape[0], 1), y_pred.dtype)
+        num_positive_anchors = tf.cast(tf.maximum(tf.shape(valid_pick)[0], 1), y_pred.dtype)
 
         class_true_valid, class_pred_valid = tf.gather_nd(class_true, exclude_ignored_pick), tf.gather_nd(class_pred, exclude_ignored_pick)
         bbox_true_valid, bbox_pred_valid = tf.gather_nd(bbox_true, valid_pick), tf.gather_nd(bbox_pred, valid_pick)
 
-        cls_loss = self.__focal_loss__(class_true_valid, class_pred_valid)
-        bbox_loss = self.__bbox_loss__(bbox_true_valid, bbox_pred_valid)
-        bbox_loss, cls_loss = tf.reduce_sum(bbox_loss) / num_positive_anchors, tf.reduce_sum(cls_loss) / num_positive_anchors
+        cls_loss = self.__focal_loss__(class_true_valid, class_pred_valid) / num_positive_anchors # divide before sum, or will be inf
+        bbox_loss = self.__bbox_loss__(bbox_true_valid, bbox_pred_valid) / num_positive_anchors
+        bbox_loss, cls_loss = tf.reduce_sum(bbox_loss), tf.reduce_sum(cls_loss)
 
         # return bbox_loss
-        tf.print(" - cls_loss:", cls_loss, "- bbox_loss:", bbox_loss, end="")
+        tf.print(" - cls_loss:", cls_loss, "- bbox_loss:", bbox_loss, end="\r")
         return cls_loss + bbox_loss * self.bbox_loss_weight
 
     def get_config(self):
