@@ -14,7 +14,7 @@ INVALID_ID_90 = [12, 26, 29, 30, 45, 66, 68, 69, 71, 83]
 COCO_90_LABEL_DICT = {id: ii for id, ii in zip(set(range(90)) - set(INVALID_ID_90), COCO_LABEL_DICT.values())}
 
 
-def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 4, 5, 6, 7], aspect_ratios=[0.5, 1, 2], num_scales=3, anchor_scale=4):
+def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=[0.5, 1, 2], num_scales=3, anchor_scale=4):
     """
     >>> from keras_cv_attention_models.coco import data
     >>> input_shape = [512, 128]
@@ -38,6 +38,7 @@ def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 4, 5, 6, 7], aspec
     base_anchors = tf.gather(base_anchors, [3, 6, 0, 4, 7, 1, 5, 8, 2])  # re-order according to official generated anchors
 
     # make grid
+    pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
     all_anchors = []
     for level in pyramid_levels:
         stride = 2 ** level
@@ -196,15 +197,15 @@ class RandomProcessImageWithBboxes:
 
 def init_dataset(
     data_name="coco/2017",  # dataset params
-    input_shape=(224, 224),
+    input_shape=(256, 256),
     batch_size=64,
     buffer_size=1000,
     info_only=False,
-    anchor_pyramid_levels=[3, 4, 5, 6, 7],
+    anchor_pyramid_levels=[3, 7],
     anchor_aspect_ratios=[0.5, 1, 2],
     anchor_num_scales=3,
     anchor_scale=4,
-    rescale_mode="tf",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`
+    rescale_mode="torch",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`
     random_crop_min=1.0,
     resize_method="bilinear",  # ["bilinear", "bicubic"]
     resize_antialias=False,
@@ -309,7 +310,7 @@ def show_image_with_bboxes(image, bboxes, labels=None, confidences=None, ax=None
     return ax
 
 
-def show_batch_sample(dataset, rescale_mode="tf", rows=-1, label_font_size=8, base_size=3):
+def show_batch_sample(dataset, rescale_mode="torch", rows=-1, label_font_size=8, base_size=3, **anchor_kwargs):
     import matplotlib.pyplot as plt
     from keras_cv_attention_models.visualizing import get_plot_cols_rows
 
@@ -319,20 +320,21 @@ def show_batch_sample(dataset, rescale_mode="tf", rows=-1, label_font_size=8, ba
         images, labels = dataset.as_numpy_iterator().next()
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     images = (images * std + mean) / 255
-    anchors = get_anchors(images.shape[1:-1])
+    anchors = get_anchors(images.shape[1:-1], **anchor_kwargs)
 
     cols, rows = get_plot_cols_rows(len(images), rows, ceil_mode=True)
     fig, axes = plt.subplots(rows, cols, figsize=(base_size * cols, base_size * rows))
     axes = axes.flatten()
 
     for ax, image, label in zip(axes, images, labels):
-        if preds.shape[-1] == 5:
-            pick = preds[:, -1] >= 0
-            valid_preds, valid_anchors = preds[pick], anchors[pick]
+        if label.shape[-1] == 5:
+            pick = label[:, -1] >= 0
+            valid_preds, valid_anchors = label[pick], anchors[pick]
         else:
-            pick = preds[:, -1] == 1
-            valid_preds, valid_anchors = preds[pick], anchors[pick]
-            valid_preds = tf.concat([valid_preds[:, :4], tf.expand_dims(tf.argmax(valid_preds[:, 4:-1], axis=-1), -1)], axis=-1)
+            pick = label[:, -1] == 1
+            valid_preds, valid_anchors = label[pick], anchors[pick]
+            valid_label = tf.cast(tf.argmax(valid_preds[:, 4:-1], axis=-1), valid_preds.dtype)
+            valid_preds = tf.concat([valid_preds[:, :4], tf.expand_dims(valid_label, -1)], axis=-1)
 
         valid_label = decode_bboxes(valid_preds, valid_anchors)
         show_image_with_bboxes(image, valid_label[:, :4], valid_label[:, -1], ax=ax, label_font_size=label_font_size)

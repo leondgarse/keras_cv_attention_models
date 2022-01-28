@@ -43,21 +43,21 @@
     CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py --seed 0
     ```
 
-  | Resize method | anti alias | Train acc | Best Eval loss, acc on 160  | Eval acc top1, top5 on 224 | Epoch 105 acc    |
-  | ------------- | ---------- | --------- | --------------------------- | -------------------------- | ---------------- |
-  | bicubic       | True       | 0.6310    | Epoch 103, 0.001452, 0.7674 | 0.78466, 0.94088           | 0.78476, 0.94098 |
-  | bicubic       | False      | 0.6313    | Epoch  97, 0.001481, 0.7626 | 0.77994, 0.93800           | 0.77956, 0.93808 |
-  | bilinear      | True       | 0.6296    | Epoch 104, 0.001491, 0.7676 | 0.78152, 0.93924           | 0.78128, 0.93944 |
-  | bilinear      | False      | 0.6310    | Epoch 103, 0.001455, 0.7642 | 0.78024, 0.93974           | 0.78072, 0.93996 |
+  | Resize method | anti alias | Train acc | Best Eval loss, acc on 160  | Eval acc top1, top5 on 224 | Epoch 105 eval acc |
+  | ------------- | ---------- | --------- | --------------------------- | -------------------------- | ------------------ |
+  | bicubic       | True       | 0.6310    | Epoch 103, 0.001452, 0.7674 | 0.78466, 0.94088           | 0.78476, 0.94098   |
+  | bicubic       | False      | 0.6313    | Epoch  97, 0.001481, 0.7626 | 0.77994, 0.93800           | 0.77956, 0.93808   |
+  | bilinear      | True       | 0.6296    | Epoch 104, 0.001491, 0.7676 | 0.78152, 0.93924           | 0.78128, 0.93944   |
+  | bilinear      | False      | 0.6310    | Epoch 103, 0.001455, 0.7642 | 0.78024, 0.93974           | 0.78072, 0.93996   |
 
   Thus `anti alias` is default enabled, can be turned off be specifying `--disable_antialias`.
 ## Comparing rescale mode
   - Resize method using `bicubic + anti_alias`.
 
-  | Rescale mode | Train acc | Best Eval loss, acc on 160  | Eval acc top1, top5 on 224 | Epoch 105 acc    |
-  | ------------ | --------- | --------------------------- | -------------------------- | ---------------- |
-  | torch        | 0.6310    | Epoch 103, 0.001452, 0.7674 | 0.78466, 0.94088           | 0.78476, 0.94098 |
-  | tf           | 0.6328    | Epoch 97, 0.001452, 0.7671  | 0.78316, 0.93898           | 0.78310, 0.93910 |
+  | Rescale mode | Train acc | Best Eval loss, acc on 160  | Eval acc top1, top5 on 224 | Epoch 105 eval acc |
+  | ------------ | --------- | --------------------------- | -------------------------- | ------------------ |
+  | torch        | 0.6310    | Epoch 103, 0.001452, 0.7674 | 0.78466, 0.94088           | 0.78476, 0.94098   |
+  | tf           | 0.6328    | Epoch  97, 0.001452, 0.7671 | 0.78316, 0.93898           | 0.78310, 0.93910   |
 ***
 
 # Progressive training
@@ -95,10 +95,10 @@
   -s aotnet50_progressive_3_lr_steps_100 --seed 0
   ```
 
-  | progressive  | Train acc | Best Eval loss, acc on 160  | Eval acc top1, top5 on 224 | Epoch 105 acc    |
-  | ------------ | --------- | --------------------------- | -------------------------- | ---------------- |
-  | None         | 0.6310    | Epoch 103, 0.001452, 0.7674 | 0.78466, 0.94088           | 0.78476, 0.94098 |
-  | 96, 128, 160 | 0.6293    | Epoch 101, 0.001438, 0.7672 | 0.78074, 0.93912           | 0.78090, 0.93912 |
+  | progressive  | Train acc | Best Eval loss, acc on 160  | Eval acc top1, top5 on 224 | Epoch 105 eval acc |
+  | ------------ | --------- | --------------------------- | -------------------------- | ------------------ |
+  | None         | 0.6310    | Epoch 103, 0.001452, 0.7674 | 0.78466, 0.94088           | 0.78476, 0.94098   |
+  | 96, 128, 160 | 0.6293    | Epoch 101, 0.001438, 0.7672 | 0.78074, 0.93912           | 0.78090, 0.93912   |
 
   ![aotnet50_progressive_160](https://user-images.githubusercontent.com/5744524/151286851-221ff8eb-9fe9-4685-aa60-4a3ba98c654e.png)
 ***

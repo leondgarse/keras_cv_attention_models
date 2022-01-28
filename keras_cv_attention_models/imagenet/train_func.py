@@ -123,7 +123,7 @@ def init_model(model, input_shape=(224, 224, 3), num_classes=1000, pretrained=No
     return model
 
 
-def compile_model(model, optimizer, lr_base, weight_decay, bce_threshold, label_smoothing):
+def compile_model(model, optimizer, lr_base, weight_decay, bce_threshold=1.0, label_smoothing=0, loss=None, metrics=["acc"]):
     if isinstance(optimizer, str):
         optimizer = optimizer.lower()
         if optimizer == "sgd" and weight_decay > 0:
@@ -132,9 +132,10 @@ def compile_model(model, optimizer, lr_base, weight_decay, bce_threshold, label_
 
             model = model_surgery.add_l2_regularizer_2_model(model, weight_decay=weight_decay, apply_to_batch_normal=False)
         optimizer = init_optimizer(optimizer, lr_base, weight_decay)
-    loss = init_loss(bce_threshold, label_smoothing)
+    if loss is None:
+        loss = init_loss(bce_threshold, label_smoothing)
     print(">>>> Loss: {}, Optimizer: {}".format(loss.__class__.__name__, optimizer.__class__.__name__))
-    model.compile(optimizer=optimizer, loss=loss, metrics=["acc"])
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
     return model
 
 

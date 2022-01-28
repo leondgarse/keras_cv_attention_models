@@ -241,4 +241,5 @@ def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["
         ax.legend()
         ax.grid(True)
     fig.tight_layout()
+    plt.show()
     return fig

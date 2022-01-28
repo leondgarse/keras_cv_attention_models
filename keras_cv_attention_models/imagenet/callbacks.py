@@ -208,6 +208,10 @@ class MyCheckpoint(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs={}):
         # tf.print(">>>> Save latest to:", self.latest_save)
         self.model.save(self.latest_save)
+        if self.monitor not in logs:
+            all_val_acc = [ii for ii in logs.keys() if "val" in ii and "acc" in ii]
+            if len(all_val_acc) > 0:
+                self.monitor = all_val_acc[0]
 
         cur_monitor_val = logs.get(self.monitor, 0)
         if self.is_better(cur_monitor_val, self.pre_best):

@@ -29,7 +29,7 @@ class ReluWeightedSum(keras.layers.Layer):
     def build(self, input_shape):
         self.total = len(input_shape)
         self.gain = self.add_weight(name="gain", shape=(self.total,), initializer=self.initializer, dtype=self.dtype, trainable=True)
-        self.__epsilon__ = tf.cast(self.epsilon, self.dtype)
+        self.__epsilon__ = tf.cast(self.epsilon, self._compute_dtype)
 
     def call(self, inputs):
         gain = tf.nn.relu(self.gain)
@@ -132,9 +132,10 @@ def EfficientDet(
     num_anchors=9,
     num_classes=90,
     activation="swish",
+    classifier_activation="sigmoid",
     freeze_backbone=False,
     anchor_scale=4,  # Init anchors for model prediction
-    pyramid_levels=[3, 4, 5, 6, 7],  # Init anchors for model prediction
+    pyramid_levels=[3, 7],  # Init anchors for model prediction
     pretrained="coco",
     model_name=None,
     kwargs=None,  # Not using, recieving parameter
@@ -142,6 +143,8 @@ def EfficientDet(
 ):
     if freeze_backbone:
         backbone.trainable = False
+    else:
+        backbone.trainable = True
 
     if isinstance(features_pick[0], str):
         fpn_features = [backbone.get_layer(layer_name) for layer_name in features_pick]
@@ -165,10 +168,11 @@ def EfficientDet(
 
     bbox_regressor = detector_head(fpn_features, num_channels, head_depth, 4, num_anchors, activation, head_activation=None, name="regressor_")
     if num_classes > 0:
-        classifier = detector_head(fpn_features, num_channels, head_depth, num_classes, num_anchors, activation=activation, name="classifier_")
+        classifier = detector_head(fpn_features, num_channels, head_depth, num_classes, num_anchors, activation, classifier_activation, name="classifier_")
         outputs = tf.concat([bbox_regressor, classifier], axis=-1)
     else:
         outputs = bbox_regressor
+    # outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
 
     model_name = model_name or backbone.name + "_det"
     model = keras.models.Model(inputs=backbone.inputs[0], outputs=outputs, name=model_name)
@@ -178,8 +182,9 @@ def EfficientDet(
 
 
 class DecodePredictions:
-    def __init__(self, input_shape=(512, 512, 3), pyramid_levels=[3, 4, 5, 6, 7], anchor_scale=4, **kwargs):
-        self.pyramid_levels, self.anchor_scale, self.kwargs = pyramid_levels, anchor_scale, kwargs
+    def __init__(self, input_shape=(512, 512, 3), pyramid_levels=[3, 7], anchor_scale=4, **kwargs):
+        self.anchor_scale, self.kwargs = anchor_scale, kwargs
+        self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
         if input_shape[0] is not None:
             self.__init_anchor__(input_shape)
         else:
@@ -259,5 +264,5 @@ def EfficientDetD7X(input_shape=(1536, 1536, 3), freeze_backbone=False, num_clas
     num_channels = 384
     use_weighted_sum = False
     additional_features = 3
-    pyramid_levels = [3, 4, 5, 6, 7, 8]
+    pyramid_levels = [3, 8]
     return EfficientDet(**locals(), model_name="efficientdet_d7x", **kwargs)

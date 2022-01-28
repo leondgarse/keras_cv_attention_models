@@ -13,17 +13,18 @@ from keras_cv_attention_models.imagenet import (
 )
 
 
-def parse_arguments(argv):
+def parse_arguments(argv, is_from_coco=False):
     import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-i", "--input_shape", type=int, default=160, help="Model input shape")
-    parser.add_argument(
-        "-m", "--model", type=str, default="aotnet.AotNet50", help="Model name in format [sub_dir].[model_name]. Or name from keras.applications like MobileNet"
-    )
+    if not is_from_coco:
+        parser.add_argument("-d", "--data_name", type=str, default="imagenet2012", help="Dataset name from tensorflow_datasets like imagenet2012 cifar10")
+        parser.add_argument("-i", "--input_shape", type=int, default=160, help="Model input shape")
+        parser.add_argument(
+            "-m", "--model", type=str, default="aotnet.AotNet50", help="Model name in format [sub_dir].[model_name]. Or keras.applications name like MobileNet"
+        )
     parser.add_argument("-b", "--batch_size", type=int, default=256, help="Batch size")
     parser.add_argument("-e", "--epochs", type=int, default=-1, help="Total epochs. Set -1 means using lr_decay_steps + lr_cooldown_steps")
-    parser.add_argument("-d", "--data_name", type=str, default="imagenet2012", help="Dataset name from tensorflow_datasets like imagenet2012 cifar10")
     parser.add_argument("-p", "--optimizer", type=str, default="LAMB", help="Optimizer name. One of [AdamW, LAMB, RMSprop, SGD, SGDW].")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
     parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history. None means a combination of parameters")
@@ -37,20 +38,24 @@ def parse_arguments(argv):
         help="""If build model with pretrained weights. Mostly used is one of [imagenet, imagenet21k]. Or specified h5 file for build model -> restore weights.
                 This will drop model optimizer, used for `progressive_train_script.py`. Relatively, `restore_path` is used for restore from break point""",
     )
-    parser.add_argument(
-        "--additional_model_kwargs", type=str, default=None, help="Json format model kwargs like '{\"drop_connect_rate\": 0.05}'. Note all these quote marks"
-    )
+    if not is_from_coco:
+        parser.add_argument(
+            "--additional_model_kwargs", type=str, default=None, help="Json format model kwargs like '{\"drop_connect_rate\": 0.05}'. Note all quote marks"
+        )
     parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
     parser.add_argument("--summary", action="store_true", help="show model summary")
     parser.add_argument("--disable_float16", action="store_true", help="Disable mixed_float16 training")
     parser.add_argument("--TPU", action="store_true", help="Run training on TPU [Not working]")
+    if is_from_coco:
+        parser.add_argument("--COCO_NAME", type=str, default=None, help="Internal parameter, saving name from coco_train")
 
     """ Loss arguments """
     loss_group = parser.add_argument_group("Loss arguments")
     loss_group.add_argument("--label_smoothing", type=float, default=0, help="Loss label smoothing value")
-    loss_group.add_argument(
-        "--bce_threshold", type=float, default=0.2, help="Value [0, 1) for BCE loss target_threshold, set 1 for using CategoricalCrossentropy"
-    )
+    if not is_from_coco:
+        loss_group.add_argument(
+            "--bce_threshold", type=float, default=0.2, help="Value [0, 1) for BCE loss target_threshold, set 1 for using CategoricalCrossentropy"
+        )
 
     """ Learning rate and weight decay arguments """
     lr_group = parser.add_argument_group("Learning rate and weight decay arguments")
@@ -79,16 +84,21 @@ def parse_arguments(argv):
     ds_group = parser.add_argument_group("Dataset arguments")
     ds_group.add_argument("--magnitude", type=int, default=6, help="Randaug magnitude value")
     ds_group.add_argument("--num_layers", type=int, default=2, help="Number of randaug applied sequentially to an image. Usually best in [1, 3]")
-    ds_group.add_argument("--mixup_alpha", type=float, default=0.1, help="Mixup alpha value")
-    ds_group.add_argument("--cutmix_alpha", type=float, default=1.0, help="Cutmix alpha value")
     ds_group.add_argument("--random_crop_min", type=float, default=0.08, help="Random crop min value for RRC. Set 1 to disable RRC")
-    ds_group.add_argument("--random_erasing_prob", type=float, default=0, help="Random erasing prob, can be used to replace cutout. Set 0 to disable")
+    if not is_from_coco:
+        ds_group.add_argument("--mixup_alpha", type=float, default=0.1, help="Mixup alpha value")
+        ds_group.add_argument("--cutmix_alpha", type=float, default=1.0, help="Cutmix alpha value")
+        ds_group.add_argument("--random_erasing_prob", type=float, default=0, help="Random erasing prob, can be used to replace cutout. Set 0 to disable")
+        ds_group.add_argument("--eval_central_crop", type=float, default=0.95, help="Evaluation central crop fraction. Set 1 to disable")
     ds_group.add_argument("--rescale_mode", type=str, default="torch", help="Rescale mode, one of [tf, torch]")
-    ds_group.add_argument("--eval_central_crop", type=float, default=0.95, help="Evaluation central crop fraction. Set 1 to disable")
     ds_group.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
     ds_group.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
 
     args = parser.parse_known_args(argv)[0]
+
+    if not is_from_coco:
+        # args.additional_model_kwargs = {"drop_connect_rate": 0.05}
+        args.additional_model_kwargs = json.loads(args.additional_model_kwargs) if args.additional_model_kwargs else {}
 
     lr_decay_steps = args.lr_decay_steps.strip().split(",")
     if len(lr_decay_steps) > 1:
@@ -102,8 +112,13 @@ def parse_arguments(argv):
     if basic_save_name is None and args.restore_path is not None:
         basic_save_name = os.path.splitext(os.path.basename(args.restore_path))[0]
         basic_save_name = basic_save_name[:-7] if basic_save_name.endswith("_latest") else basic_save_name
+    elif basic_save_name is None and is_from_coco:
+        basic_save_name = "{}_{}_batchsize_{}".format(args.COCO_NAME, args.optimizer, args.batch_size)
+        basic_save_name += "_randaug_{}_RRC_{}".format(args.magnitude, args.random_crop_min)
+        basic_save_name += "_lr512_{}_wd_{}".format(args.lr_base_512, args.weight_decay)
     elif basic_save_name is None:
-        basic_save_name = "{}_{}_{}_{}_batchsize_{}".format(args.model, args.input_shape, args.optimizer, args.data_name, args.batch_size)
+        data_name = args.data_name.replace("/", "_")
+        basic_save_name = "{}_{}_{}_{}_batchsize_{}".format(args.model, args.input_shape, args.optimizer, data_name, args.batch_size)
         basic_save_name += "_randaug_{}_mixup_{}_cutmix_{}_RRC_{}".format(args.magnitude, args.mixup_alpha, args.cutmix_alpha, args.random_crop_min)
         basic_save_name += "_lr512_{}_wd_{}".format(args.lr_base_512, args.weight_decay)
     args.basic_save_name = basic_save_name
@@ -145,8 +160,6 @@ def run_training_by_args(args):
     epochs = args.epochs if args.epochs != -1 else lr_total_epochs
 
     with strategy.scope():
-        # additional_model_kwargs = {"drop_connect_rate": 0.05}
-        additional_model_kwargs = json.loads(args.additional_model_kwargs) if args.additional_model_kwargs else {}
         model = init_model(args.model, input_shape, num_classes, args.pretrained, args.restore_path, **additional_model_kwargs)
         if args.summary:
             model.summary()
