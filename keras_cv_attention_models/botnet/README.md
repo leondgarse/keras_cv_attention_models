@@ -92,7 +92,7 @@
   #   [15, 16, 17, 18],
   #   [21, 22, 23, 24]]]
   ```
-  ![](rel_to_abs.png)
+  ![](https://user-images.githubusercontent.com/5744524/151656818-ef730fc4-d355-4964-b837-d5fbd28b87ac.png)
 ## Verification with PyTorch version
   ```py
   inputs = np.random.uniform(size=(1, 256, 256, 3)).astype("float32")

@@ -8,7 +8,7 @@
 ***
 
 ## Models
-  ![](cmt.png)
+  ![](https://user-images.githubusercontent.com/5744524/151656779-6e6f2203-a7f7-42cf-8833-f4d472c171ae.png)
 
   | Model    | Params | Image resolution | Top1 Acc |
   | -------- | ------ | ---------------- | -------- |
@@ -53,5 +53,5 @@
       batch_size=batch_size, magnitude=10
   )
   ```
-  ![](cmt-tiny-cifar10.svg)
+  ![](https://user-images.githubusercontent.com/5744524/151657106-9af596b7-5132-4bcd-9448-4c7ed313534c.png)
 ***

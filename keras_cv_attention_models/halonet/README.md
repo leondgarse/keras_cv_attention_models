@@ -7,7 +7,7 @@
   - No pretrained available for `H` models. Architecture is guessed from article, so it's NOT certain.
   - `T` model weights are reloaded from timm [Github rwightman/pytorch-image-models](https://github.com/rwightman/pytorch-image-models).
 ## Models
-  ![](halo_attention.png)
+  ![](https://user-images.githubusercontent.com/5744524/151656806-005a80ba-3c35-4707-af29-2a781492a1d9.png)
 
   | Model          | Params | Image resolution | Top1 Acc | Download |
   | -------------- | ------ | ---------------- | -------- | -------- |

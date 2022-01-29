@@ -91,7 +91,7 @@
 ## Transfer learning on cifar10
   - [volo_cifar10.ipynb](https://colab.research.google.com/drive/1-uB8lbVLZi_NJARjm06QzVdPPbrCp0FM?usp=sharing)
 
-  ![](volo_cifar10.svg)
+  ![](https://user-images.githubusercontent.com/5744524/151657118-b323d4c6-5f08-4965-82cb-17640cef9352.png)
 ## Training
   - We evaluate our proposed VOLO on the ImageNet dataset. During training, we do not use any extra training data.
   - We use the LV-ViT-S model with Token Labeling as our baseline.
