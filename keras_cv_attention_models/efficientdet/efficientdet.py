@@ -275,7 +275,7 @@ def EfficientDetD7(input_shape=(1536, 1536, 3), freeze_backbone=False, num_class
     if backbone is None:
         backbone = efficientnet.EfficientNetV1B6(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
         features_pick = ["stack_2_block5_output", "stack_4_block7_output", "stack_6_block2_output"]
-    anchor_scale = 5
+    anchor_scale = kwargs.pop("anchor_scale", 5)
     return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, model_name="efficientdet_d7", **kwargs)
 
 
@@ -283,10 +283,6 @@ def EfficientDetD7X(input_shape=(1536, 1536, 3), freeze_backbone=False, num_clas
     if backbone is None:
         backbone = efficientnet.EfficientNetV1B7(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
         features_pick = ["stack_2_block6_output", "stack_4_block9_output", "stack_6_block3_output"]
-    fpn_depth = 8
-    head_depth = 5
-    num_channels = 384
-    use_weighted_sum = False
-    additional_features = 3
-    pyramid_levels = [3, 8]
-    return EfficientDet(**locals(), model_name="efficientdet_d7x", **kwargs)
+    pyramid_levels = kwargs.pop("pyramid_levels", [3, 8])
+    additional_features = max(pyramid_levels) - 5 # 8 -> 3, 7 -> 2
+    return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, model_name="efficientdet_d7x", **kwargs)
