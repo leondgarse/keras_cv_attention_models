@@ -160,7 +160,7 @@ def run_training_by_args(args):
     epochs = args.epochs if args.epochs != -1 else lr_total_epochs
 
     with strategy.scope():
-        model = init_model(args.model, input_shape, num_classes, args.pretrained, args.restore_path, **additional_model_kwargs)
+        model = init_model(args.model, input_shape, num_classes, args.pretrained, args.restore_path, **args.additional_model_kwargs)
         if args.summary:
             model.summary()
         if model.optimizer is None:

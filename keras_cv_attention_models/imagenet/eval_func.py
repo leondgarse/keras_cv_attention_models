@@ -221,17 +221,30 @@ def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["
                 hist = json.load(ff)
         name = name if name != None else str(id)
 
+        acc_key = "acc"
+        if acc_key not in hist:
+            all_acc_key = [ii for ii in hist.keys() if "acc" in ii and "val" not in ii]
+            acc_key = "acc" if len(all_acc_key) == 0 else all_acc_key[0]
+        val_acc_key = "val_acc"
+        if val_acc_key not in hist:
+            all_val_acc_key = [ii for ii in hist.keys() if "acc" in ii and "val" in ii]
+            val_acc_key = "val_acc" if len(all_val_acc_key) == 0 else all_val_acc_key[0]
+
         cur_pred_curve = pred_curve[min(id, len(pred_curve) - 1)] if isinstance(pred_curve, (list, tuple)) else pred_curve
         plot_and_peak_scatter(axes[0], hist["loss"], np.argmin, name + " loss", skip_first, None, cur_va, fontsize, pred_curve=cur_pred_curve)
         color = axes[0].lines[-1].get_color()
         val_loss = hist.get("val_loss", [])
         if len(val_loss) > 0 and "val_loss" not in addition_plots:
             plot_and_peak_scatter(axes[0], val_loss, np.argmin, name + " val_loss", skip_first, color, cur_va, fontsize, cur_pred_curve, linestyle="--")
-        acc = hist.get("acc", hist.get("accuracy", []))
+
+        acc = hist.get(acc_key, [])
         if len(acc) > 0:  # For timm log
             plot_and_peak_scatter(axes[1], acc, np.argmax, name + " accuracy", skip_first, color, cur_va, fontsize, cur_pred_curve)
-        val_acc = hist.get("val_acc", hist.get("val_accuracy", []))
-        plot_and_peak_scatter(axes[1], val_acc, np.argmax, name + " val_accuracy", skip_first, color, cur_va, fontsize, cur_pred_curve, linestyle="--")
+
+        val_acc = hist.get(val_acc_key, [])
+        if len(val_acc) > 0:  # For timm log
+            plot_and_peak_scatter(axes[1], val_acc, np.argmax, name + " val_accuracy", skip_first, color, cur_va, fontsize, cur_pred_curve, linestyle="--")
+
         if addition_plots is not None and len(addition_plots) != 0:
             for id, ii in enumerate(addition_plots):
                 if len(hist.get(ii, [])) > 0:

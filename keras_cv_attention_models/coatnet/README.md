@@ -25,7 +25,7 @@
   - **Training**. Using `A3` recipe with `batch_size=128, input_shape=(160, 160)`.
     ```py
     CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py -m coatnet.CoAtNet0 \
-            --seed 0 --resize_antialias --batch_size 128 -s CoAtNet0_1
+            --seed 0 --batch_size 128 -s CoAtNet0_1
     ```
     Changing evaluating input_shape for `CoATNet` is not very helpful.
   - **Plot**

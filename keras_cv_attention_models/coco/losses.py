@@ -40,8 +40,8 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
         vv = tf.cond(
             tf.shape(bbox_true_valid)[0] == 0,
             lambda: 0.0,
-            # lambda: tf.losses.huber(bbox_true_valid, bbox_pred_valid, self.delta) / 4.0,
-            lambda: tf.losses.huber(tf.expand_dims(bbox_true_valid, -1), tf.expand_dims(bbox_pred_valid, -1), self.delta) / 4.0,
+            lambda: tf.losses.huber(bbox_true_valid, bbox_pred_valid, self.delta),
+            # lambda: tf.losses.huber(tf.expand_dims(bbox_true_valid, -1), tf.expand_dims(bbox_pred_valid, -1), self.delta) / 4.0,
             # lambda: self.huber(tf.expand_dims(bbox_true_valid, -1), tf.expand_dims(bbox_pred_valid, -1)) / 4.0,
         )
         return tf.cast(vv, bbox_pred_valid.dtype)
@@ -58,7 +58,7 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
 
         cls_loss = self.__focal_loss__(class_true_valid, class_pred_valid) / num_positive_anchors # divide before sum, or will be inf
         bbox_loss = self.__bbox_loss__(bbox_true_valid, bbox_pred_valid) / num_positive_anchors
-        bbox_loss, cls_loss = tf.reduce_sum(bbox_loss), tf.reduce_sum(cls_loss)
+        cls_loss, bbox_loss = tf.reduce_sum(cls_loss), tf.reduce_sum(bbox_loss)
 
         # return bbox_loss
         tf.print(" - cls_loss:", cls_loss, "- bbox_loss:", bbox_loss, end="\r")
@@ -80,16 +80,17 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
 
 
 class ClassAccuracyWithBbox(tf.keras.metrics.Metric):
-    def __init__(self, name="cls_acc", **kwargs):
+    def __init__(self, name="acc", **kwargs):
         super().__init__(name=name, **kwargs)
-        self.cls_acc = self.add_weight(name="tp", initializer="zeros", dtype=self._compute_dtype)
-        self.count = self.add_weight(name="count", initializer="zeros", dtype=self._compute_dtype)
+        self.cls_acc = self.add_weight(name="tp", initializer="zeros", dtype="float32")
+        self.count = self.add_weight(name="count", initializer="zeros", dtype="float32")
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         pick = tf.where(y_true[:, :, -1] == 1)
         cls_true_valid = tf.argmax(tf.gather_nd(y_true[:, :, 4:-1], pick), axis=-1)
         cls_pred_valid = tf.argmax(tf.gather_nd(y_pred[:, :, 4:], pick), axis=-1)
-        cls_acc = tf.reduce_mean(tf.cast(cls_true_valid == cls_pred_valid, self.cls_acc.dtype))
+        cls_acc = tf.reduce_mean(tf.cast(cls_true_valid == cls_pred_valid, "float32"))
+        # tf.assert_less(cls_acc, 1.1)
         self.cls_acc.assign_add(cls_acc)
         self.count.assign_add(1.0)
 
