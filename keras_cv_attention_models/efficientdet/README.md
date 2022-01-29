@@ -66,4 +66,11 @@
 
     mm.summary()  # Trainable params: 18,773,185
     ```
+    Each `EfficientDetD*` can also set with `backbone=xxx` for using their pre-settings.
+    ```py
+    from keras_cv_attention_models import efficientdet, resnest
+    mm = efficientdet.EfficientDetD2(backbone=resnest.ResNest50(input_shape=(384, 384, 3), num_classes=0))
+
+    mm.summary()  # Trainable params: 27,153,037
+    ```
 ***

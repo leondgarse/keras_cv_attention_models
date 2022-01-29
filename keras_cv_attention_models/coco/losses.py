@@ -56,7 +56,7 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
         class_true_valid, class_pred_valid = tf.gather_nd(class_true, exclude_ignored_pick), tf.gather_nd(class_pred, exclude_ignored_pick)
         bbox_true_valid, bbox_pred_valid = tf.gather_nd(bbox_true, valid_pick), tf.gather_nd(bbox_pred, valid_pick)
 
-        cls_loss = self.__focal_loss__(class_true_valid, class_pred_valid) / num_positive_anchors # divide before sum, or will be inf
+        cls_loss = self.__focal_loss__(class_true_valid, class_pred_valid) / num_positive_anchors  # divide before sum, or will be inf
         bbox_loss = self.__bbox_loss__(bbox_true_valid, bbox_pred_valid) / num_positive_anchors
         cls_loss, bbox_loss = tf.reduce_sum(cls_loss), tf.reduce_sum(bbox_loss)
 
@@ -80,9 +80,9 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
 
 
 class ClassAccuracyWithBbox(tf.keras.metrics.Metric):
-    def __init__(self, name="acc", **kwargs):
+    def __init__(self, name="cls_acc", **kwargs):
         super().__init__(name=name, **kwargs)
-        self.cls_acc = self.add_weight(name="tp", initializer="zeros", dtype="float32")
+        self.cls_acc = self.add_weight(name="cls_acc", initializer="zeros", dtype="float32")
         self.count = self.add_weight(name="count", initializer="zeros", dtype="float32")
 
     def update_state(self, y_true, y_pred, sample_weight=None):

@@ -61,7 +61,7 @@ def align_feature_blocks_2(inputs, downsample=True, interpolation="nearest", nam
     return nn
 
 
-def resample_fusion(inputs, output_channel, use_weighted_sum=True, downsample=True, interpolation="nearest", activation="swish", name=""):
+def resample_fuse(inputs, output_channel, use_weighted_sum=True, downsample=True, interpolation="nearest", use_sep_conv=True, activation="swish", name=""):
     if inputs[0].shape[-1] != output_channel:
         inputs[0] = align_feature_channel(inputs[0], output_channel, name=name)
     # downsample = inputs[-1].shape[1] > inputs[0].shape[1]
@@ -72,18 +72,23 @@ def resample_fusion(inputs, output_channel, use_weighted_sum=True, downsample=Tr
     else:
         nn = keras.layers.Add(name=name + "sum")(inputs)
     nn = activation_by_name(nn, activation, name=name)
-    nn = keras.layers.SeparableConv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=name + "sepconv")(nn)
+    if use_sep_conv:
+        nn = keras.layers.SeparableConv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=name + "sepconv")(nn)
+    else:
+        nn = keras.layers.Conv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=name + "conv")(nn)
     nn = keras.layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "bn")(nn)
     return nn
 
 
-def bi_fpn(features, output_channel, use_weighted_sum=True, activation="swish", name=""):
+def bi_fpn(features, output_channel, use_weighted_sum=True, use_sep_conv=True, activation="swish", name=""):
     # print(f">>>> bi_fpn: {[ii.shape for ii in features] = }")
     # features: [p3, p4, p5, p6, p7]
     up_features = [features[-1]]
     for id, feature in enumerate(features[:-1][::-1]):
         cur_name = name + "p{}_up_".format(len(features) - id + 1)
-        up_feature = resample_fusion([feature, up_features[-1]], output_channel, use_weighted_sum, downsample=False, activation=activation, name=cur_name)
+        up_feature = resample_fuse(
+            [feature, up_features[-1]], output_channel, use_weighted_sum, False, use_sep_conv=use_sep_conv, activation=activation, name=cur_name
+        )
         up_features.append(up_feature)
 
     # up_features: [p7, p6_up, p5_up, p4_up, p3_up]
@@ -92,28 +97,36 @@ def bi_fpn(features, output_channel, use_weighted_sum=True, activation="swish", 
     for id, feature in enumerate(features[1:]):
         cur_name = name + "p{}_out_".format(len(features) - 1 + id)
         fusion_feature = [feature, out_features[-1]] if id == len(up_features) else [feature, up_features[id], out_features[-1]]
-        out_feature = resample_fusion(fusion_feature, output_channel, use_weighted_sum, downsample=True, activation=activation, name=cur_name)
+        out_feature = resample_fuse(fusion_feature, output_channel, use_weighted_sum, True, use_sep_conv=use_sep_conv, activation=activation, name=cur_name)
         out_features.append(out_feature)
 
     # out_features: [p3_up, p4_out, p5_out, p6_out, p7_out]
     return out_features
 
 
-def detector_head(features, output_channel, repeats, num_classes=80, num_anchors=9, activation="swish", head_activation="sigmoid", name=""):
-    names = [name + "{}_sepconv".format(id + 1) for id in range(repeats)]
-    sep_convs = [keras.layers.SeparableConv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(repeats)]
+def det_head(features, output_channel, repeats, num_classes=80, num_anchors=9, use_sep_conv=True, activation="swish", head_activation="sigmoid", name=""):
+    if use_sep_conv:
+        names = [name + "{}_sepconv".format(id + 1) for id in range(repeats)]
+        convs = [keras.layers.SeparableConv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(repeats)]
+    else:
+        names = [name + "{}_conv".format(id + 1) for id in range(repeats)]
+        convs = [keras.layers.Conv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(repeats)]
+
     outputs = []
     for feature_id, feature in enumerate(features):
         nn = feature
         for id in range(repeats):
-            nn = sep_convs[id](nn)
+            nn = convs[id](nn)
             cur_name = name + "{}_{}_bn".format(id + 1, feature_id + 1)
             nn = keras.layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=cur_name)(nn)
             nn = activation_by_name(nn, activation, name=cur_name + "{}_".format(id + 1))
         outputs.append(nn)
 
     if num_classes > 0:
-        header_conv = keras.layers.SeparableConv2D(num_classes * num_anchors, kernel_size=3, padding="SAME", use_bias=True, name=name + "head")
+        if use_sep_conv:
+            header_conv = keras.layers.SeparableConv2D(num_classes * num_anchors, kernel_size=3, padding="SAME", use_bias=True, name=name + "head")
+        else:
+            header_conv = keras.layers.Conv2D(num_classes * num_anchors, kernel_size=3, padding="SAME", use_bias=True, name=name + "conv_head")
         outputs = [header_conv(ii) for ii in outputs]
         outputs = [keras.layers.Reshape([-1, num_classes])(ii) for ii in outputs]
         outputs = tf.concat(outputs, axis=1)
@@ -131,6 +144,7 @@ def EfficientDet(
     use_weighted_sum=True,
     num_anchors=9,
     num_classes=90,
+    use_sep_conv=True,
     activation="swish",
     classifier_activation="sigmoid",
     freeze_backbone=False,
@@ -164,12 +178,12 @@ def EfficientDet(
         fpn_features.append(additional_feature)
 
     for id in range(fpn_depth):
-        fpn_features = bi_fpn(fpn_features, num_channels, use_weighted_sum, activation=activation, name="biFPN_{}_".format(id + 1))
+        fpn_features = bi_fpn(fpn_features, num_channels, use_weighted_sum, use_sep_conv, activation=activation, name="biFPN_{}_".format(id + 1))
 
-    bbox_regressor = detector_head(fpn_features, num_channels, head_depth, 4, num_anchors, activation, head_activation=None, name="regressor_")
+    bbox_regressor = det_head(fpn_features, num_channels, head_depth, 4, num_anchors, use_sep_conv, activation, head_activation=None, name="regressor_")
     if num_classes > 0:
-        classifier = detector_head(fpn_features, num_channels, head_depth, num_classes, num_anchors, activation, classifier_activation, name="classifier_")
-        outputs = tf.concat([bbox_regressor, classifier], axis=-1)
+        cls = det_head(fpn_features, num_channels, head_depth, num_classes, num_anchors, use_sep_conv, activation, classifier_activation, name="classifier_")
+        outputs = tf.concat([bbox_regressor, cls], axis=-1)
     else:
         outputs = bbox_regressor
     # outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
@@ -208,57 +222,67 @@ class DecodePredictions:
         return [self.__decode_one__(pred, score_threshold, iou_threshold, max_output_size, input_shape) for pred in preds]
 
 
-def EfficientDetD0(input_shape=(512, 512, 3), freeze_backbone=False, num_classes=90, pretrained="coco", **kwargs):
-    backbone = efficientnet.EfficientNetV1B0(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
-    features_pick = ["stack_2_block1_output", "stack_4_block2_output", "stack_6_block0_output"]
+def EfficientDetD0(input_shape=(512, 512, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1B0(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        features_pick = ["stack_2_block1_output", "stack_4_block2_output", "stack_6_block0_output"]
     return EfficientDet(**locals(), fpn_depth=3, head_depth=3, num_channels=64, model_name="efficientdet_d0", **kwargs)
 
 
-def EfficientDetD1(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=90, pretrained="coco", **kwargs):
-    backbone = efficientnet.EfficientNetV1B1(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+def EfficientDetD1(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1B1(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
     features_pick = ["stack_2_block2_output", "stack_4_block3_output", "stack_6_block1_output"]
     return EfficientDet(**locals(), fpn_depth=4, head_depth=3, num_channels=88, model_name="efficientdet_d1", **kwargs)
 
 
-def EfficientDetD2(input_shape=(768, 768, 3), freeze_backbone=False, num_classes=90, pretrained="coco", **kwargs):
-    backbone = efficientnet.EfficientNetV1B2(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
-    features_pick = ["stack_2_block2_output", "stack_4_block3_output", "stack_6_block1_output"]
+def EfficientDetD2(input_shape=(768, 768, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1B2(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        features_pick = ["stack_2_block2_output", "stack_4_block3_output", "stack_6_block1_output"]
     return EfficientDet(**locals(), fpn_depth=5, head_depth=3, num_channels=112, model_name="efficientdet_d2", **kwargs)
 
 
-def EfficientDetD3(input_shape=(896, 896, 3), freeze_backbone=False, num_classes=90, pretrained="coco", **kwargs):
-    backbone = efficientnet.EfficientNetV1B3(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
-    features_pick = ["stack_2_block2_output", "stack_4_block4_output", "stack_6_block1_output"]
+def EfficientDetD3(input_shape=(896, 896, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1B3(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        features_pick = ["stack_2_block2_output", "stack_4_block4_output", "stack_6_block1_output"]
     return EfficientDet(**locals(), fpn_depth=6, head_depth=4, num_channels=160, model_name="efficientdet_d3", **kwargs)
 
 
-def EfficientDetD4(input_shape=(1024, 1024, 3), freeze_backbone=False, num_classes=90, pretrained="coco", **kwargs):
-    backbone = efficientnet.EfficientNetV1B4(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
-    features_pick = ["stack_2_block3_output", "stack_4_block5_output", "stack_6_block1_output"]
+def EfficientDetD4(input_shape=(1024, 1024, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1B4(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        features_pick = ["stack_2_block3_output", "stack_4_block5_output", "stack_6_block1_output"]
     return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=224, model_name="efficientdet_d4", **kwargs)
 
 
-def EfficientDetD5(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=90, pretrained="coco", **kwargs):
-    backbone = efficientnet.EfficientNetV1B5(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
-    features_pick = ["stack_2_block4_output", "stack_4_block6_output", "stack_6_block2_output"]
+def EfficientDetD5(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1B5(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        features_pick = ["stack_2_block4_output", "stack_4_block6_output", "stack_6_block2_output"]
     return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=288, model_name="efficientdet_d5", **kwargs)
 
 
-def EfficientDetD6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=90, pretrained="coco", **kwargs):
-    backbone = efficientnet.EfficientNetV1B6(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
-    features_pick = ["stack_2_block5_output", "stack_4_block7_output", "stack_6_block2_output"]
+def EfficientDetD6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1B6(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        features_pick = ["stack_2_block5_output", "stack_4_block7_output", "stack_6_block2_output"]
     return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, model_name="efficientdet_d6", **kwargs)
 
 
-def EfficientDetD7(input_shape=(1536, 1536, 3), freeze_backbone=False, num_classes=90, anchor_scale=5, pretrained="coco", **kwargs):
-    backbone = efficientnet.EfficientNetV1B6(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
-    features_pick = ["stack_2_block5_output", "stack_4_block7_output", "stack_6_block2_output"]
+def EfficientDetD7(input_shape=(1536, 1536, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1B6(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        features_pick = ["stack_2_block5_output", "stack_4_block7_output", "stack_6_block2_output"]
+    anchor_scale = 5
     return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, model_name="efficientdet_d7", **kwargs)
 
 
-def EfficientDetD7X(input_shape=(1536, 1536, 3), freeze_backbone=False, num_classes=90, pretrained="coco", **kwargs):
-    backbone = efficientnet.EfficientNetV1B7(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
-    features_pick = ["stack_2_block6_output", "stack_4_block9_output", "stack_6_block3_output"]
+def EfficientDetD7X(input_shape=(1536, 1536, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1B7(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        features_pick = ["stack_2_block6_output", "stack_4_block9_output", "stack_6_block3_output"]
     fpn_depth = 8
     head_depth = 5
     num_channels = 384
