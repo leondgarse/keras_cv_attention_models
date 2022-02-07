@@ -12,6 +12,8 @@ COCO_LABELS = """person, bicycle, car, motorcycle, airplane, bus, train, truck, 
 COCO_LABEL_DICT = {id: ii.strip() for id, ii in enumerate(COCO_LABELS.split(","))}
 INVALID_ID_90 = [12, 26, 29, 30, 45, 66, 68, 69, 71, 83]
 COCO_90_LABEL_DICT = {id: ii for id, ii in zip(set(range(90)) - set(INVALID_ID_90), COCO_LABEL_DICT.values())}
+COCO_90_LABEL_DICT.update({ii: "Unknown" for ii in INVALID_ID_90})
+COCO_80_to_90_LABEL_DICT = {id_80: id_90 for id_80, id_90 in enumerate(set(range(90)) - set(INVALID_ID_90))}
 
 
 def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=[0.5, 1, 2], num_scales=3, anchor_scale=4):
@@ -65,7 +67,7 @@ def iou_nd(bboxes, anchors):
     return inter_area / union_area
 
 
-def xy_2_wh_nd(ss):
+def corners_to_center_xywh_nd(ss):
     """ input: [top, left, bottom, right], output: [center_h, center_w], [height, width] """
     return (ss[:, :2] + ss[:, 2:]) * 0.5, ss[:, 2:] - ss[:, :2]
 
@@ -84,15 +86,14 @@ def assign_anchor_classes_by_iou_with_bboxes(bboxes, anchors, labels, ignore_thr
     best_match_labels = tf.gather(labels, best_match_indxes)
 
     # Mark anchors classes, iou < ignore_threshold as -1, ignore_threshold < iou < overlap_threshold as -2
-    anchor_classes_zeros = tf.zeros(num_anchors, dtype=best_match_labels.dtype)
-    anchor_classes = tf.where(anchor_best_ious > ignore_threshold, anchor_classes_zeros - 2, anchor_classes_zeros - 1)
+    anchor_classes = tf.where(anchor_best_ious > ignore_threshold, tf.cast(-2, best_match_labels.dtype), tf.cast(-1, best_match_labels.dtype))
     # Mark matched anchors classes, iou > overlap_threshold as actual labels
     # anchor_classes = tf.where(anchor_best_ious > overlap_threshold, labels[anchor_best_iou_ids], anchor_classes)
     anchor_classes = tf.tensor_scatter_nd_update(anchor_classes, matched_idxes_nd, best_match_labels)
 
     valid_anchors = tf.gather(anchors, matched_idxes)
-    valid_anchors_center, valid_anchors_wh = xy_2_wh_nd(valid_anchors)
-    bboxes_center, bboxes_wh = xy_2_wh_nd(bboxes)
+    valid_anchors_center, valid_anchors_wh = corners_to_center_xywh_nd(valid_anchors)
+    bboxes_center, bboxes_wh = corners_to_center_xywh_nd(bboxes)
     bboxes_centers, bboxes_whs = tf.gather(bboxes_center, best_match_indxes), tf.gather(bboxes_wh, best_match_indxes)
 
     encoded_anchors_center = (bboxes_centers - valid_anchors_center) / valid_anchors_wh
@@ -120,6 +121,7 @@ def to_one_hot_with_class_mark(anchor_bboxes_with_label, num_classes=80):
 def random_crop_fraction_with_bboxes(image, bboxes, labels, scale=(0.08, 1.0), ratio=(0.75, 1.3333333)):
     height, width = tf.shape(image)[0], tf.shape(image)[1]
     crop_hh, crop_ww = random_crop_fraction((height, width), scale, ratio)
+    crop_hh, crop_ww = tf.clip_by_value(crop_hh, 1, height - 1), tf.clip_by_value(crop_ww, 1, width - 1)
     crop_top = tf.random.uniform((), 0, height - crop_hh, dtype=crop_hh.dtype)
     crop_left = tf.random.uniform((), 0, width - crop_ww, dtype=crop_ww.dtype)
     crop_bottom, crop_right = crop_top + crop_hh, crop_left + crop_ww
