@@ -104,31 +104,31 @@ def bi_fpn(features, output_channel, use_weighted_sum=True, use_sep_conv=True, a
     return out_features
 
 
-def det_head(features, output_channel, repeats, num_classes=80, num_anchors=9, use_sep_conv=True, activation="swish", head_activation="sigmoid", name=""):
+def det_head(features, filters, depth, classes=80, anchors=9, bias_init="zeros", use_sep_conv=True, activation="swish", head_activation="sigmoid", name=""):
     if use_sep_conv:
-        names = [name + "{}_sepconv".format(id + 1) for id in range(repeats)]
-        convs = [keras.layers.SeparableConv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(repeats)]
+        names = [name + "{}_sepconv".format(id + 1) for id in range(depth)]
+        convs = [keras.layers.SeparableConv2D(filters, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(depth)]
     else:
-        names = [name + "{}_conv".format(id + 1) for id in range(repeats)]
-        convs = [keras.layers.Conv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(repeats)]
+        names = [name + "{}_conv".format(id + 1) for id in range(depth)]
+        convs = [keras.layers.Conv2D(filters, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(depth)]
 
     outputs = []
     for feature_id, feature in enumerate(features):
         nn = feature
-        for id in range(repeats):
+        for id in range(depth):
             nn = convs[id](nn)
             cur_name = name + "{}_{}_bn".format(id + 1, feature_id + 1)
             nn = keras.layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=cur_name)(nn)
             nn = activation_by_name(nn, activation, name=cur_name + "{}_".format(id + 1))
         outputs.append(nn)
 
-    if num_classes > 0:
+    if classes > 0:
         if use_sep_conv:
-            header_conv = keras.layers.SeparableConv2D(num_classes * num_anchors, kernel_size=3, padding="SAME", use_bias=True, name=name + "head")
+            header_conv = keras.layers.SeparableConv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "head")
         else:
-            header_conv = keras.layers.Conv2D(num_classes * num_anchors, kernel_size=3, padding="SAME", use_bias=True, name=name + "conv_head")
+            header_conv = keras.layers.Conv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "conv_head")
         outputs = [header_conv(ii) for ii in outputs]
-        outputs = [keras.layers.Reshape([-1, num_classes])(ii) for ii in outputs]
+        outputs = [keras.layers.Reshape([-1, classes])(ii) for ii in outputs]
         outputs = tf.concat(outputs, axis=1)
         outputs = activation_by_name(outputs, head_activation, name=name + "output_")
     return outputs
@@ -180,18 +180,22 @@ def EfficientDet(
     for id in range(fpn_depth):
         fpn_features = bi_fpn(fpn_features, num_channels, use_weighted_sum, use_sep_conv, activation=activation, name="biFPN_{}_".format(id + 1))
 
-    bbox_regressor = det_head(fpn_features, num_channels, head_depth, 4, num_anchors, use_sep_conv, activation, head_activation=None, name="regressor_")
+    # Save line-width
+    head_kwargs = {"filters": num_channels, "depth": head_depth, "anchors": num_anchors, "use_sep_conv": use_sep_conv, "activation": activation}
+    bbox_out = det_head(fpn_features, classes=4, bias_init="zeros", head_activation=None, name="regressor_", **head_kwargs)
     if num_classes > 0:
-        cls = det_head(fpn_features, num_channels, head_depth, num_classes, num_anchors, use_sep_conv, activation, classifier_activation, name="classifier_")
-        outputs = tf.concat([bbox_regressor, cls], axis=-1)
+        bias_init = tf.constant_initializer(-tf.math.log((1 - 0.01) / 0.01).numpy())
+        cls_out = det_head(fpn_features, classes=num_classes, bias_init=bias_init, head_activation=classifier_activation, name="classifier_", **head_kwargs)
+        outputs = tf.concat([bbox_out, cls_out], axis=-1)
     else:
-        outputs = bbox_regressor
-    # outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
+        outputs = bbox_out
+    outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
 
     model_name = model_name or backbone.name + "_det"
     model = keras.models.Model(inputs=backbone.inputs[0], outputs=outputs, name=model_name)
     add_pre_post_process(model, rescale_mode="torch", post_process=DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchor_scale))
     reload_model_weights(model, PRETRAINED_DICT, "efficientdet", pretrained)
+    # model.backbone = backbone
     return model
 
 
@@ -207,19 +211,21 @@ class DecodePredictions:
     def __init_anchor__(self, input_shape):
         self.anchors = get_anchors(input_shape=input_shape, pyramid_levels=self.pyramid_levels, anchor_scale=self.anchor_scale, **self.kwargs)
 
-    def __decode_one__(self, preds, score_threshold=0.3, iou_threshold=0.2, max_output_size=15, input_shape=None):
+    def __decode_one__(self, preds, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="gaussian", input_shape=None):
+        # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
         if input_shape is not None:
             self.__init_anchor__(input_shape)
-        preds_decode = decode_bboxes(preds, self.anchors).numpy()
-        cc = preds_decode[tf.reduce_max(preds_decode[:, 4:], -1) > score_threshold]
-        rr = tf.image.non_max_suppression(cc[:, :4], cc[:, 4:].max(-1), max_output_size=max_output_size, iou_threshold=iou_threshold)
-        cc_nms = tf.gather(cc, rr).numpy()
-        bboxes, labels, confidences = cc_nms[:, :4], cc_nms[:, 4:].argmax(-1), cc_nms[:, 4:].max(-1)
+        dd = decode_bboxes(preds, self.anchors).numpy()
+        iou_threshold, soft_nms_sigma = (1.0, iou_or_sigma / 2) if method.lower() == "gaussian" else (iou_or_sigma, 0.0)
+        rr, nms_scores = tf.image.non_max_suppression_with_scores(dd[:, :4], dd[:, 4:].max(-1), max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
+        dd_nms = dd[rr.numpy()]
+        bboxes, labels, confidences = dd_nms[:, :4], dd_nms[:, 4:].argmax(-1), nms_scores.numpy()
         return bboxes, labels, confidences
 
-    def __call__(self, preds, score_threshold=0.3, iou_threshold=0.3, max_output_size=15, input_shape=None):
+    def __call__(self, preds, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="gaussian", input_shape=None):
+        """ iou_or_sigma means `soft_nms_sigma` if method is "gaussian", else `iou_threshold` """
         preds = preds if len(preds.shape) == 3 else [preds]
-        return [self.__decode_one__(pred, score_threshold, iou_threshold, max_output_size, input_shape) for pred in preds]
+        return [self.__decode_one__(pred, score_threshold, iou_or_sigma, max_output_size, method, input_shape) for pred in preds]
 
 
 def EfficientDetD0(input_shape=(512, 512, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
@@ -284,5 +290,5 @@ def EfficientDetD7X(input_shape=(1536, 1536, 3), freeze_backbone=False, num_clas
         backbone = efficientnet.EfficientNetV1B7(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
         features_pick = ["stack_2_block6_output", "stack_4_block9_output", "stack_6_block3_output"]
     pyramid_levels = kwargs.pop("pyramid_levels", [3, 8])
-    additional_features = max(pyramid_levels) - 5 # 8 -> 3, 7 -> 2
+    additional_features = max(pyramid_levels) - 5  # 8 -> 3, 7 -> 2
     return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, model_name="efficientdet_d7x", **kwargs)
