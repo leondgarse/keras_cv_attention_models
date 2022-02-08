@@ -393,12 +393,12 @@ class PreprocessInput:
         self.rescale_mode = rescale_mode
         self.input_shape = input_shape[1:-1] if len(input_shape) == 4 else input_shape[:2]
 
-    def __call__(self, image, resize_method="bilinear", input_shape=None):
+    def __call__(self, image, resize_method="bilinear", resize_antialias=False, input_shape=None):
         input_shape = self.input_shape if input_shape is None else input_shape[:2]
         image = tf.convert_to_tensor(image)
         if tf.reduce_max(image) < 2:
             image *= 255
-        image = tf.image.resize(image, input_shape, method=resize_method)
+        image = tf.image.resize(image, input_shape, method=resize_method, antialias=resize_antialias)
         if len(image.shape) == 3:
             image = tf.expand_dims(image, 0)
 
