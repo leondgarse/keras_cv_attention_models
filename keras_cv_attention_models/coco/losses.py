@@ -2,10 +2,10 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 
-# @tf.keras.utils.register_keras_serializable(package="kecamLoss")
+@tf.keras.utils.register_keras_serializable(package="kecamLoss")
 class FocalLossWithBbox(tf.keras.losses.Loss):
     def __init__(self, alpha=0.25, gamma=1.5, delta=0.1, bbox_loss_weight=50.0, label_smoothing=0.0, from_logits=False, **kwargs):
-        # https://github.dev/google/automl/blob/master/efficientdet/hparams_config.py#L229
+        # https://github.com/google/automl/tree/master/efficientdet/hparams_config.py#L229
         # classification loss: alpha, gamma, label_smoothing = 0.25, 1.5, 0.0
         # localization loss: delta, box_loss_weight = 0.1, 50.0
         super().__init__(**kwargs)
@@ -14,12 +14,15 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
         # self.huber = tf.keras.losses.Huber(self.delta, reduction=tf.keras.losses.Reduction.NONE)
 
     def __focal_loss__(self, class_true_valid, class_pred_valid):
-        # https://github.dev/google/automl/blob/master/efficientdet/tf2/train_lib.py#L257 FocalLoss
+        # https://github.com/google/automl/tree/master/efficientdet/tf2/train_lib.py#L257
         if self.from_logits:
             class_pred_valid = tf.sigmoid(class_pred_valid)
         # 1 -> 0.25, 0 -> 0.75
-        alpha_factor = class_true_valid * self.alpha + (1 - class_true_valid) * (1 - self.alpha)
-        p_t = class_true_valid * class_pred_valid + (1 - class_true_valid) * (1 - class_pred_valid)
+        # alpha_factor = class_true_valid * self.alpha + (1 - class_true_valid) * (1 - self.alpha)
+        cond = tf.equal(class_true_valid, 1.0)
+        alpha_factor = tf.where(cond, self.alpha, (1.0 - self.alpha))
+        # p_t = class_true_valid * class_pred_valid + (1 - class_true_valid) * (1 - class_pred_valid)
+        p_t = tf.where(cond, class_pred_valid, (1.0 - class_pred_valid))
         focal_factor = tf.pow(1.0 - p_t, self.gamma)
         if self.label_smoothing > 0:
             class_true_valid = class_true_valid * (1.0 - self.label_smoothing) + 0.5 * self.label_smoothing
@@ -31,17 +34,17 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
         return alpha_factor * focal_factor * ce
 
     def __bbox_loss__(self, bbox_true_valid, bbox_pred_valid):
-        # https://github.dev/google/automl/blob/master/efficientdet/tf2/train_lib.py#L409 BoxLoss
+        # https://github.com/google/automl/tree/master/efficientdet/tf2/train_lib.py#L409
         # error = tf.subtract(bbox_pred_valid, bbox_true_valid)
         # abs_error = tf.abs(error)
         # regression_loss = tf.where(abs_error <= self.delta, 0.5 * tf.square(error), self.delta * abs_error - 0.5 * tf.square(self.delta))
-        # regression_loss = tf.where(abs_error <= self.delta, 0.5 * (abs_error ** 2) / self.delta, abs_error - 0.5 * self.delta) # torch one
+        # regression_loss / self.delta -> torch one
+        # regression_loss = tf.where(abs_error <= self.delta, 0.5 * (abs_error ** 2) / self.delta, abs_error - 0.5 * self.delta)
         # tf.losses.huber <--> tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.AUTO)
         vv = tf.cond(
             tf.shape(bbox_true_valid)[0] == 0,
             lambda: 0.0,
             lambda: tf.losses.huber(bbox_true_valid, bbox_pred_valid, self.delta),
-            # lambda: tf.losses.huber(tf.expand_dims(bbox_true_valid, -1), tf.expand_dims(bbox_pred_valid, -1), self.delta) / 4.0,
             # lambda: self.huber(tf.expand_dims(bbox_true_valid, -1), tf.expand_dims(bbox_pred_valid, -1)) / 4.0,
         )
         return tf.cast(vv, bbox_pred_valid.dtype)
@@ -56,9 +59,9 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
         class_true_valid, class_pred_valid = tf.gather_nd(class_true, exclude_ignored_pick), tf.gather_nd(class_pred, exclude_ignored_pick)
         bbox_true_valid, bbox_pred_valid = tf.gather_nd(bbox_true, valid_pick), tf.gather_nd(bbox_pred, valid_pick)
 
-        cls_loss = self.__focal_loss__(class_true_valid, class_pred_valid) / num_positive_anchors  # divide before sum, or will be inf
-        bbox_loss = self.__bbox_loss__(bbox_true_valid, bbox_pred_valid) / num_positive_anchors
-        cls_loss, bbox_loss = tf.reduce_sum(cls_loss), tf.reduce_sum(bbox_loss)
+        cls_loss = self.__focal_loss__(class_true_valid, class_pred_valid)  # divide before sum, if meet inf
+        bbox_loss = self.__bbox_loss__(bbox_true_valid, bbox_pred_valid)
+        cls_loss, bbox_loss = tf.reduce_sum(cls_loss) / num_positive_anchors, tf.reduce_sum(bbox_loss) / num_positive_anchors
 
         # return bbox_loss
         tf.print(" - cls_loss:", cls_loss, "- bbox_loss:", bbox_loss, end="\r")
@@ -79,6 +82,7 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
         return config
 
 
+@tf.keras.utils.register_keras_serializable(package="kecamLoss")
 class ClassAccuracyWithBbox(tf.keras.metrics.Metric):
     def __init__(self, name="cls_acc", **kwargs):
         super().__init__(name=name, **kwargs)
