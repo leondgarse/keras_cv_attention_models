@@ -1,5 +1,19 @@
 # __ImageNet__
+<!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
+
+- [Training](#training)
+	- [aotnet.AotNet50](#aotnetaotnet50)
+	- [Comparing resize methods bicubic or bilinear](#comparing-resize-methods-bicubic-or-bilinear)
+	- [Comparing rescale mode torch or tf](#comparing-rescale-mode-torch-or-tf)
+	- [Comparing optimizer LAMB or AdamW](#comparing-optimizer-lamb-or-adamw)
+- [Progressive training](#progressive-training)
+	- [EfficientNetV2B0 cifar10 basic test](#efficientnetv2b0-cifar10-basic-test)
+	- [AotNet50 A3 progressive 96 128 160](#aotnet50-a3-progressive-96-128-160)
+
+<!-- /TOC -->
 ***
+
+
 
 # Training
 ## aotnet.AotNet50
@@ -37,7 +51,7 @@
     fig = eval_func.plot_hists(hhs.values(), list(hhs.keys()), skip_first=1, base_size=8)
     ```
     ![aotnet50_imagenet](https://user-images.githubusercontent.com/5744524/147459813-9b35492a-9057-4a0b-92a5-e13eef99b362.png)
-## Comparing resize methods
+## Comparing resize methods bicubic or bilinear
   - Basic standard is `AotNet50` + `A3` configuration from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf) with `batch_size=256, input_shape=(160, 160)`.
     ```sh
     CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py --seed 0
@@ -51,7 +65,7 @@
   | bilinear      | False      | 0.6310    | Epoch 103, 0.001455, 0.7642 | 0.78024, 0.93974           | 0.78072, 0.93996   |
 
   Thus `anti alias` is default enabled, can be turned off be specifying `--disable_antialias`.
-## Comparing rescale mode
+## Comparing rescale mode torch or tf
   - Resize method using `bicubic + anti_alias`.
 
   | Rescale mode | Train acc | Best eval loss, acc on 160  | Eval acc top1, top5 on 224 | Epoch 105 eval acc |
