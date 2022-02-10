@@ -13,16 +13,16 @@
   | ------------------- | ------ | ---------------- | -------- | -------- |
   | ConvNeXtTiny        | 28M    | 224              | 82.1     | [tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_tiny_imagenet.h5) |
   | ConvNeXtSmall       | 50M    | 224              | 83.1     | [small_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_small_imagenet.h5) |
-  | ConvNeXtBase        | 89M    | 224              | 83.8     | [base_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_imagenet.h5) |
+  | ConvNeXtBase        | 89M    | 224              | 83.8     | [base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_224_imagenet.h5) |
   | ConvNeXtBase        | 89M    | 384              | 85.1     | [base_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_384_imagenet.h5) |
-  | - ImageNet21k-ft1k  | 89M    | 224              | 85.8     | [base_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_imagenet21k-ft1k.h5) |
-  | - ImageNet21k-ft1k  | 89M    | 384              | 86.8     | [base_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_384_imagenet21k-ft1k.h5) |
-  | ConvNeXtLarge       | 198M   | 224              | 84.3     | [large_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_imagenet.h5) |
+  | - ImageNet21k-ft1k  | 89M    | 224              | 85.8     | [base_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_224_imagenet21k-ft1k.h5) |
+  | - ImageNet21k-ft1k  | 89M    | 384              | 86.8     | [base_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_384_imagenet21k-ft1k.h5) |
+  | ConvNeXtLarge       | 198M   | 224              | 84.3     | [large_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_224_imagenet.h5) |
   | ConvNeXtLarge       | 198M   | 384              | 85.5     | [large_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_384_imagenet.h5) |
-  | - ImageNet21k-ft1k  | 198M   | 224              | 86.6     | [large_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_imagenet21k-ft1k.h5) |
-  | - ImageNet21k-ft1k  | 198M   | 384              | 87.5     | [large_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_384_imagenet21k-ft1k.h5) |
-  | ConvNeXtXLarge, 21k | 350M   | 224              | 87.0     | [xlarge_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_xlarge_imagenet21k-ft1k.h5) |
-  | ConvNeXtXLarge, 21k | 350M   | 384              | 87.8     | [xlarge_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_xlarge_384_imagenet21k-ft1k.h5) |
+  | - ImageNet21k-ft1k  | 198M   | 224              | 86.6     | [large_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_224_imagenet21k-ft1k.h5) |
+  | - ImageNet21k-ft1k  | 198M   | 384              | 87.5     | [large_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_384_imagenet21k-ft1k.h5) |
+  | ConvNeXtXLarge, 21k | 350M   | 224              | 87.0     | [xlarge_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_xlarge_224_imagenet21k-ft1k.h5) |
+  | ConvNeXtXLarge, 21k | 350M   | 384              | 87.8     | [xlarge_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_xlarge_384_imagenet21k-ft1k.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import convnext, test_images

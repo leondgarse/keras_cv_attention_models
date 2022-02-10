@@ -9,11 +9,11 @@
 ## Models
   | Model                 | Params  | Image resolution | Top1 Acc | Download                         |
   | --------------------- | ------- | ---------------- | -------- | -------------------------------- |
-  | BeitBasePatch16, 21k  | 86.53M  | 224              | 85.240   | [beit_base_patch16_224_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_224_imagenet21k-ft1k.h5)  |
-  |                       | 86.74M  | 384              | 86.808   | [beit_base_patch16_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_384_imagenet21k-ft1k.h5)  |
-  | BeitLargePatch16, 21k | 304.43M | 224              | 87.476   | [beit_large_patch16_224_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_224_imagenet21k-ft1k.h5) |
-  |                       | 305.00M | 384              | 88.382   | [beit_large_patch16_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_384_imagenet21k-ft1k.h5) |
-  |                       | 305.67M | 512              | 88.584   | [beit_large_patch16_512_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_512_imagenet21k-ft1k.h5) |
+  | BeitBasePatch16, 21k  | 86.53M  | 224              | 85.240   | [beit_base_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_224_imagenet21k-ft1k.h5)  |
+  |                       | 86.74M  | 384              | 86.808   | [beit_base_patch16_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_384_imagenet21k-ft1k.h5)  |
+  | BeitLargePatch16, 21k | 304.43M | 224              | 87.476   | [beit_large_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_224_imagenet21k-ft1k.h5) |
+  |                       | 305.00M | 384              | 88.382   | [beit_large_patch16_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_384_imagenet21k-ft1k.h5) |
+  |                       | 305.67M | 512              | 88.584   | [beit_large_patch16_512.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_512_imagenet21k-ft1k.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import beit

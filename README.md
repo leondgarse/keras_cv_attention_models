@@ -222,11 +222,11 @@
 
   | Model                 | Params  | Image resolution | Top1 Acc | Download                         |
   | --------------------- | ------- | ---------------- | -------- | -------------------------------- |
-  | BeitBasePatch16, 21k  | 86.53M  | 224              | 85.240   | [beit_base_patch16_224_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_224_imagenet21k-ft1k.h5)  |
-  |                       | 86.74M  | 384              | 86.808   | [beit_base_patch16_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_384_imagenet21k-ft1k.h5)  |
-  | BeitLargePatch16, 21k | 304.43M | 224              | 87.476   | [beit_large_patch16_224_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_224_imagenet21k-ft1k.h5) |
-  |                       | 305.00M | 384              | 88.382   | [beit_large_patch16_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_384_imagenet21k-ft1k.h5) |
-  |                       | 305.67M | 512              | 88.584   | [beit_large_patch16_512_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_512_imagenet21k-ft1k.h5) |
+  | BeitBasePatch16, 21k  | 86.53M  | 224              | 85.240   | [beit_base_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_224_imagenet21k-ft1k.h5)  |
+  |                       | 86.74M  | 384              | 86.808   | [beit_base_patch16_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_384_imagenet21k-ft1k.h5)  |
+  | BeitLargePatch16, 21k | 304.43M | 224              | 87.476   | [beit_large_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_224_imagenet21k-ft1k.h5) |
+  |                       | 305.00M | 384              | 88.382   | [beit_large_patch16_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_384_imagenet21k-ft1k.h5) |
+  |                       | 305.67M | 512              | 88.584   | [beit_large_patch16_512.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_512_imagenet21k-ft1k.h5) |
 ## BotNet
   - [Keras BotNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/botnet) is for [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://arxiv.org/pdf/2101.11605.pdf).
 
@@ -290,16 +290,16 @@
   | ------------------- | ------ | ---------------- | -------- | -------- |
   | ConvNeXtTiny        | 28M    | 224              | 82.1     | [tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_tiny_imagenet.h5) |
   | ConvNeXtSmall       | 50M    | 224              | 83.1     | [small_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_small_imagenet.h5) |
-  | ConvNeXtBase        | 89M    | 224              | 83.8     | [base_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_imagenet.h5) |
+  | ConvNeXtBase        | 89M    | 224              | 83.8     | [base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_224_imagenet.h5) |
   | ConvNeXtBase        | 89M    | 384              | 85.1     | [base_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_384_imagenet.h5) |
-  | - ImageNet21k-ft1k  | 89M    | 224              | 85.8     | [base_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_imagenet21k-ft1k.h5) |
-  | - ImageNet21k-ft1k  | 89M    | 384              | 86.8     | [base_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_384_imagenet21k-ft1k.h5) |
-  | ConvNeXtLarge       | 198M   | 224              | 84.3     | [large_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_imagenet.h5) |
+  | - ImageNet21k-ft1k  | 89M    | 224              | 85.8     | [base_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_224_imagenet21k-ft1k.h5) |
+  | - ImageNet21k-ft1k  | 89M    | 384              | 86.8     | [base_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_base_384_imagenet21k-ft1k.h5) |
+  | ConvNeXtLarge       | 198M   | 224              | 84.3     | [large_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_224_imagenet.h5) |
   | ConvNeXtLarge       | 198M   | 384              | 85.5     | [large_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_384_imagenet.h5) |
-  | - ImageNet21k-ft1k  | 198M   | 224              | 86.6     | [large_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_imagenet21k-ft1k.h5) |
-  | - ImageNet21k-ft1k  | 198M   | 384              | 87.5     | [large_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_384_imagenet21k-ft1k.h5) |
-  | ConvNeXtXLarge, 21k | 350M   | 224              | 87.0     | [xlarge_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_xlarge_imagenet21k-ft1k.h5) |
-  | ConvNeXtXLarge, 21k | 350M   | 384              | 87.8     | [xlarge_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_xlarge_384_imagenet21k-ft1k.h5) |
+  | - ImageNet21k-ft1k  | 198M   | 224              | 86.6     | [large_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_224_imagenet21k-ft1k.h5) |
+  | - ImageNet21k-ft1k  | 198M   | 384              | 87.5     | [large_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_large_384_imagenet21k-ft1k.h5) |
+  | ConvNeXtXLarge, 21k | 350M   | 224              | 87.0     | [xlarge_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_xlarge_224_imagenet21k-ft1k.h5) |
+  | ConvNeXtXLarge, 21k | 350M   | 384              | 87.8     | [xlarge_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_xlarge_384_imagenet21k-ft1k.h5) |
 ## CoTNet
   - [Keras CoTNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cotnet) is for [PDF 2107.12292 Contextual Transformer Networks for Visual Recognition](https://arxiv.org/pdf/2107.12292.pdf).
 
