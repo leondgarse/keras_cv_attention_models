@@ -19,7 +19,7 @@ LAYER_NORM_EPSILON = 1e-6
 PRETRAINED_DICT = {
     "beit_base_patch16": {"imagenet21k-ft1k": {224: "d7102337a13a3983f3b6470de77b5d5c", 384: "76353026477c60f8fdcbcc749fea17b3"}},
     "beit_large_patch16": {
-        "imagenet21k-ft1k": {224: "fce2d162e7fa4dba9a1b1fc5e1dec5ce", 384: "158934d07dd8b1e1c6b96883aa00a748", 512: "97492b29a07af50772789c368f3c4b04"}
+        "imagenet21k-ft1k": {224: "fce2d162e7fa4dba9a1b1fc5e1dec5ce", 384: "158934d07dd8b1e1c6b96883aa00a748", 512: "64d18088e91df243960e5830aab80a6e"}
     },
 }
 
@@ -90,16 +90,18 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
             # source_tt = source_layer["pos_emb:0"]  # weights
         else:
             source_tt = source_layer.relative_position_bias_table  # layer
-        hh = ww = int(tf.math.sqrt(float(source_tt.shape[0] - self.cls_token_pos_len)))
-        num_heads = source_tt.shape[-1]
-        ss = tf.reshape(source_tt[: hh * ww], (hh, ww, num_heads))  # [hh, ww, num_heads]
-        target_hh = target_ww = int(tf.math.sqrt(float(self.relative_position_bias_table.shape[0] - self.cls_token_pos_len)))
+        # self.relative_position_bias_table.assign(tf.transpose(source_tt))
+        hh = ww = int(tf.math.sqrt(float(source_tt.shape[1] - self.cls_token_pos_len)))
+        num_heads = source_tt.shape[0]
+        ss = tf.reshape(source_tt[:, : hh * ww], (num_heads, hh, ww))  # [num_heads, hh, ww]
+        ss = tf.transpose(ss, [1, 2, 0]) # [hh, ww, num_heads]
+        target_hh = target_ww = int(tf.math.sqrt(float(self.relative_position_bias_table.shape[1] - self.cls_token_pos_len)))
         tt = tf.image.resize(ss, [target_hh, target_ww], method=method)  # [target_hh, target_ww, num_heads]
         tt = tf.reshape(tt, (tt.shape[0] * tt.shape[1], num_heads))  # [target_hh * target_ww, num_heads]
+        tt = tf.transpose(tt) # [num_heads, target_hh * target_ww]
         if self.with_cls_token:
-            tt = tf.concat([tt, source_tt[-self.cls_token_pos_len :]], axis=0)
+            tt = tf.concat([tt, source_tt[:, -self.cls_token_pos_len :]], axis=1)
         self.relative_position_bias_table.assign(tt)
-        # self.relative_position_bias_table.assign(tf.transpose(source_tt))
 
     def show_pos_emb(self, rows=1, base_size=2):
         import matplotlib.pyplot as plt

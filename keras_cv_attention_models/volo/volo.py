@@ -365,7 +365,6 @@ def VOLO(
 
     if num_classes == 0:
         model = tf.keras.models.Model(inputs, nn, name=model_name)
-        # pretrained = "" if pretrained is not None else None
         reload_model_weights(model, PRETRAINED_DICT, "volo", pretrained, PositionalEmbedding)
         return model
 
@@ -413,7 +412,6 @@ def VOLO(
 
     model = tf.keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
-    # pretrained = "" if pretrained is not None else None
     reload_model_weights(model, PRETRAINED_DICT, "volo", pretrained, PositionalEmbedding)
     return model
 

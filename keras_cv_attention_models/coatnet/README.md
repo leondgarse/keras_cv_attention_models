@@ -25,11 +25,28 @@
   - **Training**. Using `A3` recipe with `batch_size=128, input_shape=(160, 160)`.
     ```py
     CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py -m coatnet.CoAtNet0 \
-            --seed 0 --batch_size 128 -s CoAtNet0_1
+    --seed 0 --batch_size 128 -s CoAtNet0_1
     ```
     Changing evaluating input_shape for `CoATNet` is not very helpful.
   - **Plot**
     ![coatnet0_160](https://user-images.githubusercontent.com/5744524/151287935-aff3f8ba-5eca-4434-aac4-dccab05ba198.png)
+  - **Fine-tuning 160 -> 224**
+    ```sh
+    CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS='--tf_xla_auto_jit=2' ./train_script.py --seed 0 \
+    -m coatnet.CoAtNet0 --pretrained imagenet -i 224 --batch_size 64 \
+    --lr_decay_steps 32 --lr_warmup_steps 0 --lr_base_512 0.004 \
+    --additional_model_kwargs '{"drop_connect_rate": 0.05}' --magnitude 10 \
+    -s coatnet.CoAtNet0_ft_224_lr_steps_32_lr4e3_drc005_magnitude_10
+    ```
+    | magnitude | drop_connect_rate | Best val loss, acc                                                          |
+    | --------- | ----------------- | --------------------------------------------------------------------------- |
+    | 6         | 0                 | Epoch 35/37 loss: 0.0023 - acc: 0.7288 - val_loss: 0.0012 - val_acc: 0.8160 |
+    | 7         | 0                 | Epoch 34/37 loss: 0.0024 - acc: 0.7218 - val_loss: 0.0012 - val_acc: 0.8161 |
+    | 7         | 0.05              | Epoch 36/37 loss: 0.0026 - acc: 0.7026 - val_loss: 0.0011 - val_acc: 0.8193 |
+    | 7         | 0.2               | Epoch 34/37 loss: 0.0030 - acc: 0.6658 - val_loss: 0.0011 - val_acc: 0.8176 |
+    | 10        | 0.05              | Epoch 36/37 loss: 0.0028 - acc: 0.6783 - val_loss: 0.0011 - val_acc: 0.8199 |
+
+    ![coatnet0_ft_224](https://user-images.githubusercontent.com/5744524/153349661-2d550239-8b85-482b-b735-27983d43b3b0.png)
 ## Usage
   ```py
   from keras_cv_attention_models import coatnet
@@ -49,11 +66,15 @@
   | Model                               | Params | Image resolution | Top1 Acc | Download |
   | ----------------------------------- | ------ | ---------------- | -------- | -------- |
   | CoAtNet0 (Self trained)             | 23.8M  | 160              | 80.19    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
+  | - fine-tune 224, 37 epochs          | 23.8M  | 224              | 81.99    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
   | CoAtNet0                            | 25M    | 224              | 81.6     |          |
+  | CoAtNet0, Strided DConv             | 25M    | 224              | 82.0     |          |
   | CoAtNet0                            | 25M    | 384              | 83.9     |          |
   | CoAtNet1                            | 42M    | 224              | 83.3     |          |
+  | CoAtNet1, Strided DConv             | 42M    | 224              | 83.5     |          |
   | CoAtNet1                            | 42M    | 384              | 85.1     |          |
   | CoAtNet2                            | 75M    | 224              | 84.1     |          |
+  | CoAtNet2, Strided DConv             | 75M    | 224              | 84.1     |          |
   | CoAtNet2                            | 75M    | 384              | 85.7     |          |
   | CoAtNet2                            | 75M    | 512              | 85.9     |          |
   | CoAtNet2, ImageNet-21k pretrain     | 75M    | 224              | 87.1     |          |

@@ -18,8 +18,8 @@
   ```py
   from keras_cv_attention_models import beit
 
-  # Will download and load pretrained imagenet weights.
-  mm = beit.BeitBasePatch16(input_shape=(384, 384, 3), pretrained="imagenet")
+  # Will download and load pretrained imagenet21k-ft1k weights.
+  mm = beit.BeitBasePatch16(input_shape=(384, 384, 3), pretrained="imagenet21k-ft1k")
 
   # Run prediction
   from skimage.data import chelsea
@@ -35,7 +35,7 @@
   **Change input resolution** if input_shape is not within pre-trained, will load `MultiHeadRelativePositionalEmbedding` weights by `load_resized_pos_emb`.
   ```py
   from keras_cv_attention_models import beit
-  mm = beit.BeitLargePatch16(input_shape=(640, 640, 3), num_classes=1000, pretrained="imagenet")
+  mm = beit.BeitLargePatch16(input_shape=(640, 640, 3), num_classes=1000, pretrained="imagenet21k-ft1k")
   # >>>> Load pretrained from: /home/leondgarse/.keras/models/beit_large_patch16_512.h5
   # WARNING:tensorflow:Skipping loading of weights for layer block0_attn_pos_emb due to mismatch in shape ((6244, 16) vs (3972, 16)).
   # ...

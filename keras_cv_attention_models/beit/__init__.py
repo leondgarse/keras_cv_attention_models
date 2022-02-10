@@ -22,7 +22,7 @@ __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like 
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `None`.
-  pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
+  pretrained: one of `None` (random initialization) or 'imagenet21k-ft1k' (pre-training on ImageNet21k and fine-tuned ImageNet).
       Will try to download and load pre-trained model weights if not None.
 
 Returns:

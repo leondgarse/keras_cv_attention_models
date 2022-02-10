@@ -49,6 +49,7 @@ def reload_model_weights(model, pretrained_dict, sub_release, pretrained="imagen
 def load_weights_with_mismatch(model, weight_file, mismatch_class=None, request_resolution=-1, method="nearest"):
     model.load_weights(weight_file, by_name=True, skip_mismatch=True)
     input_height = model.input_shape[1]
+    # if mismatch_class is not None:
     if mismatch_class is not None and request_resolution != input_height:
         try:
             import h5py

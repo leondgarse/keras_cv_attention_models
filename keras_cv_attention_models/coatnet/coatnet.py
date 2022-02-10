@@ -14,7 +14,7 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-PRETRAINED_DICT = {"coatnet0": {"imagenet": {160: "030e0e79b0624ab6511a1213b3f5d814"}}}
+PRETRAINED_DICT = {"coatnet0": {"imagenet": {160: "86a8a5e5a15613539c748d19eb38c83b", 224: "594da304575a335c53700a0f1043ad80"}}}
 
 
 def mhsa_with_multi_head_relative_position_embedding(
