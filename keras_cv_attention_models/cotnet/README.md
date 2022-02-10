@@ -9,14 +9,14 @@
 ## Models
   | Model        | Params | Image resolution | FLOPs | Top1 Acc | Download            |
   | ------------ |:------:| ---------------- | ----- |:--------:| ------------------- |
-  | CotNet50     | 22.2M  | 224              | 3.3   |   81.3   | [cotnet50_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet50_224.h5) |
+  | CotNet50     | 22.2M  | 224              | 3.3   |   81.3   | [cotnet50_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet50_224_imagenet.h5) |
   | CoTNeXt50    | 30.1M  | 224              | 4.3   |   82.1   |  |
-  | CotNetSE50D  | 23.1M  | 224              | 4.1   |   81.6   | [cotnet_se50d_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se50d_224.h5) |
-  | CotNet101    | 38.3M  | 224              | 6.1   |   82.8   | [cotnet101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet101_224.h5) |
+  | CotNetSE50D  | 23.1M  | 224              | 4.1   |   81.6   | [cotnet_se50d_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se50d_224_imagenet.h5) |
+  | CotNet101    | 38.3M  | 224              | 6.1   |   82.8   | [cotnet101_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet101_224_imagenet.h5) |
   | CoTNeXt-101  | 53.4M  | 224              | 8.2   |   83.2   |  |
-  | CotNetSE101D | 40.9M  | 224              | 8.5   |   83.2   | [cotnet_se101d_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se101d_224.h5) |
-  | CotNetSE152D | 55.8M  | 224              | 17.0  |   84.0   | [cotnet_se152d_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_224.h5) |
-  | CotNetSE152D | 55.8M  | 320              | 26.5  |   84.6   | [cotnet_se152d_320.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_320.h5) |
+  | CotNetSE101D | 40.9M  | 224              | 8.5   |   83.2   | [cotnet_se101d_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se101d_224_imagenet.h5) |
+  | CotNetSE152D | 55.8M  | 224              | 17.0  |   84.0   | [cotnet_se152d_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_224_imagenet.h5) |
+  | CotNetSE152D | 55.8M  | 320              | 26.5  |   84.6   | [cotnet_se152d_320_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_320_imagenet.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import cotnet

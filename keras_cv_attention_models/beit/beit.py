@@ -17,16 +17,18 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 LAYER_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
-    "beit_base_patch16": {"": {224: "0a86897f764f9555e44f1dc2a2e9ca87", 384: "58dea9700340ed403c7561b9cab1930f"}},
-    "beit_large_patch16": {"": {224: "d5a06dce4ed287f8ca58cdda797e58a9", 384: "ddc46a352d5d9a36ca3f599b9ac0cff2", 512: "42c1bfd8385f8af8b9aa0ddf0e96ed66"}},
+    "beit_base_patch16": {"imagenet21k-ft1k": {224: "d7102337a13a3983f3b6470de77b5d5c", 384: "76353026477c60f8fdcbcc749fea17b3"}},
+    "beit_large_patch16": {
+        "imagenet21k-ft1k": {224: "fce2d162e7fa4dba9a1b1fc5e1dec5ce", 384: "158934d07dd8b1e1c6b96883aa00a748", 512: "97492b29a07af50772789c368f3c4b04"}
+    },
 }
 
 
 @tf.keras.utils.register_keras_serializable(package="beit")
 class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
-    def __init__(self, with_cls_token=True, attn_height=-1, **kwargs):
+    def __init__(self, with_cls_token=True, attn_height=-1, num_heads=-1, **kwargs):
         super(MultiHeadRelativePositionalEmbedding, self).__init__(**kwargs)
-        self.with_cls_token, self.attn_height = with_cls_token, attn_height
+        self.with_cls_token, self.attn_height, self.num_heads = with_cls_token, attn_height, num_heads
         if with_cls_token:
             self.cls_token_len = 1
             self.cls_token_pos_len = 3
@@ -41,9 +43,11 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         else:
             height = self.attn_height
             width = int(float(attn_shape[2] - self.cls_token_len) / height)
-        num_heads = attn_shape[1]
+        num_heads = attn_shape[1] if self.num_heads == -1 else self.num_heads
         num_relative_distance = (2 * height - 1) * (2 * width - 1) + self.cls_token_pos_len
-        self.relative_position_bias_table = self.add_weight(name="pos_emb", shape=(num_relative_distance, num_heads), initializer="zeros", trainable=True)
+        # pos_shape = (num_relative_distance, num_heads)
+        pos_shape = (num_heads, num_relative_distance)
+        self.relative_position_bias_table = self.add_weight(name="positional_embedding", shape=pos_shape, initializer="zeros", trainable=True)
 
         xx, yy = tf.meshgrid(range(height), range(width))  # tf.meshgrid is same with np.meshgrid 'xy' mode, while torch.meshgrid 'ij' mode
         coords = tf.stack([yy, xx], axis=-1)  # [14, 14, 2]
@@ -54,6 +58,10 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         relative_coords = tf.stack([xx, yy], axis=-1)
 
         relative_position_index = tf.reduce_sum(relative_coords, axis=-1)  # [196, 196]
+        if attn_shape[3] != attn_shape[2]:
+            # Choose the small values if value_block != query_block
+            relative_position_index = relative_position_index[:, -(attn_shape[3] - self.cls_token_len) :]
+
         if self.with_cls_token:
             top = tf.ones((1, relative_position_index.shape[1]), dtype=relative_position_index.dtype) * (num_relative_distance - 3)
             left = tf.ones((relative_position_index.shape[0], 1), dtype=relative_position_index.dtype) * (num_relative_distance - 2)
@@ -66,18 +74,20 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         self.relative_position_index = relative_position_index
 
     def call(self, attention_scores, **kwargs):
-        pos_emb = tf.gather(self.relative_position_bias_table, self.relative_position_index)
-        pos_emb = tf.transpose(pos_emb, [2, 0, 1])
+        pos_emb = tf.gather(self.relative_position_bias_table, self.relative_position_index, axis=1)
+        # tf.print(pos_emb.shape, attention_scores.shape)
+        # pos_emb = tf.transpose(pos_emb, [2, 0, 1])
         return attention_scores + pos_emb
 
     def get_config(self):
         base_config = super(MultiHeadRelativePositionalEmbedding, self).get_config()
-        base_config.update({"with_cls_token": self.with_cls_token})
+        base_config.update({"with_cls_token": self.with_cls_token, "attn_height": self.attn_height, "num_heads": self.num_heads})
         return base_config
 
     def load_resized_pos_emb(self, source_layer, method="nearest"):
         if isinstance(source_layer, dict):
-            source_tt = source_layer["pos_emb:0"]  # weights
+            source_tt = source_layer["positional_embedding:0"]  # weights
+            # source_tt = source_layer["pos_emb:0"]  # weights
         else:
             source_tt = source_layer.relative_position_bias_table  # layer
         hh = ww = int(tf.math.sqrt(float(source_tt.shape[0] - self.cls_token_pos_len)))
@@ -89,6 +99,7 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         if self.with_cls_token:
             tt = tf.concat([tt, source_tt[-self.cls_token_pos_len :]], axis=0)
         self.relative_position_bias_table.assign(tt)
+        # self.relative_position_bias_table.assign(tf.transpose(source_tt))
 
     def show_pos_emb(self, rows=1, base_size=2):
         import matplotlib.pyplot as plt
@@ -200,7 +211,7 @@ def Beit(
     drop_connect_rate=0,
     use_mean_pooling=True,
     classifier_activation="softmax",
-    pretrained="imagenet",
+    pretrained="imagenet21k-ft1k",
     model_name="beit",
     kwargs=None,
 ):
@@ -240,12 +251,11 @@ def Beit(
         )(nn)
     model = tf.keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="tf")
-    pretrained = "" if pretrained is not None else None
     reload_model_weights(model, PRETRAINED_DICT, "beit", pretrained, MultiHeadRelativePositionalEmbedding)
     return model
 
 
-def BeitBasePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def BeitBasePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
     embed_dim = 768
     depth = 12
     num_heads = 12
@@ -253,7 +263,7 @@ def BeitBasePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gel
     return Beit(**locals(), model_name="beit_base_patch16", **kwargs)
 
 
-def BeitLargePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def BeitLargePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
     embed_dim = 1024
     depth = 24
     num_heads = 16

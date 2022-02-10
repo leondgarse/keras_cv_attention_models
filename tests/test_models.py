@@ -161,7 +161,7 @@ def test_VOLO_defination():
 
 
 def test_Beit_new_shape_predict():
-    mm = keras_cv_attention_models.beit.BeitBasePatch16(input_shape=(320, 320, 3), pretrained="imagenet")
+    mm = keras_cv_attention_models.beit.BeitBasePatch16(input_shape=(320, 320, 3))
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 

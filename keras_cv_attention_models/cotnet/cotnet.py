@@ -7,11 +7,11 @@ from keras_cv_attention_models.attention_layers import batchnorm_with_activation
 
 BATCH_NORM_EPSILON = 1e-5
 PRETRAINED_DICT = {
-    "cotnet101": {"224": "589d2c817699d96085136f2af2dd2036"},
-    "cotnet50": {"224": "e2b1fd313834deebb1c1f83451525254"},
-    "cotnet_se101d": {"224": "4e2fc28b9a92259269f1b5544e67ab50"},
-    "cotnet_se152d": {"224": "6a2744af16b8cc4177fef52aba7ff083", "320": "9dad11a2ec3d2c8ecac9832fcf1e9ad3"},
-    "cotnet_se50d": {"224": "d1e40b172d26925794f0c9dea090dba7"},
+    "cotnet101": {"imagenet": {224: "589d2c817699d96085136f2af2dd2036"}},
+    "cotnet50": {"imagenet": {224: "e2b1fd313834deebb1c1f83451525254"}},
+    "cotnet_se101d": {"imagenet": {224: "4e2fc28b9a92259269f1b5544e67ab50"}},
+    "cotnet_se152d": {"imagenet": {224: "6a2744af16b8cc4177fef52aba7ff083", 320: "9dad11a2ec3d2c8ecac9832fcf1e9ad3"}},
+    "cotnet_se50d": {"imagenet": {224: "d1e40b172d26925794f0c9dea090dba7"}},
 }
 
 
@@ -100,8 +100,6 @@ def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activ
 
 def CotNet(input_shape=(224, 224, 3), bn_after_attn=False, shortcut_type="avg", attn_types="cot", pretrained="imagenet", **kwargs):
     model = AotNet(input_shape=input_shape, attn_types=attn_types, bn_after_attn=bn_after_attn, shortcut_type=shortcut_type, **kwargs)
-    request_resolution = "320" if input_shape[0] == 320 and model.name == "cotnet_se152d" else "224"
-    pretrained = request_resolution if pretrained is not None else None
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="cotnet", pretrained=pretrained)
     return model
 

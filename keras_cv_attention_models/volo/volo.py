@@ -14,11 +14,11 @@ from keras_cv_attention_models.attention_layers import (
 
 BATCH_NORM_EPSILON = 1e-5
 PRETRAINED_DICT = {
-    "volo_d1": {"": {224: "b642d39b05da9f460035d5d5fa617774", 384: "c7632a783d43278608d84f9463743b2e"}},
-    "volo_d2": {"": {224: "19c6c49d3a1020e9fafbcce775200e30", 384: "fc0435d59925e547d9003010a51e4a16"}},
-    "volo_d3": {"": {224: "42ae5c1be8ceb644d4f7c3d894a0034f", 448: "62304a047f182265617c49f74991e6a0"}},
-    "volo_d4": {"": {224: "b45c6518b5e7624b0f6a61f18a5a7bae", 448: "c3e48df2a555032608d48841d2f4a551"}},
-    "volo_d5": {"": {224: "19c98591fb2a97c2a51d9723c2ff6e1d", 448: "6f9858b667cfef77339901c3121c85a1", 512: "f2aa0cb8e265cabee840a6b83858d086"}},
+    "volo_d1": {"imagenet": {224: "b642d39b05da9f460035d5d5fa617774", 384: "c7632a783d43278608d84f9463743b2e"}},
+    "volo_d2": {"imagenet": {224: "19c6c49d3a1020e9fafbcce775200e30", 384: "fc0435d59925e547d9003010a51e4a16"}},
+    "volo_d3": {"imagenet": {224: "42ae5c1be8ceb644d4f7c3d894a0034f", 448: "62304a047f182265617c49f74991e6a0"}},
+    "volo_d4": {"imagenet": {224: "b45c6518b5e7624b0f6a61f18a5a7bae", 448: "c3e48df2a555032608d48841d2f4a551"}},
+    "volo_d5": {"imagenet": {224: "19c98591fb2a97c2a51d9723c2ff6e1d", 448: "6f9858b667cfef77339901c3121c85a1", 512: "f2aa0cb8e265cabee840a6b83858d086"}},
 }
 
 
@@ -365,7 +365,7 @@ def VOLO(
 
     if num_classes == 0:
         model = tf.keras.models.Model(inputs, nn, name=model_name)
-        pretrained = "" if pretrained is not None else None
+        # pretrained = "" if pretrained is not None else None
         reload_model_weights(model, PRETRAINED_DICT, "volo", pretrained, PositionalEmbedding)
         return model
 
@@ -413,7 +413,7 @@ def VOLO(
 
     model = tf.keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
-    pretrained = "" if pretrained is not None else None
+    # pretrained = "" if pretrained is not None else None
     reload_model_weights(model, PRETRAINED_DICT, "volo", pretrained, PositionalEmbedding)
     return model
 

@@ -8,17 +8,17 @@
 ## Models
   | Model        | Params | Image  resolution | Top1 Acc | Download            |
   | ------------ | ------ | ----------------- | -------- | ------------------- |
-  | volo_d1      | 27M    | 224               | 84.2     | [volo_d1_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_224.h5)  |
-  | volo_d1 ↑384 | 27M    | 384               | 85.2     | [volo_d1_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_384.h5)  |
-  | volo_d2      | 59M    | 224               | 85.2     | [volo_d2_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d2_224.h5)  |
-  | volo_d2 ↑384 | 59M    | 384               | 86.0     | [volo_d2_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d2_384.h5)  |
-  | volo_d3      | 86M    | 224               | 85.4     | [volo_d3_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d3_224.h5)  |
-  | volo_d3 ↑448 | 86M    | 448               | 86.3     | [volo_d3_448.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d3_448.h5)  |
-  | volo_d4      | 193M   | 224               | 85.7     | [volo_d4_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d4_224.h5)  |
-  | volo_d4 ↑448 | 193M   | 448               | 86.8     | [volo_d4_448.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d4_448.h5) |
-  | volo_d5      | 296M   | 224               | 86.1     | [volo_d5_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_224.h5) |
-  | volo_d5 ↑448 | 296M   | 448               | 87.0     | [volo_d5_448.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_448.h5) |
-  | volo_d5 ↑512 | 296M   | 512               | 87.1     | [volo_d5_512.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_512.h5) |
+  | volo_d1      | 27M    | 224               | 84.2     | [volo_d1_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_224_imagenet.h5)  |
+  | volo_d1 ↑384 | 27M    | 384               | 85.2     | [volo_d1_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_384_imagenet.h5)  |
+  | volo_d2      | 59M    | 224               | 85.2     | [volo_d2_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d2_224_imagenet.h5)  |
+  | volo_d2 ↑384 | 59M    | 384               | 86.0     | [volo_d2_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d2_384_imagenet.h5)  |
+  | volo_d3      | 86M    | 224               | 85.4     | [volo_d3_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d3_224_imagenet.h5)  |
+  | volo_d3 ↑448 | 86M    | 448               | 86.3     | [volo_d3_448_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d3_448_imagenet.h5)  |
+  | volo_d4      | 193M   | 224               | 85.7     | [volo_d4_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d4_224_imagenet.h5)  |
+  | volo_d4 ↑448 | 193M   | 448               | 86.8     | [volo_d4_448_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d4_448_imagenet.h5) |
+  | volo_d5      | 296M   | 224               | 86.1     | [volo_d5_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_224_imagenet.h5) |
+  | volo_d5 ↑448 | 296M   | 448               | 87.0     | [volo_d5_448_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_448_imagenet.h5) |
+  | volo_d5 ↑512 | 296M   | 512               | 87.1     | [volo_d5_512_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_512_imagenet.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import volo
@@ -32,13 +32,13 @@
   print(mm.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 12.834192), ('n02123045', 'tabby', 7.9686913), ...]
   ```
-  **Change input resolution** if input_shape is not within pretraind, will load `PositionalEmbedding` weights by `load_resized_pos_emb`.
+  **Change input resolution** if input_shape is not within pretrained, will load `PositionalEmbedding` weights by `load_resized_pos_emb`.
   ```py
   from keras_cv_attention_models import volo
 
   # Define model using a new input_shape
   mm = volo.VOLO_d1(input_shape=(512, 512, 3), classfiers=2, num_classes=1000, mix_token=False)
-  # >>>> Load pretraind from: ~/.keras/models/volo/volo_d1_384.h5
+  # >>>> Load pretrained from: ~/.keras/models/volo/volo_d1_384_imagenet.h5
   # WARNING:tensorflow:Skipping loading of weights for layer positional_embedding due to mismatch in shape ((1, 32, 32, 384) vs (1, 24, 24, 384)).
   # >>>> Reload mismatched PositionalEmbedding weights: 384 -> 512
 

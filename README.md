@@ -222,11 +222,11 @@
 
   | Model                 | Params  | Image resolution | Top1 Acc | Download                         |
   | --------------------- | ------- | ---------------- | -------- | -------------------------------- |
-  | BeitBasePatch16, 21k  | 86.53M  | 224              | 85.240   | [beit_base_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_224.h5)  |
-  |                       | 86.74M  | 384              | 86.808   | [beit_base_patch16_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_384.h5)  |
-  | BeitLargePatch16, 21k | 304.43M | 224              | 87.476   | [beit_large_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_224.h5) |
-  |                       | 305.00M | 384              | 88.382   | [beit_large_patch16_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_384.h5) |
-  |                       | 305.67M | 512              | 88.584   | [beit_large_patch16_512.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_512.h5) |
+  | BeitBasePatch16, 21k  | 86.53M  | 224              | 85.240   | [beit_base_patch16_224_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_224_imagenet21k-ft1k.h5)  |
+  |                       | 86.74M  | 384              | 86.808   | [beit_base_patch16_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_384_imagenet21k-ft1k.h5)  |
+  | BeitLargePatch16, 21k | 304.43M | 224              | 87.476   | [beit_large_patch16_224_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_224_imagenet21k-ft1k.h5) |
+  |                       | 305.00M | 384              | 88.382   | [beit_large_patch16_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_384_imagenet21k-ft1k.h5) |
+  |                       | 305.67M | 512              | 88.584   | [beit_large_patch16_512_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_512_imagenet21k-ft1k.h5) |
 ## BotNet
   - [Keras BotNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/botnet) is for [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://arxiv.org/pdf/2101.11605.pdf).
 
@@ -305,14 +305,14 @@
 
   | Model        | Params | Image resolution | FLOPs | Top1 Acc | Download            |
   | ------------ |:------:| ---------------- | ----- |:--------:| ------------------- |
-  | CotNet50     | 22.2M  | 224              | 3.3   |   81.3   | [cotnet50_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet50_224.h5) |
+  | CotNet50     | 22.2M  | 224              | 3.3   |   81.3   | [cotnet50_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet50_224_imagenet.h5) |
   | CoTNeXt50    | 30.1M  | 224              | 4.3   |   82.1   |  |
-  | CotNetSE50D  | 23.1M  | 224              | 4.1   |   81.6   | [cotnet_se50d_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se50d_224.h5) |
-  | CotNet101    | 38.3M  | 224              | 6.1   |   82.8   | [cotnet101_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet101_224.h5) |
+  | CotNetSE50D  | 23.1M  | 224              | 4.1   |   81.6   | [cotnet_se50d_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se50d_224_imagenet.h5) |
+  | CotNet101    | 38.3M  | 224              | 6.1   |   82.8   | [cotnet101_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet101_224_imagenet.h5) |
   | CoTNeXt-101  | 53.4M  | 224              | 8.2   |   83.2   |  |
-  | CotNetSE101D | 40.9M  | 224              | 8.5   |   83.2   | [cotnet_se101d_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se101d_224.h5) |
-  | CotNetSE152D | 55.8M  | 224              | 17.0  |   84.0   | [cotnet_se152d_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_224.h5) |
-  | CotNetSE152D | 55.8M  | 320              | 26.5  |   84.6   | [cotnet_se152d_320.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_320.h5) |
+  | CotNetSE101D | 40.9M  | 224              | 8.5   |   83.2   | [cotnet_se101d_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se101d_224_imagenet.h5) |
+  | CotNetSE152D | 55.8M  | 224              | 17.0  |   84.0   | [cotnet_se152d_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_224_imagenet.h5) |
+  | CotNetSE152D | 55.8M  | 320              | 26.5  |   84.6   | [cotnet_se152d_320_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_320_imagenet.h5) |
 ## EfficientNet
   - [Keras EfficientNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientnet) includes implementation of [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298).
 
@@ -379,7 +379,7 @@
   | HaloNextECA26T | 10.7M  | 256              | 79.50    | [halonext_eca26t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonext_eca26t_256_imagenet.h5) |
   | HaloNet26T     | 12.5M  | 256              | 79.13    | [halonet26t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet26t_256_imagenet.h5) |
   | HaloNetSE33T   | 13.7M  | 256              | 80.99    | [halonet_se33t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet_se33t_256_imagenet.h5) |
-  | HaloRegNetZB   | 11.68M | 224              | 81.042   | [haloregnetz_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/haloregnetz_b_imagenet.h5) |
+  | HaloRegNetZB   | 11.68M | 224              | 81.042   | [haloregnetz_b_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/haloregnetz_b_224_imagenet.h5) |
   | HaloNet50T     | 22.7M  | 256              | 81.70    | [halonet50t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet50t_256_imagenet.h5) |
   | HaloBotNet50T  | 22.6M  | 256              | 82.0     | [halobotnet50t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halobotnet50t_256_imagenet.h5) |
 ## LeViT
@@ -494,19 +494,19 @@
 ## VOLO
   - [Keras VOLO](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/volo) is for [PDF 2106.13112 VOLO: Vision Outlooker for Visual Recognition](https://arxiv.org/pdf/2106.13112.pdf).
 
-  | Model        | Params | Image resolution | Top1 Acc | Download            |
-  | ------------ | ------ | ---------------- | -------- | ------------------- |
-  | volo_d1      | 27M    | 224              | 84.2     | [volo_d1_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_224.h5)  |
-  | volo_d1 ↑384 | 27M    | 384              | 85.2     | [volo_d1_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_384.h5)  |
-  | volo_d2      | 59M    | 224              | 85.2     | [volo_d2_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d2_224.h5)  |
-  | volo_d2 ↑384 | 59M    | 384              | 86.0     | [volo_d2_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d2_384.h5)  |
-  | volo_d3      | 86M    | 224              | 85.4     | [volo_d3_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d3_224.h5)  |
-  | volo_d3 ↑448 | 86M    | 448              | 86.3     | [volo_d3_448.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d3_448.h5)  |
-  | volo_d4      | 193M   | 224              | 85.7     | [volo_d4_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d4_224.h5)  |
-  | volo_d4 ↑448 | 193M   | 448              | 86.8     | [volo_d4_448.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d4_448.h5) |
-  | volo_d5      | 296M   | 224              | 86.1     | [volo_d5_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_224.h5) |
-  | volo_d5 ↑448 | 296M   | 448              | 87.0     | [volo_d5_448.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_448.h5) |
-  | volo_d5 ↑512 | 296M   | 512              | 87.1     | [volo_d5_512.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_512.h5) |
+  | Model        | Params | Image  resolution | Top1 Acc | Download            |
+  | ------------ | ------ | ----------------- | -------- | ------------------- |
+  | volo_d1      | 27M    | 224               | 84.2     | [volo_d1_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_224_imagenet.h5)  |
+  | volo_d1 ↑384 | 27M    | 384               | 85.2     | [volo_d1_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d1_384_imagenet.h5)  |
+  | volo_d2      | 59M    | 224               | 85.2     | [volo_d2_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d2_224_imagenet.h5)  |
+  | volo_d2 ↑384 | 59M    | 384               | 86.0     | [volo_d2_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d2_384_imagenet.h5)  |
+  | volo_d3      | 86M    | 224               | 85.4     | [volo_d3_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d3_224_imagenet.h5)  |
+  | volo_d3 ↑448 | 86M    | 448               | 86.3     | [volo_d3_448_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d3_448_imagenet.h5)  |
+  | volo_d4      | 193M   | 224               | 85.7     | [volo_d4_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d4_224_imagenet.h5)  |
+  | volo_d4 ↑448 | 193M   | 448               | 86.8     | [volo_d4_448_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d4_448_imagenet.h5) |
+  | volo_d5      | 296M   | 224               | 86.1     | [volo_d5_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_224_imagenet.h5) |
+  | volo_d5 ↑448 | 296M   | 448               | 87.0     | [volo_d5_448_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_448_imagenet.h5) |
+  | volo_d5 ↑512 | 296M   | 512               | 87.1     | [volo_d5_512_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_512_imagenet.h5) |
 ***
 
 # Detection Models

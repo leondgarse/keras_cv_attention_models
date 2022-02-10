@@ -25,10 +25,7 @@ def reload_model_weights(model, pretrained_dict, sub_release, pretrained="imagen
                 request_resolution = max(file_hash.keys())
             else:
                 request_resolution = min(file_hash.keys(), key=lambda ii: abs(ii - input_height))
-        if pretrained == "":  # Compatible with previous defined model wights file name, beit and volo
-            pretrained = str(request_resolution)
-        elif request_resolution != 224:
-            pretrained = "{}_".format(request_resolution) + pretrained
+        pretrained = "{}_".format(request_resolution) + pretrained
         file_hash = file_hash[request_resolution]
         # print(f"{request_resolution = }, {pretrained = }, {file_hash = }")
     elif request_resolution == -1:

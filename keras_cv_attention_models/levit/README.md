@@ -42,7 +42,7 @@
   from keras_cv_attention_models import levit
   # Will download and load pretrained imagenet weights.
   mm = levit.LeViT256(input_shape=(320, 320, 3), pretrained="imagenet", use_distillation=True, classifier_activation=None)
-  # >>>> Load pretraind from: /home/leondgarse/.keras/models/levit256_imagenet.h5
+  # >>>> Load pretrained from: ~/.keras/models/levit256_imagenet.h5
   # WARNING:tensorflow:Skipping loading of weights for layer stack1_block1_attn_pos due to mismatch in shape ((400, 4) vs (196, 4)).
   # ...
   # >>>> Reload mismatched PositionalEmbedding weights: 224 -> 320
