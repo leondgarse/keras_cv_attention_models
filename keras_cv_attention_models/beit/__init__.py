@@ -71,6 +71,7 @@ conditions: attn_height == attn_width
 Args:
   with_cls_token: boolean value if input is with class_token.
   attn_height: specify `height` for `attn_blocks` if not square `attn_height != attn_width`.
+  num_heads: specify num_heads, or using `input.shape[1]`.
 
 Examples:
 

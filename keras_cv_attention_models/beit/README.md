@@ -65,7 +65,7 @@
 
   """ Keras BotNet26T """
   from keras_cv_attention_models import beit
-  mm = beit.BeitBasePatch16(pretrained="imagenet", classifier_activation=None)
+  mm = beit.BeitBasePatch16(classifier_activation=None)
   keras_out = mm(inputs).numpy()
 
   """ Verification """

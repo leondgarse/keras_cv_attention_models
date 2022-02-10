@@ -23,7 +23,7 @@
     | CoAtNet0_16         | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | **0.8019** |
     | - drop_connect 0.05 | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | 0.8017     |
   - **Training**. Using `A3` recipe with `batch_size=128, input_shape=(160, 160)`.
-    ```py
+    ```sh
     CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py -m coatnet.CoAtNet0 \
     --seed 0 --batch_size 128 -s CoAtNet0_1
     ```
@@ -65,7 +65,7 @@
 ## Models
   | Model                               | Params | Image resolution | Top1 Acc | Download |
   | ----------------------------------- | ------ | ---------------- | -------- | -------- |
-  | CoAtNet0 (Self trained)             | 23.8M  | 160              | 80.19    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
+  | CoAtNet0 (Self trained 105 epochs)  | 23.8M  | 160              | 80.19    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
   | - fine-tune 224, 37 epochs          | 23.8M  | 224              | 81.99    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
   | CoAtNet0                            | 25M    | 224              | 81.6     |          |
   | CoAtNet0, Strided DConv             | 25M    | 224              | 82.0     |          |

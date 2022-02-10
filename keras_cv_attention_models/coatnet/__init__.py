@@ -24,13 +24,15 @@ __tail_doc__ = """  block_types: block types for each stack,
   expansion: filter expansion in each block. The larger the wider.
   se_ratio: value in `(0, 1)`, where `0` means not using `se_module`. Should be a `number` or `list`, indicates `se_ratio` for each stack.
       Each element can also be a `number` or `list`, indicates `se_ratio` for each block.
-  num_heads: heads number for transformer block. `64` for `CoAtNet5`, `32` for others.
+  head_dimension: heads number for transformer block. `128` for `CoAtNet6` and `CoAtNet7`, `64` for `CoAtNet5`, `32` for others.
+  use_dw_strides: boolean value if using strides on `Conv2D` or next `DepthWiseConv2D` for `res_MBConv` block.
+      It's claimed higher accuracy for small models using strides on `DepthWiseConv2D`. Default True.
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default `relu`.
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
-  pretrained: None available.
+  pretrained: None or "imagenet". Currently only `CoAtNet0` with "imagenet" available.
   **kwargs: other parameters if available.
 
 Returns:
@@ -45,29 +47,31 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model                                | Params | Image resolution | Top1 Acc |
-  | ------------------------------------ | ------ | ---------------- | -------- |
-  | CoAtNet-0                            | 25M    | 224              | 81.6     |
-  | CoAtNet-0                            | 25M    | 384              | 83.9     |
-  | CoAtNet-1                            | 42M    | 224              | 83.3     |
-  | CoAtNet-1                            | 42M    | 384              | 85.1     |
-  | CoAtNet-2                            | 75M    | 224              | 84.1     |
-  | CoAtNet-2                            | 75M    | 384              | 85.7     |
-  | CoAtNet-2                            | 75M    | 512              | 85.9     |
-  | CoAtNet-2, ImageNet-21k pretrain     | 75M    | 224              | 87.1     |
-  | CoAtNet-2, ImageNet-21k pretrain     | 75M    | 384              | 87.1     |
-  | CoAtNet-2, ImageNet-21k pretrain     | 75M    | 512              | 87.3     |
-  | CoAtNet-3                            | 168M   | 224              | 84.5     |
-  | CoAtNet-3                            | 168M   | 384              | 85.8     |
-  | CoAtNet-3                            | 168M   | 512              | 86.0     |
-  | CoAtNet-3, ImageNet-21k pretrain     | 168M   | 224              | 87.6     |
-  | CoAtNet-3, ImageNet-21k pretrain     | 168M   | 384              | 87.6     |
-  | CoAtNet-3, ImageNet-21k pretrain     | 168M   | 512              | 87.9     |
-  | CoAtNet-4, ImageNet-21k pretrain     | 275M   | 384              | 87.9     |
-  | CoAtNet-4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |
-  | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 384              | 88.4     |
-  | CoAtNet-4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
-  | CoAtNet-5                            | 680M   |                  |          |
+  | Model                               | Params | Image resolution | Top1 Acc |
+  | ----------------------------------- | ------ | ---------------- | -------- |
+  | CoAtNet0                            | 25M    | 224              | 81.6     |
+  | CoAtNet0, Strided DConv             | 25M    | 224              | 82.0     |
+  | CoAtNet0                            | 25M    | 384              | 83.9     |
+  | CoAtNet1                            | 42M    | 224              | 83.3     |
+  | CoAtNet1, Strided DConv             | 42M    | 224              | 83.5     |
+  | CoAtNet1                            | 42M    | 384              | 85.1     |
+  | CoAtNet2                            | 75M    | 224              | 84.1     |
+  | CoAtNet2, Strided DConv             | 75M    | 224              | 84.1     |
+  | CoAtNet2                            | 75M    | 384              | 85.7     |
+  | CoAtNet2                            | 75M    | 512              | 85.9     |
+  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 224              | 87.1     |
+  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 384              | 87.1     |
+  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 512              | 87.3     |
+  | CoAtNet3                            | 168M   | 224              | 84.5     |
+  | CoAtNet3                            | 168M   | 384              | 85.8     |
+  | CoAtNet3                            | 168M   | 512              | 86.0     |
+  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 224              | 87.6     |
+  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 384              | 87.6     |
+  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 512              | 87.9     |
+  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 384              | 87.9     |
+  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |
+  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 384              | 88.4     |
+  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
 
   **JFT pre-trained models accuracy**
 
