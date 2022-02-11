@@ -144,7 +144,7 @@
     ![](https://user-images.githubusercontent.com/5744524/147459813-9b35492a-9057-4a0b-92a5-e13eef99b362.png)
   - **Progressive training** refer to [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/pdf/2104.00298.pdf). AotNet50 A3 progressive input shapes `96 128 160`:
     ```sh
-    CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py \
+    CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./progressive_train_script.py \
     --progressive_epochs 33 66 -1 \
     --progressive_input_shapes 96 128 160 \
     --progressive_magnitudes 2 4 6 \

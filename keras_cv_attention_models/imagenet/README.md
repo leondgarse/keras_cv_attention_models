@@ -112,7 +112,7 @@
   ![progressive_cifar10](https://user-images.githubusercontent.com/5744524/147729276-fd9120dc-3692-4674-ad42-d197910bb588.png)
 ## AotNet50 A3 progressive 96 128 160
   ```sh
-  CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py \
+  CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./progressive_train_script.py \
   --progressive_epochs 33 66 -1 \
   --progressive_input_shapes 96 128 160 \
   --progressive_magnitudes 2 4 6 \

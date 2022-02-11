@@ -43,11 +43,11 @@ class DecodePredictions:
             score_top_k = tf.argsort(rrs[:, -1], direction="DESCENDING")[:max_output_size]
             rrs = tf.gather(rrs, score_top_k)
         bboxes, labels, scores = rrs[:, :4], rrs[:, 4], rrs[:, -1]
-        return bboxes, labels, scores
+        return bboxes.numpy(), labels.numpy(), scores.numpy()
 
     def __nms_global__(self, bbs, ccs, labels, score_threshold=0.3, iou_threshold=0.5, soft_nms_sigma=0.5, max_output_size=100):
         rr, nms_scores = tf.image.non_max_suppression_with_scores(bbs, ccs, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
-        return tf.gather(bbs, rr), tf.gather(labels, rr), nms_scores
+        return tf.gather(bbs, rr).numpy(), tf.gather(labels, rr).numpy(), nms_scores.numpy()
 
     def __decode_single__(self, pred, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="gaussian", mode="global", topk=-1, input_shape=None):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
@@ -107,7 +107,7 @@ def model_eval_results(model, eval_dataset, pred_decoder, score_threshold=0.001,
     num_classes = model.output_shape[-1] - 4
     to_90_labels = (lambda label: label + 1) if num_classes == 90 else (lambda label: data.COCO_80_to_90_LABEL_DICT[label] + 1)
     # Format: [image_id, x, y, width, height, score, class]
-    to_coco_eval_single = lambda image_id, bbox, label, score: [image_id.numpy(), *bbox.numpy().tolist(), score.numpy(), to_90_labels(label.numpy())]
+    to_coco_eval_single = lambda image_id, bbox, label, score: [image_id, *bbox.tolist(), score, to_90_labels(label)]
 
     results = []
     for images, scales, original_image_shapes, image_ids in tqdm(eval_dataset):
@@ -117,7 +117,8 @@ def model_eval_results(model, eval_dataset, pred_decoder, score_threshold=0.001,
 
         for rr, image_shape, scale, image_id in zip(decoded_preds, original_image_shapes, scales, image_ids):  # Loop on batch
             bboxes, labels, scores = rr
-            bboxes = scale_bboxes_back_single(bboxes, image_shape, scale, target_shape)
+            image_id = image_id.numpy()
+            bboxes = scale_bboxes_back_single(bboxes, image_shape, scale, target_shape).numpy()
             results.extend([to_coco_eval_single(image_id, bb, cc, ss) for bb, cc, ss in zip(bboxes, labels, scores)])  # Loop on prediction results
     return tf.convert_to_tensor(results).numpy()
 
