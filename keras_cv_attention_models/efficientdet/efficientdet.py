@@ -1,10 +1,10 @@
 import tensorflow as tf
 from tensorflow import keras
 from keras_cv_attention_models import model_surgery
-from keras_cv_attention_models.coco.data import get_anchors, decode_bboxes
 from keras_cv_attention_models import efficientnet
 from keras_cv_attention_models.attention_layers import activation_by_name, add_pre_post_process
 from keras_cv_attention_models.download_and_load import reload_model_weights
+from keras_cv_attention_models.coco.eval_func import DecodePredictions
 
 BATCH_NORM_EPSILON = 1e-3
 PRETRAINED_DICT = {
@@ -197,35 +197,6 @@ def EfficientDet(
     reload_model_weights(model, PRETRAINED_DICT, "efficientdet", pretrained)
     # model.backbone = backbone
     return model
-
-
-class DecodePredictions:
-    def __init__(self, input_shape=(512, 512, 3), pyramid_levels=[3, 7], anchor_scale=4, **kwargs):
-        self.anchor_scale, self.kwargs = anchor_scale, kwargs
-        self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
-        if input_shape[0] is not None:
-            self.__init_anchor__(input_shape)
-        else:
-            self.anchors = None
-
-    def __init_anchor__(self, input_shape):
-        self.anchors = get_anchors(input_shape=input_shape, pyramid_levels=self.pyramid_levels, anchor_scale=self.anchor_scale, **self.kwargs)
-
-    def __decode_one__(self, preds, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="gaussian", input_shape=None):
-        # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
-        if input_shape is not None:
-            self.__init_anchor__(input_shape)
-        dd = decode_bboxes(preds, self.anchors).numpy()
-        iou_threshold, soft_nms_sigma = (1.0, iou_or_sigma / 2) if method.lower() == "gaussian" else (iou_or_sigma, 0.0)
-        rr, nms_scores = tf.image.non_max_suppression_with_scores(dd[:, :4], dd[:, 4:].max(-1), max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
-        dd_nms = dd[rr.numpy()]
-        bboxes, labels, confidences = dd_nms[:, :4], dd_nms[:, 4:].argmax(-1), nms_scores.numpy()
-        return bboxes, labels, confidences
-
-    def __call__(self, preds, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="gaussian", input_shape=None):
-        """ iou_or_sigma means `soft_nms_sigma` if method is "gaussian", else `iou_threshold` """
-        preds = preds if len(preds.shape) == 3 else [preds]
-        return [self.__decode_one__(pred, score_threshold, iou_or_sigma, max_output_size, method, input_shape) for pred in preds]
 
 
 def EfficientDetD0(input_shape=(512, 512, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):

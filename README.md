@@ -82,6 +82,15 @@
     #  ('n02127052', 'lynx', 0.00017674894),
     #  ('n02123597', 'Siamese_cat', 4.9493494e-05)]
     ```
+    Or just use model pre-set `preprocess_input` and `decode_predictions`
+    ```py
+    from keras_cv_attention_models import coatnet
+    from skimage.data import chelsea
+    mm = coatnet.CoAtNet0()
+    preds = mm(mm.preprocess_input(chelsea()))
+    print(mm.decode_predictions(preds))
+    # [[('n02124075', 'Egyptian_cat', 0.9653769), ('n02123159', 'tiger_cat', 0.018427467), ...]
+    ```
   - **Exclude model top layers by set `num_classes=0`**
     ```py
     from keras_cv_attention_models import resnest
@@ -93,7 +102,7 @@
     ```py
     import os
     from keras_cv_attention_models import coatnet
-    pretrained = os.path.expanduser('~/.keras/models/coatnet0_imagenet.h5')
+    pretrained = os.path.expanduser('~/.keras/models/coatnet0_224_imagenet.h5')
     mm = coatnet.CoAtNet1(input_shape=(384, 384, 3), pretrained=pretrained)
     ```
 ## Layers

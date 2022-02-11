@@ -76,7 +76,6 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
     def call(self, attention_scores, **kwargs):
         pos_emb = tf.gather(self.relative_position_bias_table, self.relative_position_index, axis=1)
         # tf.print(pos_emb.shape, attention_scores.shape)
-        # pos_emb = tf.transpose(pos_emb, [2, 0, 1])
         return attention_scores + pos_emb
 
     def get_config(self):

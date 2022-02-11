@@ -141,12 +141,57 @@ def random_crop_fraction_with_bboxes(image, bboxes, labels, scale=(0.08, 1.0), r
     return image, bboxes, labels
 
 
-def random_flip_left_right_with_bboxes(image, bboxes, labels, probability=0.5):
+def get_random_image_scale(source_shape, target_shape, scale_min=0.1, scale_max=2.0):
+    random_scale_factor = tf.random.uniform([], scale_min, scale_max)
+    scaled_y, scaled_x = random_scale_factor * target_shape[0], random_scale_factor * target_shape[1]
+    height, width = tf.cast(source_shape[0], tf.float32), tf.cast(source_shape[1], tf.float32)
+    return tf.minimum(scaled_y / height, scaled_x / width)
+
+
+def get_image_aspect_aware_random_scale_crop(source_shape, target_shape, scale_min=0.1, scale_max=2.0):
+    """ https://github.com/google/automl/tree/master/efficientdet/dataloader.py#L67 """
+    random_image_scale = get_random_image_scale(source_shape, target_shape, scale_min, scale_max)
+
+    # Select non-zero random offset (x, y) if scaled image is larger than self._output_size.
+    height, width = tf.cast(source_shape[0], tf.float32), tf.cast(source_shape[1], tf.float32)
+    scaled_height, scaled_width = height * random_image_scale, width * random_image_scale
+    offset_y, offset_x = tf.maximum(0.0, scaled_height - target_shape[0]), tf.maximum(0.0, scaled_width - target_shape[1])
+    random_offset_y, random_offset_x = offset_y * tf.random.uniform([], 0, 1), offset_x * tf.random.uniform([], 0, 1)
+    random_offset_y, random_offset_x = tf.cast(random_offset_y, tf.int32), tf.cast(random_offset_x, tf.int32)
+    return random_image_scale, random_offset_y, random_offset_x
+
+
+def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, crop_x=0, method="bilinear", antialias=False):
+    height, width = tf.cast(tf.shape(image)[0], "float32"), tf.cast(tf.shape(image)[1], "float32")
+    if scale == -1:
+        scale = tf.minimum(target_shape[0] / height, target_shape[1] / width)
+    scaled_hh, scaled_ww = int(height * scale), int(width * scale)
+    image = tf.image.resize(image, [scaled_hh, scaled_ww], method=method, antialias=antialias)
+    image = image[crop_y : crop_y + target_shape[0], crop_x : crop_x + target_shape[1]]
+    image = tf.image.pad_to_bounding_box(image, 0, 0, target_shape[0], target_shape[1])
+    return image, scale
+
+
+def resize_and_crop_bboxes(bboxes, labels, source_shape, target_shape, scale, offset_y, offset_x):
+    height, width = tf.cast(source_shape[0], bboxes.dtype), tf.cast(source_shape[1], bboxes.dtype)
+    scaled_height, scaled_width = height * scale, width * scale
+    bboxes *= [scaled_height, scaled_width, scaled_height, scaled_width]
+
+    offset_y, offset_x = tf.cast(offset_y, bboxes.dtype), tf.cast(offset_x, bboxes.dtype)
+    bboxes -= [offset_y, offset_x, offset_y, offset_x]
+    bboxes /= [target_shape[0], target_shape[1], target_shape[0], target_shape[1]]
+    bboxes = tf.clip_by_value(bboxes, 0, 1)
+
+    picking_indices = tf.where(tf.not_equal((bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1]), 0))
+    return tf.gather_nd(bboxes, picking_indices), tf.gather_nd(labels, picking_indices)
+
+
+def random_flip_left_right_with_bboxes(image, bboxes, probability=0.5):
     # For box, left = 1 - right, right = 1 - left
     return tf.cond(
         tf.random.uniform(()) < probability,
-        lambda: (tf.image.flip_left_right(image), tf.gather(bboxes, [0, 3, 2, 1], axis=1) * [1, -1, 1, -1] + [0, 1, 0, 1], labels),
-        lambda: (image, bboxes, labels),
+        lambda: (tf.image.flip_left_right(image), tf.gather(bboxes, [0, 3, 2, 1], axis=1) * [1, -1, 1, -1] + [0, 1, 0, 1]),
+        lambda: (image, bboxes),
     )
 
 
@@ -178,7 +223,7 @@ class RandomProcessImageWithBboxes:
                 **randaug_kwargs,
             )
 
-    def __call__(self, datapoint):
+    def __call_1__(self, datapoint):
         image = datapoint["image"]
         objects = datapoint["objects"]
         bbox, label, is_not_crowd = tf.cast(objects["bbox"], tf.float32), objects["label"], objects["is_crowd"] == False
@@ -195,6 +240,31 @@ class RandomProcessImageWithBboxes:
         input_image.set_shape([*self.target_shape[:2], 3])
 
         return input_image, (bbox, label)
+
+    def __call__(self, datapoint):
+        image = datapoint["image"]
+        objects = datapoint["objects"]
+        bbox, label, is_not_crowd = tf.cast(objects["bbox"], tf.float32), objects["label"], objects["is_crowd"] == False
+        bbox, label = tf.boolean_mask(bbox, is_not_crowd), tf.boolean_mask(label, is_not_crowd)
+
+        if self.magnitude >= 0:
+            processed_image, bbox = random_flip_left_right_with_bboxes(processed_image, bbox)
+        if self.random_crop_min > 0 and self.random_crop_min < 1:
+            scale, offset_y, offset_x = get_image_aspect_aware_random_scale_crop(tf.shape(image), self.target_shape)
+        else:
+            scale, offset_y, offset_x = -1, 0, 0  # Evaluation
+        processed_image, scale = aspect_aware_resize_and_crop_image(
+            image, self.target_shape, scale, offset_y, offset_x, method=self.resize_method, antialias=self.resize_antialias
+        )
+        bbox, label = resize_and_crop_bboxes(bbox, label, tf.shape(image), self.target_shape, scale, offset_y, offset_x)
+
+        if self.magnitude > 0:
+            processed_image = self.randaug(processed_image)
+
+        processed_image = tf.cast(processed_image, tf.float32)
+        processed_image.set_shape([*self.target_shape[:2], 3])
+
+        return processed_image, (bbox, label)
 
 
 def init_dataset(
@@ -292,6 +362,7 @@ def show_image_with_bboxes(image, bboxes, labels=None, confidences=None, ax=None
     if ax is None:
         fig, ax = plt.subplots()
     ax.imshow(image)
+    bboxes = np.array(bboxes)
     for id, bb in enumerate(bboxes):
         # bbox is [top, left, bottom, right]
         bb = [bb[0] * image.shape[0], bb[1] * image.shape[1], bb[2] * image.shape[0], bb[3] * image.shape[1]]
@@ -302,7 +373,7 @@ def show_image_with_bboxes(image, bboxes, labels=None, confidences=None, ax=None
             label = int(labels[id])
             label = COCO_90_LABEL_DICT[label] if num_classes == 90 else COCO_LABEL_DICT[label]
             if confidences is not None:
-                label += ": {:.4f}".format(confidences[id])
+                label += ": {:.4f}".format(float(confidences[id]))
             color = ax.lines[-1].get_color()
             # ax.text(bb[1], bb[0] - 5, "label: {}, {}".format(label, COCO_LABEL_DICT[label]), color=color, fontsize=8)
             ax.text(bb[1], bb[0] - 5, label, color=color, fontsize=label_font_size)

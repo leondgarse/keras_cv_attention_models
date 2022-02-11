@@ -30,10 +30,10 @@
     Changing evaluating input_shape for `CoATNet` is not very helpful.
   - **Plot**
     ![coatnet0_160](https://user-images.githubusercontent.com/5744524/151287935-aff3f8ba-5eca-4434-aac4-dccab05ba198.png)
-  - **Fine-tuning 160 -> 224**
+  - **Fine-tuning 160 -> 224, 37 epochs**
     ```sh
     CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS='--tf_xla_auto_jit=2' ./train_script.py --seed 0 \
-    -m coatnet.CoAtNet0 --pretrained imagenet -i 224 --batch_size 64 \
+    -m coatnet.CoAtNet0 --pretrained checkpoints/CoAtNet0_16_latest.h5 -i 224 --batch_size 64 \
     --lr_decay_steps 32 --lr_warmup_steps 0 --lr_base_512 0.004 \
     --additional_model_kwargs '{"drop_connect_rate": 0.05}' --magnitude 10 \
     -s coatnet.CoAtNet0_ft_224_lr_steps_32_lr4e3_drc005_magnitude_10
@@ -60,7 +60,7 @@
   imm = tf.keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
   print(tf.keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.9886845), ('n02123159', 'tiger_cat', 0.00742623), ('n02123045', 'tabby', 0.0025222537), ... ]
+  # [('n02124075', 'Egyptian_cat', 0.96537703), ('n02123159', 'tiger_cat', 0.018427433), ('n02123045', 'tabby', 0.015181865), ... ]
   ```
 ## Models
   | Model                               | Params | Image resolution | Top1 Acc | Download |
