@@ -96,7 +96,7 @@ def init_eval_dataset(data_name="coco/2017", target_shape=(512, 512), batch_size
 
     ds = tfds.load(data_name, with_info=False)["validation"]
     resize_func = lambda image: data.aspect_aware_resize_and_crop_image(image, target_shape, method=resize_method, antialias=resize_antialias)
-    # ds: [resized_image, original_image_shape, scale, image_id]
+    # ds: [resized_image, scale, original_image_shape, image_id]
     ds = ds.map(lambda datapoint: (*resize_func(rescaling(tf.cast(datapoint["image"], tf.float32))), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
     ds = ds.batch(batch_size)
     return ds
@@ -149,6 +149,7 @@ def run_coco_evaluation(
     rescale_mode="torch",
     resize_method="bilinear",
     resize_antialias=False,
+    take_samples=-1,
     score_threshold=0.001,  # model_eval_results
     method="gaussian",
     mode="per_class",
@@ -159,19 +160,12 @@ def run_coco_evaluation(
     **anchor_kwargs,
 ):
     input_shape = model.input_shape[1:-1] if input_shape is None else input_shape
-    eval_dataset = eval_func.init_eval_dataset(data_name, input_shape, batch_size, rescale_mode, resize_method, resize_antialias)
-    pred_decoder = model.decode_predictions if hasattr(model, "decode_predictions") else eval_func.DecodePredictions(input_shape)
-    detection_results = eval_func.model_eval_results(model, eval_dataset, pred_decoder, score_threshold, method, mode, topk)
-    return eval_func.coco_evaluation(detection_results, annotation_file)
-
-
-if __name__ == "__test__":
-    from keras_cv_attention_models.coco import eval_func
-    from keras_cv_attention_models import efficientdet
-
-    model = efficientdet.EfficientDetD0(pretrained="efficientdet_d0.h5")
-    input_shape = model.input_shape[1:-1]
-    ds = eval_func.init_eval_dataset(target_shape=input_shape)
-    pred_decoder = model.decode_predictions if hasattr(model, "decode_predictions") else eval_func.DecodePredictions(input_shape)
-    detection_results = eval_func.model_eval_results(model, ds, pred_decoder)
-    eval_func.coco_evaluation(detection_results)
+    eval_dataset = init_eval_dataset(data_name, input_shape, batch_size, rescale_mode, resize_method, resize_antialias)
+    if take_samples > 0:
+        eval_dataset = eval_dataset.take(take_samples)
+    if hasattr(model, "decode_predictions"):
+        pred_decoder = model.decode_predictions
+    else:
+        pred_decoder = DecodePredictions(input_shape, pyramid_levels=pyramid_levels, anchor_scale=anchor_scale, **anchor_kwargs)
+    detection_results = model_eval_results(model, eval_dataset, pred_decoder, score_threshold, method, mode, topk)
+    return coco_evaluation(detection_results, annotation_file)

@@ -9,9 +9,9 @@ COCO_LABELS = """person, bicycle, car, motorcycle, airplane, bus, train, truck, 
     bottle, wine glass, cup, fork, knife, spoon, bowl, banana, apple, sandwich, orange, broccoli, carrot, hot dog, pizza, donut,
     cake, chair, couch, potted plant, bed, dining table, toilet, tv, laptop, mouse, remote, keyboard, cell phone, microwave, oven,
     toaster, sink, refrigerator, book, clock, vase, scissors, teddy bear, hair drier, toothbrush"""
-COCO_LABEL_DICT = {id: ii.strip() for id, ii in enumerate(COCO_LABELS.split(","))}
+COCO_80_LABEL_DICT = {id: ii.strip() for id, ii in enumerate(COCO_LABELS.split(","))}
 INVALID_ID_90 = [12, 26, 29, 30, 45, 66, 68, 69, 71, 83]
-COCO_90_LABEL_DICT = {id: ii for id, ii in zip(set(range(90)) - set(INVALID_ID_90), COCO_LABEL_DICT.values())}
+COCO_90_LABEL_DICT = {id: ii for id, ii in zip(set(range(90)) - set(INVALID_ID_90), COCO_80_LABEL_DICT.values())}
 COCO_90_LABEL_DICT.update({ii: "Unknown" for ii in INVALID_ID_90})
 COCO_80_to_90_LABEL_DICT = {id_80: id_90 for id_80, id_90 in enumerate(set(range(90)) - set(INVALID_ID_90))}
 
@@ -371,11 +371,11 @@ def show_image_with_bboxes(image, bboxes, labels=None, confidences=None, ax=None
 
         if labels is not None:
             label = int(labels[id])
-            label = COCO_90_LABEL_DICT[label] if num_classes == 90 else COCO_LABEL_DICT[label]
+            label = COCO_90_LABEL_DICT[label] if num_classes == 90 else COCO_80_LABEL_DICT[label]
             if confidences is not None:
                 label += ": {:.4f}".format(float(confidences[id]))
             color = ax.lines[-1].get_color()
-            # ax.text(bb[1], bb[0] - 5, "label: {}, {}".format(label, COCO_LABEL_DICT[label]), color=color, fontsize=8)
+            # ax.text(bb[1], bb[0] - 5, "label: {}, {}".format(label, COCO_80_LABEL_DICT[label]), color=color, fontsize=8)
             ax.text(bb[1], bb[0] - 5, label, color=color, fontsize=label_font_size)
     ax.set_axis_off()
     plt.tight_layout()
