@@ -298,7 +298,7 @@ def test_EfficientDetD1_dynamic_predict():
     assert pred.shape == (1, 12276, 94)
 
     pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1]
-    assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
+    assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0].numpy()] == "cat"
 
 
 def test_EfficientDet_header():
