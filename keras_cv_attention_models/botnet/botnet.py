@@ -45,8 +45,8 @@ class RelativePositionalEmbedding(keras.layers.Layer):
             ww_shape = (key_dim, 2 * self.position_width - 1)
 
         initializer = tf.random_normal_initializer(stddev=stddev)
-        self.pos_emb_h = self.add_weight(name="height/positional_embedding", shape=hh_shape, initializer=initializer, trainable=True)
-        self.pos_emb_w = self.add_weight(name="width/positional_embedding", shape=ww_shape, initializer=initializer, trainable=True)
+        self.pos_emb_h = self.add_weight(name="r_height", shape=hh_shape, initializer=initializer, trainable=True)
+        self.pos_emb_w = self.add_weight(name="r_width", shape=ww_shape, initializer=initializer, trainable=True)
         self.input_height, self.input_width = height, width
 
     def get_config(self):
@@ -112,8 +112,8 @@ class RelativePositionalEmbedding(keras.layers.Layer):
     def load_resized_pos_emb(self, source_layer, method="nearest"):
         # For input 224 --> [128, 27], convert to 480 --> [128, 30]
         if isinstance(source_layer, dict):
-            source_pos_emb_h = source_layer["height/positional_embedding:0"]  # weights
-            source_pos_emb_w = source_layer["width/positional_embedding:0"]  # weights
+            source_pos_emb_h = source_layer["r_height:0"]  # weights
+            source_pos_emb_w = source_layer["r_width:0"]  # weights
         else:
             source_pos_emb_h = source_layer.pos_emb_h  # layer
             source_pos_emb_w = source_layer.pos_emb_w  # layer
