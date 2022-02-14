@@ -21,12 +21,12 @@ def parse_arguments(argv):
     parser.add_argument("--central_crop", type=float, default=0.95, help="Central crop fraction. Set 1 to disable")
     parser.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
     parser.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
-    parser.add_argument("--num_classes", type=int, default=1000, help="num_classes if not imagenet2012 dataset and not inited from h5 file")
+    parser.add_argument("--num_classes", type=int, default=None, help="num_classes if not inited from h5 file. None for model.num_classes")
     parser.add_argument(
         "--pretrained",
         type=str,
-        default="imagenet",
-        help="Pretrianed weights, Other values could be [noisy_student, imagenet21k, imagenet21k-ft1k, imagenet_sam]",
+        default=None,
+        help="Pretrianed weights if not from h5. Could be [imagenet, noisy_student, imagenet21k, imagenet21k-ft1k, imagenet_sam], None for model.pretrained",
     )
 
     args = parser.parse_known_args(argv)[0]
@@ -48,7 +48,8 @@ if __name__ == "__main__":
     if args.model_path.startswith("timm."):  # model_path like: timm.models.resmlp_12_224
         import timm
 
-        model = getattr(timm.models, args.model_path)(pretrained=True)
+        timm_model_name = ".".join(args.model_path.split(".")[2:])
+        model = getattr(timm.models, timm_model_name)(pretrained=True)
     elif args.model_path.endswith(".h5"):
         model = tf.keras.models.load_model(args.model_path, compile=False)
     elif args.model_path.endswith(".tflite"):
@@ -56,9 +57,22 @@ if __name__ == "__main__":
     else:  # model_path like: volo.VOLO_d1
         model = args.model_path.strip().split(".")
         model_class = getattr(getattr(keras_cv_attention_models, model[0]), model[1])
+        model_kwargs = {}
         if input_shape:
-            model = model_class(num_classes=args.num_classes, input_shape=input_shape, pretrained=args.pretrained)
-        else:
-            model = model_class(num_classes=args.num_classes, pretrained=args.pretrained)
+            model_kwargs.update({"input_shape", input_shape})
+        if args.num_classes:
+            model_kwargs.update({"num_classes", args.num_classes})
+        if args.pretrained:
+            model_kwargs.update({"pretrained", args.pretrained})
+        print(">>>> model_kwargs:", model_kwargs)
+        model = model_class(**model_kwargs)
+
     antialias = not args.disable_antialias
-    evaluation(model, args.data_name, input_shape, args.batch_size, args.central_crop, args.resize_method, antialias, args.rescale_mode)
+    if args.data_name.startswith("coco"):
+        from keras_cv_attention_models.coco.eval_func import run_coco_evaluation
+
+        data_name = "coco/2017" if args.data_name == "coco" else args.data_name
+        print(">>>> COCO evaluation:", data_name)
+        run_coco_evaluation(model, data_name, input_shape, args.batch_size, args.resize_method, antialias, args.rescale_mode)
+    else:
+        evaluation(model, args.data_name, input_shape, args.batch_size, args.central_crop, args.resize_method, antialias, args.rescale_mode)
