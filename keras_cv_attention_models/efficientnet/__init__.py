@@ -21,6 +21,11 @@ from keras_cv_attention_models.efficientnet.efficientnet_v1 import (
     EfficientNetV1B6,
     EfficientNetV1B7,
     EfficientNetV1L2,
+    EfficientNetV1Lite0,
+    EfficientNetV1Lite1,
+    EfficientNetV1Lite2,
+    EfficientNetV1Lite3,
+    EfficientNetV1Lite4,
 )
 
 __v2_head_doc__ = """
@@ -193,3 +198,17 @@ EfficientNetV1B5.__doc__ = __v1_default_doc__.format(train_config="| EfficientNe
 EfficientNetV1B6.__doc__ = __v1_default_doc__.format(train_config="| EfficientNetV1B6 | 528              | 0.5     | 0.2               |")
 EfficientNetV1B7.__doc__ = __v1_default_doc__.format(train_config="| EfficientNetV1B7 | 600              | 0.5     | 0.2               |")
 EfficientNetV1L2.__doc__ = __v1_default_doc__.format(train_config="| EfficientNetV1L2 | 800              | 0.5     | 0.2               |")
+
+__v1_lite_default_doc__ = __v1_head_doc__ + """
+Args:
+""" + __tail_doc__.format(pretrained=[None]) + """
+Training configures: `Eval size` is used as the default model `input_shape`.
+  | Model               | Input resolution | Dropout | Drop connect rate |
+  | ------------------- | ---------------- | ------- | ----------------- |
+  {train_config}
+"""
+EfficientNetV1Lite0.__doc__ = __v1_lite_default_doc__.format(train_config="| EfficientNetV1Lite0 | 320              | 0.2     | 0.2               |")
+EfficientNetV1Lite1.__doc__ = __v1_lite_default_doc__.format(train_config="| EfficientNetV1Lite1 | 384              | 0.2     | 0.2               |")
+EfficientNetV1Lite2.__doc__ = __v1_lite_default_doc__.format(train_config="| EfficientNetV1Lite2 | 448              | 0.3     | 0.2               |")
+EfficientNetV1Lite3.__doc__ = __v1_lite_default_doc__.format(train_config="| EfficientNetV1Lite3 | 512              | 0.3     | 0.2               |")
+EfficientNetV1Lite4.__doc__ = __v1_lite_default_doc__.format(train_config="| EfficientNetV1Lite4 | 640              | 0.4     | 0.2               |")

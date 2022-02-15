@@ -9,7 +9,12 @@ from keras_cv_attention_models.efficientdet.efficientdet import (
     EfficientDetD6,
     EfficientDetD7,
     EfficientDetD7X,
-    DecodePredictions,
+    EfficientDetLite0,
+    EfficientDetLite1,
+    EfficientDetLite2,
+    EfficientDetLite3,
+    EfficientDetLite3X,
+    EfficientDetLite4,
 )
 
 __head_doc__ = """
@@ -47,17 +52,23 @@ EfficientDet.__doc__ = __head_doc__.format("") + """  features_pick: specific `l
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model            | Params | Image resolution | COCO test AP |
-  | ---------------- | ------ | ---------------- | ------------ |
-  | EfficientDet-D0  | 3.9M   | 512              | 34.6         |
-  | EfficientDet-D1  | 6.6M   | 640              | 40.5         |
-  | EfficientDet-D2  | 8.1M   | 768              | 43.9         |
-  | EfficientDet-D3  | 12.0M  | 896              | 47.2         |
-  | EfficientDet-D4  | 20.7M  | 1024             | 49.7         |
-  | EfficientDet-D5  | 33.7M  | 1280             | 51.5         |
-  | EfficientDet-D6  | 51.9M  | 1280             | 52.6         |
-  | EfficientDet-D7  | 51.9M  | 1536             | 53.7         |
-  | EfficientDet-D7x | 77.0M  | 1536             | 55.1         |
+  | Model              | Params | Image resolution | COCO test AP |
+  | ------------------ | ------ | ---------------- | ------------ |
+  | EfficientDetD0     | 3.9M   | 512              | 34.6         |
+  | EfficientDetD1     | 6.6M   | 640              | 40.5         |
+  | EfficientDetD2     | 8.1M   | 768              | 43.9         |
+  | EfficientDetD3     | 12.0M  | 896              | 47.2         |
+  | EfficientDetD4     | 20.7M  | 1024             | 49.7         |
+  | EfficientDetD5     | 33.7M  | 1280             | 51.5         |
+  | EfficientDetD6     | 51.9M  | 1280             | 52.6         |
+  | EfficientDetD7     | 51.9M  | 1536             | 53.7         |
+  | EfficientDetD7X    | 77.0M  | 1536             | 55.1         |
+  | EfficientDetLite0  | 3.2M   | 320              | 26.41        |
+  | EfficientDetLite1  | 4.2M   | 384              | 31.50        |
+  | EfficientDetLite2  | 5.3M   | 448              | 35.06        |
+  | EfficientDetLite3  | 8.4M   | 512              | 38.77        |
+  | EfficientDetLite3X | 9.3M   | 640              | 42.64        |
+  | EfficientDetLite4  | 15.1M  | 640              | 43.18        |
 """
 
 __model_doc__ = __head_doc__ + __tail_doc__
@@ -70,3 +81,9 @@ EfficientDetD5.__doc__ = __model_doc__.format("Default None for EfficientNetV1B5
 EfficientDetD6.__doc__ = __model_doc__.format("Default None for EfficientNetV1B6.")
 EfficientDetD7.__doc__ = __model_doc__.format("Default None for EfficientNetV1B6.")
 EfficientDetD7X.__doc__ = __model_doc__.format("Default None for EfficientNetV1B7.")
+EfficientDetLite0.__doc__ = __model_doc__.format("Default None for EfficientNetV1Lite0.")
+EfficientDetLite1.__doc__ = __model_doc__.format("Default None for EfficientNetV1Lite1.")
+EfficientDetLite2.__doc__ = __model_doc__.format("Default None for EfficientNetV1Lite2.")
+EfficientDetLite3.__doc__ = __model_doc__.format("Default None for EfficientNetV1Lite3.")
+EfficientDetLite3X.__doc__ = __model_doc__.format("Default None for EfficientNetV1Lite3X.")
+EfficientDetLite4.__doc__ = __model_doc__.format("Default None for EfficientNetV1Lite4.")

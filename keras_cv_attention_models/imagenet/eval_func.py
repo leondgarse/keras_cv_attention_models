@@ -208,14 +208,14 @@ def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["
     import numpy as np
     import matplotlib as mpl
     import matplotlib.pyplot as plt
-    mpl.rcParams["lines.linewidth"] = base_size / 8 * 1.5 # 8 -> 1.5
-    mpl.rcParams["font.size"] = base_size * 2 - 4 # 8 -> 12, 6 -> 8
+
+    mpl.rcParams["lines.linewidth"] = base_size / 8 * 1.5  # 8 -> 1.5
+    mpl.rcParams["font.size"] = base_size * 2 - 4  # 8 -> 12, 6 -> 8
     mpl.rcParams["legend.fontsize"] = base_size * 2 - 4
     mpl.rcParams["xtick.labelsize"] = base_size * 2 - 4
     mpl.rcParams["ytick.labelsize"] = base_size * 2 - 4
-    mpl.rcParams["xtick.major.pad"] = base_size / 2 - 2 # 8 -> 4, 6 -> 3
+    mpl.rcParams["xtick.major.pad"] = base_size / 2 - 2  # 8 -> 4, 6 -> 3
     mpl.rcParams["ytick.major.pad"] = base_size / 2 - 2
-
 
     num_axes = (2 + len(addition_plots)) if addition_plots is not None and len(addition_plots) != 0 else 2
     fig, axes = plt.subplots(1, num_axes, figsize=(num_axes * base_size, base_size))

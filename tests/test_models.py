@@ -300,6 +300,15 @@ def test_EfficientDetD1_dynamic_predict():
     pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1]
     assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
 
+def test_EfficientDetLite1_dynamic_predict():
+    mm = keras_cv_attention_models.efficientdet.EfficientDetLite1(input_shape=(None, None, 3), pretrained="coco")
+    input_shape = (376, 227, 3)
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
+    assert pred.shape == (1, 16641, 94)
+
+    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1]
+    assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
+
 
 def test_EfficientDet_header():
     bb = keras_cv_attention_models.coatnet.CoAtNet0(input_shape=(256, 256, 3), num_classes=0, pretrained=None)

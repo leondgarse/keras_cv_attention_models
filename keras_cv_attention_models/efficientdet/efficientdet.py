@@ -17,6 +17,12 @@ PRETRAINED_DICT = {
     "efficientdet_d6": {"coco": {1280: "9302dc59b8ade929ea68bd68fc71c9f3"}},
     "efficientdet_d7": {"coco": {1536: "6d615faf95a4891aec12392f17155950"}},
     "efficientdet_d7x": {"coco": {1536: "a1e4b4e8e488eeabee14c7801028984d"}},
+    "efficientdet_lite0": {"coco": {320: "f6d9aeb36eb0377ff135b9d367f8b4a6"}},
+    "efficientdet_lite1": {"coco": {384: "7a593f798462e558deeec6ef976574fc"}},
+    "efficientdet_lite2": {"coco": {448: "b48fa6246a50d3d59785cc119c52fc94"}},
+    "efficientdet_lite3": {"coco": {512: "945e66f31622d2806aeafde4dff3b4b7"}},
+    "efficientdet_lite3x": {"coco": {640: "bcd55e31b99616439ad4f988e2337b86"}},
+    "efficientdet_lite4": {"coco": {640: "9f5eadec38498faffb8d6777cb09e3a7"}},
 }
 
 
@@ -47,14 +53,15 @@ class ReluWeightedSum(keras.layers.Layer):
 
 def align_feature_channel(inputs, output_channel, name=""):
     # print(f">>>> align_feature_channel: {name = }, {inputs.shape = }, {output_channel = }")
-    nn = keras.layers.Conv2D(output_channel, kernel_size=1, name=name + "channel_conv")(inputs)
-    nn = keras.layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "channel_bn")(nn)
+    nn = inputs
+    if inputs.shape[-1] != output_channel:
+        nn = keras.layers.Conv2D(output_channel, kernel_size=1, name=name + "channel_conv")(nn)
+        nn = keras.layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "channel_bn")(nn)
     return nn
 
 
 def resample_fuse(inputs, output_channel, use_weighted_sum=True, interpolation="nearest", use_sep_conv=True, activation="swish", name=""):
-    if inputs[0].shape[-1] != output_channel:
-        inputs[0] = align_feature_channel(inputs[0], output_channel, name=name)
+    inputs[0] = align_feature_channel(inputs[0], output_channel, name=name)
 
     if use_weighted_sum:
         nn = ReluWeightedSum(name=name + "wsm")(inputs)
@@ -77,9 +84,7 @@ def bi_fpn(features, output_channel, use_weighted_sum=True, use_sep_conv=True, i
         cur_name = name + "p{}_up_".format(len(features) - id + 1)
         # up_feature = keras.layers.UpSampling2D(size=(2, 2), interpolation=interpolation, name=cur_name + "up")(up_features[-1])
         up_feature = tf.image.resize(up_features[-1], tf.shape(feature)[1:-1], method=interpolation)
-        up_feature = resample_fuse(
-            [feature, up_feature], output_channel, use_weighted_sum, use_sep_conv=use_sep_conv, activation=activation, name=cur_name
-        )
+        up_feature = resample_fuse([feature, up_feature], output_channel, use_weighted_sum, use_sep_conv=use_sep_conv, activation=activation, name=cur_name)
         up_features.append(up_feature)
 
     # up_features: [p7, p6_up, p5_up, p4_up, p3_up]
@@ -144,6 +149,7 @@ def EfficientDet(
     pyramid_levels=[3, 7],  # Init anchors for model prediction
     pretrained="coco",
     model_name=None,
+    rescale_mode="torch",
     kwargs=None,  # Not using, recieving parameter
     input_shape=None,  # Not using, recieving parameter
 ):
@@ -163,9 +169,7 @@ def EfficientDet(
     # Build additional input features that are not from backbone.
     for id in range(additional_features):
         cur_name = "p{}_p{}_".format(id + 5, id + 6)
-        additional_feature = fpn_features[-1]
-        if fpn_features[-1].shape[-1] != num_channels:
-            additional_feature = align_feature_channel(additional_feature, num_channels, name=cur_name)
+        additional_feature = align_feature_channel(fpn_features[-1], num_channels, name=cur_name)
         additional_feature = keras.layers.MaxPooling2D(pool_size=3, strides=2, padding="SAME", name=cur_name + "max_down")(additional_feature)
         fpn_features.append(additional_feature)
 
@@ -185,73 +189,133 @@ def EfficientDet(
 
     model_name = model_name or backbone.name + "_det"
     model = keras.models.Model(inputs=backbone.inputs[0], outputs=outputs, name=model_name)
-    add_pre_post_process(model, rescale_mode="torch", post_process=DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchor_scale))
+    add_pre_post_process(model, rescale_mode=rescale_mode, post_process=DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchor_scale))
     reload_model_weights(model, PRETRAINED_DICT, "efficientdet", pretrained)
     # model.backbone = backbone
     return model
 
 
-def EfficientDetD0(input_shape=(512, 512, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+def EfficientDetD0(input_shape=(512, 512, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B0(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        backbone = efficientnet.EfficientNetV1B0(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, pretrained=None)
         features_pick = ["stack_2_block1_output", "stack_4_block2_output", "stack_6_block0_output"]
-    return EfficientDet(**locals(), fpn_depth=3, head_depth=3, num_channels=64, model_name="efficientdet_d0", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_d0")
+    return EfficientDet(**locals(), fpn_depth=3, head_depth=3, num_channels=64, **kwargs)
 
 
-def EfficientDetD1(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+def EfficientDetD1(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B1(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
-    features_pick = ["stack_2_block2_output", "stack_4_block3_output", "stack_6_block1_output"]
-    return EfficientDet(**locals(), fpn_depth=4, head_depth=3, num_channels=88, model_name="efficientdet_d1", **kwargs)
-
-
-def EfficientDetD2(input_shape=(768, 768, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
-    if backbone is None:
-        backbone = efficientnet.EfficientNetV1B2(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        backbone = efficientnet.EfficientNetV1B1(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, pretrained=None)
         features_pick = ["stack_2_block2_output", "stack_4_block3_output", "stack_6_block1_output"]
-    return EfficientDet(**locals(), fpn_depth=5, head_depth=3, num_channels=112, model_name="efficientdet_d2", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_d1")
+    return EfficientDet(**locals(), fpn_depth=4, head_depth=3, num_channels=88, **kwargs)
 
 
-def EfficientDetD3(input_shape=(896, 896, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+def EfficientDetD2(input_shape=(768, 768, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B3(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        backbone = efficientnet.EfficientNetV1B2(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, pretrained=None)
+        features_pick = ["stack_2_block2_output", "stack_4_block3_output", "stack_6_block1_output"]
+    model_name = kwargs.pop("model_name", "efficientdet_d2")
+    return EfficientDet(**locals(), fpn_depth=5, head_depth=3, num_channels=112, **kwargs)
+
+
+def EfficientDetD3(input_shape=(896, 896, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1B3(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, pretrained=None)
         features_pick = ["stack_2_block2_output", "stack_4_block4_output", "stack_6_block1_output"]
-    return EfficientDet(**locals(), fpn_depth=6, head_depth=4, num_channels=160, model_name="efficientdet_d3", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_d3")
+    return EfficientDet(**locals(), fpn_depth=6, head_depth=4, num_channels=160, **kwargs)
 
 
-def EfficientDetD4(input_shape=(1024, 1024, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+def EfficientDetD4(input_shape=(1024, 1024, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B4(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        backbone = efficientnet.EfficientNetV1B4(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, pretrained=None)
         features_pick = ["stack_2_block3_output", "stack_4_block5_output", "stack_6_block1_output"]
-    return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=224, model_name="efficientdet_d4", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_d4")
+    return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=224, **kwargs)
 
 
-def EfficientDetD5(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+def EfficientDetD5(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B5(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        backbone = efficientnet.EfficientNetV1B5(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, pretrained=None)
         features_pick = ["stack_2_block4_output", "stack_4_block6_output", "stack_6_block2_output"]
-    return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=288, model_name="efficientdet_d5", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_d5")
+    return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=288, **kwargs)
 
 
-def EfficientDetD6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+def EfficientDetD6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B6(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        backbone = efficientnet.EfficientNetV1B6(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, pretrained=None)
         features_pick = ["stack_2_block5_output", "stack_4_block7_output", "stack_6_block2_output"]
-    return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, model_name="efficientdet_d6", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_d6")
+    return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, **kwargs)
 
 
-def EfficientDetD7(input_shape=(1536, 1536, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+def EfficientDetD7(input_shape=(1536, 1536, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B6(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        backbone = efficientnet.EfficientNetV1B6(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, pretrained=None)
         features_pick = ["stack_2_block5_output", "stack_4_block7_output", "stack_6_block2_output"]
     anchor_scale = kwargs.pop("anchor_scale", 5)
-    return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, model_name="efficientdet_d7", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_d7")
+    return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, **kwargs)
 
 
-def EfficientDetD7X(input_shape=(1536, 1536, 3), freeze_backbone=False, num_classes=90, backbone=None, pretrained="coco", **kwargs):
+def EfficientDetD7X(input_shape=(1536, 1536, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B7(input_shape=input_shape, num_classes=0, output_conv_filter=0, pretrained=None)
+        backbone = efficientnet.EfficientNetV1B7(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, pretrained=None)
         features_pick = ["stack_2_block6_output", "stack_4_block9_output", "stack_6_block3_output"]
     pyramid_levels = kwargs.pop("pyramid_levels", [3, 8])
     additional_features = max(pyramid_levels) - 5  # 8 -> 3, 7 -> 2
-    return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, model_name="efficientdet_d7x", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_d7x")
+    return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, **kwargs)
+
+
+""" EfficientDetLite models """
+
+
+def EfficientDetLite0(input_shape=(320, 320, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1Lite0(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        features_pick = ["stack_2_block1_output", "stack_4_block2_output", "stack_6_block0_output"]
+    use_weighted_sum = False
+    return EfficientDet(**locals(), fpn_depth=3, head_depth=3, num_channels=64, anchor_scale=3, rescale_mode="tf", model_name="efficientdet_lite0", **kwargs)
+
+
+def EfficientDetLite1(input_shape=(384, 384, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1Lite1(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        features_pick = ["stack_2_block2_output", "stack_4_block3_output", "stack_6_block0_output"]
+    use_weighted_sum = False
+    return EfficientDet(**locals(), fpn_depth=4, head_depth=3, num_channels=88, anchor_scale=3, rescale_mode="tf", model_name="efficientdet_lite1", **kwargs)
+
+
+def EfficientDetLite2(input_shape=(448, 448, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1Lite2(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        features_pick = ["stack_2_block2_output", "stack_4_block3_output", "stack_6_block0_output"]
+    use_weighted_sum = False
+    return EfficientDet(**locals(), fpn_depth=5, head_depth=3, num_channels=112, anchor_scale=3, rescale_mode="tf", model_name="efficientdet_lite2", **kwargs)
+
+
+def EfficientDetLite3(input_shape=(512, 512, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1Lite3(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        features_pick = ["stack_2_block2_output", "stack_4_block4_output", "stack_6_block0_output"]
+    use_weighted_sum = False
+    return EfficientDet(**locals(), fpn_depth=6, head_depth=4, num_channels=160, anchor_scale=4, rescale_mode="tf", model_name="efficientdet_lite3", **kwargs)
+
+
+def EfficientDetLite3X(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1Lite3(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        features_pick = ["stack_2_block2_output", "stack_4_block4_output", "stack_6_block0_output"]
+    use_weighted_sum = False
+    return EfficientDet(**locals(), fpn_depth=6, head_depth=4, num_channels=200, anchor_scale=3, rescale_mode="tf", model_name="efficientdet_lite3x", **kwargs)
+
+
+def EfficientDetLite4(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
+    if backbone is None:
+        backbone = efficientnet.EfficientNetV1Lite4(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        features_pick = ["stack_2_block3_output", "stack_4_block5_output", "stack_6_block0_output"]
+    use_weighted_sum = False
+    return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=224, anchor_scale=3, rescale_mode="tf", model_name="efficientdet_lite4", **kwargs)
