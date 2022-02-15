@@ -49,7 +49,7 @@ class DecodePredictions:
         rr, nms_scores = tf.image.non_max_suppression_with_scores(bbs, ccs, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
         return tf.gather(bbs, rr).numpy(), tf.gather(labels, rr).numpy(), nms_scores.numpy()
 
-    def __decode_single__(self, pred, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="gaussian", mode="global", topk=-1, input_shape=None):
+    def __decode_single__(self, pred, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=-1, input_shape=None):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
         if input_shape is not None:
             self.__init_anchor__(input_shape)
@@ -69,7 +69,7 @@ class DecodePredictions:
         else:
             return self.__nms_global__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
 
-    def __call__(self, preds, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="gaussian", mode="global", topk=-1, input_shape=None):
+    def __call__(self, preds, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=-1, input_shape=None):
         """
         https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
         iou_or_sigma: means `soft_nms_sigma` if method is "gaussian", else `iou_threshold`.

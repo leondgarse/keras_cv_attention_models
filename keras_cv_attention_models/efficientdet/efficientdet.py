@@ -52,20 +52,9 @@ def align_feature_channel(inputs, output_channel, name=""):
     return nn
 
 
-def align_feature_blocks_2(inputs, downsample=True, interpolation="nearest", name=""):
-    # print(">>>>", "downsample:" if downsample else "upsample:", f"{name = }, {inputs.shape = }, {downsample = }")
-    if downsample:
-        nn = keras.layers.MaxPooling2D(pool_size=3, strides=2, padding="SAME", name=name + "max_down")(inputs)
-    else:
-        nn = keras.layers.UpSampling2D(size=(2, 2), interpolation=interpolation, name=name + "up")(inputs)
-    return nn
-
-
-def resample_fuse(inputs, output_channel, use_weighted_sum=True, downsample=True, interpolation="nearest", use_sep_conv=True, activation="swish", name=""):
+def resample_fuse(inputs, output_channel, use_weighted_sum=True, interpolation="nearest", use_sep_conv=True, activation="swish", name=""):
     if inputs[0].shape[-1] != output_channel:
         inputs[0] = align_feature_channel(inputs[0], output_channel, name=name)
-    # downsample = inputs[-1].shape[1] > inputs[0].shape[1]
-    inputs[-1] = align_feature_blocks_2(inputs[-1], downsample=downsample, interpolation=interpolation, name=name)
 
     if use_weighted_sum:
         nn = ReluWeightedSum(name=name + "wsm")(inputs)
@@ -80,14 +69,16 @@ def resample_fuse(inputs, output_channel, use_weighted_sum=True, downsample=True
     return nn
 
 
-def bi_fpn(features, output_channel, use_weighted_sum=True, use_sep_conv=True, activation="swish", name=""):
+def bi_fpn(features, output_channel, use_weighted_sum=True, use_sep_conv=True, interpolation="nearest", activation="swish", name=""):
     # print(f">>>> bi_fpn: {[ii.shape for ii in features] = }")
     # features: [p3, p4, p5, p6, p7]
     up_features = [features[-1]]
     for id, feature in enumerate(features[:-1][::-1]):
         cur_name = name + "p{}_up_".format(len(features) - id + 1)
+        # up_feature = keras.layers.UpSampling2D(size=(2, 2), interpolation=interpolation, name=cur_name + "up")(up_features[-1])
+        up_feature = tf.image.resize(up_features[-1], tf.shape(feature)[1:-1], method=interpolation)
         up_feature = resample_fuse(
-            [feature, up_features[-1]], output_channel, use_weighted_sum, False, use_sep_conv=use_sep_conv, activation=activation, name=cur_name
+            [feature, up_feature], output_channel, use_weighted_sum, use_sep_conv=use_sep_conv, activation=activation, name=cur_name
         )
         up_features.append(up_feature)
 
@@ -96,8 +87,9 @@ def bi_fpn(features, output_channel, use_weighted_sum=True, use_sep_conv=True, a
     up_features = up_features[1:-1][::-1]  # [p4_up, p5_up, p6_up]
     for id, feature in enumerate(features[1:]):
         cur_name = name + "p{}_out_".format(len(features) - 1 + id)
-        fusion_feature = [feature, out_features[-1]] if id == len(up_features) else [feature, up_features[id], out_features[-1]]
-        out_feature = resample_fuse(fusion_feature, output_channel, use_weighted_sum, True, use_sep_conv=use_sep_conv, activation=activation, name=cur_name)
+        down_feature = keras.layers.MaxPooling2D(pool_size=3, strides=2, padding="SAME", name=cur_name + "max_down")(out_features[-1])
+        fusion_feature = [feature, down_feature] if id == len(up_features) else [feature, up_features[id], down_feature]
+        out_feature = resample_fuse(fusion_feature, output_channel, use_weighted_sum, use_sep_conv=use_sep_conv, activation=activation, name=cur_name)
         out_features.append(out_feature)
 
     # out_features: [p3_up, p4_out, p5_out, p6_out, p7_out]
@@ -174,7 +166,7 @@ def EfficientDet(
         additional_feature = fpn_features[-1]
         if fpn_features[-1].shape[-1] != num_channels:
             additional_feature = align_feature_channel(additional_feature, num_channels, name=cur_name)
-        additional_feature = align_feature_blocks_2(additional_feature, downsample=True, name=cur_name)
+        additional_feature = keras.layers.MaxPooling2D(pool_size=3, strides=2, padding="SAME", name=cur_name + "max_down")(additional_feature)
         fpn_features.append(additional_feature)
 
     for id in range(fpn_depth):
