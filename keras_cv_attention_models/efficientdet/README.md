@@ -2,7 +2,7 @@
 ***
 
 ## Summary
-  - Keras implementation of [google/automl/efficientdet](https://github.com/google/automl/tree/master/efficientdet). Model weights converted from official publication, the `h5` ones, not `ckpt` ones.
+  - Keras implementation of [google/automl/efficientdet](https://github.com/google/automl/tree/master/efficientdet). Model weights converted from official publication. It's the `h5` ones for `EfficientDetD*` models, not `ckpt` ones, as their accuracy higher.
   - [Paper 1911.09070 EfficientDet: Scalable and Efficient Object Detection](https://arxiv.org/pdf/1911.09070.pdf).
 
 ## Models
@@ -25,7 +25,6 @@
   | EfficientDetLite3  | 8.4M   | 512              | 38.77        | [efficientdet_lite3.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3_512_coco.h5) |
   | EfficientDetLite3X | 9.3M   | 640              | 42.64        | [efficientdet_lite3x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3x_640_coco.h5) |
   | EfficientDetLite4  | 15.1M  | 640              | 43.18        | [efficientdet_lite4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite4_640_coco.h5) |
-
 ## Usage
   - **Basic usage**
     ```py
@@ -65,21 +64,22 @@
     data.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=90)
     ```
     ![effdetd1_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/153983911-2299efad-3b42-46b9-88c8-92c3b6e4e091.png)
-  - **Custom detector using efficientdet header**. `Backbone` for `EfficientDet` can be any model with pyramid stage structure.
+## Custom detector using efficientdet header
+  - `Backbone` for `EfficientDet` can be any model with pyramid stage structure.
     ```py
     from keras_cv_attention_models import efficientdet, coatnet
     bb = coatnet.CoAtNet0(input_shape=(256, 256, 3), num_classes=0)
     mm = efficientdet.EfficientDet(backbone=bb)
     # >>>> features: {'stack_2_block_3_output': (None, 32, 32, 192),
-    #                 'stack_3_block_5_output': (None, 16, 16, 384),
-    #                 'stack_4_block_2_output': (None, 8, 8, 768)}
+    #                 'stack_3_block_5_ffn_output': (None, 16, 16, 384),
+    #                 'stack_4_block_2_ffn_output': (None, 8, 8, 768)}
 
     mm.summary()  # Trainable params: 18,773,185
     ```
-    Each `EfficientDetD*` can also set with `backbone=xxx` for using their pre-settings.
+  - Each `EfficientDetD*` / `EfficientDetLite*` can also set with `backbone=xxx` for using their pre-settings.
     ```py
     from keras_cv_attention_models import efficientdet, resnest
-    mm = efficientdet.EfficientDetD2(backbone=resnest.ResNest50(input_shape=(384, 384, 3), num_classes=0))
+    mm = efficientdet.EfficientDetD2(backbone=resnest.ResNest50(input_shape=(384, 384, 3), num_classes=0), pretrained=None)
 
     mm.summary()  # Trainable params: 27,153,037
     ```

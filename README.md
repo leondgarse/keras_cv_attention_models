@@ -155,20 +155,20 @@
 ## Evaluation
   - `eval_script.py` is used for evaluating model accuracy, both `imagenet` / `coco` ones.
   ```sh
-  # evaluating pretrained builtin models
+  # evaluating pretrained builtin model
   CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m regnet.RegNetZD8
-  # evaluating pretrained timm models
+  # evaluating pretrained timm model
   CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m timm.models.resmlp_12_224 --input_shape 224
 
-  # evaluating specific h5 models
+  # evaluating specific h5 model
   CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m checkpoints/xxx.h5
-  # evaluating specific tflite models
+  # evaluating specific tflite model
   CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m xxx.tflite
   ```
-  **Evaluating COCO AP by specifying `--data_name coco`**
+  **Evaluating COCO AP by specifying `--data_name coco`**. More usage can be found in [COCO Evaluation](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco#evaluation).
   ```sh
   # resize method for EfficientDetD0 is bilinear w/o antialias
-  CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m efficientdet.EfficientDetD0 -d coco -batch_size 8 --resize_method bilinear --disable_antialias
+  CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m efficientdet.EfficientDetD0 -d coco --batch_size 8 --resize_method bilinear --disable_antialias
   ```
 ## Visualizing
   - [Visualizing](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/visualizing) is for visualizing convnet filters or attention map scores.

@@ -43,14 +43,14 @@ def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=
     pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
 
     # https://github.com/google/automl/tree/master/efficientdet/utils.py#L509
-    feat_sizes = [input_shape[:2]]
+    feature_sizes = [input_shape[:2]]
     for _ in range(max(pyramid_levels)):
-        pre_feat_size = feat_sizes[-1]
-        feat_sizes.append(((pre_feat_size[0] - 1) // 2 + 1, (pre_feat_size[1] - 1) // 2 + 1))
+        pre_feat_size = feature_sizes[-1]
+        feature_sizes.append(((pre_feat_size[0] - 1) // 2 + 1, (pre_feat_size[1] - 1) // 2 + 1))    # ceil mode, like padding="SAME" downsampling
 
     all_anchors = []
     for level in pyramid_levels:
-        stride_hh, stride_ww = feat_sizes[0][0] / feat_sizes[level][0], feat_sizes[0][1] / feat_sizes[level][1]
+        stride_hh, stride_ww = feature_sizes[0][0] / feature_sizes[level][0], feature_sizes[0][1] / feature_sizes[level][1]
         hh_centers = tf.range(stride_hh / 2, input_shape[0], stride_hh)
         ww_centers = tf.range(stride_ww / 2, input_shape[1], stride_ww)
         ww_grid, hh_grid = tf.meshgrid(ww_centers, hh_centers)

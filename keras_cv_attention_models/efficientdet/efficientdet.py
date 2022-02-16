@@ -277,45 +277,45 @@ def EfficientDetLite0(input_shape=(320, 320, 3), freeze_backbone=False, num_clas
     if backbone is None:
         backbone = efficientnet.EfficientNetV1Lite0(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
         features_pick = ["stack_2_block1_output", "stack_4_block2_output", "stack_6_block0_output"]
-    use_weighted_sum = False
-    return EfficientDet(**locals(), fpn_depth=3, head_depth=3, num_channels=64, anchor_scale=3, rescale_mode="tf", model_name="efficientdet_lite0", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_lite0")
+    return EfficientDet(**locals(), fpn_depth=3, head_depth=3, num_channels=64, anchor_scale=3, use_weighted_sum=False, rescale_mode="tf", **kwargs)
 
 
 def EfficientDetLite1(input_shape=(384, 384, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
     if backbone is None:
         backbone = efficientnet.EfficientNetV1Lite1(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
         features_pick = ["stack_2_block2_output", "stack_4_block3_output", "stack_6_block0_output"]
-    use_weighted_sum = False
-    return EfficientDet(**locals(), fpn_depth=4, head_depth=3, num_channels=88, anchor_scale=3, rescale_mode="tf", model_name="efficientdet_lite1", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_lite1")
+    return EfficientDet(**locals(), fpn_depth=4, head_depth=3, num_channels=88, anchor_scale=3, use_weighted_sum=False, rescale_mode="tf", **kwargs)
 
 
 def EfficientDetLite2(input_shape=(448, 448, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
     if backbone is None:
         backbone = efficientnet.EfficientNetV1Lite2(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
         features_pick = ["stack_2_block2_output", "stack_4_block3_output", "stack_6_block0_output"]
-    use_weighted_sum = False
-    return EfficientDet(**locals(), fpn_depth=5, head_depth=3, num_channels=112, anchor_scale=3, rescale_mode="tf", model_name="efficientdet_lite2", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_lite2")
+    return EfficientDet(**locals(), fpn_depth=5, head_depth=3, num_channels=112, anchor_scale=3, use_weighted_sum=False, rescale_mode="tf", **kwargs)
 
 
 def EfficientDetLite3(input_shape=(512, 512, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
     if backbone is None:
         backbone = efficientnet.EfficientNetV1Lite3(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
         features_pick = ["stack_2_block2_output", "stack_4_block4_output", "stack_6_block0_output"]
-    use_weighted_sum = False
-    return EfficientDet(**locals(), fpn_depth=6, head_depth=4, num_channels=160, anchor_scale=4, rescale_mode="tf", model_name="efficientdet_lite3", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_lite3")
+    return EfficientDet(**locals(), fpn_depth=6, head_depth=4, num_channels=160, anchor_scale=4, use_weighted_sum=False, rescale_mode="tf", **kwargs)
 
 
 def EfficientDetLite3X(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
     if backbone is None:
         backbone = efficientnet.EfficientNetV1Lite3(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
         features_pick = ["stack_2_block2_output", "stack_4_block4_output", "stack_6_block0_output"]
-    use_weighted_sum = False
-    return EfficientDet(**locals(), fpn_depth=6, head_depth=4, num_channels=200, anchor_scale=3, rescale_mode="tf", model_name="efficientdet_lite3x", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_lite3x")
+    return EfficientDet(**locals(), fpn_depth=6, head_depth=4, num_channels=200, anchor_scale=3, use_weighted_sum=False, rescale_mode="tf", **kwargs)
 
 
 def EfficientDetLite4(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
     if backbone is None:
         backbone = efficientnet.EfficientNetV1Lite4(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
         features_pick = ["stack_2_block3_output", "stack_4_block5_output", "stack_6_block0_output"]
-    use_weighted_sum = False
-    return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=224, anchor_scale=3, rescale_mode="tf", model_name="efficientdet_lite4", **kwargs)
+    model_name = kwargs.pop("model_name", "efficientdet_lite4")
+    return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=224, anchor_scale=3, use_weighted_sum=False, rescale_mode="tf", **kwargs)

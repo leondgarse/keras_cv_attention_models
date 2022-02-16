@@ -6,11 +6,15 @@ import tensorflow as tf
 from keras_cv_attention_models.efficientnet.efficientnet_v2 import EfficientNetV2
 
 
-def get_expanded_width_depth(width, depth):
+def get_expanded_width_depth(width, depth, fix_head_stem=False):
     out_channels = [ii * width for ii in [16, 24, 40, 80, 112, 192, 320]]
     depthes = [int(tf.math.ceil(ii * depth)) for ii in [1, 2, 2, 3, 3, 4, 1]]
-    first_conv_filter = 32 * width
-    output_conv_filter = 1280 * width
+    if fix_head_stem:
+        depthes[0], depthes[-1] = 1, 1
+        first_conv_filter, output_conv_filter = 32, 1280
+    else:
+        first_conv_filter = 32 * width
+        output_conv_filter = 1280 * width
     return out_channels, depthes, first_conv_filter, output_conv_filter
 
 
@@ -94,38 +98,32 @@ def EfficientNetV1L2(input_shape=(800, 800, 3), num_classes=1000, dropout=0.5, c
     output_conv_filter = kwargs.pop("output_conv_filter", output_conv_filter)
     return EfficientNetV1(**locals(), model_name="efficientnet_v1-l2", **kwargs)
 
-
 # https://github.com/google/automl/tree/master/efficientdet/backbone/efficientnet_lite_builder.py
 def EfficientNetV1Lite0(input_shape=(320, 320, 3), num_classes=1000, dropout=0.2, classifier_activation="softmax", pretrained=None, **kwargs):
-    out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.0, 1.0)
-    depthes[0], depthes[-1] = 1, 1  # fix_head_stem
-    first_conv_filter, output_conv_filter = kwargs.pop("first_conv_filter", 32), kwargs.pop("output_conv_filter", 1280)
+    out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.0, 1.0, fix_head_stem=True)
+    first_conv_filter, output_conv_filter = kwargs.pop("first_conv_filter", first_conv_filter), kwargs.pop("output_conv_filter", output_conv_filter)
     return EfficientNetV1(**locals(), se_ratios=[0] * len(depthes), is_fused=False, model_name="efficientnet_v1-lite0", **kwargs)
 
 
 def EfficientNetV1Lite1(input_shape=(384, 384, 3), num_classes=1000, dropout=0.2, classifier_activation="softmax", pretrained=None, **kwargs):
-    out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.0, 1.1)
-    depthes[0], depthes[-1] = 1, 1  # fix_head_stem
-    first_conv_filter, output_conv_filter = kwargs.pop("first_conv_filter", 32), kwargs.pop("output_conv_filter", 1280)
+    out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.0, 1.1, fix_head_stem=True)
+    first_conv_filter, output_conv_filter = kwargs.pop("first_conv_filter", first_conv_filter), kwargs.pop("output_conv_filter", output_conv_filter)
     return EfficientNetV1(**locals(), se_ratios=[0] * len(depthes), is_fused=False, model_name="efficientnet_v1-lite1", **kwargs)
 
 
 def EfficientNetV1Lite2(input_shape=(448, 448, 3), num_classes=1000, dropout=0.3, classifier_activation="softmax", pretrained=None, **kwargs):
-    out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.1, 1.2)
-    depthes[0], depthes[-1] = 1, 1  # fix_head_stem
-    first_conv_filter, output_conv_filter = kwargs.pop("first_conv_filter", 32), kwargs.pop("output_conv_filter", 1280)
+    out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.1, 1.2, fix_head_stem=True)
+    first_conv_filter, output_conv_filter = kwargs.pop("first_conv_filter", first_conv_filter), kwargs.pop("output_conv_filter", output_conv_filter)
     return EfficientNetV1(**locals(), se_ratios=[0] * len(depthes), is_fused=False, model_name="efficientnet_v1-lite2", **kwargs)
 
 
 def EfficientNetV1Lite3(input_shape=(512, 512, 3), num_classes=1000, dropout=0.3, classifier_activation="softmax", pretrained=None, **kwargs):
-    out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.2, 1.4)
-    depthes[0], depthes[-1] = 1, 1  # fix_head_stem
-    first_conv_filter, output_conv_filter = kwargs.pop("first_conv_filter", 32), kwargs.pop("output_conv_filter", 1280)
+    out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.2, 1.4, fix_head_stem=True)
+    first_conv_filter, output_conv_filter = kwargs.pop("first_conv_filter", first_conv_filter), kwargs.pop("output_conv_filter", output_conv_filter)
     return EfficientNetV1(**locals(), se_ratios=[0] * len(depthes), is_fused=False, model_name="efficientnet_v1-lite3", **kwargs)
 
 
 def EfficientNetV1Lite4(input_shape=(640, 640, 3), num_classes=1000, dropout=0.4, classifier_activation="softmax", pretrained=None, **kwargs):
-    out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.4, 1.8)
-    depthes[0], depthes[-1] = 1, 1  # fix_head_stem
-    first_conv_filter, output_conv_filter = kwargs.pop("first_conv_filter", 32), kwargs.pop("output_conv_filter", 1280)
+    out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.4, 1.8, fix_head_stem=True)
+    first_conv_filter, output_conv_filter = kwargs.pop("first_conv_filter", first_conv_filter), kwargs.pop("output_conv_filter", output_conv_filter)
     return EfficientNetV1(**locals(), se_ratios=[0] * len(depthes), is_fused=False, model_name="efficientnet_v1-lite4", **kwargs)
