@@ -16,16 +16,18 @@ COCO_90_LABEL_DICT.update({ii: "Unknown" for ii in INVALID_ID_90})
 COCO_80_to_90_LABEL_DICT = {id_80: id_90 for id_80, id_90 in enumerate(set(range(90)) - set(INVALID_ID_90))}
 
 
-def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=[0.5, 1, 2], num_scales=3, anchor_scale=4):
+def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=[1, 2, 0.5], num_scales=3, anchor_scale=4, grid_zero_start=False):
     """
     >>> from keras_cv_attention_models.coco import data
     >>> input_shape = [512, 128]
     >>> anchors = data.get_anchors([512, 128], pyramid_levels=[7])
     >>> data.draw_bboxes(anchors * [512, 128, 512, 128])
+
+    grid_zero_start: grid starts from 0, else from strides // 2. False for efficientdet anchors, True for yolo anchors.
     """
     # base anchors
     scales = [2 ** (ii / num_scales) * anchor_scale for ii in range(num_scales)]
-    aspect_ratios = tf.convert_to_tensor(aspect_ratios)
+    aspect_ratios = tf.convert_to_tensor(aspect_ratios, dtype="float32")
     if len(aspect_ratios.shape) == 1:
         # aspect_ratios = [0.5, 1, 2]
         sqrt_ratios = tf.sqrt(aspect_ratios)
@@ -33,11 +35,11 @@ def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=
     else:
         # aspect_ratios = [(1, 1), (1.4, 0.7), (0.7, 1.4)]
         ww_ratios, hh_ratios = aspect_ratios[:, 0], aspect_ratios[:, 1]
-    base_anchors_hh = tf.reshape(tf.expand_dims(scales, 0) * tf.expand_dims(hh_ratios, 1), [-1])
-    base_anchors_ww = tf.reshape(tf.expand_dims(scales, 0) * tf.expand_dims(ww_ratios, 1), [-1])
+    base_anchors_hh = tf.reshape(tf.expand_dims(scales, 1) * tf.expand_dims(hh_ratios, 0), [-1])
+    base_anchors_ww = tf.reshape(tf.expand_dims(scales, 1) * tf.expand_dims(ww_ratios, 0), [-1])
     base_anchors_hh_half, base_anchors_ww_half = base_anchors_hh / 2, base_anchors_ww / 2
     base_anchors = tf.stack([base_anchors_hh_half * -1, base_anchors_ww_half * -1, base_anchors_hh_half, base_anchors_ww_half], axis=1)
-    base_anchors = tf.gather(base_anchors, [3, 6, 0, 4, 7, 1, 5, 8, 2])  # re-order according to official generated anchors
+    # base_anchors = tf.gather(base_anchors, [3, 6, 0, 4, 7, 1, 5, 8, 2])  # re-order according to official generated anchors
 
     # make grid
     pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
@@ -51,14 +53,18 @@ def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=
     all_anchors = []
     for level in pyramid_levels:
         stride_hh, stride_ww = feature_sizes[0][0] / feature_sizes[level][0], feature_sizes[0][1] / feature_sizes[level][1]
-        hh_centers = tf.range(stride_hh / 2, input_shape[0], stride_hh)
-        ww_centers = tf.range(stride_ww / 2, input_shape[1], stride_ww)
+        top, left = (0, 0) if grid_zero_start else (stride_hh / 2, stride_ww / 2)
+        hh_centers = tf.range(top, input_shape[0], stride_hh)
+        ww_centers = tf.range(left, input_shape[1], stride_ww)
         ww_grid, hh_grid = tf.meshgrid(ww_centers, hh_centers)
         grid = tf.reshape(tf.stack([hh_grid, ww_grid, hh_grid, ww_grid], 2), [-1, 1, 4])
         anchors = tf.expand_dims(base_anchors * [stride_hh, stride_ww, stride_hh, stride_ww], 0) + tf.cast(grid, base_anchors.dtype)
         anchors = tf.reshape(anchors, [-1, 4])
         all_anchors.append(anchors)
-    return tf.concat(all_anchors, axis=0) / [input_shape[0], input_shape[1], input_shape[0], input_shape[1]]
+    all_anchors = tf.concat(all_anchors, axis=0) / [input_shape[0], input_shape[1], input_shape[0], input_shape[1]]
+    # if width_first:
+    #      all_anchors = tf.gather(all_anchors, [1, 0, 3, 2], axis=-1)
+    return all_anchors
 
 
 def iou_nd(bboxes, anchors):
@@ -281,7 +287,7 @@ def init_dataset(
     buffer_size=1000,
     info_only=False,
     anchor_pyramid_levels=[3, 7],
-    anchor_aspect_ratios=[0.5, 1, 2],
+    anchor_aspect_ratios=[1, 2, 0.5],
     anchor_num_scales=3,
     anchor_scale=4,
     rescale_mode="torch",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`

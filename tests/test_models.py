@@ -316,3 +316,28 @@ def test_EfficientDet_header():
     mm = keras_cv_attention_models.efficientdet.EfficientDet(bb)
 
     assert mm.output_shape == (None, 12276, 94)
+
+def test_YOLOXTiny_predict():
+    mm = keras_cv_attention_models.yolox.YOLOXTiny(pretrained="coco")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    assert pred.shape == (1, 3549, 85)
+
+    pred_label = mm.decode_predictions(pred)[0][1]
+    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+
+
+def test_YOLOXS_dynamic_predict():
+    mm = keras_cv_attention_models.yolox.YOLOXS(input_shape=(None, None, 3), pretrained="coco")
+    input_shape = (512, 640, 3)
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
+    assert pred.shape == (1, 6720, 85)
+
+    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1]
+    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+
+
+def test_YOLOX_header():
+    bb = keras_cv_attention_models.efficientnet.EfficientNetV2B1(input_shape=(256, 256, 3), num_classes=0, pretrained=None)
+    mm = keras_cv_attention_models.yolox.YOLOX(bb)
+
+    assert mm.output_shape == (None, 1344, 85)

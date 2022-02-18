@@ -4,6 +4,7 @@ from keras_cv_attention_models.coco.data import (
     COCO_80_LABEL_DICT,
     COCO_90_LABEL_DICT,
     COCO_80_to_90_LABEL_DICT,
+    decode_bboxes,
     get_anchors,
     init_dataset,
     show_image_with_bboxes,

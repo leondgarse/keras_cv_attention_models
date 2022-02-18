@@ -15,15 +15,15 @@
     - `V1` means `ResNetV1` like. Conv shortcut branch: `output = conv_shortcut(input) + block(prenorm(input))`. Identity branch: `output = input + block(prenorm(input))`.
     - `V2` means `ResNetV2` like. Conv shortcut branch: `prenorm_input = prenorm(input), output = conv_shortcut(prenorm_input) + block(prenorm_input)`. Identity branch: `output = input + block(prenorm(input))`.
 
-    | Model                     | stem              | res_MBConv block   | res_mhsa block     | res_ffn block     | Best top1  |
-    | ------------------------- | ----------------- | ------------------ | ------------------ | ----------------- | ---------- |
-    | CoAtNet0_8                | conv,bn,gelu,conv | prenorm bn+gelu,V2 | prenorm bn+gelu,V2 | bn,conv,gelu,conv | 0.8010     |
-    | CoAtNet0_11               | conv,bn,gelu,conv | prenorm bn,V2      | prenorm bn,V2      | bn,conv,gelu,conv | 0.8016     |
-    | CoAtNet0_15               | conv,bn,gelu,conv | prenorm bn,V2      | prenorm ln,V2      | ln,conv,gelu,conv | 0.7999     |
-    | CoAtNet0_16               | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | 0.8019     |
-    | - drop_connect 0.05       | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | 0.8017     |
-    | - wd exec pos_emb         | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | **0.8050** |
-    | - wd exec pos_emb, mag 10 | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | 0.8024     |
+    | Model                    | stem              | res_MBConv block   | res_mhsa block     | res_ffn block     | Best top1  |
+    | ------------------------ | ----------------- | ------------------ | ------------------ | ----------------- | ---------- |
+    | CoAtNet0_8               | conv,bn,gelu,conv | prenorm bn+gelu,V2 | prenorm bn+gelu,V2 | bn,conv,gelu,conv | 0.8010     |
+    | CoAtNet0_11              | conv,bn,gelu,conv | prenorm bn,V2      | prenorm bn,V2      | bn,conv,gelu,conv | 0.8016     |
+    | CoAtNet0_15              | conv,bn,gelu,conv | prenorm bn,V2      | prenorm ln,V2      | ln,conv,gelu,conv | 0.7999     |
+    | CoAtNet0_16              | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | 0.8019     |
+    | - drop_connect 0.05      | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | 0.8017     |
+    | - wd exc pos_emb         | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | **0.8050** |
+    | - wd exc pos_emb, mag 10 | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | 0.8024     |
   - **Training**. Using `A3` recipe with `batch_size=128, input_shape=(160, 160)`. Weight decay excluding positional embedding is default behavior now.
     ```sh
     CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py -m coatnet.CoAtNet0 \
@@ -40,14 +40,14 @@
     --additional_model_kwargs '{"drop_connect_rate": 0.05}' --magnitude 10 \
     -s coatnet.CoAtNet0_ft_224_lr_steps_32_lr4e3_drc005_magnitude_10
     ```
-    | magnitude               | drop_connect_rate | Best val loss, acc                                                              |
-    | ----------------------- | ----------------- | ------------------------------------------------------------------------------- |
-    | 6                       | 0                 | Epoch 35/37 loss: 0.0023 - acc: 0.7288 - val_loss: 0.0012 - val_acc: 0.8160     |
-    | 7                       | 0                 | Epoch 34/37 loss: 0.0024 - acc: 0.7218 - val_loss: 0.0012 - val_acc: 0.8161     |
-    | 7                       | 0.05              | Epoch 36/37 loss: 0.0026 - acc: 0.7026 - val_loss: 0.0011 - val_acc: 0.8193     |
-    | 7                       | 0.2               | Epoch 34/37 loss: 0.0030 - acc: 0.6658 - val_loss: 0.0011 - val_acc: 0.8176     |
-    | 10                      | 0.05              | Epoch 36/37 loss: 0.0028 - acc: 0.6783 - val_loss: 0.0011 - val_acc: 0.8199     |
-    | wd exec pos_emb, mag 10 | 0.05              | Epoch 35/37 loss: 0.0028 - acc: 0.6811 - val_loss: 0.0011 - val_acc: **0.8206** |
+    | magnitude              | drop_connect_rate | Best val loss, acc                                                              |
+    | ---------------------- | ----------------- | ------------------------------------------------------------------------------- |
+    | 6                      | 0                 | Epoch 35/37 loss: 0.0023 - acc: 0.7288 - val_loss: 0.0012 - val_acc: 0.8160     |
+    | 7                      | 0                 | Epoch 34/37 loss: 0.0024 - acc: 0.7218 - val_loss: 0.0012 - val_acc: 0.8161     |
+    | 7                      | 0.05              | Epoch 36/37 loss: 0.0026 - acc: 0.7026 - val_loss: 0.0011 - val_acc: 0.8193     |
+    | 7                      | 0.2               | Epoch 34/37 loss: 0.0030 - acc: 0.6658 - val_loss: 0.0011 - val_acc: 0.8176     |
+    | 10                     | 0.05              | Epoch 36/37 loss: 0.0028 - acc: 0.6783 - val_loss: 0.0011 - val_acc: 0.8199     |
+    | wd exc pos_emb, mag 10 | 0.05              | Epoch 35/37 loss: 0.0028 - acc: 0.6811 - val_loss: 0.0011 - val_acc: **0.8206** |
 
     ![coatnet0_ft_224](https://user-images.githubusercontent.com/5744524/154603674-b736313b-a65e-4dac-8a88-9c1e52135871.png)
 ## Usage

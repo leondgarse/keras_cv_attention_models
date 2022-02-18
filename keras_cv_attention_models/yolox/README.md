@@ -1,10 +1,10 @@
 # ___Keras YOLOX___
 ***
 
-- **Not ready**
 ## Summary
   - Keras implementation of [Megvii-BaseDetection/YOLOX](https://github.com/Megvii-BaseDetection/YOLOX). Model weights converted from official publication.
   - [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
+  - Model ouputs are slightly modified for better compiling with already existing implementations. That `YOLOXHeader` output changed from `[bboxes, object_scores, class_scores]` to `[bboxes, class_scores, object_scores]`, and `bboxes` format changed from `[left, top, right, bottom]` to `[top, left, bottom, right]`.
 ## Models
 
   | Model     | Params | Image resolution | COCO test AP | Download |
@@ -16,29 +16,54 @@
   | YOLOXL    | 54.2M  | 640              | 50.1         | [yolox_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_l_coco.h5) |
   | YOLOXX    | 99.1M  | 640              | 51.5         | [yolox_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_x_coco.h5) |
 ## Usage
-## Verification with PyTorch version
-  ```py
-  inputs = np.random.uniform(size=(1, 640, 640, 3)).astype("float32")
+  - **Basic usage**
+    ```py
+    from keras_cv_attention_models import yolox
+    model = yolox.YOLOXS(pretrained="coco")
 
-  """ PyTorch yolox_s """
-  sys.path.append('../YOLOX/')
-  from exps.default import yolox_s
-  import torch
-  yolo_model = yolox_s.Exp()
-  torch_model = yolo_model.get_model()
-  _ = torch_model.eval()
-  weight = torch.load('yolox_s.pth', map_location=torch.device('cpu'))["model"]
-  torch_model.load_state_dict(weight)
-  torch_model.head.decode_in_inference = False
-  torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2)).detach().numpy()
+    # Run prediction
+    from keras_cv_attention_models import test_images
+    imm = test_images.dog_cat()
+    bboxs, lables, confidences = model.decode_predictions(model(model.preprocess_input(imm)))[0]
 
-  """ Keras YOLOXS """
-  from keras_cv_attention_models.yolox import yolox
-  mm = yolox.YOLOXS(pretrained="coco")
-  keras_out = mm(inputs)
-  keras_out = tf.concat([tf.reshape(ii, [-1, ii.shape[1] * ii.shape[2], ii.shape[3]]) for ii in keras_out], axis=1).numpy()
+    # Show result
+    from keras_cv_attention_models.coco import data
+    data.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=80)
+    ```
+    ![yoloxs_dog_cat](https://user-images.githubusercontent.com/5744524/154664084-d250171f-54ab-496c-916f-522698717010.png)
+  - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. Currently using `keras.layers.UpSampling2D` for upsampling, thus actual `input_shape` should be dividable by `32`.
+    ```py
+    from keras_cv_attention_models import yolox
+    model = yolox.YOLOXTiny(input_shape=(None, None, 3), pretrained="coco")
+    # >>>> Load pretrained from: ~/.keras/models/yolox_tiny_coco.h5
+    print(model.input_shape, model.output_shape)
+    # (None, None, None, 3) (None, None, 85)
+    print(model(tf.ones([1, 768, 768, 3])).shape)
+    # (1, 12096, 85)
+    print(model(tf.ones([1, 160, 256, 3])).shape)
+    # (1, 840, 85)
 
-  """ Verification """
-  print(f"{np.allclose(torch_out, keras_out, atol=1e-4) = }")
-  # np.allclose(torch_out, keras_out, atol=1e-4) = True
-  ```
+    from keras_cv_attention_models import test_images
+    imm = test_images.dog_cat()
+    input_shape = (320, 224, 3)
+    preds = model(model.preprocess_input(imm, input_shape=input_shape))
+    bboxs, lables, confidences = model.decode_predictions(preds, input_shape=input_shape)[0]
+
+    # Show result
+    from keras_cv_attention_models.coco import data
+    data.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=80)
+    ```
+    ![yoloxs_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/154664094-0dccbceb-e7c3-495e-b98e-9290eb5b6944.png)
+## Custom detector using YOLOX header
+  - `Backbone` for `YOLOX` can be any model with pyramid stage structure. Default `width_mul=-1` means using `min([ii.shape[-1] for ii in features]) / 256`.
+    ```py
+    from keras_cv_attention_models import efficientnet, yolox
+    bb = efficientnet.EfficientNetV2B1(input_shape=(256, 256, 3), num_classes=0)
+    mm = yolox.YOLOX(backbone=bb)
+    # >>>> features: {'stack_2_block2_output': (None, 32, 32, 48),
+    #                 'stack_4_block5_output': (None, 16, 16, 112),
+    #                 'stack_5_block8_output': (None, 8, 8, 192)}
+    # >>>> width_mul: 0.1875
+
+    mm.summary()  # Trainable params: 7,762,115
+    ```

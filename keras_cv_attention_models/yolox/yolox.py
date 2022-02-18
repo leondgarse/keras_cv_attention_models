@@ -9,20 +9,22 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models.download_and_load import reload_model_weights
+from keras_cv_attention_models.coco.eval_func import DecodePredictions
 
 PRETRAINED_DICT = {
-    "yolox_nano": {"coco": "5dc6fee05eb6d3c7b0a37ce2e325fa3a"},
-    "yolox_tiny": {"coco": "82abff6cf99e59a70ac771ff68f6c423"},
-    "yolox_s": {"coco": "e1c4158441718de9d62d1a1190a62979"},
-    "yolox_m": {"coco": "600e5c097a8bee365194b7a9bad3dc2a"},
-    "yolox_l": {"coco": "be2fabc4b06bd9160950e6296b66b482"},
-    "yolox_x": {"coco": "7bd3915759e9c03e906429df98ac6d28"},
+    "yolox_nano": {"coco": "b1ca53fe397bdad555cb23545c37173e"},
+    "yolox_tiny": {"coco": "1435755e8f9e345b542333f948b8bf57"},
+    "yolox_s": {"coco": "1645bab9e473bc21a5211e45dba4617d"},
+    "yolox_m": {"coco": "f8c1a71aca867b910d5398d8e68a5905"},
+    "yolox_l": {"coco": "867bceeff68651bff112f031cd37e05e"},
+    "yolox_x": {"coco": "10e0c6311b5efca8ff8ced0ddacbef04"},
 }
 
 
 """ CSPDarknet backbone """
 BATCH_NORM_EPSILON = 1e-3
 BATCH_NORM_MOMENTUM = 0.03
+YOLO_ANCHORS_PARAM = {"pyramid_levels": [3, 5], "aspect_ratios": [1], "num_scales" :1, "anchor_scale": 1, "grid_zero_start": True}
 
 
 def conv_dw_pw_block(inputs, filters, kernel_size=1, strides=1, use_depthwise_conv=False, activation="swish", name=""):
@@ -167,7 +169,7 @@ def yolox_head_single(inputs, out_channels, num_classes=80, num_anchors=1, use_d
     # obj_preds
     obj_out = keras.layers.Conv2D(1 * num_anchors, kernel_size=1, bias_initializer=bias_init, name=name + "object_out")(reg_nn)
     obj_out = activation_by_name(obj_out, "sigmoid", name=name + "object_out")
-    return tf.concat([reg_out, obj_out, cls_out], axis=-1)
+    return tf.concat([reg_out, cls_out, obj_out], axis=-1)
 
 
 def YOLOXHead(inputs, width_mul=1.0, num_classes=80, num_anchors=1, use_depthwise_conv=False, activation="swish", name=""):
@@ -177,7 +179,7 @@ def YOLOXHead(inputs, width_mul=1.0, num_classes=80, num_anchors=1, use_depthwis
         cur_name = name + "{}_".format(id + 1)
         out = yolox_head_single(input, out_channel, num_classes, num_anchors, use_depthwise_conv, activation=activation, name=cur_name)
         outputs.append(out)
-    # outputs = tf.concat([tf.reshape(ii, [-1, ii.shape[1] * ii.shape[2], ii.shape[3]]) for ii in outputs], axis=1)
+    outputs = tf.concat([keras.layers.Reshape([-1, ii.shape[-1]])(ii) for ii in outputs], axis=1)
     return outputs
 
 
@@ -188,7 +190,7 @@ def YOLOX(
     backbone=None,
     features_pick=[-3, -2, -1],
     depth_mul=1,
-    width_mul=-1,  # -1 means: `min([ii.output_shape[-1] for ii in features]) / 256` for custom backbones.
+    width_mul=-1,  # -1 means: `min([ii.shape[-1] for ii in features]) / 256` for custom backbones.
     use_depthwise_conv=False,
     activation="swish",
     freeze_backbone=False,
@@ -210,7 +212,8 @@ def YOLOX(
             features = [features[id] for id in features_pick]
         print(">>>> features:", {ii.name: ii.output_shape for ii in features})
         features = [ii.output for ii in features]
-        width_mul = width_mul if width_mul > 0 else min([ii.output_shape[-1] for ii in features]) / 256
+        width_mul = width_mul if width_mul > 0 else min([ii.shape[-1] for ii in features]) / 256
+        print(">>>> width_mul:", width_mul)
 
     if freeze_backbone:
         backbone.trainable = False
@@ -221,6 +224,7 @@ def YOLOX(
     fpn_features = path_aggregation_fpn(features, depth_mul=depth_mul, use_depthwise_conv=use_depthwise_conv, activation=activation, name="pafpn_")
     output = YOLOXHead(fpn_features, width_mul, num_classes, num_anchors, use_depthwise_conv, activation=activation, name="head_")
     model = keras.models.Model(inputs, output, name=model_name)
+    add_pre_post_process(model, rescale_mode="raw", post_process=DecodePredictions(backbone.input_shape[1:], with_object_score=True, **YOLO_ANCHORS_PARAM))
     reload_model_weights(model, PRETRAINED_DICT, "yolox", pretrained)
     return model
 

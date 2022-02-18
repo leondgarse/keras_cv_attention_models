@@ -5,8 +5,8 @@ from tqdm import tqdm
 
 
 class DecodePredictions:
-    def __init__(self, input_shape=(512, 512, 3), pyramid_levels=[3, 7], anchor_scale=4, **kwargs):
-        self.anchor_scale, self.kwargs = anchor_scale, kwargs
+    def __init__(self, input_shape=(512, 512, 3), pyramid_levels=[3, 7], anchor_scale=4, with_object_score=False, **kwargs):
+        self.anchor_scale, self.with_object_score, self.kwargs = anchor_scale, with_object_score, kwargs
         self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
         if input_shape[0] is not None:
             self.__init_anchor__(input_shape)
@@ -54,12 +54,19 @@ class DecodePredictions:
         if input_shape is not None:
             self.__init_anchor__(input_shape)
 
+        if self.with_object_score: # YOLO outputs: [bboxes, classses_score, object_score]
+            pred, object_scores = pred[:, :-1], pred[:, -1]
+
         if topk > 0:
             bbs, ccs, labels, picking_indices = self.__topk_class_boxes_single__(pred, topk)
             anchors = tf.gather(self.anchors, picking_indices)
+            if self.with_object_score:
+                ccs *= tf.gather(object_scores, picking_indices)
         else:
             bbs, ccs, labels = pred[:, :4], tf.reduce_max(pred[:, 4:], axis=-1), tf.argmax(pred[:, 4:], axis=-1)
             anchors = self.anchors
+            if self.with_object_score:
+                ccs *= object_scores
 
         bbs_decoded = data.decode_bboxes(bbs, anchors)
         iou_threshold, soft_nms_sigma = (1.0, iou_or_sigma / 2) if method.lower() == "gaussian" else (iou_or_sigma, 0.0)

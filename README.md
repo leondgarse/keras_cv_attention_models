@@ -565,7 +565,6 @@
   | EfficientDetLite4  | 15.1M  | 640              | 43.18        | [efficientdet_lite4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite4_640_coco.h5) |
 ## YOLOX
   - [Keras YOLOX](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolox) includes implementation of [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
-  - **Not ready**
 
   | Model     | Params | Image resolution | COCO test AP | Download |
   | --------- | ------ | ---------------- | ------------ | -------- |
