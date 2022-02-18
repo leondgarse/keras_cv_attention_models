@@ -300,6 +300,7 @@ def test_EfficientDetD1_dynamic_predict():
     pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1]
     assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
 
+
 def test_EfficientDetLite1_dynamic_predict():
     mm = keras_cv_attention_models.efficientdet.EfficientDetLite1(input_shape=(None, None, 3), pretrained="coco")
     input_shape = (376, 227, 3)

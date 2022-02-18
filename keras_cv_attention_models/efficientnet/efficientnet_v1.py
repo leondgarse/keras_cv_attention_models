@@ -98,6 +98,7 @@ def EfficientNetV1L2(input_shape=(800, 800, 3), num_classes=1000, dropout=0.5, c
     output_conv_filter = kwargs.pop("output_conv_filter", output_conv_filter)
     return EfficientNetV1(**locals(), model_name="efficientnet_v1-l2", **kwargs)
 
+
 # https://github.com/google/automl/tree/master/efficientdet/backbone/efficientnet_lite_builder.py
 def EfficientNetV1Lite0(input_shape=(320, 320, 3), num_classes=1000, dropout=0.2, classifier_activation="softmax", pretrained=None, **kwargs):
     out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.0, 1.0, fix_head_stem=True)

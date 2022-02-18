@@ -97,27 +97,47 @@ def state_dict_stack_by_layer(state_dict, skip_weights=["num_batches_tracked"], 
 
 def match_layer_names_with_torch(target_names, tail_align_dict={}, full_name_align_dict={}, tail_split_position=2):
     layer_names_matched_torch = [""] * len(target_names)
+    raw_id_dict = {ii: id for id, ii in enumerate(target_names)}
+
     # is_tail_align_dict_split_by_stack = len(tail_align_dict) > 0 and isinstance(list(tail_align_dict.values())[0], dict)
     for id, ii in enumerate(target_names):
         name_split = ii.split("_")
         stack_name = name_split[0]
+        head_name = "_".join(name_split[:tail_split_position])
         tail_name = "_".join(name_split[tail_split_position:])
         # cur_tail_align_dict = tail_align_dict[stack_name] if is_tail_align_dict_split_by_stack else tail_align_dict
         cur_tail_align_dict = tail_align_dict.get(stack_name, tail_align_dict)
         # print("id = {}, ii = {}, stack_name = {}, tail_name = {}".format(id, ii, stack_name, tail_name))
         if ii in full_name_align_dict:
             align = full_name_align_dict[ii]
-            align = id + align if align < 0 else align
+            if isinstance(align, str):
+                align = raw_id_dict[align]
+            else:
+                align = id + align if align < 0 else align
             layer_names_matched_torch.insert(align, ii)
             layer_names_matched_torch.pop(-1)
         elif tail_name in cur_tail_align_dict:
             align = cur_tail_align_dict[tail_name]
-            align = id + align if align < 0 else align
+            if isinstance(align, str):
+                align = raw_id_dict[head_name + "_" + align]
+            else:
+                align = id + align if align < 0 else align
             layer_names_matched_torch.insert(align, ii)
             layer_names_matched_torch.pop(-1)
         else:
             layer_names_matched_torch[id] = ii
     return layer_names_matched_torch
+
+
+def align_layer_names_multi_stage(target_names, tail_align_dict={}, full_name_align_dict={}, tail_split_position=2, specific_match_func=None):
+    if isinstance(tail_split_position, int):
+        tail_align_dict, full_name_align_dict, tail_split_position = [tail_align_dict], [full_name_align_dict], [tail_split_position]
+    for ii, jj, kk in zip(tail_align_dict, full_name_align_dict, tail_split_position):
+        target_names = match_layer_names_with_torch(target_names, ii, jj, kk)
+
+    if specific_match_func is not None:
+        target_names = specific_match_func(target_names)
+    return target_names
 
 
 def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_matched_torch, additional_transfer={}, save_name=None):
@@ -205,6 +225,7 @@ def keras_reload_from_torch_model(
     full_name_align_dict={},
     tail_split_position=2,
     additional_transfer={},
+    specific_match_func=None,
     save_name=None,
     do_convert=True,
 ):
@@ -225,17 +246,20 @@ def keras_reload_from_torch_model(
     img = keras.applications.imagenet_utils.preprocess_input(tf.image.resize(img, input_shape), mode="torch").numpy()
 
     if not is_state_dict:
-        from torchsummary import summary
-
         _ = torch_model.eval()
-        summary(torch_model, (3, *input_shape), device="cpu")
         state_dict = torch_model.state_dict()
 
-        """ Torch Run predict """
-        out = torch_model(torch.from_numpy(np.expand_dims(img.transpose(2, 0, 1), 0).astype("float32")))
-        out = out.detach().cpu().numpy()
-        # out = tf.nn.softmax(out).numpy()  # If classifier activation is not softmax
-        torch_out = keras.applications.imagenet_utils.decode_predictions(out)
+        try:
+            from torchsummary import summary
+
+            # summary(torch_model, (3, *input_shape), device="cpu")
+            """ Torch Run predict """
+            out = torch_model(torch.from_numpy(np.expand_dims(img.transpose(2, 0, 1), 0).astype("float32")))
+            out = out.detach().cpu().numpy()
+            # out = tf.nn.softmax(out).numpy()  # If classifier activation is not softmax
+            torch_out = keras.applications.imagenet_utils.decode_predictions(out)
+        except:
+            pass
     else:
         state_dict = torch_model
 
@@ -259,9 +283,9 @@ def keras_reload_from_torch_model(
     print()
 
     """ Load torch weights and save h5 """
-    if len(tail_align_dict) != 0 or len(full_name_align_dict) != 0:
-        layer_names_matched_torch = match_layer_names_with_torch(target_names, tail_align_dict, full_name_align_dict, tail_split_position)
-        aa = {keras_model.get_layer(ii).name: [jj.shape.as_list() for jj in keras_model.get_layer(ii).weights] for ii in layer_names_matched_torch}
+    if len(tail_align_dict) != 0 or len(full_name_align_dict) != 0 or specific_match_func is not None:
+        aligned_names = align_layer_names_multi_stage(target_names, tail_align_dict, full_name_align_dict, tail_split_position, specific_match_func)
+        aa = {keras_model.get_layer(ii).name: [jj.shape.as_list() for jj in keras_model.get_layer(ii).weights] for ii in aligned_names}
         print(">>>> Keras weights matched torch:")
         _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
         print()
@@ -271,7 +295,7 @@ def keras_reload_from_torch_model(
 
     save_name = save_name if save_name is not None else keras_model.name + "_imagenet.h5"
     print(">>>> Keras reload torch weights:")
-    keras_reload_stacked_state_dict(keras_model, stacked_state_dict, layer_names_matched_torch, additional_transfer, save_name=save_name)
+    keras_reload_stacked_state_dict(keras_model, stacked_state_dict, aligned_names, additional_transfer, save_name=save_name)
     print()
 
     """ Keras run predict """

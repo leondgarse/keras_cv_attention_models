@@ -57,7 +57,7 @@ def activation_by_name(inputs, activation="relu", name=None):
         return keras.layers.Activation(activation=activation, name=layer_name)(inputs)
 
 
-def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, epsilon=BATCH_NORM_EPSILON, act_first=False, name=None):
+def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_DECAY, act_first=False, name=None):
     """ Performs a batch normalization followed by an activation. """
     bn_axis = -1 if K.image_data_format() == "channels_last" else 1
     gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
@@ -65,7 +65,7 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, epsil
         inputs = activation_by_name(inputs, activation=activation, name=name)
     nn = keras.layers.BatchNormalization(
         axis=bn_axis,
-        momentum=BATCH_NORM_DECAY,
+        momentum=momentum,
         epsilon=epsilon,
         gamma_initializer=gamma_initializer,
         name=name and name + "bn",
