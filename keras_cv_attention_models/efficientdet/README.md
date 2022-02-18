@@ -34,7 +34,8 @@
     # Run prediction
     from keras_cv_attention_models import test_images
     imm = test_images.dog_cat()
-    bboxs, lables, confidences = model.decode_predictions(model(model.preprocess_input(imm)))[0]
+    preds = model(model.preprocess_input(imm))
+    bboxs, lables, confidences = model.decode_predictions(preds)[0]
 
     # Show result
     from keras_cv_attention_models.coco import data

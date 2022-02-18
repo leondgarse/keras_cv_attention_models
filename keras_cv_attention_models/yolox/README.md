@@ -24,7 +24,8 @@
     # Run prediction
     from keras_cv_attention_models import test_images
     imm = test_images.dog_cat()
-    bboxs, lables, confidences = model.decode_predictions(model(model.preprocess_input(imm)))[0]
+    preds = model(model.preprocess_input(imm))
+    bboxs, lables, confidences = model.decode_predictions(preds)[0]
 
     # Show result
     from keras_cv_attention_models.coco import data
@@ -53,7 +54,7 @@
     from keras_cv_attention_models.coco import data
     data.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=80)
     ```
-    ![yoloxs_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/154664094-0dccbceb-e7c3-495e-b98e-9290eb5b6944.png)
+    ![yoloxtiny_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/154664094-0dccbceb-e7c3-495e-b98e-9290eb5b6944.png)
 ## Custom detector using YOLOX header
   - `Backbone` for `YOLOX` can be any model with pyramid stage structure. Default `width_mul=-1` means using `min([ii.shape[-1] for ii in features]) / 256`.
     ```py

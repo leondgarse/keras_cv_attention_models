@@ -98,7 +98,7 @@ Model architectures:
   | ResNet50D  | 25.58M | 224              | 80.530   |
   | ResNet101D | 44.57M | 224              | 83.022   |
   | ResNet152D | 60.21M | 224              | 83.680   |
-  | ResNet200D | 64.69  | 224              | 83.962   |
+  | ResNet200D | 64.69M | 224              | 83.962   |
 """
 
 __resnetd_default_doc__ = __resnetd_head_doc__ + """
