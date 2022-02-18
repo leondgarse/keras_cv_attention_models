@@ -61,7 +61,8 @@ def init_optimizer(optimizer, lr_base, weight_decay):
     import tensorflow_addons as tfa
 
     optimizer = optimizer.lower()
-    norm_weights = ["bn/gamma", "bn/beta", "ln/gamma", "ln/beta", "/positional_embedding"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
+    # norm_weights = ["bn/gamma", "bn/beta", "ln/gamma", "ln/beta", "/positional_embedding", "/bias"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
+    norm_weights = ["/gamma", "/beta", "/positional_embedding", "/bias"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
     if optimizer == "sgd":
         optimizer = keras.optimizers.SGD(learning_rate=lr_base, momentum=0.9)
     elif optimizer == "rmsprop":

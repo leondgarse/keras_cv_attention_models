@@ -36,6 +36,7 @@
   - [VOLO](#volo)
 - [Detection Models](#detection-models)
   - [EfficientDet](#efficientdet)
+  - [YOLOX](#yolox)
 - [Other implemented tensorflow or keras models](#other-implemented-tensorflow-or-keras-models)
 
 <!-- /TOC -->
@@ -290,8 +291,8 @@
 
   | Model                               | Params | Image resolution | Top1 Acc | Download |
   | ----------------------------------- | ------ | ---------------- | -------- | -------- |
-  | CoAtNet0 (Self trained 105 epochs)  | 23.8M  | 160              | 80.19    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
-  | - fine-tune 224, 37 epochs          | 23.8M  | 224              | 81.99    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
+  | CoAtNet0 (Self trained 105 epochs)  | 23.8M  | 160              | 80.50    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
+  | - fine-tune 224, 37 epochs          | 23.8M  | 224              | 82.06    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
   | CoAtNet0                            | 25M    | 224              | 81.6     |          |
   | CoAtNet0, Strided DConv             | 25M    | 224              | 82.0     |          |
   | CoAtNet1                            | 42M    | 224              | 83.3     |          |
@@ -562,6 +563,18 @@
   | EfficientDetLite3  | 8.4M   | 512              | 38.77        | [efficientdet_lite3.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3_512_coco.h5) |
   | EfficientDetLite3X | 9.3M   | 640              | 42.64        | [efficientdet_lite3x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3x_640_coco.h5) |
   | EfficientDetLite4  | 15.1M  | 640              | 43.18        | [efficientdet_lite4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite4_640_coco.h5) |
+## YOLOX
+  - [Keras YOLOX](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolox) includes implementation of [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
+  - **Not ready**
+
+  | Model     | Params | Image resolution | COCO test AP | Download |
+  | --------- | ------ | ---------------- | ------------ | -------- |
+  | YOLOXNano | 0.91M  | 416              | 25.8         | [yolox_nano_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_nano_coco.h5) |
+  | YOLOXTiny | 5.06M  | 416              | 32.8         | [yolox_tiny_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_tiny_coco.h5) |
+  | YOLOXS    | 9.0M   | 640              | 40.5         | [yolox_s_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_s_coco.h5)       |
+  | YOLOXM    | 25.3M  | 640              | 47.2         | [yolox_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_m_coco.h5)       |
+  | YOLOXL    | 54.2M  | 640              | 50.1         | [yolox_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_l_coco.h5)       |
+  | YOLOXX    | 99.1M  | 640              | 51.5         | [yolox_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_x_coco.h5)       |
 ***
 
 # Other implemented tensorflow or keras models
