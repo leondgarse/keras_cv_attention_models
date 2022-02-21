@@ -319,6 +319,7 @@ def init_mean_std_by_rescale_mode(rescale_mode):
         std = tf.constant([0.229, 0.224, 0.225]) * 255.0
     elif rescale_mode == "tf":
         # mean, std = 128.0, 128.0
+        # mean, std = 127.5, 127.5
         mean, std = 127.5, 128.0 # [0, 255] -> [-1, 1]
     elif rescale_mode == "raw01":
         mean, std = 0, 255.0 # [0, 255] -> [0, 1]

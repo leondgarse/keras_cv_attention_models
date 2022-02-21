@@ -12,12 +12,12 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.coco.eval_func import DecodePredictions
 
 PRETRAINED_DICT = {
-    "yolox_nano": {"coco": "b1ca53fe397bdad555cb23545c37173e"},
-    "yolox_tiny": {"coco": "1435755e8f9e345b542333f948b8bf57"},
-    "yolox_s": {"coco": "1645bab9e473bc21a5211e45dba4617d"},
-    "yolox_m": {"coco": "f8c1a71aca867b910d5398d8e68a5905"},
-    "yolox_l": {"coco": "867bceeff68651bff112f031cd37e05e"},
-    "yolox_x": {"coco": "10e0c6311b5efca8ff8ced0ddacbef04"},
+    "yolox_nano": {"coco": "7c97d60d4cc9d54321176f844acee627"},
+    "yolox_tiny": {"coco": "f9b51ff24290090c86a10a45f811140b"},
+    "yolox_s": {"coco": "a989f5a808ddc4a8242157a6a3e64977"},
+    "yolox_m": {"coco": "5c2333d2f12b2f48e3ec8555b29d242f"},
+    "yolox_l": {"coco": "a07c48994b7a67dba421025ef39b858b"},
+    "yolox_x": {"coco": "de9741d3f67f50c54856bcae0f07b7ef"},
 }
 
 

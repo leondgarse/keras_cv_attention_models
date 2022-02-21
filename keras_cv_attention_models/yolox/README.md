@@ -68,3 +68,49 @@
 
     mm.summary()  # Trainable params: 7,762,115
     ```
+## Verification with PyTorch version
+  ```py
+  inputs = np.random.uniform(size=(1, 640, 640, 3)).astype("float32")
+
+  """ PyTorch yolox_s """
+  sys.path.append('../YOLOX/')
+  from exps.default import yolox_s as torch_yolox
+  import torch
+  yolo_model = torch_yolox.Exp()
+  torch_model = yolo_model.get_model()
+  _ = torch_model.eval()
+  weight = torch.load('yolox_s.pth', map_location=torch.device('cpu'))["model"]
+  torch_model.load_state_dict(weight)
+  torch_model.head.decode_in_inference = False
+  torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2))
+
+  """ Keras YOLOXS """
+  from keras_cv_attention_models.yolox import yolox
+  mm = yolox.YOLOXS(pretrained="coco")
+  keras_out = mm(inputs).numpy()
+  # [top, left, bottom, right, *class_scores, object_score] -> [left, top, right, bottom ,object_score, *class_scores]
+  keras_out_reorder = np.concatenate([keras_out[:, :, [1, 0, 3, 2]], keras_out[:, :, -1:], keras_out[:, :, 4:-1]], axis=-1)
+
+  """ Model outputs verification """
+  print(f"{np.allclose(torch_out.detach().numpy(), keras_out_reorder, atol=1e-4) = }")
+  # np.allclose(torch_out.detach().numpy(), keras_out, atol=1e-4) = True
+
+  """ Torch decode """
+  torch_decode = torch_model.head.decode_outputs(torch_out, torch_out.dtype).detach().numpy()[0]
+  hh, ww = inputs.shape[1], inputs.shape[2]
+  torch_center, torch_wh = torch_decode[:, :2] / [hh, ww], torch_decode[:, 2:4] / [hh, ww]
+  torch_decode = np.concatenate([torch_center - 0.5 * torch_wh, torch_center + 0.5 * torch_wh, torch_decode[:, 4:]], axis=-1)
+
+  """ Keras decode """
+  from keras_cv_attention_models import coco
+  anchors = coco.get_anchors(mm.input_shape[1:-1], pyramid_levels=[3, 5], aspect_ratios=[1], num_scales=1, anchor_scale=1, grid_zero_start=True)
+  keras_decode = coco.decode_bboxes(keras_out[0], anchors=anchors).numpy()
+
+  # [top, left, bottom, right, *class_scores, object_score] -> [left, top, right, bottom ,object_score, *class_scores]
+
+  keras_decode = np.concatenate([keras_decode[:, [1, 0, 3, 2]], keras_decode[:, -1:], keras_decode[:, 4:-1]], axis=-1)
+
+  """ Decode verification """
+  print(f"{np.allclose(torch_decode, keras_decode, atol=1e-4) = }")
+  # np.allclose(torch_decode, keras_decode, atol=1e-4) = True
+  ```

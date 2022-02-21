@@ -197,7 +197,7 @@ def run_coco_evaluation(
     eval_dataset = init_eval_dataset(data_name, input_shape, batch_size, rescale_mode, resize_method, resize_antialias)
     if take_samples > 0:
         eval_dataset = eval_dataset.take(take_samples)
-    if hasattr(model, "decode_predictions"):
+    if hasattr(model, "decode_predictions") and model.decode_predictions is not None:
         pred_decoder = model.decode_predictions
     else:
         pred_decoder = DecodePredictions(input_shape, pyramid_levels=pyramid_levels, anchor_scale=anchor_scale, **anchor_kwargs)
