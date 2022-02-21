@@ -59,11 +59,11 @@ if __name__ == "__main__":
         model_class = getattr(getattr(keras_cv_attention_models, model[0]), model[1])
         model_kwargs = {}
         if input_shape:
-            model_kwargs.update({"input_shape", input_shape})
+            model_kwargs.update({"input_shape": input_shape})
         if args.num_classes:
-            model_kwargs.update({"num_classes", args.num_classes})
+            model_kwargs.update({"num_classes": args.num_classes})
         if args.pretrained:
-            model_kwargs.update({"pretrained", args.pretrained})
+            model_kwargs.update({"pretrained": args.pretrained})
         print(">>>> model_kwargs:", model_kwargs)
         model = model_class(**model_kwargs)
 

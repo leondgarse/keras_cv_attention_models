@@ -44,7 +44,7 @@ def coco_train_parse_arguments(argv):
         "--anchor_aspect_ratios",
         type=float,
         nargs="+",
-        default=[0.5, 1, 2],
+        default=[1, 2, 0.5],
         help="Anchor aspect ratios, `num_anchors = len(anchor_aspect_ratios) * anchor_num_scales`",
     )
     anchor_group.add_argument("--anchor_pyramid_levels", type=int, nargs="+", default=[3, 7], help="Anchor pyramid levels, 2 values indicates min max")

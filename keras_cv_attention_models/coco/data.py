@@ -287,7 +287,7 @@ def init_dataset(
     buffer_size=1000,
     info_only=False,
     anchor_pyramid_levels=[3, 7],
-    anchor_aspect_ratios=[1, 2, 0.5],
+    anchor_aspect_ratios=[1, 2, 0.5],   # [1, 2, 0.5] matches efficientdet anchors format.
     anchor_num_scales=3,
     anchor_scale=4,
     rescale_mode="torch",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`

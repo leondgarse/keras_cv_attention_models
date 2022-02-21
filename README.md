@@ -47,7 +47,7 @@
 
 # General Usage
 ## Basic
-  - **Currently recommended TF version is `tensorflow==2.8.0rc0`. Expecially for training or TFLite conversion**.
+  - **Currently recommended TF version is `tensorflow==2.8.0`. Expecially for training or TFLite conversion**.
   - **Default import**
     ```py
     import os
