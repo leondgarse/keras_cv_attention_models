@@ -31,7 +31,7 @@
     from keras_cv_attention_models.coco import data
     data.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=80)
     ```
-    ![yoloxs_dog_cat](https://user-images.githubusercontent.com/5744524/154664084-d250171f-54ab-496c-916f-522698717010.png)
+    ![yoloxs_dog_cat](https://user-images.githubusercontent.com/5744524/154924798-79a69e1b-40f3-4ac9-895f-0a15dd4ca9b3.png)
   - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. Currently using `keras.layers.UpSampling2D` for upsampling, thus actual `input_shape` should be dividable by `32`.
     ```py
     from keras_cv_attention_models import yolox
@@ -54,7 +54,7 @@
     from keras_cv_attention_models.coco import data
     data.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=80)
     ```
-    ![yoloxtiny_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/154664094-0dccbceb-e7c3-495e-b98e-9290eb5b6944.png)
+    ![yoloxtiny_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/154925006-0c5e1034-5d34-4762-937f-a914b4810a77.png)
 ## Custom detector using YOLOX header
   - `Backbone` for `YOLOX` can be any model with pyramid stage structure. Default `width_mul=-1` means using `min([ii.shape[-1] for ii in features]) / 256`.
     ```py
