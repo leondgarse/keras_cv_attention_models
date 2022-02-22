@@ -89,7 +89,7 @@
   mm = yolox.YOLOXS(pretrained="coco")
   keras_out = mm(inputs).numpy()
   # [top, left, bottom, right, *class_scores, object_score] -> [left, top, right, bottom ,object_score, *class_scores]
-  keras_out_reorder = np.concatenate([keras_out[:, :, [1, 0, 3, 2]], keras_out[:, :, -1:], keras_out[:, :, 4:-1]], axis=-1)
+  keras_out_reorder = np.concatenate([keras_out[:, :, [1, 0, 3, 2, -1]], keras_out[:, :, 4:-1]], axis=-1)
 
   """ Model outputs verification """
   print(f"{np.allclose(torch_out.detach().numpy(), keras_out_reorder, atol=1e-4) = }")
@@ -107,8 +107,7 @@
   keras_decode = coco.decode_bboxes(keras_out[0], anchors=anchors).numpy()
 
   # [top, left, bottom, right, *class_scores, object_score] -> [left, top, right, bottom ,object_score, *class_scores]
-
-  keras_decode = np.concatenate([keras_decode[:, [1, 0, 3, 2]], keras_decode[:, -1:], keras_decode[:, 4:-1]], axis=-1)
+  keras_decode = np.concatenate([keras_decode[:, [1, 0, 3, 2, -1]], keras_decode[:, 4:-1]], axis=-1)
 
   """ Decode verification """
   print(f"{np.allclose(torch_decode, keras_decode, atol=1e-4) = }")

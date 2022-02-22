@@ -260,24 +260,25 @@ class RandomProcessImageWithBboxes:
         bbox, label, is_not_crowd = tf.cast(objects["bbox"], tf.float32), objects["label"], objects["is_crowd"] == False
         bbox, label = tf.boolean_mask(bbox, is_not_crowd), tf.boolean_mask(label, is_not_crowd)
 
+        image_shape_orign = tf.shape(image)
         if self.magnitude >= 0:
-            processed_image, bbox = random_flip_left_right_with_bboxes(processed_image, bbox)
+            image, bbox = random_flip_left_right_with_bboxes(image, bbox)
         if self.random_crop_min > 0 and self.random_crop_min < 1:
-            scale, offset_y, offset_x = get_image_aspect_aware_random_scale_crop(tf.shape(image), self.target_shape)
+            scale, offset_y, offset_x = get_image_aspect_aware_random_scale_crop(image_shape_orign, self.target_shape)
         else:
             scale, offset_y, offset_x = -1, 0, 0  # Evaluation
-        processed_image, scale = aspect_aware_resize_and_crop_image(
+        image, scale = aspect_aware_resize_and_crop_image(
             image, self.target_shape, scale, offset_y, offset_x, method=self.resize_method, antialias=self.resize_antialias
         )
-        bbox, label = resize_and_crop_bboxes(bbox, label, tf.shape(image), self.target_shape, scale, offset_y, offset_x)
+        bbox, label = resize_and_crop_bboxes(bbox, label, image_shape_orign, self.target_shape, scale, offset_y, offset_x)
 
         if self.magnitude > 0:
-            processed_image = self.randaug(processed_image)
+            image = self.randaug(image)
 
-        processed_image = tf.cast(processed_image, tf.float32)
-        processed_image.set_shape([*self.target_shape[:2], 3])
+        image = tf.cast(image, tf.float32)
+        image.set_shape([*self.target_shape[:2], 3])
 
-        return processed_image, (bbox, label)
+        return image, (bbox, label)
 
 
 def init_dataset(
