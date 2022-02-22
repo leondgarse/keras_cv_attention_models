@@ -42,7 +42,12 @@ setup(
     keywords="tensorflow keras cv attention pretrained models",
     packages=find_packages(exclude=["tests"]),
     include_package_data=True,
-    install_requires=["tensorflow", "tensorflow-addons", "tensorflow-datasets"],
+    install_requires=[
+        "tensorflow-macos;platform_system=='Darwin'",
+        "tensorflow;platform_system!='Darwin'",
+        "tensorflow-addons",
+        "tensorflow-datasets"
+    ],
     python_requires=">=3.6",
     license="Apache 2.0",
 )
