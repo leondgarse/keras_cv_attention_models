@@ -5,52 +5,6 @@ from tensorflow.keras.preprocessing.image import img_to_array, array_to_img
 
 
 def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_distribute=True, compute_dtype="float32"):
-    """https://github.com/tensorflow/models/blob/master/official/vision/image_classification/preprocessing.py
-    RandomResizedCrop related function.
-
-    For hh_crop = height, max_ww_crop = height * ratio[1], max_area_crop_1 = height * height * ratio[1]
-    For ww_crop = width, max_hh_crop = width / ratio[0], max_area_crop_2 = width * width / ratio[0]
-    ==> scale_max < min(max_area_crop_1, max_area_crop_2, scale[1])
-
-    As target_area selected:
-    For ww_crop = width, max_aspect_ratio = width / (target_area / width) = width * width / target_area
-    For hh_crop = height, min_aspect_ratio = (target_area / height) / height = target_area / (height * height)
-    ==> ratio in range (min_aspect_ratio, max_aspect_ratio)
-
-    Result:
-    ww_crop * hh_crop = target_area
-    ww_crop / hh_crop = aspect_ratio
-    ==> ww_crop = int(round(math.sqrt(target_area * aspect_ratio)))
-        hh_crop = int(round(math.sqrt(target_area / aspect_ratio)))
-
-    As outputs are converted int, for running 1e5 times, results are not exactly in scale and ratio range:
-    >>> from keras_cv_attention_models.imagenet import data
-    >>> aa = np.array([data.random_crop_fraction(size=(100, 100), ratio=(0.75, 4./3)) for _ in range(100000)])
-    >>> hhs, wws = aa[:, 0], aa[:, 1]
-    >>> print("Scale range:", ((hhs * wws).min() / 1e4, (hhs * wws).max() / 1e4))
-    # Scale range: (0.075, 0.9801)
-    >>> print("Ratio range:", ((wws / hhs).min(), (wws / hhs).max()))
-    # Ratio range: (0.7272727272727273, 1.375)
-
-    >>> fig, axes = plt.subplots(4, 1, figsize=(6, 8))
-    >>> pp = {
-    >>>     "ratio distribute": wws / hhs,
-    >>>     "scale distribute": wws * hhs / 1e4,
-    >>>     "height distribute": hhs,
-    >>>     "width distribute": wws,
-    >>> }
-    >>> for ax, kk in zip(axes, pp.keys()):
-    >>>     _ = ax.hist(pp[kk], bins=1000, label=kk)
-    >>>     ax.set_title(kk)
-    >>> fig.tight_layout()
-
-    Args:
-      size (tuple of int): input image shape. `area = size[0] * size[1]`.
-      scale (tuple of float): scale range of the cropped image. target_area in range `(scale[0] * area, sacle[1] * area)`.
-      ratio (tuple of float): aspect ratio range of the cropped image. cropped `width / height`  in range `(ratio[0], ratio[1])`.
-
-    Returns: cropped size `hh_crop, ww_crop`.
-    """
     height, width = tf.cast(size[0], dtype=compute_dtype), tf.cast(size[1], dtype=compute_dtype)
     area = height * width
     scale_max = tf.minimum(tf.minimum(height * height * ratio[1] / area, width * width / ratio[0] / area), scale[1])
@@ -71,30 +25,6 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
     # return hh_crop, ww_crop, target_area, hh_fraction_min, hh_fraction_max, hh_fraction
     return hh_crop, ww_crop
     # return hh_fraction, target_area / hh_fraction # float value will stay in scale and ratio range exactly
-
-
-# Not using
-def random_crop_fraction_timm(image, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), compute_dtype="float32"):
-    size = tf.shape(image)
-    height, width = tf.cast(size[0], dtype=compute_dtype), tf.cast(size[1], dtype=compute_dtype)
-    area = height * width
-    in_ratio = width / height
-
-    target_areas = tf.random.uniform((10,), scale[0], scale[1]) * area
-    log_min, log_max = tf.math.log(ratio[0]), tf.math.log(ratio[1])
-    aspect_ratios = tf.random.uniform((10,), log_min, log_max, dtype=compute_dtype)
-    aspect_ratios = tf.math.exp(aspect_ratios)
-
-    ww_crops, hh_crops = tf.sqrt(target_areas * aspect_ratios), tf.sqrt(target_areas / aspect_ratios)
-    pick = tf.argmax(tf.logical_and(hh_crops <= height, ww_crops <= width))
-    hh_crop = tf.cast(tf.math.floor(hh_crops[pick]), "int32")
-    ww_crop = tf.cast(tf.math.floor(ww_crops[pick]), "int32")
-    # return hh_crop, ww_crop
-    return tf.cond(
-        tf.logical_and(hh_crop <= size[0], ww_crop <= size[1]),
-        lambda: tf.image.random_crop(image, (hh_crop, ww_crop, 3)),
-        lambda: tf.image.central_crop(image, tf.minimum(tf.minimum(ratio[1] / in_ratio, in_ratio * ratio[0]), scale[1])),
-    )
 
 
 def random_erasing_per_pixel(image, num_layers=1, scale=(0.02, 0.33333333), ratio=(0.3, 3.3333333), probability=0.5):
@@ -229,12 +159,6 @@ def sample_beta_distribution(shape, concentration_0=0.4, concentration_1=0.4):
 
 
 def mixup(images, labels, alpha=0.4, min_mix_weight=0):
-    """Applies Mixup regularization to a batch of images and labels.
-
-    [1] Hongyi Zhang, Moustapha Cisse, Yann N. Dauphin, David Lopez-Paz
-    Mixup: Beyond Empirical Risk Minimization.
-    ICLR'18, https://arxiv.org/abs/1710.09412
-    """
     # mix_weight = tfp.distributions.Beta(alpha, alpha).sample([batch_size, 1])
     batch_size = tf.shape(images)[0]
     mix_weight = sample_beta_distribution([batch_size], alpha, alpha)
@@ -276,19 +200,6 @@ def get_box(mix_weight, height, width):
 
 
 def cutmix(images, labels, alpha=0.5, min_mix_weight=0):
-    """
-    Copied and modified from https://keras.io/examples/vision/cutmix/
-
-    Example:
-    >>> from keras_cv_attention_models.imagenet import data
-    >>> import tensorflow_datasets as tfds
-    >>> dataset = tfds.load('cifar10', split='train').batch(16)
-    >>> dd = dataset.as_numpy_iterator().next()
-    >>> images, labels = dd['image'], tf.one_hot(dd['label'], depth=10)
-    >>> aa, bb = data.cutmix(images, labels)
-    >>> print(bb.numpy()[bb.numpy() != 0])
-    >>> plt.imshow(np.hstack(aa))
-    """
     # Get a sample from the Beta distribution
     batch_size = tf.shape(images)[0]
     _, hh, ww, _ = images.shape
@@ -346,9 +257,6 @@ def init_dataset(
     num_layers=2,
     **augment_kwargs,  # Too many...
 ):
-    """Init dataset by name.
-    returns train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
-    """
     # print(">>>> Dataset args:", locals())
     try_gcs = True if len(tf.config.list_logical_devices("TPU")) > 0 else False
     dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)
