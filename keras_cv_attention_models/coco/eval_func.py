@@ -23,6 +23,7 @@ class DecodePredictions:
     >>> print(f"{bboxes = }, {labels = }, {scores = }")
     >>> # bboxes = array([[0.433231  , 0.54432285, 0.8778939 , 0.8187578 ]], dtype=float32), labels = array([17]), scores = array([0.85373735], dtype=float32)
     """
+
     def __init__(self, input_shape=(512, 512, 3), pyramid_levels=[3, 7], anchor_scale=4, with_object_score=False, **kwargs):
         self.anchor_scale, self.with_object_score, self.kwargs = anchor_scale, with_object_score, kwargs
         self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
@@ -72,7 +73,7 @@ class DecodePredictions:
         if input_shape is not None:
             self.__init_anchor__(input_shape)
 
-        if self.with_object_score: # YOLO outputs: [bboxes, classses_score, object_score]
+        if self.with_object_score:  # YOLO outputs: [bboxes, classses_score, object_score]
             pred, object_scores = pred[:, :-1], pred[:, -1]
 
         if topk > 0:

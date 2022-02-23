@@ -131,7 +131,7 @@ def to_one_hot_with_class_mark(anchor_bboxes_with_label, num_classes=80):
     return tf.concat([dest_boxes, one_hot_labels, marks], axis=-1)
 
 
-def random_crop_fraction_with_bboxes(image, bboxes, labels, scale=(0.08, 1.0), ratio=(0.75, 1.3333333)):
+def random_crop_pad_with_bboxes(image, bboxes, scale=(0.08, 1.0), ratio=(0.75, 1.3333333)):
     height, width = tf.shape(image)[0], tf.shape(image)[1]
     crop_hh, crop_ww = random_crop_fraction((height, width), scale, ratio)
     crop_hh, crop_ww = tf.clip_by_value(crop_hh, 1, height - 1), tf.clip_by_value(crop_ww, 1, width - 1)
@@ -142,16 +142,9 @@ def random_crop_fraction_with_bboxes(image, bboxes, labels, scale=(0.08, 1.0), r
 
     height, width = tf.cast(height, bboxes.dtype), tf.cast(width, bboxes.dtype)
     itop, ileft = tf.cast(crop_top, bboxes.dtype) / height, tf.cast(crop_left, bboxes.dtype) / width
-    ibottom, iright = tf.cast(crop_bottom, bboxes.dtype) / height, tf.cast(crop_right, bboxes.dtype) / width
-    filter_top_left = tf.logical_and(bboxes[:, 0] < ibottom, bboxes[:, 1] < iright)
-    filter_bottom_right = tf.logical_and(bboxes[:, 2] > itop, bboxes[:, 3] > ileft)
-    border_filter = tf.logical_and(filter_top_left, filter_bottom_right)
-    bboxes, labels = tf.boolean_mask(bboxes, border_filter), tf.boolean_mask(labels, border_filter)
-
     scale_height, scale_width = height / tf.cast(crop_hh, bboxes.dtype), width / tf.cast(crop_ww, bboxes.dtype)
     bboxes = (bboxes - [itop, ileft, itop, ileft]) * [scale_height, scale_width, scale_height, scale_width]
-    bboxes = tf.clip_by_value(bboxes, 0, 1)
-    return image, bboxes, labels
+    return image, bboxes
 
 
 def get_random_image_scale(source_shape, target_shape, scale_min=0.1, scale_max=2.0):
@@ -185,7 +178,7 @@ def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, 
     return image, scale
 
 
-def resize_and_crop_bboxes(bboxes, labels, source_shape, target_shape, scale, offset_y, offset_x):
+def resize_and_crop_bboxes(bboxes, source_shape, target_shape, scale, offset_y, offset_x):
     height, width = tf.cast(source_shape[0], bboxes.dtype), tf.cast(source_shape[1], bboxes.dtype)
     scaled_height, scaled_width = height * scale, width * scale
     bboxes *= [scaled_height, scaled_width, scaled_height, scaled_width]
@@ -193,8 +186,41 @@ def resize_and_crop_bboxes(bboxes, labels, source_shape, target_shape, scale, of
     offset_y, offset_x = tf.cast(offset_y, bboxes.dtype), tf.cast(offset_x, bboxes.dtype)
     bboxes -= [offset_y, offset_x, offset_y, offset_x]
     bboxes /= [target_shape[0], target_shape[1], target_shape[0], target_shape[1]]
-    bboxes = tf.clip_by_value(bboxes, 0, 1)
 
+
+def inverse_affine_matrix_single_6(affine):
+    scale_inverse = affine[0] * affine[4] - affine[3] * affine[1]
+    affine_aa = [affine[4], -affine[1], affine[5] * affine[1] - affine[2] * affine[4]]
+    affine_bb = [-affine[3], affine[0], affine[2] * affine[3] - affine[5] * affine[0]]
+    return tf.convert_to_tensor(affine_aa + affine_bb, dtype=affine.dtype) / scale_inverse
+
+
+def bboxes_apply_affine(bboxes, affine, input_shape, inverse=True):
+    height, width = tf.cast(input_shape[0], bboxes.dtype), tf.cast(input_shape[1], bboxes.dtype)
+    top, left, bottom, right = bboxes[:, 0] * height, bboxes[:, 1] * width, bboxes[:, 2] * height, bboxes[:, 3] * width
+    affine = tf.squeeze(affine)[:6]
+    if inverse:
+        affine = inverse_affine_matrix_single_6(affine)
+    affine = tf.reshape(affine, [2, 3])
+
+    # 4 corners points: [left, top, right, bottom, left, bottom, right, top]
+    corners = tf.gather(bboxes * [height, width, height, width], [1, 0, 3, 2, 1, 2, 3, 0], axis=-1)
+    # -> [[left, top], [right, bottom], [left, bottom], [right, top]]
+    corners = tf.reshape(corners, [-1, 4, 2])
+    # pad 1
+    corners = tf.concat([corners, tf.ones_like(corners[:, :, :1])], axis=-1)
+    # apply affine transform
+    corners_transformed = tf.matmul(corners, affine, transpose_b=True)
+
+    new_left = tf.minimum(corners_transformed[:, 0, 0], corners_transformed[:, 2, 0]) / width
+    new_top = tf.minimum(corners_transformed[:, 0, 1], corners_transformed[:, 3, 1]) / height
+    new_right = tf.maximum(corners_transformed[:, 1, 0], corners_transformed[:, 3, 0]) / width
+    new_bottom = tf.maximum(corners_transformed[:, 1, 1], corners_transformed[:, 2, 1]) / height
+    return tf.stack([new_top, new_left, new_bottom, new_right], axis=-1)
+
+
+def refine_bboxes(bboxes, labels):
+    bboxes = tf.clip_by_value(bboxes, 0, 1)
     picking_indices = tf.where(tf.not_equal((bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1]), 0))
     return tf.gather_nd(bboxes, picking_indices), tf.gather_nd(labels, picking_indices)
 
@@ -227,7 +253,7 @@ class RandomProcessImageWithBboxes:
             from keras_cv_attention_models.imagenet import augment
 
             print(">>>> RandAugment: magnitude = %d" % magnitude)
-            self.randaug = augment.RandAugment(
+            self.randaug_wo_pos = augment.RandAugment(
                 num_layers=num_layers,
                 magnitude=magnitude,
                 use_cutout=False,
@@ -235,6 +261,8 @@ class RandomProcessImageWithBboxes:
                 use_positional_related_ops=False,  # Set False to exlude [shear, rotate, translate]
                 **randaug_kwargs,
             )
+            # RandAugment positional related ops. Including [shear, rotate, translate], Also returns affine transform matrix
+            self.pos_randaug = augment.PositionalRandAugment(num_layers=num_layers, magnitude=magnitude, **randaug_kwargs)
 
     def __call_1__(self, datapoint):
         image = datapoint["image"]
@@ -242,17 +270,21 @@ class RandomProcessImageWithBboxes:
         bbox, label, is_not_crowd = tf.cast(objects["bbox"], tf.float32), objects["label"], objects["is_crowd"] == False
         bbox, label = tf.boolean_mask(bbox, is_not_crowd), tf.boolean_mask(label, is_not_crowd)
         if self.random_crop_min > 0 and self.random_crop_min < 1:
-            image, bbox, label = random_crop_fraction_with_bboxes(image, bbox, label, scale=(self.random_crop_min, 1.0))
+            image, bbox = random_crop_pad_with_bboxes(image, bbox, scale=(self.random_crop_min, 1.0))
+            image = tf.image.resize(image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
+            bbox, label = refine_bboxes(bbox, label)
         if self.magnitude >= 0:
-            image, bbox, label = random_flip_left_right_with_bboxes(image, bbox, label)
+            image, bbox = random_flip_left_right_with_bboxes(image, bbox)
         if self.magnitude > 0:
-            image = self.randaug(image)
+            image.set_shape([*self.target_shape[:2], 3])
+            image = self.randaug_wo_pos(image)
+            image, affine_matrix = self.pos_randaug(image)
+            bbox = bboxes_apply_affine(bbox, affine_matrix, input_shape=image.shape)
+            bbox, label = refine_bboxes(bbox, label)
 
-        input_image = tf.image.resize(image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
-        input_image = tf.cast(input_image, tf.float32)
-        input_image.set_shape([*self.target_shape[:2], 3])
-
-        return input_image, (bbox, label)
+        image = tf.cast(image, tf.float32)
+        image.set_shape([*self.target_shape[:2], 3])
+        return image, (bbox, label)
 
     def __call__(self, datapoint):
         image = datapoint["image"]
@@ -270,14 +302,18 @@ class RandomProcessImageWithBboxes:
         image, scale = aspect_aware_resize_and_crop_image(
             image, self.target_shape, scale, offset_y, offset_x, method=self.resize_method, antialias=self.resize_antialias
         )
-        bbox, label = resize_and_crop_bboxes(bbox, label, image_shape_orign, self.target_shape, scale, offset_y, offset_x)
+        bbox = resize_and_crop_bboxes(bbox, image_shape_orign, self.target_shape, scale, offset_y, offset_x)
+        bbox, label = refine_bboxes(bbox, label)
 
         if self.magnitude > 0:
-            image = self.randaug(image)
+            image.set_shape([*self.target_shape[:2], 3])
+            image = self.randaug_wo_pos(image)
+            image, affine_matrix = self.pos_randaug(image)
+            bbox = bboxes_apply_affine(bbox, affine_matrix, input_shape=image.shape)
+            bbox, label = refine_bboxes(bbox, label)
 
         image = tf.cast(image, tf.float32)
         image.set_shape([*self.target_shape[:2], 3])
-
         return image, (bbox, label)
 
 
@@ -288,7 +324,7 @@ def init_dataset(
     buffer_size=1000,
     info_only=False,
     anchor_pyramid_levels=[3, 7],
-    anchor_aspect_ratios=[1, 2, 0.5],   # [1, 2, 0.5] matches efficientdet anchors format.
+    anchor_aspect_ratios=[1, 2, 0.5],  # [1, 2, 0.5] matches efficientdet anchors format.
     anchor_num_scales=3,
     anchor_scale=4,
     rescale_mode="torch",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`

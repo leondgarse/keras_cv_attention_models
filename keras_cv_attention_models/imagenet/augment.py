@@ -158,6 +158,12 @@ def _convert_angles_to_transform(angles: tf.Tensor, image_width: tf.Tensor, imag
     )
 
 
+def marge_two_transforms(aa: tf.Tensor, bb: tf.Tensor) -> tf.Tensor:
+    cc = tf.reshape(tf.concat([aa, [[1.0]]], axis=1), [3, 3])
+    dd = tf.reshape(tf.concat([bb, [[1.0]]], axis=1), [3, 3])
+    return tf.reshape(tf.matmul(cc, dd), [1, -1])[:, :8]
+
+
 def transform(image: tf.Tensor, transforms) -> tf.Tensor:
     """Prepares input data for `image_ops.transform`."""
     original_ndims = tf.rank(image)
@@ -167,51 +173,6 @@ def transform(image: tf.Tensor, transforms) -> tf.Tensor:
     image = to_4d(image)
     # image = image_ops.transform(images=image, transforms=transforms, interpolation="nearest", fill_mode="constant")
     image = image_ops.transform(images=image, transforms=transforms, interpolation="bilinear", fill_mode="constant")
-    return from_4d(image, original_ndims)
-
-
-def translate(image: tf.Tensor, translations) -> tf.Tensor:
-    """Translates image(s) by provided vectors.
-
-    Args:
-      image: An image Tensor of type uint8.
-      translations: A vector or matrix representing [dx dy].
-
-    Returns:
-      The translated version of the image.
-
-    """
-    transforms = _convert_translation_to_transform(translations)
-    return transform(image, transforms=transforms)
-
-
-def rotate(image: tf.Tensor, degrees: float) -> tf.Tensor:
-    """Rotates the image by degrees either clockwise or counterclockwise.
-
-    Args:
-      image: An image Tensor of type uint8.
-      degrees: Float, a scalar angle in degrees to rotate all images by. If
-        degrees is positive the image will be rotated clockwise otherwise it will
-        be rotated counterclockwise.
-
-    Returns:
-      The rotated version of image.
-
-    """
-    # Convert from degrees to radians.
-    degrees_to_radians = math.pi / 180.0
-    radians = tf.cast(degrees * degrees_to_radians, tf.float32)
-
-    original_ndims = tf.rank(image)
-    image = to_4d(image)
-
-    image_height = tf.cast(tf.shape(image)[1], tf.float32)
-    image_width = tf.cast(tf.shape(image)[2], tf.float32)
-    transforms = _convert_angles_to_transform(angles=radians, image_width=image_width, image_height=image_height)
-    # In practice, we should randomize the rotation degrees by flipping
-    # it negatively half the time, but that's done on 'degrees' outside
-    # of the function.
-    image = transform(image, transforms=transforms)
     return from_4d(image, original_ndims)
 
 
@@ -352,56 +313,96 @@ def posterize(image: tf.Tensor, bits: int) -> tf.Tensor:
     return tf.bitwise.left_shift(tf.bitwise.right_shift(image, shift), shift)
 
 
-def wrapped_rotate(image: tf.Tensor, degrees: float, replace: int) -> tf.Tensor:
-    """Applies rotation with wrap/unwrap."""
-    image = rotate(wrap(image), degrees=degrees)
-    return unwrap(image, replace)
+def wrapped_rotate(image: tf.Tensor, degrees: float, replace: int, return_affine_matrix: bool = False) -> tf.Tensor:
+    """Rotates the image by degrees either clockwise or counterclockwise.
+
+    Args:
+      image: An image Tensor of type uint8.
+      degrees: Float, a scalar angle in degrees to rotate all images by. If
+        degrees is positive the image will be rotated clockwise otherwise it will
+        be rotated counterclockwise.
+
+    Returns:
+      The rotated version of image.
+
+    """
+    image = wrap(image)
+
+    # Convert from degrees to radians.
+    degrees_to_radians = math.pi / 180.0
+    radians = tf.cast(degrees * degrees_to_radians, tf.float32)
+
+    original_ndims = tf.rank(image)
+    image = to_4d(image)
+
+    image_height = tf.cast(tf.shape(image)[1], tf.float32)
+    image_width = tf.cast(tf.shape(image)[2], tf.float32)
+    transforms = _convert_angles_to_transform(angles=radians, image_width=image_width, image_height=image_height)
+    # In practice, we should randomize the rotation degrees by flipping
+    # it negatively half the time, but that's done on 'degrees' outside
+    # of the function.
+    image = transform(image, transforms=transforms)
+    image = from_4d(image, original_ndims)
+    image = unwrap(image, replace)
+    return (image, transforms) if return_affine_matrix else image
 
 
-def translate_x_relative(image: tf.Tensor, level: float, replace: int) -> tf.Tensor:
+def translate_x_relative(image: tf.Tensor, level: float, replace: int, return_affine_matrix: bool = False) -> tf.Tensor:
     """Equivalent of PIL Translate in X dimension."""
     pixels = level * image.shape[0]
-    image = translate(wrap(image), [-pixels, 0])
-    return unwrap(image, replace)
+    transforms = _convert_translation_to_transform([-pixels, 0])
+    image = transform(wrap(image), transforms=transforms)
+    image = unwrap(image, replace)
+    return (image, transforms) if return_affine_matrix else image
 
 
-def translate_y_relative(image: tf.Tensor, level: float, replace: int) -> tf.Tensor:
+def translate_y_relative(image: tf.Tensor, level: float, replace: int, return_affine_matrix: bool = False) -> tf.Tensor:
     """Equivalent of PIL Translate in Y dimension."""
     pixels = level * image.shape[1]
-    image = translate(wrap(image), [0, -pixels])
-    return unwrap(image, replace)
+    transforms = _convert_translation_to_transform([0, -pixels])
+    image = transform(wrap(image), transforms=transforms)
+    image = unwrap(image, replace)
+    return (image, transforms) if return_affine_matrix else image
 
 
-def translate_x(image: tf.Tensor, pixels: int, replace: int) -> tf.Tensor:
+def translate_x(image: tf.Tensor, pixels: int, replace: int, return_affine_matrix: bool = False) -> tf.Tensor:
     """Equivalent of PIL Translate in X dimension."""
-    image = translate(wrap(image), [-pixels, 0])
-    return unwrap(image, replace)
+    transforms = _convert_translation_to_transform([-pixels, 0])
+    image = transform(wrap(image), transforms=transforms)
+    image = unwrap(image, replace)
+    return (image, transforms) if return_affine_matrix else image
 
 
-def translate_y(image: tf.Tensor, pixels: int, replace: int) -> tf.Tensor:
+def translate_y(image: tf.Tensor, pixels: int, replace: int, return_affine_matrix: bool = False) -> tf.Tensor:
     """Equivalent of PIL Translate in Y dimension."""
-    image = translate(wrap(image), [0, -pixels])
-    return unwrap(image, replace)
+    transforms = _convert_translation_to_transform([0, -pixels])
+    image = transform(wrap(image), transforms=transforms)
+    image = unwrap(image, replace)
+    return (image, transforms) if return_affine_matrix else image
 
 
-def shear_x(image: tf.Tensor, level: float, replace: int) -> tf.Tensor:
+def shear_x(image: tf.Tensor, level: float, replace: int, return_affine_matrix: bool = False) -> tf.Tensor:
     """Equivalent of PIL Shearing in X dimension."""
     # Shear parallel to x axis is a projective transform
     # with a matrix form of:
     # [1  level
     #  0  1].
-    image = transform(image=wrap(image), transforms=[1.0, level, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0])
-    return unwrap(image, replace)
+    transforms = tf.convert_to_tensor([[1.0, level, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]])
+    image = transform(image=wrap(image), transforms=transforms)
+    image = unwrap(image, replace)
+    return (image, transforms) if return_affine_matrix else image
 
 
-def shear_y(image: tf.Tensor, level: float, replace: int) -> tf.Tensor:
+def shear_y(image: tf.Tensor, level: float, replace: int, return_affine_matrix: bool = False) -> tf.Tensor:
     """Equivalent of PIL Shearing in Y dimension."""
     # Shear parallel to y axis is a projective transform
     # with a matrix form of:
     # [1  0
     #  level  1].
-    image = transform(image=wrap(image), transforms=[1.0, 0.0, 0.0, level, 1.0, 0.0, 0.0, 0.0])
-    return unwrap(image, replace)
+    transforms = tf.convert_to_tensor([[1.0, 0.0, 0.0, level, 1.0, 0.0, 0.0, 0.0]])
+    image = transform(image=wrap(image), transforms=transforms)
+    image = unwrap(image, replace)
+    return (image, transforms) if return_affine_matrix else image
 
 
 def autocontrast(image: tf.Tensor) -> tf.Tensor:
@@ -998,13 +999,14 @@ class RandAugment(ImageAugment):
             "BrightnessIncreasing",
             "SharpnessIncreasing",
         ]
+        self.positional_related_ops = ["Rotate", "ShearX", "ShearY"]
+        self.positional_related_ops += ["TranslateXRel", "TranslateYRel"] if use_relative_translate else ["TranslateX", "TranslateY"]
 
         self.available_ops = self.basic_ops
         self.available_ops += self.color_increasing_ops if use_color_increasing else self.color_ops
         self.available_ops += ["Cutout"] if use_cutout else []
         if use_positional_related_ops:
-            self.available_ops += ["Rotate", "ShearX", "ShearY"]
-            self.available_ops += ["TranslateXRel", "TranslateYRel"] if use_relative_translate else ["TranslateX", "TranslateY"]
+            self.available_ops += self.positional_related_ops
 
     def __magnitude_with_noise__(self):
         if self.magnitude_std > 0:
@@ -1051,3 +1053,54 @@ class RandAugment(ImageAugment):
             image = tf.cond(should_apply_op, lambda: self.select_and_apply_random_policy(image), lambda: image)
         image = tf.cast(image, dtype=input_image_type)
         return image
+
+
+class PositionalRandAugment(RandAugment):
+    """Applies the RandAugment positional related policy to images. Including [shear, rotate, translate], Also returns affine transform matrix"""
+
+    def __init__(
+        self,
+        num_layers: int = 2,
+        magnitude: float = 10.0,
+        magnitude_max: float = _MAX_LEVEL,
+        magnitude_std: float = 0.5,
+        translate_const: float = 0.45,  # (0, 1) for relative, > 1 for absolute.
+        use_relative_translate: bool = True,
+        apply_probability: float = 0.5,
+        image_mean: Union[list, tuple] = [124, 117, 104],
+        **kwargs,  # Not using, just in case any additional params.
+    ):
+        self.num_layers, self.apply_probability, self.image_mean = num_layers, apply_probability, image_mean
+        self.magnitude, self.magnitude_max, self.magnitude_std = float(magnitude), float(magnitude_max), float(magnitude_std)
+        self.translate_const = float(translate_const)
+        self.available_ops = ["Rotate", "ShearX", "ShearY"]
+        self.available_ops += ["TranslateXRel", "TranslateYRel"] if use_relative_translate else ["TranslateX", "TranslateY"]
+        self.DEFAULT_AFFINE = tf.constant([[1.0, 0, 0, 0, 1, 0, 0, 0]])
+
+    def apply_policy(self, policy, image):
+        # print(f">>>> {policy = }")
+        magnitude = self.__magnitude_with_noise__()
+        func, _, args = _parse_policy_info(policy, 0.0, magnitude, self.image_mean, 0, self.translate_const)
+        return func(image, *args, return_affine_matrix=True)
+
+    def select_and_apply_random_policy(self, image):
+        """ Select a random policy from `policies` and apply it to `image`. """
+        policy_to_select = tf.random.uniform([], maxval=len(self.available_ops), dtype=tf.int32)
+        branch_fns = [(id, lambda selected=ii: self.apply_policy(selected, image)) for id, ii in enumerate(self.available_ops)]
+        return tf.switch_case(branch_index=policy_to_select, branch_fns=branch_fns, default=lambda: (tf.identity(image), self.DEFAULT_AFFINE))
+
+    def __call__(self, image: tf.Tensor) -> tf.Tensor:
+        input_image_type = image.dtype
+
+        if input_image_type != tf.uint8:
+            image = tf.clip_by_value(image, 0.0, 255.0)
+            image = tf.cast(image, dtype=tf.uint8)
+
+        result_affine_matrix = self.DEFAULT_AFFINE
+        for _ in range(self.num_layers):
+            should_apply_op = tf.cast(tf.floor(tf.random.uniform([], dtype=tf.float32) + self.apply_probability), tf.bool)
+            image, affine_matrix = tf.cond(should_apply_op, lambda: self.select_and_apply_random_policy(image), lambda: (image, self.DEFAULT_AFFINE))
+            result_affine_matrix = marge_two_transforms(result_affine_matrix, affine_matrix)
+
+        image = tf.cast(image, dtype=input_image_type)
+        return image, result_affine_matrix
