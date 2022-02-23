@@ -155,12 +155,12 @@ def tiered_stem(inputs, stem_width, activation="relu", last_strides=1, name=None
     return nn
 
 
-def output_block(inputs, num_features=0, activation="relu", num_classes=1000, drop_rate=0, classifier_activation="softmax", is_torch_mode=True):
+def output_block(inputs, filters=0, activation="relu", num_classes=1000, drop_rate=0, classifier_activation="softmax", is_torch_mode=True, act_first=False):
     nn = inputs
-    if num_features > 0:  # efficientnet like
+    if filters > 0:  # efficientnet like
         bn_eps = BATCH_NORM_EPSILON if is_torch_mode else TF_BATCH_NORM_EPSILON
-        nn = conv2d_no_bias(nn, num_features, 1, strides=1, use_torch_padding=is_torch_mode, name="features_")
-        nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name="features_")
+        nn = conv2d_no_bias(nn, filters, 1, strides=1, use_bias=act_first, use_torch_padding=is_torch_mode, name="features_")  # Also use_bias for act_first
+        nn = batchnorm_with_activation(nn, activation=activation, act_first=act_first, epsilon=bn_eps, name="features_")
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
@@ -176,7 +176,6 @@ def se_module(inputs, se_ratio=0.25, divisor=8, activation="relu", use_bias=True
     h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
 
     filters = inputs.shape[channel_axis]
-    # reduction = int(filters * se_ratio)
     reduction = make_divisible(filters * se_ratio, divisor)
     se = tf.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)
     se = keras.layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_conv")(se)
@@ -410,7 +409,7 @@ class PreprocessInput:
 
 def imagenet_decode_predictions(preds, top=5):
     preds = preds.numpy() if isinstance(preds, tf.Tensor) else preds
-    return tf.keras.applications.imagenet_utils.decode_predictions(preds, top=5)
+    return tf.keras.applications.imagenet_utils.decode_predictions(preds, top=top)
 
 
 def add_pre_post_process(model, rescale_mode="tf", input_shape=None, post_process=None):
