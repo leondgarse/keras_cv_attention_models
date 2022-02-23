@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 import os
 import json
-import tensorflow as tf
-from tensorflow import keras
 from keras_cv_attention_models.imagenet import (
     compile_model,
     init_global_strategy,

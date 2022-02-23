@@ -317,6 +317,7 @@ def test_EfficientDet_header():
 
     assert mm.output_shape == (None, 12276, 94)
 
+
 def test_YOLOXTiny_predict():
     mm = keras_cv_attention_models.yolox.YOLOXTiny(pretrained="coco")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat

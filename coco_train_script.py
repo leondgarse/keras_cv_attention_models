@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import json
-import tensorflow as tf
 from keras_cv_attention_models.coco import data, losses
 from keras_cv_attention_models.imagenet import (
     compile_model,
@@ -10,6 +9,7 @@ from keras_cv_attention_models.imagenet import (
     init_model,
     train,
 )
+
 
 def parse_arguments(argv):
     import argparse
