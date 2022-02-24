@@ -231,9 +231,9 @@ def init_mean_std_by_rescale_mode(rescale_mode):
     elif rescale_mode == "tf":
         # mean, std = 128.0, 128.0
         # mean, std = 127.5, 127.5
-        mean, std = 127.5, 128.0 # [0, 255] -> [-1, 1]
+        mean, std = 127.5, 128.0  # [0, 255] -> [-1, 1]
     elif rescale_mode == "raw01":
-        mean, std = 0, 255.0 # [0, 255] -> [0, 1]
+        mean, std = 0, 255.0  # [0, 255] -> [0, 1]
     else:
         mean, std = 0, 1  # raw inputs [0, 255]
     return mean, std
@@ -278,14 +278,13 @@ def init_dataset(
         num_layers=num_layers,
         **augment_kwargs,
     )
-    train_dataset = dataset["train"].shuffle(buffer_size).map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE)
+    train_dataset = dataset["train"].shuffle(buffer_size).map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE).batch(batch_size)
 
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     # rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
     rescaling = lambda xx: (xx - mean) / std
     as_one_hot = lambda yy: tf.one_hot(yy, num_classes)
 
-    train_dataset = train_dataset.batch(batch_size)
     if mixup_alpha > 0 and mixup_alpha <= 1 and cutmix_alpha > 0 and cutmix_alpha <= 1:
         print(">>>> Both mixup_alpha and cutmix_alpha provided: mixup_alpha = {}, cutmix_alpha = {}".format(mixup_alpha, cutmix_alpha))
         mixup_cutmix = lambda xx, yy: tf.cond(
