@@ -98,7 +98,13 @@ def parse_arguments(argv):
     ds_group = parser.add_argument_group("Dataset arguments")
     ds_group.add_argument("--magnitude", type=int, default=6, help="Randaug magnitude value")
     ds_group.add_argument("--num_layers", type=int, default=2, help="Number of randaug applied sequentially to an image. Usually best in [1, 3]")
-    ds_group.add_argument("--random_crop_min", type=float, default=0.08, help="Random crop min value for RRC. Set 1 to disable RRC")
+    ds_group.add_argument(
+        "--random_crop_mode",
+        type=float,
+        default=1.0,
+        help="Random crop mode, 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale",
+    )
+    ds_group.add_argument("--mosaic_mix_prob", type=float, default=0.5, help="Mosaic mix probability, 0 to disable")
     ds_group.add_argument("--rescale_mode", type=str, default="torch", help="Rescale mode, one of [tf, torch]")
     ds_group.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
     ds_group.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
@@ -131,7 +137,7 @@ def parse_arguments(argv):
         data_name = args.data_name.replace("/", "_")
         model_name = args.det_header.split(".")[-1] + "_" + args.backbone.split(".")[-1]
         basic_save_name = "{}_{}_{}_{}_batchsize_{}".format(model_name, args.input_shape, args.optimizer, data_name, args.batch_size)
-        basic_save_name += "_randaug_{}_RRC_{}".format(args.magnitude, args.random_crop_min)
+        basic_save_name += "_randaug_{}_RRC_{}".format(args.magnitude, args.random_crop_mode)
         basic_save_name += "_lr512_{}_wd_{}".format(args.lr_base_512, args.weight_decay)
     args.basic_save_name = basic_save_name
     args.enable_float16 = not args.disable_float16
@@ -155,7 +161,8 @@ def run_training_by_args(args):
         anchor_num_scales=args.anchor_num_scales,
         anchor_scale=args.anchor_scale,
         rescale_mode=args.rescale_mode,
-        random_crop_min=args.random_crop_min,
+        random_crop_mode=args.random_crop_mode,
+        mosaic_mix_prob=args.mosaic_mix_prob,
         resize_method=args.resize_method,
         resize_antialias=not args.disable_antialias,
         magnitude=args.magnitude,

@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 from tensorflow import keras
 from keras_cv_attention_models.imagenet.data import init_mean_std_by_rescale_mode, random_crop_fraction
+from keras_cv_attention_models.coco import anchors_func
 
 COCO_LABELS = """person, bicycle, car, motorcycle, airplane, bus, train, truck, boat, traffic light, fire hydrant, stop sign,
     parking meter, bench, bird, cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe, backpack, umbrella, handbag, tie,
@@ -14,129 +15,6 @@ INVALID_ID_90 = [12, 26, 29, 30, 45, 66, 68, 69, 71, 83]
 COCO_90_LABEL_DICT = {id: ii for id, ii in zip(set(range(90)) - set(INVALID_ID_90), COCO_80_LABEL_DICT.values())}
 COCO_90_LABEL_DICT.update({ii: "Unknown" for ii in INVALID_ID_90})
 COCO_80_to_90_LABEL_DICT = {id_80: id_90 for id_80, id_90 in enumerate(set(range(90)) - set(INVALID_ID_90))}
-
-""" Anchors and bboxes """
-
-
-def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=[1, 2, 0.5], num_scales=3, anchor_scale=4, grid_zero_start=False):
-    """
-    >>> from keras_cv_attention_models.coco import data
-    >>> input_shape = [512, 128]
-    >>> anchors = data.get_anchors([512, 128], pyramid_levels=[7])
-    >>> data.draw_bboxes(anchors * [512, 128, 512, 128])
-
-    grid_zero_start: grid starts from 0, else from strides // 2. False for efficientdet anchors, True for yolo anchors.
-    """
-    # base anchors
-    scales = [2 ** (ii / num_scales) * anchor_scale for ii in range(num_scales)]
-    aspect_ratios = tf.convert_to_tensor(aspect_ratios, dtype="float32")
-    if len(aspect_ratios.shape) == 1:
-        # aspect_ratios = [0.5, 1, 2]
-        sqrt_ratios = tf.sqrt(aspect_ratios)
-        ww_ratios, hh_ratios = sqrt_ratios, 1 / sqrt_ratios
-    else:
-        # aspect_ratios = [(1, 1), (1.4, 0.7), (0.7, 1.4)]
-        ww_ratios, hh_ratios = aspect_ratios[:, 0], aspect_ratios[:, 1]
-    base_anchors_hh = tf.reshape(tf.expand_dims(scales, 1) * tf.expand_dims(hh_ratios, 0), [-1])
-    base_anchors_ww = tf.reshape(tf.expand_dims(scales, 1) * tf.expand_dims(ww_ratios, 0), [-1])
-    base_anchors_hh_half, base_anchors_ww_half = base_anchors_hh / 2, base_anchors_ww / 2
-    base_anchors = tf.stack([base_anchors_hh_half * -1, base_anchors_ww_half * -1, base_anchors_hh_half, base_anchors_ww_half], axis=1)
-    # base_anchors = tf.gather(base_anchors, [3, 6, 0, 4, 7, 1, 5, 8, 2])  # re-order according to official generated anchors
-
-    # make grid
-    pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
-
-    # https://github.com/google/automl/tree/master/efficientdet/utils.py#L509
-    feature_sizes = [input_shape[:2]]
-    for _ in range(max(pyramid_levels)):
-        pre_feat_size = feature_sizes[-1]
-        feature_sizes.append(((pre_feat_size[0] - 1) // 2 + 1, (pre_feat_size[1] - 1) // 2 + 1))  # ceil mode, like padding="SAME" downsampling
-
-    all_anchors = []
-    for level in pyramid_levels:
-        stride_hh, stride_ww = feature_sizes[0][0] / feature_sizes[level][0], feature_sizes[0][1] / feature_sizes[level][1]
-        top, left = (0, 0) if grid_zero_start else (stride_hh / 2, stride_ww / 2)
-        hh_centers = tf.range(top, input_shape[0], stride_hh)
-        ww_centers = tf.range(left, input_shape[1], stride_ww)
-        ww_grid, hh_grid = tf.meshgrid(ww_centers, hh_centers)
-        grid = tf.reshape(tf.stack([hh_grid, ww_grid, hh_grid, ww_grid], 2), [-1, 1, 4])
-        anchors = tf.expand_dims(base_anchors * [stride_hh, stride_ww, stride_hh, stride_ww], 0) + tf.cast(grid, base_anchors.dtype)
-        anchors = tf.reshape(anchors, [-1, 4])
-        all_anchors.append(anchors)
-    all_anchors = tf.concat(all_anchors, axis=0) / [input_shape[0], input_shape[1], input_shape[0], input_shape[1]]
-    # if width_first:
-    #      all_anchors = tf.gather(all_anchors, [1, 0, 3, 2], axis=-1)
-    return all_anchors
-
-
-def iou_nd(bboxes, anchors):
-    anchors_nd, bboxes_nd = tf.expand_dims(anchors, 0), tf.expand_dims(bboxes, 1)
-    inter_top_left = tf.maximum(anchors_nd[:, :, :2], bboxes_nd[:, :, :2])
-    inter_bottom_right = tf.minimum(anchors_nd[:, :, 2:], bboxes_nd[:, :, 2:])
-    inter_wh = tf.maximum(inter_bottom_right - inter_top_left, 0)
-    inter_area = inter_wh[:, :, 0] * inter_wh[:, :, 1]
-
-    bboxes_area = (bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1])
-    anchors_area = (anchors[:, 2] - anchors[:, 0]) * (anchors[:, 3] - anchors[:, 1])
-    union_area = (tf.expand_dims(bboxes_area, 1) + tf.expand_dims(anchors_area, 0)) - inter_area
-    return inter_area / union_area
-
-
-def corners_to_center_xywh_nd(ss):
-    """ input: [top, left, bottom, right], output: [center_h, center_w], [height, width] """
-    return (ss[:, :2] + ss[:, 2:]) * 0.5, ss[:, 2:] - ss[:, :2]
-
-
-def assign_anchor_classes_by_iou_with_bboxes(bbox_labels, anchors, ignore_threshold=0.4, overlap_threshold=0.5):
-    num_anchors = anchors.shape[0]
-    valid_bboxes_pick = tf.where(bbox_labels[:, -1] > 0)[:, 0]
-    bbox_labels = tf.gather(bbox_labels, valid_bboxes_pick)
-    bboxes, labels = bbox_labels[:, :4], bbox_labels[:, 4]
-
-    anchor_ious = iou_nd(bboxes, anchors)
-    anchor_best_iou_ids = tf.argmax(anchor_ious, axis=0)
-    # anchor_best_ious = tf.gather_nd(anchor_ious, tf.stack([anchor_best_iou_ids, tf.range(num_anchors, dtype=anchor_best_iou_ids.dtype)], axis=-1))
-    anchor_best_ious = tf.reduce_max(anchor_ious, axis=0)  # This faster
-
-    matched_idxes = tf.where(anchor_best_ious > overlap_threshold)[:, 0]
-    matched_idxes = tf.unique(tf.concat([matched_idxes, tf.argmax(anchor_ious, axis=-1)], axis=0))[0]  # Ensure at leat one anchor selected for each bbox
-    matched_idxes_nd = tf.expand_dims(matched_idxes, -1)
-    best_match_indxes = tf.gather(anchor_best_iou_ids, matched_idxes)
-    best_match_labels = tf.gather(labels, best_match_indxes)
-
-    # Mark anchors classes, iou < ignore_threshold as 0, ignore_threshold < iou < overlap_threshold as -1
-    anchor_classes = tf.where(anchor_best_ious > ignore_threshold, tf.cast(-1, bbox_labels.dtype), tf.cast(0, bbox_labels.dtype))
-    # Mark matched anchors classes, iou > overlap_threshold as actual labels
-    # anchor_classes = tf.where(anchor_best_ious > overlap_threshold, labels[anchor_best_iou_ids], anchor_classes)
-    anchor_classes = tf.tensor_scatter_nd_update(anchor_classes, matched_idxes_nd, tf.cast(best_match_labels, bbox_labels.dtype))
-
-    valid_anchors = tf.gather(anchors, matched_idxes)
-    valid_anchors_center, valid_anchors_wh = corners_to_center_xywh_nd(valid_anchors)
-    bboxes_center, bboxes_wh = corners_to_center_xywh_nd(bboxes)
-    bboxes_centers, bboxes_whs = tf.gather(bboxes_center, best_match_indxes), tf.gather(bboxes_wh, best_match_indxes)
-
-    encoded_anchors_center = (bboxes_centers - valid_anchors_center) / valid_anchors_wh
-    encoded_anchors_wh = tf.math.log(bboxes_whs / valid_anchors_wh)
-    encoded_anchors = tf.concat([encoded_anchors_center, encoded_anchors_wh], axis=-1)
-
-    dest_boxes = tf.zeros_like(anchors)
-    dest_boxes = tf.tensor_scatter_nd_update(dest_boxes, matched_idxes_nd, encoded_anchors)
-
-    rr = tf.concat([dest_boxes, tf.expand_dims(anchor_classes, -1)], axis=-1)
-    return rr
-
-
-def decode_bboxes(preds, anchors):
-    bboxes, label = preds[:, :4], preds[:, 4:]
-    anchors_wh = anchors[:, 2:] - anchors[:, :2]
-    anchors_center = (anchors[:, :2] + anchors[:, 2:]) * 0.5
-
-    bboxes_center = bboxes[:, :2] * anchors_wh + anchors_center
-    bboxes_wh = tf.math.exp(bboxes[:, 2:]) * anchors_wh
-
-    preds_left_top = bboxes_center - 0.5 * bboxes_wh
-    pred_right_bottom = preds_left_top + bboxes_wh
-    return tf.concat([preds_left_top, pred_right_bottom, label], axis=-1)
 
 
 """ Bboxes augment """
@@ -193,20 +71,6 @@ def refine_bboxes_labels_single(bboxes, labels):
     picking_indices = tf.where(tf.not_equal((bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1]), 0))
     bboxes, labels = tf.gather_nd(bboxes, picking_indices), tf.gather_nd(labels, picking_indices)
     return bboxes, labels
-
-
-def refine_bboxes_labels_batch(bboxes, labels=None, clip_min=0, clip_max=1):
-    is_concated = False
-    if labels is None:
-        bboxes, labels = bboxes[:, :, :4], bboxes[:, :, 4:]
-        is_concated = True
-    bboxes = tf.clip_by_value(bboxes, clip_min, clip_max)
-
-    mask_cond = tf.not_equal((bboxes[:, :, 2] - bboxes[:, :, 0]) * (bboxes[:, :, 3] - bboxes[:, :, 1]), 0)
-    # bboxes = tf.where(mask_cond, bboxes, tf.zeros_like(bboxes))
-    bboxes = bboxes * tf.expand_dims(tf.cast(mask_cond, bboxes.dtype), -1)
-    labels = tf.where(mask_cond, labels, tf.zeros_like(labels))
-    return tf.concat([bboxes, labels], axis=-1) if is_concated else (bboxes, labels)
 
 
 """ Image Augment """
@@ -312,9 +176,15 @@ def mosaic_mix_batch(images, bboxes, labels, split_center_min=0.25, split_center
 
         cur_bboxes, cur_labels = tf.gather(bboxes, pick_indices), tf.gather(labels, pick_indices)
         cur_bboxes = resize_and_crop_bboxes(cur_bboxes, (hh, ww), (1, 1), scale, offset_y=crop_hh, offset_x=crop_ww)  # Don't scale to [0, 1]
+
+        """ Re-fine batch bboxes """
         sub_hh, sub_ww = tf.cast(sub_hh, cur_bboxes.dtype), tf.cast(sub_ww, cur_bboxes.dtype)
-        cur_bboxes, cur_labels = refine_bboxes_labels_batch(cur_bboxes, cur_labels, clip_max=[sub_hh, sub_ww, sub_hh, sub_ww])
-        cur_bboxes = cur_bboxes + [top, left, top, left]
+        cur_bboxes = tf.clip_by_value(cur_bboxes, 0, [sub_hh, sub_ww, sub_hh, sub_ww])
+        mask_cond = tf.not_equal((cur_bboxes[:, :, 2] - cur_bboxes[:, :, 0]) * (cur_bboxes[:, :, 3] - cur_bboxes[:, :, 1]), 0)
+        cur_bboxes += [top, left, top, left]
+        cur_bboxes = cur_bboxes * tf.expand_dims(tf.cast(mask_cond, cur_bboxes.dtype), -1)
+        cur_labels = tf.where(mask_cond, cur_labels, tf.zeros_like(cur_labels))
+
         mixed_bboxes.append(cur_bboxes)
         mixed_labels.append(cur_labels)
 
@@ -335,7 +205,7 @@ class RandomProcessImageWithBboxes:
         self,
         target_shape=(300, 300),
         max_labels_per_image=100,
-        random_crop_min=1.0,
+        random_crop_mode=0, # 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale
         resize_method="bilinear",
         resize_antialias=False,
         magnitude=0,
@@ -345,7 +215,7 @@ class RandomProcessImageWithBboxes:
     ):
         self.max_labels_per_image = max_labels_per_image
         self.target_shape = target_shape if len(target_shape) == 2 else target_shape[:2]
-        self.resize_method, self.resize_antialias, self.random_crop_min, self.magnitude = resize_method, resize_antialias, random_crop_min, magnitude
+        self.resize_method, self.resize_antialias, self.random_crop_mode, self.magnitude = resize_method, resize_antialias, random_crop_mode, magnitude
         if magnitude > 0:
             from keras_cv_attention_models.imagenet import augment
 
@@ -370,20 +240,24 @@ class RandomProcessImageWithBboxes:
 
         if self.magnitude >= 0:
             image, bbox = random_flip_left_right_with_bboxes(image, bbox)
-        if self.random_crop_min > 0 and self.random_crop_min < 1:
-            # scale, crop_hh, crop_ww = get_image_aspect_aware_random_scale_crop((height, width), self.target_shape)
-            # image, scale = aspect_aware_resize_and_crop_image(
-            #     image, self.target_shape, scale, crop_hh, crop_ww, method=self.resize_method, antialias=self.resize_antialias
-            # )
-            # image, scale, crop_hh, crop_ww = random_largest_crop_and_resize_images(image, self.target_shape, self.resize_method, self.resize_antialias)
-            image, scale, crop_hh, crop_ww = random_crop_and_resize_image(
-                image, self.target_shape, scale=(self.random_crop_min, 1.0), method=self.resize_method, antialias=self.resize_antialias
+
+        if self.random_crop_mode > 1:
+            scale, crop_hh, crop_ww = get_image_aspect_aware_random_scale_crop((height, width), self.target_shape)
+            image, scale = aspect_aware_resize_and_crop_image(
+                image, self.target_shape, scale, crop_hh, crop_ww, method=self.resize_method, antialias=self.resize_antialias
             )
-            bbox = resize_and_crop_bboxes(bbox, (height, width), self.target_shape, scale=scale, offset_y=crop_hh, offset_x=crop_ww)
-            bbox, label = refine_bboxes_labels_single(bbox, label)
+        elif self.random_crop_mode == 1:
+            image, scale, crop_hh, crop_ww = random_largest_crop_and_resize_images(image, self.target_shape, self.resize_method, self.resize_antialias)
+        elif self.random_crop_mode > 0 and self.random_crop_mode < 1:
+            image, scale, crop_hh, crop_ww = random_crop_and_resize_image(
+                image, self.target_shape, scale=(self.random_crop_mode, 1.0), method=self.resize_method, antialias=self.resize_antialias
+            )
         else:
             image, scale = aspect_aware_resize_and_crop_image(image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
-            bbox = resize_and_crop_bboxes(bbox, (height, width), self.target_shape, scale=scale)
+            crop_hh, crop_ww = 0, 0
+            # bbox = resize_and_crop_bboxes(bbox, (height, width), self.target_shape, scale=scale)
+        bbox = resize_and_crop_bboxes(bbox, (height, width), self.target_shape, scale=scale, offset_y=crop_hh, offset_x=crop_ww)
+        bbox, label = refine_bboxes_labels_single(bbox, label)
 
         if self.magnitude > 0:
             image.set_shape([*self.target_shape[:2], 3])
@@ -406,11 +280,12 @@ class RandomProcessImageWithBboxes:
 
 
 def to_one_hot_with_class_mark(anchor_bboxes_with_label, num_classes=80):
-    dest_boxes, anchor_classes = anchor_bboxes_with_label[:, :4], anchor_bboxes_with_label[:, -1]
-    one_hot_labels = tf.one_hot(tf.cast(anchor_classes, "int32") - 1, num_classes)  # [1, 81] -> [0, 80]
+    # dest_boxes, anchor_classes = anchor_bboxes_with_label[:, :4], anchor_bboxes_with_label[:, -1]
+    dest_boxes, anchor_classes = tf.split(anchor_bboxes_with_label, [4, 1], axis=-1)
+    one_hot_labels = tf.one_hot(tf.cast(anchor_classes[..., 0], "int32") - 1, num_classes)  # [1, 81] -> [0, 80]
     # Mark iou < ignore_threshold as 0, ignore_threshold < iou < overlap_threshold as -1, iou > overlap_threshold as 1
     marks = tf.where(anchor_classes > 0, tf.ones_like(anchor_classes), anchor_classes)
-    marks = tf.expand_dims(marks, -1)
+    # marks = tf.expand_dims(marks, -1)
     one_hot_labels, marks = tf.cast(one_hot_labels, dest_boxes.dtype), tf.cast(marks, dest_boxes.dtype)
     return tf.concat([dest_boxes, one_hot_labels, marks], axis=-1)
 
@@ -418,11 +293,12 @@ def to_one_hot_with_class_mark(anchor_bboxes_with_label, num_classes=80):
 def __bboxes_labels_batch_func__(bboxes, labels, anchors, empty_label, num_classes=80):
     bbox_labels = tf.concat([bboxes, tf.cast(tf.expand_dims(labels, -1), bboxes.dtype)], axis=-1)
     bbox_process = lambda xx: tf.cond(
-        tf.math.reduce_any(xx[:, -1] > 0),
-        lambda: to_one_hot_with_class_mark(assign_anchor_classes_by_iou_with_bboxes(xx, anchors), num_classes),
+        tf.reduce_any(xx[:, -1] > 0), # If contains any valid bbox and label
+        lambda: anchors_func.assign_anchor_classes_by_iou_with_bboxes(xx, anchors),
         lambda: empty_label,
     )
-    return tf.map_fn(bbox_process, bbox_labels)
+    bbox_labels = tf.map_fn(bbox_process, bbox_labels)
+    return to_one_hot_with_class_mark(bbox_labels, num_classes)
 
 
 def init_dataset(
@@ -432,13 +308,14 @@ def init_dataset(
     buffer_size=1000,
     info_only=False,
     max_labels_per_image=100,
-    mosaic_mix_prob=0.0,
+    use_anchor_free_mode=False,
     anchor_pyramid_levels=[3, 7],
     anchor_aspect_ratios=[1, 2, 0.5],  # [1, 2, 0.5] matches efficientdet anchors format.
     anchor_num_scales=3,
     anchor_scale=4,
     rescale_mode="torch",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`
-    random_crop_min=1.0,
+    random_crop_mode=1.0,
+    mosaic_mix_prob=0.0,
     resize_method="bilinear",  # ["bilinear", "bicubic"]
     resize_antialias=False,
     magnitude=0,
@@ -454,13 +331,11 @@ def init_dataset(
         return total_images, num_classes, steps_per_epoch
 
     AUTOTUNE = tf.data.AUTOTUNE
-    anchors = get_anchors(input_shape[:2], anchor_pyramid_levels, anchor_aspect_ratios, anchor_num_scales, anchor_scale)
-    num_anchors = anchors.shape[0]
 
     train_process = RandomProcessImageWithBboxes(
         target_shape=input_shape,
         max_labels_per_image=max_labels_per_image,
-        random_crop_min=random_crop_min,
+        random_crop_mode=random_crop_mode,
         resize_method=resize_method,
         resize_antialias=resize_antialias,
         magnitude=magnitude,
@@ -473,7 +348,6 @@ def init_dataset(
     if mosaic_mix_prob > 0:
         mosaic_mix = lambda xx, yy: tf.cond(
             tf.random.uniform(()) > mosaic_mix_prob,
-            # lambda: (xx, tf.pad(yy[0])),
             lambda: (xx, yy),
             lambda: mosaic_mix_batch(xx, yy[0], yy[1]),
         )
@@ -482,8 +356,13 @@ def init_dataset(
 
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     rescaling = lambda xx: (xx - mean) / std
-    empty_label = tf.zeros([num_anchors, 4 + num_classes + 1])  # All 0
-    bbox_process = lambda bb: __bboxes_labels_batch_func__(bb[0], bb[1], anchors, empty_label, num_classes)
+    if use_anchor_free_mode:
+        bbox_process = lambda bb: to_one_hot_with_class_mark(tf.concat([bb[0], tf.cast(tf.expand_dims(bb[1], -1), bb[0].dtype)], axis=-1), num_classes)
+    else:
+        anchors = anchors_func.get_anchors(input_shape[:2], anchor_pyramid_levels, anchor_aspect_ratios, anchor_num_scales, anchor_scale)
+        num_anchors = anchors.shape[0]
+        empty_label = tf.zeros([num_anchors, 4 + num_classes + 1])  # All 0
+        bbox_process = lambda bb: __bboxes_labels_batch_func__(bb[0], bb[1], anchors, empty_label, num_classes)
 
     train_dataset = train_dataset.map(lambda xx, yy: (rescaling(xx), bbox_process(yy)), num_parallel_calls=AUTOTUNE)
     train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE)
@@ -541,7 +420,7 @@ def show_image_with_bboxes(image, bboxes, labels=None, confidences=None, ax=None
     return ax
 
 
-def show_batch_sample(dataset, rescale_mode="torch", rows=-1, label_font_size=8, base_size=3, **anchor_kwargs):
+def show_batch_sample(dataset, rescale_mode="torch", rows=-1, label_font_size=8, base_size=3, use_anchor_free_mode=False, **anchor_kwargs):
     import matplotlib.pyplot as plt
     from keras_cv_attention_models.visualizing import get_plot_cols_rows
 
@@ -551,7 +430,8 @@ def show_batch_sample(dataset, rescale_mode="torch", rows=-1, label_font_size=8,
         images, labels = dataset.as_numpy_iterator().next()
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     images = (images * std + mean) / 255
-    anchors = get_anchors(images.shape[1:-1], **anchor_kwargs)
+    if not use_anchor_free_mode:
+        anchors = anchors_func.get_anchors(images.shape[1:-1], **anchor_kwargs)
 
     cols, rows = get_plot_cols_rows(len(images), rows, ceil_mode=True)
     fig, axes = plt.subplots(rows, cols, figsize=(base_size * cols, base_size * rows))
@@ -560,15 +440,17 @@ def show_batch_sample(dataset, rescale_mode="torch", rows=-1, label_font_size=8,
     for ax, image, label in zip(axes, images, labels):
         if label.shape[-1] == 5:
             pick = label[:, -1] >= 0
-            valid_preds, valid_anchors = label[pick], anchors[pick]
+            valid_preds = label[pick]
         else:
             pick = label[:, -1] == 1
-            valid_preds, valid_anchors = label[pick], anchors[pick]
+            valid_preds = label[pick]
             valid_label = tf.cast(tf.argmax(valid_preds[:, 4:-1], axis=-1), valid_preds.dtype)
             valid_preds = tf.concat([valid_preds[:, :4], tf.expand_dims(valid_label, -1)], axis=-1)
 
-        valid_label = decode_bboxes(valid_preds, valid_anchors)
-        show_image_with_bboxes(image, valid_label[:, :4], valid_label[:, -1], ax=ax, label_font_size=label_font_size)
+        if not use_anchor_free_mode:
+            valid_anchors = anchors[pick]
+            valid_preds = anchors_func.decode_bboxes(valid_preds, valid_anchors)
+        show_image_with_bboxes(image, valid_preds[:, :4], valid_preds[:, -1], ax=ax, label_font_size=label_font_size)
     fig.tight_layout()
     plt.show()
     return fig

@@ -1,6 +1,6 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from keras_cv_attention_models.coco import data
+from keras_cv_attention_models import coco
 from tqdm import tqdm
 
 
@@ -13,10 +13,10 @@ class DecodePredictions:
     >>> preds = model(model.preprocess_input(test_images.dog()))
 
     # Decode and NMS
-    >>> from keras_cv_attention_models.coco import data
+    >>> from keras_cv_attention_models import coco
     >>> input_shape = model.input_shape[1:-1]
-    >>> anchors = data.get_anchors(input_shape=input_shape, pyramid_levels=[3, 7], anchor_scale=4)
-    >>> dd = data.decode_bboxes(preds[0], anchors).numpy()
+    >>> anchors = coco.get_anchors(input_shape=input_shape, pyramid_levels=[3, 7], anchor_scale=4)
+    >>> dd = coco.decode_bboxes(preds[0], anchors).numpy()
     >>> rr = tf.image.non_max_suppression(dd[:, :4], dd[:, 4:].max(-1), score_threshold=0.3, max_output_size=15, iou_threshold=0.5)
     >>> dd_nms = tf.gather(dd, rr).numpy()
     >>> bboxes, labels, scores = dd_nms[:, :4], dd_nms[:, 4:].argmax(-1), dd_nms[:, 4:].max(-1)
@@ -33,7 +33,7 @@ class DecodePredictions:
             self.anchors = None
 
     def __init_anchor__(self, input_shape):
-        self.anchors = data.get_anchors(input_shape=input_shape, pyramid_levels=self.pyramid_levels, anchor_scale=self.anchor_scale, **self.kwargs)
+        self.anchors = coco.get_anchors(input_shape=input_shape, pyramid_levels=self.pyramid_levels, anchor_scale=self.anchor_scale, **self.kwargs)
 
     def __topk_class_boxes_single__(self, pred, topk=5000):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L82
@@ -87,7 +87,7 @@ class DecodePredictions:
             if self.with_object_score:
                 ccs *= object_scores
 
-        bbs_decoded = data.decode_bboxes(bbs, anchors)
+        bbs_decoded = coco.decode_bboxes(bbs, anchors)
         iou_threshold, soft_nms_sigma = (1.0, iou_or_sigma / 2) if method.lower() == "gaussian" else (iou_or_sigma, 0.0)
 
         if mode == "per_class":
@@ -117,11 +117,11 @@ def scale_bboxes_back_single(bboxes, image_shape, scale, target_shape):
 
 
 def init_eval_dataset(data_name="coco/2017", target_shape=(512, 512), batch_size=8, rescale_mode="torch", resize_method="bilinear", resize_antialias=False):
-    mean, std = data.init_mean_std_by_rescale_mode(rescale_mode)
+    mean, std = coco.init_mean_std_by_rescale_mode(rescale_mode)
     rescaling = lambda xx: (xx - mean) / std
 
     ds = tfds.load(data_name, with_info=False)["validation"]
-    resize_func = lambda image: data.aspect_aware_resize_and_crop_image(image, target_shape, method=resize_method, antialias=resize_antialias)
+    resize_func = lambda image: coco.aspect_aware_resize_and_crop_image(image, target_shape, method=resize_method, antialias=resize_antialias)
     # ds: [resized_image, scale, original_image_shape, image_id], automl bahavior: rescale -> resize
     ds = ds.map(lambda datapoint: (*resize_func(rescaling(tf.cast(datapoint["image"], tf.float32))), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
     ds = ds.batch(batch_size)
@@ -133,7 +133,7 @@ def init_eval_dataset(data_name="coco/2017", target_shape=(512, 512), batch_size
 def model_eval_results(model, eval_dataset, pred_decoder, nms_score_threshold=0.001, nms_method="gaussian", nms_mode="per_class", nms_topk=5000):
     target_shape = (eval_dataset.element_spec[0].shape[1], eval_dataset.element_spec[0].shape[2])
     num_classes = model.output_shape[-1] - 4
-    to_90_labels = (lambda label: label + 1) if num_classes == 90 else (lambda label: data.COCO_80_to_90_LABEL_DICT[label] + 1)
+    to_90_labels = (lambda label: label + 1) if num_classes == 90 else (lambda label: coco.COCO_80_to_90_LABEL_DICT[label] + 1)
     # Format: [image_id, x, y, width, height, score, class]
     to_coco_eval_single = lambda image_id, bbox, label, score: [image_id, *bbox.tolist(), score, to_90_labels(label)]
 
