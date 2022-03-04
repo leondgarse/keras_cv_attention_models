@@ -4,7 +4,7 @@
 ## Summary
 - CMT article: [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf)
 - [Github wilile26811249/CMT_CNN-meet-Vision-Transformer](https://github.com/wilile26811249/CMT_CNN-meet-Vision-Transformer)
-- No pretraind available.
+- No pretrained available.
 ***
 
 ## Models
@@ -20,38 +20,25 @@
   ```py
   from keras_cv_attention_models import cmt
 
-  # No pretraind available.
+  # No pretrained available.
   mm = cmt.CMTTiny()
   mm.summary()
   ```
-## Cifar10 train test
-  ```py
-  import tensorflow as tf
-  import tensorflow_addons as tfa
-  from keras_cv_attention_models import imagenet
-  from keras_cv_attention_models import cmt
+## Training
+  - **Training** Using `A3` recipe with `batch_size=256, input_shape=(160, 160), epochs=105`. Note paper reported accuracy is trained `300` epochs.
+    ```sh
+    CUDA_VISIBLE_DEVICES='1' TF_GPU_ALLOCATOR='cuda_malloc_async' TF_XLA_FLAGS='--tf_xla_auto_jit=2' ./train_script.py --seed 0 \
+    -m cmt.CMTTiny --batch_size 256 -s cmt.CMTTiny_160
+    ```
+    **Evaluate using input resolution `224`**:
+    ```sh
+    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m cmt.CMTTiny --pretrained checkpoints/cmt.CMTTiny_160_latest.h5 -i 224
+    ```
+    | lmhsa attention block         | Train acc | Best eval loss, acc on 160  | Epoch 105 Eval acc on 224   |
+    | ----------------------------- | --------- | --------------------------- | --------------------------- |
+    | dw+ln, KV [dim, head, 2]      | 0.6380    | Epoch 105, 0.001398, 0.7744 | top1: 0.78766 top5: 0.94308 |
+    | avg pool, KV [dim, head, 2]   | 0.6344    | Epoch 103, 0.001424, 0.7713 | top1: 0.78512 top5: 0.94194 |
+    | dw+ln, KV [split2, head, dim] | 0.6350    | Epoch 103, 0.001416, 0.7719 | top1: 0.78502 top5: 0.94176 |
 
-  gpus = tf.config.experimental.get_visible_devices("GPU")
-  for gpu in gpus:
-      tf.config.experimental.set_memory_growth(gpu, True)
-  tf.keras.mixed_precision.set_global_policy("mixed_float16")
-
-  input_shape = (160, 160, 3)
-  batch_size = 128
-  lr_base = 1e-2 * batch_size / 512
-  optimizer_wd_mul = 1e-1
-
-  model = cmt.CMTTiny(input_shape=input_shape, num_classes=10, drop_connect_rate=0.2, drop_rate=0.2)
-  optimizer = tfa.optimizers.AdamW(learning_rate=lr_base, weight_decay=lr_base * optimizer_wd_mul)
-  model.compile(optimizer=optimizer, loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1), metrics=["acc"])
-  lr_scheduler = imagenet.CosineLrScheduler(
-      lr_base, first_restart_step=48, m_mul=0.5, t_mul=2.0, lr_min=1e-5, warmup=4, steps_per_epoch=-1
-  )
-  epochs = 48 + 4
-  imagenet.train(
-      model, epochs=epochs, data_name="cifar10", lr_scheduler=lr_scheduler, input_shape=input_shape,
-      batch_size=batch_size, magnitude=10
-  )
-  ```
-  ![](https://user-images.githubusercontent.com/5744524/151657106-9af596b7-5132-4bcd-9448-4c7ed313534c.png)
+    ![](https://user-images.githubusercontent.com/5744524/156691026-233fa5b5-b1b3-489c-a6ad-f2fa1b987cbe.png)
 ***
