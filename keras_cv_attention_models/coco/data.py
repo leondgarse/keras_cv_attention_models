@@ -294,11 +294,10 @@ def __bboxes_labels_batch_func__(bboxes, labels, anchors, empty_label, num_class
     bbox_labels = tf.concat([bboxes, tf.cast(tf.expand_dims(labels, -1), bboxes.dtype)], axis=-1)
     bbox_process = lambda xx: tf.cond(
         tf.reduce_any(xx[:, -1] > 0), # If contains any valid bbox and label
-        lambda: anchors_func.assign_anchor_classes_by_iou_with_bboxes(xx, anchors),
+        lambda: to_one_hot_with_class_mark(anchors_func.assign_anchor_classes_by_iou_with_bboxes(xx, anchors), num_classes),
         lambda: empty_label,
     )
-    bbox_labels = tf.map_fn(bbox_process, bbox_labels)
-    return to_one_hot_with_class_mark(bbox_labels, num_classes)
+    return tf.map_fn(bbox_process, bbox_labels)
 
 
 def init_dataset(
