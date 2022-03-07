@@ -73,7 +73,10 @@ def parse_arguments(argv):
     )
     anchor_group.add_argument("--anchor_pyramid_levels_min", type=int, default=3, help="Anchor pyramid levels min value")
     anchor_group.add_argument(
-        "--anchor_pyramid_levels_max", type=int, default=-1, help="Anchor pyramid levels max value. Default `-1` means `5` if use_anchor_free_mode, else `7`"
+        "--anchor_pyramid_levels_max",
+        type=int,
+        default=-1,
+        help="Anchor pyramid levels max value. Default `-1` means: yolox -> 5, efficientdet -> 7"
     )
 
     """ Loss arguments """
@@ -122,9 +125,10 @@ def parse_arguments(argv):
 
     if args.use_anchor_free_mode:
         args.anchor_scale, args.anchor_num_scales, args.anchor_aspect_ratios = 1, 1, [1]
-        args.anchor_pyramid_levels_max = 5 if args.anchor_pyramid_levels_max <= 0 else args.anchor_pyramid_levels_max
-    else:
-        args.anchor_pyramid_levels_max = 7 if args.anchor_pyramid_levels_max <= 0 else args.anchor_pyramid_levels_max
+    if args.anchor_pyramid_levels_max <= 0:
+        header_type = args.det_header.split(".")[0]
+        HEADER_DEFAULT = {"yolox": 5, "efficientdet": 7}
+        args.anchor_pyramid_levels_max = HEADER_DEFAULT.get(header_type, args.anchor_pyramid_levels_max)
     args.anchor_pyramid_levels = [args.anchor_pyramid_levels_min, args.anchor_pyramid_levels_max]
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
     args.additional_det_header_kwargs.update(

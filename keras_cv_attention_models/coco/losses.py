@@ -163,7 +163,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         if self.label_smoothing > 0:
             labels_true = labels_true * (1.0 - self.label_smoothing) + 0.5 * self.label_smoothing
         class_loss = tf.reduce_sum(K.binary_crossentropy(labels_true, labels_pred)) / num_valid_anchors
-        object_loss = tf.reduce_sum(K.binary_crossentropy(object_true, bbox_labels_pred[:, -1])) / num_valid_anchors
+        object_loss = tf.reduce_mean(K.binary_crossentropy(object_true, bbox_labels_pred[:, -1]))
         bbox_loss = tf.reduce_sum(self.__iou_loss__(bboxes_true, bboxes_pred)) / num_valid_anchors
         if self.use_l1_loss:
             l1_loss = tf.reduce_sum(tf.abs(bboxes_true_encoded - bboxes_pred_encoded)) / num_valid_anchors    # mean absolute error
