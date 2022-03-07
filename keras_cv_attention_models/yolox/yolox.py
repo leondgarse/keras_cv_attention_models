@@ -148,7 +148,7 @@ def path_aggregation_fpn(features, depth_mul=1, use_depthwise_conv=False, activa
 """ YOLOXHead """
 
 
-def yolox_head_single(inputs, out_channels, num_classes=80, num_anchors=1, use_depthwise_conv=False, activation="swish", name=""):
+def yolox_head_single(inputs, out_channels, num_classes=80, num_anchors=1, use_depthwise_conv=False, use_object_scores=True, activation="swish", name=""):
     bias_init = tf.constant_initializer(-tf.math.log((1 - 0.01) / 0.01).numpy())
 
     # stem
@@ -166,17 +166,20 @@ def yolox_head_single(inputs, out_channels, num_classes=80, num_anchors=1, use_d
     reg_out = keras.layers.Conv2D(4, kernel_size=1, name=name + "regression_out")(reg_nn)
 
     # obj_preds
-    obj_out = keras.layers.Conv2D(1 * num_anchors, kernel_size=1, bias_initializer=bias_init, name=name + "object_out")(reg_nn)
-    obj_out = activation_by_name(obj_out, "sigmoid", name=name + "object_out")
-    return tf.concat([reg_out, cls_out, obj_out], axis=-1)
+    if use_object_scores:
+        obj_out = keras.layers.Conv2D(1 * num_anchors, kernel_size=1, bias_initializer=bias_init, name=name + "object_out")(reg_nn)
+        obj_out = activation_by_name(obj_out, "sigmoid", name=name + "object_out")
+        return tf.concat([reg_out, cls_out, obj_out], axis=-1)
+    else:
+        return tf.concat([reg_out, cls_out], axis=-1)
 
 
-def YOLOXHead(inputs, width_mul=1.0, num_classes=80, num_anchors=1, use_depthwise_conv=False, activation="swish", name=""):
+def YOLOXHead(inputs, width_mul=1.0, num_classes=80, num_anchors=1, use_depthwise_conv=False, use_object_scores=True, activation="swish", name=""):
     out_channel = int(256 * width_mul)
     outputs = []
     for id, input in enumerate(inputs):
         cur_name = name + "{}_".format(id + 1)
-        out = yolox_head_single(input, out_channel, num_classes, num_anchors, use_depthwise_conv, activation=activation, name=cur_name)
+        out = yolox_head_single(input, out_channel, num_classes, num_anchors, use_depthwise_conv, use_object_scores, activation=activation, name=cur_name)
         outputs.append(out)
     outputs = tf.concat([keras.layers.Reshape([-1, ii.shape[-1]])(ii) for ii in outputs], axis=1)
     return outputs
@@ -190,6 +193,7 @@ def YOLOX(
     depth_mul=1,
     width_mul=-1,  # -1 means: `min([ii.shape[-1] for ii in features]) / 256` for custom backbones.
     use_depthwise_conv=False,
+    use_object_scores=True,
     num_anchors=1,
     activation="swish",
     freeze_backbone=False,
@@ -223,7 +227,7 @@ def YOLOX(
 
     inputs = backbone.inputs[0]
     fpn_features = path_aggregation_fpn(features, depth_mul=depth_mul, use_depthwise_conv=use_depthwise_conv, activation=activation, name="pafpn_")
-    outputs = YOLOXHead(fpn_features, width_mul, num_classes, num_anchors, use_depthwise_conv, activation=activation, name="head_")
+    outputs = YOLOXHead(fpn_features, width_mul, num_classes, num_anchors, use_depthwise_conv, use_object_scores, activation=activation, name="head_")
     outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
     model = keras.models.Model(inputs, outputs, name=model_name)
 

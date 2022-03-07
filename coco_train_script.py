@@ -132,6 +132,7 @@ def parse_arguments(argv):
             "pyramid_levels": args.anchor_pyramid_levels,
             "anchor_scale": args.anchor_scale,
             "num_anchors": len(args.anchor_aspect_ratios) * args.anchor_num_scales,
+            "use_object_scores": args.use_anchor_free_mode, # Currently same with use_anchor_free_mode.
         }
     )
     args.additional_backbone_kwargs = json.loads(args.additional_backbone_kwargs) if args.additional_backbone_kwargs else {}

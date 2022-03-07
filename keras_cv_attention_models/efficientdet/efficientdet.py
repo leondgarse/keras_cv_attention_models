@@ -139,6 +139,7 @@ def EfficientDet(
     head_depth=3,
     num_channels=64,
     use_weighted_sum=True,
+    use_object_scores=False,    # For anchor free mode
     num_anchors=9,
     num_classes=90,
     use_sep_conv=True,
@@ -178,18 +179,24 @@ def EfficientDet(
 
     # Save line-width
     head_kwargs = {"filters": num_channels, "depth": head_depth, "anchors": num_anchors, "use_sep_conv": use_sep_conv, "activation": activation}
-    bbox_out = det_head(fpn_features, classes=4, bias_init="zeros", head_activation=None, name="regressor_", **head_kwargs)
+    bboxes_classes = 5 if use_object_scores else 4
+    bbox_out = det_head(fpn_features, classes=bboxes_classes, bias_init="zeros", head_activation=None, name="regressor_", **head_kwargs)
+    if use_object_scores:
+        bbox_out, object_out = bbox_out[:, :, :4], bbox_out[:, :, -1:]
+        object_out = object_out if classifier_activation is None else activation_by_name(object_out, classifier_activation, name="object_output_")
+
     if num_classes > 0:
         bias_init = tf.constant_initializer(-tf.math.log((1 - 0.01) / 0.01).numpy())
         cls_out = det_head(fpn_features, classes=num_classes, bias_init=bias_init, head_activation=classifier_activation, name="classifier_", **head_kwargs)
-        outputs = tf.concat([bbox_out, cls_out], axis=-1)
+        outputs = tf.concat([bbox_out, cls_out, object_out], axis=-1) if use_object_scores else tf.concat([bbox_out, cls_out], axis=-1)
     else:
-        outputs = bbox_out
+        outputs = tf.concat([bbox_out, object_out], axis=-1) if use_object_scores else bbox_out
     outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
 
     model_name = model_name or backbone.name + "_det"
     model = keras.models.Model(inputs=backbone.inputs[0], outputs=outputs, name=model_name)
-    add_pre_post_process(model, rescale_mode=rescale_mode, post_process=DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchor_scale))
+    post_process = DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchor_scale, use_object_scores)
+    add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     reload_model_weights(model, PRETRAINED_DICT, "efficientdet", pretrained)
     # model.backbone = backbone
     return model
