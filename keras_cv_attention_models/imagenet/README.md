@@ -13,8 +13,6 @@
 <!-- /TOC -->
 ***
 
-
-
 # Training
 ## aotnet.AotNet50
   - `aotnet.AotNet50` default parameters set is a typical `ResNet50` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
@@ -33,9 +31,8 @@
   - **A2**. Train A2 recipe from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf) with `batch_size=128, input_shape=(224, 224)`
     ```sh
     CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py \
-            --seed 0 --input_shape 224 --lr_base_512 5e-3 --magnitude 7 \
-            --batch_size 128 --lr_decay_steps 300 --epochs 305 -s aotnet50_A2 \
-            --additional_model_kwargs '{"drop_connect_rate": 0.05}'
+    --seed 0 --input_shape 224 --lr_base_512 5e-3 --lr_decay_steps 300 --batch_size 128 \
+    --magnitude 7 --additional_model_kwargs '{"drop_connect_rate": 0.05}' -s aotnet50_A2
     ```
     The final best result is **`top1: 0.79706 top5: 0.9461`**.
   - **Plot**. The last `AotNet50, A2, 224, Epoch 300` is plotted every `3` epochs, matching with other `A3` ones.

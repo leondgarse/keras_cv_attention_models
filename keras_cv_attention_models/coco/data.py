@@ -312,6 +312,7 @@ def init_dataset(
     anchor_aspect_ratios=[1, 2, 0.5],  # [1, 2, 0.5] matches efficientdet anchors format.
     anchor_num_scales=3,
     anchor_scale=4,
+    anchor_grid_zero_start="auto", # False for anchor_free_mode, True for others.
     rescale_mode="torch",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`
     random_crop_mode=1.0,
     mosaic_mix_prob=0.0,
@@ -357,8 +358,13 @@ def init_dataset(
     rescaling = lambda xx: (xx - mean) / std
     if use_anchor_free_mode:
         bbox_process = lambda bb: to_one_hot_with_class_mark(tf.concat([bb[0], tf.cast(tf.expand_dims(bb[1], -1), bb[0].dtype)], axis=-1), num_classes)
+        # Init anchors here, or will need these anchor params else where in loss / anchor_assign functions
+        aspect_ratios, num_scales, anchor_scale = [1], 1, 1
+        grid_zero_start = False if anchor_grid_zero_start == "auto" else anchor_grid_zero_start
+        anchors = anchors_func.get_anchors(input_shape[:2], anchor_pyramid_levels, aspect_ratios, num_scales, anchor_scale, grid_zero_start)
     else:
-        anchors = anchors_func.get_anchors(input_shape[:2], anchor_pyramid_levels, anchor_aspect_ratios, anchor_num_scales, anchor_scale)
+        grid_zero_start = True if anchor_grid_zero_start == "auto" else anchor_grid_zero_start
+        anchors = anchors_func.get_anchors(input_shape[:2], anchor_pyramid_levels, anchor_aspect_ratios, anchor_num_scales, anchor_scale, grid_zero_start)
         num_anchors = anchors.shape[0]
         empty_label = tf.zeros([num_anchors, 4 + num_classes + 1])  # All 0
         bbox_process = lambda bb: __bboxes_labels_batch_func__(bb[0], bb[1], anchors, empty_label, num_classes)
@@ -372,7 +378,9 @@ def init_dataset(
     if test_dataset is not None:
         test_process = RandomProcessImageWithBboxes(target_shape=input_shape, resize_method=resize_method, resize_antialias=resize_antialias, magnitude=-1)
         test_dataset = test_dataset.map(test_process).batch(batch_size).map(lambda xx, yy: (rescaling(xx), bbox_process(yy)))
-    return train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
+
+    # Also returns anchors, it's needed for anchor_freee mode
+    return train_dataset, test_dataset, total_images, num_classes, steps_per_epoch, anchors
 
 
 """ Show """

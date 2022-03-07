@@ -24,7 +24,6 @@ PRETRAINED_DICT = {
 """ CSPDarknet backbone """
 BATCH_NORM_EPSILON = 1e-3
 BATCH_NORM_MOMENTUM = 0.03
-YOLO_ANCHORS_PARAM = {"pyramid_levels": [3, 5], "aspect_ratios": [1], "num_scales": 1, "anchor_scale": 1, "grid_zero_start": True}
 
 
 def conv_dw_pw_block(inputs, filters, kernel_size=1, strides=1, use_depthwise_conv=False, activation="swish", name=""):
@@ -185,20 +184,22 @@ def YOLOXHead(inputs, width_mul=1.0, num_classes=80, num_anchors=1, use_depthwis
 
 """ YOLOX models """
 
-
 def YOLOX(
     backbone=None,
     features_pick=[-3, -2, -1],
     depth_mul=1,
     width_mul=-1,  # -1 means: `min([ii.shape[-1] for ii in features]) / 256` for custom backbones.
     use_depthwise_conv=False,
+    num_anchors=1,
     activation="swish",
     freeze_backbone=False,
     input_shape=(640, 640, 3),
     num_classes=80,
-    num_anchors=1,
+    pyramid_levels=[3, 5],  # Init anchors for model prediction.
+    anchor_scale=1,  # Init anchors for model prediction.
     pretrained=None,
     model_name="yolox",
+    rescale_mode="raw", # For decode predictions, raw means input value in range [0, 255].
     kwargs=None,
 ):
     if backbone is None:
@@ -222,9 +223,12 @@ def YOLOX(
 
     inputs = backbone.inputs[0]
     fpn_features = path_aggregation_fpn(features, depth_mul=depth_mul, use_depthwise_conv=use_depthwise_conv, activation=activation, name="pafpn_")
-    output = YOLOXHead(fpn_features, width_mul, num_classes, num_anchors, use_depthwise_conv, activation=activation, name="head_")
-    model = keras.models.Model(inputs, output, name=model_name)
-    add_pre_post_process(model, rescale_mode="raw", post_process=DecodePredictions(backbone.input_shape[1:], with_object_score=True, **YOLO_ANCHORS_PARAM))
+    outputs = YOLOXHead(fpn_features, width_mul, num_classes, num_anchors, use_depthwise_conv, activation=activation, name="head_")
+    outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
+    model = keras.models.Model(inputs, outputs, name=model_name)
+
+    ANCHORS_PARAM = {"pyramid_levels": pyramid_levels, "aspect_ratios": [1], "num_scales": 1, "anchor_scale": anchor_scale, "grid_zero_start": True}
+    add_pre_post_process(model, rescale_mode=rescale_mode, post_process=DecodePredictions(backbone.input_shape[1:], with_object_score=True, **ANCHORS_PARAM))
     reload_model_weights(model, PRETRAINED_DICT, "yolox", pretrained)
     return model
 

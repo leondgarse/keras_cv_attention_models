@@ -17,14 +17,14 @@ def parse_arguments(argv):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-d", "--data_name", type=str, default="coco/2017", help="Dataset name from tensorflow_datasets like coco/2017")
     parser.add_argument("-i", "--input_shape", type=int, default=256, help="Model input shape")
-    parser.add_argument("--backbone", type=str, default="efficientnet.EfficientNetV1B0", help="Detector backbone model, name in format [sub_dir].[model_name]")
+    parser.add_argument("--backbone", type=str, default=None, help="Detector backbone, name in format [sub_dir].[model_name]. Default None for header preset.")
     parser.add_argument(
         "--backbone_pretrained",
         type=str,
         default="imagenet",
         help="If build backbone with pretrained weights. Mostly one of [imagenet, imagenet21k, noisy_student]",
     )
-    parser.add_argument("--det_header", type=str, default="efficientdet.EfficientDet", help="Detector header, name in format [sub_dir].[model_name]")
+    parser.add_argument("--det_header", type=str, default="efficientdet.EfficientDetD0", help="Detector header, name in format [sub_dir].[model_name]")
     parser.add_argument("--freeze_backbone_epochs", type=int, default=32, help="Epochs training with backbone.trainable=false")
     parser.add_argument(
         "--additional_backbone_kwargs", type=str, default=None, help="Json format backbone kwargs like '{\"drop_connect_rate\": 0.05}'. Note all quote marks"
@@ -54,18 +54,27 @@ def parse_arguments(argv):
 
     """ Anchor arguments """
     anchor_group = parser.add_argument_group("Anchor arguments")
-    anchor_group.add_argument("--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with this")
+    anchor_group.add_argument("--use_anchor_free_mode", action="store_true", help="Use anchor free mode")
     anchor_group.add_argument(
-        "--anchor_num_scales", type=int, default=3, help="Anchor num scales, `scales = [2 ** (ii / num_scales) * anchor_scale for ii in range(num_scales)]`"
+        "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with this. 1 if use_anchor_free_mode"
+    )
+    anchor_group.add_argument(
+        "--anchor_num_scales",
+        type=int,
+        default=3,
+        help="Anchor num scales, `scales = [2 ** (ii / num_scales) * anchor_scale for ii in range(num_scales)]`. 1 if use_anchor_free_mode",
     )
     anchor_group.add_argument(
         "--anchor_aspect_ratios",
         type=float,
         nargs="+",
         default=[1, 2, 0.5],
-        help="Anchor aspect ratios, `num_anchors = len(anchor_aspect_ratios) * anchor_num_scales`",
+        help="Anchor aspect ratios, `num_anchors = len(anchor_aspect_ratios) * anchor_num_scales`. [1] if use_anchor_free_mode",
     )
-    anchor_group.add_argument("--anchor_pyramid_levels", type=int, nargs="+", default=[3, 7], help="Anchor pyramid levels, 2 values indicates min max")
+    anchor_group.add_argument("--anchor_pyramid_levels_min", type=int, default=3, help="Anchor pyramid levels min value")
+    anchor_group.add_argument(
+        "--anchor_pyramid_levels_max", type=int, default=-1, help="Anchor pyramid levels max value. Default `-1` means `5` if use_anchor_free_mode, else `7`"
+    )
 
     """ Loss arguments """
     loss_group = parser.add_argument_group("Loss arguments")
@@ -111,6 +120,12 @@ def parse_arguments(argv):
 
     args = parser.parse_known_args(argv)[0]
 
+    if args.use_anchor_free_mode:
+        args.anchor_scale, args.anchor_num_scales, args.anchor_aspect_ratios = 1, 1, [1]
+        args.anchor_pyramid_levels_max = 5 if args.anchor_pyramid_levels_max <= 0 else args.anchor_pyramid_levels_max
+    else:
+        args.anchor_pyramid_levels_max = 7 if args.anchor_pyramid_levels_max <= 0 else args.anchor_pyramid_levels_max
+    args.anchor_pyramid_levels = [args.anchor_pyramid_levels_min, args.anchor_pyramid_levels_max]
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
     args.additional_det_header_kwargs.update(
         {
@@ -135,7 +150,7 @@ def parse_arguments(argv):
         basic_save_name = basic_save_name[:-7] if basic_save_name.endswith("_latest") else basic_save_name
     elif basic_save_name is None:
         data_name = args.data_name.replace("/", "_")
-        model_name = args.det_header.split(".")[-1] + "_" + args.backbone.split(".")[-1]
+        model_name = args.det_header.split(".")[-1] + ("" if args.backbone is None else ("_" + args.backbone.split(".")[-1]))
         basic_save_name = "{}_{}_{}_{}_batchsize_{}".format(model_name, args.input_shape, args.optimizer, data_name, args.batch_size)
         basic_save_name += "_randaug_{}_RRC_{}".format(args.magnitude, args.random_crop_mode)
         basic_save_name += "_lr512_{}_wd_{}".format(args.lr_base_512, args.weight_decay)
@@ -152,10 +167,11 @@ def run_training_by_args(args):
     batch_size = args.batch_size * strategy.num_replicas_in_sync
     input_shape = (args.input_shape, args.input_shape, 3)
 
-    train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = data.init_dataset(
+    train_dataset, test_dataset, total_images, num_classes, steps_per_epoch, anchors = data.init_dataset(
         data_name=args.data_name,
         input_shape=input_shape,
         batch_size=batch_size,
+        use_anchor_free_mode=args.use_anchor_free_mode,
         anchor_pyramid_levels=args.anchor_pyramid_levels,
         anchor_aspect_ratios=args.anchor_aspect_ratios,
         anchor_num_scales=args.anchor_num_scales,
@@ -178,14 +194,18 @@ def run_training_by_args(args):
 
     with strategy.scope():
         pretrained, restore_path = args.pretrained, args.restore_path
-        backbone = init_model(args.backbone, input_shape, 0, args.backbone_pretrained, None, **args.additional_backbone_kwargs)
-        args.additional_det_header_kwargs.update({"backbone": backbone})
-        model = init_model(args.det_header, None, num_classes, pretrained, restore_path, **args.additional_det_header_kwargs)
+        if args.backbone is not None:
+            backbone = init_model(args.backbone, input_shape, 0, args.backbone_pretrained, None, **args.additional_backbone_kwargs)
+            args.additional_det_header_kwargs.update({"backbone": backbone})
+        model = init_model(args.det_header, input_shape, num_classes, pretrained, restore_path, **args.additional_det_header_kwargs)
 
         if args.summary:
             model.summary()
         if model.optimizer is None:
-            loss, metrics = losses.FocalLossWithBbox(), losses.ClassAccuracyWithBbox()
+            if args.use_anchor_free_mode:
+                loss, metrics = losses.AnchorFreeLoss(anchors), None
+            else:
+                loss, metrics = losses.FocalLossWithBbox(), losses.ClassAccuracyWithBbox()
             model = compile_model(model, args.optimizer, lr_base, args.weight_decay, 1, args.label_smoothing, loss=loss, metrics=metrics)
         print(">>>> basic_save_name =", args.basic_save_name)
         # return None, None, None
