@@ -71,13 +71,8 @@ def parse_arguments(argv):
         default=[1, 2, 0.5],
         help="Anchor aspect ratios, `num_anchors = len(anchor_aspect_ratios) * anchor_num_scales`. [1] if use_anchor_free_mode",
     )
-    anchor_group.add_argument("--anchor_pyramid_levels_min", type=int, default=3, help="Anchor pyramid levels min value")
-    anchor_group.add_argument(
-        "--anchor_pyramid_levels_max",
-        type=int,
-        default=-1,
-        help="Anchor pyramid levels max value. Default `-1` means: yolox -> 5, efficientdet -> 7"
-    )
+    anchor_group.add_argument("--anchor_pyramid_levels_min", type=int, default=3, help="Anchor pyramid levels min.")
+    anchor_group.add_argument("--anchor_pyramid_levels_max", type=int, default=-1, help="Anchor pyramid levels max. `-1` means yolox: 5, efficientdet: 7")
 
     """ Loss arguments """
     loss_group = parser.add_argument_group("Loss arguments")
@@ -133,10 +128,8 @@ def parse_arguments(argv):
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
     args.additional_det_header_kwargs.update(
         {
-            "pyramid_levels": args.anchor_pyramid_levels,
-            "anchor_scale": args.anchor_scale,
             "num_anchors": len(args.anchor_aspect_ratios) * args.anchor_num_scales,
-            "use_object_scores": args.use_anchor_free_mode, # Currently same with use_anchor_free_mode.
+            "use_object_scores": args.use_anchor_free_mode,  # Currently same with use_anchor_free_mode.
         }
     )
     args.additional_backbone_kwargs = json.loads(args.additional_backbone_kwargs) if args.additional_backbone_kwargs else {}
