@@ -111,16 +111,19 @@ def CSPDarknet(width_mul=1, depth_mul=1, out_features=[-3, -2, -1], use_depthwis
 
 
 def upsample_merge(inputs, csp_depth_mul, use_depthwise_conv=False, activation="swish", name=""):
+    # print(f">>>> upsample_merge inputs: {[ii.shape for ii in inputs] = }")
     target_channel = inputs[-1].shape[-1]
     fpn_out = conv_dw_pw_block(inputs[0], target_channel, activation=activation, name=name + "fpn_")
 
-    inputs[0] = keras.layers.UpSampling2D(size=(2, 2), interpolation="nearest", name=name + "up")(fpn_out)
+    # inputs[0] = keras.layers.UpSampling2D(size=(2, 2), interpolation="nearest", name=name + "up")(fpn_out)
+    inputs[0] = tf.image.resize(fpn_out, tf.shape(inputs[-1])[1:-1], method="nearest")
     nn = tf.concat(inputs, axis=-1)
     nn = csp_stack(nn, round(3 * csp_depth_mul), target_channel, 0.5, False, use_depthwise_conv, activation=activation, name=name)
     return fpn_out, nn
 
 
 def downsample_merge(inputs, csp_depth_mul, use_depthwise_conv=False, activation="swish", name=""):
+    # print(f">>>> downsample_merge inputs: {[ii.shape for ii in inputs] = }")
     inputs[0] = conv_dw_pw_block(inputs[0], inputs[-1].shape[-1], 3, 2, use_depthwise_conv, activation=activation, name=name + "down_")
     nn = tf.concat(inputs, axis=-1)
     nn = csp_stack(nn, round(3 * csp_depth_mul), nn.shape[-1], 0.5, False, use_depthwise_conv, activation=activation, name=name)
@@ -163,7 +166,7 @@ def yolox_head_single(inputs, out_channels, num_classes=80, num_anchors=1, use_d
     # reg_convs, reg_preds
     reg_nn = conv_dw_pw_block(stem, out_channels, kernel_size=3, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "reg_1_")
     reg_nn = conv_dw_pw_block(reg_nn, out_channels, kernel_size=3, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "reg_2_")
-    reg_out = keras.layers.Conv2D(4, kernel_size=1, name=name + "regression_out")(reg_nn)
+    reg_out = keras.layers.Conv2D(4 * num_anchors, kernel_size=1, name=name + "regression_out")(reg_nn)
 
     # obj_preds
     if use_object_scores:
@@ -187,6 +190,7 @@ def YOLOXHead(inputs, width_mul=1.0, num_classes=80, num_anchors=1, use_depthwis
 
 """ YOLOX models """
 
+
 def YOLOX(
     backbone=None,
     features_pick=[-3, -2, -1],
@@ -195,16 +199,19 @@ def YOLOX(
     use_depthwise_conv=False,
     use_object_scores=True,
     num_anchors=1,
-    activation="swish",
-    freeze_backbone=False,
     input_shape=(640, 640, 3),
     num_classes=80,
-    pyramid_levels=[3, 5],  # Init anchors for model prediction.
-    anchor_scale=1,  # Init anchors for model prediction.
+    activation="swish",
+    freeze_backbone=False,
     pretrained=None,
     model_name="yolox",
-    rescale_mode="raw", # For decode predictions, raw means input value in range [0, 255].
-    kwargs=None,
+    pyramid_levels=[3, 5],  # Init anchors for model prediction.
+    anchor_aspect_ratios=[1],  # Init anchors for model prediction
+    anchor_num_scales=1,  # Init anchors for model prediction
+    anchor_scale=1,  # Init anchors for model prediction.
+    anchor_grid_zero_start=True,  # Init anchors for model prediction
+    rescale_mode="raw",  # For decode predictions, raw means input value in range [0, 255].
+    kwargs=None,  # Not using, recieving parameter
 ):
     if backbone is None:
         backbone = CSPDarknet(width_mul, depth_mul, features_pick, use_depthwise_conv, input_shape, activation=activation, model_name="darknet")
@@ -230,10 +237,11 @@ def YOLOX(
     outputs = YOLOXHead(fpn_features, width_mul, num_classes, num_anchors, use_depthwise_conv, use_object_scores, activation=activation, name="head_")
     outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
     model = keras.models.Model(inputs, outputs, name=model_name)
-
-    ANCHORS_PARAM = {"pyramid_levels": pyramid_levels, "aspect_ratios": [1], "num_scales": 1, "anchor_scale": anchor_scale, "grid_zero_start": True}
-    add_pre_post_process(model, rescale_mode=rescale_mode, post_process=DecodePredictions(backbone.input_shape[1:], with_object_score=True, **ANCHORS_PARAM))
     reload_model_weights(model, PRETRAINED_DICT, "yolox", pretrained)
+
+    ANCHORS = {"aspect_ratios": anchor_aspect_ratios, "num_scales": anchor_num_scales, "anchor_scale": anchor_scale, "grid_zero_start": anchor_grid_zero_start}
+    post_process = DecodePredictions(backbone.input_shape[1:], pyramid_levels, **ANCHORS, use_object_scores=use_object_scores)
+    add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     return model
 
 
