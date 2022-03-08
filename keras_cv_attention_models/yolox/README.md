@@ -32,17 +32,17 @@
     data.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=80)
     ```
     ![yoloxs_dog_cat](https://user-images.githubusercontent.com/5744524/154924798-79a69e1b-40f3-4ac9-895f-0a15dd4ca9b3.png)
-  - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. Currently using `keras.layers.UpSampling2D` for upsampling, thus actual `input_shape` should be dividable by `32`.
+  - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. **Note: `focus_stem` in `CSPDarknet` requires input at least been an even number**.
     ```py
     from keras_cv_attention_models import yolox
     model = yolox.YOLOXTiny(input_shape=(None, None, 3), pretrained="coco")
     # >>>> Load pretrained from: ~/.keras/models/yolox_tiny_coco.h5
     print(model.input_shape, model.output_shape)
     # (None, None, None, 3) (None, None, 85)
-    print(model(tf.ones([1, 768, 768, 3])).shape)
-    # (1, 12096, 85)
-    print(model(tf.ones([1, 160, 256, 3])).shape)
-    # (1, 840, 85)
+    print(model(tf.ones([1, 742, 356, 3])).shape)
+    # (1, 5554, 85)
+    print(model(tf.ones([1, 188, 276, 3])).shape)
+    # (1, 1110, 85)
 
     from keras_cv_attention_models import test_images
     imm = test_images.dog_cat()

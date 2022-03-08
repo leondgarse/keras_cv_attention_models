@@ -205,7 +205,7 @@ class RandomProcessImageWithBboxes:
         self,
         target_shape=(300, 300),
         max_labels_per_image=100,
-        random_crop_mode=0, # 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale
+        random_crop_mode=0,  # 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale
         resize_method="bilinear",
         resize_antialias=False,
         magnitude=0,
@@ -293,7 +293,7 @@ def to_one_hot_with_class_mark(anchor_bboxes_with_label, num_classes=80):
 def __bboxes_labels_batch_func__(bboxes, labels, anchors, empty_label, num_classes=80):
     bbox_labels = tf.concat([bboxes, tf.cast(tf.expand_dims(labels, -1), bboxes.dtype)], axis=-1)
     bbox_process = lambda xx: tf.cond(
-        tf.reduce_any(xx[:, -1] > 0), # If contains any valid bbox and label
+        tf.reduce_any(xx[:, -1] > 0),  # If contains any valid bbox and label
         lambda: to_one_hot_with_class_mark(anchors_func.assign_anchor_classes_by_iou_with_bboxes(xx, anchors), num_classes),
         lambda: empty_label,
     )
@@ -309,10 +309,10 @@ def init_dataset(
     max_labels_per_image=100,
     use_anchor_free_mode=False,
     anchor_pyramid_levels=[3, 7],
-    anchor_aspect_ratios=[1, 2, 0.5],  # [1, 2, 0.5] matches efficientdet anchors format.
-    anchor_num_scales=3,
-    anchor_scale=4,
-    anchor_grid_zero_start="auto", # False for anchor_free_mode, True for others.
+    anchor_aspect_ratios=[1, 2, 0.5],  # [1, 2, 0.5] matches efficientdet anchors format. Force using [1] if use_anchor_free_mode
+    anchor_num_scales=3,  # Force using 1 if use_anchor_free_mode
+    anchor_scale=4,  # Force using 1 if use_anchor_free_mode
+    anchor_grid_zero_start="auto",  # False for anchor_free_mode, True for others.
     rescale_mode="torch",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`
     random_crop_mode=1.0,
     mosaic_mix_prob=0.0,

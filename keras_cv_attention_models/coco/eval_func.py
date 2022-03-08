@@ -24,16 +24,20 @@ class DecodePredictions:
     >>> # bboxes = array([[0.433231  , 0.54432285, 0.8778939 , 0.8187578 ]], dtype=float32), labels = array([17]), scores = array([0.85373735], dtype=float32)
     """
 
-    def __init__(self, input_shape=(512, 512, 3), pyramid_levels=[3, 7], anchor_scale=4, with_object_score=False, **kwargs):
-        self.anchor_scale, self.with_object_score, self.kwargs = anchor_scale, with_object_score, kwargs
+    def __init__(
+        self, input_shape=512, pyramid_levels=[3, 7], aspect_ratios=[1, 2, 0.5], num_scales=3, anchor_scale=4, grid_zero_start=False, use_object_scores=False
+    ):
         self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
-        if input_shape[0] is not None:
+        self.aspect_ratios, self.num_scales, self.anchor_scale, self.grid_zero_start = aspect_ratios, num_scales, anchor_scale, grid_zero_start
+        self.use_object_scores = use_object_scores
+        if input_shape is not None and (isinstance(input_shape, (list, tuple)) and input_shape[0] is not None):
             self.__init_anchor__(input_shape)
         else:
             self.anchors = None
 
     def __init_anchor__(self, input_shape):
-        self.anchors = coco.get_anchors(input_shape=input_shape, pyramid_levels=self.pyramid_levels, anchor_scale=self.anchor_scale, **self.kwargs)
+        input_shape = input_shape[:2] if isinstance(input_shape, (list, tuple)) else (input_shape, input_shape)
+        self.anchors = coco.get_anchors(input_shape, self.pyramid_levels, self.aspect_ratios, self.num_scales, self.anchor_scale, self.grid_zero_start)
 
     def __topk_class_boxes_single__(self, pred, topk=5000):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L82
@@ -73,18 +77,18 @@ class DecodePredictions:
         if input_shape is not None:
             self.__init_anchor__(input_shape)
 
-        if self.with_object_score:  # YOLO outputs: [bboxes, classses_score, object_score]
+        if self.use_object_scores:  # YOLO outputs: [bboxes, classses_score, object_score]
             pred, object_scores = pred[:, :-1], pred[:, -1]
 
         if topk > 0:
             bbs, ccs, labels, picking_indices = self.__topk_class_boxes_single__(pred, topk)
             anchors = tf.gather(self.anchors, picking_indices)
-            if self.with_object_score:
+            if self.use_object_scores:
                 ccs *= tf.gather(object_scores, picking_indices)
         else:
             bbs, ccs, labels = pred[:, :4], tf.reduce_max(pred[:, 4:], axis=-1), tf.argmax(pred[:, 4:], axis=-1)
             anchors = self.anchors
-            if self.with_object_score:
+            if self.use_object_scores:
                 ccs *= object_scores
 
         bbs_decoded = coco.decode_bboxes(bbs, anchors)
@@ -133,7 +137,7 @@ def init_eval_dataset(data_name="coco/2017", target_shape=(512, 512), batch_size
 def model_eval_results(model, eval_dataset, pred_decoder, nms_score_threshold=0.001, nms_method="gaussian", nms_mode="per_class", nms_topk=5000):
     target_shape = (eval_dataset.element_spec[0].shape[1], eval_dataset.element_spec[0].shape[2])
     num_classes = model.output_shape[-1] - 4
-    to_90_labels = (lambda label: label + 1) if num_classes == 90 else (lambda label: coco.COCO_80_to_90_LABEL_DICT[label] + 1)
+    to_90_labels = (lambda label: label + 1) if num_classes >= 90 else (lambda label: coco.COCO_80_to_90_LABEL_DICT[label] + 1)
     # Format: [image_id, x, y, width, height, score, class]
     to_coco_eval_single = lambda image_id, bbox, label, score: [image_id, *bbox.tolist(), score, to_90_labels(label)]
 
@@ -185,7 +189,7 @@ def run_coco_evaluation(
     nms_topk=5000,
     annotation_file=None,  # coco_evaluation
     pyramid_levels=[3, 7],  # get_anchors
-    anchor_scale=4,
+    use_anchor_free_mode=False,
     **anchor_kwargs,
 ):
     input_shape = model.input_shape[1:-1] if input_shape is None else input_shape
@@ -199,8 +203,15 @@ def run_coco_evaluation(
     if take_samples > 0:
         eval_dataset = eval_dataset.take(take_samples)
     if hasattr(model, "decode_predictions") and model.decode_predictions is not None:
+        print(">>>> Using model preset decode_predictions")
         pred_decoder = model.decode_predictions
+    elif use_anchor_free_mode:
+        ANCHORS = {"aspect_ratios": [1], "num_scales": 1, "anchor_scale": 1, "grid_zero_start": True}  # yolox
+        print(">>>> Using anchor_free_mode decode_predictions:", ANCHORS)
+        pred_decoder = DecodePredictions(input_shape, pyramid_levels, **ANCHORS, use_object_scores=use_anchor_free_mode)
     else:
-        pred_decoder = DecodePredictions(input_shape, pyramid_levels=pyramid_levels, anchor_scale=anchor_scale, **anchor_kwargs)
+        print(">>>> Using decode_predictions:", ANCHORS)
+        ANCHORS = {"aspect_ratios": [1, 2, 0.5], "num_scales": 3, "anchor_scale": 4, "grid_zero_start": False}  # efficientdet
+        pred_decoder = DecodePredictions(input_shape, pyramid_levels, **ANCHORS, use_object_scores=use_anchor_free_mode)
     detection_results = model_eval_results(model, eval_dataset, pred_decoder, nms_score_threshold, nms_method, nms_mode, nms_topk)
     return coco_evaluation(detection_results, annotation_file)

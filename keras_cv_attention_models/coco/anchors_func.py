@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
+
 def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=[1, 2, 0.5], num_scales=3, anchor_scale=4, grid_zero_start=False):
     """
     >>> from keras_cv_attention_models.coco import anchors_func
@@ -56,7 +57,7 @@ def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=
     return all_anchors
 
 
-def get_anchor_free_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 5], grid_zero_start=False):
+def get_anchor_free_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 5], grid_zero_start=True):
     return get_anchors(input_shape, pyramid_levels, aspect_ratios=[1], num_scales=1, anchor_scale=1, grid_zero_start=grid_zero_start)
 
 
@@ -169,6 +170,7 @@ class AnchorFreeAssignMatching:
     >>> bboxes_trues, bboxes_true_encodeds, labels_trues, object_trues, bboxes_preds, bboxes_pred_encodeds, labels_preds = aa(bbox_labels_true, pred[0])
     >>> data.show_image_with_bboxes(img, bboxes_preds, labels_preds.numpy().argmax(-1), labels_preds.numpy().max(-1))
     """
+
     # def __init__(self, input_shape=(640, 640, 3), pyramid_levels=[3, 5], grid_zero_start=True, center_radius=2.5, topk_ious_max=10, epsilon=1e-8):
     #     self.anchors = get_anchors(input_shape, pyramid_levels, aspect_ratios=[1], num_scales=1, anchor_scale=1, grid_zero_start=grid_zero_start)
     def __init__(self, anchors, center_radius=2.5, topk_ious_max=10, epsilon=1e-8):
@@ -186,8 +188,8 @@ class AnchorFreeAssignMatching:
         # Anchors constant values
         self.anchors_centers = (self.anchors[:, :2] + self.anchors[:, 2:]) * 0.5
         self.anchors_hws = self.anchors[:, 2:] - self.anchors[:, :2]
-        self.anchors_nd = tf.expand_dims(self.anchors, 0)   # [1, num_anchors, 4]
-        self.anchors_centers_nd, self.anchors_hws_nd = tf.expand_dims(self.anchors_centers, 0), tf.expand_dims(self.anchors_hws, 0) # [1, num_anchors, 2]
+        self.anchors_nd = tf.expand_dims(self.anchors, 0)  # [1, num_anchors, 4]
+        self.anchors_centers_nd, self.anchors_hws_nd = tf.expand_dims(self.anchors_centers, 0), tf.expand_dims(self.anchors_hws, 0)  # [1, num_anchors, 2]
         self.centers_enlarge_nd = self.anchors_hws_nd * self.center_radius
 
         self.is_built = True
@@ -240,19 +242,19 @@ class AnchorFreeAssignMatching:
         conflict_costs = tf.gather(cost, cond[:, 0], axis=1)
         topk_anchors = tf.tensor_scatter_nd_update(tf.transpose(topk_anchors), cond, tf.zeros([tf.shape(cond)[0], tf.shape(topk_anchors)[0]]))
         topk_anchors = tf.transpose(topk_anchors)
-        update_pos = tf.concat([tf.expand_dims(tf.argmin(conflict_costs, axis=0), 1), cond], axis=-1)   # Not considering if argmin cost is in conflict_costs
+        update_pos = tf.concat([tf.expand_dims(tf.argmin(conflict_costs, axis=0), 1), cond], axis=-1)  # Not considering if argmin cost is in conflict_costs
         topk_anchors = tf.tensor_scatter_nd_update(topk_anchors, update_pos, tf.ones(tf.shape(cond)[0]))
         return topk_anchors
 
     def __dynamic_k_matching__(self, ious, cost):
         # dynamic_k_matching https://github.com/Megvii-BaseDetection/YOLOX/tree/master/yolox/models/yolo_head.py#L607
-        top_ious = tf.sort(ious, direction="DESCENDING")[:, :self.topk_ious_max]
+        top_ious = tf.sort(ious, direction="DESCENDING")[:, : self.topk_ious_max]
         dynamic_ks = tf.maximum(tf.reduce_sum(top_ious, axis=-1), 1.0)  # [???] why sum up ious
 
         num_picked = tf.shape(cost)[-1]
         cc = tf.concat([cost, tf.expand_dims(dynamic_ks, 1)], axis=-1)
         # matching_matrix, tf.argsort default direction = "ASCENDING"
-        topk_anchors = tf.map_fn(lambda xx: tf.reduce_sum(tf.one_hot(tf.argsort(xx[:-1])[:tf.cast(xx[-1], tf.int32)], num_picked), 0), cc)
+        topk_anchors = tf.map_fn(lambda xx: tf.reduce_sum(tf.one_hot(tf.argsort(xx[:-1])[: tf.cast(xx[-1], tf.int32)], num_picked), 0), cc)
         check_cond = tf.reduce_sum(topk_anchors, axis=0) > 1
         return tf.cond(
             tf.reduce_any(check_cond),
@@ -260,7 +262,6 @@ class AnchorFreeAssignMatching:
             lambda: topk_anchors,
         )
 
-    # def __valid_call_single__(self, bbox_labels_true, bbox_labels_pred):
     @tf.function
     def __call__(self, bbox_labels_true, bbox_labels_pred):
         if not self.is_built:
@@ -287,22 +288,22 @@ class AnchorFreeAssignMatching:
         bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_center, bboxes_pred_hw = self.__decode_bboxes__(bboxes_pred, anchors_centers, anchors_hws)
         bboxes_pred_decoded = tf.concat([bboxes_pred_top_left, bboxes_pred_bottom_right], axis=-1)  # still output [top, left, bottom, right]
 
-        ious = self.__center_iou_nd__(bboxes_true_nd, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw) # [num_bboxes, num_picked_anchors]
+        ious = self.__center_iou_nd__(bboxes_true_nd, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw)  # [num_bboxes, num_picked_anchors]
         ious_loss = -tf.math.log(ious + self.epsilon)
 
         obj_labels_pred = tf.sqrt(labels_pred * object_pred)
-        cls_loss = K.binary_crossentropy(tf.expand_dims(labels_true, 1), tf.expand_dims(obj_labels_pred, 0)) # [num_bboxes, num_picked_anchors, num_classes]
-        cls_loss = tf.reduce_sum(cls_loss, -1) # [num_bboxes, num_picked_anchors]
-        cost = cls_loss + 3.0 * ious_loss + 1e5 * tf.cast(tf.logical_not(is_anchor_valid), cls_loss.dtype) # [num_bboxes, num_picked_anchors]
+        cls_loss = K.binary_crossentropy(tf.expand_dims(labels_true, 1), tf.expand_dims(obj_labels_pred, 0))  # [num_bboxes, num_picked_anchors, num_classes]
+        cls_loss = tf.reduce_sum(cls_loss, -1)  # [num_bboxes, num_picked_anchors]
+        cost = cls_loss + 3.0 * ious_loss + 1e5 * tf.cast(tf.logical_not(is_anchor_valid), cls_loss.dtype)  # [num_bboxes, num_picked_anchors]
 
         # dynamic_k_matching
-        bbox_matched_k_anchors = self.__dynamic_k_matching__(ious, cost) # [num_bboxes, num_picked_anchors], contains only 0, 1
-        is_anchor_iou_match_any = tf.reduce_any(bbox_matched_k_anchors > 0, axis=0) # [num_picked_anchors]
+        bbox_matched_k_anchors = self.__dynamic_k_matching__(ious, cost)  # [num_bboxes, num_picked_anchors], contains only 0, 1
+        is_anchor_iou_match_any = tf.reduce_any(bbox_matched_k_anchors > 0, axis=0)  # [num_picked_anchors]
         is_anchor_iou_match_any_idx = tf.where(is_anchor_iou_match_any)[:, 0]
 
         # TODO: is_anchor_iou_match_any_idx.shape[0] == 0
         anchor_best_matching_bbox = tf.argmax(tf.gather(bbox_matched_k_anchors, is_anchor_iou_match_any_idx, axis=-1), 0)
-        anchor_labels = tf.gather(labels_true, anchor_best_matching_bbox) # [num_picked_anchors， num_classes]
+        anchor_labels = tf.gather(labels_true, anchor_best_matching_bbox)  # [num_picked_anchors， num_classes]
         pred_iou_loss = tf.reduce_sum(bbox_matched_k_anchors * ious, 0)[is_anchor_iou_match_any]
 
         # get_losses after get_assignments. Bboxes for iou loss, [top, left, bottom, right]

@@ -105,7 +105,7 @@ class ClassAccuracyWithBbox(tf.keras.metrics.Metric):
 @tf.keras.utils.register_keras_serializable(package="kecamLoss")
 class AnchorFreeLoss(tf.keras.losses.Loss):
     """
-    Basic test:
+    # Basic test:
     >>> from keras_cv_attention_models.coco import losses, anchors_func
     >>> anchors = anchors_func.get_anchors([640, 640], pyramid_levels=[3, 5], aspect_ratios=[1], num_scales=1, anchor_scale=1, grid_zero_start=True)
     >>> aa = losses.AnchorFreeLoss(anchors, use_l1_loss=True)
@@ -118,9 +118,22 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
 
     >>> bbs, lls, ccs = mm.decode_predictions(pred)[0]
     >>> bbox_labels_true = tf.concat([bbs, tf.one_hot(lls, 80), tf.ones([bbs.shape[0], 1])], axis=-1)
-    >>> print(aa(tf.expand_dims(bbox_labels_true, 0), pred))
+    >>> print("\n", aa(tf.expand_dims(bbox_labels_true, 0), pred))
+    >>> # - cls_loss: 0.416673392 - bbox_loss: 0.129255757 - obj_loss: 0.961375535 - cls_acc: 0.923076928
     >>> # tf.Tensor(2.3482049, shape=(), dtype=float32)
+
+    # Test with dataset:
+    >>> from keras_cv_attention_models import coco, yolox
+    >>> train_dataset, _, _, _, _, anchors = coco.init_dataset(batch_size=8, use_anchor_free_mode=True, anchor_pyramid_levels=[3, 5], rescale_mode="raw")
+    >>> images, bboxes_labels = train_dataset.as_numpy_iterator().next()
+    >>> mm = yolox.YOLOXS(input_shape=(256, 256, 3))
+    >>> preds = mm(images)
+    >>> loss = coco.losses.AnchorFreeLoss(anchors)
+    >>> print(f"\n{loss(bboxes_labels, preds) = }")
+    >>> # - cls_loss: 1.16732407 - bbox_loss: 0.53272897 - obj_loss: 2.27287531 - cls_acc: 0.843137264
+    >>> # loss(bboxes_labels, preds) = <tf.Tensor: shape=(), dtype=float32, numpy=6.103844>
     """
+
     def __init__(
         self,
         anchors,
@@ -159,25 +172,27 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
             bbox_labels_true, bbox_labels_pred
         )
 
-        num_valid_anchors = tf.cast(tf.shape(bboxes_pred)[0], bboxes_pred.dtype)
         if self.label_smoothing > 0:
             labels_true = labels_true * (1.0 - self.label_smoothing) + 0.5 * self.label_smoothing
-        class_loss = tf.reduce_sum(K.binary_crossentropy(labels_true, labels_pred)) / num_valid_anchors
-        object_loss = tf.reduce_mean(K.binary_crossentropy(object_true, bbox_labels_pred[:, -1]))
-        bbox_loss = tf.reduce_sum(self.__iou_loss__(bboxes_true, bboxes_pred)) / num_valid_anchors
+        class_loss = tf.reduce_sum(K.binary_crossentropy(labels_true, labels_pred))
+        object_loss = tf.reduce_sum(K.binary_crossentropy(object_true, bbox_labels_pred[:, -1]))
+        bbox_loss = tf.reduce_sum(self.__iou_loss__(bboxes_true, bboxes_pred))
         if self.use_l1_loss:
-            l1_loss = tf.reduce_sum(tf.abs(bboxes_true_encoded - bboxes_pred_encoded)) / num_valid_anchors    # mean absolute error
+            l1_loss = tf.reduce_sum(tf.abs(bboxes_true_encoded - bboxes_pred_encoded))  # mean absolute error
         else:
             l1_loss = 0.0
         # return class_loss + object_loss + l1_loss + bbox_loss * self.bbox_loss_weight
-        return class_loss, bbox_loss, object_loss, l1_loss
+
+        num_valid_anchors = tf.cast(tf.shape(bboxes_pred)[0], bboxes_pred.dtype)
+        class_acc = tf.reduce_mean(tf.cast(tf.argmax(labels_true, axis=-1) == tf.argmax(labels_pred, axis=-1), "float32"))
+        return class_loss, bbox_loss, object_loss, l1_loss, num_valid_anchors, class_acc
 
     def __call_single__(self, inputs):
         bbox_labels_true, bbox_labels_pred = inputs[0], inputs[1]
         return tf.cond(
             tf.reduce_any(bbox_labels_true[:, -1] > 0),
             lambda: self.__valid_call_single__(bbox_labels_true, bbox_labels_pred),
-            lambda: (0.0, 0.0, tf.reduce_mean(K.binary_crossentropy(0.0, bbox_labels_pred[:, -1])), 0.0),    # Object loss only, object_trues is all False.
+            lambda: (0.0, 0.0, tf.reduce_sum(K.binary_crossentropy(0.0, bbox_labels_pred[:, -1])), 0.0, 0.0, 0.0),  # Object loss only, target is all False.
         )
 
     def call(self, y_true, y_pred):
@@ -186,11 +201,13 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
             class_pred = tf.sigmoid(class_pred)
             y_pred = tf.concat([bbox_pred, class_pred], axis=-1)
 
-        class_loss, bbox_loss, object_loss, l1_loss = tf.map_fn(self.__call_single__, (y_true, y_pred), fn_output_signature=(y_pred.dtype,) * 4)
+        out_dtype = (y_pred.dtype,) * 6
+        class_loss, bbox_loss, object_loss, l1_loss, num_valid, class_acc = tf.map_fn(self.__call_single__, (y_true, y_pred), fn_output_signature=out_dtype)
 
-        class_loss, bbox_loss, object_loss = tf.reduce_mean(class_loss), tf.reduce_mean(bbox_loss), tf.reduce_mean(object_loss)
-        l1_loss = tf.reduce_mean(l1_loss)
-        tf.print(" - cls_loss:", class_loss, "- bbox_loss:", bbox_loss, "- obj_loss:", object_loss, end="\r")
+        num_valid = tf.reduce_sum(num_valid)
+        class_loss, bbox_loss, l1_loss = tf.reduce_sum(class_loss) / num_valid, tf.reduce_sum(bbox_loss) / num_valid, tf.reduce_sum(l1_loss) / num_valid
+        object_loss = tf.reduce_sum(object_loss) / num_valid  # [ ??? ] why not divide actual object shape?
+        tf.print(" - cls_loss:", class_loss, "- bbox_loss:", bbox_loss, "- obj_loss:", object_loss, "- cls_acc:", tf.reduce_mean(class_acc), end="\r")
         return class_loss + object_loss + l1_loss + bbox_loss * self.bbox_loss_weight
 
     def get_config(self):
@@ -209,7 +226,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
                     "num_scales": self.anchors.num_scales,
                     "anchor_scale": self.anchors.anchor_scale,
                     "grid_zero_start": self.anchors.grid_zero_start,
-                }
+                },
             }
         )
         return config
@@ -217,5 +234,6 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
     @classmethod
     def from_config(cls, config):
         from keras_cv_attention_models.coco import anchors_func
+
         config["anchors"] = anchors_func.get_anchors(**config.pop("__anchors__"))
         return cls(**config)
