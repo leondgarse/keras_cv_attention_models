@@ -9,6 +9,21 @@
 ![](https://user-images.githubusercontent.com/5744524/151656800-1baab0ad-a31b-4ef0-bada-483c83108670.png)
 ***
 
+## Usage
+  ```py
+  from keras_cv_attention_models import coatnet
+
+  # Only CoAtNet0 pre-trained.
+  mm = coatnet.CoAtNet0()
+
+  # Run prediction
+  import tensorflow as tf
+  from skimage.data import chelsea
+  imm = tf.keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
+  pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
+  print(tf.keras.applications.imagenet_utils.decode_predictions(pred)[0])
+  # [('n02124075', 'Egyptian_cat', 0.9995048), ('n02123159', 'tiger_cat', 0.0003206031), ('n02123045', 'tabby', 0.0001339088), ... ]
+  ```
 ## Training
   - As model structure not certain, these are most tests.
   - **Model structure**
@@ -37,39 +52,25 @@
     CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS='--tf_xla_auto_jit=2' ./train_script.py --seed 0 \
     -m coatnet.CoAtNet0 --pretrained checkpoints/CoAtNet0_160_latest.h5 -i 224 --batch_size 64 \
     --lr_decay_steps 32 --lr_warmup_steps 0 --lr_base_512 0.004 \
-    --additional_model_kwargs '{"drop_connect_rate": 0.05}' --magnitude 10 \
-    -s coatnet.CoAtNet0_ft_224_lr_steps_32_lr4e3_drc005_magnitude_10
+    --additional_model_kwargs '{"drop_connect_rate": 0.05}' --magnitude 15 \
+    -s coatnet.CoAtNet0_ft_224_lr_steps_32_lr4e3_drc005_magnitude_15
     ```
-    | magnitude              | drop_connect_rate | Best val loss, acc                                                              |
-    | ---------------------- | ----------------- | ------------------------------------------------------------------------------- |
-    | 6                      | 0                 | Epoch 35/37 loss: 0.0023 - acc: 0.7288 - val_loss: 0.0012 - val_acc: 0.8160     |
-    | 7                      | 0                 | Epoch 34/37 loss: 0.0024 - acc: 0.7218 - val_loss: 0.0012 - val_acc: 0.8161     |
-    | 7                      | 0.05              | Epoch 36/37 loss: 0.0026 - acc: 0.7026 - val_loss: 0.0011 - val_acc: 0.8193     |
-    | 7                      | 0.2               | Epoch 34/37 loss: 0.0030 - acc: 0.6658 - val_loss: 0.0011 - val_acc: 0.8176     |
-    | 10                     | 0.05              | Epoch 36/37 loss: 0.0028 - acc: 0.6783 - val_loss: 0.0011 - val_acc: 0.8199     |
-    | wd exc pos_emb, mag 10 | 0.05              | Epoch 35/37 loss: 0.0028 - acc: 0.6811 - val_loss: 0.0011 - val_acc: **0.8206** |
+    | magnitude          | drop_connect_rate | Best val loss, acc                                                              |
+    | ------------------ | ----------------- | ------------------------------------------------------------------------------- |
+    | 6                  | 0                 | Epoch 35/37 loss: 0.0023 - acc: 0.7288 - val_loss: 0.0012 - val_acc: 0.8160     |
+    | 7                  | 0                 | Epoch 34/37 loss: 0.0024 - acc: 0.7218 - val_loss: 0.0012 - val_acc: 0.8161     |
+    | 7                  | 0.05              | Epoch 36/37 loss: 0.0026 - acc: 0.7026 - val_loss: 0.0011 - val_acc: 0.8193     |
+    | 7                  | 0.2               | Epoch 34/37 loss: 0.0030 - acc: 0.6658 - val_loss: 0.0011 - val_acc: 0.8176     |
+    | 10                 | 0.05              | Epoch 36/37 loss: 0.0028 - acc: 0.6783 - val_loss: 0.0011 - val_acc: 0.8199     |
+    | 10, wd exc pos_emb | 0.05              | Epoch 35/37 loss: 0.0028 - acc: 0.6811 - val_loss: 0.0011 - val_acc: 0.8206     |
+    | 15, wd exc pos_emb | 0.05              | Epoch 36/37 loss: 0.0028 - acc: 0.6810 - val_loss: 0.0011 - val_acc: **0.8223** |
 
-    ![coatnet0_ft_224](https://user-images.githubusercontent.com/5744524/154603674-b736313b-a65e-4dac-8a88-9c1e52135871.png)
-## Usage
-  ```py
-  from keras_cv_attention_models import coatnet
-
-  # Only CoAtNet0 pre-trained.
-  mm = coatnet.CoAtNet0()
-
-  # Run prediction
-  import tensorflow as tf
-  from skimage.data import chelsea
-  imm = tf.keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
-  pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
-  print(tf.keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.9995048), ('n02123159', 'tiger_cat', 0.0003206031), ('n02123045', 'tabby', 0.0001339088), ... ]
-  ```
+    ![coatnet0_ft_224](https://user-images.githubusercontent.com/5744524/157171155-5eacb713-62c0-420a-bb63-57644ab9f0ec.png)
 ## Models
   | Model                               | Params | Image resolution | Top1 Acc | Download |
   | ----------------------------------- | ------ | ---------------- | -------- | -------- |
   | CoAtNet0 (Self trained 105 epochs)  | 23.8M  | 160              | 80.50    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
-  | - fine-tune 224, 37 epochs          | 23.8M  | 224              | 82.06    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
+  | - fine-tune 224, 37 epochs          | 23.8M  | 224              | 82.23    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
   | CoAtNet0                            | 25M    | 224              | 81.6     |          |
   | CoAtNet0, Strided DConv             | 25M    | 224              | 82.0     |          |
   | CoAtNet0                            | 25M    | 384              | 83.9     |          |

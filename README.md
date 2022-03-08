@@ -292,7 +292,7 @@
   | Model                               | Params | Image resolution | Top1 Acc | Download |
   | ----------------------------------- | ------ | ---------------- | -------- | -------- |
   | CoAtNet0 (Self trained 105 epochs)  | 23.8M  | 160              | 80.50    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
-  | - fine-tune 224, 37 epochs          | 23.8M  | 224              | 82.06    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
+  | - fine-tune 224, 37 epochs          | 23.8M  | 224              | 82.23    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
   | CoAtNet0                            | 25M    | 224              | 81.6     |          |
   | CoAtNet0, Strided DConv             | 25M    | 224              | 82.0     |          |
   | CoAtNet1                            | 42M    | 224              | 83.3     |          |

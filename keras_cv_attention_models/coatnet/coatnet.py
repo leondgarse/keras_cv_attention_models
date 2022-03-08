@@ -14,7 +14,7 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-PRETRAINED_DICT = {"coatnet0": {"imagenet": {160: "4b58c14e1e5e65ce01b1c36c47e1c87e", 224: "6ccd095bd4216da2f813aef5e1a30066"}}}
+PRETRAINED_DICT = {"coatnet0": {"imagenet": {160: "4b58c14e1e5e65ce01b1c36c47e1c87e", 224: "25a7668fe23a74dc88879ecf491d111b"}}}
 
 
 def mhsa_with_multi_head_relative_position_embedding(
@@ -59,7 +59,19 @@ def mhsa_with_multi_head_relative_position_embedding(
     return attention_output
 
 
-def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion=4, se_ratio=0, drop_rate=0, use_dw_strides=True, activation="gelu", name=""):
+def res_MBConv(
+    inputs,
+    output_channel,
+    conv_short_cut=True,
+    strides=1,
+    expansion=4,
+    se_ratio=0,
+    drop_rate=0,
+    use_dw_strides=True,
+    bn_act_first=False,
+    activation="gelu",
+    name="",
+):
     """ x ← Proj(Pool(x)) + Conv (DepthConv (Conv (Norm(x), stride = 2)))) """
     preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, name=name + "preact_")
 
@@ -73,10 +85,10 @@ def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion
     # MBConv
     input_channel = inputs.shape[-1]
     conv_strides, dw_strides = (1, strides) if use_dw_strides else (strides, 1)  # May swap stirdes with DW
-    nn = conv2d_no_bias(preact, input_channel * expansion, 1, strides=conv_strides, padding="same", name=name + "expand_")
-    nn = batchnorm_with_activation(nn, activation=activation, name=name + "expand_")
-    nn = depthwise_conv2d_no_bias(nn, 3, strides=dw_strides, padding="same", name=name + "MB_")
-    nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "MB_dw_")
+    nn = conv2d_no_bias(preact, input_channel * expansion, 1, strides=conv_strides, use_bias=bn_act_first, padding="same", name=name + "expand_")
+    nn = batchnorm_with_activation(nn, activation=activation, act_first=bn_act_first, name=name + "expand_")
+    nn = depthwise_conv2d_no_bias(nn, 3, strides=dw_strides, use_bias=bn_act_first, padding="same", name=name + "MB_")
+    nn = batchnorm_with_activation(nn, activation=activation, act_first=bn_act_first, zero_gamma=False, name=name + "MB_dw_")
     if se_ratio:
         nn = se_module(nn, se_ratio=se_ratio / expansion, activation=activation, name=name + "se_")
     nn = conv2d_no_bias(nn, output_channel, 1, strides=1, padding="same", name=name + "MB_pw_")
@@ -132,6 +144,7 @@ def CoAtNet(
     se_ratio=0.25,
     head_dimension=32,
     use_dw_strides=True,
+    bn_act_first=False,  # Experiment, use activation -> BatchNorm instead of BatchNorm -> activation, also set use_bias=True for pre Conv2D layer
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",
@@ -145,9 +158,9 @@ def CoAtNet(
     inputs = keras.layers.Input(input_shape)
 
     """ stage 0, Stem_stage """
-    nn = conv2d_no_bias(inputs, stem_width, 3, strides=2, padding="same", name="stem_1_")
-    nn = batchnorm_with_activation(nn, activation=activation, name="stem_1_")
-    nn = conv2d_no_bias(nn, stem_width, 3, strides=1, padding="same", name="stem_2_")
+    nn = conv2d_no_bias(inputs, stem_width, 3, strides=2, use_bias=bn_act_first, padding="same", name="stem_1_")
+    nn = batchnorm_with_activation(nn, activation=activation, act_first=bn_act_first, name="stem_1_")
+    nn = conv2d_no_bias(nn, stem_width, 3, strides=1, use_bias=bn_act_first, padding="same", name="stem_2_")
     # nn = batchnorm_with_activation(nn, activation=activation, name="stem_2_")
 
     """ stage [1, 2, 3, 4] """
@@ -165,12 +178,14 @@ def CoAtNet(
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             global_block_id += 1
             if is_conv_block:
-                nn = res_MBConv(nn, out_channel, conv_short_cut, stride, expansion, block_se_ratio, block_drop_rate, use_dw_strides, activation, name=name)
+                nn = res_MBConv(
+                    nn, out_channel, conv_short_cut, stride, expansion, block_se_ratio, block_drop_rate, use_dw_strides, bn_act_first, activation, name=name
+                )
             else:
                 nn = res_mhsa(nn, out_channel, conv_short_cut, stride, head_dimension, block_drop_rate, activation=activation, name=name)
                 nn = res_ffn(nn, expansion=expansion, drop_rate=block_drop_rate, activation=activation, name=name + "ffn_")
 
-    nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
+    nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation, act_first=bn_act_first)
     model = keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "coatnet", pretrained, MultiHeadRelativePositionalEmbedding)
