@@ -101,7 +101,7 @@ def bi_fpn(features, output_channel, use_weighted_sum=True, use_sep_conv=True, i
     return out_features
 
 
-def det_head(features, filters, depth, classes=80, anchors=9, bias_init="zeros", use_sep_conv=True, activation="swish", head_activation="sigmoid", name=""):
+def det_header_pre(features, filters, depth, use_sep_conv=True, activation="swish", name=""):
     if use_sep_conv:
         names = [name + "{}_sepconv".format(id + 1) for id in range(depth)]
         convs = [keras.layers.SeparableConv2D(filters, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(depth)]
@@ -118,16 +118,18 @@ def det_head(features, filters, depth, classes=80, anchors=9, bias_init="zeros",
             nn = keras.layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=cur_name)(nn)
             nn = activation_by_name(nn, activation, name=cur_name + "{}_".format(id + 1))
         outputs.append(nn)
+    return outputs
 
-    if classes > 0:
-        if use_sep_conv:
-            header_conv = keras.layers.SeparableConv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "head")
-        else:
-            header_conv = keras.layers.Conv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "conv_head")
-        outputs = [header_conv(ii) for ii in outputs]
-        outputs = [keras.layers.Reshape([-1, classes])(ii) for ii in outputs]
-        outputs = tf.concat(outputs, axis=1)
-        outputs = activation_by_name(outputs, head_activation, name=name + "output_")
+
+def det_header_post(inputs, classes=80, anchors=9, bias_init="zeros", use_sep_conv=True, head_activation="sigmoid", name=""):
+    if use_sep_conv:
+        header_conv = keras.layers.SeparableConv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "head")
+    else:
+        header_conv = keras.layers.Conv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "conv_head")
+    outputs = [header_conv(ii) for ii in inputs]
+    outputs = [keras.layers.Reshape([-1, classes])(ii) for ii in outputs]
+    outputs = tf.concat(outputs, axis=1)
+    outputs = activation_by_name(outputs, head_activation, name=name + "output_")
     return outputs
 
 
@@ -139,19 +141,22 @@ def EfficientDet(
     head_depth=3,
     num_channels=64,
     use_weighted_sum=True,
-    use_object_scores=False,    # For anchor free mode
+    use_object_scores=False,  # For anchor free mode
     num_anchors=9,
     num_classes=90,
     use_sep_conv=True,
     activation="swish",
     classifier_activation="sigmoid",
     freeze_backbone=False,
-    anchor_scale=4,  # Init anchors for model prediction
-    pyramid_levels=[3, 7],  # Init anchors for model prediction
     pretrained="coco",
     model_name=None,
-    rescale_mode="torch",
+    pyramid_levels=[3, 7],  # Init anchors for model prediction, not for model structure
+    anchor_aspect_ratios=[1, 2, 0.5],  # Init anchors for model predict, not for model structureion
+    anchor_num_scales=3,  # Init anchors for model prediction, not for model structure
+    anchor_scale=4,  # Init anchors for model prediction, not for model structure
+    anchor_grid_zero_start=False,  # Init anchors for model prediction, not for model structure
     input_shape=None,  # Init anchors for model prediction, not for model structure
+    rescale_mode="torch",  # Model precessing input, not for model structure
     kwargs=None,  # Not using, recieving parameter
 ):
     if freeze_backbone:
@@ -174,30 +179,34 @@ def EfficientDet(
         additional_feature = keras.layers.MaxPooling2D(pool_size=3, strides=2, padding="SAME", name=cur_name + "max_down")(additional_feature)
         fpn_features.append(additional_feature)
 
+    # Bi-FPN
     for id in range(fpn_depth):
         fpn_features = bi_fpn(fpn_features, num_channels, use_weighted_sum, use_sep_conv, activation=activation, name="biFPN_{}_".format(id + 1))
 
-    # Save line-width
-    head_kwargs = {"filters": num_channels, "depth": head_depth, "anchors": num_anchors, "use_sep_conv": use_sep_conv, "activation": activation}
-    bboxes_classes = 5 if use_object_scores else 4
-    bbox_out = det_head(fpn_features, classes=bboxes_classes, bias_init="zeros", head_activation=None, name="regressor_", **head_kwargs)
+    # Outputs
+    bboxes_features = det_header_pre(fpn_features, num_channels, head_depth, use_sep_conv, activation=activation, name="regressor_")
+    bboxes_out = det_header_post(bboxes_features, 4, num_anchors, bias_init="zeros", use_sep_conv=use_sep_conv, head_activation=None, name="regressor_")
     if use_object_scores:
-        bbox_out, object_out = bbox_out[:, :, :4], bbox_out[:, :, -1:]
-        object_out = object_out if classifier_activation is None else activation_by_name(object_out, classifier_activation, name="object_output_")
+        bias_init = tf.constant_initializer(-tf.math.log((1 - 0.01) / 0.01).numpy())
+        object_out = det_header_post(bboxes_features, 1, num_anchors, bias_init, use_sep_conv, head_activation=classifier_activation, name="object_")
 
     if num_classes > 0:
         bias_init = tf.constant_initializer(-tf.math.log((1 - 0.01) / 0.01).numpy())
-        cls_out = det_head(fpn_features, classes=num_classes, bias_init=bias_init, head_activation=classifier_activation, name="classifier_", **head_kwargs)
-        outputs = tf.concat([bbox_out, cls_out, object_out], axis=-1) if use_object_scores else tf.concat([bbox_out, cls_out], axis=-1)
+        class_features = det_header_pre(fpn_features, num_channels, head_depth, use_sep_conv, activation=activation, name="classifier_")
+        class_out = det_header_post(class_features, num_classes, num_anchors, bias_init, use_sep_conv, classifier_activation, name="classifier_")
+        outputs = tf.concat([bboxes_out, class_out, object_out], axis=-1) if use_object_scores else tf.concat([bboxes_out, class_out], axis=-1)
     else:
-        outputs = tf.concat([bbox_out, object_out], axis=-1) if use_object_scores else bbox_out
+        outputs = tf.concat([bboxes_out, object_out], axis=-1) if use_object_scores else bboxes_out
     outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
 
     model_name = model_name or backbone.name + "_det"
     model = keras.models.Model(inputs=backbone.inputs[0], outputs=outputs, name=model_name)
-    post_process = DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchor_scale, use_object_scores)
-    add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     reload_model_weights(model, PRETRAINED_DICT, "efficientdet", pretrained)
+
+    # For prediction
+    ANCHORS = {"aspect_ratios": anchor_aspect_ratios, "num_scales": anchor_num_scales, "anchor_scale": anchor_scale, "grid_zero_start": anchor_grid_zero_start}
+    post_process = DecodePredictions(backbone.input_shape[1:], pyramid_levels, **ANCHORS, use_object_scores=use_object_scores)
+    add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     # model.backbone = backbone
     return model
 
