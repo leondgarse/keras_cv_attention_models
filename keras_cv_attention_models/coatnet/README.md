@@ -22,13 +22,14 @@
   imm = tf.keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
   print(tf.keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.9995048), ('n02123159', 'tiger_cat', 0.0003206031), ('n02123045', 'tabby', 0.0001339088), ... ]
+  # [('n02124075', 'Egyptian_cat', 0.9993543), ('n02123159', 'tiger_cat', 0.0004485707), ... ]
   ```
 ## Training
   - As model structure not certain, these are most tests.
   - **Model structure**
     - `V1` means `ResNetV1` like. Conv shortcut branch: `output = conv_shortcut(input) + block(prenorm(input))`. Identity branch: `output = input + block(prenorm(input))`.
     - `V2` means `ResNetV2` like. Conv shortcut branch: `prenorm_input = prenorm(input), output = conv_shortcut(prenorm_input) + block(prenorm_input)`. Identity branch: `output = input + block(prenorm(input))`.
+    - `wd exc pos_emb` means `optimizer weight decay excluding positional embedding`.
 
     | Model                    | stem              | res_MBConv block   | res_mhsa block     | res_ffn block     | Best top1  |
     | ------------------------ | ----------------- | ------------------ | ------------------ | ----------------- | ---------- |

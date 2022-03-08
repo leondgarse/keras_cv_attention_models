@@ -5,17 +5,10 @@
 - CMT article: [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf)
 - [Github wilile26811249/CMT_CNN-meet-Vision-Transformer](https://github.com/wilile26811249/CMT_CNN-meet-Vision-Transformer)
 - No pretrained available.
+
+![](https://user-images.githubusercontent.com/5744524/151656779-6e6f2203-a7f7-42cf-8833-f4d472c171ae.png)
 ***
 
-## Models
-  ![](https://user-images.githubusercontent.com/5744524/151656779-6e6f2203-a7f7-42cf-8833-f4d472c171ae.png)
-
-  | Model    | Params | Image resolution | Top1 Acc |
-  | -------- | ------ | ---------------- | -------- |
-  | CMTTiny  | 9.5M   | 160              | 79.2     |
-  | CMTXS    | 15.2M  | 192              | 81.8     |
-  | CMTSmall | 25.1M  | 224              | 83.5     |
-  | CMTBig   | 45.7M  | 256              | 84.5     |
 ## Usage
   ```py
   from keras_cv_attention_models import cmt
@@ -27,8 +20,8 @@
 ## Training
   - **Training** Using `A3` recipe with `batch_size=256, input_shape=(160, 160), epochs=105`. Note paper reported accuracy is trained `300` epochs.
     ```sh
-    CUDA_VISIBLE_DEVICES='1' TF_GPU_ALLOCATOR='cuda_malloc_async' TF_XLA_FLAGS='--tf_xla_auto_jit=2' ./train_script.py --seed 0 \
-    -m cmt.CMTTiny --batch_size 256 -s cmt.CMTTiny_160
+    CUDA_VISIBLE_DEVICES='1' TF_GPU_ALLOCATOR='cuda_malloc_async' TF_XLA_FLAGS='--tf_xla_auto_jit=2' ./train_script.py \
+    --seed 0 -m cmt.CMTTiny --batch_size 256 -s cmt.CMTTiny_160
     ```
     **Evaluate using input resolution `224`**:
     ```sh
@@ -41,4 +34,11 @@
     | dw+ln, KV [split2, head, dim] | 0.6350    | Epoch 103, 0.001416, 0.7719 | top1: 0.78502 top5: 0.94176 |
 
     ![](https://user-images.githubusercontent.com/5744524/156691026-233fa5b5-b1b3-489c-a6ad-f2fa1b987cbe.png)
+## Models
+  | Model    | Params | Image resolution | Top1 Acc |
+  | -------- | ------ | ---------------- | -------- |
+  | CMTTiny  | 9.5M   | 160              | 79.2     |
+  | CMTXS    | 15.2M  | 192              | 81.8     |
+  | CMTSmall | 25.1M  | 224              | 83.5     |
+  | CMTBig   | 45.7M  | 256              | 84.5     |
 ***

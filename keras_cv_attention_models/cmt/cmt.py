@@ -8,7 +8,6 @@ from keras_cv_attention_models.attention_layers import (
     drop_block,
     layer_norm,
     output_block,
-    RelativePositionalEmbedding,
     MultiHeadRelativePositionalEmbedding,
     add_pre_post_process,
 )
@@ -45,14 +44,12 @@ def light_mhsa_with_multi_head_relative_position_embedding(
 
     # dim, head, kv
     key_value = tf.reshape(key_value, [-1, kv_hh * kv_ww, key_dim, num_heads, 2])
-    key = tf.transpose(key_value[:, :, :, :, 0], [0, 3, 2, 1])
-    value = tf.transpose(key_value[:, :, :, :, 1], [0, 3, 1, 2])
+    key = tf.transpose(key_value[:, :, :, :, 0], [0, 3, 2, 1])  # [batch, num_heads, key_dim, hh * ww]
+    value = tf.transpose(key_value[:, :, :, :, 1], [0, 3, 1, 2])  # [batch, num_heads, hh * ww, key_dim]
     # kv, head, dim
     # key, value = tf.split(key_value, 2, axis=-1)
-    # key = [batch, num_heads, key_dim, hh * ww]
-    # key = tf.transpose(tf.reshape(key, [-1, kv_hh * kv_ww, num_heads, key_dim]), [0, 2, 3, 1])
-    # value = [batch, num_heads, hh * ww, key_dim]
-    # value = tf.transpose(tf.reshape(value, [-1, kv_hh * kv_ww, num_heads, key_dim]), [0, 2, 1, 3])
+    # key = tf.transpose(tf.reshape(key, [-1, kv_hh * kv_ww, num_heads, key_dim]), [0, 2, 3, 1]) # [batch, num_heads, key_dim, hh * ww]
+    # value = tf.transpose(tf.reshape(value, [-1, kv_hh * kv_ww, num_heads, key_dim]), [0, 2, 1, 3]) # [batch, num_heads, hh * ww, key_dim]
 
     # print(f">>>> {attn_query.shape = }, {key.shape = }, {value.shape = }, {kv_inp.shape = }, {pos_query.shape = }")
     # attention_scores = [batch, num_heads, hh * ww, kv_hh * kv_ww]

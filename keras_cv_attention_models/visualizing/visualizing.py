@@ -326,6 +326,10 @@ def down_sample_matrix_axis_0(dd, target, method="avg"):
 def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto", rows=-1, base_size=3):
     import matplotlib.pyplot as plt
 
+    if rescale_mode.lower() == "auto":
+        rescale_mode = getattr(model, "rescale_mode", "torch")
+        print(">>>> rescale_mode:", rescale_mode)
+
     if isinstance(model, tf.keras.models.Model):
         imm_inputs = tf.keras.applications.imagenet_utils.preprocess_input(image, mode=rescale_mode)
         imm_inputs = tf.expand_dims(tf.image.resize(imm_inputs, model.input_shape[1:3]), 0)
@@ -343,10 +347,6 @@ def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto
         attn_scores = model
         layer_name_title = ""
         assert attn_type != "auto"
-
-    if rescale_mode.lower() == "auto":
-        rescale_mode = getattr(model, "rescale_mode", "torch")
-        print(">>>> rescale_mode:", rescale_mode)
 
     attn_type = attn_type.lower()
     check_type_is = lambda tt: (tt in model.name.lower()) if attn_type == "auto" else (attn_type.startswith(tt))
