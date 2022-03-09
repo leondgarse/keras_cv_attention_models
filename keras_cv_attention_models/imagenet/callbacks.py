@@ -198,20 +198,30 @@ class MyCheckpoint(keras.callbacks.Callback):
 
     def __init__(self, basic_save_name, monitor="val_acc", mode="auto", save_path="checkpoints"):
         super(MyCheckpoint, self).__init__()
-        self.monitor_save = os.path.join(save_path, basic_save_name + "_epoch_{}_" + monitor + "_{}.h5")
-        self.monitor_save_re = self.monitor_save.format("*", "*")
-        self.latest_save = os.path.join(save_path, basic_save_name + "_latest.h5")
+        self.basic_save_name, self.mode, self.save_path = basic_save_name, mode, save_path
+        self.__init_monitor_strategy__(monitor)
+
+    def __init_monitor_strategy__(self, monitor):
         self.monitor = monitor
-        self.is_better = (lambda cur, pre: cur <= pre) if mode == "min" or "loss" in monitor else (lambda cur, pre: cur >= pre)
-        self.pre_best = 1e5 if mode == "min" or "loss" in monitor else -1e5
+        self.monitor_save = os.path.join(self.save_path, self.basic_save_name + "_epoch_{}_" + monitor + "_{}.h5")
+        self.monitor_save_re = self.monitor_save.format("*", "*")
+        self.latest_save = os.path.join(self.save_path, self.basic_save_name + "_latest.h5")
+        self.is_better = (lambda cur, pre: cur <= pre) if self.mode == "min" or "loss" in monitor else (lambda cur, pre: cur >= pre)
+        self.pre_best = 1e5 if self.mode == "min" or "loss" in monitor else -1e5
 
     def on_epoch_end(self, epoch, logs={}):
         # tf.print(">>>> Save latest to:", self.latest_save)
-        self.model.save(self.latest_save)
+        if self.model is not None:
+            self.model.save(self.latest_save)
         if self.monitor not in logs:
             all_val_acc = [ii for ii in logs.keys() if "val" in ii and "acc" in ii]
+            all_val_loss = [ii for ii in logs.keys() if "val" in ii and "loss" in ii]
             if len(all_val_acc) > 0:
-                self.monitor = all_val_acc[0]
+                self.__init_monitor_strategy__(all_val_acc[0])
+            elif len(all_val_loss) > 0:
+                self.__init_monitor_strategy__(all_val_loss[0])
+            else:
+                self.__init_monitor_strategy__("loss")
 
         cur_monitor_val = logs.get(self.monitor, 0)
         if self.is_better(cur_monitor_val, self.pre_best):
@@ -222,4 +232,5 @@ class MyCheckpoint(keras.callbacks.Callback):
                 os.remove(pre_monitor_saves[0])
             monitor_save = self.monitor_save.format(epoch + 1, "{:.4f}".format(cur_monitor_val))
             tf.print("\n>>>> Save best to:", monitor_save)
-            self.model.save(monitor_save)
+            if self.model is not None:
+                self.model.save(monitor_save)
