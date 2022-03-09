@@ -70,11 +70,18 @@ def spatial_pyramid_pooling(inputs, pool_sizes=(5, 9, 13), activation="swish", n
     return nn
 
 
-def focus_stem(inputs, filters, kernel_size=3, strides=1, activation="swish", name=""):
-    patch_top_left = inputs[:, ::2, ::2]
-    patch_top_right = inputs[:, ::2, 1::2]
-    patch_bottom_left = inputs[:, 1::2, ::2]
-    patch_bottom_right = inputs[:, 1::2, 1::2]
+def focus_stem(inputs, filters, kernel_size=3, strides=1, padding="valid", activation="swish", name=""):
+    if padding.lower() == "same":  # Handling odd input_shape
+        inputs = tf.pad(inputs, [[0, 0], [0, 1], [0, 1], [0, 0]])
+        patch_top_left = inputs[:, :-1:2, :-1:2]
+        patch_top_right = inputs[:, :-1:2, 1::2]
+        patch_bottom_left = inputs[:, 1::2, :-1:2]
+        patch_bottom_right = inputs[:, 1::2, 1::2]
+    else:
+        patch_top_left = inputs[:, ::2, ::2]
+        patch_top_right = inputs[:, ::2, 1::2]
+        patch_bottom_left = inputs[:, 1::2, ::2]
+        patch_bottom_right = inputs[:, 1::2, 1::2]
     nn = tf.concat([patch_top_left, patch_bottom_left, patch_top_right, patch_bottom_right], axis=-1)
     nn = conv_dw_pw_block(nn, filters, kernel_size=kernel_size, strides=strides, activation=activation, name=name)
     return nn
