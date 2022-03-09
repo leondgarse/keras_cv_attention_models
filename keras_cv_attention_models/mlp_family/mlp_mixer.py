@@ -22,24 +22,32 @@ def layer_norm(inputs, name=None):
     return keras.layers.LayerNormalization(axis=norm_axis, epsilon=BATCH_NORM_EPSILON, name=name)(inputs)
 
 
-def mlp_block(inputs, hidden_dim, activation="gelu", name=None):
-    nn = keras.layers.Dense(hidden_dim, name=name and name + "Dense_0")(inputs)
+def mlp_block(inputs, hidden_dim, drop_rate=0, use_conv=False, activation="gelu", name=None):
+    if use_conv:
+        nn = keras.layers.Conv2D(hidden_dim, kernel_size=1, use_bias=True, name=name and name + "Conv_0")(inputs)
+    else:
+        nn = keras.layers.Dense(hidden_dim, name=name and name + "Dense_0")(inputs)
     nn = activation_by_name(nn, activation, name=name and name + activation)
-    nn = keras.layers.Dense(inputs.shape[-1], name=name and name + "Dense_1")(nn)
+    nn = keras.layers.Dropout(drop_rate) if drop_rate > 0 else nn
+    if use_conv:
+        nn = keras.layers.Conv2D(inputs.shape[-1], 1, use_bias=True, name=name and name + "Conv_1")(nn)
+    else:
+        nn = keras.layers.Dense(inputs.shape[-1], name=name and name + "Dense_1")(nn)
+    nn = keras.layers.Dropout(drop_rate) if drop_rate > 0 else nn
     return nn
 
 
 def mixer_block(inputs, tokens_mlp_dim, channels_mlp_dim, drop_rate=0, activation="gelu", name=None):
     nn = layer_norm(inputs, name=name and name + "LayerNorm_0")
     nn = keras.layers.Permute((2, 1), name=name and name + "permute_0")(nn)
-    nn = mlp_block(nn, tokens_mlp_dim, activation, name=name and name + "token_mixing/")
+    nn = mlp_block(nn, tokens_mlp_dim, activation=activation, name=name and name + "token_mixing/")
     nn = keras.layers.Permute((2, 1), name=name and name + "permute_1")(nn)
     if drop_rate > 0:
         nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name and name + "token_drop")(nn)
     token_out = keras.layers.Add(name=name and name + "add_0")([nn, inputs])
 
     nn = layer_norm(token_out, name=name and name + "LayerNorm_1")
-    channel_out = mlp_block(nn, channels_mlp_dim, activation, name=name and name + "channel_mixing/")
+    channel_out = mlp_block(nn, channels_mlp_dim, activation=activation, name=name and name + "channel_mixing/")
     if drop_rate > 0:
         channel_out = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name and name + "channel_drop")(channel_out)
     return keras.layers.Add(name=name and name + "output")([channel_out, token_out])
