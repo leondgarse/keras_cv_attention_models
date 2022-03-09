@@ -44,7 +44,7 @@ def parse_arguments(argv):
         "--pretrained",
         type=str,
         default=None,
-        help="""If build model with pretrained weights. Mostly used is one of [imagenet, imagenet21k]. Or specified h5 file for build model -> restore weights.
+        help="""If build model with pretrained weights. Mostly used is `coco`. Or specified h5 file for build model -> restore weights.
                 This will drop model optimizer, used for `progressive_train_script.py`. Relatively, `restore_path` is used for restore from break point""",
     )
     parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
@@ -150,7 +150,7 @@ def parse_arguments(argv):
         data_name = args.data_name.replace("/", "_")
         model_name = args.det_header.split(".")[-1] + ("" if args.backbone is None else ("_" + args.backbone.split(".")[-1]))
         basic_save_name = "{}_{}_{}_{}_batchsize_{}".format(model_name, args.input_shape, args.optimizer, data_name, args.batch_size)
-        basic_save_name += "_randaug_{}_RRC_{}".format(args.magnitude, args.random_crop_mode)
+        basic_save_name += "_randaug_{}_mosaic_{}_RRC_{}".format(args.magnitude, args.mosaic_mix_prob, args.random_crop_mode)
         basic_save_name += "_lr512_{}_wd_{}".format(args.lr_base_512, args.weight_decay)
     args.basic_save_name = basic_save_name
     args.enable_float16 = not args.disable_float16

@@ -138,7 +138,7 @@ def CoAtNet(
     num_blocks,
     out_channels,
     stem_width=64,
-    block_types=["conv", "conv", "transfrom", "transform"],
+    block_types=["conv", "conv", "transform", "transform"],
     strides=[2, 2, 2, 2],
     expansion=4,
     se_ratio=0.25,
