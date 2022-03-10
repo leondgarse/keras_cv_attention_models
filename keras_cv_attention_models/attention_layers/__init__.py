@@ -37,6 +37,7 @@ from keras_cv_attention_models.nfnets.nfnets import ScaledStandardizedConv2D, Ze
 from keras_cv_attention_models.beit.beit import MultiHeadRelativePositionalEmbedding, HeadInitializer
 from keras_cv_attention_models.coatnet.coatnet import mhsa_with_multi_head_relative_position_embedding
 from keras_cv_attention_models.cmt.cmt import light_mhsa_with_multi_head_relative_position_embedding
+from keras_cv_attention_models.uniformer.uniformer import multi_head_self_attention
 
 CompatibleExtractPatches.__doc__ = """
 For issue https://github.com/leondgarse/keras_cv_attention_models/issues/8,

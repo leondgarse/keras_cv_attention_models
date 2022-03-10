@@ -30,11 +30,15 @@ __tail_doc__ = """  block_types: block types for each stack,
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default `relu`.
+  drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
+      Can be value like `0.2`, indicates the drop probability linearly changes from `0 --> 0.2` for `top --> bottom` layers.
+      A higher value means a higher probability will drop the deep branch.
+      or `0` to disable (default).
+  dropout: dropout rate if top layers is included.
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
   pretrained: None or "imagenet". Currently only `CoAtNet0` with "imagenet" available.
   **kwargs: other parameters if available.
-
 Returns:
     A `keras.Model` instance.
 """
@@ -115,12 +119,12 @@ Examples:
 >>> inputs = keras.layers.Input([14, 16, 256])
 >>> nn = attention_layers.mhsa_with_multi_head_relative_position_embedding(inputs, num_heads=4, out_shape=512)
 >>> print(f"{nn.shape = }")
-nn.shape = TensorShape([None, 14, 16, 512])
+# nn.shape = TensorShape([None, 14, 16, 512])
 
 >>> mm = keras.models.Model(inputs, nn)
 >>> mm.summary()
 >>> print({ii.name: ii.shape for ii in mm.weights})
-{'conv2d_2/kernel:0': TensorShape([1, 1, 256, 1024]),
- 'multi_head_relative_positional_embedding_1/pos_emb:0': TensorShape([837, 4]),
- 'dense_2/kernel:0': TensorShape([512, 512])}
+# {'conv2d_2/kernel:0': TensorShape([1, 1, 256, 1024]),
+#  'multi_head_relative_positional_embedding_1/pos_emb:0': TensorShape([837, 4]),
+#  'dense_2/kernel:0': TensorShape([512, 512])}
 """

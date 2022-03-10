@@ -19,15 +19,15 @@ BATCH_NORM_EPSILON = 1e-5
 LAYER_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
-    {"uniformer_base_64": {"imagenet": {224: "e852a51824f01ef9a87792395d0d8820"}}},
-    {"uniformer_small_64": {"imagenet": {224: "867648a1d96af15ef553337e27b53ede"}}},
-    {"uniformer_small_plus_32": {"imagenet": {224: "7796cce29b5ea6572330547ba7eb5e0d"}}},
-    {"uniformer_small_plus_64": {"imagenet": {224: "7d10381f4527496adb2d39c4a665c808"}}},
+    "uniformer_base_64": {"imagenet": {224: "e852a51824f01ef9a87792395d0d8820"}},
+    "uniformer_small_64": {"imagenet": {224: "867648a1d96af15ef553337e27b53ede"}},
+    "uniformer_small_plus_32": {"imagenet": {224: "7796cce29b5ea6572330547ba7eb5e0d"}},
+    "uniformer_small_plus_64": {"imagenet": {224: "7d10381f4527496adb2d39c4a665c808"}},
 }
 
 
 def multi_head_self_attention(
-    inputs, num_heads=4, key_dim=0, out_shape=None, out_weight=True, qkv_bias=False, out_bias=False, attn_dropout=0, out_dropout=0, name=None
+    inputs, num_heads=4, key_dim=0, out_shape=None, out_weight=True, qkv_bias=False, out_bias=False, attn_dropout=0, output_dropout=0, name=None
 ):
     _, hh, ww, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
@@ -57,7 +57,7 @@ def multi_head_self_attention(
     if out_weight:
         # [batch, hh, ww, num_heads * vv_dim] * [num_heads * vv_dim, out] --> [batch, hh, ww, out]
         attention_output = keras.layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
-    attention_output = keras.layers.Dropout(out_dropout, name=name and name + "out_drop")(attention_output) if out_dropout > 0 else attention_output
+    attention_output = keras.layers.Dropout(output_dropout, name=name and name + "out_drop")(attention_output) if output_dropout > 0 else attention_output
     return attention_output
 
 
@@ -76,7 +76,7 @@ def block(inputs, out_channel, num_heads=0, qkv_bias=True, mlp_ratio=4, mlp_drop
     else:
         attn = keras.layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, name=name + "attn_ln")(pos_out)
         # attn = multi_head_self_attention(
-        #     attn, num_heads, qkv_bias=qkv_bias, out_bias=True, attn_dropout=attn_drop_rate, out_dropout=mlp_drop_rate, name=name + "attn_mhsa_"
+        #     attn, num_heads, qkv_bias=qkv_bias, out_bias=True, attn_dropout=attn_drop_rate, output_dropout=mlp_drop_rate, name=name + "attn_mhsa_"
         # )
         attn = multi_head_self_attention(attn, num_heads, qkv_bias=qkv_bias, out_bias=True, attn_dropout=attn_drop_rate, name=name + "attn_mhsa_")
     attn = ChannelAffine(use_bias=False, weight_init_value=gamma, name=name + "1_gamma")(attn) if gamma >= 0 else attn
@@ -108,27 +108,27 @@ def stem(inputs, stem_width, use_conv_stem=False, drop_rate=0, activation="gelu"
 
 
 def Uniformer(
-    input_shape=(224, 224, 3),
-    out_channels=[64, 128, 320, 512],
-    stem_width=-1,
     num_blocks=[3, 4, 8, 3],
-    block_types=["conv", "conv", "transform", "transform"],
+    out_channels=[64, 128, 320, 512],
     head_dimension=64,
     use_conv_stem=False,
+    block_types=["conv", "conv", "transform", "transform"],
+    stem_width=-1,
     qkv_bias=True,
     mlp_ratio=4,
-    dropout=0,
-    mlp_drop_rate=0,
-    attn_drop_rate=0,
-    drop_connect_rate=0,
     layer_scale=-1,
     mix_token=False,
     token_label_top=False,
-    activation="gelu",
-    classifier_activation="softmax",
+    input_shape=(224, 224, 3),
     num_classes=1000,
-    model_name="uniformer",
+    activation="gelu",
+    mlp_drop_rate=0,
+    attn_drop_rate=0,
+    drop_connect_rate=0,
+    dropout=0,
+    classifier_activation="softmax",
     pretrained=None,
+    model_name="uniformer",
     kwargs=None,
 ):
     inputs = keras.layers.Input(input_shape)
@@ -169,7 +169,7 @@ def Uniformer(
     if token_label_top and num_classes > 0:
         # Training with label token
         nn_cls = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=None)  # Don't use softmax here
-        nn_aux = keras.layers.Dense(num_classes, dtype="float32", name="aux_head")(nn)
+        nn_aux = keras.layers.Dense(num_classes, name="aux_head")(nn)
 
         if mix_token:
             nn_aux = mixup_token.do_mixup_token(nn_aux, bbox)
@@ -192,14 +192,13 @@ def Uniformer(
     return model
 
 
-def token_label_imagenet_decode_predictions(preds, top=5):
-    cls_preds = preds[0].numpy() if isinstance(preds[0], tf.Tensor) else preds[0]
-    aux_preds = preds[1].numpy() if isinstance(preds[1], tf.Tensor) else preds[1]
-    preds = cls_preds + 0.5 * aux_preds.max(1)
-    return tf.keras.applications.imagenet_utils.decode_predictions(preds, top=top)
+def token_label_imagenet_decode_predictions(preds, top=5, classifier_activation="softmax"):
+    preds = preds[0] + 0.5 * tf.reduce_max(preds[1], axis=1)
+    preds = getattr(keras.activations, classifier_activation)(preds) if classifier_activation is not None else preds
+    return tf.keras.applications.imagenet_utils.decode_predictions(preds.numpy(), top=top)
 
 
-def UniformerSmall32(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def UniformerSmall32(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained=None, **kwargs):
     num_blocks = [3, 4, 8, 3]
     head_dimension = 32
     return Uniformer(**locals(), model_name="uniformer_small_32", **kwargs)
@@ -225,7 +224,7 @@ def UniformerSmallPlus64(input_shape=(224, 224, 3), num_classes=1000, classifier
     return Uniformer(**locals(), model_name="uniformer_small_plus_64", **kwargs)
 
 
-def UniformerBase32(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def UniformerBase32(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained=None, **kwargs):
     num_blocks = [5, 8, 20, 7]
     head_dimension = 32
     return Uniformer(**locals(), model_name="uniformer_base_32", **kwargs)
@@ -235,3 +234,11 @@ def UniformerBase64(input_shape=(224, 224, 3), num_classes=1000, classifier_acti
     num_blocks = [5, 8, 20, 7]
     head_dimension = 64
     return Uniformer(**locals(), model_name="uniformer_base_64", **kwargs)
+
+
+def UniformerLarge64(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained=None, **kwargs):
+    num_blocks = [5, 10, 24, 7]
+    out_channels = [128, 192, 448, 640]
+    head_dimension = 64
+    layer_scale = 1e-6
+    return Uniformer(**locals(), model_name="uniformer_large_64", **kwargs)

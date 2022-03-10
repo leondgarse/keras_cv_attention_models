@@ -33,6 +33,7 @@
   - [ResNetD](#resnetd)
   - [ResNetQ](#resnetq)
   - [ResNeXt](#resnext)
+  - [UniFormer](#uniformer)
   - [VOLO](#volo)
 - [Detection Models](#detection-models)
   - [EfficientDet](#efficientdet)
@@ -512,7 +513,7 @@
   | --------- | ------ | ---------------- | -------- | -------- |
   | ResNet51Q | 35.7M  | 224              | 82.36    | [resnet51q.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet51q_imagenet.h5) |
 ## ResNeXt
-  - [Keras ResNeXt](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnet_family#resnext) includes implementation of [PDF 1611.05431 Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf)
+  - [Keras ResNeXt](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnet_family#resnext) includes implementation of [PDF 1611.05431 Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf).
   - `SWSL` means `Semi-Weakly Supervised ResNe*t` from [Github facebookresearch/semi-supervised-ImageNet1K-models](https://github.com/facebookresearch/semi-supervised-ImageNet1K-models). **Please note the CC-BY-NC 4.0 license on theses weights, non-commercial use only**.
 
   | Model                     | Params | Image  resolution | Top1 Acc | Download            |
@@ -524,6 +525,23 @@
   | - SWSL                    | 42M    | 224               | 83.230   | [resnext101_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_swsl.h5)  |
   | ResNeXt101W (32x8d)       | 89M    | 224               | 79.308   | [resnext101_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_imagenet.h5)  |
   | - SWSL                    | 89M    | 224               | 84.284   | [resnext101w_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101w_swsl.h5)  |
+## UniFormer
+  - [Keras UniFormer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/uniformer) includes implementation of [PDF 2201.09450 UniFormer: Unifying Convolution and Self-attention for Visual Recognition](https://arxiv.org/pdf/2201.09450.pdf).
+
+  | Model                 | Params | Image  resolution | Top1 Acc | Download |
+  | --------------------- | ------ | ----------------- | -------- | -------- |
+  | UniformerSmall32 + TL | 22M    | 224               | 83.4     |          |
+  | UniformerSmall64      | 22M    | 224               | 82.9     | [small_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_64_224_imagenet.h5) |
+  | - Token Labeling      | 22M    | 224               | 83.4     |          |
+  | UniformerSmallPlus32  | 24M    | 224               | 83.4     | [small_plus_32_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_32_224_imagenet.h5) |
+  | - Token Labeling      | 24M    | 224               | 83.9     |          |
+  | UniformerSmallPlus64  | 24M    | 224               | 83.4     | [small_plus_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_64_224_imagenet.h5) |
+  | - Token Labeling      | 24M    | 224               | 83.6     |          |
+  | UniformerBase32 + TL  | 50M    | 224               | 85.1     |          |
+  | UniformerBase64       | 50M    | 224               | 83.8     | [base_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_imagenet.h5) |
+  | - Token Labeling      | 50M    | 224               | 84.8     |          |
+  | UniformerLarge64 + TL | 100M   | 224               | 85.6     |          |
+  | UniformerLarge64 + TL | 100M   | 384               | 86.3     |          |
 ## VOLO
   - [Keras VOLO](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/volo) is for [PDF 2106.13112 VOLO: Vision Outlooker for Visual Recognition](https://arxiv.org/pdf/2106.13112.pdf).
 
@@ -545,6 +563,7 @@
 # Detection Models
 ## EfficientDet
   - [Keras EfficientDet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientdet) includes implementation of [Paper 1911.09070 EfficientDet: Scalable and Efficient Object Detection](https://arxiv.org/pdf/1911.09070.pdf).
+  - `Det-AdvProp + AutoAugment` [Paper 2103.13886 Robust and Accurate Object Detection via Adversarial Learning](https://arxiv.org/pdf/2103.13886.pdf).
 
   | Model                       | Params | Image resolution | COCO test AP | Download |
   | --------------------------- | ------ | ---------------- | ------------ | -------- |
