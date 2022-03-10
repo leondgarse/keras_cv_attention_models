@@ -192,10 +192,10 @@ def Uniformer(
     return model
 
 
-def token_label_imagenet_decode_predictions(preds, top=5, classifier_activation="softmax"):
+def token_label_imagenet_decode_predictions(preds, top=5, classifier_activation="softmax", do_decode=True):
     preds = preds[0] + 0.5 * tf.reduce_max(preds[1], axis=1)
     preds = getattr(keras.activations, classifier_activation)(preds) if classifier_activation is not None else preds
-    return tf.keras.applications.imagenet_utils.decode_predictions(preds.numpy(), top=top)
+    return tf.keras.applications.imagenet_utils.decode_predictions(preds.numpy(), top=top) if do_decode else preds
 
 
 def UniformerSmall32(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained=None, **kwargs):

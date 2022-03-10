@@ -168,7 +168,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         return 1 - iou ** 2
 
     def __valid_call_single__(self, bbox_labels_true, bbox_labels_pred):
-        bboxes_true, bboxes_true_encoded, labels_true, object_true, bboxes_pred, bboxes_pred_encoded, labels_pred = self.anchor_assign(
+        bboxes_true, bboxes_true_encoded, labels_true, object_true, bboxes_pred, bboxes_pred_encoded, labels_pred = self.anchor_assign.tf_call(
             bbox_labels_true, bbox_labels_pred
         )
 
@@ -204,7 +204,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         out_dtype = (y_pred.dtype,) * 6
         class_loss, bbox_loss, object_loss, l1_loss, num_valid, class_acc = tf.map_fn(self.__call_single__, (y_true, y_pred), fn_output_signature=out_dtype)
 
-        num_valid = tf.reduce_sum(num_valid)
+        num_valid = tf.maximum(tf.reduce_sum(num_valid), 1.0)
         class_loss, bbox_loss, l1_loss = tf.reduce_sum(class_loss) / num_valid, tf.reduce_sum(bbox_loss) / num_valid, tf.reduce_sum(l1_loss) / num_valid
         object_loss = tf.reduce_sum(object_loss) / num_valid  # [ ??? ] why not divide actual object shape?
         tf.print(" - cls_loss:", class_loss, "- bbox_loss:", bbox_loss, "- obj_loss:", object_loss, "- cls_acc:", tf.reduce_mean(class_acc), end="\r")

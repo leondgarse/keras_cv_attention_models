@@ -164,6 +164,7 @@ class AnchorFreeAssignMatching:
     >>> img = test_images.dog_cat()
     >>> pred = mm(mm.preprocess_input(img))
 
+    >>> anchors = anchors_func.get_anchors([640, 640], pyramid_levels=[3, 5], aspect_ratios=[1], num_scales=1, anchor_scale=1, grid_zero_start=True)
     >>> aa = anchors_func.AnchorFreeAssignMatching(anchors)
     >>> bbs, lls, ccs = mm.decode_predictions(pred)[0]
     >>> bbox_labels_true = tf.concat([bbs, tf.one_hot(lls, 80), tf.ones([bbs.shape[0], 1])], axis=-1)
@@ -262,7 +263,7 @@ class AnchorFreeAssignMatching:
             lambda: topk_anchors,
         )
 
-    @tf.function
+    # @tf.function
     def __call__(self, bbox_labels_true, bbox_labels_pred):
         if not self.is_built:
             self.__build__(bbox_labels_true.shape)
@@ -324,3 +325,8 @@ class AnchorFreeAssignMatching:
         out_bboxes_pred_encoded = tf.gather(bboxes_pred, is_anchor_iou_match_any_idx)
 
         return out_bboxes_true, out_bboxes_true_encoded, out_labels_true, out_object_true, out_bboxes_pred, out_bboxes_pred_encoded, out_labels_pred
+
+    @tf.function
+    def tf_call(self, bbox_labels_true, bbox_labels_pred):
+        # Have to decorate with tf.function, or will throw error for using in loss function
+        return self.__call__(bbox_labels_true, bbox_labels_pred)
