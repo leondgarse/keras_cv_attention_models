@@ -165,7 +165,7 @@ def run_training_by_args(args):
     batch_size = args.batch_size * strategy.num_replicas_in_sync
     input_shape = (args.input_shape, args.input_shape, 3)
 
-    train_dataset, test_dataset, total_images, num_classes, steps_per_epoch, anchors = data.init_dataset(
+    train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = data.init_dataset(
         data_name=args.data_name,
         input_shape=input_shape,
         batch_size=batch_size,
@@ -201,7 +201,7 @@ def run_training_by_args(args):
             model.summary()
         if model.optimizer is None:
             if args.use_anchor_free_mode:
-                loss, metrics = losses.AnchorFreeLoss(anchors), None
+                loss, metrics = losses.AnchorFreeLoss(input_shape, args.anchor_pyramid_levels), None
             else:
                 loss, metrics = losses.FocalLossWithBbox(), losses.ClassAccuracyWithBbox()
             model = compile_model(model, args.optimizer, lr_base, args.weight_decay, 1, args.label_smoothing, loss=loss, metrics=metrics)

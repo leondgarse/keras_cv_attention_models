@@ -107,8 +107,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
     """
     # Basic test:
     >>> from keras_cv_attention_models.coco import losses, anchors_func
-    >>> anchors = anchors_func.get_anchors([640, 640], pyramid_levels=[3, 5], aspect_ratios=[1], num_scales=1, anchor_scale=1, grid_zero_start=True)
-    >>> aa = losses.AnchorFreeLoss(anchors, use_l1_loss=True)
+    >>> aa = losses.AnchorFreeLoss(input_shape=(640, 640), use_l1_loss=True)
 
     >>> from keras_cv_attention_models import yolox, test_images
     >>> from keras_cv_attention_models.coco import anchors_func, data
@@ -124,11 +123,11 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
 
     # Test with dataset:
     >>> from keras_cv_attention_models import coco, yolox
-    >>> train_dataset, _, _, _, _, anchors = coco.init_dataset(batch_size=8, use_anchor_free_mode=True, anchor_pyramid_levels=[3, 5], rescale_mode="raw")
+    >>> train_dataset, _, _, _, _ = coco.init_dataset(batch_size=8, use_anchor_free_mode=True, anchor_pyramid_levels=[3, 5], rescale_mode="raw")
     >>> images, bboxes_labels = train_dataset.as_numpy_iterator().next()
     >>> mm = yolox.YOLOXS(input_shape=(256, 256, 3))
     >>> preds = mm(images)
-    >>> loss = coco.losses.AnchorFreeLoss(anchors)
+    >>> loss = coco.losses.AnchorFreeLoss(mm.input_shape[1:-1])
     >>> print(f"\n{loss(bboxes_labels, preds) = }")
     >>> # - cls_loss: 1.16732407 - bbox_loss: 0.53272897 - obj_loss: 2.27287531 - cls_acc: 0.843137264
     >>> # loss(bboxes_labels, preds) = <tf.Tensor: shape=(), dtype=float32, numpy=6.103844>
@@ -136,11 +135,13 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
 
     def __init__(
         self,
-        anchors,
+        input_shape,  # Required for initing anchors...
+        pyramid_levels=[3, 5],  # Required for initing anchors...
         use_l1_loss=False,
         bbox_loss_weight=5.0,
         anchor_assign_center_radius=2.5,
         anchor_assign_topk_ious_max=10,
+        anchor_grid_zero_start=True,
         epsilon=1e-8,
         label_smoothing=0.0,
         from_logits=False,
@@ -151,37 +152,50 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         super().__init__(**kwargs)
         self.bbox_loss_weight, self.use_l1_loss, self.epsilon = bbox_loss_weight, use_l1_loss, epsilon
         self.label_smoothing, self.from_logits = label_smoothing, from_logits
-        self.anchors = anchors
-        self.anchor_assign = anchors_func.AnchorFreeAssignMatching(anchors, anchor_assign_center_radius, anchor_assign_topk_ious_max, epsilon=epsilon)
+        self.input_shape, self.pyramid_levels, self.anchor_grid_zero_start = input_shape, pyramid_levels, anchor_grid_zero_start
+        self.anchor_assign_center_radius, self.anchor_assign_topk_ious_max = anchor_assign_center_radius, anchor_assign_topk_ious_max
+        self.anchor_assign = anchors_func.AnchorFreeAssignMatching(
+            input_shape, pyramid_levels, anchor_assign_center_radius, anchor_assign_topk_ious_max, anchor_grid_zero_start, epsilon=epsilon
+        )
 
-    def __iou_loss__(self, bboxes_trues, bboxes_preds):
-        # bboxes_trues: [[top, left, bottom, right]], bboxes_preds: [[top, left, bottom, right]]
-        inter_top_left = tf.maximum(bboxes_trues[:, :2], bboxes_preds[:, :2])
-        inter_bottom_right = tf.minimum(bboxes_trues[:, 2:], bboxes_preds[:, 2:])
+    def __iou_loss__(self, bboxes_trues, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw):
+        # bboxes_trues: [[top, left, bottom, right]]
+        inter_top_left = tf.maximum(bboxes_trues[:, :2], bboxes_pred_top_left)
+        inter_bottom_right = tf.minimum(bboxes_trues[:, 2:], bboxes_pred_bottom_right)
         inter_hw = tf.maximum(inter_bottom_right - inter_top_left, 0)
         inter_area = inter_hw[:, 0] * inter_hw[:, 1]
 
         bboxes_trues_area = (bboxes_trues[:, 2] - bboxes_trues[:, 0]) * (bboxes_trues[:, 3] - bboxes_trues[:, 1])
-        bboxes_preds_area = (bboxes_preds[:, 2] - bboxes_preds[:, 0]) * (bboxes_preds[:, 3] - bboxes_preds[:, 1])
+        bboxes_preds_area = bboxes_pred_hw[:, 0] * bboxes_pred_hw[:, 1]
         union_area = bboxes_trues_area + bboxes_preds_area - inter_area
         iou = inter_area / (union_area + self.epsilon)
         return 1 - iou ** 2
 
     def __valid_call_single__(self, bbox_labels_true, bbox_labels_pred):
-        bboxes_true, bboxes_true_encoded, labels_true, object_true, bboxes_pred, bboxes_pred_encoded, labels_pred = self.anchor_assign.tf_call(
-            bbox_labels_true, bbox_labels_pred
+        bbox_labels_true_assined = tf.stop_gradient(self.anchor_assign(bbox_labels_true, bbox_labels_pred))
+        bboxes_true, bboxes_true_encoded, labels_true, object_true_idx_nd = tf.split(bbox_labels_true_assined, [4, 4, -1, 1], axis=-1)
+        object_true_idx_nd = tf.cast(object_true_idx_nd, tf.int32)
+        object_true_idx = object_true_idx_nd[:, 0]
+        object_true = tf.tensor_scatter_nd_update(tf.zeros_like(bbox_labels_pred[:, -1]), object_true_idx_nd, tf.ones_like(bboxes_true[:, -1]))
+
+        bbox_labels_pred_valid = tf.gather(bbox_labels_pred, object_true_idx)
+        bboxes_pred, labels_pred, object_pred = bbox_labels_pred_valid[:, :4], bbox_labels_pred_valid[:, 4:-1], bbox_labels_pred[:, -1]
+
+        anchors_centers = tf.gather(self.anchor_assign.anchors_centers, object_true_idx)
+        anchors_hws = tf.gather(self.anchor_assign.anchors_hws, object_true_idx)
+        bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_center, bboxes_pred_hw = self.anchor_assign.__decode_bboxes__(
+            bboxes_pred, anchors_centers, anchors_hws
         )
 
         if self.label_smoothing > 0:
             labels_true = labels_true * (1.0 - self.label_smoothing) + 0.5 * self.label_smoothing
         class_loss = tf.reduce_sum(K.binary_crossentropy(labels_true, labels_pred))
-        object_loss = tf.reduce_sum(K.binary_crossentropy(object_true, bbox_labels_pred[:, -1]))
-        bbox_loss = tf.reduce_sum(self.__iou_loss__(bboxes_true, bboxes_pred))
+        object_loss = tf.reduce_sum(K.binary_crossentropy(tf.cast(object_true, object_pred.dtype), object_pred))
+        bbox_loss = tf.reduce_sum(self.__iou_loss__(bboxes_true, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw))
         if self.use_l1_loss:
-            l1_loss = tf.reduce_sum(tf.abs(bboxes_true_encoded - bboxes_pred_encoded))  # mean absolute error
+            l1_loss = tf.reduce_sum(tf.abs(bboxes_true_encoded - bboxes_pred))  # mean absolute error
         else:
             l1_loss = 0.0
-        # return class_loss + object_loss + l1_loss + bbox_loss * self.bbox_loss_weight
 
         num_valid_anchors = tf.cast(tf.shape(bboxes_pred)[0], bboxes_pred.dtype)
         class_acc = tf.reduce_mean(tf.cast(tf.argmax(labels_true, axis=-1) == tf.argmax(labels_pred, axis=-1), "float32"))
@@ -214,26 +228,16 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         config = super().get_config()
         config.update(
             {
-                "bbox_loss_weight": self.bbox_loss_weight,
+                "input_shape": self.input_shape,
+                "pyramid_levels": self.pyramid_levels,
                 "use_l1_loss": self.use_l1_loss,
+                "bbox_loss_weight": self.bbox_loss_weight,
+                "anchor_assign_center_radius": self.anchor_assign_center_radius,
+                "anchor_assign_topk_ious_max": self.anchor_assign_topk_ious_max,
+                "anchor_grid_zero_start": self.anchor_grid_zero_start,
                 "epsilon": self.epsilon,
                 "label_smoothing": self.label_smoothing,
                 "from_logits": self.from_logits,
-                "__anchors__": {
-                    "input_shape": self.anchors.input_shape,
-                    "pyramid_levels": self.anchors.pyramid_levels,
-                    "aspect_ratios": self.anchors.aspect_ratios,
-                    "num_scales": self.anchors.num_scales,
-                    "anchor_scale": self.anchors.anchor_scale,
-                    "grid_zero_start": self.anchors.grid_zero_start,
-                },
             }
         )
         return config
-
-    @classmethod
-    def from_config(cls, config):
-        from keras_cv_attention_models.coco import anchors_func
-
-        config["anchors"] = anchors_func.get_anchors(**config.pop("__anchors__"))
-        return cls(**config)
