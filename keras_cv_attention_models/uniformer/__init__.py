@@ -39,8 +39,7 @@ __tail_doc__ = """  block_types: block types for each stack,
   dropout: dropout rate if top layers is included.
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
-  pretrained: None or "imagenet". Currently only `CoAtNet0` with "imagenet" available.
-  **kwargs: other parameters if available.
+  pretrained: None or one of ["imagenet", "token_label"].
 
 Returns:
     A `keras.Model` instance.

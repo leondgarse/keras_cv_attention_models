@@ -530,18 +530,18 @@
 
   | Model                 | Params | Image  resolution | Top1 Acc | Download |
   | --------------------- | ------ | ----------------- | -------- | -------- |
-  | UniformerSmall32 + TL | 22M    | 224               | 83.4     |          |
+  | UniformerSmall32 + TL | 22M    | 224               | 83.4     | [small_32_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_32_224_token_label.h5) |
   | UniformerSmall64      | 22M    | 224               | 82.9     | [small_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_64_224_imagenet.h5) |
-  | - Token Labeling      | 22M    | 224               | 83.4     |          |
+  | - Token Labeling      | 22M    | 224               | 83.4     | [small_64_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_64_224_token_label.h5) |
   | UniformerSmallPlus32  | 24M    | 224               | 83.4     | [small_plus_32_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_32_224_imagenet.h5) |
-  | - Token Labeling      | 24M    | 224               | 83.9     |          |
+  | - Token Labeling      | 24M    | 224               | 83.9     | [small_plus_32_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_32_224_token_label.h5) |
   | UniformerSmallPlus64  | 24M    | 224               | 83.4     | [small_plus_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_64_224_imagenet.h5) |
-  | - Token Labeling      | 24M    | 224               | 83.6     |          |
-  | UniformerBase32 + TL  | 50M    | 224               | 85.1     |          |
+  | - Token Labeling      | 24M    | 224               | 83.6     | [small_plus_64_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_64_224_token_label.h5) |
+  | UniformerBase32 + TL  | 50M    | 224               | 85.1     | [base_32_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_32_224_token_label.h5) |
   | UniformerBase64       | 50M    | 224               | 83.8     | [base_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_imagenet.h5) |
-  | - Token Labeling      | 50M    | 224               | 84.8     |          |
-  | UniformerLarge64 + TL | 100M   | 224               | 85.6     |          |
-  | UniformerLarge64 + TL | 100M   | 384               | 86.3     |          |
+  | - Token Labeling      | 50M    | 224               | 84.8     | [base_64_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_token_label.h5) |
+  | UniformerLarge64 + TL | 100M   | 224               | 85.6     | [large_64_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_224_token_label.h5) |
+  | UniformerLarge64 + TL | 100M   | 384               | 86.3     | [large_64_384_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_384_token_label.h5) |
 ## VOLO
   - [Keras VOLO](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/volo) is for [PDF 2106.13112 VOLO: Vision Outlooker for Visual Recognition](https://arxiv.org/pdf/2106.13112.pdf).
 

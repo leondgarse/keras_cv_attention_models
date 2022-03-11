@@ -8,20 +8,22 @@
 ***
 
 ## Models
+  - It's claimed the `token_label` model works better for down stream tasks like object detection. Reload those weights by `pretrained="token_label"`.
+
   | Model                 | Params | Image  resolution | Top1 Acc | Download |
   | --------------------- | ------ | ----------------- | -------- | -------- |
-  | UniformerSmall32 + TL | 22M    | 224               | 83.4     |          |
+  | UniformerSmall32 + TL | 22M    | 224               | 83.4     | [small_32_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_32_224_token_label.h5) |
   | UniformerSmall64      | 22M    | 224               | 82.9     | [small_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_64_224_imagenet.h5) |
-  | - Token Labeling      | 22M    | 224               | 83.4     |          |
+  | - Token Labeling      | 22M    | 224               | 83.4     | [small_64_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_64_224_token_label.h5) |
   | UniformerSmallPlus32  | 24M    | 224               | 83.4     | [small_plus_32_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_32_224_imagenet.h5) |
-  | - Token Labeling      | 24M    | 224               | 83.9     |          |
+  | - Token Labeling      | 24M    | 224               | 83.9     | [small_plus_32_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_32_224_token_label.h5) |
   | UniformerSmallPlus64  | 24M    | 224               | 83.4     | [small_plus_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_64_224_imagenet.h5) |
-  | - Token Labeling      | 24M    | 224               | 83.6     |          |
-  | UniformerBase32 + TL  | 50M    | 224               | 85.1     |          |
+  | - Token Labeling      | 24M    | 224               | 83.6     | [small_plus_64_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_64_224_token_label.h5) |
+  | UniformerBase32 + TL  | 50M    | 224               | 85.1     | [base_32_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_32_224_token_label.h5) |
   | UniformerBase64       | 50M    | 224               | 83.8     | [base_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_imagenet.h5) |
-  | - Token Labeling      | 50M    | 224               | 84.8     |          |
-  | UniformerLarge64 + TL | 100M   | 224               | 85.6     |          |
-  | UniformerLarge64 + TL | 100M   | 384               | 86.3     |          |
+  | - Token Labeling      | 50M    | 224               | 84.8     | [base_64_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_token_label.h5) |
+  | UniformerLarge64 + TL | 100M   | 224               | 85.6     | [large_64_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_224_token_label.h5) |
+  | UniformerLarge64 + TL | 100M   | 384               | 86.3     | [large_64_384_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_384_token_label.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import uniformer
@@ -54,8 +56,8 @@
   ```py
   """ PyTorch uniformer_small """
   import torch
-  sys.path.append("../UniFormer/image_classification")
-  from models import uniformer as torch_uniformer
+  sys.path.append("../UniFormer")
+  from image_classification.models import uniformer as torch_uniformer
 
   torch_model = torch_uniformer.uniformer_small()
   weights = torch.load('uniformer_small_in1k.pth')
@@ -72,5 +74,31 @@
   keras_out = mm(inputs).numpy()
   print(f"{np.allclose(torch_out, keras_out, atol=1e-2) = }")
   # np.allclose(torch_out, keras_out, atol=1e-2) = True
+  ```
+  **Token labeling model**
+  ```py
+  """ PyTorch uniformer_small """
+  import torch
+  sys.path.append("../UniFormer")
+  from image_classification.token_labeling.tlt.models import uniformer as torch_uniformer
+
+  torch_model = torch_uniformer.uniformer_small()
+  weights = torch.load('uniformer_small_tl_224.pth')
+  torch_model.load_state_dict(weights['model'] if "model" in weights else weights)
+  torch_model.eval()
+
+  """ Keras UniformerSmall64 """
+  from keras_cv_attention_models import uniformer
+  mm = uniformer.UniformerSmall32(pretrained="uniformer_small_32_224_token_label.h5", token_label_top=True, classifier_activation=None)
+
+  """ Verification """
+  inputs = np.random.uniform(size=(1, *mm.input_shape[1:3], 3)).astype("float32")
+  torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2)).detach().numpy()
+
+  keras_preds = mm(inputs)
+  keras_out = (keras_preds[0] + 0.5 * tf.reduce_max(keras_preds[1], axis=1)).numpy()
+  # keras_out = mm.decode_predictions(keras_preds, classifier_activation=None, do_decode=False).numpy()
+  print(f"{np.allclose(torch_out, keras_out, atol=2e-2) = }")
+  # np.allclose(torch_out, keras_out, atol=2e-2) = True
   ```
 ***
