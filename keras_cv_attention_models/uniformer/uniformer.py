@@ -191,7 +191,7 @@ def Uniformer(
     model = keras.models.Model(inputs, out, name=model_name)
     post_process = token_label_imagenet_decode_predictions if token_label_top else None
     add_pre_post_process(model, rescale_mode="torch", post_process=post_process)
-    pretrained = "token_label" if "token" in pretrained.lower() else pretrained
+    pretrained = "token_label" if pretrained is not None and "token" in pretrained.lower() else pretrained
     reload_model_weights(model, PRETRAINED_DICT, "uniformer", pretrained)
     return model
 

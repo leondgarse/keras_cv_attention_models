@@ -3,8 +3,10 @@
 
 ## Summary
   - Keras implementation of [UniFormer](https://github.com/Sense-X/UniFormer/tree/main/image_classification). Paper [PDF 2201.09450 UniFormer: Unifying Convolution and Self-attention for Visual Recognition](https://arxiv.org/pdf/2201.09450.pdf).
-  - Related papers: [PDF 2104.10858 All Tokens Matter: Token Labeling for Training Better Vision Transformers](https://arxiv.org/pdf/2104.10858.pdf), [PDF 2103.17239 Going deeper with Image Transformers](https://arxiv.org/pdf/2103.17239.pdf).
+  - Other Related papers: [PDF 2104.10858 All Tokens Matter: Token Labeling for Training Better Vision Transformers](https://arxiv.org/pdf/2104.10858.pdf), [PDF 2103.17239 Going deeper with Image Transformers](https://arxiv.org/pdf/2103.17239.pdf).
   - Model weights reloaded from official publication.
+
+  ![uniformer](https://user-images.githubusercontent.com/5744524/157807693-f2508131-2ee9-4f60-9f55-722fde3b218c.png)
 ***
 
 ## Models

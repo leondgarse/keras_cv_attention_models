@@ -2,11 +2,11 @@
 ***
 
 ## Summary
-- CoAtNet article: [PDF 2106.04803 CoAtNet: Marrying Convolution and Attention for All Data Sizes](https://arxiv.org/pdf/2106.04803.pdf)
-- [Github comvex/coatnet/model.py](https://github.com/blakechi/ComVEX/blob/master/comvex/coatnet/model.py)
-- Architecture is guessed from article, so it's NOT certain.
+  - CoAtNet article: [PDF 2106.04803 CoAtNet: Marrying Convolution and Attention for All Data Sizes](https://arxiv.org/pdf/2106.04803.pdf)
+  - [Github comvex/coatnet/model.py](https://github.com/blakechi/ComVEX/blob/master/comvex/coatnet/model.py)
+  - Architecture is guessed from article, so it's NOT certain.
 
-![](https://user-images.githubusercontent.com/5744524/151656800-1baab0ad-a31b-4ef0-bada-483c83108670.png)
+  ![](https://user-images.githubusercontent.com/5744524/151656800-1baab0ad-a31b-4ef0-bada-483c83108670.png)
 ***
 
 ## Usage
