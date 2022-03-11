@@ -2,13 +2,13 @@
 ***
 
 ## Summary
-- CoAtNet article: [PDF 2201.03545 A ConvNet for the 2020s](https://arxiv.org/pdf/2201.03545.pdf).
-- Model weights reloaded from [Github facebookresearch/ConvNeXt](https://github.com/facebookresearch/ConvNeXt).
+  - CoAtNet article: [PDF 2201.03545 A ConvNet for the 2020s](https://arxiv.org/pdf/2201.03545.pdf).
+  - Model weights reloaded from [Github facebookresearch/ConvNeXt](https://github.com/facebookresearch/ConvNeXt).
+
+  ![](https://user-images.githubusercontent.com/5744524/151656693-fc6e0d6d-4f9f-4c67-adbe-27fe3ce85062.png)
 ***
 
 ## Models
-  ![](https://user-images.githubusercontent.com/5744524/151656693-fc6e0d6d-4f9f-4c67-adbe-27fe3ce85062.png)
-
   | Model               | Params | Image resolution | Top1 Acc | Download |
   | ------------------- | ------ | ---------------- | -------- | -------- |
   | ConvNeXtTiny        | 28M    | 224              | 82.1     | [tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_tiny_imagenet.h5) |

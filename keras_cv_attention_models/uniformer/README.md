@@ -91,7 +91,7 @@
 
   """ Keras UniformerSmall64 """
   from keras_cv_attention_models import uniformer
-  mm = uniformer.UniformerSmall32(pretrained="uniformer_small_32_224_token_label.h5", token_label_top=True, classifier_activation=None)
+  mm = uniformer.UniformerSmall32(pretrained="token_label", token_label_top=True, classifier_activation=None)
 
   """ Verification """
   inputs = np.random.uniform(size=(1, *mm.input_shape[1:3], 3)).astype("float32")

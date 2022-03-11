@@ -6,7 +6,9 @@
   - Keras implementation of [Official efficientnetv2](https://github.com/google/automl/tree/master/efficientnetv2). Article [arXiv 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298) by Mingxing Tan, Quoc V. Le.
   - `h5` model weights converted from official publication.
   - `effv2-t-imagenet.h5` model weights converted from [Github rwightman/pytorch-image-models](https://github.com/rwightman/pytorch-image-models#july-5-9-2021). which claimed both faster and better accuracy than `b3`. Please notice that `PyTorch` using different `bn_epsilon` and `padding` strategy.
+***
 
+## Models
   | V2 Model                   | Params | Image resolution | Top1 Acc | Download                                                                                                                                       |
   | -------------------------- | ------ | ---------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
   | EfficientNetV2B0           | 7.1M   | 224              | 78.7     | [effv2b0-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b0-imagenet.h5) |

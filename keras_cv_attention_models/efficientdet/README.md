@@ -6,9 +6,10 @@
   - [Paper 1911.09070 EfficientDet: Scalable and Efficient Object Detection](https://arxiv.org/pdf/1911.09070.pdf).
   - `Det-AdvProp + AutoAugment` [Paper 2103.13886 Robust and Accurate Object Detection via Adversarial Learning](https://arxiv.org/pdf/2103.13886.pdf).
 
-## Models
   ![](https://user-images.githubusercontent.com/5744524/151656702-9fb68cf6-e4ce-42b5-a488-80807cc66e56.png)
+***
 
+## Models
   | Model                       | Params | Image resolution | COCO test AP | Download |
   | --------------------------- | ------ | ---------------- | ------------ | -------- |
   | EfficientDetD0              | 3.9M   | 512              | 34.6         | [efficientdet_d0.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d0_512_coco.h5) |
