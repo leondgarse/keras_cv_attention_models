@@ -8,6 +8,7 @@
   - [Layers](#layers)
   - [Model surgery](#model-surgery)
   - [ImageNet Training](#imagenet-training)
+  - [COCO Training](#coco-training)
   - [Evaluation](#evaluation)
   - [Visualizing](#visualizing)
   - [TFLite Conversion](#tflite-conversion)
@@ -133,7 +134,7 @@
   - [Init Imagenet dataset using tensorflow_datasets #9](https://github.com/leondgarse/keras_cv_attention_models/discussions/9).
   - It took me weeks figuring out what is wrong in training, that should use `LAMB` with excluding `batch norm` layers on weight decay...
   - `aotnet.AotNet50` default parameters set is a typical `ResNet50` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
-  - Default params for `train_script.py` is like `A3` configuration from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf) with `batch_size=256, input_shape=(160, 160)`.
+  - Default parameters for `train_script.py` is like `A3` configuration from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf) with `batch_size=256, input_shape=(160, 160)`.
     ```sh
     # `antialias` is default enabled for resize, can be turned off be set `--disable_antialias`.
     CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py --seed 0 -s aotnet50
@@ -154,6 +155,30 @@
     -s aotnet50_progressive_3_lr_steps_100 --seed 0
     ```
     ![aotnet50_progressive_160](https://user-images.githubusercontent.com/5744524/151286851-221ff8eb-9fe9-4685-aa60-4a3ba98c654e.png)
+## COCO Training
+  - [COCO](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco) contains more detail usage.
+  - `AnchorFreeLoss` usage took me weeks solving why the `bbox_loss` always been `1`. that using `tf.stop_gradient` while assigning is the key...
+  - Default parameters for `coco_train_script.py` is `EfficientDetD0` with `input_shape=(256, 256, 3), batch_size=64, mosaic_mix_prob=0.5, freeze_backbone_epochs=32, total_epochs=105`. Technically, it's any `pyramid structure backbone` + `EfficientDet / YOLOX header` + `anchor_free / anchors strategy` combination supported.
+    ```sh
+    # Default EfficientDetD0
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py
+    # Default EfficientDetD0 using input_shape 512, optimizer adamw, freezing backbone 16 epochs, total 50 + 5 epochs
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py -i 512 -p adamw --freeze_backbone_epochs 16 --lr_decay_steps 50
+
+    # EfficientNetV2B0 backbone + EfficientDetD0 detection header
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone efficientnet.EfficientNetV2B0 --det_header efficientdet.EfficientDetD0
+    # ResNest50 backbone + EfficientDetD0 header using yolox like anchor_free_mode
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone resnest.ResNest50 --use_anchor_free_mode
+
+    # Typical YOLOXS with anchor_free_mode
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolox.YOLOXS --use_anchor_free_mode
+    # YOLOXS with efficientdet like anchors
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolox.YOLOXS
+    # CoAtNet0 backbone + YOLOXS header with anchor_free_mode
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone coatnet.CoAtNet0 --det_header yolox.YOLOXS --use_anchor_free_mode
+    # UniformerSmall32 backbone + YOLOX header with efficientdet like anchors
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone uniformer.UniformerSmall32 --det_header yolox.YOLOX
+    ```
 ## Evaluation
   - `eval_script.py` is used for evaluating model accuracy, both `imagenet` / `coco` ones.
   ```sh

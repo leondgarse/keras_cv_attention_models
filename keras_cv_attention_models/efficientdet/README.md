@@ -74,22 +74,41 @@
     ```
     ![effdetd1_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/153983911-2299efad-3b42-46b9-88c8-92c3b6e4e091.png)
 ## Custom detector using efficientdet header
-  - `Backbone` for `EfficientDet` can be any model with pyramid stage structure.
+  - **Backbone** for `EfficientDet` can be any model with pyramid stage structure.
     ```py
     from keras_cv_attention_models import efficientdet, coatnet
     bb = coatnet.CoAtNet0(input_shape=(256, 256, 3), num_classes=0)
-    mm = efficientdet.EfficientDet(backbone=bb)
+    mm = efficientdet.EfficientDet(backbone=bb, num_classes=80)
     # >>>> features: {'stack_2_block_3_output': (None, 32, 32, 192),
     #                 'stack_3_block_5_ffn_output': (None, 16, 16, 384),
     #                 'stack_4_block_2_ffn_output': (None, 8, 8, 768)}
 
-    mm.summary()  # Trainable params: 18,773,185
+    mm.summary()  # Trainable params: 23,487,463
+    print(mm.output_shape)
+    # (None, 12276, 84)
     ```
-  - Each `EfficientDetD*` / `EfficientDetLite*` can also set with `backbone=xxx` for using their pre-settings.
+    Each `EfficientDetD*` / `EfficientDetLite*` can also set with `backbone=xxx` for using their presets.
     ```py
     from keras_cv_attention_models import efficientdet, resnest
-    mm = efficientdet.EfficientDetD2(backbone=resnest.ResNest50(input_shape=(384, 384, 3), num_classes=0), pretrained=None)
+    backbone = resnest.ResNest50(input_shape=(384, 384, 3), num_classes=0)
+    mm = efficientdet.EfficientDetD2(backbone=backbone, pretrained=None, num_classes=80)
 
-    mm.summary()  # Trainable params: 27,153,037
+    mm.summary()  # Trainable params: 27,142,867
     ```
+  - **use_anchor_free_mode** controls if using typical preset anchors, or using `YOLOX anchor_free mode` strategy. Default is `False`.
+    ```py
+    from keras_cv_attention_models import efficientdet, coatnet
+    bb = coatnet.CoAtNet0(input_shape=(256, 256, 3), num_classes=0)
+    mm = efficientdet.EfficientDet(backbone=bb, use_anchor_free_mode=True, num_classes=80)
+
+    mm.summary()  # Trainable params: 23,444,424
+    print(mm.output_shape)
+    # (None, 1364, 85)
+    ```
+    **Default settings for `use_anchor_free_mode` `True` or `False`**
+
+    | use_anchor_free_mode | use_object_scores | num_anchors | anchor_scale | aspect_ratios | num_scales | grid_zero_start |
+    | -------------------- | ----------------- | ----------- | ------------ | ------------- | ---------- | --------------- |
+    | False                | False             | 9           | 4            | [1, 2, 0.5]   | 3          | False           |
+    | True                 | True              | 1           | 1            | [1]           | 1          | True            |
 ***

@@ -13,6 +13,8 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
         self.label_smoothing, self.from_logits = label_smoothing, from_logits
         # self.huber = tf.keras.losses.Huber(self.delta, reduction=tf.keras.losses.Reduction.NONE)
 
+        self.class_acc = tf.Variable(0, dtype="float32", trainable=False)
+
     def __focal_loss__(self, class_true_valid, class_pred_valid):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/train_lib.py#L257
         if self.from_logits:
@@ -56,12 +58,16 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
         valid_pick = tf.where(anchor_mark == 1)
         num_positive_anchors = tf.cast(tf.maximum(tf.shape(valid_pick)[0], 1), y_pred.dtype)
 
+        # tf.gather_nd works better than tf.gather
         class_true_valid, class_pred_valid = tf.gather_nd(class_true, exclude_ignored_pick), tf.gather_nd(class_pred, exclude_ignored_pick)
         bbox_true_valid, bbox_pred_valid = tf.gather_nd(bbox_true, valid_pick), tf.gather_nd(bbox_pred, valid_pick)
 
         cls_loss = self.__focal_loss__(class_true_valid, class_pred_valid)  # divide before sum, if meet inf
         bbox_loss = self.__bbox_loss__(bbox_true_valid, bbox_pred_valid)
         cls_loss, bbox_loss = tf.reduce_sum(cls_loss) / num_positive_anchors, tf.reduce_sum(bbox_loss) / num_positive_anchors
+
+        # Calulate accuracy here, will use it in metrics
+        self.class_acc.assign(tf.reduce_mean(tf.cast(tf.argmax(class_pred_valid, axis=-1) == tf.argmax(class_true_valid, axis=-1), "float32")))
 
         # return bbox_loss
         tf.print(" - cls_loss:", cls_loss, "- bbox_loss:", bbox_loss, end="\r")
@@ -83,26 +89,6 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
 
 
 @tf.keras.utils.register_keras_serializable(package="kecamLoss")
-class ClassAccuracyWithBbox(tf.keras.metrics.Metric):
-    def __init__(self, name="cls_acc", **kwargs):
-        super().__init__(name=name, **kwargs)
-        self.cls_acc = self.add_weight(name="cls_acc", initializer="zeros", dtype="float32")
-        self.count = self.add_weight(name="count", initializer="zeros", dtype="float32")
-
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        pick = tf.where(y_true[:, :, -1] == 1)
-        cls_true_valid = tf.argmax(tf.gather_nd(y_true[:, :, 4:-1], pick), axis=-1)
-        cls_pred_valid = tf.argmax(tf.gather_nd(y_pred[:, :, 4:], pick), axis=-1)
-        cls_acc = tf.reduce_mean(tf.cast(cls_true_valid == cls_pred_valid, "float32"))
-        # tf.assert_less(cls_acc, 1.1)
-        self.cls_acc.assign_add(cls_acc)
-        self.count.assign_add(1.0)
-
-    def result(self):
-        return self.cls_acc / self.count
-
-
-@tf.keras.utils.register_keras_serializable(package="kecamLoss")
 class AnchorFreeLoss(tf.keras.losses.Loss):
     """
     # Basic test:
@@ -118,18 +104,18 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
     >>> bbs, lls, ccs = mm.decode_predictions(pred)[0]
     >>> bbox_labels_true = tf.concat([bbs, tf.one_hot(lls, 80), tf.ones([bbs.shape[0], 1])], axis=-1)
     >>> print("\n", aa(tf.expand_dims(bbox_labels_true, 0), pred))
-    >>> # - cls_loss: 0.416673392 - bbox_loss: 0.129255757 - obj_loss: 0.961375535 - cls_acc: 0.923076928
+    >>> # - cls_loss: 0.416673392 - bbox_loss: 0.129255757 - obj_loss: 0.961375535
     >>> # tf.Tensor(2.3482049, shape=(), dtype=float32)
 
     # Test with dataset:
     >>> from keras_cv_attention_models import coco, yolox
-    >>> train_dataset, _, _, _, _ = coco.init_dataset(batch_size=8, use_anchor_free_mode=True, anchor_pyramid_levels=[3, 5], rescale_mode="raw")
+    >>> train_dataset = coco.init_dataset(batch_size=8, use_anchor_free_mode=True, anchor_pyramid_levels=[3, 5], rescale_mode="raw")[0]
     >>> images, bboxes_labels = train_dataset.as_numpy_iterator().next()
     >>> mm = yolox.YOLOXS(input_shape=(256, 256, 3))
     >>> preds = mm(images)
     >>> loss = coco.losses.AnchorFreeLoss(mm.input_shape[1:-1])
     >>> print(f"\n{loss(bboxes_labels, preds) = }")
-    >>> # - cls_loss: 1.16732407 - bbox_loss: 0.53272897 - obj_loss: 2.27287531 - cls_acc: 0.843137264
+    >>> # - cls_loss: 1.16732407 - bbox_loss: 0.53272897 - obj_loss: 2.27287531
     >>> # loss(bboxes_labels, preds) = <tf.Tensor: shape=(), dtype=float32, numpy=6.103844>
     """
 
@@ -157,6 +143,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         self.anchor_assign = anchors_func.AnchorFreeAssignMatching(
             input_shape, pyramid_levels, anchor_assign_center_radius, anchor_assign_topk_ious_max, anchor_grid_zero_start, epsilon=epsilon
         )
+        self.class_acc = tf.Variable(0, dtype="float32", trainable=False)
 
     def __iou_loss__(self, bboxes_trues, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw):
         # bboxes_trues: [[top, left, bottom, right]]
@@ -175,14 +162,17 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         bbox_labels_true_assined = tf.stop_gradient(self.anchor_assign(bbox_labels_true, bbox_labels_pred))
         bboxes_true, bboxes_true_encoded, labels_true, object_true_idx_nd = tf.split(bbox_labels_true_assined, [4, 4, -1, 1], axis=-1)
         object_true_idx_nd = tf.cast(object_true_idx_nd, tf.int32)
-        object_true_idx = object_true_idx_nd[:, 0]
         object_true = tf.tensor_scatter_nd_update(tf.zeros_like(bbox_labels_pred[:, -1]), object_true_idx_nd, tf.ones_like(bboxes_true[:, -1]))
 
-        bbox_labels_pred_valid = tf.gather(bbox_labels_pred, object_true_idx)
+        # object_true_idx = object_true_idx_nd[:, 0]
+        # bbox_labels_pred_valid = tf.gather(bbox_labels_pred, object_true_idx)
+        bbox_labels_pred_valid = tf.gather_nd(bbox_labels_pred, object_true_idx_nd)
         bboxes_pred, labels_pred, object_pred = bbox_labels_pred_valid[:, :4], bbox_labels_pred_valid[:, 4:-1], bbox_labels_pred[:, -1]
 
-        anchors_centers = tf.gather(self.anchor_assign.anchors_centers, object_true_idx)
-        anchors_hws = tf.gather(self.anchor_assign.anchors_hws, object_true_idx)
+        # anchors_centers = tf.gather(self.anchor_assign.anchors_centers, object_true_idx)
+        # anchors_hws = tf.gather(self.anchor_assign.anchors_hws, object_true_idx)
+        anchors_centers = tf.gather_nd(self.anchor_assign.anchors_centers, object_true_idx_nd)
+        anchors_hws = tf.gather_nd(self.anchor_assign.anchors_hws, object_true_idx_nd)
         bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_center, bboxes_pred_hw = self.anchor_assign.__decode_bboxes__(
             bboxes_pred, anchors_centers, anchors_hws
         )
@@ -221,7 +211,11 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         num_valid = tf.maximum(tf.reduce_sum(num_valid), 1.0)
         class_loss, bbox_loss, l1_loss = tf.reduce_sum(class_loss) / num_valid, tf.reduce_sum(bbox_loss) / num_valid, tf.reduce_sum(l1_loss) / num_valid
         object_loss = tf.reduce_sum(object_loss) / num_valid  # [ ??? ] why not divide actual object shape?
-        tf.print(" - cls_loss:", class_loss, "- bbox_loss:", bbox_loss, "- obj_loss:", object_loss, "- cls_acc:", tf.reduce_mean(class_acc), end="\r")
+
+        # Calulate accuracy here, will use it in metrics
+        self.class_acc.assign(tf.reduce_mean(class_acc))
+
+        tf.print(" - cls_loss:", class_loss, "- bbox_loss:", bbox_loss, "- obj_loss:", object_loss, end="\r")
         return class_loss + object_loss + l1_loss + bbox_loss * self.bbox_loss_weight
 
     def get_config(self):
@@ -241,3 +235,36 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
             }
         )
         return config
+
+
+@tf.keras.utils.register_keras_serializable(package="kecamLoss")
+class ClassAccuracyWithBbox(tf.keras.metrics.Metric):
+    def __init__(self, name="cls_acc", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.cls_acc = self.add_weight(name="cls_acc", initializer="zeros", dtype="float32")
+        self.count = self.add_weight(name="count", initializer="zeros", dtype="float32")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        pick = tf.where(y_true[:, :, -1] > 0)
+        cls_true_valid = tf.argmax(tf.gather_nd(y_true[:, :, 4:-1], pick), axis=-1)
+        cls_pred_valid = tf.argmax(tf.gather_nd(y_pred[:, :, 4:], pick), axis=-1)
+        cls_acc = tf.reduce_mean(tf.cast(cls_true_valid == cls_pred_valid, "float32"))
+        # tf.assert_less(cls_acc, 1.1)
+        self.cls_acc.assign_add(self.loss_calss_with_acc.cls_acc)
+        self.count.assign_add(1.0)
+
+
+@tf.keras.utils.register_keras_serializable(package="kecamLoss")
+class ClassAccuracyWithBboxWrapper(tf.keras.metrics.Metric):
+    def __init__(self, loss_class_with_acc=None, name="cls_acc", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.class_acc = self.add_weight(name="cls_acc", initializer="zeros", dtype="float32")
+        self.count = self.add_weight(name="count", initializer="zeros", dtype="float32")
+        self.loss_class_with_acc = loss_class_with_acc
+
+    def update_state(self, y_true=None, y_pred=None, sample_weight=None):
+        self.class_acc.assign_add(self.loss_class_with_acc.class_acc)
+        self.count.assign_add(1.0)
+
+    def result(self):
+        return self.class_acc / self.count

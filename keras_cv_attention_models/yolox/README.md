@@ -6,7 +6,6 @@
   - [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
   - Model ouputs are slightly modified for better compiling with already existing implementations. That `YOLOXHeader` output changed from `[bboxes, object_scores, class_scores]` to `[bboxes, class_scores, object_scores]`, and `bboxes` format changed from `[left, top, right, bottom]` to `[top, left, bottom, right]`.
 ## Models
-
   | Model     | Params | Image resolution | COCO test AP | Download |
   | --------- | ------ | ---------------- | ------------ | -------- |
   | YOLOXNano | 0.91M  | 416              | 25.8         | [yolox_nano_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_nano_coco.h5) |
@@ -56,7 +55,7 @@
     ```
     ![yoloxtiny_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/154925006-0c5e1034-5d34-4762-937f-a914b4810a77.png)
 ## Custom detector using YOLOX header
-  - `Backbone` for `YOLOX` can be any model with pyramid stage structure. Default `width_mul=-1` means using `min([ii.shape[-1] for ii in features]) / 256`.
+  - **Backbone** for `YOLOX` can be any model with pyramid stage structure. Default `width_mul=-1` means using `min([ii.shape[-1] for ii in features]) / 256`.
     ```py
     from keras_cv_attention_models import efficientnet, yolox
     bb = efficientnet.EfficientNetV2B1(input_shape=(256, 256, 3), num_classes=0)
@@ -67,7 +66,25 @@
     # >>>> width_mul: 0.1875
 
     mm.summary()  # Trainable params: 7,762,115
+    print(mm.output_shape)
+    # (None, 1344, 85)
     ```
+  - **use_anchor_free_mode** controls if using typical `YOLOX anchor_free mode` strategy, or using preset anchors like `efficientdet`. Default is `True`.
+    ```py
+    from keras_cv_attention_models import efficientnet, yolox
+    bb = efficientnet.EfficientNetV2B1(input_shape=(256, 256, 3), num_classes=0)
+    mm = yolox.YOLOX(backbone=bb, use_anchor_free_mode=False)
+
+    mm.summary()  # Trainable params: 7,860,752
+    print(mm.output_shape)
+    # (None, 12096, 84)
+    ```
+    **Default settings for `use_anchor_free_mode` `True` or `False`**
+
+    | use_anchor_free_mode | use_object_scores | num_anchors | anchor_scale | aspect_ratios | num_scales | grid_zero_start |
+    | -------------------- | ----------------- | ----------- | ------------ | ------------- | ---------- | --------------- |
+    | False                | False             | 9           | 4            | [1, 2, 0.5]   | 3          | False           |
+    | True                 | True              | 1           | 1            | [1]           | 1          | True            |
 ## Verification with PyTorch version
   ```py
   inputs = np.random.uniform(size=(1, 640, 640, 3)).astype("float32")

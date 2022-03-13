@@ -25,18 +25,29 @@ Args:
   backbone: backbone model, could be any model with pyramid stage structure. {}
 """
 
-__tail_doc__ = """  num_anchors: number of anchors for a single grid point, should be same with dataset used value.
-  num_classes: total output classes. `90` for EfficientDet pretrained, `80` for `tfds.coco`. Set `0` to disable `classifier` output.
+__tail_doc__ = """  use_anchor_free_mode: boolean value if use anchor free mode. Default False.
+      - Default settings if False: use_object_scores=False, num_anchors=9, anchor_scale=4,
+          aspect_ratios=[1, 2, 0.5], num_scales=3, grid_zero_start=False
+      - Default settings if True: use_object_scores=True, num_anchors=1, anchor_scale=1,
+          aspect_ratios=[1], num_scales=1, grid_zero_start=True
+  num_anchors: number of anchors for a single grid point, should be same with dataset used value.
+      Default "auto" means 1 if use_anchor_free_mode else 9
+  use_object_scores: bollean value if model header output includes `object_scores`.
+      Default "auto" means same with use_anchor_free_mode.
+  num_classes: total output classes. `90` for EfficientDet pretrained, `80` for `tfds.coco`.
+      Set `0` to disable `classifier` output.
   use_sep_conv: set `False` for using `Conv2D` instead of `SeparableConv2D`.
   activation: activation used in whole model, default `swish`. Default "swish".
   classifier_activation: The activation function to use for classifier output if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer. Default `sigmoid`.
   freeze_backbone: set `True` for `backbone.trainable = False`. Default `False`.
-  anchor_scale: anchors inititial parameter for model prediction, not affecting model architecture. Default 4.
-  pyramid_levels: anchors inititial parameter for model prediction, not affecting model architecture. Default `[3, 7]`.
   pretrained: one of `None` (random initialization) or 'coco' (pre-training on COCO).
       Will try to download and load pre-trained model weights if not None. Default `coco`.
-  **kwargs: other parameters if available.
+  pyramid_levels_min: anchors inititial parameter for model prediction, not affecting model architecture. Default `3`.
+      pyramid_levels_max is calculated as `pyramid_levels_min + len(features_pick) + additional_features - 1`.
+  anchor_scale: anchors inititial parameter for model prediction, not affecting model architecture.
+      Default "auto" means 1 if use_anchor_free_mode else 4.
+  rescale_mode: model precessing input, not for model structure. Defulat "torch".
 
 Returns:
     A `keras.Model` instance.

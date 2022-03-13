@@ -314,7 +314,7 @@ def init_dataset(
     anchor_scale=4,  # Force using 1 if use_anchor_free_mode
     anchor_grid_zero_start="auto",  # False for anchor_free_mode, True for others.
     rescale_mode="torch",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`
-    random_crop_mode=1.0,
+    random_crop_mode=1.0, # 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale
     mosaic_mix_prob=0.0,
     resize_method="bilinear",  # ["bilinear", "bicubic"]
     resize_antialias=False,

@@ -54,22 +54,22 @@ def parse_arguments(argv):
 
     """ Anchor arguments """
     anchor_group = parser.add_argument_group("Anchor arguments")
-    anchor_group.add_argument("--use_anchor_free_mode", action="store_true", help="Use anchor free mode")
+    anchor_group.add_argument("-F", "--use_anchor_free_mode", action="store_true", help="Use anchor free mode")
     anchor_group.add_argument(
-        "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with this. 1 if use_anchor_free_mode"
+        "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with it. Force 1 if use_anchor_free_mode"
     )
     anchor_group.add_argument(
         "--anchor_num_scales",
         type=int,
         default=3,
-        help="Anchor num scales, `scales = [2 ** (ii / num_scales) * anchor_scale for ii in range(num_scales)]`. 1 if use_anchor_free_mode",
+        help="Anchor num scales, `scales = [2 ** (ii / num_scales) * anchor_scale for ii in range(num_scales)]`. Force 1 if use_anchor_free_mode",
     )
     anchor_group.add_argument(
         "--anchor_aspect_ratios",
         type=float,
         nargs="+",
         default=[1, 2, 0.5],
-        help="Anchor aspect ratios, `num_anchors = len(anchor_aspect_ratios) * anchor_num_scales`. [1] if use_anchor_free_mode",
+        help="Anchor aspect ratios, `num_anchors = len(anchor_aspect_ratios) * anchor_num_scales`. Force [1] if use_anchor_free_mode",
     )
     anchor_group.add_argument("--anchor_pyramid_levels_min", type=int, default=3, help="Anchor pyramid levels min.")
     anchor_group.add_argument("--anchor_pyramid_levels_max", type=int, default=-1, help="Anchor pyramid levels max. `-1` means yolox: 5, efficientdet: 7")
@@ -201,9 +201,11 @@ def run_training_by_args(args):
             model.summary()
         if model.optimizer is None:
             if args.use_anchor_free_mode:
-                loss, metrics = losses.AnchorFreeLoss(input_shape, args.anchor_pyramid_levels), None
+                loss = losses.AnchorFreeLoss(input_shape, args.anchor_pyramid_levels, label_smoothing=args.label_smoothing)
             else:
-                loss, metrics = losses.FocalLossWithBbox(), losses.ClassAccuracyWithBbox()
+                # loss, metrics = losses.FocalLossWithBbox(label_smoothing=args.label_smoothing), losses.ClassAccuracyWithBbox()
+                loss = losses.FocalLossWithBbox(label_smoothing=args.label_smoothing)
+            metrics = losses.ClassAccuracyWithBboxWrapper(loss)
             model = compile_model(model, args.optimizer, lr_base, args.weight_decay, 1, args.label_smoothing, loss=loss, metrics=metrics)
         print(">>>> basic_save_name =", args.basic_save_name)
         # return None, None, None

@@ -24,12 +24,14 @@ class DecodePredictions:
     >>> # bboxes = array([[0.433231  , 0.54432285, 0.8778939 , 0.8187578 ]], dtype=float32), labels = array([17]), scores = array([0.85373735], dtype=float32)
     """
 
-    def __init__(
-        self, input_shape=512, pyramid_levels=[3, 7], aspect_ratios=[1, 2, 0.5], num_scales=3, anchor_scale=4, grid_zero_start=False, use_object_scores=False
-    ):
+    def __init__(self, input_shape=512, pyramid_levels=[3, 7], anchor_scale=4, use_anchor_free_mode=False, use_object_scores="auto"):
         self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
-        self.aspect_ratios, self.num_scales, self.anchor_scale, self.grid_zero_start = aspect_ratios, num_scales, anchor_scale, grid_zero_start
-        self.use_object_scores = use_object_scores
+        self.use_object_scores = use_anchor_free_mode if use_object_scores == "auto" else use_object_scores
+        if use_anchor_free_mode:
+            self.aspect_ratios, self.num_scales, self.anchor_scale, self.grid_zero_start = [1], 1, 1, True
+        else:
+            self.aspect_ratios, self.num_scales, self.anchor_scale, self.grid_zero_start = [1, 2, 0.5], 3, anchor_scale, False
+        # self.use_object_scores, self.use_anchor_free_mode = use_object_scores, use_anchor_free_mode
         if input_shape is not None and (isinstance(input_shape, (list, tuple)) and input_shape[0] is not None):
             self.__init_anchor__(input_shape)
         else:
@@ -56,8 +58,8 @@ class DecodePredictions:
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L409
         rrs = []
         for ii in tf.unique(labels)[0]:
-            pick = tf.where(labels == ii)[:, 0]
-            bb, cc = tf.gather(bbs, pick), tf.gather(ccs, pick)
+            pick = tf.where(labels == ii)
+            bb, cc = tf.gather_nd(bbs, pick), tf.gather_nd(ccs, pick)
             rr, nms_scores = tf.image.non_max_suppression_with_scores(bb, cc, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
             bb_nms = tf.gather(bb, rr)
             rrs.append(tf.concat([bb_nms, tf.ones([bb_nms.shape[0], 1]) * tf.cast(ii, bb_nms.dtype), tf.expand_dims(nms_scores, 1)], axis=-1))

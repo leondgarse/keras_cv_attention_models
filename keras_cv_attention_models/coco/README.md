@@ -1,6 +1,38 @@
 # ___COCO___
 ***
+## Data
+  - Default data augment for training is `mosaic mix prob=0.5` + `randaug magnitude=6 with rotate, shear, transpose` + `random largest crop`.
+    - For `mosaic_mix_prob`, it's applied per batch, means each image is repeated `4` times, then randomly shuffled and mosaic mixup with others in an entire batch.
+    - For `random_crop_mode`, it controls how random crop / scale is applied, `0` for eval mode, `(0, 1)` for random crop, `1` for random largest crop, `> 1` for random scale.
+    ```py
+    from keras_cv_attention_models import coco
+    train_dataset, test_dataset, _, _, _ = coco.init_dataset(batch_size=4, mosaic_mix_prob=0.5, random_crop_mode=1.0, magnitude=6)
+    coco.show_batch_sample(train_dataset)
+    ```
+    ![coco_data_aug](https://user-images.githubusercontent.com/5744524/158043958-8eb20745-e83f-4dd8-8e41-b77d56224c3c.png)
+## Training
+  - `AnchorFreeLoss` usage took me weeks solving why the `bbox_loss` always been `1`. that using `tf.stop_gradient` while assigning is the key...
+  - Default parameters for `coco_train_script.py` is `EfficientDetD0` with `input_shape=(256, 256, 3), batch_size=64, mosaic_mix_prob=0.5, freeze_backbone_epochs=32, total_epochs=105`. Technically, it's any `pyramid structure backbone` + `EfficientDet / YOLOX header` + `anchor_free / anchors` combination supported.
+    ```sh
+    # Default EfficientDetD0
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py
+    # Default EfficientDetD0 using input_shape 512, optimizer adamw, freezing backbone 16 epochs, total 50 + 5 epochs
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py -i 512 -p adamw --freeze_backbone_epochs 16 --lr_decay_steps 50
 
+    # EfficientNetV2B0 backbone + EfficientDetD0 detection header
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone efficientnet.EfficientNetV2B0 --det_header efficientdet.EfficientDetD0
+    # ResNest50 backbone + EfficientDetD0 header using yolox like anchor_free_mode
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone resnest.ResNest50 --use_anchor_free_mode
+
+    # Typical YOLOXS with anchor_free_mode
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolox.YOLOXS --use_anchor_free_mode
+    # YOLOXS with efficientdet like anchors
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolox.YOLOXS
+    # CoAtNet0 backbone + YOLOXS header with anchor_free_mode
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone coatnet.CoAtNet0 --det_header yolox.YOLOXS --use_anchor_free_mode
+    # UniformerSmall32 backbone + YOLOX header with efficientdet like anchors
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone uniformer.UniformerSmall32 --det_header yolox.YOLOX
+    ```
 ## Evaluation
   - Specifying `--data_name coco` using `eval_script.py` for evaluating COCO AP.
     ```sh

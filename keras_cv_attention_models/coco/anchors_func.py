@@ -100,14 +100,13 @@ def corners_to_center_yxhw_nd(ss):
 
 def assign_anchor_classes_by_iou_with_bboxes(bbox_labels, anchors, ignore_threshold=0.4, overlap_threshold=0.5):
     num_anchors = anchors.shape[0]
-    valid_bboxes_pick = tf.where(bbox_labels[:, -1] > 0)[:, 0]
-    bbox_labels = tf.gather(bbox_labels, valid_bboxes_pick)
+    bbox_labels = tf.gather_nd(bbox_labels, tf.where(bbox_labels[:, -1] > 0))
     bboxes, labels = bbox_labels[:, :4], bbox_labels[:, 4]
 
-    anchor_ious = iou_nd(bboxes, anchors)
-    anchor_best_iou_ids = tf.argmax(anchor_ious, axis=0)
+    anchor_ious = iou_nd(bboxes, anchors)  # [num_bboxes, num_anchors]
+    anchor_best_iou_ids = tf.argmax(anchor_ious, axis=0)  # [num_anchors]
     # anchor_best_ious = tf.gather_nd(anchor_ious, tf.stack([anchor_best_iou_ids, tf.range(num_anchors, dtype=anchor_best_iou_ids.dtype)], axis=-1))
-    anchor_best_ious = tf.reduce_max(anchor_ious, axis=0)  # This faster
+    anchor_best_ious = tf.reduce_max(anchor_ious, axis=0)  # This faster, [num_anchors]
 
     matched_idxes = tf.where(anchor_best_ious > overlap_threshold)[:, 0]
     matched_idxes = tf.unique(tf.concat([matched_idxes, tf.argmax(anchor_ious, axis=-1)], axis=0))[0]  # Ensure at leat one anchor selected for each bbox
@@ -192,7 +191,7 @@ class AnchorFreeAssignMatching:
     >>> bboxes_true, bboxes_true_encoded, labels_true, object_true_idx_nd = tf.split(bbox_labels_true_assined, [4, 4, -1, 1], axis=-1)
     >>> object_true_idx_nd = tf.cast(object_true_idx_nd, tf.int32)
     >>> object_true_idx = object_true_idx_nd[:, 0]
-    >>> object_true = tf.tensor_scatter_nd_update(tf.zeros_like(bbox_labels_pred[:, -1]), object_true_idx_nd, tf.ones_like(bboxes_true[:, -1]))
+    >>> object_true = tf.tensor_scatter_nd_update(tf.zeros_like(pred[0, :, -1]), object_true_idx_nd, tf.ones_like(bboxes_true[:, -1]))
     >>> # Decode predictions
     >>> bbox_labels_pred_valid, anchors = pred[0][object_true > 0], aa.anchors[object_true > 0]
     >>> bboxes_preds, labels_preds, object_preds = bbox_labels_pred_valid[:, :4], bbox_labels_pred_valid[:, 4:-1], pred[0][:, -1:]
@@ -289,8 +288,7 @@ class AnchorFreeAssignMatching:
 
     def __call__(self, bbox_labels_true, bbox_labels_pred):
         # get_assignments https://github.com/Megvii-BaseDetection/YOLOX/tree/master/yolox/models/yolo_head.py#425
-        valid_bboxes_pick = tf.where(bbox_labels_true[:, -1] > 0)[:, 0]
-        bbox_labels_true = tf.gather(bbox_labels_true, valid_bboxes_pick)
+        bbox_labels_true = tf.gather_nd(bbox_labels_true, tf.where(bbox_labels_true[:, -1] > 0))
 
         bboxes_true, labels_true = bbox_labels_true[:, :4], bbox_labels_true[:, 4:-1]
         bboxes_true_nd = tf.expand_dims(bboxes_true, 1)
@@ -321,10 +319,10 @@ class AnchorFreeAssignMatching:
         # dynamic_k_matching
         bbox_matched_k_anchors = self.__dynamic_k_matching__(ious, cost)  # [num_bboxes, num_picked_anchors], contains only 0, 1
         is_anchor_iou_match_any = tf.reduce_any(bbox_matched_k_anchors > 0, axis=0)  # [num_picked_anchors]
-        is_anchor_iou_match_any_idx = tf.where(is_anchor_iou_match_any)[:, 0]
+        is_anchor_iou_match_any_idx = tf.where(is_anchor_iou_match_any)
 
         # TODO: is_anchor_iou_match_any_idx.shape[0] == 0
-        anchor_best_matching_bbox = tf.argmax(tf.gather(bbox_matched_k_anchors, is_anchor_iou_match_any_idx, axis=-1), 0)
+        anchor_best_matching_bbox = tf.argmax(tf.gather(bbox_matched_k_anchors, is_anchor_iou_match_any_idx[:, 0], axis=-1), 0)
         anchor_labels = tf.gather(labels_true, anchor_best_matching_bbox)  # [num_picked_anchors， num_classes]
         pred_iou_loss = tf.reduce_sum(bbox_matched_k_anchors * ious, 0)[is_anchor_iou_match_any]
 
@@ -337,7 +335,8 @@ class AnchorFreeAssignMatching:
         object_true_idx = tf.where(out_object_true)  # [num_picked_anchors, 1]
 
         # l1_target loss, encoded [center_top, center_left, height, width]
-        anchors_centers_valid, anchors_hws_valid = tf.gather(anchors_centers, is_anchor_iou_match_any_idx), tf.gather(anchors_hws, is_anchor_iou_match_any_idx)
+        anchors_centers_valid = tf.gather_nd(anchors_centers, is_anchor_iou_match_any_idx)
+        anchors_hws_valid = tf.gather_nd(anchors_hws, is_anchor_iou_match_any_idx)
         out_bboxes_true_encoded = self.__encode_bboxes__(out_bboxes_true, anchors_centers_valid, anchors_hws_valid)
 
         # tf.stop_gradient requires returning value been a single tensor with same dtype as inputs.
