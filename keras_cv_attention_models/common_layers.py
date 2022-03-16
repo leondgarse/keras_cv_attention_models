@@ -403,6 +403,8 @@ class PreprocessInput:
 
         if self.rescale_mode == "raw":
             return image
+        elif self.rescale_mode == "raw01":
+            return image / 255.0
         else:
             return tf.keras.applications.imagenet_utils.preprocess_input(image, mode=self.rescale_mode)
 

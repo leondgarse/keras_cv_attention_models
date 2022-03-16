@@ -74,13 +74,16 @@ class DecodePredictions:
         rr, nms_scores = tf.image.non_max_suppression_with_scores(bbs, ccs, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
         return tf.gather(bbs, rr).numpy(), tf.gather(labels, rr).numpy(), nms_scores.numpy()
 
+    def __object_score_split__(self, pred):
+        return pred[:, :-1], pred[:, -1]  # May overwrite
+
     def __decode_single__(self, pred, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=-1, input_shape=None):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
         if input_shape is not None:
             self.__init_anchor__(input_shape)
 
         if self.use_object_scores:  # YOLO outputs: [bboxes, classses_score, object_score]
-            pred, object_scores = pred[:, :-1], pred[:, -1]
+            pred, object_scores = self.__object_score_split__(pred)
 
         if topk > 0:
             bbs, ccs, labels, picking_indices = self.__topk_class_boxes_single__(pred, topk)

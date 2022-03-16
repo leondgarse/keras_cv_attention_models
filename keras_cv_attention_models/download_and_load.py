@@ -132,8 +132,16 @@ def match_layer_names_with_torch(target_names, tail_align_dict={}, full_name_ali
 def align_layer_names_multi_stage(target_names, tail_align_dict={}, full_name_align_dict={}, tail_split_position=2, specific_match_func=None):
     if isinstance(tail_split_position, int):
         tail_align_dict, full_name_align_dict, tail_split_position = [tail_align_dict], [full_name_align_dict], [tail_split_position]
-    for ii, jj, kk in zip(tail_align_dict, full_name_align_dict, tail_split_position):
-        target_names = match_layer_names_with_torch(target_names, ii, jj, kk)
+    full_name_align_dict = full_name_align_dict if isinstance(full_name_align_dict, (list, tuple)) else [full_name_align_dict]
+    # for ii, jj, kk in zip(tail_align_dict, full_name_align_dict, tail_split_position):
+    for idx in range(max(len(tail_split_position), len(full_name_align_dict))):
+        cur_tail = tail_align_dict[idx] if idx < len(tail_align_dict) else {}
+        cur_full = full_name_align_dict[idx] if idx < len(full_name_align_dict) else {}
+        cur_split = tail_split_position[idx] if idx < len(tail_split_position) else tail_split_position[-1]
+        print(">>>> tail_align_dict:", cur_tail)
+        print(">>>> full_name_align_dict:", cur_full)
+        print(">>>> tail_split_position:", cur_split)
+        target_names = match_layer_names_with_torch(target_names, cur_tail, cur_full, cur_split)
 
     if specific_match_func is not None:
         target_names = specific_match_func(target_names)
@@ -182,7 +190,7 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
         model.save(save_name)
 
 
-def try_save_pth_and_onnx(torch_model, input_shape=(224, 224), save_pth=False, save_onnx=False):
+def try_save_pth_and_onnx(torch_model, input_shape=(224, 224), save_pth=True, save_onnx=True):
     import torch
 
     input_shape = input_shape[:2]

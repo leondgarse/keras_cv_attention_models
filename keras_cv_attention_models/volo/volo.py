@@ -116,9 +116,9 @@ def outlook_attention_simple(inputs, embed_dim, num_heads=6, kernel_size=3, attn
 
 @tf.keras.utils.register_keras_serializable(package="volo")
 class BiasLayer(keras.layers.Layer):
-    def __init__(self, axis=-1, **kwargs):
+    def __init__(self, axis=-1, initializer="zeros", **kwargs):
         super(BiasLayer, self).__init__(**kwargs)
-        self.axis = axis
+        self.axis, self.initializer = axis, initializer
 
     def build(self, input_shape):
         if self.axis == -1 or self.axis == len(input_shape) - 1:
@@ -128,7 +128,7 @@ class BiasLayer(keras.layers.Layer):
             axis = self.axis if isinstance(self.axis, (list, tuple)) else [self.axis]
             for ii in axis:
                 bb_shape[ii] = input_shape[ii]
-        self.bb = self.add_weight(name="bias", shape=bb_shape, initializer="zeros", trainable=True)
+        self.bb = self.add_weight(name="bias", shape=bb_shape, initializer=self.initializer, trainable=True)
         super(BiasLayer, self).build(input_shape)
 
     def call(self, inputs, **kwargs):
@@ -136,7 +136,7 @@ class BiasLayer(keras.layers.Layer):
 
     def get_config(self):
         config = super(BiasLayer, self).get_config()
-        config.update({"axis": self.axis})
+        config.update({"axis": self.axis})  # Not saving initializer in config
         return config
 
 

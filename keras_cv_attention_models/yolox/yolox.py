@@ -138,17 +138,17 @@ def downsample_merge(inputs, csp_depth, use_depthwise_conv=False, activation="sw
 
 
 def path_aggregation_fpn(features, depth_mul=1, use_depthwise_conv=False, activation="swish", name=""):
-    # x0 ─> fpn_out0 ───────────> pan_out0
+    # p5 ─> fpn_out0 ───────────> pan_out0
     #          ↓                     ↑
-    # x1 ─> f_out0 ─> fpn_out1 ─> pan_out1
+    # p4 ─> f_out0 ─> fpn_out1 ─> pan_out1
     #                    ↓           ↑
-    # x2 ───────────> pan_out2 ──────┘
+    # p3 ───────────> pan_out2 ──────┘
     csp_depth = max(round(depth_mul * 3), 1)
-    [x2, x1, x0] = features  # x2: [64, 64, 256], x1: [32, 32, 512], x0: [16, 16, 1024]
+    p3, p4, p5 = features  # p3: [64, 64, 256], p4: [32, 32, 512], p5: [16, 16, 1024]
     # fpn_out0: [16, 16, 512], f_out0: [32, 32, 512]
-    fpn_out0, f_out0 = upsample_merge([x0, x1], csp_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "c3p4_")
+    fpn_out0, f_out0 = upsample_merge([p5, p4], csp_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "c3p4_")
     # fpn_out1: [32, 32, 256], pan_out2: [64, 64, 256]
-    fpn_out1, pan_out2 = upsample_merge([f_out0, x2], csp_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "c3p3_")
+    fpn_out1, pan_out2 = upsample_merge([f_out0, p3], csp_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "c3p3_")
     # pan_out1: [32, 32, 512]
     pan_out1 = downsample_merge([pan_out2, fpn_out1], csp_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "c3n3_")
     # pan_out0: [16, 16, 1024]

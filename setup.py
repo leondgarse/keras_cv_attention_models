@@ -14,7 +14,7 @@ exec(open("keras_cv_attention_models/version.py").read())
 setup(
     name="keras-cv-attention-models",
     version=__version__,
-    description="Tensorflow keras computer vision attention models. https://github.com/leondgarse/keras_cv_attention_models",
+    description="Tensorflow keras computer vision attention models. Alias kecam. https://github.com/leondgarse/keras_cv_attention_models",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/leondgarse/keras_cv_attention_models",
@@ -39,7 +39,7 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
     # Note that this is a string of words separated by whitespace, not a list.
-    keywords="tensorflow keras cv attention pretrained models",
+    keywords="tensorflow keras cv attention pretrained models kecam",
     packages=find_packages(exclude=["tests"]),
     include_package_data=True,
     install_requires=[

@@ -34,7 +34,7 @@
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone uniformer.UniformerSmall32 --det_header yolox.YOLOX
     ```
 ## Evaluation
-  - Specifying `--data_name coco` using `eval_script.py` for evaluating COCO AP.
+  - Specifying `--data_name coco` using `eval_script.py` for evaluating COCO AP. It has a dependency `pip install pycocotools` which is not in package requirements.
     ```sh
     # resize method for EfficientDetD0 is bilinear w/o antialias
     CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m efficientdet.EfficientDetD0 -d coco --batch_size 8 --resize_method bilinear --disable_antialias

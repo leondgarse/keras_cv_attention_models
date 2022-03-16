@@ -65,6 +65,31 @@ def get_anchor_free_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 5], gr
     return get_anchors(input_shape, pyramid_levels, aspect_ratios=[1], num_scales=1, anchor_scale=1, grid_zero_start=grid_zero_start)
 
 
+def get_yolor_anchors(input_shape=(640, 640), pyramid_levels=[3, 5], offset=0.5):
+    assert max(pyramid_levels) - min(pyramid_levels) < 3
+
+    anchor_ratios = tf.convert_to_tensor([[[12.0, 16], [19, 36], [40, 28]], [[36, 75], [76, 55], [72, 146]], [[142, 110], [192, 243], [459, 401]]])
+    pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
+    feature_sizes = get_feature_sizes(input_shape, pyramid_levels)
+
+    all_anchors = []
+    for level, anchor_ratio in zip(pyramid_levels, anchor_ratios):
+        stride_hh, stride_ww = feature_sizes[0][0] / feature_sizes[level][0], feature_sizes[0][1] / feature_sizes[level][1]
+        hh_grid, ww_grid = tf.meshgrid(tf.range(feature_sizes[level][0]), tf.range(feature_sizes[level][1]))
+        grid = tf.cast(tf.stack([hh_grid, ww_grid], 2), "float32") - offset
+        grid = tf.reshape(grid, [1, -1, 2])  # [1, level_feature_sizes, 2]
+        cur_base_anchors = anchor_ratio[:, tf.newaxis, :]  # [num_anchors, 1, 2]
+
+        grid_nd = tf.repeat(grid, cur_base_anchors.shape[0], axis=0) * [stride_hh, stride_ww]
+        cur_base_anchors_nd = tf.repeat(cur_base_anchors, grid.shape[1], axis=1)
+        stride_nd = tf.zeros_like(grid_nd) + [stride_hh, stride_ww]
+        # yield grid_nd, cur_base_anchors_nd, stride_nd
+        anchors = tf.concat([grid_nd, cur_base_anchors_nd, stride_nd], axis=-1)
+        all_anchors.append(tf.reshape(anchors, [-1, 6]))
+    all_anchors = tf.concat(all_anchors, axis=0) / ([input_shape[0], input_shape[1]] * 3)
+    return all_anchors
+
+
 def get_pyramid_levels_by_num_anchors(input_shape, num_anchors, pyramid_levels_min=3):
     feature_sizes = get_feature_sizes(input_shape, [pyramid_levels_min, pyramid_levels_min + 10])
     feature_sizes = tf.convert_to_tensor(feature_sizes, dtype="float32")
@@ -96,6 +121,13 @@ def iou_nd(bboxes, anchors):
 def corners_to_center_yxhw_nd(ss):
     """ input: [top, left, bottom, right], output: [center_h, center_w], [height, width] """
     return (ss[:, :2] + ss[:, 2:]) * 0.5, ss[:, 2:] - ss[:, :2]
+
+
+def center_yxhw_to_corners_nd(ss):
+    """ input: [center_h, center_w, height, width], output: [top, left, bottom, right] """
+    top_left = ss[:, :2] - ss[:, 2:] * 0.5
+    bottom_right = top_left + ss[:, 2:]
+    return tf.concat([top_left, bottom_right], axis=-1)
 
 
 def assign_anchor_classes_by_iou_with_bboxes(bbox_labels, anchors, ignore_threshold=0.4, overlap_threshold=0.5):
@@ -137,16 +169,20 @@ def assign_anchor_classes_by_iou_with_bboxes(bbox_labels, anchors, ignore_thresh
 
 
 def decode_bboxes(preds, anchors):
-    bboxes, label = preds[:, :4], preds[:, 4:]
-    anchors_hw = anchors[:, 2:] - anchors[:, :2]
-    anchors_center = (anchors[:, :2] + anchors[:, 2:]) * 0.5
+    if anchors.shape[-1] == 6:  # Currently, it's yolor anchors
+        # anchors: [grid_y, grid_x, base_anchor_y, base_anchor_x, stride_y, stride_x]
+        bboxes_center = preds[:, :2] * 2 * anchors[:, 4:] + anchors[:, :2]
+        bboxes_hw = (preds[:, 2:4] * 2) ** 2 * anchors[:, 2:4]
+    else:
+        anchors_hw = anchors[:, 2:] - anchors[:, :2]
+        anchors_center = (anchors[:, :2] + anchors[:, 2:]) * 0.5
 
-    bboxes_center = bboxes[:, :2] * anchors_hw + anchors_center
-    bboxes_hw = tf.math.exp(bboxes[:, 2:]) * anchors_hw
+        bboxes_center = preds[:, :2] * anchors_hw + anchors_center
+        bboxes_hw = tf.math.exp(preds[:, 2:4]) * anchors_hw
 
     preds_top_left = bboxes_center - 0.5 * bboxes_hw
     pred_bottom_right = preds_top_left + bboxes_hw
-    return tf.concat([preds_top_left, pred_bottom_right, label], axis=-1)
+    return tf.concat([preds_top_left, pred_bottom_right, preds[:, 4:]], axis=-1)
 
 
 class AnchorFreeAssignMatching:

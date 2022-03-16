@@ -20,9 +20,9 @@ class ChannelAffine(keras.layers.Layer):
         self.supports_masking = False
 
     def build(self, input_shape):
-        self.ww = self.add_weight(name="weight", shape=(input_shape[-1]), initializer=self.ww_init, trainable=True)
+        self.ww = self.add_weight(name="weight", shape=(input_shape[-1],), initializer=self.ww_init, trainable=True)
         if self.use_bias:
-            self.bb = self.add_weight(name="bias", shape=(input_shape[-1]), initializer=self.bb_init, trainable=True)
+            self.bb = self.add_weight(name="bias", shape=(input_shape[-1],), initializer=self.bb_init, trainable=True)
         super(ChannelAffine, self).build(input_shape)
 
     def call(self, inputs, **kwargs):
