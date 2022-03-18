@@ -55,7 +55,7 @@
     ```
     ![yolor_csp_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/158940195-be958f00-8c6f-4ca9-a5dc-562a9690cad8.png)
 ## Custom detector using YOLOR header
-  - **Backbone** for `YOLOR` can be any model with pyramid stage structure. Default `width_mul=-1` means using `min([ii.shape[-1] for ii in features]) / 256`.
+  - **Backbone** for `YOLOR` can be any model with pyramid stage structure.
     ```py
     from keras_cv_attention_models import efficientnet, yolor
     bb = efficientnet.EfficientNetV2B1(input_shape=(256, 256, 3), num_classes=0)

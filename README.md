@@ -87,7 +87,7 @@
     #  ('n02127052', 'lynx', 0.00017674894),
     #  ('n02123597', 'Siamese_cat', 4.9493494e-05)]
     ```
-    Or just use model pre-set `preprocess_input` and `decode_predictions`
+    Or just use model preset `preprocess_input` and `decode_predictions`
     ```py
     from keras_cv_attention_models import coatnet
     from skimage.data import chelsea
@@ -110,10 +110,10 @@
     pretrained = os.path.expanduser('~/.keras/models/coatnet0_224_imagenet.h5')
     mm = coatnet.CoAtNet1(input_shape=(384, 384, 3), pretrained=pretrained)
     ```
-  - **Alias name `kecam`** can be used instead of `keras_cv_attention_models`. it's `__init__.py` only with one line `from keras_cv_attention_models import *`.
+  - **Alias name `kecam`** can be used instead of `keras_cv_attention_models`. It's `__init__.py` only with one line `from keras_cv_attention_models import *`.
     ```py
     import kecam
-    mm = kecam.yolox.YOLOXTiny()
+    mm = kecam.yolor.YOLOR_CSP()
     imm = kecam.test_images.dog_cat()
     preds = mm(mm.preprocess_input(imm))
     bboxs, lables, confidences = mm.decode_predictions(preds)[0]

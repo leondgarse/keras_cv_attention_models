@@ -10,6 +10,29 @@
     coco.show_batch_sample(train_dataset)
     ```
     ![coco_data_aug](https://user-images.githubusercontent.com/5744524/158043958-8eb20745-e83f-4dd8-8e41-b77d56224c3c.png)
+  - **TFDS COCO data format**, `bboxes` in format `[top, left, bottom, right]` with value range in `[0, 1]`. It's the default compatible data format for this package.
+    ```py
+    import tensorflow_datasets as tfds
+    ds, info = tfds.load('coco/2017', with_info=True)
+    aa = ds['train'].as_numpy_iterator().next()
+    print(aa['image'].shape)
+    # (462, 640, 3)
+    print(aa['objects'])
+    # {'area': array([17821, 16942,  4344]),
+    #  'bbox': array([[0.54380953, 0.13464062, 0.98651516, 0.33742186],
+    #         [0.50707793, 0.517875  , 0.8044805 , 0.891125  ],
+    #         [0.3264935 , 0.36971876, 0.65203464, 0.4431875 ]], dtype=float32),
+    #  'id': array([152282, 155195, 185150]),
+    #  'is_crowd': array([False, False, False]),
+    #  'label': array([3, 3, 0])}
+
+    imm = aa['image']
+    plt.imshow(imm)
+
+    for bb in aa["objects"]["bbox"]:
+        bb = np.array([bb[0] * imm.shape[0], bb[1] * imm.shape[1], bb[2] * imm.shape[0], bb[3] * imm.shape[1]])
+        plt.plot(bb[[1, 1, 3, 3, 1]], bb[[0, 2, 2, 0, 0]])
+    ```
 ## Training
   - `AnchorFreeLoss` usage took me weeks solving why the `bbox_loss` always been `1`. that using `tf.stop_gradient` while assigning is the key...
   - Default parameters for `coco_train_script.py` is `EfficientDetD0` with `input_shape=(256, 256, 3), batch_size=64, mosaic_mix_prob=0.5, freeze_backbone_epochs=32, total_epochs=105`. Technically, it's any `pyramid structure backbone` + `EfficientDet / YOLOX header` + `anchor_free / anchors` combination supported.
