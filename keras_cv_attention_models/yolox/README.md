@@ -4,7 +4,9 @@
 ## Summary
   - Keras implementation of [Megvii-BaseDetection/YOLOX](https://github.com/Megvii-BaseDetection/YOLOX). Model weights converted from official publication.
   - [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
-  - Model ouputs are slightly modified for better compiling with already existing implementations. That `YOLOXHeader` output changed from `[bboxes, object_scores, class_scores]` to `[bboxes, class_scores, object_scores]`, and `bboxes` format changed from `[left, top, right, bottom]` to `[top, left, bottom, right]`.
+  - Model ouputs are slightly modified for better compiling with already existing implementations.
+    - `yolox_head` output changed from `[bboxes, object_scores, class_scores]` to `[bboxes, class_scores, object_scores]`
+    - `bboxes` format changed from `[left, top, right, bottom]` to `[top, left, bottom, right]`.
 ## Models
   | Model     | Params | Image resolution | COCO test AP | Download |
   | --------- | ------ | ---------------- | ------------ | -------- |

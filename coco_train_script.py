@@ -122,7 +122,7 @@ def parse_arguments(argv):
         args.anchor_scale, args.anchor_num_scales, args.anchor_aspect_ratios = 1, 1, [1]
     if args.anchor_pyramid_levels_max <= 0:
         header_type = args.det_header.split(".")[0]
-        HEADER_DEFAULT = {"yolox": 5, "efficientdet": 7}
+        HEADER_DEFAULT = {"yolox": 5, "yolor": 5, "efficientdet": 7}
         args.anchor_pyramid_levels_max = HEADER_DEFAULT.get(header_type, args.anchor_pyramid_levels_max)
     args.anchor_pyramid_levels = [args.anchor_pyramid_levels_min, args.anchor_pyramid_levels_max]
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}

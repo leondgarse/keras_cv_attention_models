@@ -18,7 +18,7 @@ Args:
       Default None for CSPDarknet with depth_mul={depth_mul}, width_mul={width_mul}.
 """
 
-__tail_doc__ = """  features_pickspecific `layer names` or `pyramid feature indexes` from backbone model.
+__tail_doc__ = """  features_pick: specific `layer names` or `pyramid feature indexes` from backbone model.
         Default `[-3, -2, -1]` means using the last 3 pyramid feature output from backbone.
   use_anchor_free_mode: boolean value if use anchor free mode. Default True.
       - Default settings if False: use_object_scores=False, num_anchors=9, anchor_scale=4,

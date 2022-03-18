@@ -110,6 +110,15 @@
     pretrained = os.path.expanduser('~/.keras/models/coatnet0_224_imagenet.h5')
     mm = coatnet.CoAtNet1(input_shape=(384, 384, 3), pretrained=pretrained)
     ```
+  - **Alias name `kecam`** can be used instead of `keras_cv_attention_models`. it's `__init__.py` only with one line `from keras_cv_attention_models import *`.
+    ```py
+    import kecam
+    mm = kecam.yolox.YOLOXTiny()
+    imm = kecam.test_images.dog_cat()
+    preds = mm(mm.preprocess_input(imm))
+    bboxs, lables, confidences = mm.decode_predictions(preds)[0]
+    kecam.coco.show_image_with_bboxes(imm, bboxs, lables, confidences)
+    ```
 ## Layers
   - [attention_layers](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `RelativePositionalEmbedding` from `botnet`, `outlook_attention` from `volo`.
   ```py

@@ -68,20 +68,23 @@ def get_anchor_free_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 5], gr
 def get_yolor_anchors(input_shape=(640, 640), pyramid_levels=[3, 5], offset=0.5):
     assert max(pyramid_levels) - min(pyramid_levels) < 3
 
-    anchor_ratios = tf.convert_to_tensor([[[12.0, 16], [19, 36], [40, 28]], [[36, 75], [76, 55], [72, 146]], [[142, 110], [192, 243], [459, 401]]])
+    # width first to height first
+    # anchor_ratios = tf.convert_to_tensor([[[12.0, 16], [19, 36], [40, 28]], [[36, 75], [76, 55], [72, 146]], [[142, 110], [192, 243], [459, 401]]])
+    anchor_ratios = tf.convert_to_tensor([[[16.0, 12], [36, 19], [28, 40]], [[75, 36], [55, 76], [146, 72]], [[110, 142], [243, 192], [401, 459]]])
     pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
     feature_sizes = get_feature_sizes(input_shape, pyramid_levels)
 
     all_anchors = []
     for level, anchor_ratio in zip(pyramid_levels, anchor_ratios):
         stride_hh, stride_ww = feature_sizes[0][0] / feature_sizes[level][0], feature_sizes[0][1] / feature_sizes[level][1]
-        hh_grid, ww_grid = tf.meshgrid(tf.range(feature_sizes[level][0]), tf.range(feature_sizes[level][1]))
+        # hh_grid, ww_grid = tf.meshgrid(tf.range(feature_sizes[level][0]), tf.range(feature_sizes[level][1]))
+        ww_grid, hh_grid = tf.meshgrid(tf.range(feature_sizes[level][1]), tf.range(feature_sizes[level][0]))
         grid = tf.cast(tf.stack([hh_grid, ww_grid], 2), "float32") - offset
-        grid = tf.reshape(grid, [1, -1, 2])  # [1, level_feature_sizes, 2]
-        cur_base_anchors = anchor_ratio[:, tf.newaxis, :]  # [num_anchors, 1, 2]
+        grid = tf.reshape(grid, [-1, 1, 2])  # [1, level_feature_sizes, 2]
+        cur_base_anchors = anchor_ratio[tf.newaxis, :, :]  # [num_anchors, 1, 2]
 
-        grid_nd = tf.repeat(grid, cur_base_anchors.shape[0], axis=0) * [stride_hh, stride_ww]
-        cur_base_anchors_nd = tf.repeat(cur_base_anchors, grid.shape[1], axis=1)
+        grid_nd = tf.repeat(grid, cur_base_anchors.shape[1], axis=1) * [stride_hh, stride_ww]
+        cur_base_anchors_nd = tf.repeat(cur_base_anchors, grid.shape[0], axis=0)
         stride_nd = tf.zeros_like(grid_nd) + [stride_hh, stride_ww]
         # yield grid_nd, cur_base_anchors_nd, stride_nd
         anchors = tf.concat([grid_nd, cur_base_anchors_nd, stride_nd], axis=-1)

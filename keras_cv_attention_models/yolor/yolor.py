@@ -12,9 +12,9 @@ from keras_cv_attention_models.attention_layers import (
 from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.coco.eval_func import DecodePredictions
-from keras_cv_attention_models.coco.anchors_func import get_yolor_anchors
+from keras_cv_attention_models.coco import anchors_func
 
-PRETRAINED_DICT = {"yolor_csp": {"coco": "0a284486adcd2dbf2eee6108edbd21ad"}, "yolor_csp_x": {"coco": "d4c556b69f762b39ae7722bfab66da9c"}}
+PRETRAINED_DICT = {"yolor_csp": {"coco": "ed0aa82a07c4e65e9cd3d2e6ad2d0548"}, "yolor_csp_x": {"coco": "615125ce1cd1c855f8045bf079456598"}}
 
 
 """ CSPDarknet backbone """
@@ -131,25 +131,24 @@ def downsample_merge(inputs, csp_depth, use_depthwise_conv=False, activation="sw
 
 
 def path_aggregation_fpn(features, depth_mul=1, use_depthwise_conv=False, activation="swish", name=""):
-    # p5 ──────┬────> pan_out0
-    #          ↓         ↑
-    # p4 ─> f_out0 ─> pan_out1
-    #          ↓         ↑
-    # p3 ─> pan_out2 ────┘
+    # p5 ─────┬───> pan_out0
+    #         ↓         ↑
+    # p4 ─> p4p5 ─> pan_out1
+    #         ↓         ↑
+    # p3 ─> pan_out2 ───┘
     csp_depth = max(round(depth_mul * 2), 1)
-    p3, p4, p5 = features  # p3: [64, 64, 256], p4: [32, 32, 512], p5: [16, 16, 1024]
-    p3 = conv_dw_pw_block(p3, p3.shape[-1] // 2, kernel_size=1, activation=activation, name=name + "p3_down_")
-    p4 = conv_dw_pw_block(p4, p4.shape[-1] // 2, kernel_size=1, activation=activation, name=name + "p4_down_")
+    p3, p4, p5 = features  # p3: [64, 64, 256], p4: [32, 32, 512], p5: [16, 16, 512]
+    p3 = conv_dw_pw_block(p3, p3.shape[-1] // 2, kernel_size=1, activation=activation, name=name + "p3_down_")  # [64, 64, 128]
+    p4 = conv_dw_pw_block(p4, p4.shape[-1] // 2, kernel_size=1, activation=activation, name=name + "p4_down_")  # [32, 32, 256]
 
-    # fpn_out0: [16, 16, 512], f_out0: [32, 32, 512]
+    # p4p5: [32, 32, 256]
     p4p5 = upsample_merge([p4, p5], csp_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "p4p5_")
-    # fpn_out1: [32, 32, 256], pan_out2: [64, 64, 256]
+    # pan_out2: [64, 64, 128]
     pan_out2 = upsample_merge([p3, p4p5], csp_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "p3p4p5_")
-    # pan_out1: [32, 32, 512]
+    # pan_out1: [32, 32, 256]
     pan_out1 = downsample_merge([pan_out2, p4p5], csp_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "c3n3_")
-    # pan_out0: [16, 16, 1024]
+    # pan_out0: [16, 16, 512]
     pan_out0 = downsample_merge([pan_out1, p5], csp_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "c3n4_")
-    # return [conv_dw_pw_block(ii, ii.shape[-1] * 2, 3, activation=activation, name="pan{}_out_".format(id)) for id, ii in enumerate([pan_out2, pan_out1, pan_out0])]
     return [pan_out2, pan_out1, pan_out0]
 
 
@@ -167,10 +166,7 @@ def yolor_head_single(inputs, filters, num_classes=80, num_anchors=3, use_object
     control_channels_layer = ChannelAffine(use_bias=False, name=name + "control_channel")
     control_channels_layer.ww_init = initializer
     nn = control_channels_layer(nn)
-    # Have to fit with pytorch format...
-    # May just `return keras.layers.Reshape([-1, ouput_classes], name=name + "output_reshape")(nn)`
-    nn = keras.layers.Reshape([-1, num_anchors, ouput_classes], name=name + "output_reshape_pre")(nn)
-    nn = tf.transpose(nn, [0, 2, 1, 3])
+    # return nn
     return keras.layers.Reshape([-1, ouput_classes], name=name + "output_reshape")(nn)
 
 
@@ -194,7 +190,7 @@ def YOLOR(
     backbone=None,
     features_pick=[-3, -2, -1],
     depth_mul=1,
-    width_mul=-1,  # -1 means: `min([ii.shape[-1] for ii in features]) / 256` for custom backbones.
+    width_mul=1,  # width_mul is for CSPDarknet backbone only, not for yolor_head
     use_depthwise_conv=False,
     use_anchor_free_mode=False,
     num_anchors="auto",  # "auto" means 1 if use_anchor_free_mode else 3
@@ -223,8 +219,8 @@ def YOLOR(
             features = [features[id] for id in features_pick]
         print(">>>> features:", {ii.name: ii.output_shape for ii in features})
         features = [ii.output for ii in features]
-        width_mul = width_mul if width_mul > 0 else min([ii.shape[-1] for ii in features]) / 256
-        print(">>>> width_mul:", width_mul)
+        # width_mul = width_mul if width_mul > 0 else min([ii.shape[-1] for ii in features]) / 256
+        # print(">>>> width_mul:", width_mul)
 
     if freeze_backbone:
         backbone.trainable = False
@@ -241,31 +237,15 @@ def YOLOR(
     reload_model_weights(model, PRETRAINED_DICT, "yolor", pretrained)
 
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]
-    post_process = YolorDecodePredictions(backbone.input_shape[1:], pyramid_levels, use_object_scores)
+    post_process = YolorDecodePredictions(backbone.input_shape[1:], pyramid_levels, use_object_scores, use_anchor_free_mode)
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     return model
 
 
-# [yolo]
-# mask = 0,1,2
-# anchors = 12, 16, 19
-# classes=80
-# num=9
-# jitter=.3
-# ignore_thresh = .7
-# truth_thresh = 1
-# random=1
-# scale_x_y = 1.05
-# iou_thresh=0.213
-# cls_normalizer=1.0
-# iou_normalizer=0.07
-# iou_loss=ciou
-# nms_kind=greedynms
-# beta_nms=0.6
 class YolorDecodePredictions(DecodePredictions):
-    def __init__(self, input_shape=640, pyramid_levels=[3, 5], use_object_scores=True):
+    def __init__(self, input_shape=640, pyramid_levels=[3, 5], use_object_scores=True, use_anchor_free_mode=False):
         self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
-        self.use_object_scores = use_object_scores
+        self.use_object_scores, self.use_anchor_free_mode = use_object_scores, use_anchor_free_mode
         if input_shape is not None and (isinstance(input_shape, (list, tuple)) and input_shape[0] is not None):
             self.__init_anchor__(input_shape)
         else:
@@ -273,14 +253,10 @@ class YolorDecodePredictions(DecodePredictions):
 
     def __init_anchor__(self, input_shape):
         input_shape = input_shape[:2] if isinstance(input_shape, (list, tuple)) else (input_shape, input_shape)
-        self.anchors = get_yolor_anchors(input_shape, self.pyramid_levels)
-
-    def __object_score_split__(self, pred):
-        return tf.concat([pred[:, :4], pred[:, 5:]], axis=-1), pred[:, 4]  # Overwrite
-
-    def __call__(self, preds, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=-1, input_shape=None):
-        preds = preds if len(preds.shape) == 3 else [preds]
-        return [self.__decode_single__(pred, score_threshold, iou_or_sigma, max_output_size, method, mode, topk, input_shape) for pred in preds]
+        if self.use_anchor_free_mode:
+            self.anchors = anchors_func.get_anchor_free_anchors(input_shape, self.pyramid_levels)
+        else:
+            self.anchors = anchors_func.get_yolor_anchors(input_shape, self.pyramid_levels)
 
 
 def YOLOR_CSP(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
