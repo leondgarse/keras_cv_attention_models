@@ -626,11 +626,12 @@
 ## YOLOR
   - [Keras YOLOR](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolor) includes implementation of [Paper 2105.04206 You Only Learn One Representation: Unified Network for Multiple Tasks](https://arxiv.org/pdf/2105.04206.pdf).
 
-  | Model      | Params | Image resolution | COCO val AP | Download |
-  | ---------- | ------ | ---------------- | ----------- | -------- |
-  | YOLOR_CSP  | 52.9M  | 640              | 50.0        | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5) |
-  | YOLOR_CSPX | 99.8M  | 640              | 51.5        | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
-  | YOLOR_P6   | 37.3M  | 1280             | 55.7        | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5) |
+  | Model      | Params | Image resolution | COCO test AP | Download |
+  | ---------- | ------ | ---------------- | ------------ | -------- |
+  | YOLOR_CSP  | 52.9M  | 640              | 52.8         | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5) |
+  | YOLOR_CSPX | 99.8M  | 640              | 54.8         | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
+  | YOLOR_P6   | 37.3M  | 1280             | 55.7         | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5) |
+  | YOLOR_W6   | 79.9M  | 1280             | 56.9         |          |
 ## YOLOX
   - [Keras YOLOX](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolox) includes implementation of [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
 

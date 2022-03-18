@@ -10,11 +10,12 @@
     - `bboxes` format changed from `[left, top, right, bottom]` to `[top, left, bottom, right]`.
   - **Currently, training only supporting `anchor_free_mode`: `CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolor.YOLOR --use_anchor_free_mode`. Yolor training strategy is under working**.
 ## Models
-  | Model      | Params | Image resolution | COCO val AP | Download |
-  | ---------- | ------ | ---------------- | ----------- | -------- |
-  | YOLOR_CSP  | 52.9M  | 640              | 50.0        | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5) |
-  | YOLOR_CSPX | 99.8M  | 640              | 51.5        | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
-  | YOLOR_P6   | 37.3M  | 1280             | 55.7        | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5) |
+  | Model      | Params | Image resolution | COCO test AP | Download |
+  | ---------- | ------ | ---------------- | ------------ | -------- |
+  | YOLOR_CSP  | 52.9M  | 640              | 52.8         | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5) |
+  | YOLOR_CSPX | 99.8M  | 640              | 54.8         | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
+  | YOLOR_P6   | 37.3M  | 1280             | 55.7         | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5) |
+  | YOLOR_W6   | 79.9M  | 1280             | 56.9         |          |
 ## Usage
   - **Basic usage**
     ```py

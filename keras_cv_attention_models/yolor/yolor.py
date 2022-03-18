@@ -357,3 +357,14 @@ def YOLOR_P6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80,
     use_focus_stem = True
     csp_use_post = False
     return YOLOR(**locals(), model_name=kwargs.pop("model_name", "yolor_p6"), **kwargs)
+
+
+def YOLOR_W6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained=None, **kwargs):
+    csp_depthes = [3, 7, 7, 3, 3]
+    csp_channels = [128, 256, 512, 768, 1024]
+    features_pick = [-4, -3, -2, -1]
+    fpn_depth = 3
+    ssp_depth = 2
+    use_focus_stem = True
+    csp_use_post = False
+    return YOLOR(**locals(), model_name=kwargs.pop("model_name", "yolor_w6"), **kwargs)

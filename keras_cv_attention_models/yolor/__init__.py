@@ -4,6 +4,7 @@ from keras_cv_attention_models.yolor.yolor import (
     YOLOR_CSP,
     YOLOR_CSPX,
     YOLOR_P6,
+    YOLOR_W6,
 )
 
 __head_doc__ = """
@@ -51,13 +52,15 @@ YOLOR.__doc__ = __head_doc__.format(csp_depthes=[2, 8, 8, 4], csp_channels=[128,
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model      | Params | Image resolution | COCO val AP |
-  | ---------- | ------ | ---------------- | ----------- |
-  | YOLOR_CSP  | 52.9M  | 640              | 50.0        |
-  | YOLOR_CSPX | 99.8M  | 640              | 51.5        |
-  | YOLOR_P6   | 37.3M  | 1280             | 55.7        |
+  | Model      | Params | Image resolution | COCO test AP |
+  | ---------- | ------ | ---------------- | ------------ |
+  | YOLOR_CSP  | 52.9M  | 640              | 52.8         |
+  | YOLOR_CSPX | 99.8M  | 640              | 54.8         |
+  | YOLOR_P6   | 37.3M  | 1280             | 55.7         |
+  | YOLOR_W6   | 79.9M  | 1280             | 56.9         |
 """
 
 YOLOR_CSP.__doc__ = __head_doc__.format(csp_depthes=[2, 8, 8, 4], csp_channels=[128, 256, 512, 1024]) + __tail_doc__
 YOLOR_CSP.__doc__ = __head_doc__.format(csp_depthes=[3, 10, 10, 5], csp_channels=[160, 320, 640, 1280]) + __tail_doc__
 YOLOR_P6.__doc__ = __head_doc__.format(csp_depthes=[3, 7, 7, 3, 3], csp_channels=[128, 256, 384, 512, 640]) + __tail_doc__
+YOLOR_W6.__doc__ = __head_doc__.format(csp_depthes=[3, 7, 7, 3, 3], csp_channels=[128, 256, 512, 768, 1024]) + __tail_doc__
