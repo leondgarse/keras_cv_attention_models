@@ -14,6 +14,7 @@
   | ---------- | ------ | ---------------- | ----------- | -------- |
   | YOLOR_CSP  | 52.9M  | 640              | 50.0        | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5) |
   | YOLOR_CSPX | 99.8M  | 640              | 51.5        | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
+  | YOLOR_P6   | 37.3M  | 1280             | 55.7        | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5) |
 ## Usage
   - **Basic usage**
     ```py
@@ -31,7 +32,7 @@
     data.show_image_with_bboxes(imm, bboxs, lables, confidences)
     ```
     ![yolor_csp_dog_cat](https://user-images.githubusercontent.com/5744524/158940187-1840ab4f-2f0e-497b-b796-2bdb9f31755a.png)
-  - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`.
+  - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. **Note: `YOLO_P6` using `focus_stem` requires input at least been an even number**.
     ```py
     from keras_cv_attention_models import yolor
     model = yolor.YOLOR_CSP(input_shape=(None, None, 3), pretrained="coco")

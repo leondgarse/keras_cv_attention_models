@@ -630,6 +630,7 @@
   | ---------- | ------ | ---------------- | ----------- | -------- |
   | YOLOR_CSP  | 52.9M  | 640              | 50.0        | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5) |
   | YOLOR_CSPX | 99.8M  | 640              | 51.5        | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
+  | YOLOR_P6   | 37.3M  | 1280             | 55.7        | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5) |
 ## YOLOX
   - [Keras YOLOX](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolox) includes implementation of [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
 

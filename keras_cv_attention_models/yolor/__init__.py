@@ -3,6 +3,7 @@ from keras_cv_attention_models.yolor.yolor import (
     YOLOR,
     YOLOR_CSP,
     YOLOR_CSPX,
+    YOLOR_P6,
 )
 
 __head_doc__ = """
@@ -11,7 +12,7 @@ Paper [Paper 2105.04206 You Only Learn One Representation: Unified Network for M
 
 Args:
   backbone: backbone model, could be any model with pyramid stage structure.
-      Default None for CSPDarknet with depth_mul={depth_mul}, width_mul={width_mul}.
+      Default None for CSPDarknet with csp_depthes={csp_depthes}, csp_channels={csp_channels}.
 """
 
 __tail_doc__ = """  features_pick: specific `layer names` or `pyramid feature indexes` from backbone model.
@@ -38,10 +39,14 @@ Returns:
     A `keras.Model` instance.
 """
 
-YOLOR.__doc__ = __head_doc__.format(depth_mul=1, width_mul=1) + """  depth_mul: CSPDarknet backbone and FPN blocks depth expansion ratio.
-      - For CSPDarknet, base_depth = max(round(depth_mul * 2), 1)
-      - For FPN blocks, csp_depth = max(round(depth_mul * 2), 1)
-  width_mul: CSPDarknet backbone width expansion ratio, base_channels = int(width_mul * 64).
+YOLOR.__doc__ = __head_doc__.format(csp_depthes=[2, 8, 8, 4], csp_channels=[128, 256, 512, 1024]) + """  csp_depthes: CSPDarknet backbone depth for each block, default `[2, 8, 8, 4]`.
+  csp_channels: CSPDarknet backbone channel for each block, default: `[128, 256, 512, 1024]`.
+  stem_width: CSPDarknet backbone stem width, default -1 means using csp_channels[0] // 2.
+  use_focus_stem: boolean value if CSPDarknet backbone using focus_stem or conv one, default False.
+  ssp_depth: CSPDarknet backbone spatial_pyramid_pooling depth, default 2.
+  fpn_depth: depth for FPN headers, default 2.
+  csp_use_pre: boolean value if CSPDarknet backbone blocks using pre-conv for deep branch, default False.
+  csp_use_post: boolean value if CSPDarknet backbone blocks using post-conv for deep branch, default True.
   use_depthwise_conv: boolean value if using additional depthwise conv.
   model_name: string, model name.
 """ + __tail_doc__ + """
@@ -50,7 +55,9 @@ Model architectures:
   | ---------- | ------ | ---------------- | ----------- |
   | YOLOR_CSP  | 52.9M  | 640              | 50.0        |
   | YOLOR_CSPX | 99.8M  | 640              | 51.5        |
+  | YOLOR_P6   | 37.3M  | 1280             | 55.7        |
 """
 
-YOLOR_CSP.__doc__ = __head_doc__.format(depth_mul=1, width_mul=1) + __tail_doc__
-YOLOR_CSP.__doc__ = __head_doc__.format(depth_mul=1.3, width_mul=1.25) + __tail_doc__
+YOLOR_CSP.__doc__ = __head_doc__.format(csp_depthes=[2, 8, 8, 4], csp_channels=[128, 256, 512, 1024]) + __tail_doc__
+YOLOR_CSP.__doc__ = __head_doc__.format(csp_depthes=[3, 10, 10, 5], csp_channels=[160, 320, 640, 1280]) + __tail_doc__
+YOLOR_P6.__doc__ = __head_doc__.format(csp_depthes=[3, 7, 7, 3, 3], csp_channels=[128, 256, 384, 512, 640]) + __tail_doc__

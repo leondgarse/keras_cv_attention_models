@@ -66,11 +66,15 @@ def get_anchor_free_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 5], gr
 
 
 def get_yolor_anchors(input_shape=(640, 640), pyramid_levels=[3, 5], offset=0.5):
-    assert max(pyramid_levels) - min(pyramid_levels) < 3
+    # assert max(pyramid_levels) - min(pyramid_levels) < 3
 
     # width first to height first
-    # anchor_ratios = tf.convert_to_tensor([[[12.0, 16], [19, 36], [40, 28]], [[36, 75], [76, 55], [72, 146]], [[142, 110], [192, 243], [459, 401]]])
-    anchor_ratios = tf.convert_to_tensor([[[16.0, 12], [36, 19], [28, 40]], [[75, 36], [55, 76], [146, 72]], [[110, 142], [243, 192], [401, 459]]])
+    if max(pyramid_levels) - min(pyramid_levels) < 3:
+        anchor_ratios = tf.convert_to_tensor([[[16.0, 12], [36, 19], [28, 40]], [[75, 36], [55, 76], [146, 72]], [[110, 142], [243, 192], [401, 459]]])
+    else:
+        anchor_ratios = tf.convert_to_tensor(
+            [[[27.0, 19], [40, 44], [94, 38]], [[68, 96], [152, 86], [137, 180]], [[301, 140], [264, 303], [542, 238]], [[615, 436], [380, 739], [792, 925]]]
+        )
     pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
     feature_sizes = get_feature_sizes(input_shape, pyramid_levels)
 
