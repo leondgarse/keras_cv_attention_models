@@ -1,4 +1,4 @@
-# Keras_cv_attention_models ![dragon_treasure](https://user-images.githubusercontent.com/5744524/159116585-0df67d49-062a-41fe-8da8-7ba9e1344cb0.png)
+# Keras_cv_attention_models
 - **coco_train_script.py is under testing**
 
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
