@@ -142,6 +142,7 @@
 ## ImageNet Training
   - [ImageNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/imagenet) contains more detail usage and some comparing results.
   - [Init Imagenet dataset using tensorflow_datasets #9](https://github.com/leondgarse/keras_cv_attention_models/discussions/9).
+  - Dataset loading is using `tfds.load`, for custom data, refer [Creating private tensorflow_datasets from tfds #48](https://github.com/leondgarse/keras_cv_attention_models/discussions/48).
   - It took me weeks figuring out what is wrong in training, that should use `LAMB` with excluding `batch norm` layers on weight decay...
   - `aotnet.AotNet50` default parameters set is a typical `ResNet50` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
   - Default parameters for `train_script.py` is like `A3` configuration from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf) with `batch_size=256, input_shape=(160, 160)`.
@@ -631,7 +632,9 @@
   | YOLOR_CSP  | 52.9M  | 640              | 52.8         | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5) |
   | YOLOR_CSPX | 99.8M  | 640              | 54.8         | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
   | YOLOR_P6   | 37.3M  | 1280             | 55.7         | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5) |
-  | YOLOR_W6   | 79.9M  | 1280             | 56.9         |          |
+  | YOLOR_W6   | 79.9M  | 1280             | 56.9         | [yolor_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_w6_coco.h5) |
+  | YOLOR_E6   | 115.9M | 1280             | 57.6         |          |
+  | YOLOR_D6   | 151.8M | 1280             | 58.2         |          |
 ## YOLOX
   - [Keras YOLOX](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolox) includes implementation of [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
 
