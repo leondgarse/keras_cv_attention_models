@@ -234,8 +234,10 @@ class RandomProcessImageWithBboxes:
     def __call__(self, datapoint):
         image = datapoint["image"]
         objects = datapoint["objects"]
-        bbox, label, is_not_crowd = tf.cast(objects["bbox"], tf.float32), objects["label"], objects["is_crowd"] == False
-        bbox, label = tf.boolean_mask(bbox, is_not_crowd), tf.boolean_mask(label, is_not_crowd)
+        bbox, label, is_crowd = tf.cast(objects["bbox"], tf.float32), objects["label"], objects.get("is_crowd", None)
+        if is_crowd is not None:
+            is_not_crowd = is_crowd == False
+            bbox, label = tf.boolean_mask(bbox, is_not_crowd), tf.boolean_mask(label, is_not_crowd)
         height, width = tf.shape(image)[0], tf.shape(image)[1]
 
         if self.magnitude >= 0:
