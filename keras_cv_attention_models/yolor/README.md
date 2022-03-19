@@ -15,7 +15,9 @@
   | YOLOR_CSP  | 52.9M  | 640              | 52.8         | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5) |
   | YOLOR_CSPX | 99.8M  | 640              | 54.8         | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
   | YOLOR_P6   | 37.3M  | 1280             | 55.7         | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5) |
-  | YOLOR_W6   | 79.9M  | 1280             | 56.9         |          |
+  | YOLOR_W6   | 79.9M  | 1280             | 56.9         | [yolor_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_w6_coco.h5) |
+  | YOLOR_E6   | 115.9M | 1280             | 57.6         | [yolor_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_e6_coco.h5) |
+  | YOLOR_D6   | 151.8M | 1280             | 58.2         | [yolor_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_d6_coco.h5) |
 ## Usage
   - **Basic usage**
     ```py

@@ -18,6 +18,9 @@ PRETRAINED_DICT = {
     "yolor_csp": {"coco": "ed0aa82a07c4e65e9cd3d2e6ad2d0548"},
     "yolor_csp_x": {"coco": "615125ce1cd1c855f8045bf079456598"},
     "yolor_p6": {"coco": "059c6d0dd8ca869f843081b13f88f7f4"},
+    "yolor_w6": {"coco": "a3dc1e70c5064aebfd8b52609e6ee704"},
+    "yolor_e6": {"coco": "556263cf6aeea5b628c1814cd126eb21"},
+    "yolor_d6": {"coco": "a55469feef931a07b419c3e1be639725"},
 }
 
 
@@ -37,40 +40,49 @@ def conv_dw_pw_block(inputs, filters, kernel_size=1, strides=1, use_depthwise_co
     return nn
 
 
-def csp_block(inputs, expansion=0.5, use_shortcut=True, use_depthwise_conv=False, activation="swish", name=""):
+def csp_block(inputs, expansion=0.5, use_shortcut=True, activation="swish", name=""):
     input_channels = inputs.shape[-1]
     nn = conv_dw_pw_block(inputs, int(input_channels * expansion), activation=activation, name=name + "1_")
-    nn = conv_dw_pw_block(nn, input_channels, kernel_size=3, strides=1, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "2_")
+    nn = conv_dw_pw_block(nn, input_channels, kernel_size=3, strides=1, activation=activation, name=name + "2_")
     if use_shortcut:
         nn = keras.layers.Add()([inputs, nn])
     return nn
 
 
 def csp_stack(
-    inputs, depth, out_channels=-1, expansion=0.5, use_shortcut=True, use_pre=False, use_post=True, use_depthwise_conv=False, activation="swish", name=""
+    inputs, depth, out_channels=-1, expansion=0.5, use_shortcut=True, use_pre=False, use_post=True, use_shortcut_bn=True, activation="swish", name=""
 ):
     out_channels = inputs.shape[-1] if out_channels == -1 else out_channels
     hidden_channels = int(out_channels * expansion)
     if use_pre:
         inputs = conv_dw_pw_block(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "pre_")
-    short = conv_dw_pw_block(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "short_")
+    if use_shortcut_bn:
+        short = conv_dw_pw_block(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "short_")
+    else:
+        short = conv2d_no_bias(inputs, hidden_channels, 1, name=name + "short_")
 
     deep = inputs if use_pre else conv_dw_pw_block(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "deep_pre_")
     for id in range(depth):
         block_name = name + "block{}_".format(id + 1)
-        deep = csp_block(deep, 1, use_shortcut=use_shortcut, use_depthwise_conv=use_depthwise_conv, activation=activation, name=block_name)
+        deep = csp_block(deep, 1, use_shortcut=use_shortcut, activation=activation, name=block_name)
     if use_post:
         deep = conv_dw_pw_block(deep, hidden_channels, kernel_size=1, activation=activation, name=name + "deep_post_")
 
     out = tf.concat([deep, short], axis=-1)
+    if not use_shortcut_bn:
+        out = batchnorm_with_activation(out, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name + "concat_")
+
     out = conv_dw_pw_block(out, out_channels, kernel_size=1, activation=activation, name=name + "output_")
     return out
 
 
-def res_spatial_pyramid_pooling(inputs, depth, expansion=0.5, pool_sizes=(5, 9, 13), activation="swish", name=""):
+def res_spatial_pyramid_pooling(inputs, depth, expansion=0.5, pool_sizes=(5, 9, 13), use_shortcut_bn=True, activation="swish", name=""):
     input_channels = inputs.shape[-1]
     hidden_channels = int(input_channels * expansion)
-    short = conv_dw_pw_block(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "short_")
+    if use_shortcut_bn:
+        short = conv_dw_pw_block(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "short_")
+    else:
+        short = conv2d_no_bias(inputs, hidden_channels, 1, name=name + "short_")
 
     deep = conv_dw_pw_block(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "pre_1_")
     deep = conv_dw_pw_block(deep, hidden_channels, kernel_size=3, activation=activation, name=name + "pre_2_")
@@ -82,6 +94,8 @@ def res_spatial_pyramid_pooling(inputs, depth, expansion=0.5, pool_sizes=(5, 9, 
         deep = conv_dw_pw_block(deep, hidden_channels, kernel_size=3, activation=activation, name=name + "post_{}_".format(id * 2 + 2))
 
     out = tf.concat([deep, short], axis=-1)
+    if not use_shortcut_bn:
+        out = batchnorm_with_activation(out, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name + "concat_")
     out = conv_dw_pw_block(out, hidden_channels, kernel_size=1, activation=activation, name=name + "output_")
     return out
 
@@ -103,6 +117,15 @@ def focus_stem(inputs, filters, kernel_size=3, strides=1, padding="valid", activ
     return nn
 
 
+def csp_conv_downsample(inputs, filters, strides=2, activation="swish", name=""):
+    # DownC: https://github.com/WongKinYiu/yolor/blob/paper/models/common.py#L584
+    max_down = keras.layers.MaxPooling2D(strides, strides=strides, padding="SAME")(inputs)
+    max_down = conv_dw_pw_block(max_down, filters // 2, activation=activation, name=name + "max_down_")
+    conv_down = conv_dw_pw_block(inputs, inputs.shape[-1], activation=activation, name=name + "conv_down_1_")
+    conv_down = conv_dw_pw_block(conv_down, filters // 2, kernel_size=3, strides=strides, activation=activation, name=name + "conv_down_2_")
+    return tf.concat([conv_down, max_down], axis=-1)
+
+
 def CSPDarknet(
     depthes=[2, 8, 8, 4],
     channels=[128, 256, 512, 1024],
@@ -110,7 +133,8 @@ def CSPDarknet(
     use_focus_stem=False,
     ssp_depth=2,
     out_features=[-3, -2, -1],
-    use_depthwise_conv=False,
+    use_csp_downsample=False,
+    use_shortcut_bn=True,
     use_pre=False,
     use_post=True,
     input_shape=(512, 512, 3),
@@ -136,11 +160,14 @@ def CSPDarknet(
     # use_spps = [False] * (len(depthes) - 1) + [True]
     for id, (channel, depth) in enumerate(zip(channels, depthes)):
         stack_name = "stack{}_".format(id + 1)
-        nn = conv_dw_pw_block(nn, channel, 3, strides=2, use_depthwise_conv=use_depthwise_conv, activation=activation, name=stack_name + "downsample_")
-        nn = csp_stack(nn, depth, use_pre=use_pre, use_post=use_post, use_depthwise_conv=use_depthwise_conv, activation=activation, name=stack_name)
+        if use_csp_downsample:
+            nn = csp_conv_downsample(nn, channel, activation=activation, name=stack_name)
+        else:
+            nn = conv_dw_pw_block(nn, channel, 3, strides=2, activation=activation, name=stack_name + "downsample_")
+        nn = csp_stack(nn, depth, use_pre=use_pre, use_post=use_post, use_shortcut_bn=use_shortcut_bn, activation=activation, name=stack_name)
         if id == len(depthes) - 1:
             # ssp_depth = max(round(depth_mul * 2), 1)
-            nn = res_spatial_pyramid_pooling(nn, ssp_depth, activation=activation, name=stack_name + "spp_")
+            nn = res_spatial_pyramid_pooling(nn, ssp_depth, use_shortcut_bn=use_shortcut_bn, activation=activation, name=stack_name + "spp_")
         features.append(nn)
 
     nn = [features[ii] for ii in out_features]
@@ -151,7 +178,7 @@ def CSPDarknet(
 """ path aggregation fpn """
 
 
-def upsample_merge(inputs, csp_depth, use_depthwise_conv=False, activation="swish", name=""):
+def upsample_merge(inputs, csp_depth, use_shortcut_bn=True, activation="swish", name=""):
     # print(f">>>> upsample_merge inputs: {[ii.shape for ii in inputs] = }")
     upsample = conv_dw_pw_block(inputs[-1], inputs[0].shape[-1], activation=activation, name=name + "up_")
 
@@ -159,42 +186,23 @@ def upsample_merge(inputs, csp_depth, use_depthwise_conv=False, activation="swis
     inputs[-1] = tf.image.resize(upsample, tf.shape(inputs[0])[1:-1], method="nearest")
     nn = tf.concat(inputs, axis=-1)
     use_shortcut, use_pre, use_post = False, True, False
-    nn = csp_stack(nn, csp_depth, nn.shape[-1] // 2, 1.0, use_shortcut, use_pre, use_post, use_depthwise_conv, activation=activation, name=name)
+    nn = csp_stack(nn, csp_depth, nn.shape[-1] // 2, 1.0, use_shortcut, use_pre, use_post, use_shortcut_bn, activation=activation, name=name)
     return nn
 
 
-def downsample_merge(inputs, csp_depth, use_depthwise_conv=False, activation="swish", name=""):
+def downsample_merge(inputs, csp_depth, use_csp_downsample=False, use_shortcut_bn=True, activation="swish", name=""):
     # print(f">>>> downsample_merge inputs: {[ii.shape for ii in inputs] = }")
-    inputs[0] = conv_dw_pw_block(inputs[0], inputs[-1].shape[-1], 3, 2, use_depthwise_conv, activation=activation, name=name + "down_")
+    if use_csp_downsample:
+        inputs[0] = csp_conv_downsample(inputs[0], inputs[-1].shape[-1], activation=activation, name=name)
+    else:
+        inputs[0] = conv_dw_pw_block(inputs[0], inputs[-1].shape[-1], 3, 2, activation=activation, name=name + "down_")
     nn = tf.concat(inputs, axis=-1)
     use_shortcut, use_pre, use_post = False, True, False
-    nn = csp_stack(nn, csp_depth, nn.shape[-1] // 2, 1.0, use_shortcut, use_pre, use_post, use_depthwise_conv, activation=activation, name=name)
+    nn = csp_stack(nn, csp_depth, nn.shape[-1] // 2, 1.0, use_shortcut, use_pre, use_post, use_shortcut_bn, activation=activation, name=name)
     return nn
 
 
-def path_aggregation_fpn_1(features, fpn_depth=2, use_depthwise_conv=False, activation="swish", name=""):
-    # p5 ─────┬───> pan_out0
-    #         ↓         ↑
-    # p4 ─> p4p5 ─> pan_out1
-    #         ↓         ↑
-    # p3 ─> pan_out2 ───┘
-    # csp_depth = max(round(depth_mul * 2), 1)
-    p3, p4, p5 = features  # p3: [64, 64, 256], p4: [32, 32, 512], p5: [16, 16, 512]
-    p3 = conv_dw_pw_block(p3, p3.shape[-1] // 2, kernel_size=1, activation=activation, name=name + "p3_down_")  # [64, 64, 128]
-    p4 = conv_dw_pw_block(p4, p4.shape[-1] // 2, kernel_size=1, activation=activation, name=name + "p4_down_")  # [32, 32, 256]
-
-    # p4p5: [32, 32, 256]
-    p4p5 = upsample_merge([p4, p5], fpn_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "p4p5_")
-    # pan_out2: [64, 64, 128]
-    pan_out2 = upsample_merge([p3, p4p5], fpn_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "p3p4p5_")
-    # pan_out1: [32, 32, 256]
-    pan_out1 = downsample_merge([pan_out2, p4p5], fpn_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "c3n3_")
-    # pan_out0: [16, 16, 512]
-    pan_out0 = downsample_merge([pan_out1, p5], fpn_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "c3n4_")
-    return [pan_out2, pan_out1, pan_out0]
-
-
-def path_aggregation_fpn(features, fpn_depth=2, use_depthwise_conv=False, activation="swish", name=""):
+def path_aggregation_fpn(features, fpn_depth=2, use_csp_downsample=False, use_shortcut_bn=True, activation="swish", name=""):
     # p5 ─────┬───> pan_out0
     #         ↓         ↑
     # p4 ─> p4p5 ─> pan_out1
@@ -208,14 +216,14 @@ def path_aggregation_fpn(features, fpn_depth=2, use_depthwise_conv=False, activa
         cur_p_name = "p{}".format(len(features) + 1 - id)
         nn = conv_dw_pw_block(ii, ii.shape[-1] // 2, kernel_size=1, activation=activation, name=name + cur_p_name + "_down_")
         p_name = cur_p_name + p_name
-        nn = upsample_merge([nn, upsamples[-1]], fpn_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + p_name)
+        nn = upsample_merge([nn, upsamples[-1]], fpn_depth, use_shortcut_bn, activation=activation, name=name + p_name)
         upsamples.append(nn)
 
     downsamples = [upsamples[-1]]
-    # downsamples: [p3p4p5], upsamples[:-1][::-1]: [p4p5, p5] -> [p5, p4p5, p3p4p5]
+    # downsamples: [p3p4p5], upsamples[:-1][::-1]: [p4p5, p5] -> [p3p4p5, p3p4p5 + p4p5, p3p4p5 + p4p5 + p5]
     for id, ii in enumerate(upsamples[:-1][::-1]):
         cur_name = name + "c3n{}_".format(id + 3)
-        nn = downsample_merge([downsamples[-1], ii], fpn_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name=cur_name)
+        nn = downsample_merge([downsamples[-1], ii], fpn_depth, use_csp_downsample, use_shortcut_bn, activation=activation, name=cur_name)
         downsamples.append(nn)
     return downsamples
 
@@ -242,7 +250,6 @@ def yolor_head(inputs, num_classes=80, num_anchors=1, use_object_scores=True, ac
     outputs = []
     for id, input in enumerate(inputs):
         cur_name = name + "{}_".format(id + 1)
-        # filters = int(input.shape[-1] * 2 * width_mul)
         filters = int(input.shape[-1] * 2)
         out = yolor_head_single(input, filters, num_classes, num_anchors, use_object_scores, activation=activation, name=cur_name)
         outputs.append(out)
@@ -263,9 +270,10 @@ def YOLOR(
     ssp_depth=2,
     csp_use_pre=False,
     csp_use_post=True,
+    use_csp_downsample=False,
+    use_shortcut_bn=True,
     fpn_depth=2,
     features_pick=[-3, -2, -1],
-    use_depthwise_conv=False,
     use_anchor_free_mode=False,
     num_anchors="auto",  # "auto" means 1 if use_anchor_free_mode else 3
     use_object_scores=True,  # "auto" means same with use_anchor_free_mode
@@ -284,7 +292,9 @@ def YOLOR(
     if backbone is None:
         # Save line width...
         csp_kwargs = {"use_pre": csp_use_pre, "use_post": csp_use_post, "input_shape": input_shape, "activation": activation, "model_name": "darknet"}
-        backbone = CSPDarknet(csp_depthes, csp_channels, stem_width, use_focus_stem, ssp_depth, features_pick, use_depthwise_conv, **csp_kwargs)
+        backbone = CSPDarknet(
+            csp_depthes, csp_channels, stem_width, use_focus_stem, ssp_depth, features_pick, use_csp_downsample, use_shortcut_bn, **csp_kwargs
+        )
         features = backbone.outputs
     else:
         if isinstance(features_pick[0], str):
@@ -303,7 +313,7 @@ def YOLOR(
     inputs = backbone.inputs[0]
     use_object_scores = use_anchor_free_mode if use_object_scores == "auto" else use_object_scores
     num_anchors = (1 if use_anchor_free_mode else 3) if num_anchors == "auto" else num_anchors
-    fpn_features = path_aggregation_fpn(features, fpn_depth=fpn_depth, use_depthwise_conv=use_depthwise_conv, activation=activation, name="pafpn_")
+    fpn_features = path_aggregation_fpn(features, fpn_depth, use_csp_downsample, use_shortcut_bn, activation=activation, name="pafpn_")
     outputs = yolor_head(fpn_features, num_classes, num_anchors, use_object_scores, activation, classifier_activation, name="head_")
     outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
     model = keras.models.Model(inputs, outputs, name=model_name)
@@ -368,3 +378,29 @@ def YOLOR_W6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80,
     use_focus_stem = True
     csp_use_post = False
     return YOLOR(**locals(), model_name=kwargs.pop("model_name", "yolor_w6"), **kwargs)
+
+
+def YOLOR_E6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
+    csp_depthes = [3, 7, 7, 3, 3]
+    csp_channels = [160, 320, 640, 960, 1280]
+    features_pick = [-4, -3, -2, -1]
+    fpn_depth = 3
+    ssp_depth = 2
+    use_focus_stem = True
+    csp_use_post = False
+    use_csp_downsample = True
+    use_shortcut_bn = False
+    return YOLOR(**locals(), model_name=kwargs.pop("model_name", "yolor_e6"), **kwargs)
+
+
+def YOLOR_D6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained=None, **kwargs):
+    csp_depthes = [3, 15, 15, 7, 7]
+    csp_channels = [160, 320, 640, 960, 1280]
+    features_pick = [-4, -3, -2, -1]
+    fpn_depth = 3
+    ssp_depth = 2
+    use_focus_stem = True
+    csp_use_post = False
+    use_csp_downsample = True
+    use_shortcut_bn = False
+    return YOLOR(**locals(), model_name=kwargs.pop("model_name", "yolor_d6"), **kwargs)

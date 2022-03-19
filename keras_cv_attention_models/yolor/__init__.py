@@ -5,6 +5,8 @@ from keras_cv_attention_models.yolor.yolor import (
     YOLOR_CSPX,
     YOLOR_P6,
     YOLOR_W6,
+    YOLOR_E6,
+    YOLOR_D6,
 )
 
 __head_doc__ = """
@@ -45,9 +47,11 @@ YOLOR.__doc__ = __head_doc__.format(csp_depthes=[2, 8, 8, 4], csp_channels=[128,
   stem_width: CSPDarknet backbone stem width, default -1 means using csp_channels[0] // 2.
   use_focus_stem: boolean value if CSPDarknet backbone using focus_stem or conv one, default False.
   ssp_depth: CSPDarknet backbone spatial_pyramid_pooling depth, default 2.
-  fpn_depth: depth for FPN headers, default 2.
   csp_use_pre: boolean value if CSPDarknet backbone blocks using pre-conv for deep branch, default False.
   csp_use_post: boolean value if CSPDarknet backbone blocks using post-conv for deep branch, default True.
+  use_csp_downsample: boolean value if CSPDarknet backbone and FPN downsample using `csp_conv_downsample`
+      or a conv layer with `kernel_size=3, strides=2`. Default False.
+  fpn_depth: depth for FPN headers, default 2.
   use_depthwise_conv: boolean value if using additional depthwise conv.
   model_name: string, model name.
 """ + __tail_doc__ + """
@@ -58,9 +62,13 @@ Model architectures:
   | YOLOR_CSPX | 99.8M  | 640              | 54.8         |
   | YOLOR_P6   | 37.3M  | 1280             | 55.7         |
   | YOLOR_W6   | 79.9M  | 1280             | 56.9         |
+  | YOLOR_E6   | 115.9M | 1280             | 57.6         |
+  | YOLOR_D6   | 151.8M | 1280             | 58.2         |
 """
 
 YOLOR_CSP.__doc__ = __head_doc__.format(csp_depthes=[2, 8, 8, 4], csp_channels=[128, 256, 512, 1024]) + __tail_doc__
 YOLOR_CSP.__doc__ = __head_doc__.format(csp_depthes=[3, 10, 10, 5], csp_channels=[160, 320, 640, 1280]) + __tail_doc__
 YOLOR_P6.__doc__ = __head_doc__.format(csp_depthes=[3, 7, 7, 3, 3], csp_channels=[128, 256, 384, 512, 640]) + __tail_doc__
 YOLOR_W6.__doc__ = __head_doc__.format(csp_depthes=[3, 7, 7, 3, 3], csp_channels=[128, 256, 512, 768, 1024]) + __tail_doc__
+YOLOR_E6.__doc__ = __head_doc__.format(csp_depthes=[3, 7, 7, 3, 3], csp_channels=[160, 320, 640, 960, 1280]) + __tail_doc__
+YOLOR_D6.__doc__ = __head_doc__.format(csp_depthes=[3, 15, 15, 7, 7], csp_channels=[160, 320, 640, 960, 1280]) + __tail_doc__
