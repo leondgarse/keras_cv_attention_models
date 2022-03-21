@@ -77,6 +77,7 @@ def parse_arguments(argv):
     """ Loss arguments """
     loss_group = parser.add_argument_group("Loss arguments")
     loss_group.add_argument("--label_smoothing", type=float, default=0, help="Loss label smoothing value")
+    loss_group.add_argument("--use_l1_loss", action="store_true", help="Anchor free mode loss using l1_loss")
 
     """ Learning rate and weight decay arguments """
     lr_group = parser.add_argument_group("Learning rate and weight decay arguments")
@@ -201,7 +202,7 @@ def run_training_by_args(args):
             model.summary()
         if model.optimizer is None:
             if args.use_anchor_free_mode:
-                loss = losses.AnchorFreeLoss(input_shape, args.anchor_pyramid_levels, label_smoothing=args.label_smoothing)
+                loss = losses.AnchorFreeLoss(input_shape, args.anchor_pyramid_levels, use_l1_loss=args.use_l1_loss, label_smoothing=args.label_smoothing)
             else:
                 # loss, metrics = losses.FocalLossWithBbox(label_smoothing=args.label_smoothing), losses.ClassAccuracyWithBbox()
                 loss = losses.FocalLossWithBbox(label_smoothing=args.label_smoothing)
