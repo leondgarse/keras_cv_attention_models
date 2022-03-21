@@ -216,5 +216,3 @@ def run_coco_evaluation(
         pred_decoder = DecodePredictions(input_shape, pyramid_levels, anchor_scale=anchor_scale, use_anchor_free_mode=use_anchor_free_mode)
     detection_results = model_eval_results(model, eval_dataset, pred_decoder, nms_score_threshold, nms_method, nms_mode, nms_topk)
     return coco_evaluation(detection_results, annotation_file)
-
-=IFERROR(VLOOKUP($A2,Sheet2!$A$1:$C$6,COLUMN(A1),FALSE),"")=IFERROR(VLOOKUP($A2,Sheet2!$A$1:$C$6,COLUMN(A1),FALSE),"")=IFERROR(VLOOKUP($A2,Sheet2!$A$1:$C$6,COLUMN(A1),FALSE),"")
