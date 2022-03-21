@@ -14,6 +14,7 @@ class FocalLossWithBbox(tf.keras.losses.Loss):
         # self.huber = tf.keras.losses.Huber(self.delta, reduction=tf.keras.losses.Reduction.NONE)
 
         self.class_acc = tf.Variable(0, dtype="float32", trainable=False)
+        # self.class_acc = tf.Variable(0, dtype="float32", trainable=False, aggregation=tf.VariableAggregation.MEAN)
 
     def __focal_loss__(self, class_true_valid, class_pred_valid):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/train_lib.py#L257
@@ -144,6 +145,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
             input_shape, pyramid_levels, anchor_assign_center_radius, anchor_assign_topk_ious_max, anchor_grid_zero_start, epsilon=epsilon
         )
         self.class_acc = tf.Variable(0, dtype="float32", trainable=False)
+        # self.class_acc = tf.Variable(0, dtype="float32", trainable=False, aggregation=tf.VariableAggregation.MEAN)
 
     def __iou_loss__(self, bboxes_trues, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw):
         # bboxes_trues: [[top, left, bottom, right]]
@@ -168,6 +170,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         # bbox_labels_pred_valid = tf.gather(bbox_labels_pred, object_true_idx)
         bbox_labels_pred_valid = tf.gather_nd(bbox_labels_pred, object_true_idx_nd)
         bboxes_pred, labels_pred, object_pred = bbox_labels_pred_valid[:, :4], bbox_labels_pred_valid[:, 4:-1], bbox_labels_pred[:, -1]
+        # bboxes_true.set_shape(bboxes_pred.shape)
 
         # anchors_centers = tf.gather(self.anchor_assign.anchors_centers, object_true_idx)
         # anchors_hws = tf.gather(self.anchor_assign.anchors_hws, object_true_idx)
@@ -260,6 +263,8 @@ class ClassAccuracyWithBboxWrapper(tf.keras.metrics.Metric):
         super().__init__(name=name, **kwargs)
         self.class_acc = self.add_weight(name="cls_acc", initializer="zeros", dtype="float32")
         self.count = self.add_weight(name="count", initializer="zeros", dtype="float32")
+        # self.class_acc = self.add_weight(name="cls_acc", initializer="zeros", dtype="float32", aggregation=tf.VariableAggregation.MEAN)
+        # self.count = self.add_weight(name="count", initializer="zeros", dtype="float32", aggregation=tf.VariableAggregation.MEAN)
         self.loss_class_with_acc = loss_class_with_acc
 
     def update_state(self, y_true=None, y_pred=None, sample_weight=None):

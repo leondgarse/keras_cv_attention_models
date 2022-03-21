@@ -194,6 +194,7 @@ def run_coco_evaluation(
     nms_topk=5000,
     annotation_file=None,  # coco_evaluation
     pyramid_levels=[3, 7],  # get_anchors
+    anchor_scale="auto",  # Init anchors for model prediction. "auto" means 1 if use_anchor_free_mode else 4
     use_anchor_free_mode=False,
     **anchor_kwargs,
 ):
@@ -210,13 +211,10 @@ def run_coco_evaluation(
     if hasattr(model, "decode_predictions") and model.decode_predictions is not None:
         print(">>>> Using model preset decode_predictions")
         pred_decoder = model.decode_predictions
-    elif use_anchor_free_mode:
-        ANCHORS = {"aspect_ratios": [1], "num_scales": 1, "anchor_scale": 1, "grid_zero_start": True}  # yolox
-        print(">>>> Using anchor_free_mode decode_predictions:", ANCHORS)
-        pred_decoder = DecodePredictions(input_shape, pyramid_levels, **ANCHORS, use_object_scores=use_anchor_free_mode)
     else:
-        print(">>>> Using decode_predictions:", ANCHORS)
-        ANCHORS = {"aspect_ratios": [1, 2, 0.5], "num_scales": 3, "anchor_scale": 4, "grid_zero_start": False}  # efficientdet
-        pred_decoder = DecodePredictions(input_shape, pyramid_levels, **ANCHORS, use_object_scores=use_anchor_free_mode)
+        anchor_scale = (1 if use_anchor_free_mode else 4) if anchor_scale == "auto" else anchor_scale
+        pred_decoder = DecodePredictions(input_shape, pyramid_levels, anchor_scale=anchor_scale, use_anchor_free_mode=use_anchor_free_mode)
     detection_results = model_eval_results(model, eval_dataset, pred_decoder, nms_score_threshold, nms_method, nms_mode, nms_topk)
     return coco_evaluation(detection_results, annotation_file)
+
+=IFERROR(VLOOKUP($A2,Sheet2!$A$1:$C$6,COLUMN(A1),FALSE),"")=IFERROR(VLOOKUP($A2,Sheet2!$A$1:$C$6,COLUMN(A1),FALSE),"")=IFERROR(VLOOKUP($A2,Sheet2!$A$1:$C$6,COLUMN(A1),FALSE),"")

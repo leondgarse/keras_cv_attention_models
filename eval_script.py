@@ -36,12 +36,17 @@ def parse_arguments(argv):
     anchor_group.add_argument(
         "--anchor_pyramid_levels_max", type=int, default=-1, help="[COCO] Anchor pyramid levels max. `-1` means yolox: 5, efficientdet: 7"
     )
+    anchor_group.add_argument(
+        "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with it. Force 1 if use_anchor_free_mode"
+    )
 
     args = parser.parse_known_args(argv)[0]
 
+    if args.use_anchor_free_mode:
+        args.anchor_scale = 1
     if args.anchor_pyramid_levels_max <= 0:
         header_type = "yolox" if "yolox" in args.model_path.lower() else "efficientdet"
-        HEADER_DEFAULT = {"yolox": 5, "efficientdet": 7}
+        HEADER_DEFAULT = {"yolox": 5, "yolor": 5, "efficientdet": 7}
         args.anchor_pyramid_levels_max = HEADER_DEFAULT.get(header_type, args.anchor_pyramid_levels_max)
     args.anchor_pyramid_levels = [args.anchor_pyramid_levels_min, args.anchor_pyramid_levels_max]
     return args
