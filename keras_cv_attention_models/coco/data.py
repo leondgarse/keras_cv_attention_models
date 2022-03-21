@@ -191,6 +191,7 @@ def mosaic_mix_batch(images, bboxes, labels, split_center_min=0.25, split_center
     top_images = tf.concat([mixed_images[0], mixed_images[1]], axis=2)
     bottom_images = tf.concat([mixed_images[2], mixed_images[3]], axis=2)
     mixed_images = tf.concat([top_images, bottom_images], axis=1)
+    mixed_images.set_shape([None, hh, ww, 3])
     mixed_bboxes = tf.concat(mixed_bboxes, axis=1) / [hh, ww, hh, ww]
     mixed_labels = tf.concat(mixed_labels, axis=1)
     # print(f"{top_images.shape = }, {bottom_images.shape = }, {mix.shape = }, {mixed_images.shape = }, {mixed_labels.shape = }")
@@ -229,7 +230,7 @@ class RandomProcessImageWithBboxes:
                 **randaug_kwargs,
             )
             # RandAugment positional related ops. Including [shear, rotate, translate], Also returns affine transform matrix
-            self.pos_randaug = augment.PositionalRandAugment(num_layers=num_layers, magnitude=magnitude, **randaug_kwargs)
+            # self.pos_randaug = augment.PositionalRandAugment(num_layers=num_layers, magnitude=magnitude, **randaug_kwargs)
 
     def __call__(self, datapoint):
         image = datapoint["image"]
@@ -264,9 +265,9 @@ class RandomProcessImageWithBboxes:
         if self.magnitude > 0:
             image.set_shape([*self.target_shape[:2], 3])
             image = self.randaug_wo_pos(image)
-            image, affine_matrix = self.pos_randaug(image)
-            bbox = bboxes_apply_affine(bbox, affine_matrix, input_shape=image.shape)
-            bbox, label = refine_bboxes_labels_single(bbox, label)
+            # image, affine_matrix = self.pos_randaug(image)
+            # bbox = bboxes_apply_affine(bbox, affine_matrix, input_shape=image.shape)
+            # bbox, label = refine_bboxes_labels_single(bbox, label)
 
         should_pad = self.max_labels_per_image - tf.shape(bbox)[0]
         # label starts from 0 -> person, add 1 here, differs from padded values
@@ -278,6 +279,34 @@ class RandomProcessImageWithBboxes:
 
         image = tf.cast(image, tf.float32)
         image.set_shape([*self.target_shape[:2], 3])
+        return image, (bbox, label)
+
+
+class PositionalRandAugmentWithBboxes:
+    def __init__(self, magnitude=0, num_layers=2, max_labels_per_image=100, **randaug_kwargs):
+        from keras_cv_attention_models.imagenet import augment
+
+        self.pos_randaug = augment.PositionalRandAugment(num_layers=num_layers, magnitude=magnitude, **randaug_kwargs)
+        self.max_labels_per_image = max_labels_per_image
+
+    def __call_single__(self, inputs):
+        image, bbox, label = inputs
+        image, affine_matrix = self.pos_randaug(image)
+        pick = tf.where(label != 0)
+        bbox, label = tf.gather_nd(bbox, pick), tf.gather_nd(label, pick)
+        bbox = bboxes_apply_affine(bbox, affine_matrix, input_shape=image.shape)
+        bbox, label = refine_bboxes_labels_single(bbox, label)
+
+        should_pad = self.max_labels_per_image - tf.shape(bbox)[0]
+        bbox, label = tf.cond(
+            should_pad > 0,
+            lambda: (tf.pad(bbox, [[0, should_pad], [0, 0]]), tf.pad(label, [[0, should_pad]])),
+            lambda: (bbox[: self.max_labels_per_image], label[: self.max_labels_per_image]),
+        )
+        return image, bbox, label
+
+    def __call__(self, xx, yy):
+        image, bbox, label = tf.map_fn(self.__call_single__, (xx, yy[0], yy[1]))
         return image, (bbox, label)
 
 
@@ -355,6 +384,12 @@ def init_dataset(
         )
         train_dataset = train_dataset.map(mosaic_mix, num_parallel_calls=AUTOTUNE)
     # return train_dataset
+
+    if magnitude > 0:
+        # Apply randaug rotate / shear / transform after mosaic mix
+        max_labels_per_image = (max_labels_per_image * 4) if mosaic_mix_prob > 0 else max_labels_per_image
+        pos_aug = PositionalRandAugmentWithBboxes(magnitude, num_layers, max_labels_per_image, **augment_kwargs)
+        train_dataset = train_dataset.map(pos_aug, num_parallel_calls=AUTOTUNE)
 
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     rescaling = lambda xx: (xx - mean) / std
