@@ -178,15 +178,15 @@ def run_training_by_args(args):
         total_anchors = model.output_shape[1]
         pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(input_shape, total_anchors, args.num_anchors, args.anchor_pyramid_levels_min)
         args.anchor_pyramid_levels_max = max(pyramid_levels)
-    anchor_pyramid_levels = [args.anchor_pyramid_levels_min, args.anchor_pyramid_levels_max]
-    print(">>>> anchor_pyramid_levels:", anchor_pyramid_levels)
+    args.anchor_pyramid_levels = [args.anchor_pyramid_levels_min, args.anchor_pyramid_levels_max]
+    print(">>>> anchor_pyramid_levels:", args.anchor_pyramid_levels)
 
     train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = data.init_dataset(
         data_name=args.data_name,
         input_shape=input_shape,
         batch_size=batch_size,
         use_anchor_free_mode=args.use_anchor_free_mode,
-        anchor_pyramid_levels=anchor_pyramid_levels,
+        anchor_pyramid_levels=args.anchor_pyramid_levels,
         anchor_aspect_ratios=args.anchor_aspect_ratios,
         anchor_num_scales=args.anchor_num_scales,
         anchor_scale=args.anchor_scale,
