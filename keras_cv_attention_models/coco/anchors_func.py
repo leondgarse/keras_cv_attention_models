@@ -97,16 +97,17 @@ def get_yolor_anchors(input_shape=(640, 640), pyramid_levels=[3, 5], offset=0.5)
     return all_anchors
 
 
-def get_pyramid_levels_by_num_anchors(input_shape, num_anchors, pyramid_levels_min=3):
+def get_pyramid_levels_by_anchors(input_shape, total_anchors, num_anchors, pyramid_levels_min=3):
     feature_sizes = get_feature_sizes(input_shape, [pyramid_levels_min, pyramid_levels_min + 10])
     feature_sizes = tf.convert_to_tensor(feature_sizes, dtype="float32")
     pyramid_levels = []
     level = pyramid_levels_min
-    while num_anchors > 0:
+    total_anchors /= num_anchors
+    while total_anchors > 0:
         pyramid_levels.append(level)
         stride_hh, stride_ww = feature_sizes[0][0] / feature_sizes[level][0], feature_sizes[0][1] / feature_sizes[level][1]
         cur_num_anchors = tf.math.ceil(input_shape[0] / stride_hh) * tf.math.ceil(input_shape[1] / stride_ww)
-        num_anchors -= int(cur_num_anchors)
+        total_anchors -= int(cur_num_anchors)
         level += 1
     return pyramid_levels
 

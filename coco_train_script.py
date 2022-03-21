@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import json
-from keras_cv_attention_models.coco import data, losses
+from keras_cv_attention_models.coco import data, losses, anchors_func
 from keras_cv_attention_models.imagenet import (
     compile_model,
     init_global_strategy,
@@ -72,7 +72,7 @@ def parse_arguments(argv):
         help="Anchor aspect ratios, `num_anchors = len(anchor_aspect_ratios) * anchor_num_scales`. Force [1] if use_anchor_free_mode",
     )
     anchor_group.add_argument("--anchor_pyramid_levels_min", type=int, default=3, help="Anchor pyramid levels min.")
-    anchor_group.add_argument("--anchor_pyramid_levels_max", type=int, default=-1, help="Anchor pyramid levels max. `-1` means yolox: 5, efficientdet: 7")
+    anchor_group.add_argument("--anchor_pyramid_levels_max", type=int, default=-1, help="Anchor pyramid levels max. -1 for calculated from model output shape")
 
     """ Loss arguments """
     loss_group = parser.add_argument_group("Loss arguments")
@@ -121,15 +121,12 @@ def parse_arguments(argv):
 
     if args.use_anchor_free_mode:
         args.anchor_scale, args.anchor_num_scales, args.anchor_aspect_ratios = 1, 1, [1]
-    if args.anchor_pyramid_levels_max <= 0:
-        header_type = args.det_header.split(".")[0]
-        HEADER_DEFAULT = {"yolox": 5, "yolor": 5, "efficientdet": 7}
-        args.anchor_pyramid_levels_max = HEADER_DEFAULT.get(header_type, args.anchor_pyramid_levels_max)
-    args.anchor_pyramid_levels = [args.anchor_pyramid_levels_min, args.anchor_pyramid_levels_max]
+
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
+    args.num_anchors = len(args.anchor_aspect_ratios) * args.anchor_num_scales
     args.additional_det_header_kwargs.update(
         {
-            "num_anchors": len(args.anchor_aspect_ratios) * args.anchor_num_scales,
+            "num_anchors": args.num_anchors,
             "use_object_scores": args.use_anchor_free_mode,  # Currently same with use_anchor_free_mode.
         }
     )
@@ -166,12 +163,30 @@ def run_training_by_args(args):
     batch_size = args.batch_size * strategy.num_replicas_in_sync
     input_shape = (args.input_shape, args.input_shape, 3)
 
+    # Init model first, for getting actual pyramid_levels
+    total_images, num_classes, steps_per_epoch = data.init_dataset(args.data_name, batch_size=batch_size, info_only=True)
+    with strategy.scope():
+        pretrained, restore_path = args.pretrained, args.restore_path
+        if args.backbone is not None:
+            backbone = init_model(args.backbone, input_shape, 0, args.backbone_pretrained, None, **args.additional_backbone_kwargs)
+            args.additional_det_header_kwargs.update({"backbone": backbone})
+        model = init_model(args.det_header, input_shape, num_classes, pretrained, restore_path, **args.additional_det_header_kwargs)
+        if args.summary:
+            model.summary()
+
+    if args.anchor_pyramid_levels_max <= 0:
+        total_anchors = model.output_shape[1]
+        pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(input_shape, total_anchors, args.num_anchors, args.anchor_pyramid_levels_min)
+        args.anchor_pyramid_levels_max = max(pyramid_levels)
+    anchor_pyramid_levels = [args.anchor_pyramid_levels_min, args.anchor_pyramid_levels_max]
+    print(">>>> anchor_pyramid_levels:", anchor_pyramid_levels)
+
     train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = data.init_dataset(
         data_name=args.data_name,
         input_shape=input_shape,
         batch_size=batch_size,
         use_anchor_free_mode=args.use_anchor_free_mode,
-        anchor_pyramid_levels=args.anchor_pyramid_levels,
+        anchor_pyramid_levels=anchor_pyramid_levels,
         anchor_aspect_ratios=args.anchor_aspect_ratios,
         anchor_num_scales=args.anchor_num_scales,
         anchor_scale=args.anchor_scale,
@@ -192,14 +207,6 @@ def run_training_by_args(args):
     epochs = args.epochs if args.epochs != -1 else lr_total_epochs
 
     with strategy.scope():
-        pretrained, restore_path = args.pretrained, args.restore_path
-        if args.backbone is not None:
-            backbone = init_model(args.backbone, input_shape, 0, args.backbone_pretrained, None, **args.additional_backbone_kwargs)
-            args.additional_det_header_kwargs.update({"backbone": backbone})
-        model = init_model(args.det_header, input_shape, num_classes, pretrained, restore_path, **args.additional_det_header_kwargs)
-
-        if args.summary:
-            model.summary()
         if model.optimizer is None:
             if args.use_anchor_free_mode:
                 loss = losses.AnchorFreeLoss(input_shape, args.anchor_pyramid_levels, use_l1_loss=args.use_l1_loss, label_smoothing=args.label_smoothing)
