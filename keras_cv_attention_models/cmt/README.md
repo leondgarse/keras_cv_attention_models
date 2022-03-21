@@ -45,7 +45,7 @@
     --seed 0 -m cmt.CMTTiny --lr_decay_steps 300 \
     --magnitude 7 --additional_model_kwargs '{"drop_connect_rate": 0.05}' -b 160 \
     ```
-    | 305 epochs             | Train acc | Best eval loss, acc on 160 | Epoch 105 Eval acc on 224   |
+    | 305 epochs             | Train acc | Best eval loss, acc on 160 | Epoch 305 Eval acc on 224   |
     | ---------------------- | --------- | -------------------------- | --------------------------- |
     | mag6, drc 0, bs 256    | 0.6702    | Epoch 304, 0.0013, 0.7874  | top1: 0.79956 top5: 0.94850 |
     | mag7, drc 0.05, bs 160 | 0.6577    | Epoch 294, 0.0013,0.7880   | top1: 0.80126 top5: 0.94898 |
