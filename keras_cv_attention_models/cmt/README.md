@@ -4,7 +4,6 @@
 ## Summary
   - CMT article: [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf)
   - [Github wilile26811249/CMT_CNN-meet-Vision-Transformer](https://github.com/wilile26811249/CMT_CNN-meet-Vision-Transformer)
-  - No pretrained available.
 
   ![](https://user-images.githubusercontent.com/5744524/151656779-6e6f2203-a7f7-42cf-8833-f4d472c171ae.png)
 ***
@@ -13,9 +12,16 @@
   ```py
   from keras_cv_attention_models import cmt
 
-  # No pretrained available.
+  # Only CMTTiny pretrained available.
   mm = cmt.CMTTiny()
-  mm.summary()
+
+  # Run prediction
+  import tensorflow as tf
+  from skimage.data import chelsea
+  imm = tf.keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
+  pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
+  print(tf.keras.applications.imagenet_utils.decode_predictions(pred)[0])
+  # [('n02124075', 'Egyptian_cat', 0.9962525), ('n02123159', 'tiger_cat', 0.0025533703), ...]
   ```
 ## Training
   - **CMTTiny Training** Using `A3` recipe with `batch_size=256, input_shape=(160, 160), epochs=105`. Note paper reported accuracy is trained `1000` epochs [Results on ImageNet #1](https://github.com/FlyEgle/CMT-pytorch/issues/1).

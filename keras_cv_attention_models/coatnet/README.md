@@ -13,7 +13,7 @@
   ```py
   from keras_cv_attention_models import coatnet
 
-  # Only CoAtNet0 pre-trained.
+  # Only CoAtNet0 pretrained available.
   mm = coatnet.CoAtNet0()
 
   # Run prediction
