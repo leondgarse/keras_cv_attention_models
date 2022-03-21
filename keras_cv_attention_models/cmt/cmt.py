@@ -13,7 +13,7 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-PRETRAINED_DICT = {}
+PRETRAINED_DICT = {"cmt_tiny": {"imagenet": {160: "72402495cb42314cedd1e2714f2de893"}}}
 
 
 def light_mhsa_with_multi_head_relative_position_embedding(
@@ -158,7 +158,7 @@ def CMT(
     return model
 
 
-def CMTTiny(input_shape=(160, 160, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def CMTTiny(input_shape=(160, 160, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 10, 2]
     out_channels = [46, 92, 184, 368]
     stem_width = 16

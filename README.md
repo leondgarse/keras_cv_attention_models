@@ -307,12 +307,15 @@
 ## CMT
   - [Keras CMT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cmt) is for [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf).
 
-  | Model    | Params | Image resolution | Top1 Acc |
-  | -------- | ------ | ---------------- | -------- |
-  | CMTTiny  | 9.5M   | 160              | 79.2     |
-  | CMTXS    | 15.2M  | 192              | 81.8     |
-  | CMTSmall | 25.1M  | 224              | 83.5     |
-  | CMTBig   | 45.7M  | 256              | 84.5     |
+  | Model                              | Params | Image resolution | Top1 Acc | Download |
+  | ---------------------------------- | ------ | ---------------- | -------- | -------- |
+  | CMTTiny, (Self trained 105 epochs) | 9.5M   | 160              | 77.4     |          |
+  | - 305 epochs                       | 9.5M   | 160              | 78.8     | [cmt_tiny_160_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_160_imagenet.h5) |
+  | - evaluate 224 (not fine-tuned)    | 9.5M   | 224              | 80.1     |          |
+  | CMTTiny, 1000 epochs               | 9.5M   | 160              | 79.2     |          |
+  | CMTXS                              | 15.2M  | 192              | 81.8     |          |
+  | CMTSmall                           | 25.1M  | 224              | 83.5     |          |
+  | CMTBig                             | 45.7M  | 256              | 84.5     |          |
 ## CoaT
   - [Keras CoaT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coat) is for [PDF 2104.06399 CoaT: Co-Scale Conv-Attentional Image Transformers](http://arxiv.org/abs/2104.06399).
 
