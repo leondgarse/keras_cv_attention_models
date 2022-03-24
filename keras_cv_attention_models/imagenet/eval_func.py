@@ -83,7 +83,7 @@ def evaluation(
         model_interf = TorchModelInterf(model)
         assert input_shape is not None
 
-    if rescale_mode.lower() == "auto":
+    if isinstance(rescale_mode, str) and rescale_mode.lower() == "auto":
         rescale_mode = getattr(model, "rescale_mode", "torch")
         print(">>>> rescale_mode:", rescale_mode)
 

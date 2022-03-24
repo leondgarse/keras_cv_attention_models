@@ -1,7 +1,6 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from tensorflow import keras
-from tensorflow.keras.preprocessing.image import img_to_array, array_to_img
 
 
 def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_distribute=True, compute_dtype="float32"):
@@ -111,7 +110,7 @@ class RandomProcessImage:
         if self.random_crop_min > 0 and self.random_crop_min < 1:
             hh, ww = random_crop_fraction(tf.shape(image), scale=(self.random_crop_min, 1.0))
             input_image = tf.image.random_crop(image, (hh, ww, 3))
-        else:
+        elif self.central_crop > 0:
             input_image = tf.image.central_crop(image, self.central_crop)
         input_image = tf.image.resize(input_image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
         input_image = self.process(input_image)
@@ -124,11 +123,12 @@ class RandomProcessImage:
 
 def evaluation_process_crop_resize(datapoint, target_shape=(224, 224), central_crop=1.0, resize_method="bilinear", antialias=False):
     image = datapoint["image"]
-    shape = tf.shape(image)
-    height, width = shape[0], shape[1]
-    crop_size = tf.cast((central_crop * tf.cast(tf.minimum(height, width), tf.float32)), tf.int32)
-    y, x = (height - crop_size) // 2, (width - crop_size) // 2
-    image = tf.image.crop_to_bounding_box(image, y, x, crop_size, crop_size)
+    if central_crop > 0:
+        shape = tf.shape(image)
+        height, width = shape[0], shape[1]
+        crop_size = tf.cast((central_crop * tf.cast(tf.minimum(height, width), tf.float32)), tf.int32)
+        y, x = (height - crop_size) // 2, (width - crop_size) // 2
+        image = tf.image.crop_to_bounding_box(image, y, x, crop_size, crop_size)
     image = tf.image.resize(image, target_shape, method=resize_method, antialias=antialias)
     label = datapoint["label"]
     return image, label
