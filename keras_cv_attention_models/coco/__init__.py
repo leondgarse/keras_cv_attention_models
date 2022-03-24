@@ -1,6 +1,6 @@
 from keras_cv_attention_models.coco import data, losses, eval_func, anchors_func
 from keras_cv_attention_models.coco.eval_func import DecodePredictions, run_coco_evaluation
-from keras_cv_attention_models.coco.anchors_func import get_anchors, get_anchor_free_anchors, get_yolor_anchors, decode_bboxes
+from keras_cv_attention_models.coco.anchors_func import get_anchors, get_anchor_free_anchors, get_yolor_anchors, get_pyramid_levels_by_anchors, decode_bboxes
 from keras_cv_attention_models.coco.data import (
     COCO_80_LABEL_DICT,
     COCO_90_LABEL_DICT,

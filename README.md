@@ -190,6 +190,7 @@
     # UniformerSmall32 backbone + YOLOX header with efficientdet like anchors
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone uniformer.UniformerSmall32 --det_header yolox.YOLOX
     ```
+  - **Note: COCO training still under testing, may change parameters and default behaviors. Take the risk if would like help developing.**
 ## Evaluation
   - `eval_script.py` is used for evaluating model accuracy, both `imagenet` / `coco` ones.
   ```sh
@@ -208,6 +209,7 @@
   # resize method for EfficientDetD0 is bilinear w/o antialias
   CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m efficientdet.EfficientDetD0 -d coco --batch_size 8 --resize_method bilinear --disable_antialias
   ```
+  **Note: current default presets for matching EfficientDet evaluating results, YOLOX / YOLOR needs different configures.**
 ## Visualizing
   - [Visualizing](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/visualizing) is for visualizing convnet filters or attention map scores.
   - **make_and_apply_gradcam_heatmap** is for Grad-CAM class activation visualization.

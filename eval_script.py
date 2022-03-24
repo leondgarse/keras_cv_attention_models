@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 from keras_cv_attention_models.imagenet import evaluation
 import tensorflow as tf
 
@@ -32,23 +33,21 @@ def parse_arguments(argv):
     """ Anchor arguments """
     anchor_group = parser.add_argument_group("COCO arguments")
     anchor_group.add_argument("--use_anchor_free_mode", action="store_true", help="[COCO] Use anchor free mode")
-    anchor_group.add_argument("--anchor_pyramid_levels_min", type=int, default=3, help="[COCO] Anchor pyramid levels min")
-    anchor_group.add_argument(
-        "--anchor_pyramid_levels_max", type=int, default=-1, help="[COCO] Anchor pyramid levels max. `-1` means yolox: 5, efficientdet: 7"
-    )
+    # anchor_group.add_argument(
+    #     "--anchor_pyramid_levels_min", type=int, default=3, help="[COCO] Anchor pyramid levels min, max is calculated from model output shape"
+    # )
     anchor_group.add_argument(
         "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with it. Force 1 if use_anchor_free_mode"
+    )
+    anchor_group.add_argument(
+        "--additional_anchor_kwargs", type=str, default=None, help="Json format anchor kwargs like '{\"nms_method\": \"hard\"}'. Note all quote marks"
     )
 
     args = parser.parse_known_args(argv)[0]
 
+    args.additional_anchor_kwargs = json.loads(args.additional_anchor_kwargs) if args.additional_anchor_kwargs else {}
     if args.use_anchor_free_mode:
         args.anchor_scale = 1
-    if args.anchor_pyramid_levels_max <= 0:
-        header_type = "yolox" if "yolox" in args.model_path.lower() else "efficientdet"
-        HEADER_DEFAULT = {"yolox": 5, "yolor": 5, "efficientdet": 7}
-        args.anchor_pyramid_levels_max = HEADER_DEFAULT.get(header_type, args.anchor_pyramid_levels_max)
-    args.anchor_pyramid_levels = [args.anchor_pyramid_levels_min, args.anchor_pyramid_levels_max]
     return args
 
 
@@ -91,8 +90,10 @@ if __name__ == "__main__":
         from keras_cv_attention_models.coco.eval_func import run_coco_evaluation
 
         data_name = "coco/2017" if args.data_name == "coco" else args.data_name
-        ANCHORS = {"pyramid_levels": args.anchor_pyramid_levels, "use_anchor_free_mode": args.use_anchor_free_mode}
+        ANCHORS = {"anchor_scale": args.anchor_scale, "use_anchor_free_mode": args.use_anchor_free_mode}
         print(">>>> COCO evaluation:", data_name, "- anchors:", ANCHORS)
-        run_coco_evaluation(model, data_name, input_shape, args.batch_size, args.resize_method, antialias, args.rescale_mode, **ANCHORS)
+        run_coco_evaluation(
+            model, data_name, input_shape, args.batch_size, args.resize_method, antialias, args.rescale_mode, **ANCHORS, **args.additional_anchor_kwargs
+        )
     else:
         evaluation(model, args.data_name, input_shape, args.batch_size, args.central_crop, args.resize_method, antialias, args.rescale_mode)
