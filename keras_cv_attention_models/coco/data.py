@@ -151,6 +151,25 @@ def random_flip_left_right_with_bboxes(image, bboxes, probability=0.5):
     )
 
 
+def random_hsv(image, hue_delta=0.015, saturation_delta=0.7, brightness_delta=0.4, show_sample=False):
+    # augment_hsv https://github.com/WongKinYiu/yolor/blob/main/utils/datasets.py#L941
+    if show_sample:
+        import matplotlib.pyplot as plt
+
+        fig = plt.figure()
+        aa = tf.concat([tf.image.adjust_hue(image, -hue_delta), tf.image.adjust_hue(image, hue_delta)], axis=1)
+        bb = tf.concat([tf.image.adjust_saturation(image, 1 - saturation_delta), tf.image.adjust_saturation(image, 1 + saturation_delta)], axis=1)
+        cc = tf.concat([tf.image.adjust_brightness(image, -brightness_delta), tf.image.adjust_brightness(image, brightness_delta)], axis=1)
+        plt.imshow(tf.concat([aa, bb, cc], axis=0))
+        plt.axis('off')
+        plt.tight_layout()
+
+    image = tf.image.random_brightness(image, brightness_delta)
+    image = tf.image.random_saturation(image, 1 - saturation_delta, 1 + saturation_delta)
+    image = tf.image.random_hue(image, hue_delta)
+    return image
+
+
 """ Mosaic mix """
 
 
@@ -217,20 +236,21 @@ class RandomProcessImageWithBboxes:
         self.max_labels_per_image = max_labels_per_image
         self.target_shape = target_shape if len(target_shape) == 2 else target_shape[:2]
         self.resize_method, self.resize_antialias, self.random_crop_mode, self.magnitude = resize_method, resize_antialias, random_crop_mode, magnitude
-        if magnitude > 0:
-            from keras_cv_attention_models.imagenet import augment
-
-            print(">>>> RandAugment: magnitude = %d" % magnitude)
-            self.randaug_wo_pos = augment.RandAugment(
-                num_layers=num_layers,
-                magnitude=magnitude,
-                use_cutout=False,
-                use_color_increasing=use_color_increasing,
-                use_positional_related_ops=False,  # Set False to exlude [shear, rotate, translate]
-                **randaug_kwargs,
-            )
-            # RandAugment positional related ops. Including [shear, rotate, translate], Also returns affine transform matrix
-            # self.pos_randaug = augment.PositionalRandAugment(num_layers=num_layers, magnitude=magnitude, **randaug_kwargs)
+        # if magnitude > 0:
+        #     from keras_cv_attention_models.imagenet import augment
+        #
+        #     print(">>>> RandAugment: magnitude = %d" % magnitude)
+        #     self.randaug_wo_pos = augment.RandAugment(
+        #         num_layers=num_layers,
+        #         magnitude=magnitude,
+        #         use_cutout=False,
+        #         use_color_increasing=use_color_increasing,
+        #         use_positional_related_ops=False,  # Set False to exlude [shear, rotate, translate]
+        #         **randaug_kwargs,
+        #     )
+        #     self.randaug_wo_pos = random_hsv
+        #     RandAugment positional related ops. Including [shear, rotate, translate], Also returns affine transform matrix
+        #     self.pos_randaug = augment.PositionalRandAugment(num_layers=num_layers, magnitude=magnitude, **randaug_kwargs)
 
     def __call__(self, datapoint):
         image = datapoint["image"]
@@ -258,13 +278,13 @@ class RandomProcessImageWithBboxes:
         else:
             image, scale = aspect_aware_resize_and_crop_image(image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
             crop_hh, crop_ww = 0, 0
-            # bbox = resize_and_crop_bboxes(bbox, (height, width), self.target_shape, scale=scale)
         bbox = resize_and_crop_bboxes(bbox, (height, width), self.target_shape, scale=scale, offset_y=crop_hh, offset_x=crop_ww)
         bbox, label = refine_bboxes_labels_single(bbox, label)
 
         if self.magnitude > 0:
             image.set_shape([*self.target_shape[:2], 3])
-            image = self.randaug_wo_pos(image)
+            # image = self.randaug_wo_pos(image)
+            image = random_hsv(image)
             # image, affine_matrix = self.pos_randaug(image)
             # bbox = bboxes_apply_affine(bbox, affine_matrix, input_shape=image.shape)
             # bbox, label = refine_bboxes_labels_single(bbox, label)
@@ -450,7 +470,11 @@ def show_image_with_bboxes(image, bboxes, labels=None, confidences=None, is_bbox
 
         if labels is not None:
             label = int(labels[id])
-            label = COCO_90_LABEL_DICT[label] if num_classes == 90 else COCO_80_LABEL_DICT[label]
+            if num_classes == 90:
+                label = COCO_90_LABEL_DICT[label]
+            elif num_classes == 80:
+                label = COCO_80_LABEL_DICT[label]
+
             if confidences is not None:
                 label += ": {:.4f}".format(float(confidences[id]))
             color = ax.lines[-1].get_color()
