@@ -371,9 +371,9 @@ def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto
         cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], "avg") for ii in range(1, len(mask))]
         cum_mask = [matmul_prod(cum_mask[: ii + 1]).mean(0) for ii in range(len(cum_mask))]
         mask = [ii.mean(0) for ii in mask]
-    elif check_type_is("coatnet"):
+    elif check_type_is("coatnet") or check_type_is("cmt") or check_type_is("uniformer"):
         # bot attn_score [batch, num_heads, hh * ww, hh * ww]
-        print(">>>> Attention type: coatnet")
+        print(">>>> Attention type: coatnet / cmt / uniformer")
         mask = [np.array(ii)[0].mean((0)) for ii in attn_scores if len(ii.shape) == 4][::-1]
         cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], "max") for ii in range(1, len(mask))]
         cum_mask = [matmul_prod(cum_mask[: ii + 1]).mean(0) for ii in range(len(cum_mask))]
