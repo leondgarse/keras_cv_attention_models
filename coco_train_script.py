@@ -55,7 +55,7 @@ def parse_arguments(argv):
     """ Anchor arguments """
     anchor_group = parser.add_argument_group("Anchor arguments")
     anchor_group.add_argument("-F", "--use_anchor_free_mode", action="store_true", help="Use anchor free mode")
-    anchor_group.add_argument("-Y", "--use_yolor_anchors_mode", action="store_true", help="Use yolor anchors mode")
+    anchor_group.add_argument("-R", "--use_yolor_anchors_mode", action="store_true", help="Use yolor anchors mode")
     anchor_group.add_argument(
         "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with it. Force 1 if use_anchor_free_mode"
     )
@@ -130,7 +130,7 @@ def parse_arguments(argv):
 
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
     # args.num_anchors = len(args.anchor_aspect_ratios) * args.anchor_num_scales
-    args.additional_det_header_kwargs.update(
+    args.additional_det_header_kwargs.update( # num_anchors and use_object_scores affecting model architecture, others for prediction only.
         {
             "num_anchors": args.num_anchors,
             "use_object_scores": args.use_object_scores,

@@ -24,14 +24,12 @@ class DecodePredictions:
     >>> # bboxes = array([[0.433231  , 0.54432285, 0.8778939 , 0.8187578 ]], dtype=float32), labels = array([17]), scores = array([0.85373735], dtype=float32)
     """
 
-    def __init__(self, input_shape=512, pyramid_levels=[3, 7], anchor_scale=4, use_anchor_free_mode=False, use_object_scores="auto"):
+    def __init__(
+        self, input_shape=512, pyramid_levels=[3, 7], anchor_scale=4, use_anchor_free_mode=False, use_yolor_anchors_mode=False, use_object_scores="auto"
+    ):
         self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
-        self.use_object_scores = use_anchor_free_mode if use_object_scores == "auto" else use_object_scores
-        if use_anchor_free_mode:
-            self.aspect_ratios, self.num_scales, self.anchor_scale, self.grid_zero_start = [1], 1, 1, True
-        else:
-            self.aspect_ratios, self.num_scales, self.anchor_scale, self.grid_zero_start = [1, 2, 0.5], 3, anchor_scale, False
-        # self.use_object_scores, self.use_anchor_free_mode = use_object_scores, use_anchor_free_mode
+        self.use_object_scores = (use_yolor_anchors_mode or use_anchor_free_mode) if use_object_scores == "auto" else use_object_scores
+        self.anchor_scale, self.use_anchor_free_mode, self.use_yolor_anchors_mode = anchor_scale, use_anchor_free_mode, use_yolor_anchors_mode
         if input_shape is not None and (isinstance(input_shape, (list, tuple)) and input_shape[0] is not None):
             self.__init_anchor__(input_shape)
         else:
@@ -39,7 +37,13 @@ class DecodePredictions:
 
     def __init_anchor__(self, input_shape):
         input_shape = input_shape[:2] if isinstance(input_shape, (list, tuple)) else (input_shape, input_shape)
-        self.anchors = coco.get_anchors(input_shape, self.pyramid_levels, self.aspect_ratios, self.num_scales, self.anchor_scale, self.grid_zero_start)
+        if self.use_anchor_free_mode:
+            self.anchors = coco.get_anchor_free_anchors(input_shape, self.pyramid_levels)
+        elif self.use_yolor_anchors_mode:
+            self.anchors = coco.get_yolor_anchors(input_shape, self.pyramid_levels)
+        else:
+            aspect_ratios, num_scales, grid_zero_start = [1, 2, 0.5], 3, False
+            self.anchors = coco.get_anchors(input_shape, self.pyramid_levels, aspect_ratios, num_scales, self.anchor_scale, grid_zero_start)
 
     def __topk_class_boxes_single__(self, pred, topk=5000):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L82

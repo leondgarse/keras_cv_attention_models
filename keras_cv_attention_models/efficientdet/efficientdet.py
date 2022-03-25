@@ -142,6 +142,7 @@ def EfficientDet(
     num_channels=64,
     use_weighted_sum=True,
     use_anchor_free_mode=False,
+    use_yolor_anchors_mode=False,
     use_object_scores="auto",  # "auto" means same with use_anchor_free_mode
     num_anchors="auto",  # "auto" means 1 if use_anchor_free_mode else 9
     num_classes=90,
@@ -182,8 +183,10 @@ def EfficientDet(
         fpn_features = bi_fpn(fpn_features, num_channels, use_weighted_sum, use_sep_conv, activation=activation, name="biFPN_{}_".format(id + 1))
 
     # Outputs
-    use_object_scores = use_anchor_free_mode if use_object_scores == "auto" else use_object_scores
-    num_anchors = (1 if use_anchor_free_mode else 9) if num_anchors == "auto" else num_anchors
+    use_object_scores = (use_yolor_anchors_mode or use_anchor_free_mode) if use_object_scores == "auto" else use_object_scores
+    if num_anchors == "auto":
+        num_anchors = 1 if use_anchor_free_mode else (3 if use_yolor_anchors_mode else 9)
+
     bboxes_features = det_header_pre(fpn_features, num_channels, head_depth, use_sep_conv, activation=activation, name="regressor_")
     bboxes_out = det_header_post(bboxes_features, 4, num_anchors, bias_init="zeros", use_sep_conv=use_sep_conv, head_activation=None, name="regressor_")
     if use_object_scores:
@@ -206,8 +209,8 @@ def EfficientDet(
     # For prediction
     # AA = {"aspect_ratios": anchor_aspect_ratios, "num_scales": anchor_num_scales, "anchor_scale": anchor_scale, "grid_zero_start": anchor_grid_zero_start}
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) + additional_features - 1]  # -> [3, 7]
-    anchor_scale = (1 if use_anchor_free_mode else 4) if anchor_scale == "auto" else anchor_scale
-    post_process = DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchor_scale, use_anchor_free_mode, use_object_scores)
+    anchor_scale = (1 if use_anchor_free_mode or use_yolor_anchors_mode else 4) if anchor_scale == "auto" else anchor_scale
+    post_process = DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchor_scale, use_anchor_free_mode, use_yolor_anchors_mode, use_object_scores)
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     # model.backbone = backbone
     return model

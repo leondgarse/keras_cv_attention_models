@@ -2,6 +2,8 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 """ Init anchors """
+
+
 def get_feature_sizes(input_shape, pyramid_levels=[3, 7]):
     # https://github.com/google/automl/tree/master/efficientdet/utils.py#L509
     feature_sizes = [input_shape[:2]]
@@ -63,21 +65,32 @@ def get_anchor_free_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 5], gr
 
 
 def get_yolor_anchors(input_shape=(512, 512), pyramid_levels=[3, 5], offset=0.5, is_for_training=False):
-    assert max(pyramid_levels) - min(pyramid_levels) < 4
+    assert max(pyramid_levels) - min(pyramid_levels) < 5
     # Original yolor using width first, height first here
-    if max(pyramid_levels) - min(pyramid_levels) < 3: # [3, 5], YOLOR_CSP / YOLOR_CSPX
+    if max(pyramid_levels) - min(pyramid_levels) < 3:  # [3, 5], YOLOR_CSP / YOLOR_CSPX
         anchor_ratios = tf.convert_to_tensor([[[16.0, 12], [36, 19], [28, 40]], [[75, 36], [55, 76], [146, 72]], [[110, 142], [243, 192], [401, 459]]])
-    else: # [3, 6], YOLOR_*6
+    elif max(pyramid_levels) - min(pyramid_levels) < 4:  # [3, 6], YOLOR_*6
         anchor_ratios = tf.convert_to_tensor(
             [[[27.0, 19], [40, 44], [94, 38]], [[68, 96], [152, 86], [137, 180]], [[301, 140], [264, 303], [542, 238]], [[615, 436], [380, 739], [792, 925]]]
+        )
+    else:  # [3, 7] from YOLOV4_P7, using first 3 for each level
+        anchor_ratios = tf.convert_to_tensor(
+            [
+                [[17.0, 13], [25, 22], [66, 27]],
+                [[88, 57], [69, 112], [177, 69]],
+                [[138, 136], [114, 287], [275, 134]],
+                [[248, 268], [504, 232], [416, 445]],
+                [[393, 812], [808, 477], [908, 1070]],
+            ]
         )
 
     pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
     feature_sizes = get_feature_sizes(input_shape, pyramid_levels)
+    # print(f"{pyramid_levels = }, {feature_sizes = }, {anchor_ratios = }")
     if is_for_training:
         # YOLOLayer https://github.com/WongKinYiu/yolor/blob/main/models/models.py#L351
-        anchor_ratios = anchor_ratios[:len(pyramid_levels)] / [[[2 ** ii]] for ii in pyramid_levels]
-        feature_sizes = tf.convert_to_tensor(feature_sizes[min(pyramid_levels):max(pyramid_levels) + 1], tf.float32)
+        anchor_ratios = anchor_ratios[: len(pyramid_levels)] / [[[2 ** ii]] for ii in pyramid_levels]
+        feature_sizes = tf.convert_to_tensor(feature_sizes[min(pyramid_levels) : max(pyramid_levels) + 1], tf.float32)
         return anchor_ratios, feature_sizes
 
     all_anchors = []
@@ -96,7 +109,7 @@ def get_yolor_anchors(input_shape=(512, 512), pyramid_levels=[3, 5], offset=0.5,
         anchors = tf.concat([grid_nd, cur_base_anchors_nd, stride_nd], axis=-1)
         all_anchors.append(tf.reshape(anchors, [-1, 6]))
     all_anchors = tf.concat(all_anchors, axis=0) / ([input_shape[0], input_shape[1]] * 3)
-    return all_anchors # [center_h, center_w, anchor_w, anchor_h, stride_h, stride_w]
+    return all_anchors  # [center_h, center_w, anchor_w, anchor_h, stride_h, stride_w]
 
 
 def get_pyramid_levels_by_anchors(input_shape, total_anchors, num_anchors="auto", pyramid_levels_min=3):
@@ -113,7 +126,10 @@ def get_pyramid_levels_by_anchors(input_shape, total_anchors, num_anchors="auto"
     pyramid_levels_max = pyramid_levels_min + tf.argmax(num_anchors_at_each_level_cumsum > total_anchors) - 1
     return [pyramid_levels_min, int(pyramid_levels_max)]
 
+
 """ Assign achors """
+
+
 def iou_nd(bboxes, anchors):
     # bboxes: [[top, left, bottom, right]], anchors: [[top, left, bottom, right]]
     anchors_nd, bboxes_nd = tf.expand_dims(anchors, 0), tf.expand_dims(bboxes, 1)

@@ -35,7 +35,18 @@
     ```
 ## Training
   - `AnchorFreeLoss` usage took me weeks solving why the `bbox_loss` always been `1`. that using `tf.stop_gradient` while assigning is the key...
-  - Default parameters for `coco_train_script.py` is `EfficientDetD0` with `input_shape=(256, 256, 3), batch_size=64, mosaic_mix_prob=0.5, freeze_backbone_epochs=32, total_epochs=105`. Technically, it's any `pyramid structure backbone` + `EfficientDet / YOLOX header` + `anchor_free / anchors` combination supported.
+  - Default parameters for `coco_train_script.py` is `EfficientDetD0` with `input_shape=(256, 256, 3), batch_size=64, mosaic_mix_prob=0.5, freeze_backbone_epochs=32, total_epochs=105`. Technically, it's any `pyramid structure backbone` + `EfficientDet / YOLOX header / YOLOR header` + `anchor_free / yolor_anchors / efficientdet_anchors` combination supported.
+  - Currently 3 types anchors supported,
+    - **use_anchor_free_mode** controls if using typical `YOLOX anchor_free mode` strategy.
+    - **use_yolor_anchors_mode** controls if using yolor anchors.
+    - Default is `use_anchor_free_mode=False, use_yolor_anchors_mode=False`, means using `efficientdet` preset anchors.
+
+    | anchors_mode  | use_object_scores | num_anchors | anchor_scale | aspect_ratios | num_scales | grid_zero_start |
+    | ------------- | ----------------- | ----------- | ------------ | ------------- | ---------- | --------------- |
+    | efficientdet  | False             | 9           | 4            | [1, 2, 0.5]   | 3          | False           |
+    | anchor_free   | True              | 1           | 1            | [1]           | 1          | True            |
+    | yolor_anchors | True              | 3           | None         | presets       | None       | offset=0.5      |
+
     ```sh
     # Default EfficientDetD0
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py
@@ -46,16 +57,28 @@
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone efficientnet.EfficientNetV2B0 --det_header efficientdet.EfficientDetD0
     # ResNest50 backbone + EfficientDetD0 header using yolox like anchor_free_mode
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone resnest.ResNest50 --use_anchor_free_mode
+    # ConvNeXtTiny backbone + EfficientDetD0 header using yolor anchors
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone convnext.ConvNeXtTiny --use_yolor_anchors_mode
 
     # Typical YOLOXS with anchor_free_mode
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolox.YOLOXS --use_anchor_free_mode
-    # YOLOXS with efficientdet like anchors
+    # YOLOXS with efficientdet anchors
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolox.YOLOXS
     # CoAtNet0 backbone + YOLOXS header with anchor_free_mode
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone coatnet.CoAtNet0 --det_header yolox.YOLOXS --use_anchor_free_mode
-    # UniformerSmall32 backbone + YOLOX header with efficientdet like anchors
+    # UniformerSmall32 backbone + YOLOX header with efficientdet anchors
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone uniformer.UniformerSmall32 --det_header yolox.YOLOX
+    # ConvNeXtTiny backbone + YOLOX header with yolor anchors
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone convnext.ConvNeXtTiny --det_header yolox.YOLOX --use_yolor_anchors_mode
+
+    # Typical YOLOR_P6 with yolor anchors
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolor.YOLOR_P6 --use_yolor_anchors_mode
+    # YOLOR_P6 with anchor_free_mode
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolor.YOLOR_P6 --use_anchor_free_mode
+    # ConvNeXtTiny backbone + YOLOR header with efficientdet anchors
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone convnext.ConvNeXtTiny --det_header yolor.YOLOR
     ```
+    **Note: COCO training still under testing, may change parameters and default behaviors. Take the risk if would like help developing.**
 ## Evaluation
   - Specifying `--data_name coco` using `eval_script.py` for evaluating COCO AP. It has a dependency `pip install pycocotools` which is not in package requirements.
     ```sh
@@ -78,6 +101,7 @@
     ```sh
     CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m checkpoints/xxx.h5 -d coco --batch_size 8
     ```
+    **Note: current default presets for matching EfficientDet evaluating results, YOLOX / YOLOR needs different configures.**
   - **Tricks for evaluation**
     ```py
     from keras_cv_attention_models.coco import eval_func

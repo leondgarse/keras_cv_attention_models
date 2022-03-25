@@ -210,6 +210,7 @@ def YOLOX(
     width_mul=-1,  # -1 means: `min([ii.shape[-1] for ii in features]) / 256` for custom backbones.
     use_depthwise_conv=False,
     use_anchor_free_mode=True,
+    use_yolor_anchors_mode=False,
     num_anchors="auto",  # "auto" means 1 if use_anchor_free_mode else 9
     use_object_scores="auto",  # "auto" means same with use_anchor_free_mode
     input_shape=(640, 640, 3),
@@ -243,9 +244,11 @@ def YOLOX(
     else:
         backbone.trainable = True
 
+    use_object_scores = (use_yolor_anchors_mode or use_anchor_free_mode) if use_object_scores == "auto" else use_object_scores
+    if num_anchors == "auto":
+        num_anchors = 1 if use_anchor_free_mode else (3 if use_yolor_anchors_mode else 9)
+
     inputs = backbone.inputs[0]
-    use_object_scores = use_anchor_free_mode if use_object_scores == "auto" else use_object_scores
-    num_anchors = (1 if use_anchor_free_mode else 9) if num_anchors == "auto" else num_anchors
     fpn_features = path_aggregation_fpn(features, depth_mul=depth_mul, use_depthwise_conv=use_depthwise_conv, activation=activation, name="pafpn_")
     outputs = yolox_head(fpn_features, width_mul, num_classes, num_anchors, use_depthwise_conv, use_object_scores, activation=activation, name="head_")
     outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
@@ -254,8 +257,8 @@ def YOLOX(
 
     # AA = {"aspect_ratios": anchor_aspect_ratios, "num_scales": anchor_num_scales, "anchor_scale": anchor_scale, "grid_zero_start": anchor_grid_zero_start}
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]
-    anchor_scale = (1 if use_anchor_free_mode else 4) if anchor_scale == "auto" else anchor_scale
-    post_process = DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchor_scale, use_anchor_free_mode, use_object_scores)
+    anchor_scale = (1 if use_anchor_free_mode or use_yolor_anchors_mode else 4) if anchor_scale == "auto" else anchor_scale
+    post_process = DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchor_scale, use_anchor_free_mode, use_yolor_anchors_mode, use_object_scores)
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     return model
 

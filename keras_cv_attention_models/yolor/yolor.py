@@ -12,7 +12,6 @@ from keras_cv_attention_models.attention_layers import (
 from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.coco.eval_func import DecodePredictions
-from keras_cv_attention_models.coco import anchors_func
 
 PRETRAINED_DICT = {
     "yolor_csp": {"coco": "ed0aa82a07c4e65e9cd3d2e6ad2d0548"},
@@ -275,8 +274,9 @@ def YOLOR(
     fpn_depth=2,
     features_pick=[-3, -2, -1],
     use_anchor_free_mode=False,
-    num_anchors="auto",  # "auto" means 1 if use_anchor_free_mode else 3
-    use_object_scores=True,  # "auto" means same with use_anchor_free_mode
+    use_yolor_anchors_mode=True,
+    num_anchors="auto",  # "auto" means: use_anchor_free_mode -> 1, use_yolor_anchors_mode -> 3, else 9
+    use_object_scores="auto",  # "auto" means True if use_anchor_free_mode or use_yolor_anchors_mode, else False
     input_shape=(640, 640, 3),
     num_classes=80,
     activation="swish",
@@ -285,7 +285,7 @@ def YOLOR(
     pretrained=None,
     model_name="yolor",
     pyramid_levels_min=3,  # Init anchors for model prediction.
-    anchor_scale="auto",  # Init anchors for model prediction. "auto" means 1 if use_anchor_free_mode else 4
+    anchor_scale="auto",  # Init anchors for model prediction. "auto" means 1 if (use_anchor_free_mode or use_yolor_anchors_mode), else 4
     rescale_mode="raw01",  # For decode predictions, raw01 means input value in range [0, 1].
     kwargs=None,  # Not using, recieving parameter
 ):
@@ -310,9 +310,11 @@ def YOLOR(
     else:
         backbone.trainable = True
 
+    use_object_scores = (use_yolor_anchors_mode or use_anchor_free_mode) if use_object_scores == "auto" else use_object_scores
+    if num_anchors == "auto":
+        num_anchors = 1 if use_anchor_free_mode else (3 if use_yolor_anchors_mode else 9)
+
     inputs = backbone.inputs[0]
-    use_object_scores = use_anchor_free_mode if use_object_scores == "auto" else use_object_scores
-    num_anchors = (1 if use_anchor_free_mode else 3) if num_anchors == "auto" else num_anchors
     fpn_features = path_aggregation_fpn(features, fpn_depth, use_csp_downsample, use_shortcut_bn, activation=activation, name="pafpn_")
     outputs = yolor_head(fpn_features, num_classes, num_anchors, use_object_scores, activation, classifier_activation, name="head_")
     outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
@@ -320,26 +322,11 @@ def YOLOR(
     reload_model_weights(model, PRETRAINED_DICT, "yolor", pretrained)
 
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]
-    post_process = YolorDecodePredictions(backbone.input_shape[1:], pyramid_levels, use_object_scores, use_anchor_free_mode)
+    anchor_scale = (1 if use_anchor_free_mode or use_yolor_anchors_mode else 4) if anchor_scale == "auto" else anchor_scale
+    post_process = DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchor_scale, use_anchor_free_mode, use_yolor_anchors_mode, use_object_scores)
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     return model
 
-
-class YolorDecodePredictions(DecodePredictions):
-    def __init__(self, input_shape=640, pyramid_levels=[3, 5], use_object_scores=True, use_anchor_free_mode=False):
-        self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
-        self.use_object_scores, self.use_anchor_free_mode = use_object_scores, use_anchor_free_mode
-        if input_shape is not None and (isinstance(input_shape, (list, tuple)) and input_shape[0] is not None):
-            self.__init_anchor__(input_shape)
-        else:
-            self.anchors = None
-
-    def __init_anchor__(self, input_shape):
-        input_shape = input_shape[:2] if isinstance(input_shape, (list, tuple)) else (input_shape, input_shape)
-        if self.use_anchor_free_mode:
-            self.anchors = anchors_func.get_anchor_free_anchors(input_shape, self.pyramid_levels)
-        else:
-            self.anchors = anchors_func.get_yolor_anchors(input_shape, self.pyramid_levels)
 
 
 def YOLOR_CSP(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):

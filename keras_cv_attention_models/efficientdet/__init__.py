@@ -26,10 +26,13 @@ Args:
 """
 
 __tail_doc__ = """  use_anchor_free_mode: boolean value if use anchor free mode. Default False.
-      - Default settings if False: use_object_scores=False, num_anchors=9, anchor_scale=4,
-          aspect_ratios=[1, 2, 0.5], num_scales=3, grid_zero_start=False
-      - Default settings if True: use_object_scores=True, num_anchors=1, anchor_scale=1,
-          aspect_ratios=[1], num_scales=1, grid_zero_start=True
+  use_yolor_anchors_mode: boolean value if use yolor anchors mode. Default False.
+      Currently 3 types anchors supported:
+      - efficientdet anchors default settings: use_object_scores=False, num_anchors=9, anchor_scale=4,
+          aspect_ratios=[1, 2, 0.5], num_scales=3, grid_zero_start=False.
+      - anchor_free_mode default settings: use_object_scores=True, num_anchors=1, anchor_scale=1,
+          aspect_ratios=[1], num_scales=1, grid_zero_start=True.
+      - yolor_anchors_mode default settings: use_object_scores=True, num_anchors=3.
   num_anchors: number of anchors for a single grid point, should be same with dataset used value.
       Default "auto" means 1 if use_anchor_free_mode else 9
   use_object_scores: bollean value if model header output includes `object_scores`.
