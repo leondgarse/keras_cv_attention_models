@@ -328,7 +328,6 @@ def YOLOR(
     return model
 
 
-
 def YOLOR_CSP(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_depthes = [2, 8, 8, 4]
     csp_channels = [128, 256, 512, 1024]

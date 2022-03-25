@@ -57,7 +57,7 @@ def parse_arguments(argv):
     anchor_group.add_argument("-F", "--use_anchor_free_mode", action="store_true", help="Use anchor free mode")
     anchor_group.add_argument("-R", "--use_yolor_anchors_mode", action="store_true", help="Use yolor anchors mode")
     anchor_group.add_argument(
-        "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with it. Force 1 if use_anchor_free_mode"
+        "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with it. For efficientdet anchors only"
     )
     # anchor_group.add_argument(
     #     "--anchor_num_scales",
@@ -78,7 +78,7 @@ def parse_arguments(argv):
     """ Loss arguments """
     loss_group = parser.add_argument_group("Loss arguments")
     loss_group.add_argument("--label_smoothing", type=float, default=0, help="Loss label smoothing value")
-    loss_group.add_argument("--use_l1_loss", action="store_true", help="Anchor free mode loss using l1_loss")
+    loss_group.add_argument("--use_l1_loss", action="store_true", help="Use additional l1_loss. For use_anchor_free_mode only")
 
     """ Learning rate and weight decay arguments """
     lr_group = parser.add_argument_group("Learning rate and weight decay arguments")
@@ -130,7 +130,7 @@ def parse_arguments(argv):
 
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
     # args.num_anchors = len(args.anchor_aspect_ratios) * args.anchor_num_scales
-    args.additional_det_header_kwargs.update( # num_anchors and use_object_scores affecting model architecture, others for prediction only.
+    args.additional_det_header_kwargs.update(  # num_anchors and use_object_scores affecting model architecture, others for prediction only.
         {
             "num_anchors": args.num_anchors,
             "use_object_scores": args.use_object_scores,

@@ -2,6 +2,7 @@ import math
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
+
 def __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_bottom_right, pred_hw, use_ciou=False, epsilon=1e-8):
     # Use all top_left, bottom_right, hw as parameters, as hw usaully already calculated before calling this function, like center_hw bboxes.
     inter_top_left = tf.maximum(true_top_left, pred_top_left)
@@ -23,12 +24,13 @@ def __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_
         rho_height = (true_top_left[:, 0] + true_bottom_right[:, 0] - pred_top_left[:, 0] - pred_bottom_right[:, 0]) ** 2
         rho_width = (true_top_left[:, 1] + true_bottom_right[:, 1] - pred_top_left[:, 1] - pred_bottom_right[:, 1]) ** 2
         rho = (rho_height + rho_width) / 4
-        vv_scale = (4 / math.pi ** 2)
+        vv_scale = 4 / math.pi ** 2
         vv = vv_scale * (tf.atan(true_hw[:, 1] / (true_hw[:, 0] + epsilon)) - tf.atan(pred_hw[:, 1] / (pred_hw[:, 0] + epsilon))) ** 2
         alpha = tf.stop_gradient(vv / ((1 + epsilon) - iou + vv))
         return iou - (rho / outer_area + vv * alpha)
     else:
         return iou
+
 
 @tf.keras.utils.register_keras_serializable(package="kecamLoss")
 class FocalLossWithBbox(tf.keras.losses.Loss):
@@ -303,6 +305,7 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
     >>> # - cls_loss: 0.00272949948 - bbox_loss: 1.01433134 - obj_loss: 0.0444642454
     >>> # loss(bboxes_labels, preds) = <tf.Tensor: shape=(), dtype=float32, numpy=4.414131>
     """
+
     def __init__(
         self, input_shape, pyramid_levels=[3, 5], gamma=0.0, class_loss_weight=0.05, bbox_loss_weight=0.5, label_smoothing=0.0, from_logits=False, **kwargs
     ):
@@ -311,8 +314,8 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
         num_pyramid_levels = max(pyramid_levels) - min(pyramid_levels) + 1
         self.loss_scale = 3.0 / tf.cast(num_pyramid_levels, "float32")
         anchors = anchors_func.get_yolor_anchors(input_shape[:2], pyramid_levels, is_for_training=False)
-        self.anchors = tf.expand_dims(anchors[:, 2:4], 0) # [1, total_anchors, 2], first dimension is batch, last dimension is anchor_ratio
-        feature_sizes = anchors_func.get_feature_sizes(input_shape, pyramid_levels)[min(pyramid_levels):max(pyramid_levels) + 1]
+        self.anchors = tf.expand_dims(anchors[:, 2:4], 0)  # [1, total_anchors, 2], first dimension is batch, last dimension is anchor_ratio
+        feature_sizes = anchors_func.get_feature_sizes(input_shape, pyramid_levels)[min(pyramid_levels) : max(pyramid_levels) + 1]
         OBJECT_LEVEL_WEIGHTS = {3: [4.0, 1.0, 0.4], 4: [4.0, 1.0, 0.4, 0.1], 5: [4.0, 1.0, 0.5, 0.4, 0.1]}
         object_level_weights = []
         for feature_size, object_level_weight in zip(feature_sizes, OBJECT_LEVEL_WEIGHTS.get(num_pyramid_levels, OBJECT_LEVEL_WEIGHTS[5])):
@@ -386,7 +389,6 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
             }
         )
         return config
-
 
 
 @tf.keras.utils.register_keras_serializable(package="kecamLoss")

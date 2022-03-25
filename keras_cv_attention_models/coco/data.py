@@ -161,7 +161,7 @@ def random_hsv(image, hue_delta=0.015, saturation_delta=0.7, brightness_delta=0.
         bb = tf.concat([tf.image.adjust_saturation(image, 1 - saturation_delta), tf.image.adjust_saturation(image, 1 + saturation_delta)], axis=1)
         cc = tf.concat([tf.image.adjust_brightness(image, -brightness_delta), tf.image.adjust_brightness(image, brightness_delta)], axis=1)
         plt.imshow(tf.concat([aa, bb, cc], axis=0))
-        plt.axis('off')
+        plt.axis("off")
         plt.tight_layout()
 
     image = tf.image.random_brightness(image, brightness_delta)
@@ -381,7 +381,7 @@ def init_dataset(
     mosaic_mix_prob=0.0,
     resize_method="bilinear",  # ["bilinear", "bicubic"]
     resize_antialias=False,
-    use_hsv_augment=True, # Use hsv augment instead of randaug color related. Generally using in other training frameworks.
+    use_hsv_augment=True,  # Use hsv augment instead of randaug color related. Generally using in other training frameworks.
     magnitude=0,
     num_layers=2,
     **augment_kwargs,  # Too many...
@@ -438,7 +438,7 @@ def init_dataset(
         bbox_process = lambda bb: __yolor_bboxes_labels_batch_func__(bb[0], bb[1], anchor_ratios, feature_sizes, empty_label, num_classes)
     else:
         # grid_zero_start = True if anchor_grid_zero_start == "auto" else anchor_grid_zero_start
-        aspect_ratios, num_scales, anchor_scale, grid_zero_start = [1, 2, 0.5], 3, 4, False # Use this till meet some others new
+        aspect_ratios, num_scales, anchor_scale, grid_zero_start = [1, 2, 0.5], 3, 4, False  # Use this till meet some others new
         anchors = anchors_func.get_anchors(input_shape[:2], anchor_pyramid_levels, aspect_ratios, num_scales, anchor_scale, grid_zero_start)
         num_anchors = anchors.shape[0]
         empty_label = tf.zeros([num_anchors, 4 + num_classes + 1])  # All 0

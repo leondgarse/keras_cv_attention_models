@@ -40,7 +40,7 @@ def parse_arguments(argv):
         "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with it. Force 1 if use_anchor_free_mode"
     )
     anchor_group.add_argument(
-        "--additional_anchor_kwargs", type=str, default=None, help="Json format anchor kwargs like '{\"nms_method\": \"hard\"}'. Note all quote marks"
+        "--additional_anchor_kwargs", type=str, default=None, help='Json format anchor kwargs like \'{"nms_method": "hard"}\'. Note all quote marks'
     )
 
     args = parser.parse_known_args(argv)[0]
