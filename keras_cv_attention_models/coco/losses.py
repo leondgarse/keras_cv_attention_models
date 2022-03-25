@@ -1,6 +1,34 @@
+import math
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
+def __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_bottom_right, pred_hw, use_ciou=False, epsilon=1e-8):
+    # Use all top_left, bottom_right, hw as parameters, as hw usaully already calculated before calling this function, like center_hw bboxes.
+    inter_top_left = tf.maximum(true_top_left, pred_top_left)
+    inter_bottom_right = tf.minimum(true_bottom_right, pred_bottom_right)
+    inter_hw = tf.maximum(inter_bottom_right - inter_top_left, 0)
+    inter_area = inter_hw[:, 0] * inter_hw[:, 1]
+
+    bboxes_trues_area = true_hw[:, 0] * true_hw[:, 1]
+    bboxes_preds_area = pred_hw[:, 0] * pred_hw[:, 1]
+    union_area = bboxes_trues_area + bboxes_preds_area - inter_area
+    iou = inter_area / (union_area + epsilon)
+    if use_ciou:
+        # https://github.com/WongKinYiu/yolor/blob/main/utils/general.py#L187
+        outer_top_left = tf.minimum(true_top_left, pred_top_left)
+        outer_bottom_right = tf.maximum(true_bottom_right, pred_bottom_right)
+        outer_hw = outer_bottom_right - outer_top_left
+        outer_area = outer_hw[:, 0] ** 2 + outer_hw[:, 1] ** 2 + epsilon
+
+        rho_height = (true_top_left[:, 0] + true_bottom_right[:, 0] - pred_top_left[:, 0] - pred_bottom_right[:, 0]) ** 2
+        rho_width = (true_top_left[:, 1] + true_bottom_right[:, 1] - pred_top_left[:, 1] - pred_bottom_right[:, 1]) ** 2
+        rho = (rho_height + rho_width) / 4
+        vv_scale = (4 / math.pi ** 2)
+        vv = vv_scale * (tf.atan(true_hw[:, 1] / (true_hw[:, 0] + epsilon)) - tf.atan(pred_hw[:, 1] / (pred_hw[:, 0] + epsilon))) ** 2
+        alpha = tf.stop_gradient(vv / ((1 + epsilon) - iou + vv))
+        return iou - (rho / outer_area + vv * alpha)
+    else:
+        return iou
 
 @tf.keras.utils.register_keras_serializable(package="kecamLoss")
 class FocalLossWithBbox(tf.keras.losses.Loss):
@@ -105,7 +133,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
     >>> bbs, lls, ccs = mm.decode_predictions(pred)[0]
     >>> bbox_labels_true = tf.concat([bbs, tf.one_hot(lls, 80), tf.ones([bbs.shape[0], 1])], axis=-1)
     >>> print("\n", aa(tf.expand_dims(bbox_labels_true, 0), pred))
-    >>> # - cls_loss: 0.416673392 - bbox_loss: 0.129255757 - obj_loss: 0.961375535
+    >>> # - l1_loss: 0.323877126 - cls_loss: 0.416673392 - bbox_loss: 0.129255757 - obj_loss: 0.961375535
     >>> # tf.Tensor(2.3482049, shape=(), dtype=float32)
 
     # Test with dataset:
@@ -147,17 +175,20 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         self.class_acc = tf.Variable(0, dtype="float32", trainable=False)
         # self.class_acc = tf.Variable(0, dtype="float32", trainable=False, aggregation=tf.VariableAggregation.MEAN)
 
-    def __iou_loss__(self, bboxes_trues, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw):
+    def __iou_loss__(self, bboxes_trues, pred_top_left, pred_bottom_right, pred_hw):
         # bboxes_trues: [[top, left, bottom, right]]
-        inter_top_left = tf.maximum(bboxes_trues[:, :2], bboxes_pred_top_left)
-        inter_bottom_right = tf.minimum(bboxes_trues[:, 2:], bboxes_pred_bottom_right)
-        inter_hw = tf.maximum(inter_bottom_right - inter_top_left, 0)
-        inter_area = inter_hw[:, 0] * inter_hw[:, 1]
-
-        bboxes_trues_area = (bboxes_trues[:, 2] - bboxes_trues[:, 0]) * (bboxes_trues[:, 3] - bboxes_trues[:, 1])
-        bboxes_preds_area = bboxes_pred_hw[:, 0] * bboxes_pred_hw[:, 1]
-        union_area = bboxes_trues_area + bboxes_preds_area - inter_area
-        iou = inter_area / (union_area + self.epsilon)
+        # inter_top_left = tf.maximum(bboxes_trues[:, :2], pred_top_left)
+        # inter_bottom_right = tf.minimum(bboxes_trues[:, 2:], pred_bottom_right)
+        # inter_hw = tf.maximum(inter_bottom_right - inter_top_left, 0)
+        # inter_area = inter_hw[:, 0] * inter_hw[:, 1]
+        #
+        # bboxes_trues_area = (bboxes_trues[:, 2] - bboxes_trues[:, 0]) * (bboxes_trues[:, 3] - bboxes_trues[:, 1])
+        # bboxes_preds_area = pred_hw[:, 0] * pred_hw[:, 1]
+        # union_area = bboxes_trues_area + bboxes_preds_area - inter_area
+        # iou = inter_area / (union_area + self.epsilon)
+        true_top_left, true_bottom_right = bboxes_trues[:, :2], bboxes_trues[:, 2:4]
+        true_hw = true_bottom_right - true_top_left
+        iou = __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_bottom_right, pred_hw, epsilon=self.epsilon)
         return 1 - iou ** 2
 
     def __valid_call_single__(self, bbox_labels_true, bbox_labels_pred):
@@ -218,6 +249,8 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         # Calulate accuracy here, will use it in metrics
         self.class_acc.assign(tf.reduce_mean(class_acc))
 
+        if self.use_l1_loss:
+            tf.print(" - l1_loss:", l1_loss, end="")
         tf.print(" - cls_loss:", class_loss, "- bbox_loss:", bbox_loss, "- obj_loss:", object_loss, end="\r")
         return class_loss + object_loss + l1_loss + bbox_loss * self.bbox_loss_weight
 
@@ -238,6 +271,122 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
             }
         )
         return config
+
+
+@tf.keras.utils.register_keras_serializable(package="kecamLoss")
+class YOLORLossWithBbox(tf.keras.losses.Loss):
+    """
+    # Basic test:
+    >>> from keras_cv_attention_models.coco import losses, anchors_func
+    >>> aa = losses.YOLORLossWithBbox(input_shape=(640, 640))
+
+    >>> from keras_cv_attention_models import yolor, test_images
+    >>> from keras_cv_attention_models.coco import anchors_func, data
+    >>> mm = yolor.YOLOR_CSP()
+    >>> img = test_images.dog_cat()
+    >>> pred = mm(mm.preprocess_input(img))
+
+    >>> bbs, lls, ccs = mm.decode_predictions(pred)[0]
+    >>> bbox_labels_true = tf.concat([bbs, tf.one_hot(lls, 80), tf.ones([bbs.shape[0], 1])], axis=-1)
+    >>> print("\n", aa(tf.expand_dims(bbox_labels_true, 0), pred))
+    >>> # - cls_loss: 0.0894906297 - bbox_loss: 1.33467722 - obj_loss: 0.000982196303
+    >>> # tf.Tensor(0.67279536, shape=(), dtype=float32)
+
+    # Test with dataset:
+    >>> from keras_cv_attention_models import coco, yolor
+    >>> train_dataset = coco.init_dataset(batch_size=8, use_yolor_anchors_mode=True, anchor_pyramid_levels=[3, 5], rescale_mode="raw01")[0]
+    >>> images, bboxes_labels = train_dataset.as_numpy_iterator().next()
+    >>> mm = yolor.YOLOR_CSP(input_shape=(256, 256, 3))
+    >>> preds = mm(images)
+    >>> loss = coco.losses.YOLORLossWithBbox(mm.input_shape[1:-1])
+    >>> print(f"\n{loss(bboxes_labels, preds) = }")
+    >>> # - cls_loss: 0.00272949948 - bbox_loss: 1.01433134 - obj_loss: 0.0444642454
+    >>> # loss(bboxes_labels, preds) = <tf.Tensor: shape=(), dtype=float32, numpy=4.414131>
+    """
+    def __init__(
+        self, input_shape, pyramid_levels=[3, 5], gamma=0.0, class_loss_weight=0.05, bbox_loss_weight=0.5, label_smoothing=0.0, from_logits=False, **kwargs
+    ):
+        from keras_cv_attention_models.coco import anchors_func
+
+        num_pyramid_levels = max(pyramid_levels) - min(pyramid_levels) + 1
+        self.loss_scale = 3.0 / tf.cast(num_pyramid_levels, "float32")
+        anchors = anchors_func.get_yolor_anchors(input_shape[:2], pyramid_levels, is_for_training=False)
+        self.anchors = tf.expand_dims(anchors[:, 2:4], 0) # [1, total_anchors, 2], first dimension is batch, last dimension is anchor_ratio
+        feature_sizes = anchors_func.get_feature_sizes(input_shape, pyramid_levels)[min(pyramid_levels):max(pyramid_levels) + 1]
+        OBJECT_LEVEL_WEIGHTS = {3: [4.0, 1.0, 0.4], 4: [4.0, 1.0, 0.4, 0.1], 5: [4.0, 1.0, 0.5, 0.4, 0.1]}
+        object_level_weights = []
+        for feature_size, object_level_weight in zip(feature_sizes, OBJECT_LEVEL_WEIGHTS.get(num_pyramid_levels, OBJECT_LEVEL_WEIGHTS[5])):
+            object_level_weights.extend([object_level_weight] * (feature_size[0] * feature_size[1] * 3))
+        self.object_level_weights = tf.convert_to_tensor(object_level_weights) * (1.4 if num_pyramid_levels >= 4 else 1.0)
+        # self.object_level_weights = tf.expand_dims(object_level_weights, 0)
+
+        super().__init__(**kwargs)
+        self.input_shape, self.pyramid_levels = input_shape, pyramid_levels
+        self.gamma, self.class_loss_weight, self.bbox_loss_weight = gamma, class_loss_weight, bbox_loss_weight
+        self.label_smoothing, self.from_logits = label_smoothing, from_logits
+
+        self.class_acc = tf.Variable(0, dtype="float32", trainable=False)
+
+    def __center_bbox_ciou__(self, y_true_valid, y_pred_valid, anchors):
+        # compute_loss https://github.com/WongKinYiu/yolor/blob/main/utils/loss.py#L62
+        true_center, true_hw = y_true_valid[:, :2], y_true_valid[:, 2:4]
+        true_top_left = true_center - true_hw / 2
+        true_bottom_right = true_top_left + true_hw
+
+        y_pred_valid_centers = y_pred_valid[:, :2] * 2 - 0.5
+        y_pred_valid_hw = (y_pred_valid[:, 2:4] * 2) ** 2 * anchors
+        pred_top_left = y_pred_valid_centers - y_pred_valid_hw / 2
+        pred_bottom_right = pred_top_left + y_pred_valid_hw
+        return __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_bottom_right, y_pred_valid_hw, use_ciou=True)
+
+    def call(self, y_true, y_pred):
+        if self.from_logits:
+            y_pred = tf.sigmoid(y_pred)
+        batch_size = tf.shape(y_true)[0]
+        anchor_mark = y_true[:, :, -1]
+        valid_pick = tf.where(anchor_mark == 1)
+        # num_positive_anchors = tf.cast(tf.maximum(tf.shape(valid_pick)[0], 1), y_pred.dtype)
+
+        # tf.gather_nd works better than tf.gather
+        y_true_valid, y_pred_valid = tf.gather_nd(y_true, valid_pick), tf.gather_nd(y_pred, valid_pick)
+        # object_level_weights = tf.gather_nd(tf.repeat(self.object_level_weights, batch_size, axis=0), valid_pick)
+        anchors = tf.gather_nd(tf.repeat(self.anchors, batch_size, axis=0), valid_pick)
+
+        iou = self.__center_bbox_ciou__(y_true_valid, y_pred_valid, anchors)
+        bbox_loss = tf.reduce_mean(1 - iou) * self.loss_scale
+
+        # tobj[b, a, gj, gi] = (1.0 - model.gr) + model.gr * iou.detach().clamp(0).type(tobj.dtype)  # iou ratio, gr = 1.0
+        object_true = tf.tensor_scatter_nd_update(tf.zeros_like(y_pred[:, :, -1]), valid_pick, tf.maximum(iou, 0))
+        object_loss = tf.reduce_mean(K.binary_crossentropy(object_true, y_pred[:, :, -1]) * self.object_level_weights) * self.loss_scale
+
+        class_true_valid, class_pred_valid = y_true_valid[:, 4:-1], y_pred_valid[:, 4:-1]
+        if self.label_smoothing > 0:
+            class_true_valid = class_true_valid * (1.0 - self.label_smoothing) + 0.5 * self.label_smoothing
+        # TODO Use focal_loss if gamma > 0
+        class_loss = tf.reduce_mean(K.binary_crossentropy(class_true_valid, class_pred_valid))
+
+        # Calulate accuracy here, will use it in metrics
+        self.class_acc.assign(tf.reduce_mean(tf.cast(tf.argmax(class_pred_valid, axis=-1) == tf.argmax(class_true_valid, axis=-1), "float32")))
+
+        # return bbox_loss
+        tf.print(" - cls_loss:", class_loss, "- bbox_loss:", bbox_loss, "- obj_loss:", object_loss, end="\r")
+        return (class_loss * self.class_loss_weight + bbox_loss * self.bbox_loss_weight + object_loss) * tf.cast(batch_size, y_pred.dtype)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "input_shape": self.input_shape,
+                "pyramid_levels": self.pyramid_levels,
+                "gamma": self.gamma,
+                "class_loss_weight": self.class_loss_weight,
+                "bbox_loss_weight": self.bbox_loss_weight,
+                "label_smoothing": self.label_smoothing,
+                "from_logits": self.from_logits,
+            }
+        )
+        return config
+
 
 
 @tf.keras.utils.register_keras_serializable(package="kecamLoss")

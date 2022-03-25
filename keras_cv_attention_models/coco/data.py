@@ -228,6 +228,7 @@ class RandomProcessImageWithBboxes:
         random_crop_mode=0,  # 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale
         resize_method="bilinear",
         resize_antialias=False,
+        use_hsv_augment=True,
         magnitude=0,
         num_layers=2,
         use_color_increasing=True,
@@ -236,21 +237,24 @@ class RandomProcessImageWithBboxes:
         self.max_labels_per_image = max_labels_per_image
         self.target_shape = target_shape if len(target_shape) == 2 else target_shape[:2]
         self.resize_method, self.resize_antialias, self.random_crop_mode, self.magnitude = resize_method, resize_antialias, random_crop_mode, magnitude
-        # if magnitude > 0:
-        #     from keras_cv_attention_models.imagenet import augment
-        #
-        #     print(">>>> RandAugment: magnitude = %d" % magnitude)
-        #     self.randaug_wo_pos = augment.RandAugment(
-        #         num_layers=num_layers,
-        #         magnitude=magnitude,
-        #         use_cutout=False,
-        #         use_color_increasing=use_color_increasing,
-        #         use_positional_related_ops=False,  # Set False to exlude [shear, rotate, translate]
-        #         **randaug_kwargs,
-        #     )
-        #     self.randaug_wo_pos = random_hsv
-        #     RandAugment positional related ops. Including [shear, rotate, translate], Also returns affine transform matrix
-        #     self.pos_randaug = augment.PositionalRandAugment(num_layers=num_layers, magnitude=magnitude, **randaug_kwargs)
+        if magnitude > 0 and use_hsv_augment:
+            self.randaug_wo_pos = random_hsv
+        elif magnitude > 0:
+            from keras_cv_attention_models.imagenet import augment
+
+            # TODO: Need to pick color related methods, "Invert" / "Posterize" may not working well here.
+            print(">>>> RandAugment: magnitude = %d" % magnitude)
+            self.randaug_wo_pos = augment.RandAugment(
+                num_layers=num_layers,
+                magnitude=magnitude,
+                use_cutout=False,
+                use_color_increasing=use_color_increasing,
+                use_positional_related_ops=False,  # Set False to exlude [shear, rotate, translate]
+                **randaug_kwargs,
+            )
+            # self.randaug_wo_pos = random_hsv
+            # RandAugment positional related ops. Including [shear, rotate, translate], Also returns affine transform matrix
+            # self.pos_randaug = augment.PositionalRandAugment(num_layers=num_layers, magnitude=magnitude, **randaug_kwargs)
 
     def __call__(self, datapoint):
         image = datapoint["image"]
@@ -283,8 +287,8 @@ class RandomProcessImageWithBboxes:
 
         if self.magnitude > 0:
             image.set_shape([*self.target_shape[:2], 3])
-            # image = self.randaug_wo_pos(image)
-            image = random_hsv(image)
+            image = self.randaug_wo_pos(image)
+            # image = random_hsv(image)
             # image, affine_matrix = self.pos_randaug(image)
             # bbox = bboxes_apply_affine(bbox, affine_matrix, input_shape=image.shape)
             # bbox, label = refine_bboxes_labels_single(bbox, label)
@@ -351,6 +355,16 @@ def __bboxes_labels_batch_func__(bboxes, labels, anchors, empty_label, num_class
     return tf.map_fn(bbox_process, bbox_labels)
 
 
+def __yolor_bboxes_labels_batch_func__(bboxes, labels, anchor_ratios, feature_sizes, empty_label, num_classes=80):
+    bbox_labels = tf.concat([bboxes, tf.cast(tf.expand_dims(labels, -1), bboxes.dtype)], axis=-1)
+    bbox_process = lambda xx: tf.cond(
+        tf.reduce_any(xx[:, -1] > 0),  # If contains any valid bbox and label
+        lambda: to_one_hot_with_class_mark(anchors_func.yolor_assign_anchors(xx, anchor_ratios, feature_sizes), num_classes),
+        lambda: empty_label,
+    )
+    return tf.map_fn(bbox_process, bbox_labels)
+
+
 def init_dataset(
     data_name="coco/2017",  # dataset params
     input_shape=(256, 256),
@@ -359,20 +373,22 @@ def init_dataset(
     info_only=False,
     max_labels_per_image=100,
     use_anchor_free_mode=False,
+    use_yolor_anchors_mode=False,
     anchor_pyramid_levels=[3, 7],
-    anchor_aspect_ratios=[1, 2, 0.5],  # [1, 2, 0.5] matches efficientdet anchors format. Force using [1] if use_anchor_free_mode
-    anchor_num_scales=3,  # Force using 1 if use_anchor_free_mode
-    anchor_scale=4,  # Force using 1 if use_anchor_free_mode
-    anchor_grid_zero_start="auto",  # False for anchor_free_mode, True for others.
+    anchor_scale=4,  # For efficientdet anchors only
     rescale_mode="torch",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`
     random_crop_mode=1.0,  # 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale
     mosaic_mix_prob=0.0,
     resize_method="bilinear",  # ["bilinear", "bicubic"]
     resize_antialias=False,
+    use_hsv_augment=True, # Use hsv augment instead of randaug color related. Generally using in other training frameworks.
     magnitude=0,
     num_layers=2,
     **augment_kwargs,  # Too many...
 ):
+    # anchor_aspect_ratios=[1, 2, 0.5],  # [1, 2, 0.5] matches efficientdet anchors format. Force using [1] if use_anchor_free_mode
+    # anchor_num_scales=3,  # Force using 1 if use_anchor_free_mode
+    # anchor_grid_zero_start="auto",  # False for anchor_free_mode, True for others.
     try_gcs = True if len(tf.config.list_logical_devices("TPU")) > 0 else False
     dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)
     num_classes = info.features["objects"]["label"].num_classes
@@ -389,6 +405,7 @@ def init_dataset(
         random_crop_mode=random_crop_mode,
         resize_method=resize_method,
         resize_antialias=resize_antialias,
+        use_hsv_augment=use_hsv_augment,
         magnitude=magnitude,
         num_layers=num_layers,
         **augment_kwargs,
@@ -411,17 +428,24 @@ def init_dataset(
         pos_aug = PositionalRandAugmentWithBboxes(magnitude, num_layers, max_labels_per_image, **augment_kwargs)
         train_dataset = train_dataset.map(pos_aug, num_parallel_calls=AUTOTUNE)
 
-    mean, std = init_mean_std_by_rescale_mode(rescale_mode)
-    rescaling = lambda xx: (xx - mean) / std
     if use_anchor_free_mode:
+        # Don't need anchors here, anchor assigning is after getting model predictions.
         bbox_process = lambda bb: to_one_hot_with_class_mark(tf.concat([bb[0], tf.cast(tf.expand_dims(bb[1], -1), bb[0].dtype)], axis=-1), num_classes)
+    elif use_yolor_anchors_mode:
+        anchor_ratios, feature_sizes = anchors_func.get_yolor_anchors(input_shape[:2], anchor_pyramid_levels, is_for_training=True)
+        total_anchors = tf.cast(anchor_ratios.shape[1] * tf.reduce_sum(feature_sizes[:, 0] * feature_sizes[:, 1]), tf.int32)
+        empty_label = tf.zeros([total_anchors, 4 + num_classes + 1])  # All 0
+        bbox_process = lambda bb: __yolor_bboxes_labels_batch_func__(bb[0], bb[1], anchor_ratios, feature_sizes, empty_label, num_classes)
     else:
-        grid_zero_start = True if anchor_grid_zero_start == "auto" else anchor_grid_zero_start
-        anchors = anchors_func.get_anchors(input_shape[:2], anchor_pyramid_levels, anchor_aspect_ratios, anchor_num_scales, anchor_scale, grid_zero_start)
+        # grid_zero_start = True if anchor_grid_zero_start == "auto" else anchor_grid_zero_start
+        aspect_ratios, num_scales, anchor_scale, grid_zero_start = [1, 2, 0.5], 3, 4, False # Use this till meet some others new
+        anchors = anchors_func.get_anchors(input_shape[:2], anchor_pyramid_levels, aspect_ratios, num_scales, anchor_scale, grid_zero_start)
         num_anchors = anchors.shape[0]
         empty_label = tf.zeros([num_anchors, 4 + num_classes + 1])  # All 0
         bbox_process = lambda bb: __bboxes_labels_batch_func__(bb[0], bb[1], anchors, empty_label, num_classes)
 
+    mean, std = init_mean_std_by_rescale_mode(rescale_mode)
+    rescaling = lambda xx: (xx - mean) / std
     train_dataset = train_dataset.map(lambda xx, yy: (rescaling(xx), bbox_process(yy)), num_parallel_calls=AUTOTUNE)
     train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE)
     # return train_dataset
@@ -432,7 +456,6 @@ def init_dataset(
         test_process = RandomProcessImageWithBboxes(target_shape=input_shape, resize_method=resize_method, resize_antialias=resize_antialias, magnitude=-1)
         test_dataset = test_dataset.map(test_process).batch(batch_size).map(lambda xx, yy: (rescaling(xx), bbox_process(yy)))
 
-    # Also returns anchors, it's needed for anchor_freee mode
     return train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
 
 
@@ -486,7 +509,9 @@ def show_image_with_bboxes(image, bboxes, labels=None, confidences=None, is_bbox
     return ax
 
 
-def show_batch_sample(dataset, rescale_mode="torch", rows=-1, label_font_size=8, base_size=3, use_anchor_free_mode=False, **anchor_kwargs):
+def show_batch_sample(
+    dataset, rescale_mode="torch", rows=-1, label_font_size=8, base_size=3, use_anchor_free_mode=False, use_yolor_anchors_mode=False, **anchor_kwargs
+):
     import matplotlib.pyplot as plt
     from keras_cv_attention_models.visualizing import get_plot_cols_rows
 
@@ -496,8 +521,12 @@ def show_batch_sample(dataset, rescale_mode="torch", rows=-1, label_font_size=8,
         images, labels = dataset.as_numpy_iterator().next()
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     images = (images * std + mean) / 255
-    if not use_anchor_free_mode:
-        anchors = anchors_func.get_anchors(images.shape[1:-1], **anchor_kwargs)
+    if use_yolor_anchors_mode:
+        pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(images.shape[1:-1], labels.shape[1])
+        anchors = anchors_func.get_yolor_anchors(images.shape[1:-1], pyramid_levels=pyramid_levels, is_for_training=False)
+    elif not use_anchor_free_mode:
+        pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(images.shape[1:-1], labels.shape[1])
+        anchors = anchors_func.get_anchors(images.shape[1:-1], pyramid_levels, **anchor_kwargs)
 
     cols, rows = get_plot_cols_rows(len(images), rows, ceil_mode=True)
     fig, axes = plt.subplots(rows, cols, figsize=(base_size * cols, base_size * rows))
@@ -513,7 +542,13 @@ def show_batch_sample(dataset, rescale_mode="torch", rows=-1, label_font_size=8,
             valid_label = tf.cast(tf.argmax(valid_preds[:, 4:-1], axis=-1), valid_preds.dtype)
             valid_preds = tf.concat([valid_preds[:, :4], tf.expand_dims(valid_label, -1)], axis=-1)
 
-        if not use_anchor_free_mode:
+        if use_yolor_anchors_mode:
+            valid_anchors = anchors[pick]
+            decoded_centers = (valid_preds[:, :2] + 0.5) * valid_anchors[:, 4:] + valid_anchors[:, :2]
+            decoded_hw = valid_preds[:, 2:4] * valid_anchors[:, 4:]
+            decoded_corner = anchors_func.center_yxhw_to_corners_nd(tf.concat([decoded_centers, decoded_hw], axis=-1))
+            valid_preds = tf.concat([decoded_corner, valid_preds[:, -1:]], axis=-1)
+        elif not use_anchor_free_mode:
             valid_anchors = anchors[pick]
             valid_preds = anchors_func.decode_bboxes(valid_preds, valid_anchors)
         show_image_with_bboxes(image, valid_preds[:, :4], valid_preds[:, -1], ax=ax, label_font_size=label_font_size)

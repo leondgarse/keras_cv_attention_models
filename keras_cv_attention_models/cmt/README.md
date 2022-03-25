@@ -29,27 +29,29 @@
     CUDA_VISIBLE_DEVICES='1' TF_GPU_ALLOCATOR='cuda_malloc_async' TF_XLA_FLAGS='--tf_xla_auto_jit=2' ./train_script.py \
     --seed 0 -m cmt.CMTTiny --batch_size 256 -s cmt.CMTTiny_160
     ```
-    **Evaluate using input resolution `224`**:
+  - **Evaluate using input resolution `224`**:
     ```sh
     CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m cmt.CMTTiny --pretrained checkpoints/cmt.CMTTiny_160_latest.h5 -i 224
     ```
-    | lmhsa attention block         | Train acc | Best eval loss, acc on 160  | Epoch 105 Eval acc on 224   |
+    | lmhsa attention block         | Train acc | Best eval loss, acc on 160  | Epoch 105 eval acc on 224   |
     | ----------------------------- | --------- | --------------------------- | --------------------------- |
     | dw+ln, KV [dim, head, 2]      | 0.6380    | Epoch 105, 0.001398, 0.7744 | top1: 0.78766 top5: 0.94308 |
     | avg pool, KV [dim, head, 2]   | 0.6344    | Epoch 103, 0.001424, 0.7713 | top1: 0.78512 top5: 0.94194 |
     | dw+ln, KV [split2, head, dim] | 0.6350    | Epoch 103, 0.001416, 0.7719 | top1: 0.78502 top5: 0.94176 |
 
-    **305 epochs**.
-    ```py
+  - **305 epochs**:
+    ```sh
     CUDA_VISIBLE_DEVICES='1' TF_GPU_ALLOCATOR='cuda_malloc_async' TF_XLA_FLAGS='--tf_xla_auto_jit=2' ./train_script.py \
     --seed 0 -m cmt.CMTTiny --lr_decay_steps 300 \
     --magnitude 7 --additional_model_kwargs '{"drop_connect_rate": 0.05}' -b 160 \
     ```
-    | 305 epochs             | Train acc | Best eval loss, acc on 160 | Epoch 305 Eval acc on 224   |
+    | 305 epochs             | Train acc | Best eval loss, acc on 160 | Epoch 305 eval acc on 224   |
     | ---------------------- | --------- | -------------------------- | --------------------------- |
     | mag6, drc 0, bs 256    | 0.6702    | Epoch 304, 0.0013, 0.7874  | top1: 0.79956 top5: 0.94850 |
     | mag7, drc 0.05, bs 160 | 0.6577    | Epoch 294, 0.0013,0.7880   | top1: 0.80126 top5: 0.94898 |
     | mag15, drc 0, bs 256   | 0.6390    | Epoch 304, 0.0014,0.7824   | top1: 0.79630 top5: 0.94794 |
+
+  - **Plot** 305 epochs ones are plotted every 3 epochs
 
     ![cmt_tiny](https://user-images.githubusercontent.com/5744524/159236868-06d7f2a3-3a17-433a-99ff-148640b25d92.png)
 ## Models

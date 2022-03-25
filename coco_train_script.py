@@ -55,22 +55,23 @@ def parse_arguments(argv):
     """ Anchor arguments """
     anchor_group = parser.add_argument_group("Anchor arguments")
     anchor_group.add_argument("-F", "--use_anchor_free_mode", action="store_true", help="Use anchor free mode")
+    anchor_group.add_argument("-Y", "--use_yolor_anchors_mode", action="store_true", help="Use yolor anchors mode")
     anchor_group.add_argument(
         "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with it. Force 1 if use_anchor_free_mode"
     )
-    anchor_group.add_argument(
-        "--anchor_num_scales",
-        type=int,
-        default=3,
-        help="Anchor num scales, `scales = [2 ** (ii / num_scales) * anchor_scale for ii in range(num_scales)]`. Force 1 if use_anchor_free_mode",
-    )
-    anchor_group.add_argument(
-        "--anchor_aspect_ratios",
-        type=float,
-        nargs="+",
-        default=[1, 2, 0.5],
-        help="Anchor aspect ratios, `num_anchors = len(anchor_aspect_ratios) * anchor_num_scales`. Force [1] if use_anchor_free_mode",
-    )
+    # anchor_group.add_argument(
+    #     "--anchor_num_scales",
+    #     type=int,
+    #     default=3,
+    #     help="Anchor num scales, `scales = [2 ** (ii / num_scales) * anchor_scale for ii in range(num_scales)]`. Force 1 if use_anchor_free_mode",
+    # )
+    # anchor_group.add_argument(
+    #     "--anchor_aspect_ratios",
+    #     type=float,
+    #     nargs="+",
+    #     default=[1, 2, 0.5],
+    #     help="Anchor aspect ratios, `num_anchors = len(anchor_aspect_ratios) * anchor_num_scales`. Force [1] if use_anchor_free_mode",
+    # )
     anchor_group.add_argument("--anchor_pyramid_levels_min", type=int, default=3, help="Anchor pyramid levels min.")
     anchor_group.add_argument("--anchor_pyramid_levels_max", type=int, default=-1, help="Anchor pyramid levels max. -1 for calculated from model output shape")
 
@@ -104,7 +105,7 @@ def parse_arguments(argv):
 
     """ Dataset parameters """
     ds_group = parser.add_argument_group("Dataset arguments")
-    ds_group.add_argument("--magnitude", type=int, default=6, help="Randaug magnitude value")
+    ds_group.add_argument("--magnitude", type=int, default=6, help="Positional Randaug magnitude value, including rotate / shear / transpose")
     ds_group.add_argument("--num_layers", type=int, default=2, help="Number of randaug applied sequentially to an image. Usually best in [1, 3]")
     ds_group.add_argument(
         "--random_crop_mode",
@@ -120,14 +121,19 @@ def parse_arguments(argv):
     args = parser.parse_known_args(argv)[0]
 
     if args.use_anchor_free_mode:
-        args.anchor_scale, args.anchor_num_scales, args.anchor_aspect_ratios = 1, 1, [1]
+        args.num_anchors, args.use_object_scores = 1, True
+    elif args.use_yolor_anchors_mode:
+        args.num_anchors, args.use_object_scores = 3, True
+    else:
+        args.num_anchors, args.use_object_scores = 9, False
+        # args.anchor_scale, args.anchor_num_scales, args.anchor_aspect_ratios = 1, 1, [1]
 
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
-    args.num_anchors = len(args.anchor_aspect_ratios) * args.anchor_num_scales
+    # args.num_anchors = len(args.anchor_aspect_ratios) * args.anchor_num_scales
     args.additional_det_header_kwargs.update(
         {
             "num_anchors": args.num_anchors,
-            "use_object_scores": args.use_anchor_free_mode,  # Currently same with use_anchor_free_mode.
+            "use_object_scores": args.use_object_scores,
         }
     )
     args.additional_backbone_kwargs = json.loads(args.additional_backbone_kwargs) if args.additional_backbone_kwargs else {}
@@ -147,9 +153,10 @@ def parse_arguments(argv):
     elif basic_save_name is None:
         data_name = args.data_name.replace("/", "_")
         model_name = args.det_header.split(".")[-1] + ("" if args.backbone is None else ("_" + args.backbone.split(".")[-1]))
+        anchor_mode = "anchor_free" if args.use_anchor_free_mode else ("yolor_anchor" if args.use_yolor_anchors_mode else "effdet_anchor")
         basic_save_name = "{}_{}_{}_{}_batchsize_{}".format(model_name, args.input_shape, args.optimizer, data_name, args.batch_size)
         basic_save_name += "_randaug_{}_mosaic_{}_RRC_{}".format(args.magnitude, args.mosaic_mix_prob, args.random_crop_mode)
-        basic_save_name += "_lr512_{}_wd_{}".format(args.lr_base_512, args.weight_decay)
+        basic_save_name += "_lr512_{}_wd_{}_{}".format(args.lr_base_512, args.weight_decay, anchor_mode)
     args.basic_save_name = basic_save_name
     args.enable_float16 = not args.disable_float16
 
@@ -186,9 +193,10 @@ def run_training_by_args(args):
         input_shape=input_shape,
         batch_size=batch_size,
         use_anchor_free_mode=args.use_anchor_free_mode,
+        use_yolor_anchors_mode=args.use_yolor_anchors_mode,
         anchor_pyramid_levels=args.anchor_pyramid_levels,
-        anchor_aspect_ratios=args.anchor_aspect_ratios,
-        anchor_num_scales=args.anchor_num_scales,
+        # anchor_aspect_ratios=args.anchor_aspect_ratios,
+        # anchor_num_scales=args.anchor_num_scales,
         anchor_scale=args.anchor_scale,
         rescale_mode=args.rescale_mode,
         random_crop_mode=args.random_crop_mode,
@@ -210,6 +218,8 @@ def run_training_by_args(args):
         if model.optimizer is None:
             if args.use_anchor_free_mode:
                 loss = losses.AnchorFreeLoss(input_shape, args.anchor_pyramid_levels, use_l1_loss=args.use_l1_loss, label_smoothing=args.label_smoothing)
+            elif args.use_yolor_anchors_mode:
+                loss = losses.YOLORLossWithBbox(input_shape, args.anchor_pyramid_levels, label_smoothing=args.label_smoothing)
             else:
                 # loss, metrics = losses.FocalLossWithBbox(label_smoothing=args.label_smoothing), losses.ClassAccuracyWithBbox()
                 loss = losses.FocalLossWithBbox(label_smoothing=args.label_smoothing)

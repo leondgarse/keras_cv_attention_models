@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
-
+""" Init anchors """
 def get_feature_sizes(input_shape, pyramid_levels=[3, 7]):
     # https://github.com/google/automl/tree/master/efficientdet/utils.py#L509
     feature_sizes = [input_shape[:2]]
@@ -55,9 +55,6 @@ def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=
     # if width_first:
     #      all_anchors = tf.gather(all_anchors, [1, 0, 3, 2], axis=-1)
 
-    # Save all parameters with anchors, for serialize saving
-    all_anchors.input_shape, all_anchors.pyramid_levels, all_anchors.aspect_ratios = input_shape, pyramid_levels, aspect_ratios
-    all_anchors.num_scales, all_anchors.anchor_scale, all_anchors.grid_zero_start = num_scales, anchor_scale, grid_zero_start
     return all_anchors
 
 
@@ -65,18 +62,23 @@ def get_anchor_free_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 5], gr
     return get_anchors(input_shape, pyramid_levels, aspect_ratios=[1], num_scales=1, anchor_scale=1, grid_zero_start=grid_zero_start)
 
 
-def get_yolor_anchors(input_shape=(640, 640), pyramid_levels=[3, 5], offset=0.5):
-    # assert max(pyramid_levels) - min(pyramid_levels) < 3
-
-    # width first to height first
-    if max(pyramid_levels) - min(pyramid_levels) < 3:
+def get_yolor_anchors(input_shape=(512, 512), pyramid_levels=[3, 5], offset=0.5, is_for_training=False):
+    assert max(pyramid_levels) - min(pyramid_levels) < 4
+    # Original yolor using width first, height first here
+    if max(pyramid_levels) - min(pyramid_levels) < 3: # [3, 5], YOLOR_CSP / YOLOR_CSPX
         anchor_ratios = tf.convert_to_tensor([[[16.0, 12], [36, 19], [28, 40]], [[75, 36], [55, 76], [146, 72]], [[110, 142], [243, 192], [401, 459]]])
-    else:
+    else: # [3, 6], YOLOR_*6
         anchor_ratios = tf.convert_to_tensor(
             [[[27.0, 19], [40, 44], [94, 38]], [[68, 96], [152, 86], [137, 180]], [[301, 140], [264, 303], [542, 238]], [[615, 436], [380, 739], [792, 925]]]
         )
+
     pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
     feature_sizes = get_feature_sizes(input_shape, pyramid_levels)
+    if is_for_training:
+        # YOLOLayer https://github.com/WongKinYiu/yolor/blob/main/models/models.py#L351
+        anchor_ratios = anchor_ratios[:len(pyramid_levels)] / [[[2 ** ii]] for ii in pyramid_levels]
+        feature_sizes = tf.convert_to_tensor(feature_sizes[min(pyramid_levels):max(pyramid_levels) + 1], tf.float32)
+        return anchor_ratios, feature_sizes
 
     all_anchors = []
     for level, anchor_ratio in zip(pyramid_levels, anchor_ratios):
@@ -94,24 +96,24 @@ def get_yolor_anchors(input_shape=(640, 640), pyramid_levels=[3, 5], offset=0.5)
         anchors = tf.concat([grid_nd, cur_base_anchors_nd, stride_nd], axis=-1)
         all_anchors.append(tf.reshape(anchors, [-1, 6]))
     all_anchors = tf.concat(all_anchors, axis=0) / ([input_shape[0], input_shape[1]] * 3)
-    return all_anchors
+    return all_anchors # [center_h, center_w, anchor_w, anchor_h, stride_h, stride_w]
 
 
-def get_pyramid_levels_by_anchors(input_shape, total_anchors, num_anchors, pyramid_levels_min=3):
-    feature_sizes = get_feature_sizes(input_shape, [pyramid_levels_min, pyramid_levels_min + 10])
-    feature_sizes = tf.convert_to_tensor(feature_sizes, dtype="float32")
-    pyramid_levels = []
-    level = pyramid_levels_min
-    total_anchors /= num_anchors
-    while total_anchors > 0:
-        pyramid_levels.append(level)
-        stride_hh, stride_ww = feature_sizes[0][0] / feature_sizes[level][0], feature_sizes[0][1] / feature_sizes[level][1]
-        cur_num_anchors = tf.math.ceil(input_shape[0] / stride_hh) * tf.math.ceil(input_shape[1] / stride_ww)
-        total_anchors -= int(cur_num_anchors)
-        level += 1
-    return pyramid_levels
+def get_pyramid_levels_by_anchors(input_shape, total_anchors, num_anchors="auto", pyramid_levels_min=3):
+    feature_sizes = get_feature_sizes(input_shape, [pyramid_levels_min, pyramid_levels_min + 10])[pyramid_levels_min:]
+    feature_sizes = tf.convert_to_tensor(feature_sizes, dtype="int32")
+    num_anchors_at_each_level_cumsum = tf.cumsum(tf.reduce_prod(feature_sizes, axis=-1))
+    if num_anchors == "auto":
+        # Pick from [1, 3, 9], 1 for yolox, 3 for yolor, 9 for efficientdet
+        picks = tf.convert_to_tensor([1, 3, 9], dtype=tf.int32)
+        max_anchors = num_anchors_at_each_level_cumsum[-1] * picks
+        num_anchors = picks[tf.argmax(total_anchors < max_anchors)]
 
+    total_anchors = total_anchors // num_anchors
+    pyramid_levels_max = pyramid_levels_min + tf.argmax(num_anchors_at_each_level_cumsum > total_anchors) - 1
+    return [pyramid_levels_min, int(pyramid_levels_max)]
 
+""" Assign achors """
 def iou_nd(bboxes, anchors):
     # bboxes: [[top, left, bottom, right]], anchors: [[top, left, bottom, right]]
     anchors_nd, bboxes_nd = tf.expand_dims(anchors, 0), tf.expand_dims(bboxes, 1)
@@ -136,6 +138,23 @@ def center_yxhw_to_corners_nd(ss):
     top_left = ss[:, :2] - ss[:, 2:] * 0.5
     bottom_right = top_left + ss[:, 2:]
     return tf.concat([top_left, bottom_right], axis=-1)
+
+
+def decode_bboxes(preds, anchors):
+    if anchors.shape[-1] == 6:  # Currently, it's yolor anchors
+        # anchors: [grid_y, grid_x, base_anchor_y, base_anchor_x, stride_y, stride_x]
+        bboxes_center = preds[:, :2] * 2 * anchors[:, 4:] + anchors[:, :2]
+        bboxes_hw = (preds[:, 2:4] * 2) ** 2 * anchors[:, 2:4]
+    else:
+        anchors_hw = anchors[:, 2:] - anchors[:, :2]
+        anchors_center = (anchors[:, :2] + anchors[:, 2:]) * 0.5
+
+        bboxes_center = preds[:, :2] * anchors_hw + anchors_center
+        bboxes_hw = tf.math.exp(preds[:, 2:4]) * anchors_hw
+
+    preds_top_left = bboxes_center - 0.5 * bboxes_hw
+    pred_bottom_right = preds_top_left + bboxes_hw
+    return tf.concat([preds_top_left, pred_bottom_right, preds[:, 4:]], axis=-1)
 
 
 def assign_anchor_classes_by_iou_with_bboxes(bbox_labels, anchors, ignore_threshold=0.4, overlap_threshold=0.5):
@@ -176,21 +195,70 @@ def assign_anchor_classes_by_iou_with_bboxes(bbox_labels, anchors, ignore_thresh
     return rr
 
 
-def decode_bboxes(preds, anchors):
-    if anchors.shape[-1] == 6:  # Currently, it's yolor anchors
-        # anchors: [grid_y, grid_x, base_anchor_y, base_anchor_x, stride_y, stride_x]
-        bboxes_center = preds[:, :2] * 2 * anchors[:, 4:] + anchors[:, :2]
-        bboxes_hw = (preds[:, 2:4] * 2) ** 2 * anchors[:, 2:4]
-    else:
-        anchors_hw = anchors[:, 2:] - anchors[:, :2]
-        anchors_center = (anchors[:, :2] + anchors[:, 2:]) * 0.5
+def yolor_assign_anchors(bbox_labels, anchor_ratios, feature_sizes, anchor_aspect_thresh=4.0, overlap_offset=0.5):
+    """
+    # Actual assigning test:
+    >>> from keras_cv_attention_models import yolor, test_images
+    >>> from keras_cv_attention_models.coco import anchors_func, data
+    >>> mm = yolor.YOLOR_CSP()
+    >>> img = test_images.dog_cat()
+    >>> pred = mm(mm.preprocess_input(img))
 
-        bboxes_center = preds[:, :2] * anchors_hw + anchors_center
-        bboxes_hw = tf.math.exp(preds[:, 2:4]) * anchors_hw
+    >>> bbs, lls, ccs = mm.decode_predictions(pred)[0]
+    >>> bbox_labels = tf.concat([bbs, tf.expand_dims(tf.cast(lls, "float32"), -1)], axis=-1)
+    >>> anchor_ratios, feature_sizes = anchors_func.get_yolor_anchors(mm.input_shape[1:-1], pyramid_levels=[3, 5], is_for_training=True)
+    >>> assigned = anchors_func.yolor_assign_anchors(bbox_labels, anchor_ratios, feature_sizes)
 
-    preds_top_left = bboxes_center - 0.5 * bboxes_hw
-    pred_bottom_right = preds_top_left + bboxes_hw
-    return tf.concat([preds_top_left, pred_bottom_right, preds[:, 4:]], axis=-1)
+    >>> # Decode and show matched
+    >>> anchors = anchors_func.get_yolor_anchors(mm.input_shape[1:-1], pyramid_levels=[3, 5], is_for_training=False)
+    >>> assigned, anchors = assigned[assigned[:, -1] > 0], anchors[assigned[:, -1] > 0]
+    >>> decoded_centers = (assigned[:, :2] + 0.5) * anchors[:, 4:] + anchors[:, :2]
+    >>> decoded_hw = assigned[:, 2:4] * anchors[:, 4:]  # assigned[:, 2:4] is multiplied with feature_size ==> assigned[:, 2:4] * strides / input_shape
+    >>> decoded_corner = anchors_func.center_yxhw_to_corners_nd(tf.concat([decoded_centers, decoded_hw], axis=-1))
+    >>> data.show_image_with_bboxes(test_images.dog_cat(), decoded_corner, assigned[:, -1:])
+    """
+    bbox_labels = tf.gather_nd(bbox_labels, tf.where(bbox_labels[:, -1] > 0))
+    bboxes, labels = bbox_labels[:, :4], bbox_labels[:, 4:]
+    num_anchors, num_bboxes_true, num_output_channels = anchor_ratios.shape[1], tf.shape(bboxes)[0], bbox_labels.shape[-1]
+
+    rrs = []
+    # TODO clip matched_bboxes_idx_all by feature_size max
+    # for anchor_ratio, feature_size in zip(anchor_ratios, feature_sizes):
+    for id in range(feature_sizes.shape[0]):
+        anchor_ratio, feature_size = anchor_ratios[id], feature_sizes[id]
+        # pick by aspect ratio
+        bboxes_centers, bboxes_hws = corners_to_center_yxhw_nd(bboxes)
+        bboxes_centers, bboxes_hws = bboxes_centers * feature_size, bboxes_hws * feature_size
+        aspect_ratio = tf.expand_dims(bboxes_hws, 0) / tf.expand_dims(anchor_ratio, 1)
+        aspect_pick = tf.reduce_max(tf.maximum(aspect_ratio, 1 / aspect_ratio), axis=-1) < anchor_aspect_thresh
+        anchors_pick = tf.repeat(tf.expand_dims(tf.range(num_anchors), -1), num_bboxes_true, axis=-1)[aspect_pick]
+        aspect_picked_bboxes_labels = tf.concat([bboxes_centers, bboxes_hws, labels], axis=-1)
+        aspect_picked_bboxes_labels = tf.repeat(tf.expand_dims(aspect_picked_bboxes_labels, 0), num_anchors, axis=0)[aspect_pick]
+
+        # pick by centers
+        centers = aspect_picked_bboxes_labels[:, :2]
+        top, left = tf.unstack(tf.logical_and(centers % 1 < overlap_offset, centers > 1), axis=-1)
+        bottom, right = tf.unstack(tf.logical_and(centers % 1 > (1 - overlap_offset), centers < (feature_size - 1)), axis=-1)
+        anchors_pick_all = tf.concat([anchors_pick, anchors_pick[top], anchors_pick[left], anchors_pick[bottom], anchors_pick[right]], axis=0)
+        matched_top, matched_left = aspect_picked_bboxes_labels[top], aspect_picked_bboxes_labels[left]
+        matched_bottom, matched_right = aspect_picked_bboxes_labels[bottom], aspect_picked_bboxes_labels[right]
+        matched_bboxes_all = tf.concat([aspect_picked_bboxes_labels, matched_top, matched_left, matched_bottom, matched_right], axis=0)
+
+        # Use matched bboxes as indexes
+        matched_bboxes_idx = tf.cast(aspect_picked_bboxes_labels[:, :2], "int32")
+        matched_top_idx = tf.cast(matched_top[:, :2] - [overlap_offset, 0], "int32")
+        matched_left_idx = tf.cast(matched_left[:, :2] - [0, overlap_offset], "int32")
+        matched_bottom_idx = tf.cast(matched_bottom[:, :2] + [overlap_offset, 0], "int32")
+        matched_right_idx = tf.cast(matched_right[:, :2] + [0, overlap_offset], "int32")
+        matched_bboxes_idx_all = tf.concat([matched_bboxes_idx, matched_top_idx, matched_left_idx, matched_bottom_idx, matched_right_idx], axis=0)
+
+        # Results
+        centers_true = matched_bboxes_all[:, :2] - tf.cast(matched_bboxes_idx_all, matched_bboxes_all.dtype)
+        bbox_labels_true = tf.concat([centers_true, matched_bboxes_all[:, 2:]], axis=-1)
+        rr = tf.zeros([feature_size[0], feature_size[1], num_anchors, num_output_channels])
+        rr = tf.tensor_scatter_nd_update(rr, tf.concat([matched_bboxes_idx_all, tf.expand_dims(anchors_pick_all, 1)], axis=-1), bbox_labels_true)
+        rrs.append(tf.reshape(rr, [-1, num_output_channels]))
+    return tf.concat(rrs, axis=0)
 
 
 class AnchorFreeAssignMatching:

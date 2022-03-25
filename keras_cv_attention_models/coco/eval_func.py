@@ -74,8 +74,8 @@ class DecodePredictions:
         # From torchvision.ops.batched_nms strategy: in order to perform NMS independently per class. we add an offset to all the boxes.
         # The offset is dependent only on the class idx, and is large enough so that boxes from different classes do not overlap
         cls_offset = tf.cast(labels, bbs.dtype) * (tf.reduce_max(bbs) + 1)
-        bbs = bbs + tf.expand_dims(cls_offset, -1)
-        rr, nms_scores = tf.image.non_max_suppression_with_scores(bbs, ccs, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
+        bbs_per_class = bbs + tf.expand_dims(cls_offset, -1)
+        rr, nms_scores = tf.image.non_max_suppression_with_scores(bbs_per_class, ccs, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
         return tf.gather(bbs, rr).numpy(), tf.gather(labels, rr).numpy(), nms_scores.numpy()
 
     def __nms_global__(self, bbs, ccs, labels, score_threshold=0.3, iou_threshold=0.5, soft_nms_sigma=0.5, max_output_size=100):
@@ -110,7 +110,7 @@ class DecodePredictions:
         if mode == "per_class":
             return self.__nms_per_class__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
         elif mode == "torch_batched":
-            return self.__nms_torch_batch__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
+            return self.__nms_torch_batched__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
         else:
             return self.__nms_global__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
 

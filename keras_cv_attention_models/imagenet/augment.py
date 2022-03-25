@@ -405,6 +405,30 @@ def shear_y(image: tf.Tensor, level: float, replace: int, return_affine_matrix: 
     return (image, transforms) if return_affine_matrix else image
 
 
+def scale_x(image: tf.Tensor, level: float, replace: int, return_affine_matrix: bool = False) -> tf.Tensor:
+    """Equivalent of PIL scaling in X dimension."""
+    # Shear parallel to x axis is a projective transform
+    # with a matrix form of:
+    # [1  level
+    #  0  1].
+    transforms = tf.convert_to_tensor([[level, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]])
+    image = transform(image=wrap(image), transforms=transforms)
+    image = unwrap(image, replace)
+    return (image, transforms) if return_affine_matrix else image
+
+
+def scale_y(image: tf.Tensor, level: float, replace: int, return_affine_matrix: bool = False) -> tf.Tensor:
+    """Equivalent of PIL scaling in Y dimension."""
+    # Shear parallel to x axis is a projective transform
+    # with a matrix form of:
+    # [1  level
+    #  0  1].
+    transforms = tf.convert_to_tensor([[1.0, 0.0, 0.0, 0.0, level, 0.0, 0.0, 0.0]])
+    image = transform(image=wrap(image), transforms=transforms)
+    image = unwrap(image, replace)
+    return (image, transforms) if return_affine_matrix else image
+
+
 def autocontrast(image: tf.Tensor) -> tf.Tensor:
     """Implements Autocontrast function from PIL using TF ops.
 
@@ -600,6 +624,13 @@ def _shear_level_to_arg(level: float):
     return (level,)
 
 
+def _scale_level_to_arg(level: float):
+    level = (level / _MAX_LEVEL) * 0.3
+    # Flip level to negative with 50% chance.
+    level = _randomly_negate_tensor(level) + 1.0
+    return (level,)
+
+
 def _translate_level_to_arg(level: float, translate_const: float):
     level = (level / _MAX_LEVEL) * float(translate_const)
     # Flip level to negative with 50% chance.
@@ -690,6 +721,8 @@ NAME_TO_FUNC = {
     "SharpnessIncreasing": sharpness,
     "ShearX": shear_x,
     "ShearY": shear_y,
+    "ScaleX": scale_x,
+    "ScaleY": scale_y,
     "TranslateX": translate_x,
     "TranslateY": translate_y,
     "TranslateXRel": translate_x_relative,
@@ -705,6 +738,8 @@ REPLACE_FUNCS = frozenset(
         "TranslateXRel",
         "ShearX",
         "ShearY",
+        "ScaleX",
+        "ScaleY",
         "TranslateY",
         "TranslateYRel",
         "Cutout",
@@ -733,6 +768,8 @@ LEVEL_TO_ARG = {
     "SharpnessIncreasing": _enhance_increasing_level_to_arg,
     "ShearX": _shear_level_to_arg,
     "ShearY": _shear_level_to_arg,
+    "ScaleX": _scale_level_to_arg,
+    "ScaleY": _scale_level_to_arg,
     "TranslateX": _translate_level_to_arg,
     "TranslateY": _translate_level_to_arg,
     "TranslateXRel": _translate_level_to_arg,
@@ -1000,6 +1037,7 @@ class RandAugment(ImageAugment):
             "SharpnessIncreasing",
         ]
         self.positional_related_ops = ["Rotate", "ShearX", "ShearY"]
+        # self.positional_related_ops = ["Rotate", "ShearX", "ShearY", "ScaleX", "ScaleY"]
         self.positional_related_ops += ["TranslateXRel", "TranslateYRel"] if use_relative_translate else ["TranslateX", "TranslateY"]
 
         self.available_ops = self.basic_ops
@@ -1073,6 +1111,7 @@ class PositionalRandAugment(RandAugment):
         self.num_layers, self.apply_probability, self.image_mean = num_layers, apply_probability, image_mean
         self.magnitude, self.magnitude_max, self.magnitude_std = float(magnitude), float(magnitude_max), float(magnitude_std)
         self.translate_const = float(translate_const)
+        # self.available_ops = ["Rotate", "ShearX", "ShearY", "ScaleX", "ScaleY"]
         self.available_ops = ["Rotate", "ShearX", "ShearY"]
         self.available_ops += ["TranslateXRel", "TranslateYRel"] if use_relative_translate else ["TranslateX", "TranslateY"]
         self.DEFAULT_AFFINE = tf.constant([[1.0, 0, 0, 0, 1, 0, 0, 0]])
