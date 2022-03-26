@@ -109,7 +109,7 @@ def get_yolor_anchors(input_shape=(512, 512), pyramid_levels=[3, 5], offset=0.5,
         anchors = tf.concat([grid_nd, cur_base_anchors_nd, stride_nd], axis=-1)
         all_anchors.append(tf.reshape(anchors, [-1, 6]))
     all_anchors = tf.concat(all_anchors, axis=0) / ([input_shape[0], input_shape[1]] * 3)
-    return all_anchors  # [center_h, center_w, anchor_w, anchor_h, stride_h, stride_w]
+    return all_anchors  # [center_h, center_w, anchor_h, anchor_w, stride_h, stride_w]
 
 
 def get_pyramid_levels_by_anchors(input_shape, total_anchors, num_anchors="auto", pyramid_levels_min=3):
@@ -241,6 +241,7 @@ def yolor_assign_anchors(bbox_labels, anchor_ratios, feature_sizes, anchor_aspec
     # TODO clip matched_bboxes_idx_all by feature_size max
     # for anchor_ratio, feature_size in zip(anchor_ratios, feature_sizes):
     for id in range(feature_sizes.shape[0]):
+        # build_targets https://github.dev/WongKinYiu/yolor/blob/main/utils/loss.py#L127
         anchor_ratio, feature_size = anchor_ratios[id], feature_sizes[id]
         # pick by aspect ratio
         bboxes_centers, bboxes_hws = corners_to_center_yxhw_nd(bboxes)

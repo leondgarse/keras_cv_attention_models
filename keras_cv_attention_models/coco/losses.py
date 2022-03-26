@@ -278,22 +278,6 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
 @tf.keras.utils.register_keras_serializable(package="kecamLoss")
 class YOLORLossWithBbox(tf.keras.losses.Loss):
     """
-    # Basic test:
-    >>> from keras_cv_attention_models.coco import losses, anchors_func
-    >>> aa = losses.YOLORLossWithBbox(input_shape=(640, 640))
-
-    >>> from keras_cv_attention_models import yolor, test_images
-    >>> from keras_cv_attention_models.coco import anchors_func, data
-    >>> mm = yolor.YOLOR_CSP()
-    >>> img = test_images.dog_cat()
-    >>> pred = mm(mm.preprocess_input(img))
-
-    >>> bbs, lls, ccs = mm.decode_predictions(pred)[0]
-    >>> bbox_labels_true = tf.concat([bbs, tf.one_hot(lls, 80), tf.ones([bbs.shape[0], 1])], axis=-1)
-    >>> print("\n", aa(tf.expand_dims(bbox_labels_true, 0), pred))
-    >>> # - cls_loss: 0.0894906297 - bbox_loss: 1.33467722 - obj_loss: 0.000982196303
-    >>> # tf.Tensor(0.67279536, shape=(), dtype=float32)
-
     # Test with dataset:
     >>> from keras_cv_attention_models import coco, yolor
     >>> train_dataset = coco.init_dataset(batch_size=8, use_yolor_anchors_mode=True, anchor_pyramid_levels=[3, 5], rescale_mode="raw01")[0]
@@ -302,8 +286,8 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
     >>> preds = mm(images)
     >>> loss = coco.losses.YOLORLossWithBbox(mm.input_shape[1:-1])
     >>> print(f"\n{loss(bboxes_labels, preds) = }")
-    >>> # - cls_loss: 0.00272949948 - bbox_loss: 1.01433134 - obj_loss: 0.0444642454
-    >>> # loss(bboxes_labels, preds) = <tf.Tensor: shape=(), dtype=float32, numpy=4.414131>
+    >>> # - cls_loss: 0.014720859 - bbox_loss: 0.167933762 - obj_loss: 0.0272860527
+    >>> # loss(bboxes_labels, preds) = <tf.Tensor: shape=(), dtype=float32, numpy=0.8959118>
     """
 
     def __init__(
@@ -314,14 +298,14 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
         num_pyramid_levels = max(pyramid_levels) - min(pyramid_levels) + 1
         self.loss_scale = 3.0 / tf.cast(num_pyramid_levels, "float32")
         anchors = anchors_func.get_yolor_anchors(input_shape[:2], pyramid_levels, is_for_training=False)
-        self.anchors = tf.expand_dims(anchors[:, 2:4], 0)  # [1, total_anchors, 2], first dimension is batch, last dimension is anchor_ratio
+        anchors = anchors[:, 2:4] / anchors[:, 4:] # Anchors is divided with strides in YOLOLayer
+        self.anchors = tf.expand_dims(anchors, 0)  # [1, total_anchors, 2], first dimension is batch, last dimension is anchor_ratio
         feature_sizes = anchors_func.get_feature_sizes(input_shape, pyramid_levels)[min(pyramid_levels) : max(pyramid_levels) + 1]
-        OBJECT_LEVEL_WEIGHTS = {3: [4.0, 1.0, 0.4], 4: [4.0, 1.0, 0.4, 0.1], 5: [4.0, 1.0, 0.5, 0.4, 0.1]}
+        OBJECT_LEVEL_WEIGHTS = {3: [4.0, 1.0, 0.4], 4: [4.0, 1.0, 0.4, 0.1], 5: [4.0, 1.0, 0.5, 0.4, 0.1]}  # balance in original yolor loss
         object_level_weights = []
         for feature_size, object_level_weight in zip(feature_sizes, OBJECT_LEVEL_WEIGHTS.get(num_pyramid_levels, OBJECT_LEVEL_WEIGHTS[5])):
             object_level_weights.extend([object_level_weight] * (feature_size[0] * feature_size[1] * 3))
         self.object_level_weights = tf.convert_to_tensor(object_level_weights) * (1.4 if num_pyramid_levels >= 4 else 1.0)
-        # self.object_level_weights = tf.expand_dims(object_level_weights, 0)
 
         super().__init__(**kwargs)
         self.input_shape, self.pyramid_levels = input_shape, pyramid_levels
@@ -330,7 +314,7 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
 
         self.class_acc = tf.Variable(0, dtype="float32", trainable=False)
 
-    def __center_bbox_ciou__(self, y_true_valid, y_pred_valid, anchors):
+    def __bbox_decode_and_ciou__(self, y_true_valid, y_pred_valid, anchors):
         # compute_loss https://github.com/WongKinYiu/yolor/blob/main/utils/loss.py#L62
         true_center, true_hw = y_true_valid[:, :2], y_true_valid[:, 2:4]
         true_top_left = true_center - true_hw / 2
@@ -352,10 +336,9 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
 
         # tf.gather_nd works better than tf.gather
         y_true_valid, y_pred_valid = tf.gather_nd(y_true, valid_pick), tf.gather_nd(y_pred, valid_pick)
-        # object_level_weights = tf.gather_nd(tf.repeat(self.object_level_weights, batch_size, axis=0), valid_pick)
         anchors = tf.gather_nd(tf.repeat(self.anchors, batch_size, axis=0), valid_pick)
 
-        iou = self.__center_bbox_ciou__(y_true_valid, y_pred_valid, anchors)
+        iou = self.__bbox_decode_and_ciou__(y_true_valid, y_pred_valid, anchors)
         bbox_loss = tf.reduce_mean(1 - iou) * self.loss_scale
 
         # tobj[b, a, gj, gi] = (1.0 - model.gr) + model.gr * iou.detach().clamp(0).type(tobj.dtype)  # iou ratio, gr = 1.0
