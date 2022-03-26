@@ -291,7 +291,7 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
     """
 
     def __init__(
-        self, input_shape, pyramid_levels=[3, 5], gamma=0.0, class_loss_weight=0.05, bbox_loss_weight=0.5, label_smoothing=0.0, from_logits=False, **kwargs
+        self, input_shape, pyramid_levels=[3, 5], gamma=0.0, class_loss_weight=0.5, bbox_loss_weight=0.05, label_smoothing=0.0, from_logits=False, **kwargs
     ):
         from keras_cv_attention_models.coco import anchors_func
 
