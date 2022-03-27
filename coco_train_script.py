@@ -79,6 +79,7 @@ def parse_arguments(argv):
     loss_group = parser.add_argument_group("Loss arguments")
     loss_group.add_argument("--label_smoothing", type=float, default=0, help="Loss label smoothing value")
     loss_group.add_argument("--use_l1_loss", action="store_true", help="Use additional l1_loss. For use_anchor_free_mode only")
+    loss_group.add_argument("--bbox_loss_weight", type=float, default=-1, help="Bbox loss weight, -1 means using loss preset values.")
 
     """ Learning rate and weight decay arguments """
     lr_group = parser.add_argument_group("Learning rate and weight decay arguments")
@@ -216,13 +217,17 @@ def run_training_by_args(args):
 
     with strategy.scope():
         if model.optimizer is None:
+            loss_kwargs = {"label_smoothing": args.label_smoothing}
+            if args.bbox_loss_weight > 0:
+                loss_kwargs.update({"bbox_loss_weight": args.bbox_loss_weight})
+
             if args.use_anchor_free_mode:
-                loss = losses.AnchorFreeLoss(input_shape, args.anchor_pyramid_levels, use_l1_loss=args.use_l1_loss, label_smoothing=args.label_smoothing)
+                loss = losses.AnchorFreeLoss(input_shape, args.anchor_pyramid_levels, use_l1_loss=args.use_l1_loss, **loss_kwargs)
             elif args.use_yolor_anchors_mode:
-                loss = losses.YOLORLossWithBbox(input_shape, args.anchor_pyramid_levels, label_smoothing=args.label_smoothing)
+                loss = losses.YOLORLossWithBbox(input_shape, args.anchor_pyramid_levels, **loss_kwargs)
             else:
                 # loss, metrics = losses.FocalLossWithBbox(label_smoothing=args.label_smoothing), losses.ClassAccuracyWithBbox()
-                loss = losses.FocalLossWithBbox(label_smoothing=args.label_smoothing)
+                loss = losses.FocalLossWithBbox(**loss_kwargs)
             metrics = losses.ClassAccuracyWithBboxWrapper(loss)
             model = compile_model(model, args.optimizer, lr_base, args.weight_decay, 1, args.label_smoothing, loss=loss, metrics=metrics)
         print(">>>> basic_save_name =", args.basic_save_name)

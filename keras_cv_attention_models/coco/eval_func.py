@@ -145,6 +145,7 @@ def init_eval_dataset(data_name="coco/2017", target_shape=(512, 512), batch_size
 
     ds = tfds.load(data_name, with_info=False)["validation"]
     resize_func = lambda image: coco.aspect_aware_resize_and_crop_image(image, target_shape, method=resize_method, antialias=resize_antialias)
+    # resize_func = lambda image: coco.data.letterbox_scale_down_only(image, target_shape, method=resize_method, antialias=resize_antialias)
     # ds: [resized_image, scale, original_image_shape, image_id], automl bahavior: rescale -> resize
     ds = ds.map(lambda datapoint: (*resize_func(rescaling(tf.cast(datapoint["image"], tf.float32))), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
     ds = ds.batch(batch_size)
@@ -209,9 +210,10 @@ def run_coco_evaluation(
     nms_method="gaussian",
     nms_mode="per_class",
     nms_topk=5000,
-    annotation_file=None,  # coco_evaluation
-    anchor_scale="auto",  # Init anchors for model prediction. "auto" means 1 if use_anchor_free_mode else 4
-    use_anchor_free_mode=False,
+    use_anchor_free_mode=False,  # model anchors related parameters
+    use_yolor_anchors_mode=False,
+    anchor_scale=4,  # Init anchors for model prediction. "auto" means 1 if use_anchor_free_mode else 4
+    annotation_file=None,
     **anchor_kwargs,
 ):
     input_shape = model.input_shape[1:-1] if input_shape is None else input_shape
@@ -228,8 +230,7 @@ def run_coco_evaluation(
         print(">>>> Using model preset decode_predictions")
         pred_decoder = model.decode_predictions
     else:
-        anchor_scale = (1 if use_anchor_free_mode else 4) if anchor_scale == "auto" else anchor_scale
         pyramid_levels = get_pyramid_levels_by_anchors = coco.get_pyramid_levels_by_anchors(input_shape, total_anchors=model.output_shape[1])
-        pred_decoder = DecodePredictions(input_shape, pyramid_levels, anchor_scale=anchor_scale, use_anchor_free_mode=use_anchor_free_mode)
+        pred_decoder = DecodePredictions(input_shape, pyramid_levels, anchor_scale, use_anchor_free_mode, use_yolor_anchors_mode)
     detection_results = model_eval_results(model, eval_dataset, pred_decoder, nms_score_threshold, nms_iou_or_sigma, nms_method, nms_mode, nms_topk)
     return coco_evaluation(detection_results, annotation_file)

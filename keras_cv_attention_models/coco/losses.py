@@ -298,7 +298,7 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
         num_pyramid_levels = max(pyramid_levels) - min(pyramid_levels) + 1
         self.loss_scale = 3.0 / tf.cast(num_pyramid_levels, "float32")
         anchors = anchors_func.get_yolor_anchors(input_shape[:2], pyramid_levels, is_for_training=False)
-        anchors = anchors[:, 2:4] / anchors[:, 4:] # Anchors is divided with strides in YOLOLayer
+        anchors = anchors[:, 2:4] / anchors[:, 4:]  # Anchors is divided with strides in YOLOLayer
         self.anchors = tf.expand_dims(anchors, 0)  # [1, total_anchors, 2], first dimension is batch, last dimension is anchor_ratio
         feature_sizes = anchors_func.get_feature_sizes(input_shape, pyramid_levels)[min(pyramid_levels) : max(pyramid_levels) + 1]
         OBJECT_LEVEL_WEIGHTS = {3: [4.0, 1.0, 0.4], 4: [4.0, 1.0, 0.4, 0.1], 5: [4.0, 1.0, 0.5, 0.4, 0.1]}  # balance in original yolor loss

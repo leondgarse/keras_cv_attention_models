@@ -58,18 +58,14 @@
     # ResNest50 backbone + EfficientDetD0 header using yolox like anchor_free_mode
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone resnest.ResNest50 --use_anchor_free_mode
     # ConvNeXtTiny backbone + EfficientDetD0 header using yolor anchors
-    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone convnext.ConvNeXtTiny --use_yolor_anchors_mode
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone uniformer.UniformerSmall32 --use_yolor_anchors_mode
 
     # Typical YOLOXS with anchor_free_mode
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolox.YOLOXS --use_anchor_free_mode
     # YOLOXS with efficientdet anchors
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolox.YOLOXS
-    # CoAtNet0 backbone + YOLOXS header with anchor_free_mode
-    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone coatnet.CoAtNet0 --det_header yolox.YOLOXS --use_anchor_free_mode
-    # UniformerSmall32 backbone + YOLOX header with efficientdet anchors
-    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone uniformer.UniformerSmall32 --det_header yolox.YOLOX
     # ConvNeXtTiny backbone + YOLOX header with yolor anchors
-    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone convnext.ConvNeXtTiny --det_header yolox.YOLOX --use_yolor_anchors_mode
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone coatnet.CoAtNet0 --det_header yolox.YOLOX --use_yolor_anchors_mode
 
     # Typical YOLOR_P6 with yolor anchors
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolor.YOLOR_P6 --use_yolor_anchors_mode
@@ -80,10 +76,22 @@
     ```
     **Note: COCO training still under testing, may change parameters and default behaviors. Take the risk if would like help developing.**
 ## Evaluation
-  - Specifying `--data_name coco` using `eval_script.py` for evaluating COCO AP. It has a dependency `pip install pycocotools` which is not in package requirements.
+  - **`coco_eval_script.py`** is used for evaluating model AP /AR on COCO test set. It has a dependency `pip install pycocotools` which is not in package requirements. More usage can be found in [COCO Evaluation](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco#evaluation).
     ```sh
     # resize method for EfficientDetD0 is bilinear w/o antialias
-    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m efficientdet.EfficientDetD0 -d coco --batch_size 8 --resize_method bilinear --disable_antialias
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m efficientdet.EfficientDetD0 --resize_method bilinear --disable_antialias
+    # Specify --use_anchor_free_mode for YOLOX
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXTiny --use_anchor_free_mode --nms_method hard --nms_iou_or_sigma 0.65
+    # Specify --use_yolor_anchors_mode for YOLOR
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOR_CSP --use_yolor_anchors_mode --nms_method hard --nms_iou_or_sigma 0.65
+
+    # Specific h5 model
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m checkpoints/yoloxtiny_yolor_anchor.h5 --use_yolor_anchors_mode
+    ```
+    **efficientdet.EfficientDetD0 result**
+    ```sh
+    # resize method for EfficientDetD0 is bilinear w/o antialias
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m efficientdet.EfficientDetD0 -d coco --batch_size 8 --resize_method bilinear --disable_antialias
     # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.343
     # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.525
     # Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.366
@@ -99,9 +107,10 @@
     ```
     **Evaluating specific h5 model**
     ```sh
-    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m checkpoints/xxx.h5 -d coco --batch_size 8
+    # Specific h5 model
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m checkpoints/yoloxtiny_yolor_anchor.h5 --use_yolor_anchors_mode
     ```
-    **Note: current default presets for matching EfficientDet evaluating results, YOLOX / YOLOR needs different configures.**
+    **Note: current default presets for matching EfficientDet evaluating results, currently YOLOX / YOLOR results are lower than official sets.**
   - **Tricks for evaluation**
     ```py
     from keras_cv_attention_models.coco import eval_func

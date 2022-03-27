@@ -238,7 +238,6 @@ def yolor_assign_anchors(bbox_labels, anchor_ratios, feature_sizes, anchor_aspec
     num_anchors, num_bboxes_true, num_output_channels = anchor_ratios.shape[1], tf.shape(bboxes)[0], bbox_labels.shape[-1]
 
     rrs = []
-    # TODO clip matched_bboxes_idx_all by feature_size max
     # for anchor_ratio, feature_size in zip(anchor_ratios, feature_sizes):
     for id in range(feature_sizes.shape[0]):
         # build_targets https://github.dev/WongKinYiu/yolor/blob/main/utils/loss.py#L127
@@ -273,6 +272,7 @@ def yolor_assign_anchors(bbox_labels, anchor_ratios, feature_sizes, anchor_aspec
         centers_true = matched_bboxes_all[:, :2] - tf.cast(matched_bboxes_idx_all, matched_bboxes_all.dtype)
         bbox_labels_true = tf.concat([centers_true, matched_bboxes_all[:, 2:]], axis=-1)
         rr = tf.zeros([feature_size[0], feature_size[1], num_anchors, num_output_channels])
+        matched_bboxes_idx_all = tf.clip_by_value(matched_bboxes_idx_all, 0, tf.cast(feature_size, matched_bboxes_idx_all.dtype) - 1)
         rr = tf.tensor_scatter_nd_update(rr, tf.concat([matched_bboxes_idx_all, tf.expand_dims(anchors_pick_all, 1)], axis=-1), bbox_labels_true)
         rrs.append(tf.reshape(rr, [-1, num_output_channels]))
     return tf.concat(rrs, axis=0)

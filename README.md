@@ -7,8 +7,8 @@
   - [Basic](#basic)
   - [Layers](#layers)
   - [Model surgery](#model-surgery)
-  - [ImageNet Training](#imagenet-training)
-  - [COCO Training](#coco-training)
+  - [ImageNet training and evaluating](#imagenet-training-and-evaluating)
+  - [COCO training and evaluating](#coco-training-and-evaluating)
   - [Evaluation](#evaluation)
   - [Visualizing](#visualizing)
   - [TFLite Conversion](#tflite-conversion)
@@ -139,11 +139,10 @@
   # Fuse conv and batch_norm layers. Trainable params: 25,553,192
   mm = model_surgery.convert_to_fused_conv_bn_model(mm)
   ```
-## ImageNet Training
+## ImageNet training and evaluating
   - [ImageNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/imagenet) contains more detail usage and some comparing results.
   - [Init Imagenet dataset using tensorflow_datasets #9](https://github.com/leondgarse/keras_cv_attention_models/discussions/9).
   - Dataset loading is using `tfds.load`, for custom data, refer [Writing custom datasets](https://www.tensorflow.org/datasets/add_dataset) and [Creating private tensorflow_datasets from tfds #48](https://github.com/leondgarse/keras_cv_attention_models/discussions/48) by @Medicmind.
-  - It took me weeks figuring out what is wrong in training, that should use `LAMB` with excluding `batch norm` layers on weight decay...
   - `aotnet.AotNet50` default parameters set is a typical `ResNet50` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
   - Default parameters for `train_script.py` is like `A3` configuration from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf) with `batch_size=256, input_shape=(160, 160)`.
     ```sh
@@ -166,9 +165,20 @@
     -s aotnet50_progressive_3_lr_steps_100 --seed 0
     ```
     ![aotnet50_progressive_160](https://user-images.githubusercontent.com/5744524/151286851-221ff8eb-9fe9-4685-aa60-4a3ba98c654e.png)
-## COCO Training
+  - **`eval_script.py`** is used for evaluating model accuracy.
+    ```sh
+    # evaluating pretrained builtin model
+    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m regnet.RegNetZD8
+    # evaluating pretrained timm model
+    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m timm.models.resmlp_12_224 --input_shape 224
+
+    # evaluating specific h5 model
+    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m checkpoints/xxx.h5
+    # evaluating specific tflite model
+    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m xxx.tflite
+    ```
+## COCO training and evaluating
   - [COCO](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco) contains more detail usage.
-  - `AnchorFreeLoss` usage took me weeks solving why the `bbox_loss` always been `1`. that using `tf.stop_gradient` while assigning is the key...
   - Default parameters for `coco_train_script.py` is `EfficientDetD0` with `input_shape=(256, 256, 3), batch_size=64, mosaic_mix_prob=0.5, freeze_backbone_epochs=32, total_epochs=105`. Technically, it's any `pyramid structure backbone` + `EfficientDet / YOLOX header / YOLOR header` + `anchor_free / yolor_anchors / efficientdet_anchors` combination supported.
   - Currently 3 types anchors supported,
     - **use_anchor_free_mode** controls if using typical `YOLOX anchor_free mode` strategy.
@@ -192,18 +202,14 @@
     # ResNest50 backbone + EfficientDetD0 header using yolox like anchor_free_mode
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone resnest.ResNest50 --use_anchor_free_mode
     # ConvNeXtTiny backbone + EfficientDetD0 header using yolor anchors
-    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone convnext.ConvNeXtTiny --use_yolor_anchors_mode
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone uniformer.UniformerSmall32 --use_yolor_anchors_mode
 
     # Typical YOLOXS with anchor_free_mode
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolox.YOLOXS --use_anchor_free_mode
     # YOLOXS with efficientdet anchors
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolox.YOLOXS
-    # CoAtNet0 backbone + YOLOXS header with anchor_free_mode
-    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone coatnet.CoAtNet0 --det_header yolox.YOLOXS --use_anchor_free_mode
-    # UniformerSmall32 backbone + YOLOX header with efficientdet anchors
-    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone uniformer.UniformerSmall32 --det_header yolox.YOLOX
     # ConvNeXtTiny backbone + YOLOX header with yolor anchors
-    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone convnext.ConvNeXtTiny --det_header yolox.YOLOX --use_yolor_anchors_mode
+    CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone coatnet.CoAtNet0 --det_header yolox.YOLOX --use_yolor_anchors_mode
 
     # Typical YOLOR_P6 with yolor anchors
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolor.YOLOR_P6 --use_yolor_anchors_mode
@@ -213,25 +219,19 @@
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone convnext.ConvNeXtTiny --det_header yolor.YOLOR
     ```
     **Note: COCO training still under testing, may change parameters and default behaviors. Take the risk if would like help developing.**
-## Evaluation
-  - `eval_script.py` is used for evaluating model accuracy, both `imagenet` / `coco` ones.
-    ```sh
-    # evaluating pretrained builtin model
-    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m regnet.RegNetZD8
-    # evaluating pretrained timm model
-    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m timm.models.resmlp_12_224 --input_shape 224
-
-    # evaluating specific h5 model
-    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m checkpoints/xxx.h5
-    # evaluating specific tflite model
-    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m xxx.tflite
-    ```
-  - **Evaluating COCO AP by specifying `--data_name coco`**. It has a dependency `pip install pycocotools` which is not in package requirements. More usage can be found in [COCO Evaluation](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco#evaluation).
+  - **`coco_eval_script.py`** is used for evaluating model AP /AR on COCO test set. It has a dependency `pip install pycocotools` which is not in package requirements. More usage can be found in [COCO Evaluation](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco#evaluation).
     ```sh
     # resize method for EfficientDetD0 is bilinear w/o antialias
-    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m efficientdet.EfficientDetD0 -d coco --batch_size 8 --resize_method bilinear --disable_antialias
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m efficientdet.EfficientDetD0 --resize_method bilinear --disable_antialias
+    # Specify --use_anchor_free_mode for YOLOX
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXTiny --use_anchor_free_mode --nms_method hard --nms_iou_or_sigma 0.65
+    # Specify --use_yolor_anchors_mode for YOLOR
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOR_CSP --use_yolor_anchors_mode --nms_method hard --nms_iou_or_sigma 0.65
+
+    # Specific h5 model
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m checkpoints/yoloxtiny_yolor_anchor.h5 --use_yolor_anchors_mode
     ```
-    **Note: current default presets for matching EfficientDet evaluating results, YOLOX / YOLOR needs different configures.**
+    **Note: current default presets for matching EfficientDet evaluating results, currently YOLOX / YOLOR results are lower than official sets.**
 ## Visualizing
   - [Visualizing](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/visualizing) is for visualizing convnet filters or attention map scores.
   - **make_and_apply_gradcam_heatmap** is for Grad-CAM class activation visualization.
