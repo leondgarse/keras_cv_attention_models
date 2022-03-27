@@ -8,7 +8,6 @@
     - `yolor_head` output changed from PyTorch channel_first compatible format `[batch, 3, height, width, 85 preds]` to `[batch, height, width, 3, 85 preds]`.
     - `85 preds` from `yolor_head` output changed from `[bboxes, object_scores, class_scores]` to `[bboxes, class_scores, object_scores]`.
     - `bboxes` format changed from `[left, top, right, bottom]` to `[top, left, bottom, right]`.
-  - **Currently, training only supporting `anchor_free_mode`: `CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --det_header yolor.YOLOR --use_anchor_free_mode`. Yolor training strategy is under working**.
 ## Models
   | Model      | Params | Image resolution | COCO test AP | Download |
   | ---------- | ------ | ---------------- | ------------ | -------- |
@@ -35,7 +34,7 @@
     data.show_image_with_bboxes(imm, bboxs, lables, confidences)
     ```
     ![yolor_csp_dog_cat](https://user-images.githubusercontent.com/5744524/158940187-1840ab4f-2f0e-497b-b796-2bdb9f31755a.png)
-  - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. **Note: `YOLO_P6` using `focus_stem` requires input at least been an even number**.
+  - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. **Note: `YOLO_*6` models using `focus_stem` requires input at least been an even number**.
     ```py
     from keras_cv_attention_models import yolor
     model = yolor.YOLOR_CSP(input_shape=(None, None, 3), pretrained="coco")
