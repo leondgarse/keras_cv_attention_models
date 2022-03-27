@@ -69,7 +69,11 @@ if __name__ == "__main__":
     if args.model_path.endswith(".h5"):
         model = tf.keras.models.load_model(args.model_path, compile=False)
     elif args.model_path.endswith(".tflite"):
-        model = args.model_path
+        from keras_cv_attention_models.imagenet.eval_func import TFLiteModelInterf
+
+        # model = args.model_path
+        model = TFLiteModelInterf(args.model_path)
+        model.output_shape = model(tf.ones([1, *model.input_shape[1:-1], 3])).shape # Have to init output_shape after inference once, or will be 1 [ ??? ]
     else:  # model_path like: yolor.YOLOR_CSP
         model = args.model_path.strip().split(".")
         model_class = getattr(getattr(keras_cv_attention_models, model[0]), model[1])

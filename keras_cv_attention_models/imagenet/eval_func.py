@@ -24,12 +24,14 @@ class TFLiteModelInterf:
     def __init__(self, model_path):
         self.interpreter = tf.lite.Interpreter(model_path=model_path)
         input_details = self.interpreter.get_input_details()[0]
-        output_details = self.interpreter.get_output_details()[0]
         self.input_dtype = input_details["dtype"]
-        self.output_dtype = output_details["dtype"]
         self.input_index = input_details["index"]
+        self.input_shape = input_details["shape"].tolist()
+
+        output_details = self.interpreter.get_output_details()[0]
+        self.output_dtype = output_details["dtype"]
         self.output_index = output_details["index"]
-        self.input_shape = input_details["shape"].tolist()[1:-1]
+        self.output_shape = output_details["shape"].tolist()
 
         if self.input_dtype == tf.uint8 or self.output_dtype == tf.uint8:
             self.input_scale, self.input_zero_point = input_details.get("quantization", (1.0, 0.0))
@@ -75,7 +77,7 @@ def evaluation(
         print(">>>> Using input_shape {} for Keras model.".format(input_shape))
     elif isinstance(model, TFLiteModelInterf) or (isinstance(model, str) and model.endswith(".tflite")):
         model_interf = model if isinstance(model, TFLiteModelInterf) else TFLiteModelInterf(model)
-        input_shape = model_interf.input_shape
+        input_shape = model_interf.input_shape[1:-1]
         print(">>>> Using input_shape {} for TFLite model.".format(input_shape))
     elif isinstance(model, types.LambdaType):
         model_interf = model
