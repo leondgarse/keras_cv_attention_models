@@ -343,13 +343,18 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
 
         # tobj[b, a, gj, gi] = (1.0 - model.gr) + model.gr * iou.detach().clamp(0).type(tobj.dtype)  # iou ratio, gr = 1.0
         object_true = tf.tensor_scatter_nd_update(tf.zeros_like(y_pred[:, :, -1]), valid_pick, tf.maximum(iou, 0))
-        object_loss = tf.reduce_mean(K.binary_crossentropy(object_true, y_pred[:, :, -1]) * self.object_level_weights) * self.loss_scale
+        object_loss = tf.losses.binary_crossentropy(object_true, y_pred[:, :, -1])
+        object_loss = tf.reduce_mean(object_loss * self.object_level_weights) * self.loss_scale
 
         class_true_valid, class_pred_valid = y_true_valid[:, 4:-1], y_pred_valid[:, 4:-1]
-        if self.label_smoothing > 0:
-            class_true_valid = class_true_valid * (1.0 - self.label_smoothing) + 0.5 * self.label_smoothing
-        # TODO Use focal_loss if gamma > 0
-        class_loss = tf.reduce_mean(K.binary_crossentropy(class_true_valid, class_pred_valid))
+        # if self.label_smoothing > 0:
+        #     class_true_valid = class_true_valid * (1.0 - self.label_smoothing) + 0.5 * self.label_smoothing
+
+        if self.gamma > 0:
+            class_loss = tf.losses.binary_focal_crossentropy(class_true_valid, class_pred_valid, gamma=self.gamma, label_smoothing=self.label_smoothing)
+        else:
+            class_loss = tf.losses.binary_crossentropy(class_true_valid, class_pred_valid, label_smoothing=self.label_smoothing)
+        class_loss = tf.reduce_mean(class_loss) * self.loss_scale
 
         # Calulate accuracy here, will use it in metrics
         self.class_acc.assign(tf.reduce_mean(tf.cast(tf.argmax(class_pred_valid, axis=-1) == tf.argmax(class_true_valid, axis=-1), "float32")))

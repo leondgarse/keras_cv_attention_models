@@ -120,7 +120,7 @@
 
   """ Decode """
   from keras_cv_attention_models import coco
-  anchors = coco.get_yolor_anchors()
+  anchors = coco.get_yolor_anchors(input_shape=mm.input_shape[1:-1])
   keras_out_decode = tf.sigmoid(keras_out)
   center_yx = (keras_out_decode[:, :, :2] * 2 * anchors[:, 4:] + anchors[:, :2])
   hhww = ((keras_out_decode[:, :, 2:4] * 2) ** 2 * anchors[:, 2:4])
@@ -138,7 +138,7 @@
   """ Decode verification """
   # Rescale torch bboxes to [0, 1]
   torch_decode = torch.cat([torch_decode[:, :, :4] / 640, torch_decode[:, :, 4:]], axis=-1)
-  print(f"{np.allclose(torch_decode.detach().numpy(), keras_out_decode, atol=1e-6) = }")
-  # np.allclose(torch_decode.detach().numpy(), keras_out_decode, atol=1e-6) = True
+  print(f"{np.allclose(torch_decode.detach().numpy(), keras_out_decode, atol=1e-5) = }")
+  # np.allclose(torch_decode.detach().numpy(), keras_out_decode, atol=1e-5) = True
   ```
 ***

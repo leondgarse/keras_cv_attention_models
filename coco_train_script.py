@@ -204,6 +204,7 @@ def run_training_by_args(args):
         mosaic_mix_prob=args.mosaic_mix_prob,
         resize_method=args.resize_method,
         resize_antialias=not args.disable_antialias,
+        use_hsv_augment=True,
         magnitude=args.magnitude,
         num_layers=args.num_layers,
     )

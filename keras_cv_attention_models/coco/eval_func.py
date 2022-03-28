@@ -58,25 +58,27 @@ class DecodePredictions:
         bboxes_topk = tf.gather(bbox_outputs, original_indices_hh)
         return bboxes_topk, scores_topk, original_indices_ww, original_indices_hh
 
-    def __nms_per_class__(self, bbs, ccs, labels, score_threshold=0.3, iou_threshold=0.5, soft_nms_sigma=0.5, max_output_size=100):
-        # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L409
-        rrs = []
-        for ii in tf.unique(labels)[0]:
-            pick = tf.where(labels == ii)
-            bb, cc = tf.gather_nd(bbs, pick), tf.gather_nd(ccs, pick)
-            rr, nms_scores = tf.image.non_max_suppression_with_scores(bb, cc, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
-            bb_nms = tf.gather(bb, rr)
-            rrs.append(tf.concat([bb_nms, tf.ones([bb_nms.shape[0], 1]) * tf.cast(ii, bb_nms.dtype), tf.expand_dims(nms_scores, 1)], axis=-1))
-        rrs = tf.concat(rrs, axis=0)
-        if tf.shape(rrs)[0] > max_output_size:
-            score_top_k = tf.argsort(rrs[:, -1], direction="DESCENDING")[:max_output_size]
-            rrs = tf.gather(rrs, score_top_k)
-        bboxes, labels, scores = rrs[:, :4], rrs[:, 4], rrs[:, -1]
-        return bboxes.numpy(), labels.numpy(), scores.numpy()
+    # def __nms_per_class__(self, bbs, ccs, labels, score_threshold=0.3, iou_threshold=0.5, soft_nms_sigma=0.5, max_output_size=100):
+    #     # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L409
+    #     # Not using, same result with `torchvision.ops.batched_nms`
+    #     rrs = []
+    #     for ii in tf.unique(labels)[0]:
+    #         pick = tf.where(labels == ii)
+    #         bb, cc = tf.gather_nd(bbs, pick), tf.gather_nd(ccs, pick)
+    #         rr, nms_scores = tf.image.non_max_suppression_with_scores(bb, cc, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
+    #         bb_nms = tf.gather(bb, rr)
+    #         rrs.append(tf.concat([bb_nms, tf.ones([bb_nms.shape[0], 1]) * tf.cast(ii, bb_nms.dtype), tf.expand_dims(nms_scores, 1)], axis=-1))
+    #     rrs = tf.concat(rrs, axis=0)
+    #     if tf.shape(rrs)[0] > max_output_size:
+    #         score_top_k = tf.argsort(rrs[:, -1], direction="DESCENDING")[:max_output_size]
+    #         rrs = tf.gather(rrs, score_top_k)
+    #     bboxes, labels, scores = rrs[:, :4], rrs[:, 4], rrs[:, -1]
+    #     return bboxes.numpy(), labels.numpy(), scores.numpy()
 
-    def __nms_torch_batched__(self, bbs, ccs, labels, score_threshold=0.3, iou_threshold=0.5, soft_nms_sigma=0.5, max_output_size=100):
+    def __nms_per_class__(self, bbs, ccs, labels, score_threshold=0.3, iou_threshold=0.5, soft_nms_sigma=0.5, max_output_size=100):
         # From torchvision.ops.batched_nms strategy: in order to perform NMS independently per class. we add an offset to all the boxes.
         # The offset is dependent only on the class idx, and is large enough so that boxes from different classes do not overlap
+        # Same result with per_class method: https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L409
         cls_offset = tf.cast(labels, bbs.dtype) * (tf.reduce_max(bbs) + 1)
         bbs_per_class = bbs + tf.expand_dims(cls_offset, -1)
         rr, nms_scores = tf.image.non_max_suppression_with_scores(bbs_per_class, ccs, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
@@ -113,8 +115,6 @@ class DecodePredictions:
 
         if mode == "per_class":
             return self.__nms_per_class__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
-        elif mode == "torch_batched":
-            return self.__nms_torch_batched__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
         else:
             return self.__nms_global__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
 
@@ -123,7 +123,7 @@ class DecodePredictions:
         https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
         iou_or_sigma: means `soft_nms_sigma` if method is "gaussian", else `iou_threshold`.
         method: "gaussian" or "hard".
-        mode: "global" or "per_class" or "torch_batched".
+        mode: "global" or "per_class". "per_class" is strategy from `torchvision.ops.batched_nms`
         topk: `> 0` value for picking topk preds using scores.
         """
         preds = preds if len(preds.shape) == 3 else [preds]
@@ -139,7 +139,9 @@ def scale_bboxes_back_single(bboxes, image_shape, scale, target_shape):
     return bboxes
 
 
-def init_eval_dataset(data_name="coco/2017", target_shape=(512, 512), batch_size=8, rescale_mode="torch", resize_method="bilinear", resize_antialias=False):
+def init_eval_dataset(
+    data_name="coco/2017", target_shape=(512, 512), batch_size=8, rescale_mode="torch", resize_method="bilinear", resize_antialias=False, use_bgr_input=False
+):
     mean, std = coco.init_mean_std_by_rescale_mode(rescale_mode)
     rescaling = lambda xx: (xx - mean) / std
 
@@ -151,6 +153,8 @@ def init_eval_dataset(data_name="coco/2017", target_shape=(512, 512), batch_size
     ds = ds.batch(batch_size)
     # ds = ds.map(lambda datapoint: (*resize_func(datapoint["image"]), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
     # ds = ds.batch(batch_size).map(lambda ii, jj, kk, mm: (rescaling(ii), jj, kk, mm))
+    if use_bgr_input:
+        ds = ds.map(lambda resized_image, scale, original_image_shape, image_id: (resized_image[:, :, :, ::-1], scale, original_image_shape, image_id))
     return ds
 
 
@@ -204,13 +208,14 @@ def run_coco_evaluation(
     resize_method="bilinear",
     resize_antialias=False,
     rescale_mode="auto",
+    use_bgr_input=False,
     take_samples=-1,
     nms_score_threshold=0.001,  # model_eval_results parameters
     nms_iou_or_sigma=0.5,
     nms_method="gaussian",
     nms_mode="per_class",
     nms_topk=5000,
-    use_anchor_free_mode=False, # model anchors related parameters
+    use_anchor_free_mode=False,  # model anchors related parameters
     use_yolor_anchors_mode=False,
     anchor_scale=4,  # Init anchors for model prediction. "auto" means 1 if use_anchor_free_mode else 4
     annotation_file=None,
@@ -223,7 +228,7 @@ def run_coco_evaluation(
         rescale_mode = getattr(model, "rescale_mode", "torch")
         print(">>>> rescale_mode:", rescale_mode)
 
-    eval_dataset = init_eval_dataset(data_name, input_shape, batch_size, rescale_mode, resize_method, resize_antialias)
+    eval_dataset = init_eval_dataset(data_name, input_shape, batch_size, rescale_mode, resize_method, resize_antialias, use_bgr_input)
     if take_samples > 0:
         eval_dataset = eval_dataset.take(take_samples)
     if hasattr(model, "decode_predictions") and model.decode_predictions is not None:
