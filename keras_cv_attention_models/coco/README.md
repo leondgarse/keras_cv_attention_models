@@ -76,22 +76,22 @@
     ```
     **Note: COCO training still under testing, may change parameters and default behaviors. Take the risk if would like help developing.**
 ## Evaluation
-  - **`coco_eval_script.py`** is used for evaluating model AP / AR on COCO validation set. It has a dependency `pip install pycocotools` which is not in package requirements.
+  - **`coco_eval_script.py`** is used for evaluating model AP / AR on COCO validation set. It has a dependency `pip install pycocotools` which is not in package requirements..
     ```sh
     # resize method for EfficientDetD0 is bilinear w/o antialias
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m efficientdet.EfficientDetD0 --resize_method bilinear --disable_antialias
-    # Specify --use_anchor_free_mode for YOLOX
-    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXTiny --use_anchor_free_mode --nms_method hard --nms_iou_or_sigma 0.65
-    # Specify --use_yolor_anchors_mode for YOLOR
+    # Specify --use_anchor_free_mode for YOLOX, and BGR input format
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXTiny --use_anchor_free_mode --use_bgr_input --nms_method hard --nms_iou_or_sigma 0.65
+    # Specify --use_yolor_anchors_mode for YOLOR. Note: result still lower than official sets
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOR_CSP --use_yolor_anchors_mode --nms_method hard --nms_iou_or_sigma 0.65
 
     # Specific h5 model
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m checkpoints/yoloxtiny_yolor_anchor.h5 --use_yolor_anchors_mode
     ```
-    **efficientdet.EfficientDetD0 result**
+  - **efficientdet.EfficientDetD0 result**
     ```sh
     # resize method for EfficientDetD0 is bilinear w/o antialias
-    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m efficientdet.EfficientDetD0 -d coco --batch_size 8 --resize_method bilinear --disable_antialias
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m efficientdet.EfficientDetD0 --resize_method bilinear --disable_antialias
     # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.343
     # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.525
     # Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.366
@@ -105,12 +105,54 @@
     # Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.568
     # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.710
     ```
-    **Evaluating specific h5 model**
+    Use same strategy with `YOLOX`, `--nms_method hard --nms_iou_or_sigma 0.65`
     ```sh
-    # Specific h5 model
-    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m checkpoints/yoloxtiny_yolor_anchor.h5 --use_yolor_anchors_mode
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m efficientdet.EfficientDetD0 --nms_method hard --nms_iou_or_sigma 0.65 --resize_method bilinear --disable_antialias
+    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.342
+    # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.512
+    # Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.369
+    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.136
+    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.403
+    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.536
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.292
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.456
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.492
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.204
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.582
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.720
     ```
-    **Note: current default presets for matching EfficientDet evaluating results, currently YOLOX / YOLOR results are lower than official sets.**
+  - **yolox.YOLOXS result**
+    ```sh
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXS -F --nms_method hard --nms_iou_or_sigma 0.65 --use_bgr_input
+    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.404
+    # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.592
+    # Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.437
+    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.233
+    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.449
+    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.541
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.328
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.533
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.566
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.353
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.622
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.733
+    ```
+    Use same strategy with `EfficientDet`, `--nms_method gaussian --nms_iou_or_sigma 0.5`
+    ```sh
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXS -F --use_bgr_input --resize_method bilinear --disable_antialias
+    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.403
+    # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.584
+    # Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.438
+    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.232
+    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.446
+    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.539
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.329
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.544
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.581
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.361
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.634
+    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.757
+    ```
   - **Tricks for evaluation**
     ```py
     from keras_cv_attention_models.coco import eval_func
@@ -118,12 +160,12 @@
     mm = efficientdet.EfficientDetD0()
     eval_func.run_coco_evaluation(mm, nms_score_threshold=0.001, nms_method="gaussian", nms_mode="per_class", nms_topk=5000, batch_size=8)
     ```
-    | nms_score_threshold | clip_bbox | nms_method | nms_mode  | nms_topk | Val AP 0.50:0.95, area=all |
-    | ------------------- | --------- | ---------- | --------- | -------- | -------------------------- |
-    | 0.1                 | False     | hard       | global    | -1       | 0.326                      |
-    | 0.001               | False     | hard       | global    | -1       | 0.330                      |
-    | 0.001               | True      | hard       | global    | -1       | 0.331                      |
-    | 0.001               | True      | gaussian   | global    | -1       | 0.333                      |
-    | 0.001               | True      | gaussian   | per_class | -1       | 0.339                      |
-    | 0.001               | True      | gaussian   | per_class | 5000     | **0.343**                  |
+    | nms_score_threshold    | clip_bbox | nms_method | nms_mode  | nms_topk | Val AP 0.50:0.95, area=all |
+    | ---------------------- | --------- | ---------- | --------- | -------- | -------------------------- |
+    | 0.1                    | False     | hard       | global    | -1       | 0.326                      |
+    | 0.001                  | False     | hard       | global    | -1       | 0.330                      |
+    | 0.001                  | True      | hard       | global    | -1       | 0.331                      |
+    | 0.001                  | True      | gaussian   | global    | -1       | 0.333                      |
+    | 0.001                  | True      | gaussian   | per_class | -1       | 0.339                      |
+    | 0.001                  | True      | gaussian   | per_class | 5000     | **0.343**                  |
 ***

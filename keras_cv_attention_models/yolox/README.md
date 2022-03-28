@@ -17,7 +17,7 @@
   | YOLOXL    | 54.2M  | 640              | 50.1         | [yolox_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_l_coco.h5) |
   | YOLOXX    | 99.1M  | 640              | 51.5         | [yolox_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_x_coco.h5) |
 ## Usage
-  - **Basic usage**
+  - **Basic usage**. Note pretrained `YOLOX` model weights using `BGR` input format.
     ```py
     from keras_cv_attention_models import yolox
     model = yolox.YOLOXS(pretrained="coco")
@@ -25,14 +25,14 @@
     # Run prediction
     from keras_cv_attention_models import test_images
     imm = test_images.dog_cat()
-    preds = model(model.preprocess_input(imm))
+    preds = model(model.preprocess_input(imm[:, :, ::-1])) # RGB -> BGR
     bboxs, lables, confidences = model.decode_predictions(preds)[0]
 
     # Show result
     from keras_cv_attention_models.coco import data
     data.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=80)
     ```
-    ![yoloxs_dog_cat](https://user-images.githubusercontent.com/5744524/154924798-79a69e1b-40f3-4ac9-895f-0a15dd4ca9b3.png)
+    ![yoloxs_dog_cat](https://user-images.githubusercontent.com/5744524/160348847-4ecefb6c-c0a3-410c-a98e-23504533cfee.png)
   - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. **Note: `focus_stem` in `CSPDarknet` requires input at least been an even number**.
     ```py
     from keras_cv_attention_models import yolox
@@ -48,14 +48,14 @@
     from keras_cv_attention_models import test_images
     imm = test_images.dog_cat()
     input_shape = (320, 224, 3)
-    preds = model(model.preprocess_input(imm, input_shape=input_shape))
+    preds = model(model.preprocess_input(imm[:, :, ::-1], input_shape=input_shape)) # RGB -> BGR
     bboxs, lables, confidences = model.decode_predictions(preds, input_shape=input_shape)[0]
 
     # Show result
     from keras_cv_attention_models.coco import data
     data.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=80)
     ```
-    ![yoloxtiny_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/154925006-0c5e1034-5d34-4762-937f-a914b4810a77.png)
+    ![yoloxtiny_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/160348890-2d647b26-ff2d-49b6-ae46-b30f29c69ab1.png)
 ## Custom detector using YOLOX header
   - **Backbone** for `YOLOX` can be any model with pyramid stage structure. Default `width_mul=-1` means using `min([ii.shape[-1] for ii in features]) / 256`.
     ```py

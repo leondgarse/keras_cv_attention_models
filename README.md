@@ -222,15 +222,14 @@
     ```sh
     # resize method for EfficientDetD0 is bilinear w/o antialias
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m efficientdet.EfficientDetD0 --resize_method bilinear --disable_antialias
-    # Specify --use_anchor_free_mode for YOLOX
-    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXTiny --use_anchor_free_mode --nms_method hard --nms_iou_or_sigma 0.65
-    # Specify --use_yolor_anchors_mode for YOLOR
+    # Specify --use_anchor_free_mode for YOLOX, and BGR input format
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXTiny --use_anchor_free_mode --use_bgr_input --nms_method hard --nms_iou_or_sigma 0.65
+    # Specify --use_yolor_anchors_mode for YOLOR. Note: result still lower than official sets
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOR_CSP --use_yolor_anchors_mode --nms_method hard --nms_iou_or_sigma 0.65
 
     # Specific h5 model
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m checkpoints/yoloxtiny_yolor_anchor.h5 --use_yolor_anchors_mode
     ```
-    **Note: current default presets for matching EfficientDet evaluating results, currently YOLOX / YOLOR results are lower than official sets.**
 ## Visualizing
   - [Visualizing](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/visualizing) is for visualizing convnet filters or attention map scores.
   - **make_and_apply_gradcam_heatmap** is for Grad-CAM class activation visualization.
