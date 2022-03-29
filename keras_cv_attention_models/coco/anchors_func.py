@@ -156,21 +156,25 @@ def center_yxhw_to_corners_nd(ss):
     return tf.concat([top_left, bottom_right], axis=-1)
 
 
-def decode_bboxes(preds, anchors):
+def decode_bboxes(preds, anchors, return_centers=False):
+    preds_center, preds_hw, preds_others = tf.split(preds, [2, 2, -1], axis=-1)
     if anchors.shape[-1] == 6:  # Currently, it's yolor anchors
         # anchors: [grid_y, grid_x, base_anchor_y, base_anchor_x, stride_y, stride_x]
-        bboxes_center = preds[:, :2] * 2 * anchors[:, 4:] + anchors[:, :2]
-        bboxes_hw = (preds[:, 2:4] * 2) ** 2 * anchors[:, 2:4]
+        bboxes_center = preds_center * 2 * anchors[:, 4:] + anchors[:, :2]
+        bboxes_hw = (preds_hw * 2) ** 2 * anchors[:, 2:4]
     else:
         anchors_hw = anchors[:, 2:] - anchors[:, :2]
         anchors_center = (anchors[:, :2] + anchors[:, 2:]) * 0.5
 
-        bboxes_center = preds[:, :2] * anchors_hw + anchors_center
-        bboxes_hw = tf.math.exp(preds[:, 2:4]) * anchors_hw
+        bboxes_center = preds_center * anchors_hw + anchors_center
+        bboxes_hw = tf.math.exp(preds_hw) * anchors_hw
 
-    preds_top_left = bboxes_center - 0.5 * bboxes_hw
-    pred_bottom_right = preds_top_left + bboxes_hw
-    return tf.concat([preds_top_left, pred_bottom_right, preds[:, 4:]], axis=-1)
+    if return_centers:
+        return tf.concat([bboxes_center, bboxes_hw, preds_others], axis=-1)
+    else:
+        preds_top_left = bboxes_center - 0.5 * bboxes_hw
+        pred_bottom_right = preds_top_left + bboxes_hw
+        return tf.concat([preds_top_left, pred_bottom_right, preds_others], axis=-1)
 
 
 def assign_anchor_classes_by_iou_with_bboxes(bbox_labels, anchors, ignore_threshold=0.4, overlap_threshold=0.5):

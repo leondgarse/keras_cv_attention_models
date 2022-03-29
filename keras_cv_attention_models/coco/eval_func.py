@@ -44,6 +44,7 @@ class DecodePredictions:
         else:
             aspect_ratios, num_scales, grid_zero_start = [1, 2, 0.5], 3, False
             self.anchors = coco.get_anchors(input_shape, self.pyramid_levels, aspect_ratios, num_scales, self.anchor_scale, grid_zero_start)
+        return self.anchors
 
     def __topk_class_boxes_single__(self, pred, topk=5000):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L82

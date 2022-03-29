@@ -21,7 +21,7 @@ def parse_arguments(argv):
     parser.add_argument("--rescale_mode", type=str, default="auto", help="Rescale mode, one of [tf, torch, raw]. Default `auto` means using model preset")
     parser.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
     parser.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
-    parser.add_argument("--use_bgr_input", action="store_true", help="Use BRG input instead of RGB, ")
+    parser.add_argument("--use_bgr_input", action="store_true", help="Use BRG input instead of RGB")
     parser.add_argument("--num_classes", type=int, default=None, help="num_classes if not inited from h5 file. None for model.num_classes")
     parser.add_argument(
         "--pretrained",

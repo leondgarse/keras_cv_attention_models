@@ -336,7 +336,7 @@ def test_EfficientDet_header():
 
 def test_YOLOXTiny_predict():
     mm = keras_cv_attention_models.yolox.YOLOXTiny(pretrained="coco")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    pred = mm(mm.preprocess_input(chelsea()[:, :, ::-1]))  # Chelsea the cat
     assert pred.shape == (1, 3549, 85)
 
     pred_label = mm.decode_predictions(pred)[0][1]
@@ -346,7 +346,7 @@ def test_YOLOXTiny_predict():
 def test_YOLOXS_dynamic_predict():
     mm = keras_cv_attention_models.yolox.YOLOXS(input_shape=(None, None, 3), pretrained="coco")
     input_shape = (188, 276, 3)
-    pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
+    pred = mm(mm.preprocess_input(chelsea()[:, :, ::-1], input_shape=input_shape))  # Chelsea the cat
     assert pred.shape == (1, 1110, 85)
 
     pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1]

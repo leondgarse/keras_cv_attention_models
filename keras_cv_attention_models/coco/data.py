@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from tensorflow import keras
-from keras_cv_attention_models.imagenet.data import init_mean_std_by_rescale_mode, random_crop_fraction
+from keras_cv_attention_models.imagenet.data import init_mean_std_by_rescale_mode, tf_imread, random_crop_fraction
 from keras_cv_attention_models.coco import anchors_func
 
 COCO_LABELS = """person, bicycle, car, motorcycle, airplane, bus, train, truck, boat, traffic light, fire hydrant, stop sign,
@@ -260,6 +260,8 @@ class RandomProcessImageWithBboxes:
         image = datapoint["image"]
         objects = datapoint["objects"]
         bbox, label, is_crowd = tf.cast(objects["bbox"], tf.float32), objects["label"], objects.get("is_crowd", None)
+        if len(image.shape) < 3:
+            image = tf_imread(image)
         if is_crowd is not None:
             is_not_crowd = is_crowd == False
             bbox, label = tf.boolean_mask(bbox, is_not_crowd), tf.boolean_mask(label, is_not_crowd)
@@ -365,6 +367,27 @@ def __yolor_bboxes_labels_batch_func__(bboxes, labels, anchor_ratios, feature_si
     return tf.map_fn(bbox_process, bbox_labels)
 
 
+def detection_dataset_from_custom_json(data_path):
+    import json
+
+    with open(data_path, "r") as ff:
+        aa = json.load(ff)
+
+    train, test, info = aa["train"], aa["test"], aa["info"]
+    total_images, num_classes = len(train), info["num_classes"]
+    objects_signature = {"bbox": tf.TensorSpec(shape=(None, 4), dtype=tf.float32), "label": tf.TensorSpec(shape=(None,), dtype=tf.int64)}
+    output_signature = {"image": tf.TensorSpec(shape=(), dtype=tf.string), "objects": objects_signature}
+    train_ds = tf.data.Dataset.from_generator(lambda: (ii for ii in train), output_signature=output_signature)
+    test_ds = tf.data.Dataset.from_generator(lambda: (ii for ii in test), output_signature=output_signature)
+
+    options = tf.data.Options()
+    options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
+    train_ds = train_ds.apply(tf.data.experimental.assert_cardinality(len(train))).with_options(options)
+    test_ds = test_ds.apply(tf.data.experimental.assert_cardinality(len(test))).with_options(options)
+    dataset = {"train": train_ds, "test": test_ds}
+    return dataset, total_images, num_classes
+
+
 def init_dataset(
     data_name="coco/2017",  # dataset params
     input_shape=(256, 256),
@@ -389,10 +412,13 @@ def init_dataset(
     # anchor_aspect_ratios=[1, 2, 0.5],  # [1, 2, 0.5] matches efficientdet anchors format. Force using [1] if use_anchor_free_mode
     # anchor_num_scales=3,  # Force using 1 if use_anchor_free_mode
     # anchor_grid_zero_start="auto",  # False for anchor_free_mode, True for others.
-    try_gcs = True if len(tf.config.list_logical_devices("TPU")) > 0 else False
-    dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)
-    num_classes = info.features["objects"]["label"].num_classes
-    total_images = info.splits["train"].num_examples
+    if data_name.endswith(".json"):
+        dataset, total_images, num_classes = detection_dataset_from_custom_json(data_name)
+    else:
+        try_gcs = True if len(tf.config.list_logical_devices("TPU")) > 0 else False
+        dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)
+        num_classes = info.features["objects"]["label"].num_classes
+        total_images = info.splits["train"].num_examples
     steps_per_epoch = int(tf.math.ceil(total_images / float(batch_size)))
     if info_only:
         return total_images, num_classes, steps_per_epoch
