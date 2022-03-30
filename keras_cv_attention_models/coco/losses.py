@@ -343,7 +343,8 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
 
         # tobj[b, a, gj, gi] = (1.0 - model.gr) + model.gr * iou.detach().clamp(0).type(tobj.dtype)  # iou ratio, gr = 1.0
         object_true = tf.tensor_scatter_nd_update(tf.zeros_like(y_pred[:, :, -1]), valid_pick, tf.maximum(iou, 0))
-        object_loss = tf.losses.binary_crossentropy(object_true, y_pred[:, :, -1])
+        object_loss = K.binary_crossentropy(object_true, y_pred[:, :, -1])
+        # print(object_true.shape, object_loss.shape, self.object_level_weights.shape)
         object_loss = tf.reduce_mean(object_loss * self.object_level_weights) * self.loss_scale
 
         class_true_valid, class_pred_valid = y_true_valid[:, 4:-1], y_pred_valid[:, 4:-1]
