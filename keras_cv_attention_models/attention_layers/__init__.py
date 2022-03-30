@@ -11,6 +11,7 @@ from keras_cv_attention_models.common_layers import (
     drop_block,
     drop_connect_rates_split,
     eca_module,
+    group_norm,
     hard_swish,
     layer_norm,
     make_divisible,

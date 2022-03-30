@@ -6,6 +6,7 @@
   - [MLP mixer](#mlp-mixer)
   - [ResMLP](#resmlp)
   - [GMLP](#gmlp)
+  - [WaveMLP](#wavemlp)
 
 <!-- /TOC -->
 ***
@@ -95,4 +96,38 @@
     | GMLPB16    | 73M    | 224              | 81.6     |          |
 
   - Parameter `pretrained` is added in value `[None, "imagenet"]`. Default is `imagenet`.
+## WaveMLP
+  - [PDF 2111.12294 An Image Patch is a Wave: Quantum Inspired Vision MLP](https://arxiv.org/pdf/2111.12294.pdf)
+  - Model weights reloaded from [Github huawei-noah/wavemlp_pytorch](https://github.com/huawei-noah/CV-Backbones/tree/master/wavemlp_pytorch).
+  - **Models**
+    | Model     | Params | Image resolution | Top1 Acc | Download |
+    | --------- | ------ | ---------------- | -------- | -------- |
+    | WaveMLP_T | 17M    | 224              | 80.9     | [wavemlp_t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/wavemlp_t_imagenet.h5) |
+    | WaveMLP_S | 30M    | 224              | 82.9     | [wavemlp_s_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/wavemlp_s_imagenet.h5) |
+    | WaveMLP_M | 44M    | 224              | 83.3     | [wavemlp_m_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/wavemlp_m_imagenet.h5) |
+
+  - **Verify with PyTorch version**
+    ```py
+    inputs = np.random.uniform(size=(1, 224, 224, 3)).astype("float32")
+
+    """ PyTorch WaveMLP_T """
+    sys.path.append("../CV-Backbones")
+    from wavemlp_pytorch.models import wavemlp as torch_wavemlp
+    import torch
+    torch_model = torch_wavemlp.WaveMLP_T()
+    ww = torch.load('WaveMLP_T.pth.tar', map_location=torch.device('cpu'))
+    ww = {kk: vv for kk, vv in ww.items() if not kk.endswith("total_ops") and not kk.endswith("total_params")}
+    torch_model.load_state_dict(ww)
+    _ = torch_model.eval()
+    torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2)).detach().numpy()
+
+    """ Keras WaveMLP_T """
+    from keras_cv_attention_models import wave_mlp
+    mm = wave_mlp.WaveMLP_T(pretrained="imagenet", classifier_activation=None)
+    keras_out = mm(inputs).numpy()
+
+    """ Verification """
+    print(f"{np.allclose(torch_out, keras_out, atol=1e-5) = }")
+    # np.allclose(torch_out, keras_out, atol=1e-5) = True
+    ```
 ***

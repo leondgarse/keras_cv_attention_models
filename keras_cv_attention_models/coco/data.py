@@ -373,7 +373,8 @@ def detection_dataset_from_custom_json(data_path):
     with open(data_path, "r") as ff:
         aa = json.load(ff)
 
-    train, test, info = aa["train"], aa["test"], aa["info"]
+    test_key = "validation" if "validation" in aa else "test"
+    train, test, info = aa["train"], aa[test_key], aa["info"]
     total_images, num_classes = len(train), info["num_classes"]
     objects_signature = {"bbox": tf.TensorSpec(shape=(None, 4), dtype=tf.float32), "label": tf.TensorSpec(shape=(None,), dtype=tf.int64)}
     output_signature = {"image": tf.TensorSpec(shape=(), dtype=tf.string), "objects": objects_signature}
@@ -384,7 +385,7 @@ def detection_dataset_from_custom_json(data_path):
     options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
     train_ds = train_ds.apply(tf.data.experimental.assert_cardinality(len(train))).with_options(options)
     test_ds = test_ds.apply(tf.data.experimental.assert_cardinality(len(test))).with_options(options)
-    dataset = {"train": train_ds, "test": test_ds}
+    dataset = {"train": train_ds, test_key: test_ds}
     return dataset, total_images, num_classes
 
 
@@ -407,6 +408,7 @@ def init_dataset(
     use_hsv_augment=True,  # Use hsv augment instead of randaug color related. Generally using in other training frameworks.
     magnitude=0,
     num_layers=2,
+    seed=None,
     **augment_kwargs,  # Too many...
 ):
     # anchor_aspect_ratios=[1, 2, 0.5],  # [1, 2, 0.5] matches efficientdet anchors format. Force using [1] if use_anchor_free_mode
@@ -436,7 +438,7 @@ def init_dataset(
         num_layers=num_layers,
         **augment_kwargs,
     )
-    train_dataset = dataset["train"].shuffle(buffer_size).map(train_process).batch(batch_size)
+    train_dataset = dataset["train"].shuffle(buffer_size, seed=seed).map(train_process).batch(batch_size)
     # return train_dataset
 
     if mosaic_mix_prob > 0:

@@ -1,6 +1,7 @@
 from keras_cv_attention_models.mlp_family.mlp_mixer import MLPMixer, MLPMixerS32, MLPMixerS16, MLPMixerB32, MLPMixerB16, MLPMixerL32, MLPMixerL16, MLPMixerH14, mlp_block, mixer_block
 from keras_cv_attention_models.mlp_family.res_mlp import ResMLP, ResMLP12, ResMLP24, ResMLP36, ResMLP_B24, ChannelAffine
 from keras_cv_attention_models.mlp_family.gated_mlp import GMLP, GMLPTiny16, GMLPS16, GMLPB16, spatial_gating_block
+from keras_cv_attention_models.mlp_family.wave_mlp import WaveMLP, WaveMLP_T, WaveMLP_S, WaveMLP_M, WaveMLP_B
 
 __mlp_mixer_head_doc__ = """
 Github source [leondgarse/keras_cv_attention_models](https://github.com/leondgarse/keras_cv_attention_models).

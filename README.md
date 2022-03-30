@@ -35,6 +35,7 @@
   - [ResNeXt](#resnext)
   - [UniFormer](#uniformer)
   - [VOLO](#volo)
+  - [WaveMLP](#wavemlp)
 - [Detection Models](#detection-models)
   - [EfficientDet](#efficientdet)
   - [YOLOR](#yolor)
@@ -542,7 +543,7 @@
   | RegNetZD8  | 23.37M | 256              | 83.5     | [regnetz_d8_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d8_imagenet.h5)   |
   | RegNetZE8  | 57.70M | 256              | 84.5     | [regnetz_e8_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_e8_imagenet.h5)   |
 ## ResMLP
-  - [Keras ResMLP](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#resmlp) includes implementation of [PDF 2105.03404 ResMLP: Feedforward networks for image classification with data-efficient training](https://arxiv.org/pdf/2105.03404.pdf)
+  - [Keras ResMLP](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#resmlp) includes implementation of [PDF 2105.03404 ResMLP: Feedforward networks for image classification with data-efficient training](https://arxiv.org/pdf/2105.03404.pdf).
 
   | Model      | Params | Image resolution | Top1 Acc | Download |
   | ---------- | ------ | ---------------- | -------- | -------- |
@@ -621,6 +622,14 @@
   | VOLO_d5      | 296M   | 224               | 86.1     | [volo_d5_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_224_imagenet.h5) |
   | VOLO_d5 ↑448 | 296M   | 448               | 87.0     | [volo_d5_448_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_448_imagenet.h5) |
   | VOLO_d5 ↑512 | 296M   | 512               | 87.1     | [volo_d5_512_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_512_imagenet.h5) |
+## WaveMLP
+  - [Keras WaveMLP](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#wavemlp) includes implementation of [PDF 2111.12294 An Image Patch is a Wave: Quantum Inspired Vision MLP](https://arxiv.org/pdf/2111.12294.pdf).
+
+  | Model     | Params | Image resolution | Top1 Acc | Download |
+  | --------- | ------ | ---------------- | -------- | -------- |
+  | WaveMLP_T | 17M    | 224              | 80.9     | [wavemlp_t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/wavemlp_t_imagenet.h5) |
+  | WaveMLP_S | 30M    | 224              | 82.9     | [wavemlp_s_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/wavemlp_s_imagenet.h5) |
+  | WaveMLP_M | 44M    | 224              | 83.3     | [wavemlp_m_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/wavemlp_m_imagenet.h5) |
 ***
 
 # Detection Models

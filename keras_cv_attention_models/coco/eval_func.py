@@ -1,6 +1,6 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from keras_cv_attention_models import coco
+from keras_cv_attention_models.coco import anchors_func, data
 from tqdm import tqdm
 
 
@@ -38,12 +38,12 @@ class DecodePredictions:
     def __init_anchor__(self, input_shape):
         input_shape = input_shape[:2] if isinstance(input_shape, (list, tuple)) else (input_shape, input_shape)
         if self.use_anchor_free_mode:
-            self.anchors = coco.get_anchor_free_anchors(input_shape, self.pyramid_levels)
+            self.anchors = anchors_func.get_anchor_free_anchors(input_shape, self.pyramid_levels)
         elif self.use_yolor_anchors_mode:
-            self.anchors = coco.get_yolor_anchors(input_shape, self.pyramid_levels)
+            self.anchors = anchors_func.get_yolor_anchors(input_shape, self.pyramid_levels)
         else:
             aspect_ratios, num_scales, grid_zero_start = [1, 2, 0.5], 3, False
-            self.anchors = coco.get_anchors(input_shape, self.pyramid_levels, aspect_ratios, num_scales, self.anchor_scale, grid_zero_start)
+            self.anchors = anchors_func.get_anchors(input_shape, self.pyramid_levels, aspect_ratios, num_scales, self.anchor_scale, grid_zero_start)
         return self.anchors
 
     def __topk_class_boxes_single__(self, pred, topk=5000):
@@ -111,7 +111,7 @@ class DecodePredictions:
             if self.use_object_scores:
                 ccs *= object_scores
 
-        bbs_decoded = coco.decode_bboxes(bbs, anchors)
+        bbs_decoded = anchors_func.decode_bboxes(bbs, anchors)
         iou_threshold, soft_nms_sigma = (1.0, iou_or_sigma / 2) if method.lower() == "gaussian" else (iou_or_sigma, 0.0)
 
         if mode == "per_class":
@@ -143,14 +143,20 @@ def scale_bboxes_back_single(bboxes, image_shape, scale, target_shape):
 def init_eval_dataset(
     data_name="coco/2017", target_shape=(512, 512), batch_size=8, rescale_mode="torch", resize_method="bilinear", resize_antialias=False, use_bgr_input=False
 ):
-    mean, std = coco.init_mean_std_by_rescale_mode(rescale_mode)
+    mean, std = data.init_mean_std_by_rescale_mode(rescale_mode)
     rescaling = lambda xx: (xx - mean) / std
 
-    ds = tfds.load(data_name, with_info=False)["validation"]
-    resize_func = lambda image: coco.aspect_aware_resize_and_crop_image(image, target_shape, method=resize_method, antialias=resize_antialias)
-    # resize_func = lambda image: coco.data.letterbox_scale_down_only(image, target_shape, method=resize_method, antialias=resize_antialias)
+    if data_name.endswith(".json"):
+        dataset, _, _ = data.detection_dataset_from_custom_json(data_name)
+        image_func = lambda image: data.tf_imread(image)
+    else:
+        dataset = tfds.load(data_name, with_info=False)
+        image_func = lambda image: tf.cast(image, tf.float32)
+    ds = dataset.get("validation", dataset.get("test", None))
+    resize_func = lambda image: data.aspect_aware_resize_and_crop_image(image, target_shape, method=resize_method, antialias=resize_antialias)
+    # resize_func = lambda image: data.letterbox_scale_down_only(image, target_shape, method=resize_method, antialias=resize_antialias)
     # ds: [resized_image, scale, original_image_shape, image_id], automl bahavior: rescale -> resize
-    ds = ds.map(lambda datapoint: (*resize_func(rescaling(tf.cast(datapoint["image"], tf.float32))), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
+    ds = ds.map(lambda datapoint: (*resize_func(rescaling(image_func(datapoint["image"]))), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
     ds = ds.batch(batch_size)
     # ds = ds.map(lambda datapoint: (*resize_func(datapoint["image"]), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
     # ds = ds.batch(batch_size).map(lambda ii, jj, kk, mm: (rescaling(ii), jj, kk, mm))
@@ -164,9 +170,9 @@ def model_eval_results(
 ):
     target_shape = (eval_dataset.element_spec[0].shape[1], eval_dataset.element_spec[0].shape[2])
     num_classes = model.output_shape[-1] - 4
-    to_90_labels = (lambda label: label + 1) if num_classes >= 90 else (lambda label: coco.COCO_80_to_90_LABEL_DICT[label] + 1)
+    to_91_labels = (lambda label: label + 1) if num_classes >= 90 else (lambda label: data.COCO_80_to_90_LABEL_DICT[label] + 1)
     # Format: [image_id, x, y, width, height, score, class]
-    to_coco_eval_single = lambda image_id, bbox, label, score: [image_id, *bbox.tolist(), score, to_90_labels(label)]
+    to_coco_eval_single = lambda image_id, bbox, label, score: [image_id, *bbox.tolist(), score, to_91_labels(label)]
 
     results = []
     for images, scales, original_image_shapes, image_ids in tqdm(eval_dataset):
@@ -232,11 +238,12 @@ def run_coco_evaluation(
     eval_dataset = init_eval_dataset(data_name, input_shape, batch_size, rescale_mode, resize_method, resize_antialias, use_bgr_input)
     if take_samples > 0:
         eval_dataset = eval_dataset.take(take_samples)
+
     if hasattr(model, "decode_predictions") and model.decode_predictions is not None:
         print(">>>> Using model preset decode_predictions")
         pred_decoder = model.decode_predictions
     else:
-        pyramid_levels = get_pyramid_levels_by_anchors = coco.get_pyramid_levels_by_anchors(input_shape, total_anchors=model.output_shape[1])
+        pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(input_shape, total_anchors=model.output_shape[1])
         print(">>>> Build decoder, pyramid_levels:", pyramid_levels)
         pred_decoder = DecodePredictions(input_shape, pyramid_levels, anchor_scale, use_anchor_free_mode, use_yolor_anchors_mode)
     detection_results = model_eval_results(model, eval_dataset, pred_decoder, nms_score_threshold, nms_iou_or_sigma, nms_method, nms_mode, nms_topk)

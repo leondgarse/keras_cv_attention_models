@@ -261,7 +261,8 @@ def recognition_dataset_from_custom_json(data_path):
     with open(data_path, "r") as ff:
         aa = json.load(ff)
 
-    train, test, info = aa["train"], aa["test"], aa["info"]
+    test_key = "validation" if "validation" in aa else "test"
+    train, test, info = aa["train"], aa[test_key], aa["info"]
     total_images, num_classes = len(train), info["num_classes"]
     output_signature = {"image": tf.TensorSpec(shape=(), dtype=tf.string), "label": tf.TensorSpec(shape=(), dtype=tf.int64)}
     train_ds = tf.data.Dataset.from_generator(lambda: (ii for ii in train), output_signature=output_signature)
@@ -271,7 +272,7 @@ def recognition_dataset_from_custom_json(data_path):
     options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
     train_ds = train_ds.apply(tf.data.experimental.assert_cardinality(len(train))).with_options(options)
     test_ds = test_ds.apply(tf.data.experimental.assert_cardinality(len(test))).with_options(options)
-    dataset = {"train": train_ds, "test": test_ds}
+    dataset = {"train": train_ds, test_key: test_ds}
     return dataset, total_images, num_classes
 
 

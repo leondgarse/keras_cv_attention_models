@@ -22,7 +22,8 @@ def layer_norm(inputs, name=None):
     return keras.layers.LayerNormalization(axis=norm_axis, epsilon=BATCH_NORM_EPSILON, name=name)(inputs)
 
 
-def mlp_block(inputs, hidden_dim, drop_rate=0, use_conv=False, activation="gelu", name=None):
+def mlp_block(inputs, hidden_dim, output_channel=-1, drop_rate=0, use_conv=False, activation="gelu", name=None):
+    output_channel = output_channel if output_channel > 0 else inputs.shape[-1]
     if use_conv:
         nn = keras.layers.Conv2D(hidden_dim, kernel_size=1, use_bias=True, name=name and name + "Conv_0")(inputs)
     else:
@@ -30,9 +31,9 @@ def mlp_block(inputs, hidden_dim, drop_rate=0, use_conv=False, activation="gelu"
     nn = activation_by_name(nn, activation, name=name and name + activation)
     nn = keras.layers.Dropout(drop_rate) if drop_rate > 0 else nn
     if use_conv:
-        nn = keras.layers.Conv2D(inputs.shape[-1], 1, use_bias=True, name=name and name + "Conv_1")(nn)
+        nn = keras.layers.Conv2D(output_channel, kernel_size=1, use_bias=True, name=name and name + "Conv_1")(nn)
     else:
-        nn = keras.layers.Dense(inputs.shape[-1], name=name and name + "Dense_1")(nn)
+        nn = keras.layers.Dense(output_channel, name=name and name + "Dense_1")(nn)
     nn = keras.layers.Dropout(drop_rate) if drop_rate > 0 else nn
     return nn
 

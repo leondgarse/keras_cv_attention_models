@@ -78,39 +78,42 @@ def batchnorm_with_activation(inputs, activation="relu", zero_gamma=False, epsil
 def layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, name=None):
     """ Typical LayerNormalization with epsilon=1e-5 """
     norm_axis = -1 if K.image_data_format() == "channels_last" else 1
-    return keras.layers.LayerNormalization(axis=norm_axis, epsilon=LAYER_NORM_EPSILON, name=name and name + "ln")(inputs)
+    return keras.layers.LayerNormalization(axis=norm_axis, epsilon=epsilon, name=name and name + "ln")(inputs)
 
 
-def conv2d_no_bias(inputs, filters, kernel_size, strides=1, padding="VALID", use_bias=False, groups=1, use_torch_padding=True, name=None, **kwargs):
+def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, name=None):
+    """ Typical GroupNormalization with epsilon=1e-5 """
+    from tensorflow_addons.layers import GroupNormalization
+
+    norm_axis = -1 if K.image_data_format() == "channels_last" else 1
+    return GroupNormalization(groups=groups, axis=norm_axis, epsilon=epsilon, name=name and name + "group_norm")(inputs)
+
+
+def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", use_bias=False, groups=1, use_torch_padding=True, name=None, **kwargs):
     """ Typical Conv2D with `use_bias` default as `False` and fixed padding """
-    pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
-    if use_torch_padding and padding.upper() == "SAME" and pad != 0:
+    pad = (kernel_size[0] // 2, kernel_size[1] // 2) if isinstance(kernel_size, (list, tuple)) else (kernel_size // 2, kernel_size // 2)
+    if use_torch_padding and padding.upper() == "SAME" and max(pad) != 0:
         inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
         padding = "VALID"
 
     groups = max(1, groups)
-    if groups == filters:
-        return keras.layers.DepthwiseConv2D(
-            kernel_size, strides=strides, padding=padding, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "conv", **kwargs
-        )(inputs)
-    else:
-        return keras.layers.Conv2D(
-            filters,
-            kernel_size,
-            strides=strides,
-            padding=padding,
-            use_bias=use_bias,
-            groups=groups,
-            kernel_initializer=CONV_KERNEL_INITIALIZER,
-            name=name and name + "conv",
-            **kwargs,
-        )(inputs)
+    return keras.layers.Conv2D(
+        filters,
+        kernel_size,
+        strides=strides,
+        padding=padding,
+        use_bias=use_bias,
+        groups=groups,
+        kernel_initializer=CONV_KERNEL_INITIALIZER,
+        name=name and name + "conv",
+        **kwargs,
+    )(inputs)
 
 
 def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", use_bias=False, use_torch_padding=True, name=None, **kwargs):
     """ Typical DepthwiseConv2D with `use_bias` default as `False` and fixed padding """
-    pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
-    if use_torch_padding and padding.upper() == "SAME" and pad != 0:
+    pad = (kernel_size[0] // 2, kernel_size[1] // 2) if isinstance(kernel_size, (list, tuple)) else (kernel_size // 2, kernel_size // 2)
+    if use_torch_padding and padding.upper() == "SAME" and max(pad) != 0:
         inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "dw_pad")(inputs)
         padding = "VALID"
     return keras.layers.DepthwiseConv2D(
