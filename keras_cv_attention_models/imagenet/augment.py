@@ -625,7 +625,7 @@ def _shear_level_to_arg(level: float):
 
 
 def _scale_level_to_arg(level: float):
-    level = (level / _MAX_LEVEL) * 0.3
+    level = (level / _MAX_LEVEL) * 0.5
     # Flip level to negative with 50% chance.
     level = _randomly_negate_tensor(level) + 1.0
     return (level,)
@@ -1111,8 +1111,8 @@ class PositionalRandAugment(RandAugment):
         self.num_layers, self.apply_probability, self.image_mean = num_layers, apply_probability, image_mean
         self.magnitude, self.magnitude_max, self.magnitude_std = float(magnitude), float(magnitude_max), float(magnitude_std)
         self.translate_const = float(translate_const)
-        # self.available_ops = ["Rotate", "ShearX", "ShearY", "ScaleX", "ScaleY"]
-        self.available_ops = ["Rotate", "ShearX", "ShearY"]
+        self.available_ops = ["Rotate", "ShearX", "ShearY", "ScaleX", "ScaleY"]
+        # self.available_ops = ["Rotate", "ShearX", "ShearY"]
         self.available_ops += ["TranslateXRel", "TranslateYRel"] if use_relative_translate else ["TranslateX", "TranslateY"]
         self.DEFAULT_AFFINE = tf.constant([[1.0, 0, 0, 0, 1, 0, 0, 0]])
 

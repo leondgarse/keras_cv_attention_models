@@ -1,7 +1,7 @@
 from keras_cv_attention_models.mlp_family.mlp_mixer import MLPMixer, MLPMixerS32, MLPMixerS16, MLPMixerB32, MLPMixerB16, MLPMixerL32, MLPMixerL16, MLPMixerH14, mlp_block, mixer_block
 from keras_cv_attention_models.mlp_family.res_mlp import ResMLP, ResMLP12, ResMLP24, ResMLP36, ResMLP_B24, ChannelAffine
 from keras_cv_attention_models.mlp_family.gated_mlp import GMLP, GMLPTiny16, GMLPS16, GMLPB16, spatial_gating_block
-from keras_cv_attention_models.mlp_family.wave_mlp import WaveMLP, WaveMLP_T, WaveMLP_S, WaveMLP_M, WaveMLP_B
+from keras_cv_attention_models.mlp_family.wave_mlp import WaveMLP, WaveMLP_T, WaveMLP_S, WaveMLP_M, WaveMLP_B, phase_aware_token_mixing
 
 __mlp_mixer_head_doc__ = """
 Github source [leondgarse/keras_cv_attention_models](https://github.com/leondgarse/keras_cv_attention_models).
@@ -285,4 +285,78 @@ Total params: 38,620
 Trainable params: 38,620
 Non-trainable params: 0
 __________________________________________________________________________________________________
+"""
+
+__wavemlp_head_doc__ = """
+Github source [leondgarse/keras_cv_attention_models](https://github.com/leondgarse/keras_cv_attention_models).
+Keras implementation of [Github huawei-noah/wavemlp_pytorch](https://github.com/huawei-noah/CV-Backbones/tree/master/wavemlp_pytorch).
+Paper [PDF 2111.12294 An Image Patch is a Wave: Quantum Inspired Vision MLP](https://arxiv.org/pdf/2111.12294.pdf).
+"""
+
+WaveMLP.__doc__ = __wavemlp_head_doc__ + """
+Args:
+  num_blocks: number of layers.
+  out_channels: output channel for each block.
+  stem_width: stem output channel dimenion. Default -1 for out_channels[0]
+  mlp_ratios: mlp hidden channel expansion ratios for each block.
+  use_downsample_norm: boolean value if stem and down saple blocks using norm layers.
+      True for WaveMLP_T and WaveMLP_S, False for WaveMLP_M and WaveMLP_B.
+  use_group_norm: boolean value if using GroupNormalization instead of BatchNormalization. False for WaveMLP_T, True for others.
+  qkv_bias: boolean value if use bias for `phase_aware_token_mixing` blocks.
+  model_name: string, model name.
+""" + __tail_doc__.format(pretrained_list=[None, "imagenet"]) + """
+Model architectures:
+  | Model     | Params | Image resolution | Top1 Acc |
+  | --------- | ------ | ---------------- | -------- |
+  | WaveMLP_T | 17M    | 224              | 80.9     |
+  | WaveMLP_S | 30M    | 224              | 82.9     |
+  | WaveMLP_M | 44M    | 224              | 83.3     |
+  | WaveMLP_B | 63M    | 224              | 83.6     |
+"""
+
+WaveMLP_T.__doc__ = __wavemlp_head_doc__ + """
+Args:
+""" + __tail_doc__.format(pretrained_list=[None, "imagenet"])
+
+WaveMLP_S.__doc__ = WaveMLP_T.__doc__
+WaveMLP_M.__doc__ = WaveMLP_T.__doc__
+WaveMLP_B.__doc__ = WaveMLP_T.__doc__
+
+phase_aware_token_mixing.__doc__ = __wavemlp_head_doc__ + """
+Phase-Aware Token Mixing Block
+
+input: `[batch, height, width, channel]`.
+output: `[batch, height, width, out_channel]`.
+
+Args:
+  inputs: input tensor.
+  out_channel: output channel, default -1 for same with inputs.
+  qkv_bias: boolean value if use bias for `height` / `width` / `channel` conv layers, default False.
+  output_dropout: dropout rate for output, default 0.
+  activation: activation for internal mlp block, default "gelu".
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> inputs = keras.layers.Input([14, 14, 8])
+>>> nn = attention_layers.phase_aware_token_mixing(inputs, name="aa")
+>>> mm = keras.models.Model(inputs, nn)
+>>> mm.summary()
+# Total params: 786
+# Trainable params: 754
+# Non-trainable params: 32
+
+>>> print({ii.name: [list(jj.shape) for jj in ii.weights] for ii in mm.layers if len(ii.weights) != 0})
+# {'aa_theta_h_conv': [[1, 1, 8, 8], [8]],
+#  'aa_theta_w_conv': [[1, 1, 8, 8], [8]],
+#  'aa_theta_h_bn': [[8], [8], [8], [8]],
+#  'aa_theta_w_bn': [[8], [8], [8], [8]],
+#  'aa_height_conv': [[1, 1, 8, 8]],
+#  'aa_width_conv': [[1, 1, 8, 8]],
+#  'aa_height_down_conv': [[1, 7, 2, 8]],
+#  'aa_width_down_conv': [[7, 1, 2, 8]],
+#  'aa_channel_conv': [[1, 1, 8, 8]],
+#  'aa_reweight_Conv_0': [[1, 1, 8, 2], [2]],
+#  'aa_reweight_Conv_1': [[1, 1, 2, 24], [24]],
+#  'aa_out_conv': [[1, 1, 8, 8], [8]]}
 """

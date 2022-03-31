@@ -1,6 +1,5 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import backend as K
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -11,9 +10,6 @@ from keras_cv_attention_models.attention_layers import (
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
-
-BATCH_NORM_DECAY = 0.9
-BATCH_NORM_EPSILON = 1e-5
 
 PRETRAINED_DICT = {
     "wavemlp_t": {"imagenet": "c8fe3c22c129180c5cff7b734ede831c"},
@@ -79,7 +75,7 @@ def phase_aware_token_mixing(inputs, out_channel=-1, qkv_bias=False, output_drop
     return out
 
 
-def wave_block(inputs, qkv_bias=False, mlp_ratio=4, use_group_norm=False, mlp_drop_rate=0, attn_drop_rate=0, drop_rate=0, activation="gelu", name=""):
+def wave_block(inputs, qkv_bias=False, mlp_ratio=4, use_group_norm=False, drop_rate=0, activation="gelu", name=""):
     attn = group_norm(inputs, groups=1, name=name + "attn_") if use_group_norm else batchnorm_with_activation(inputs, activation=None, name=name + "attn_")
     attn = phase_aware_token_mixing(attn, qkv_bias=qkv_bias, activation=activation, name=name + "attn_")
     attn = drop_block(attn, drop_rate=drop_rate, name=name + "attn_")
@@ -103,8 +99,7 @@ def WaveMLP(
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",
-    mlp_drop_rate=0,
-    attn_drop_rate=0,
+    sam_rho=0,
     drop_connect_rate=0,
     classifier_activation="softmax",
     dropout=0,
@@ -133,7 +128,7 @@ def WaveMLP(
             name = stage_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             global_block_id += 1
-            nn = wave_block(nn, qkv_bias, mlp_ratio, use_group_norm, mlp_drop_rate, attn_drop_rate, block_drop_rate, activation=activation, name=name)
+            nn = wave_block(nn, qkv_bias, mlp_ratio, use_group_norm, block_drop_rate, activation=activation, name=name)
 
     if num_classes > 0:
         nn = group_norm(nn, groups=1, name="output_") if use_group_norm else batchnorm_with_activation(nn, activation=None, name="output_")
@@ -142,7 +137,12 @@ def WaveMLP(
             nn = keras.layers.Dropout(dropout, name="head_drop")(nn)
         nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
-    model = keras.models.Model(inputs, nn, name=model_name)
+    if sam_rho != 0:
+        from keras_cv_attention_models.model_surgery import SAMModel
+
+        model = SAMModel(inputs, nn, name=model_name)
+    else:
+        model = keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "mlp_family", pretrained)
     return model

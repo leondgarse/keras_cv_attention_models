@@ -105,7 +105,17 @@
     | WaveMLP_T | 17M    | 224              | 80.9     | [wavemlp_t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/wavemlp_t_imagenet.h5) |
     | WaveMLP_S | 30M    | 224              | 82.9     | [wavemlp_s_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/wavemlp_s_imagenet.h5) |
     | WaveMLP_M | 44M    | 224              | 83.3     | [wavemlp_m_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/wavemlp_m_imagenet.h5) |
+    | WaveMLP_B | 63M    | 224              | 83.6     |          |
 
+  - **Dynamic input shape**
+    ```py
+    from skimage.data import chelsea
+    from keras_cv_attention_models import wave_mlp
+    mm = wave_mlp.WaveMLP_T(input_shape=(None, None, 3))
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=[320, 320, 3]))
+    print(mm.decode_predictions(pred)[0])
+    # [('n02124075', 'Egyptian_cat', 0.4864809), ('n02123159', 'tiger_cat', 0.14551573), ...]
+    ```
   - **Verify with PyTorch version**
     ```py
     inputs = np.random.uniform(size=(1, 224, 224, 3)).astype("float32")

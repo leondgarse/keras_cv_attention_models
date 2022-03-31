@@ -168,6 +168,14 @@ def test_VOLO_defination():
     assert isinstance(mm, keras.models.Model)
 
 
+def test_WaveMLP_defination():
+    mm = keras_cv_attention_models.wave_mlp.WaveMLP_T(pretrained=None)
+    assert isinstance(mm, keras.models.Model)
+
+    mm = keras_cv_attention_models.wave_mlp.WaveMLP_S(pretrained=None, num_classes=0)
+    assert isinstance(mm, keras.models.Model)
+
+
 def test_Beit_new_shape_predict():
     mm = keras_cv_attention_models.beit.BeitBasePatch16(input_shape=(320, 320, 3))
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
@@ -253,6 +261,14 @@ def test_VOLO_d1_predict():
 def test_VOLO_d2_new_shape_predict():
     mm = keras_cv_attention_models.volo.VOLO_d2(input_shape=(512, 512, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_WaveMLP_T_dynamic_predict():
+    mm = keras_cv_attention_models.wave_mlp.WaveMLP_T(input_shape=(None, None, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=[320, 320, 3]))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"

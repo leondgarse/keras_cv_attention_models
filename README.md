@@ -179,6 +179,7 @@
     CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m xxx.tflite
     ```
 ## COCO training and evaluating
+  - **Currently still under testing**.
   - [COCO](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco) contains more detail usage.
   - `custom_dataset_script.py` can be used creating a `json` format file, which can be used as `--data_name xxx.json` for training, detail usage can be found in [Custom detection dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussioncomment-2460664).
   - Default parameters for `coco_train_script.py` is `EfficientDetD0` with `input_shape=(256, 256, 3), batch_size=64, mosaic_mix_prob=0.5, freeze_backbone_epochs=32, total_epochs=105`. Technically, it's any `pyramid structure backbone` + `EfficientDet / YOLOX header / YOLOR header` + `anchor_free / yolor_anchors / efficientdet_anchors` combination supported.
@@ -630,6 +631,7 @@
   | WaveMLP_T | 17M    | 224              | 80.9     | [wavemlp_t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/wavemlp_t_imagenet.h5) |
   | WaveMLP_S | 30M    | 224              | 82.9     | [wavemlp_s_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/wavemlp_s_imagenet.h5) |
   | WaveMLP_M | 44M    | 224              | 83.3     | [wavemlp_m_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/wavemlp_m_imagenet.h5) |
+  | WaveMLP_B | 63M    | 224              | 83.6     |          |
 ***
 
 # Detection Models

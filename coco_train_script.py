@@ -231,6 +231,10 @@ def run_training_by_args(args):
                 loss = losses.FocalLossWithBbox(**loss_kwargs)
             metrics = losses.ClassAccuracyWithBboxWrapper(loss)
             model = compile_model(model, args.optimizer, lr_base, args.weight_decay, 1, args.label_smoothing, loss=loss, metrics=metrics)
+        else:
+            # Re-compile the metrics after restore from h5
+            metrics = losses.ClassAccuracyWithBboxWrapper(model.loss)
+            model.compile(optimizer=model.optimizer, loss=model.loss, metrics=metrics)
         print(">>>> basic_save_name =", args.basic_save_name)
         # return None, None, None
         latest_save, hist = train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name)

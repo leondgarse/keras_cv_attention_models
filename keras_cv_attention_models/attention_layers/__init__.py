@@ -33,6 +33,7 @@ from keras_cv_attention_models.volo.volo import outlook_attention, outlook_atten
 from keras_cv_attention_models.mlp_family.mlp_mixer import mlp_block, mixer_block
 from keras_cv_attention_models.mlp_family.res_mlp import ChannelAffine
 from keras_cv_attention_models.mlp_family.gated_mlp import spatial_gating_block
+from keras_cv_attention_models.mlp_family.wave_mlp import phase_aware_token_mixing
 from keras_cv_attention_models.levit.levit import MultiHeadPositionalEmbedding, mhsa_with_multi_head_position_and_strides
 from keras_cv_attention_models.nfnets.nfnets import ScaledStandardizedConv2D, ZeroInitGain
 from keras_cv_attention_models.beit.beit import MultiHeadRelativePositionalEmbedding, HeadInitializer
