@@ -10,6 +10,7 @@ from keras_cv_attention_models.model_surgery.model_surgery import (
     convert_to_fused_conv_bn_model,
     get_actual_survival_probabilities,
     get_actual_drop_connect_rates,
+    get_flops,
     get_pyramide_feture_layers,
     prepare_for_tflite,
     replace_ReLU,

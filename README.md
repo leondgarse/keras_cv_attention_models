@@ -119,6 +119,15 @@
     bboxs, lables, confidences = mm.decode_predictions(preds)[0]
     kecam.coco.show_image_with_bboxes(imm, bboxs, lables, confidences)
     ```
+  - **Calculate flops** method from [TF 2.0 Feature: Flops calculation #32809](https://github.com/tensorflow/tensorflow/issues/32809#issuecomment-849439287).
+    ```py
+    from keras_cv_attention_models import coatnet, resnest, model_surgery
+
+    model_surgery.get_flops(coatnet.CoAtNet0())
+    # >>>> Flops: 4,221,908,559, GFlops: 4.2219G
+    model_surgery.get_flops(resnest.ResNest50())
+    # >>>> Flops: 5,378,399,992, GFlops: 5.3784G
+    ```
 ## Layers
   - [attention_layers](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `RelativePositionalEmbedding` from `botnet`, `outlook_attention` from `volo`.
   ```py

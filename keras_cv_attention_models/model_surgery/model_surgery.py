@@ -515,3 +515,16 @@ def prepare_for_tflite(model):
     model = convert_groups_conv2d_2_split_conv2d(model)
     model = convert_gelu_and_extract_patches_for_tflite(model)
     return model
+
+
+def get_flops(model):
+    # https://github.com/tensorflow/tensorflow/issues/32809#issuecomment-849439287
+    from tensorflow.python.profiler import model_analyzer, option_builder
+
+    input_signature = [tf.TensorSpec(shape=(1, *ii.shape[1:]), dtype=ii.dtype, name=ii.name) for ii in model.inputs]
+    forward_graph = tf.function(model, input_signature).get_concrete_function().graph
+    options = option_builder.ProfileOptionBuilder.float_operation()
+    graph_info = model_analyzer.profile(forward_graph, options=options)
+    flops = graph_info.total_float_ops // 2
+    print(">>>> Flops: {:,}, GFlops: {:.4f}G".format(flops, flops / 1e9))
+    return flops
