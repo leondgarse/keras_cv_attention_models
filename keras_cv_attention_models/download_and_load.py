@@ -297,6 +297,8 @@ def keras_reload_from_torch_model(
         print(">>>> Keras weights matched torch:")
         _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
         print()
+    else:
+        aligned_names = target_names
 
     if not do_convert:
         return

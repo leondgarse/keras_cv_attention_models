@@ -17,6 +17,7 @@ from keras_cv_attention_models.mlp_family import mlp_mixer
 from keras_cv_attention_models.mlp_family import res_mlp
 from keras_cv_attention_models.mlp_family import gated_mlp
 from keras_cv_attention_models.mlp_family import wave_mlp
+from keras_cv_attention_models import mobilevit
 from keras_cv_attention_models import nfnets
 from keras_cv_attention_models import resnest
 from keras_cv_attention_models import resnet_family
