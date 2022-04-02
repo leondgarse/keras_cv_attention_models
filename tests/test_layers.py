@@ -99,6 +99,21 @@ def test_eca_module():
     assert out.shape == input_shape
 
 
+def test_EvoNormalization():
+    input_shape = [2, 32, 17, 44]
+    out = attention_layers.EvoNormalization()(tf.ones(input_shape))
+    assert out.shape == input_shape
+
+    out = attention_layers.EvoNormalization(data_format="channels_first")(tf.ones(input_shape))
+    assert out.shape == input_shape
+
+    out = attention_layers.EvoNormalization(num_groups=24)(tf.ones(input_shape))
+    assert out.shape == input_shape
+
+    out = attention_layers.EvoNormalization(data_format="channels_first", num_groups=24)(tf.ones(input_shape))
+    assert out.shape == input_shape
+
+
 def test_fold_by_conv2d_transpose():
     inputs = tf.random.uniform([1, 64, 27, 192])
     pad_inputs = tf.pad(inputs, [[0, 0], [1, 1], [1, 1], [0, 0]])

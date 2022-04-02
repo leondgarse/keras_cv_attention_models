@@ -90,7 +90,7 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         else:
             source_tt = source_layer.relative_position_bias_table  # layer
         # self.relative_position_bias_table.assign(tf.transpose(source_tt))
-        hh = ww = int(tf.math.sqrt(float(source_tt.shape[1] - self.cls_token_pos_len))) # assume source weights are all square shape
+        hh = ww = int(tf.math.sqrt(float(source_tt.shape[1] - self.cls_token_pos_len)))  # assume source weights are all square shape
         num_heads = source_tt.shape[0]
         ss = tf.reshape(source_tt[:, : hh * ww], (num_heads, hh, ww))  # [num_heads, hh, ww]
         ss = tf.transpose(ss, [1, 2, 0])  # [hh, ww, num_heads]

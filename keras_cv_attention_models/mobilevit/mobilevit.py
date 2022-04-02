@@ -104,7 +104,7 @@ def stack(
         stride = stride if block_id == 0 else 1
         use_shortcut = False if stride != 1 or nn.shape[-1] != out_channel else True
         block_drop_rate = stack_drop[block_id] if isinstance(stack_drop, (list, tuple)) else stack_drop
-        if is_conv_block or block_id == 0: # First transformer block is also a conv block .
+        if is_conv_block or block_id == 0:  # First transformer block is also a conv block .
             nn = bottle_in_linear_out_block(nn, out_channel, stride, expand_ratio, use_shortcut, block_drop_rate, activation=activation, name=block_name)
         else:
             if block_id == 1:  # pre
