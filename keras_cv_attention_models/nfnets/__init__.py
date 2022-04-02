@@ -68,21 +68,21 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model       | Params | Image  resolution | Top1 Acc |
-  | ----------- | ------ | ----------------- | -------- |
-  | NFNetL0     | 35.07M | 288               | 82.75    |
-  | NFNetF0     | 71.5M  | 256               | 83.6     |
-  | NFNetF1     | 132.6M | 320               | 84.7     |
-  | NFNetF2     | 193.8M | 352               | 85.1     |
-  | NFNetF3     | 254.9M | 416               | 85.7     |
-  | NFNetF4     | 316.1M | 512               | 85.9     |
-  | NFNetF5     | 377.2M | 544               | 86.0     |
-  | NFNetF6 SAM | 438.4M | 576               | 86.5     |
-  | NFNetF7     | 499.5M | 608               |          |
-  | ECA_NFNetL0 | 24.14M | 288               | 82.58    |
-  | ECA_NFNetL1 | 41.41M | 320               | 84.01    |
-  | ECA_NFNetL2 | 56.72M | 384               | 84.70    |
-  | ECA_NFNetL3 | 72.04M | 448               |          |
+  | Model       | Params | Image resolution | Top1 Acc |
+  | ----------- | ------ | ---------------- | -------- |
+  | NFNetL0     | 35.07M | 288              | 82.75    |
+  | NFNetF0     | 71.5M  | 256              | 83.6     |
+  | NFNetF1     | 132.6M | 320              | 84.7     |
+  | NFNetF2     | 193.8M | 352              | 85.1     |
+  | NFNetF3     | 254.9M | 416              | 85.7     |
+  | NFNetF4     | 316.1M | 512              | 85.9     |
+  | NFNetF5     | 377.2M | 544              | 86.0     |
+  | NFNetF6 SAM | 438.4M | 576              | 86.5     |
+  | NFNetF7     | 499.5M | 608              |          |
+  | ECA_NFNetL0 | 24.14M | 288              | 82.58    |
+  | ECA_NFNetL1 | 41.41M | 320              | 84.01    |
+  | ECA_NFNetL2 | 56.72M | 384              | 84.70    |
+  | ECA_NFNetL3 | 72.04M | 448              |          |
 """
 
 NFNetF0.__doc__ = __head_doc__ + """
@@ -109,13 +109,13 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model       | Params | Image  resolution | Top1 Acc |
-  | ----------- | ------ | ----------------- | -------- |
-  | NFNetL0     | 35.07M | 288               | 82.75    |
-  | ECA_NFNetL0 | 24.14M | 288               | 82.58    |
-  | ECA_NFNetL1 | 41.41M | 320               | 84.01    |
-  | ECA_NFNetL2 | 56.72M | 384               | 84.70    |
-  | ECA_NFNetL3 | 72.04M | 448               |          |
+  | Model       | Params | Image resolution | Top1 Acc |
+  | ----------- | ------ | ---------------- | -------- |
+  | NFNetL0     | 35.07M | 288              | 82.75    |
+  | ECA_NFNetL0 | 24.14M | 288              | 82.58    |
+  | ECA_NFNetL1 | 41.41M | 320              | 84.01    |
+  | ECA_NFNetL2 | 56.72M | 384              | 84.70    |
+  | ECA_NFNetL3 | 72.04M | 448              |          |
 """
 
 NFNetL0.__doc__ = __light_head_doc__ + """

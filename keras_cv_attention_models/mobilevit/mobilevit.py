@@ -61,8 +61,11 @@ def transformer_pre_process(inputs, out_channel, patch_size=2, activation="swish
 
     # Extract patchs, limit transpose permute length <= 4
     # [batch, height, width, channel] -> [batch, height // 2, 2, width // 2, 2, channel] -> [batch * 4, height // 2, width // 2, channel]
-    # TODO: resize if odd shape
-    patch_hh, patch_ww, channel = nn.shape[1] // patch_size, nn.shape[2] // patch_size, nn.shape[-1]
+    patch_hh, patch_ww, channel = int(tf.math.ceil(nn.shape[1] / patch_size)), int(tf.math.ceil(nn.shape[2] / patch_size)), nn.shape[-1]
+    # print(f"transformer_pre_process before resize: {nn.shape = }")
+    if patch_hh * patch_size != nn.shape[1] or patch_ww * patch_size != nn.shape[2]:
+        nn = tf.image.resize(nn, [patch_hh * patch_size, patch_ww * patch_size], method="bilinear")
+    # print(f"transformer_pre_process after resize: {nn.shape = }")
     nn = tf.reshape(nn, [-1, patch_ww, patch_size, channel])  # [batch * patch_hh * h_patch_size, patch_ww, w_patch_size, channel]
     nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_hh * h_patch_size, w_patch_size, patch_ww, channel]
     nn = tf.reshape(nn, [-1, patch_hh, patch_size * patch_size, patch_ww * channel])  # [batch, patch_hh, h_patch_size * w_patch_size, patch_ww * channel]
@@ -75,13 +78,16 @@ def transformer_post_process(inputs, pre_attn, out_channel, patch_size=2, activa
     nn = keras.layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, name=name + "post_ln")(inputs)
 
     # [batch * 4, height // 2, width // 2, channel] -> [batch, height // 2, 2, width // 2, width, channel] -> [batch, height, width, channel]
-    # TODO: resize if odd shape
     patch_hh, patch_ww, channel = nn.shape[1], nn.shape[2], nn.shape[-1]
     nn = tf.reshape(nn, [-1, patch_size * patch_size, patch_hh, patch_ww * channel])  # [batch, h_patch_size * w_patch_size, patch_hh, patch_ww * channel]
     nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch, patch_hh, h_patch_size * w_patch_size, patch_ww * channel]
     nn = tf.reshape(nn, [-1, patch_size, patch_ww, channel])  # [batch * patch_hh * h_patch_size, w_patch_size, patch_ww, channel]
     nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_hh * h_patch_size, patch_ww, w_patch_size, channel]
     nn = tf.reshape(nn, [-1, patch_hh * patch_size, patch_ww * patch_size, channel])
+    # print(f"transformer_post_process before resize: {nn.shape = }")
+    if nn.shape[1] != pre_attn.shape[1] or nn.shape[2] != pre_attn.shape[2]:
+        nn = tf.image.resize(nn, [pre_attn.shape[1], pre_attn.shape[2]], method="bilinear")
+    # print(f"transformer_post_process after resize: {nn.shape = }")
 
     nn = conv2d_no_bias(nn, out_channel, kernel_size=1, strides=1, name=name + "post_1_")
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "post_1_")
@@ -122,6 +128,7 @@ def MobileViT(
     expand_ratio=4,
     stem_width=16,
     output_num_features=640,
+    layer_scale=-1,
     input_shape=(256, 256, 3),
     num_classes=1000,
     activation="swish",
@@ -142,7 +149,7 @@ def MobileViT(
         stack_name = "stack{}_".format(id + 1)
         is_conv_block = True if block_type[0].lower() == "c" else False
         attn_channel = attn_channels[id] if isinstance(attn_channels, (list, tuple)) else (attn_channels * out_channel)
-        nn = stack(nn, num_block, out_channel, is_conv_block, stride, expand_ratio, attn_channel, drop_connect, activation=activation, name=stack_name)
+        nn = stack(nn, num_block, out_channel, is_conv_block, stride, expand_ratio, attn_channel, drop_connect, layer_scale, activation, name=stack_name)
 
     nn = output_block(nn, output_num_features, activation, num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
     model = keras.models.Model(inputs, nn, name=model_name)

@@ -1,8 +1,8 @@
 from keras_cv_attention_models.cmt.cmt import CMT, CMTTiny, CMTXS, CMTSmall, CMTBig
 
 __head_doc__ = """
-Keras implementation of [Github FlyEgle/CMT-pytorch](https://github.com/FlyEgle/CMT-pytorch).
-Paper [PDF 2107.06263 CoAtNet: CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf).
+Keras implementation of CMT.
+Paper [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf).
 """
 
 __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
@@ -28,8 +28,8 @@ Args:
   out_channels: output channels for each stack.
   stem_width: output dimension for stem block.
   num_heads: heads number for transformer block.
-  sr_ratios:
-  ffn_expansion:
+  sr_ratios: attenstion blocks key_value downsample rate.
+  ffn_expansion: IRFFN blocks hidden expansion rate.
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:

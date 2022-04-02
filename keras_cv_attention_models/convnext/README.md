@@ -2,7 +2,7 @@
 ***
 
 ## Summary
-  - CoAtNet article: [PDF 2201.03545 A ConvNet for the 2020s](https://arxiv.org/pdf/2201.03545.pdf).
+  - CovNeXt article: [PDF 2201.03545 A ConvNet for the 2020s](https://arxiv.org/pdf/2201.03545.pdf).
   - Model weights reloaded from [Github facebookresearch/ConvNeXt](https://github.com/facebookresearch/ConvNeXt).
 
   ![](https://user-images.githubusercontent.com/5744524/151656693-fc6e0d6d-4f9f-4c67-adbe-27fe3ce85062.png)
@@ -27,7 +27,7 @@
   ```py
   from keras_cv_attention_models import convnext, test_images
   mm = convnext.ConvNeXtBase()
-  # >>>> Load pretrained from: ~/.keras/models/convnext_base_imagenet.h5
+  # >>>> Load pretrained from: ~/.keras/models/convnext_base_224_imagenet.h5
   preds = mm(mm.preprocess_input(test_images.cat()))
   print(mm.decode_predictions(preds)[0])
   # [('n02123159', 'tiger_cat', 0.9018271), ('n02123045', 'tabby', 0.019625964), ...]

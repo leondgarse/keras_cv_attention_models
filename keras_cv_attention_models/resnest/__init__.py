@@ -32,12 +32,12 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model          | Params | Image  resolution | Top1 Acc |
-  | -------------- | ------ | ----------------- | -------- |
-  | resnest50      | 28M    | 224               | 81.03    |
-  | resnest101     | 49M    | 256               | 82.83    |
-  | resnest200     | 71M    | 320               | 83.84    |
-  | resnest269     | 111M   | 416               | 84.54    |
+  | Model          | Params | Image resolution | Top1 Acc |
+  | -------------- | ------ | ---------------- | -------- |
+  | resnest50      | 28M    | 224              | 81.03    |
+  | resnest101     | 49M    | 256              | 82.83    |
+  | resnest200     | 71M    | 320              | 83.84    |
+  | resnest269     | 111M   | 416              | 84.54    |
 """
 
 ResNest50.__doc__ = __head_doc__ + """

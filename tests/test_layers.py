@@ -114,6 +114,13 @@ def test_halo_attention():
     assert out.shape == [input_shape[0], input_shape[1], input_shape[2], out_shape]
 
 
+def test_light_mhsa_with_multi_head_relative_position_embedding():
+    input_shape = [2, 14, 16, 256]
+    out_shape = 384
+    out = attention_layers.light_mhsa_with_multi_head_relative_position_embedding(tf.ones(input_shape), num_heads=4, out_shape=out_shape)
+    assert out.shape == [input_shape[0], input_shape[1], input_shape[2], out_shape]
+
+
 def test_mhsa_with_multi_head_position_and_strides():
     input_shape = [2, 28 * 28, 192]
     strides = 2
@@ -148,6 +155,13 @@ def test_mlp_block():
     assert out.shape == input_shape
 
 
+def test_multi_head_self_attention():
+    input_shape = [2, 14, 16, 256]
+    out_shape = 384
+    out = attention_layers.multi_head_self_attention(tf.ones(input_shape), num_heads=4, out_shape=out_shape)
+    assert out.shape == [input_shape[0], input_shape[1], input_shape[2], out_shape]
+
+
 def test_MultiHeadPositionalEmbedding():
     aa = attention_layers.MultiHeadPositionalEmbedding()
     input_shape = [2, 8, 16, 49]
@@ -170,6 +184,13 @@ def test_outlook_attention_simple():
     input_shape = [2, 28, 28, 192]
     out = attention_layers.outlook_attention_simple(tf.ones(input_shape), embed_dim=192, num_heads=4)
     assert out.shape == input_shape
+
+
+def test_phase_aware_token_mixing():
+    input_shape = [2, 28, 28, 192]
+    out_channel = 384
+    out = attention_layers.phase_aware_token_mixing(tf.ones(input_shape), out_channel=out_channel)
+    assert out.shape == [input_shape[0], input_shape[1], input_shape[2], out_channel]
 
 
 def test_PositionalEmbedding():
