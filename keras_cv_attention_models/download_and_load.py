@@ -48,13 +48,13 @@ def reload_model_weights(model, pretrained_dict, sub_release, pretrained="imagen
 
 def load_weights_with_mismatch(model, weight_file, mismatch_class=None, request_resolution=-1, method="nearest"):
     model.load_weights(weight_file, by_name=True, skip_mismatch=True)
-    input_height = model.input_shape[1]
+    input_height, input_width = model.input_shape[1], model.input_shape[2]
     # if mismatch_class is not None:
-    if mismatch_class is not None and request_resolution != input_height:
+    if mismatch_class is not None and (request_resolution != input_height or request_resolution != input_width):
         try:
             import h5py
 
-            print(">>>> Reload mismatched weights: {} -> {}".format(request_resolution, input_height))
+            print(">>>> Reload mismatched weights: {} -> {}".format(request_resolution, (input_height, input_width)))
             ff = h5py.File(weight_file, mode="r")
             weights = ff["model_weights"]
             for ii in model.layers:
