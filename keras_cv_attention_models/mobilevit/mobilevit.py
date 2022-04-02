@@ -39,8 +39,6 @@ def bottle_in_linear_out_block(inputs, out_channel, strides=1, expand_ratio=4, u
 def mhsa_mlp_block(
     inputs, out_channel, num_heads=4, qkv_bias=True, mlp_ratio=4, mlp_drop_rate=0, attn_drop_rate=0, drop_rate=0, layer_scale=-1, activation="gelu", name=None
 ):
-    input_channel = inputs.shape[-1]  # Same with out_channel
-    # print(f">>>> {is_conv = }, {num_heads = }")
     attn = keras.layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, name=name and name + "attn_ln")(inputs)
     attn = multi_head_self_attention(attn, num_heads, qkv_bias=qkv_bias, out_bias=True, attn_dropout=attn_drop_rate, name=name and name + "attn_mhsa_")
     attn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name and name + "1_gamma")(attn) if layer_scale >= 0 else attn
@@ -77,7 +75,7 @@ def transformer_pre_process(inputs, out_channel, patch_size=2, activation="swish
 def transformer_post_process(inputs, pre_attn, out_channel, patch_size=2, activation="swish", name=""):
     nn = keras.layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, name=name + "post_ln")(inputs)
 
-    # [batch * 4, height // 2, width // 2, channel] -> [batch, height // 2, 2, width // 2, width, channel] -> [batch, height, width, channel]
+    # [batch * 4, height // 2, width // 2, channel] -> [batch, height // 2, 2, width // 2, 2, channel] -> [batch, height, width, channel]
     patch_hh, patch_ww, channel = nn.shape[1], nn.shape[2], nn.shape[-1]
     nn = tf.reshape(nn, [-1, patch_size * patch_size, patch_hh, patch_ww * channel])  # [batch, h_patch_size * w_patch_size, patch_hh, patch_ww * channel]
     nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch, patch_hh, h_patch_size * w_patch_size, patch_ww * channel]
@@ -106,7 +104,7 @@ def stack(
         stride = stride if block_id == 0 else 1
         use_shortcut = False if stride != 1 or nn.shape[-1] != out_channel else True
         block_drop_rate = stack_drop[block_id] if isinstance(stack_drop, (list, tuple)) else stack_drop
-        if is_conv_block or block_id == 0:
+        if is_conv_block or block_id == 0: # First transformer block is also a conv block .
             nn = bottle_in_linear_out_block(nn, out_channel, stride, expand_ratio, use_shortcut, block_drop_rate, activation=activation, name=block_name)
         else:
             if block_id == 1:  # pre
