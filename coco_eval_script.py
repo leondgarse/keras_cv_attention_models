@@ -18,7 +18,7 @@ def parse_arguments(argv):
     parser.add_argument("-i", "--input_shape", type=int, default=-1, help="Model input shape, Set -1 for using model.input_shape")
     parser.add_argument("-b", "--batch_size", type=int, default=8, help="Batch size")
     parser.add_argument("-d", "--data_name", type=str, default="coco/2017", help="Dataset name from tensorflow_datasets like coco/2017")
-    parser.add_argument("--rescale_mode", type=str, default="auto", help="Rescale mode, one of [tf, torch, raw]. Default `auto` means using model preset")
+    parser.add_argument("--rescale_mode", type=str, default="auto", help="Rescale mode in [tf, torch, raw, raw01]. Default `auto` means using model preset")
     parser.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
     parser.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
     parser.add_argument("--use_bgr_input", action="store_true", help="Use BRG input instead of RGB")

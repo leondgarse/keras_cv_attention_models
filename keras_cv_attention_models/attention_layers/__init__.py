@@ -6,25 +6,22 @@ from keras_cv_attention_models.common_layers import (
     conv2d_no_bias,
     CompatibleExtractPatches,
     depthwise_conv2d_no_bias,
-    deep_stem,
     drop_block,
     drop_connect_rates_split,
-    eca_module,
     EvoNormalization,
+    eca_module,
     fold_by_conv2d_transpose,
     group_norm,
     hard_swish,
     layer_norm,
     make_divisible,
     output_block,
-    quad_stem,
     se_module,
-    tiered_stem,
     PreprocessInput,
     imagenet_decode_predictions,
     add_pre_post_process,
 )
-from keras_cv_attention_models.aotnet.aotnet import aot_stack, aot_block
+from keras_cv_attention_models.aotnet.aotnet import aot_stack, aot_block, deep_stem, quad_stem, tiered_stem
 from keras_cv_attention_models.botnet.botnet import RelativePositionalEmbedding, mhsa_with_relative_position_embedding
 from keras_cv_attention_models.cotnet.cotnet import cot_attention
 from keras_cv_attention_models.coat.coat import ConvPositionalEncoding, ConvRelativePositionalEncoding
@@ -120,4 +117,58 @@ Examples:
 >>> patches = tf.image.extract_patches(pad_inputs, [1, kernel_size, kernel_size, 1], [1, strides, strides, 1], [1, 1, 1, 1], padding='VALID')
 >>> print(f"{np.allclose(tf_patches, patches) = }")
 # np.allclose(tf_patches, patches) = True
+"""
+
+EvoNormalization.__doc__ = """
+Keras implementation of [PDF 2004.02967 Evolving Normalization-Activation Layers](https://arxiv.org/pdf/2004.02967.pdf).
+
+Args:
+  nonlinearity: boolean value if apply non-linearity calculation, default True.
+  num_groups: groups for paper `EVONORM_S0` mode, value `<=0` for `EVONORM_B0` mode. Dafult -1.
+      - EVONORM_B0: nonlinearity=True, num_groups=-1
+      - EVONORM_S0: nonlinearity=True, num_groups > 0
+      - EVONORM_B0 / EVONORM_S0 linearity: nonlinearity=False, num_groups=-1
+      - EVONORM_S0A linearity: nonlinearity=False, num_groups > 0.
+        Defined in https://github.com/rwightman/pytorch-image-models/blob/main/timm/models/layers/evo_norm.py#L239.
+  zero_gamma: boolean value if init gamma as 0, default False for init as 1.
+  momentum: momentum for `EVONORM_B0` mode, default 0.99.
+  epsilon: small constant avoid zero dividing, default 0.001.
+  data_format: one of ["channels_first", "channels_last"]. Default "auto" for using `K.image_data_format()`.
+
+Examples:
+>>> from keras_cv_attention_models import attention_layers
+>>> # EVONORM_B0
+>>> aa = attention_layers.EvoNormalization()
+>>> print(aa(tf.ones([2, 32, 32, 48])).shape)
+>>> # (2, 32, 32, 48)
+>>> print({ii.name.split("/")[-1]: ii.shape for ii in aa.weights})
+>>> # {'gamma:0': TensorShape([1, 1, 1, 48]), 'beta:0': TensorShape([1, 1, 1, 48]), 'vv:0': TensorShape([1, 1, 1, 48]), 'moving_variance:0': TensorShape([1, 1, 1, 48])}
+
+>>> # EVONORM_B0 linearity
+>>> aa = attention_layers.EvoNormalization(nonlinearity=False)
+>>> print(aa(tf.ones([2, 32, 32, 56, 48])).shape)
+>>> # (2, 32, 32, 56, 48)
+>>> print({ii.name.split("/")[-1]: ii.shape for ii in aa.weights})
+>>> # {'gamma:0': TensorShape([1, 1, 1, 1, 48]), 'beta:0': TensorShape([1, 1, 1, 1, 48]), 'moving_variance:0': TensorShape([1, 1, 1, 1, 48])}
+
+>>> # EVONORM_S0, actual using __num_groups__ is made divisible by channel dimension.
+>>> aa = attention_layers.EvoNormalization(nonlinearity=True, num_groups=32)
+>>> print(aa(tf.ones([2, 32, 56])).shape, aa.__num_groups__) # print actual using __num_groups__
+>>> # (2, 32, 56) 28
+>>> print({ii.name.split("/")[-1]: ii.shape for ii in aa.weights})
+>>> # {'gamma:0': TensorShape([1, 1, 56]), 'beta:0': TensorShape([1, 1, 56]), 'vv:0': TensorShape([1, 1, 56])}
+
+>>> # EVONORM_S0, force "channels_first".
+>>> aa = attention_layers.EvoNormalization(nonlinearity=True, num_groups=32, data_format="channels_first")
+>>> print(aa(tf.ones([2, 32, 56])).shape, aa.__num_groups__) # print actual using __num_groups__
+>>> # (2, 32, 56) 32
+>>> print({ii.name.split("/")[-1]: ii.shape for ii in aa.weights})
+>>> # {'gamma:0': TensorShape([1, 32, 1]), 'beta:0': TensorShape([1, 32, 1]), 'vv:0': TensorShape([1, 32, 1])}
+
+>>> # EVONORM_S0A linearity
+>>> aa = attention_layers.EvoNormalization(nonlinearity=False, num_groups=16)
+>>> print(aa(tf.ones([2, 48])).shape)
+>>> # (2, 48)
+>>> print({ii.name.split("/")[-1]: ii.shape for ii in aa.weights})
+>>> # {'gamma:0': TensorShape([1, 48]), 'beta:0': TensorShape([1, 48])}
 """

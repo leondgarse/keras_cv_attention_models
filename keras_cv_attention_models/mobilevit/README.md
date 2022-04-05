@@ -28,7 +28,7 @@
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 0.6774389), ('n02123045', 'tabby', 0.12461892), ...]
   ```
-  **Change input resolution**. For input resolution not dividable by `64`, will apply `tf.image.resize` for transformer blocks.
+  **Change input resolution**. For input resolution not divisible by `64`, will apply `tf.image.resize` for transformer blocks.
   ```py
   from keras_cv_attention_models import mobilevit
   mm = mobilevit.MobileViT_XXS(input_shape=(160, 160, 3), pretrained="imagenet")

@@ -4,13 +4,16 @@ from keras_cv_attention_models.resnet_family.resnet_deep import ResNetD, ResNet5
 from keras_cv_attention_models.resnet_family.regnet import (
     RegNetY,
     RegNetY040,
+    RegNetY064,
     RegNetY080,
     RegNetY160,
     RegNetY320,
     RegNetZB16,
     RegNetZC16,
+    RegNetZC16_EVO,
     RegNetZD32,
     RegNetZD8,
+    RegNetZD8_EVO,
     RegNetZE8
 )
 
@@ -181,8 +184,9 @@ Args:
 Model architectures:
   | Model      | Params  | Image resolution | Top1 Acc |
   | ---------- | ------- | ---------------- | -------- |
-  | RegNetY040 | 20.65M  | 224              | 81.5     |
-  | RegNetY080 | 39.18M  | 224              | 82.2     |
+  | RegNetY040 | 20.65M  | 224              | 82.3     |
+  | RegNetY064 | 30.58M  | 224              | 83.0     |
+  | RegNetY080 | 39.18M  | 224              | 83.17    |
   | RegNetY160 | 83.59M  | 224              | 82.0     |
   | RegNetY320 | 145.05M | 224              | 82.5     |
 """
@@ -192,6 +196,7 @@ Args:
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet"])
 
 RegNetY040.__doc__ = __regnety_default_doc__
+RegNetY064.__doc__ = __regnety_default_doc__
 RegNetY080.__doc__ = __regnety_default_doc__
 RegNetY160.__doc__ = __regnety_default_doc__
 RegNetY320.__doc__ = __regnety_default_doc__
@@ -199,23 +204,28 @@ RegNetY320.__doc__ = __regnety_default_doc__
 __regnetz_head_doc__ = """
 Github source [leondgarse/keras_cv_attention_models](https://github.com/leondgarse/keras_cv_attention_models).
 Defined and model weights loaded from [timm](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/byobnet.py).
+Related paper [PDF 2004.02967 Evolving Normalization-Activation Layers](https://arxiv.org/pdf/2004.02967.pdf).
 """
 
 __regnetz_default_doc__ = __regnetz_head_doc__ + """
 Args:
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet"]) + """
 Model architectures:
-  | Model      | Params | Image resolution | Top1 Acc |
-  | ---------- | ------ | ---------------- | -------- |
-  | RegNetZB16 | 9.72M  | 224              | 79.868   |
-  | RegNetZC16 | 13.46M | 256              | 82.164   |
-  | RegNetZD32 | 27.58M | 256              | 83.422   |
-  | RegNetZD8  | 23.37M | 256              | 83.5     |
-  | RegNetZE8  | 57.70M | 256              | 84.5     |
+  | Model          | Params | Image resolution | Top1 Acc |
+  | -------------- | ------ | ---------------- | -------- |
+  | RegNetZB16     | 9.72M  | 224              | 79.868   |
+  | RegNetZC16     | 13.46M | 256              | 82.164   |
+  | RegNetZC16_EVO | 13.49M | 256              | 81.9     |
+  | RegNetZD32     | 27.58M | 256              | 83.422   |
+  | RegNetZD8      | 23.37M | 256              | 83.5     |
+  | RegNetZD8_EVO  | 23.46M | 256              | 83.42    |
+  | RegNetZE8      | 57.70M | 256              | 84.5     |
 """
 
 RegNetZB16.__doc__ = __regnetz_default_doc__
 RegNetZC16.__doc__ = __regnetz_default_doc__
+RegNetZC16_EVO.__doc__ = __regnetz_default_doc__
 RegNetZD32.__doc__ = __regnetz_default_doc__
 RegNetZD8.__doc__ = __regnetz_default_doc__
+RegNetZD8_EVO.__doc__ = __regnetz_default_doc__
 RegNetZE8.__doc__ = __regnetz_default_doc__

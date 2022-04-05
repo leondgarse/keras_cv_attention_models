@@ -109,18 +109,44 @@
 
   | Model      | Params  | Image resolution | Top1 Acc | Download |
   | ---------- | ------- | ---------------- | -------- | -------- |
-  | RegNetY040 | 20.65M  | 224              | 81.5     | [regnety_040_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_040_imagenet.h5) |
-  | RegNetY080 | 39.18M  | 224              | 82.2     | [regnety_080_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_080_imagenet.h5) |
+  | RegNetY040 | 20.65M  | 224              | 82.3     | [regnety_040_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_040_imagenet.h5) |
+  | RegNetY064 | 30.58M  | 224              | 83.0     | [regnety_064_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_064_imagenet.h5) |
+  | RegNetY080 | 39.18M  | 224              | 83.17    | [regnety_080_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_080_imagenet.h5) |
   | RegNetY160 | 83.59M  | 224              | 82.0     | [regnety_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_160_imagenet.h5) |
   | RegNetY320 | 145.05M | 224              | 82.5     | [regnety_320_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_320_imagenet.h5) |
 ## RegNetZ
-  - Defined and model weights loaded from [Github timm/models/byobnet.py](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/byobnet.py)
+  - Defined and model weights loaded from [Github timm/models/byobnet.py](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/byobnet.py).
+  - Related paper [PDF 2004.02967 Evolving Normalization-Activation Layers](https://arxiv.org/pdf/2004.02967.pdf).
 
-  | Model      | Params | Image resolution | Top1 Acc | Download |
-  | ---------- | ------ | ---------------- | -------- | -------- |
-  | RegNetZB16 | 9.72M  | 224              | 79.868   | [regnetz_b16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_b16_imagenet.h5) |
-  | RegNetZC16 | 13.46M | 256              | 82.164   | [regnetz_c16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_c16_imagenet.h5) |
-  | RegNetZD32 | 27.58M | 256              | 83.422   | [regnetz_d32_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d32_imagenet.h5) |
-  | RegNetZD8  | 23.37M | 256              | 83.5     | [regnetz_d8_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d8_imagenet.h5)   |
-  | RegNetZE8  | 57.70M | 256              | 84.5     | [regnetz_e8_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_e8_imagenet.h5)   |
+  | Model          | Params | Image resolution | Top1 Acc | Download |
+  | -------------- | ------ | ---------------- | -------- | -------- |
+  | RegNetZB16     | 9.72M  | 224              | 79.868   | [regnetz_b16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_b16_imagenet.h5) |
+  | RegNetZC16     | 13.46M | 256              | 82.164   | [regnetz_c16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_c16_imagenet.h5) |
+  | RegNetZC16_EVO | 13.49M | 256              | 81.9     | [regnetz_c16_evo_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_c16_evo_imagenet.h5) |
+  | RegNetZD32     | 27.58M | 256              | 83.422   | [regnetz_d32_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d32_imagenet.h5) |
+  | RegNetZD8      | 23.37M | 256              | 83.5     | [regnetz_d8_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d8_imagenet.h5)   |
+  | RegNetZD8_EVO  | 23.46M | 256              | 83.42    | [regnetz_d8_evo_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d8_evo_imagenet.h5)   |
+  | RegNetZE8      | 57.70M | 256              | 84.5     | [regnetz_e8_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_e8_imagenet.h5)   |
+
+  - **Verification with PyTorch version**
+    ```py
+    inputs = np.random.uniform(size=(1, 256, 256, 3)).astype("float32")
+
+    """ PyTorch regnetz_c16_evos """
+    sys.path.append("../pytorch-image-models")
+    import timm
+    import torch
+    torch_model = timm.models.regnetz_c16_evos(pretrained=True)
+    _ = torch_model.eval()
+    torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2)).detach().numpy()
+
+    """ Keras WaveMLP_T """
+    from keras_cv_attention_models import regnet
+    mm = regnet.RegNetZC16_EVO(pretrained="imagenet", classifier_activation=None)
+    keras_out = mm(inputs).numpy()
+
+    """ Verification """
+    print(f"{np.allclose(torch_out, keras_out, atol=1e-3) = }")
+    # np.allclose(torch_out, keras_out, atol=1e-3) = True
+    ```
 ***

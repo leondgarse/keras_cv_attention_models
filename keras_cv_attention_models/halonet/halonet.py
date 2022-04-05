@@ -245,7 +245,7 @@ def HaloNetH6(input_shape=(512, 512, 3), num_classes=1000, activation="swish", c
 
 
 def HaloNetH7(input_shape=(600, 600, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    # input_shape should be dividable by `int(tf.reduce_prod(strides) * halo_block_size)`, may using 640 here
+    # input_shape should be divisible by `int(tf.reduce_prod(strides) * halo_block_size)`, may using 640 here
     return HaloNet(**BLOCK_CONFIGS["h7"], model_name="haloneth7", request_resolution=600, **locals(), **kwargs)
 
 

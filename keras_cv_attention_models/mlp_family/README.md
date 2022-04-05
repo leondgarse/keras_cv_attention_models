@@ -116,7 +116,7 @@
     print(mm.decode_predictions(pred)[0])
     # [('n02124075', 'Egyptian_cat', 0.4864809), ('n02123159', 'tiger_cat', 0.14551573), ...]
     ```
-  - **Verify with PyTorch version**
+  - **Verification with PyTorch version**
     ```py
     inputs = np.random.uniform(size=(1, 224, 224, 3)).astype("float32")
 
