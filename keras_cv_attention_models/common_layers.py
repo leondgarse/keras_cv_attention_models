@@ -63,6 +63,7 @@ def activation_by_name(inputs, activation="relu", name=None):
 @tf.keras.utils.register_keras_serializable(package="kecamCommon")
 class EvoNormalization(tf.keras.layers.Layer):
     def __init__(self, nonlinearity=True, num_groups=-1, zero_gamma=False, momentum=0.99, epsilon=0.001, data_format="auto", **kwargs):
+        # [evonorm](https://github.com/tensorflow/tpu/blob/master/models/official/resnet/resnet_model.py)
         # EVONORM_B0: nonlinearity=True, num_groups=-1
         # EVONORM_S0: nonlinearity=True, num_groups > 0
         # EVONORM_B0 / EVONORM_S0 linearity: nonlinearity=False, num_groups=-1

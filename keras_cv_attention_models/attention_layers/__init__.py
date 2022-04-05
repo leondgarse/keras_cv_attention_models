@@ -120,7 +120,8 @@ Examples:
 """
 
 EvoNormalization.__doc__ = """
-Keras implementation of [PDF 2004.02967 Evolving Normalization-Activation Layers](https://arxiv.org/pdf/2004.02967.pdf).
+Keras implementation of [evonorm](https://github.com/tensorflow/tpu/blob/master/models/official/resnet/resnet_model.py).
+Paper [PDF 2004.02967 Evolving Normalization-Activation Layers](https://arxiv.org/pdf/2004.02967.pdf).
 
 Args:
   nonlinearity: boolean value if apply non-linearity calculation, default True.

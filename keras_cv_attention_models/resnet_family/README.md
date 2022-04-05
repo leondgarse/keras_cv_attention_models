@@ -116,7 +116,7 @@
   | RegNetY320 | 145.05M | 224              | 82.5     | [regnety_320_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_320_imagenet.h5) |
 ## RegNetZ
   - Defined and model weights loaded from [Github timm/models/byobnet.py](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/byobnet.py).
-  - Related paper [PDF 2004.02967 Evolving Normalization-Activation Layers](https://arxiv.org/pdf/2004.02967.pdf).
+  - [evonorm](https://github.com/tensorflow/tpu/blob/master/models/official/resnet/resnet_model.py), paper [PDF 2004.02967 Evolving Normalization-Activation Layers](https://arxiv.org/pdf/2004.02967.pdf).
 
   | Model          | Params | Image resolution | Top1 Acc | Download |
   | -------------- | ------ | ---------------- | -------- | -------- |
