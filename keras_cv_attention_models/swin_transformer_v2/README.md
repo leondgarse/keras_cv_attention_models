@@ -32,14 +32,14 @@
   **Change input resolution**
   ```py
   from keras_cv_attention_models import swin_transformer_v2
-  mm = swin_transformer_v2.SwinTransformerV2Tiny_ns(input_shape=(512, 512, 3), pretrained="imagenet")
+  mm = swin_transformer_v2.SwinTransformerV2Tiny_ns(input_shape=(512, 256, 3), pretrained="imagenet")
   # >>>> Load pretrained from: ~/.keras/models/swin_transformer_v2_tiny_ns_224_imagenet.h5
 
   # Run prediction
   from skimage.data import chelsea
   preds = mm(mm.preprocess_input(chelsea()))
   print(mm.decode_predictions(preds))
-  # [[('n02123159', 'tiger_cat', 0.38702574), ('n02124075', 'Egyptian_cat', 0.30906522), ...]
+  # [[('n02124075', 'Egyptian_cat', 0.4695489), ('n02123159', 'tiger_cat', 0.15133126), ...]
   ```
 ## Verification with PyTorch version
   ```py
@@ -59,7 +59,7 @@
   keras_out = mm(inputs).numpy()
 
   """ Verification """
-  print(f"{np.allclose(torch_out, keras_out, atol=1e-6) = }")
-  # np.allclose(torch_out, keras_out, atol=1e-6) = True
+  print(f"{np.allclose(torch_out, keras_out, atol=1e-5) = }")
+  # np.allclose(torch_out, keras_out, atol=1e-5) = True
   ```
 ***

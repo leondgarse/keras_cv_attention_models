@@ -77,10 +77,10 @@ def window_multi_head_self_attention(inputs, filters=-1, num_heads=4, meta_hidde
 
     norm_query, norm_key = tf.norm(query, axis=-1, keepdims=True), tf.norm(key, axis=-2, keepdims=True)
     attn = tf.matmul(query, key) / tf.maximum(tf.matmul(norm_query, norm_key), 1e-6)
-    attn = DivideScale(axis=1, name=name and name + "scale")(attn)  # On head dim
+    attn = DivideScale(axis=1, name=name and name + "scale")(attn)  # axis=1 means on head dimension
 
     # _relative_positional_encodings
-    pos_coord = PairWiseRelativePositionalEmbedding(name=name and name + "pos_emb")(inputs) # Wrapper a layer, or will not in model structure
+    pos_coord = PairWiseRelativePositionalEmbedding(name=name and name + "pos_emb")(inputs)  # Wrapper a layer, or will not in model structure
     relative_position_bias = mlp_block(pos_coord, meta_hidden_dim, output_channel=num_heads, drop_rate=0.1, activation="relu", name=name and name + "meta_")
     relative_position_bias = tf.expand_dims(tf.transpose(relative_position_bias, [2, 0, 1]), 0)
     attn = attn + relative_position_bias
@@ -107,16 +107,15 @@ def window_multi_head_self_attention(inputs, filters=-1, num_heads=4, meta_hidde
 
 def make_window_attention_mask(height, width, window_height, window_width, shift_height, shift_width):
     float_dtype = tf.keras.mixed_precision.global_policy().compute_dtype
-    # TODO: use stack instead of assign value
-    hh_split = [0, -window_height, -shift_height, None]
-    ww_split = [0, -window_width, -shift_width, None]
-    mask = tf.zeros([height, width]).numpy()  # need to assign values
-    mask_value = 0  # value is ignored
-    for hh_start, hh_end in zip(hh_split[:-1], hh_split[1:]):
-        for ww_start, ww_end in zip(ww_split[:-1], ww_split[1:]):
-            mask[hh_start:hh_end, ww_start:ww_end] = mask_value
-            mask_value += 1
-    mask = tf.convert_to_tensor(mask)
+    hh_split = [0, height - window_height, height - shift_height, height]
+    ww_split = [0, width - window_width, width - shift_width, width]
+    mask_value, total_ww, mask = 0, len(ww_split) - 1, []
+    for hh_id in range(len(hh_split) - 1):
+        hh = hh_split[hh_id + 1] - hh_split[hh_id]
+        rr = [tf.zeros([hh, ww_split[id + 1] - ww_split[id]]) + (id + mask_value) for id in range(total_ww)]
+        mask.append(tf.concat(rr, axis=-1))
+        mask_value += total_ww
+    mask = tf.concat(mask, axis=0)
     # return mask
 
     mask = tf.reshape(mask, [height // window_height, window_height, width // window_width, window_width])
@@ -135,26 +134,33 @@ def shifted_window_attention(inputs, window_size, num_heads=4, shift_size=0, nam
 
     if should_shift:
         shift_height, shift_width = int(window_height * shift_size), int(window_width * shift_size)
-        inputs = tf.roll(inputs, shift=(shift_height * -1, shift_width * -1), axis=[1, 2])
+        # tf.roll is not supported by tflite
+        # inputs = tf.roll(inputs, shift=(shift_height * -1, shift_width * -1), axis=[1, 2])
+        inputs = tf.concat([inputs[:, shift_height:], inputs[:, :shift_height]], axis=1)
+        inputs = tf.concat([inputs[:, :, shift_width:], inputs[:, :, :shift_width]], axis=2)
         mask = make_window_attention_mask(inputs.shape[1], inputs.shape[2], window_height, window_width, shift_height, shift_width)
     else:
         mask = None
 
     # window_partition, partition windows
     patch_height, patch_width = inputs.shape[1] // window_height, inputs.shape[2] // window_width
-    nn = tf.reshape(inputs, [-1, patch_height, window_height, patch_width, window_width, input_channel])
-    nn = tf.transpose(nn, [0, 1, 3, 2, 4, 5])
-    nn = tf.reshape(nn, [-1, window_height, window_width, input_channel])
+    # [batch * patch_height, window_height, patch_width, window_width * input_channel], limit transpose perm <= 4
+    nn = tf.reshape(inputs, [-1, window_height, patch_width, window_width * input_channel])
+    nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, patch_width, window_height, window_width * input_channel]
+    nn = tf.reshape(nn, [-1, window_height, window_width, input_channel])  # [batch * patch_height * patch_width, window_height, window_width, input_channel]
 
     nn = window_multi_head_self_attention(nn, num_heads=num_heads, mask=mask, name=name)
 
     # window_reverse, merge windows
-    nn = tf.reshape(nn, [-1, patch_height, patch_width, window_height, window_width, input_channel])
-    nn = tf.transpose(nn, [0, 1, 3, 2, 4, 5])
+    # [batch * patch_height, patch_width, window_height, window_width * input_channel], limit transpose perm <= 4
+    nn = tf.reshape(nn, [-1, patch_width, window_height, window_width * input_channel])
+    nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, window_height, patch_width, window_width * input_channel]
     nn = tf.reshape(nn, [-1, patch_height * window_height, patch_width * window_width, input_channel])
 
     if should_shift:
-        nn = tf.roll(nn, shift=(shift_height, shift_width), axis=[1, 2])
+        # nn = tf.roll(nn, shift=(shift_height, shift_width), axis=[1, 2])
+        nn = tf.concat([nn[:, -shift_height:], nn[:, :-shift_height]], axis=1)
+        nn = tf.concat([nn[:, :, -shift_width:], nn[:, :, :-shift_width]], axis=2)
     return nn
 
 
@@ -177,9 +183,9 @@ def swin_transformer_block(
 
 def patch_merging(inputs, name=""):
     input_channel = inputs.shape[-1]
-    nn = tf.reshape(inputs, [-1, inputs.shape[1] // 2, 2, inputs.shape[2] // 2, 2, input_channel])
-    nn = tf.transpose(nn, [0, 1, 3, 4, 2, 5])
-    nn = tf.reshape(nn, [-1, nn.shape[1], nn.shape[2], 2 * 2 * input_channel])
+    nn = tf.reshape(inputs, [-1, 2, inputs.shape[2], input_channel])  # [batch * inputs.shape[1] // 2, 2, inputs.shape[2], input_channel]
+    nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * inputs.shape[1] // 2, inputs.shape[2], 2, input_channel]
+    nn = tf.reshape(nn, [-1, inputs.shape[1] // 2, inputs.shape[2] // 2, 2 * 2 * input_channel])
     nn = layer_norm(nn, name=name)
     nn = keras.layers.Dense(2 * input_channel, use_bias=False, name=name + "dense")(nn)
     return nn
@@ -211,13 +217,11 @@ def SwinTransformerV2(
     """ stages """
     total_blocks = sum(num_blocks)
     global_block_id = 0
-    # drop_connect_rates = drop_connect_rates_split(num_blocks, start=0.0, end=drop_connect_rate)
-    # embed_dim = stem_width
     for id, (num_block, num_head) in enumerate(zip(num_blocks, num_heads)):
         stack_name = "stack{}_".format(id + 1)
         if id > 0:
+            # height, width downsample * 0.5, channel upsample * 2
             nn = patch_merging(nn, name=stack_name + "downsample")
-            # embed_dim *= 2
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
