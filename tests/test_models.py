@@ -160,6 +160,14 @@ def test_ResNeXt_defination():
     assert isinstance(mm, keras.models.Model)
 
 
+def test_SwinTransformerV2Tiny_defination():
+    mm = keras_cv_attention_models.swin_transformer_v2.SwinTransformerV2Tiny(pretrained=None)
+    assert isinstance(mm, keras.models.Model)
+
+    mm = keras_cv_attention_models.swin_transformer_v2.SwinTransformerV2Tiny_ns(pretrained=None, num_classes=0)
+    assert isinstance(mm, keras.models.Model)
+
+
 def test_UniFormer_defination():
     mm = keras_cv_attention_models.uniformer.UniformerSmallPlus32(pretrained=None)
     assert isinstance(mm, keras.models.Model)

@@ -25,6 +25,7 @@ from keras_cv_attention_models.resnet_family import resnext
 from keras_cv_attention_models.resnet_family import resnet_quad
 from keras_cv_attention_models.resnet_family import resnet_deep
 from keras_cv_attention_models.resnet_family import regnet
+from keras_cv_attention_models import swin_transformer_v2
 from keras_cv_attention_models import uniformer
 from keras_cv_attention_models import volo
 from keras_cv_attention_models import yolox

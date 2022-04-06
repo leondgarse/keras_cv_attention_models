@@ -34,6 +34,7 @@
   - [ResNetD](#resnetd)
   - [ResNetQ](#resnetq)
   - [ResNeXt](#resnext)
+  - [SwinTransformerV2](#swintransformerv2)
   - [UniFormer](#uniformer)
   - [VOLO](#volo)
   - [WaveMLP](#wavemlp)
@@ -612,6 +613,15 @@
   | - SWSL                    | 42M    | 224              | 83.230   | [resnext101_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_swsl.h5)  |
   | ResNeXt101W (32x8d)       | 89M    | 224              | 79.308   | [resnext101_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_imagenet.h5)  |
   | - SWSL                    | 89M    | 224              | 84.284   | [resnext101w_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101w_swsl.h5)  |
+## SwinTransformerV2
+  - [Keras SwinTransformerV2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/swin_transformer_v2) includes implementation of [PDF 2111.09883 Swin Transformer V2: Scaling Up Capacity and Resolution](https://arxiv.org/pdf/2111.09883.pdf).
+
+  | Model                       | Params | Image resolution | Top1 Acc | Download |
+  | --------------------------- | ------ | ---------------- | -------- | -------- |
+  | SwinTransformerV2Tiny_ns    | 28.3M  | 224              | 81.8     | [v2_tiny_ns_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_tiny_ns_224_imagenet.h5) |
+  | SwinTransformerV2Small      | 49.7M  | 224              | 83.13    | [v2_small_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_small_224_imagenet.h5) |
+  | SwinTransformerV2Base, 22k  | 87.9M  | 384              | 87.1     |          |
+  | SwinTransformerV2Large, 22k | 196.7M | 384              | 87.7     |          |
 ## UniFormer
   - [Keras UniFormer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/uniformer) includes implementation of [PDF 2201.09450 UniFormer: Unifying Convolution and Self-attention for Visual Recognition](https://arxiv.org/pdf/2201.09450.pdf).
 

@@ -16,6 +16,7 @@ PRETRAINED_DICT = {
     "regnetz_e8": {"imagenet": "7d0a85b287ad041e0446623c7070fa8f"},
 }
 
+
 def RegNetY(num_blocks, out_channels, input_shape=(224, 224, 3), hidden_channel_ratio=1, stem_width=32, se_ratio=0.25, pretrained="imagenet", **kwargs):
     strides = [2, 2, 2, 2]
     stem_type = "kernel_3x3"
