@@ -36,7 +36,13 @@ def parse_arguments(argv):
     parser.add_argument("-e", "--epochs", type=int, default=-1, help="Total epochs. Set -1 means using lr_decay_steps + lr_cooldown_steps")
     parser.add_argument("-p", "--optimizer", type=str, default="LAMB", help="Optimizer name. One of [AdamW, LAMB, RMSprop, SGD, SGDW].")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
-    parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history. None means a combination of parameters")
+    parser.add_argument(
+        "-s",
+        "--basic_save_name",
+        type=str,
+        default=None,
+        help="Basic save name for model and history. None means a combination of parameters, or starts with _ as a suffix to default name",
+    )
     parser.add_argument(
         "-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 by `keras.models.load_model` directly. Higher priority than model"
     )
@@ -154,18 +160,19 @@ def parse_arguments(argv):
         # Cosine decay
         args.lr_decay_steps = int(lr_decay_steps[0].strip())
 
-    basic_save_name = args.basic_save_name
-    if basic_save_name is None and args.restore_path is not None:
+    if args.basic_save_name is None and args.restore_path is not None:
         basic_save_name = os.path.splitext(os.path.basename(args.restore_path))[0]
         basic_save_name = basic_save_name[:-7] if basic_save_name.endswith("_latest") else basic_save_name
-    elif basic_save_name is None:
+        args.basic_save_name = basic_save_name
+    elif args.basic_save_name is None or args.basic_save_name.startswith("_"):
         data_name = args.data_name.replace("/", "_")
         model_name = args.det_header.split(".")[-1] + ("" if args.backbone is None else ("_" + args.backbone.split(".")[-1]))
         anchor_mode = "anchor_free" if args.use_anchor_free_mode else ("yolor_anchor" if args.use_yolor_anchors_mode else "effdet_anchor")
         basic_save_name = "{}_{}_{}_{}_batchsize_{}".format(model_name, args.input_shape, args.optimizer, data_name, args.batch_size)
-        basic_save_name += "_randaug_{}_mosaic_{}_RRC_{}".format(args.magnitude, args.mosaic_mix_prob, args.random_crop_mode)
+        basic_save_name += "_randaug_{}_mosaic_{}".format(args.magnitude, args.mosaic_mix_prob)
+        basic_save_name += "_color_{}_position_{}".format(args.color_augment_method, args.positional_augment_methods)
         basic_save_name += "_lr512_{}_wd_{}_{}".format(args.lr_base_512, args.weight_decay, anchor_mode)
-    args.basic_save_name = basic_save_name
+        args.basic_save_name = basic_save_name if args.basic_save_name is None else (basic_save_name + args.basic_save_name)
     args.enable_float16 = not args.disable_float16
 
     return args

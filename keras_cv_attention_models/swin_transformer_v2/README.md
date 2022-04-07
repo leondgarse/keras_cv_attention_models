@@ -42,7 +42,7 @@
   print(mm.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.4695489), ('n02123159', 'tiger_cat', 0.15133126), ...]
   ```
-  Reloading weights using new shape with smaller `window_ratio` is possible, like both downsample half:
+  Reloading weights with new input_shape not divisible by default `window_ratio` works in some cases, like `input_shape` and `window_ratio` both downsample half:
   ```py
   from keras_cv_attention_models import swin_transformer_v2
   mm = swin_transformer_v2.SwinTransformerV2Tiny_ns(input_shape=(112, 112, 3), window_ratio=16, pretrained="imagenet")
