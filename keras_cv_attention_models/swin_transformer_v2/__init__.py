@@ -8,6 +8,7 @@ from keras_cv_attention_models.swin_transformer_v2.swin_transformer_v2 import (
     SwinTransformerV2Small,
     SwinTransformerV2Base,
     SwinTransformerV2Large,
+    SwinTransformerV2Giant,
 )
 
 __head_doc__ = """
@@ -43,12 +44,13 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model                       | Params | Image resolution | Top1 Acc |
-  | --------------------------- | ------ | ---------------- | -------- |
-  | SwinTransformerV2Tiny_ns    | 28.3M  | 224              | 81.8     |
-  | SwinTransformerV2Small      | 49.7M  | 224              | 83.13    |
-  | SwinTransformerV2Base, 22k  | 87.9M  | 384              | 87.1     |
-  | SwinTransformerV2Large, 22k | 196.7M | 384              | 87.7     |
+  | Model                           | Params | Image resolution | Top1 Acc |
+  | ------------------------------- | ------ | ---------------- | -------- |
+  | SwinTransformerV2Tiny_ns        | 28.3M  | 224              | 81.8     |
+  | SwinTransformerV2Small          | 49.7M  | 224              | 83.13    |
+  | SwinTransformerV2Base, 22k      | 87.9M  | 384              | 87.1     |
+  | SwinTransformerV2Large, 22k     | 196.7M | 384              | 87.7     |
+  | SwinTransformerV2Giant, 22k+ext | 2.60B  | 640              | 90.17    |
 """
 
 SwinTransformerV2Tiny.__doc__ = __head_doc__ + """
@@ -59,3 +61,4 @@ SwinTransformerV2Tiny_ns.__doc__ = SwinTransformerV2Tiny.__doc__
 SwinTransformerV2Small.__doc__ = SwinTransformerV2Tiny.__doc__
 SwinTransformerV2Base.__doc__ = SwinTransformerV2Tiny.__doc__
 SwinTransformerV2Large.__doc__ = SwinTransformerV2Tiny.__doc__
+SwinTransformerV2Giant.__doc__ = SwinTransformerV2Tiny.__doc__

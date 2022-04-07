@@ -75,8 +75,8 @@ def window_multi_head_self_attention(inputs, filters=-1, num_heads=4, meta_hidde
     key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
     value = tf.transpose(tf.reshape(value, [-1, value.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, vv_dim]
 
-    norm_query, norm_key = tf.norm(query, axis=-1, keepdims=True), tf.norm(key, axis=-2, keepdims=True)
-    attn = tf.matmul(query, key) / tf.maximum(tf.matmul(norm_query, norm_key), 1e-6)
+    norm_query, norm_key = tf.nn.l2_normalize(query, axis=-1, epsilon=1e-6), tf.nn.l2_normalize(key, axis=-2, epsilon=1e-6)
+    attn = tf.matmul(norm_query, norm_key)
     attn = DivideScale(axis=1, name=name and name + "scale")(attn)  # axis=1 means on head dimension
 
     # _relative_positional_encodings
@@ -144,6 +144,7 @@ def shifted_window_attention(inputs, window_size, num_heads=4, shift_size=0, nam
 
     # window_partition, partition windows
     patch_height, patch_width = inputs.shape[1] // window_height, inputs.shape[2] // window_width
+    # print(f">>>> patch_merging {inputs.shape = }, {patch_height = }, {patch_width = }, {window_height = }, {window_width = }")
     # [batch * patch_height, window_height, patch_width, window_width * input_channel], limit transpose perm <= 4
     nn = tf.reshape(inputs, [-1, window_height, patch_width, window_width * input_channel])
     nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, patch_width, window_height, window_width * input_channel]
@@ -183,6 +184,12 @@ def swin_transformer_block(
 
 def patch_merging(inputs, name=""):
     input_channel = inputs.shape[-1]
+    should_pad_hh, should_pad_ww = inputs.shape[1] % 2, inputs.shape[2] % 2
+    # print(f">>>> patch_merging {inputs.shape = }, {should_pad_hh = }, {should_pad_ww = }")
+    if should_pad_hh or should_pad_ww:
+        inputs = tf.pad(inputs, [[0, 0], [0, should_pad_hh], [0, should_pad_ww], [0, 0]])
+
+    # limit transpose perm <= 4
     nn = tf.reshape(inputs, [-1, 2, inputs.shape[2], input_channel])  # [batch * inputs.shape[1] // 2, 2, inputs.shape[2], input_channel]
     nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * inputs.shape[1] // 2, inputs.shape[2], 2, input_channel]
     nn = tf.reshape(nn, [-1, inputs.shape[1] // 2, inputs.shape[2] // 2, 2 * 2 * input_channel])
@@ -197,7 +204,8 @@ def SwinTransformerV2(
     embed_dim=96,
     window_ratio=32,
     stem_patch_size=4,
-    use_stack_norm=False,
+    use_stack_norm=False,  # True for extra layer_norm on each stack end
+    extra_norm_period=0,  # > 0 for extra layer_norm frequency in each stack. May combine with use_stack_norm=True
     layer_scale=-1,
     input_shape=(224, 224, 3),
     num_classes=1000,
@@ -217,9 +225,9 @@ def SwinTransformerV2(
     """ stages """
     total_blocks = sum(num_blocks)
     global_block_id = 0
-    for id, (num_block, num_head) in enumerate(zip(num_blocks, num_heads)):
-        stack_name = "stack{}_".format(id + 1)
-        if id > 0:
+    for stack_id, (num_block, num_head) in enumerate(zip(num_blocks, num_heads)):
+        stack_name = "stack{}_".format(stack_id + 1)
+        if stack_id > 0:
             # height, width downsample * 0.5, channel upsample * 2
             nn = patch_merging(nn, name=stack_name + "downsample")
         for block_id in range(num_block):
@@ -228,7 +236,9 @@ def SwinTransformerV2(
             shift_size = 0 if block_id % 2 == 0 else 0.5
             nn = swin_transformer_block(nn, window_size, num_head, shift_size, drop_rate=block_drop_rate, layer_scale=layer_scale, name=block_name)
             global_block_id += 1
-        if use_stack_norm and id != len(num_blocks) - 1:  # Exclude last stack
+            if extra_norm_period > 0 and (block_id + 1) % extra_norm_period == 0 and not (use_stack_norm and block_id == num_block - 1):
+                nn = layer_norm(nn, name=block_name + "output_")
+        if use_stack_norm and stack_id != len(num_blocks) - 1:  # Exclude last stack
             nn = layer_norm(nn, name=stack_name + "output_")
     nn = layer_norm(nn, name="pre_output_")
 
@@ -265,3 +275,11 @@ def SwinTransformerV2Large(input_shape=(224, 224, 3), num_classes=1000, classifi
     num_heads = [6, 12, 24, 48]
     embed_dim = 192
     return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_large", **kwargs)
+
+
+def SwinTransformerV2Giant(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained=None, **kwargs):
+    num_blocks = [2, 2, 42, 2]
+    num_heads = [16, 32, 64, 128]
+    embed_dim = 512
+    extra_norm_period = 6
+    return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_giant", **kwargs)
