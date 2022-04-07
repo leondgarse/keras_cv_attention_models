@@ -353,3 +353,26 @@ def init_dataset(
         test_dataset = dataset["test"].map(test_process)
     test_dataset = test_dataset.batch(batch_size).map(lambda xx, yy: (rescaling(xx), as_one_hot(yy)))
     return train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
+
+
+""" Show """
+
+
+def show_batch_sample(dataset, rescale_mode="tf", rows=-1, base_size=3):
+    import matplotlib.pyplot as plt
+    from keras_cv_attention_models.visualizing import get_plot_cols_rows, stack_and_plot_images
+
+    if isinstance(dataset, (list, tuple)):
+        images, labels = dataset
+    else:
+        images, labels = dataset.as_numpy_iterator().next()
+    mean, std = init_mean_std_by_rescale_mode(rescale_mode)
+    mean, std = (mean.numpy(), std.numpy()) if hasattr(mean, "numpy") else (mean, std)
+    images = (images * std + mean) / 255
+
+    if labels.shape[-1] == 1000:
+        labels = [ii[0][1] for ii in keras.applications.imagenet_utils.decode_predictions(labels, top=1)]
+    else:
+        labels = tf.argmax(labels, axis=-1).numpy()
+    ax, _ = stack_and_plot_images(images, texts=labels, rows=rows, ax=None, base_size=base_size)
+    return ax
