@@ -89,7 +89,7 @@ def evaluation(
         rescale_mode = getattr(model, "rescale_mode", "torch")
         print(">>>> rescale_mode:", rescale_mode)
 
-    _, test_dataset, _, _, _ = data.init_dataset(
+    test_dataset = data.init_dataset(
         data_name,
         input_shape=input_shape,
         batch_size=batch_size,
@@ -97,7 +97,7 @@ def evaluation(
         resize_method=resize_method,
         resize_antialias=antialias,
         rescale_mode=rescale_mode,
-    )
+    )[1]
 
     y_true, y_pred_top_1, y_pred_top_5 = [], [], []
     for img_batch, true_labels in tqdm(test_dataset.as_numpy_iterator(), "Evaluating", total=len(test_dataset)):

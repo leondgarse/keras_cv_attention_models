@@ -228,7 +228,7 @@ class RandomProcessImageWithBboxes:
         random_crop_mode=0,  # 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale
         resize_method="bilinear",
         resize_antialias=False,
-        use_hsv_augment=True,
+        color_augment_method="random_hsv",
         magnitude=0,
         num_layers=2,
         use_color_increasing=True,
@@ -237,22 +237,25 @@ class RandomProcessImageWithBboxes:
         self.max_labels_per_image = max_labels_per_image
         self.target_shape = target_shape if len(target_shape) == 2 else target_shape[:2]
         self.resize_method, self.resize_antialias, self.random_crop_mode, self.magnitude = resize_method, resize_antialias, random_crop_mode, magnitude
-        if magnitude > 0 and use_hsv_augment:
-            self.randaug_wo_pos = random_hsv
-        elif magnitude > 0:
+        if magnitude > 0:
             from keras_cv_attention_models.imagenet import augment
 
-            # TODO: Need to pick color related methods, "Invert" / "Posterize" may not working well here.
-            print(">>>> RandAugment: magnitude = %d" % magnitude)
-            self.randaug_wo_pos = augment.RandAugment(
-                num_layers=num_layers,
-                magnitude=magnitude,
-                use_cutout=False,
-                use_color_increasing=use_color_increasing,
-                use_positional_related_ops=False,  # Set False to exlude [shear, rotate, translate]
-                **randaug_kwargs,
-            )
-            # self.randaug_wo_pos = random_hsv
+            if color_augment_method.lower() == "autoaug":
+                self.randaug_wo_pos = augment.AutoAugment(augmentation_name="simple")
+            elif color_augment_method.lower() == "randaug":
+                # TODO: Need to pick color related methods, "Invert" / "Posterize" may not working well here.
+                print(">>>> RandAugment: magnitude = %d" % magnitude)
+                self.randaug_wo_pos = augment.RandAugment(
+                    num_layers=num_layers,
+                    magnitude=magnitude,
+                    use_cutout=False,
+                    use_color_increasing=use_color_increasing,
+                    use_positional_related_ops=False,  # Set False to exlude [shear, rotate, translate]
+                    **randaug_kwargs,
+                )
+            else:
+                self.randaug_wo_pos = random_hsv
+
             # RandAugment positional related ops. Including [shear, rotate, translate], Also returns affine transform matrix
             # self.pos_randaug = augment.PositionalRandAugment(num_layers=num_layers, magnitude=magnitude, **randaug_kwargs)
 
@@ -309,10 +312,12 @@ class RandomProcessImageWithBboxes:
 
 
 class PositionalRandAugmentWithBboxes:
-    def __init__(self, magnitude=0, num_layers=2, max_labels_per_image=100, **randaug_kwargs):
+    def __init__(self, magnitude=0, num_layers=2, max_labels_per_image=100, positional_augment_methods="rts", **randaug_kwargs):
         from keras_cv_attention_models.imagenet import augment
 
-        self.pos_randaug = augment.PositionalRandAugment(num_layers=num_layers, magnitude=magnitude, **randaug_kwargs)
+        self.pos_randaug = augment.PositionalRandAugment(
+            num_layers=num_layers, magnitude=magnitude, positional_augment_methods=positional_augment_methods, **randaug_kwargs
+        )
         self.max_labels_per_image = max_labels_per_image
 
     def __call_single__(self, inputs):
@@ -405,7 +410,8 @@ def init_dataset(
     mosaic_mix_prob=0.0,
     resize_method="bilinear",  # ["bilinear", "bicubic"]
     resize_antialias=False,
-    use_hsv_augment=True,  # Use hsv augment instead of randaug color related. Generally using in other training frameworks.
+    color_augment_method="random_hsv",  # one of ["random_hsv", "autoaug", "randaug"]
+    positional_augment_methods="rts",  # Positional augment method besides scale, combine of r: rotate, t: transplate, s: shear
     magnitude=0,
     num_layers=2,
     seed=None,
@@ -433,7 +439,7 @@ def init_dataset(
         random_crop_mode=random_crop_mode,
         resize_method=resize_method,
         resize_antialias=resize_antialias,
-        use_hsv_augment=use_hsv_augment,
+        color_augment_method=color_augment_method,
         magnitude=magnitude,
         num_layers=num_layers,
         **augment_kwargs,
@@ -453,7 +459,8 @@ def init_dataset(
     if magnitude > 0:
         # Apply randaug rotate / shear / transform after mosaic mix
         max_labels_per_image = (max_labels_per_image * 4) if mosaic_mix_prob > 0 else max_labels_per_image
-        pos_aug = PositionalRandAugmentWithBboxes(magnitude, num_layers, max_labels_per_image, **augment_kwargs)
+        pos_aug = PositionalRandAugmentWithBboxes(magnitude, num_layers, max_labels_per_image, positional_augment_methods, **augment_kwargs)
+        print(">>>> positional augment methods:", pos_aug.pos_randaug.available_ops)
         train_dataset = train_dataset.map(pos_aug, num_parallel_calls=AUTOTUNE)
 
     if use_anchor_free_mode:

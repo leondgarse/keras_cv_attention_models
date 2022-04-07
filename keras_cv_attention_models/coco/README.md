@@ -1,15 +1,30 @@
 # ___COCO___
 ***
 ## Data
-  - Default data augment for training is `mosaic mix prob=0.5` + `randaug magnitude=6 with rotate, shear, transpose` + `random largest crop`.
-    - For `mosaic_mix_prob`, it's applied per batch, means each image is repeated `4` times, then randomly shuffled and mosaic mixup with others in an entire batch.
-    - For `random_crop_mode`, it controls how random crop / scale is applied, `0` for eval mode, `(0, 1)` for random crop, `1` for random largest crop, `> 1` for random scale.
+  - Default data augment in `coco_train_script.py` is `mosaic mix prob=0.5` + `randaug magnitude=6 with rotate, shear, transpose`.
+    - `mosaic_mix_prob` is applied per batch, means each image is repeated `4` times, then randomly shuffled and mosaic mixup with others in an entire batch.
+    - `color_augment_method` is one of `["random_hsv", "autoaug", "randaug"]`. For `autoaug` and `randaug` using only none-positional related methods.
+    - `positional_augment_methods` is a combination of `r: rotate, t: translate, s: shear, x: scale_x + scale_y`. `None` or `''` for aspect aware random scale only.
     ```py
-    from keras_cv_attention_models import coco
-    train_dataset, test_dataset, _, _, _ = coco.init_dataset(batch_size=4, mosaic_mix_prob=0.5, random_crop_mode=1.0, magnitude=6)
-    coco.show_batch_sample(train_dataset)
+    from keras_cv_attention_models.coco import data
+    """ random_hsv + random scale """
+    # set use_anchor_free_mode=True will just return original bboxes
+    tt = data.init_dataset(magnitude=10, positional_augment_methods=None, use_anchor_free_mode=True, batch_size=4)[0]
+    fig = data.show_batch_sample(tt, use_anchor_free_mode=True, rows=1)
+
+    """ random_hsv + random rotate / translate / shear / scale """
+    tt = data.init_dataset(magnitude=6, positional_augment_methods='rts', use_anchor_free_mode=True, batch_size=4)[0]
+    fig = data.show_batch_sample(tt, use_anchor_free_mode=True, rows=1)
+
+    """ autoaug + random translate / scale_x / scale_y """
+    tt = data.init_dataset(magnitude=6, color_augment_method='autoaug', positional_augment_methods='tx', use_anchor_free_mode=True, batch_size=4)[0]
+    fig = data.show_batch_sample(tt, use_anchor_free_mode=True, rows=1)
+
+    """ Mosaic mix + randaug + random rotate / shear / scale """
+    tt = data.init_dataset(magnitude=6, mosaic_mix_prob=1.0, color_augment_method='randaug', positional_augment_methods='rs', use_anchor_free_mode=True, batch_size=4)[0]
+    fig = data.show_batch_sample(tt, use_anchor_free_mode=True, rows=1)
     ```
-    ![coco_data_aug](https://user-images.githubusercontent.com/5744524/158043958-8eb20745-e83f-4dd8-8e41-b77d56224c3c.png)
+    ![coco_data_aug_3](https://user-images.githubusercontent.com/5744524/162143972-d2d752e6-5702-42d7-9ff0-1243d2c28566.png)
   - **TFDS COCO data format**, `bboxes` in format `[top, left, bottom, right]` with value range in `[0, 1]`. It's the default compatible data format for this package.
     ```py
     import tensorflow_datasets as tfds

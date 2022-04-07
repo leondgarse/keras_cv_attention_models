@@ -109,11 +109,20 @@ def parse_arguments(argv):
     ds_group.add_argument("--magnitude", type=int, default=6, help="Positional Randaug magnitude value, including rotate / shear / transpose")
     ds_group.add_argument("--num_layers", type=int, default=2, help="Number of randaug applied sequentially to an image. Usually best in [1, 3]")
     ds_group.add_argument(
-        "--random_crop_mode",
-        type=float,
-        default=1.0,
-        help="Random crop mode, 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale",
+        "--color_augment_method", type=str, default="random_hsv", help="None positional related augment method, one of [random_hsv, autoaug, randaug]"
     )
+    ds_group.add_argument(
+        "--positional_augment_methods",
+        type=str,
+        default="rts",
+        help="Positional related augment method besides random scale, combine of r: rotate, t: transplate, s: shear, x: scale_x + scale_y",
+    )
+    # ds_group.add_argument(
+    #     "--random_crop_mode",
+    #     type=float,
+    #     default=1.0,
+    #     help="Random crop mode, 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale",
+    # )
     ds_group.add_argument("--mosaic_mix_prob", type=float, default=0.5, help="Mosaic mix probability, 0 to disable")
     ds_group.add_argument("--rescale_mode", type=str, default="torch", help="Rescale mode, one of [tf, torch, raw, raw01]")
     ds_group.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
@@ -127,10 +136,8 @@ def parse_arguments(argv):
         args.num_anchors, args.use_object_scores = 3, True
     else:
         args.num_anchors, args.use_object_scores = 9, False
-        # args.anchor_scale, args.anchor_num_scales, args.anchor_aspect_ratios = 1, 1, [1]
 
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
-    # args.num_anchors = len(args.anchor_aspect_ratios) * args.anchor_num_scales
     args.additional_det_header_kwargs.update(  # num_anchors and use_object_scores affecting model architecture, others for prediction only.
         {
             "num_anchors": args.num_anchors,
@@ -200,11 +207,12 @@ def run_training_by_args(args):
         # anchor_num_scales=args.anchor_num_scales,
         anchor_scale=args.anchor_scale,
         rescale_mode=args.rescale_mode,
-        random_crop_mode=args.random_crop_mode,
+        # random_crop_mode=args.random_crop_mode,
         mosaic_mix_prob=args.mosaic_mix_prob,
         resize_method=args.resize_method,
         resize_antialias=not args.disable_antialias,
-        use_hsv_augment=True,
+        color_augment_method=args.color_augment_method,
+        positional_augment_methods=args.positional_augment_methods,
         magnitude=args.magnitude,
         num_layers=args.num_layers,
     )
