@@ -21,6 +21,15 @@ def parse_arguments(argv):
     parser.add_argument("--rescale_mode", type=str, default="auto", help="Rescale mode in [tf, torch, raw, raw01]. Default `auto` means using model preset")
     parser.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
     parser.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
+    parser.add_argument(
+        "--letterbox_pad",
+        type=int,
+        default=-1,
+        help="Wrapper resized image in the center."
+        + " For input_shape=640, letterbox_pad=0, image shape=(480, 240), will first resize to (640, 320), then pad top=0 left=160 bottom=0 right=160."
+        + " For input_shape=704, letterbox_pad=64, image shape=(480, 240), will first resize to (640, 320), then pad top=32 left=192 bottom=32 right=192."
+        + " Default -1 for disable"
+    )
     parser.add_argument("--use_bgr_input", action="store_true", help="Use BRG input instead of RGB")
     parser.add_argument("--num_classes", type=int, default=None, help="num_classes if not inited from h5 file. None for model.num_classes")
     parser.add_argument(
@@ -42,11 +51,14 @@ def parse_arguments(argv):
     nms_group = parser.add_argument_group("NMS arguments")
     nms_group.add_argument("--nms_score_threshold", type=float, default=0.001, help="nms score threshold")
     nms_group.add_argument("--nms_iou_or_sigma", type=float, default=0.5, help='means `soft_nms_sigma` if nms_method is "gaussian", else `iou_threshold`')
+    nms_group.add_argument("--nms_max_output_size", type=int, default=100, help="max_output_size for tf.image.non_max_suppression_with_scores")
     nms_group.add_argument("--nms_method", type=str, default="gaussian", help="one of [hard, gaussian]")
     nms_group.add_argument(
         "--nms_mode", type=str, default="per_class", help="one of [global, per_class]. `per_class` is strategy from `torchvision.ops.batched_nms`"
     )
-    nms_group.add_argument("--nms_topk", type=int, default=5000, help="Using topk highest scores, set `-1` to disable")
+    nms_group.add_argument(
+        "--nms_topk", type=int, default=5000, help="Using topk highest scores, each bbox may have multi labels. Set `0` to disable, `-1` using all"
+    )
 
     args = parser.parse_known_args(argv)[0]
     return args
@@ -88,8 +100,8 @@ if __name__ == "__main__":
         print(">>>> model_kwargs:", model_kwargs)
         model = model_class(**model_kwargs)
 
-    NMS = {"nms_score_threshold": args.nms_score_threshold, "nms_iou_or_sigma": args.nms_iou_or_sigma}
+    NMS = {"nms_score_threshold": args.nms_score_threshold, "nms_iou_or_sigma": args.nms_iou_or_sigma, "nms_max_output_size": args.nms_max_output_size}
     NMS.update({"nms_method": args.nms_method, "nms_mode": args.nms_mode, "nms_topk": args.nms_topk})
     IMAGE = {"resize_method": args.resize_method, "resize_antialias": antialias, "rescale_mode": args.rescale_mode, "use_bgr_input": args.use_bgr_input}
     print(">>>> COCO evaluation:", data_name, "\n   - image:", IMAGE, "\n   - anchors:", ANCHORS, "\n   - nms:", NMS)
-    run_coco_evaluation(model, data_name, input_shape, args.batch_size, **IMAGE, **ANCHORS, **NMS)
+    run_coco_evaluation(model, data_name, input_shape, args.batch_size, letterbox_pad=args.letterbox_pad, **IMAGE, **ANCHORS, **NMS)

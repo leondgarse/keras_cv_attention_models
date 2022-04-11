@@ -131,15 +131,19 @@ def get_image_aspect_aware_random_scale_crop(source_shape, target_shape, scale_m
     return random_image_scale, random_offset_y, random_offset_x
 
 
-def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, crop_x=0, method="bilinear", antialias=False):
+def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, crop_x=0, letterbox_pad=-1, method="bilinear", antialias=False):
+    letterbox_target_shape = (target_shape[0] - letterbox_pad, target_shape[1] - letterbox_pad) if letterbox_pad > 0 else target_shape
     height, width = tf.cast(tf.shape(image)[0], "float32"), tf.cast(tf.shape(image)[1], "float32")
     if scale == -1:
-        scale = tf.minimum(target_shape[0] / height, target_shape[1] / width)
+        scale = tf.minimum(letterbox_target_shape[0] / height, letterbox_target_shape[1] / width)
     scaled_hh, scaled_ww = int(height * scale), int(width * scale)
     image = tf.image.resize(image, [scaled_hh, scaled_ww], method=method, antialias=antialias)
-    image = image[crop_y : crop_y + target_shape[0], crop_x : crop_x + target_shape[1]]
-    image = tf.image.pad_to_bounding_box(image, 0, 0, target_shape[0], target_shape[1])
-    return image, scale
+    image = image[crop_y : crop_y + letterbox_target_shape[0], crop_x : crop_x + letterbox_target_shape[1]]
+    cropped_shape = tf.shape(image)
+
+    pad_top, pad_left = ((target_shape[0] - cropped_shape[0]) // 2, (target_shape[1] - cropped_shape[1]) // 2) if letterbox_pad >= 0 else (0, 0)
+    image = tf.image.pad_to_bounding_box(image, pad_top, pad_left, target_shape[0], target_shape[1])
+    return image, scale, pad_top, pad_left
 
 
 def random_flip_left_right_with_bboxes(image, bboxes, probability=0.5):
@@ -263,7 +267,7 @@ class RandomProcessImageWithBboxes:
         image = datapoint["image"]
         objects = datapoint["objects"]
         bbox, label, is_crowd = tf.cast(objects["bbox"], tf.float32), objects["label"], objects.get("is_crowd", None)
-        if len(image.shape) < 3:
+        if len(image.shape) < 2:
             image = tf_imread(image)
         if is_crowd is not None:
             is_not_crowd = is_crowd == False
@@ -275,7 +279,7 @@ class RandomProcessImageWithBboxes:
 
         if self.random_crop_mode > 1:
             scale, crop_hh, crop_ww = get_image_aspect_aware_random_scale_crop((height, width), self.target_shape)
-            image, scale = aspect_aware_resize_and_crop_image(
+            image, scale, _, _ = aspect_aware_resize_and_crop_image(
                 image, self.target_shape, scale, crop_hh, crop_ww, method=self.resize_method, antialias=self.resize_antialias
             )
         elif self.random_crop_mode == 1:
@@ -285,7 +289,7 @@ class RandomProcessImageWithBboxes:
                 image, self.target_shape, scale=(self.random_crop_mode, 1.0), method=self.resize_method, antialias=self.resize_antialias
             )
         else:
-            image, scale = aspect_aware_resize_and_crop_image(image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
+            image, scale, _, _ = aspect_aware_resize_and_crop_image(image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
             crop_hh, crop_ww = 0, 0
         bbox = resize_and_crop_bboxes(bbox, (height, width), self.target_shape, scale=scale, offset_y=crop_hh, offset_x=crop_ww)
         bbox, label = refine_bboxes_labels_single(bbox, label)
@@ -372,7 +376,7 @@ def __yolor_bboxes_labels_batch_func__(bboxes, labels, anchor_ratios, feature_si
     return tf.map_fn(bbox_process, bbox_labels)
 
 
-def detection_dataset_from_custom_json(data_path):
+def detection_dataset_from_custom_json(data_path, with_info=False):
     import json
 
     with open(data_path, "r") as ff:
@@ -391,7 +395,7 @@ def detection_dataset_from_custom_json(data_path):
     train_ds = train_ds.apply(tf.data.experimental.assert_cardinality(len(train))).with_options(options)
     test_ds = test_ds.apply(tf.data.experimental.assert_cardinality(len(test))).with_options(options)
     dataset = {"train": train_ds, test_key: test_ds}
-    return dataset, total_images, num_classes
+    return (dataset, total_images, num_classes) if with_info else dataset
 
 
 def init_dataset(
@@ -421,7 +425,7 @@ def init_dataset(
     # anchor_num_scales=3,  # Force using 1 if use_anchor_free_mode
     # anchor_grid_zero_start="auto",  # False for anchor_free_mode, True for others.
     if data_name.endswith(".json"):
-        dataset, total_images, num_classes = detection_dataset_from_custom_json(data_name)
+        dataset, total_images, num_classes = detection_dataset_from_custom_json(data_name, with_info=True)
     else:
         try_gcs = True if len(tf.config.list_logical_devices("TPU")) > 0 else False
         dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)

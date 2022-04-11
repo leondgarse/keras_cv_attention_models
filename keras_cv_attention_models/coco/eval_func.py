@@ -51,6 +51,7 @@ class DecodePredictions:
         bbox_outputs, class_outputs = pred[:, :4], pred[:, 4:]
         num_classes = class_outputs.shape[-1]
         class_outputs_flatten = tf.reshape(class_outputs, -1)
+        topk = class_outputs_flatten.shape[0] if topk == -1 else topk # select all if -1
         _, class_topk_indices = tf.nn.top_k(class_outputs_flatten, k=topk, sorted=False)
         # get original indices for class_outputs, original_indices_hh -> picking indices, original_indices_ww -> picked labels
         original_indices_hh, original_indices_ww = class_topk_indices // num_classes, class_topk_indices % num_classes
@@ -92,7 +93,7 @@ class DecodePredictions:
     def __object_score_split__(self, pred):
         return pred[:, :-1], pred[:, -1]  # May overwrite
 
-    def __decode_single__(self, pred, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=-1, input_shape=None):
+    def __decode_single__(self, pred, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=0, input_shape=None):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
         if input_shape is not None:
             self.__init_anchor__(input_shape)
@@ -100,7 +101,7 @@ class DecodePredictions:
         if self.use_object_scores:  # YOLO outputs: [bboxes, classses_score, object_score]
             pred, object_scores = self.__object_score_split__(pred)
 
-        if topk > 0:
+        if topk != 0:
             bbs, ccs, labels, picking_indices = self.__topk_class_boxes_single__(pred, topk)
             anchors = tf.gather(self.anchors, picking_indices)
             if self.use_object_scores:
@@ -119,31 +120,55 @@ class DecodePredictions:
         else:
             return self.__nms_global__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
 
-    def __call__(self, preds, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=-1, input_shape=None):
+    def __call__(self, preds, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=0, input_shape=None):
         """
         https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
         iou_or_sigma: means `soft_nms_sigma` if method is "gaussian", else `iou_threshold`.
         method: "gaussian" or "hard".
         mode: "global" or "per_class". "per_class" is strategy from `torchvision.ops.batched_nms`
-        topk: `> 0` value for picking topk preds using scores.
+        topk: Using topk highest scores, each bbox may have multi labels. Set `0` to disable, `-1` using all.
         """
         preds = preds if len(preds.shape) == 3 else [preds]
         return [self.__decode_single__(pred, score_threshold, iou_or_sigma, max_output_size, method, mode, topk, input_shape) for pred in preds]
 
 
-def scale_bboxes_back_single(bboxes, image_shape, scale, target_shape):
-    height, width = target_shape[0] / scale, target_shape[1] / scale
-    bboxes *= [height, width, height, width]
+def scale_bboxes_back_single(bboxes, image_shape, scale, pad_top, pad_left, target_shape):
+    # height, width = target_shape[0] / scale, target_shape[1] / scale
+    # bboxes *= [height, width, height, width]
+    bboxes *= [target_shape[0], target_shape[1], target_shape[0], target_shape[1]]
+    bboxes -= [pad_top, pad_left, pad_top, pad_left]
+    bboxes /= scale
     bboxes = tf.clip_by_value(bboxes, 0, clip_value_max=[image_shape[0], image_shape[1], image_shape[0], image_shape[1]])
     # [top, left, bottom, right] -> [left, top, width, height]
     bboxes = tf.stack([bboxes[:, 1], bboxes[:, 0], bboxes[:, 3] - bboxes[:, 1], bboxes[:, 2] - bboxes[:, 0]], axis=-1)
     return bboxes
 
 
-def init_eval_dataset(
-    data_name="coco/2017", target_shape=(512, 512), batch_size=8, rescale_mode="torch", resize_method="bilinear", resize_antialias=False, use_bgr_input=False
+def image_process(image, target_shape, mean, std, resize_method="bilinear", resize_antialias=False, use_bgr_input=False, letterbox_pad=-1):
+    if len(image.shape) < 2:
+        image = data.tf_imread(image) # it's image path
+    image = tf.cast(image, "float32")
+    image = (image - mean) / std # automl behavior: rescale -> resize
+    image, scale, pad_top, pad_left = data.aspect_aware_resize_and_crop_image(
+        image, target_shape, letterbox_pad=letterbox_pad, method=resize_method, antialias=resize_antialias
+    )
+    if use_bgr_input:
+        image = image[:, :, ::-1]
+    return image, scale, pad_top, pad_left
+
+
+def init_eval_dataset_0(
+    data_name="coco/2017",
+    target_shape=(512, 512),
+    batch_size=8,
+    rescale_mode="torch",
+    resize_method="bilinear",
+    resize_antialias=False,
+    letterbox_pad=-1,
+    use_bgr_input=False,
 ):
     mean, std = data.init_mean_std_by_rescale_mode(rescale_mode)
+    mean, std = (mean[::-1], std[::-1]) if rescale_mode == "torch" and use_bgr_input else (mean, std)
     rescaling = lambda xx: (xx - mean) / std
 
     if data_name.endswith(".json"):
@@ -153,21 +178,42 @@ def init_eval_dataset(
         dataset = tfds.load(data_name, with_info=False)
         image_func = lambda image: tf.cast(image, tf.float32)
     ds = dataset.get("validation", dataset.get("test", None))
-    resize_func = lambda image: data.aspect_aware_resize_and_crop_image(image, target_shape, method=resize_method, antialias=resize_antialias)
+    resize_func = lambda image: data.aspect_aware_resize_and_crop_image(
+        image, target_shape, letterbox_pad=letterbox_pad, method=resize_method, antialias=resize_antialias
+    )
     # resize_func = lambda image: data.letterbox_scale_down_only(image, target_shape, method=resize_method, antialias=resize_antialias)
-    # ds: [resized_image, scale, original_image_shape, image_id], automl bahavior: rescale -> resize
+    # ds: [resized_image, scale, pad_top, pad_left, original_image_shape, image_id], automl bahavior: rescale -> resize
     ds = ds.map(lambda datapoint: (*resize_func(rescaling(image_func(datapoint["image"]))), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
     ds = ds.batch(batch_size)
-    # ds = ds.map(lambda datapoint: (*resize_func(datapoint["image"]), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
-    # ds = ds.batch(batch_size).map(lambda ii, jj, kk, mm: (rescaling(ii), jj, kk, mm))
+    # ds = ds.map(lambda datapoint: (*resize_func(image_func(datapoint["image"])), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
+    # ds = ds.batch(batch_size).map(lambda ii, jj, kk, mm, nn: (rescaling(ii), jj, kk, mm, nn))
     if use_bgr_input:
-        ds = ds.map(lambda resized_image, scale, original_image_shape, image_id: (resized_image[:, :, :, ::-1], scale, original_image_shape, image_id))
+        ds = ds.map(lambda image, scale, pad_top, pad_left, original_shape, id: (image[:, :, :, ::-1], scale, pad_top, pad_left, original_shape, id))
     return ds
 
 
-def model_eval_results(
-    model, eval_dataset, pred_decoder, nms_score_threshold=0.001, nms_iou_or_sigma=0.5, nms_method="gaussian", nms_mode="per_class", nms_topk=5000
+def init_eval_dataset(
+    data_name="coco/2017",
+    target_shape=(512, 512),
+    batch_size=8,
+    rescale_mode="torch",
+    resize_method="bilinear",
+    resize_antialias=False,
+    letterbox_pad=-1,
+    use_bgr_input=False,
 ):
+    dataset = data.detection_dataset_from_custom_json(data_name) if data_name.endswith(".json") else tfds.load(data_name)
+    ds = dataset.get("validation", dataset.get("test", None))
+
+    mean, std = data.init_mean_std_by_rescale_mode(rescale_mode)
+    __image_process__ = lambda image: image_process(image, target_shape, mean, std, resize_method, resize_antialias, use_bgr_input, letterbox_pad)
+    # ds: [resized_image, scale, pad_top, pad_left, original_image_shape, image_id]
+    ds = ds.map(lambda datapoint: (*__image_process__(datapoint["image"]), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
+    ds = ds.batch(batch_size)
+    return ds
+
+
+def model_eval_results(model, eval_dataset, pred_decoder, nms_kwargs={}):
     target_shape = (eval_dataset.element_spec[0].shape[1], eval_dataset.element_spec[0].shape[2])
     num_classes = model.output_shape[-1] - 4
     to_91_labels = (lambda label: label + 1) if num_classes >= 90 else (lambda label: data.COCO_80_to_90_LABEL_DICT[label] + 1)
@@ -175,16 +221,17 @@ def model_eval_results(
     to_coco_eval_single = lambda image_id, bbox, label, score: [image_id, *bbox.tolist(), score, to_91_labels(label)]
 
     results = []
-    for images, scales, original_image_shapes, image_ids in tqdm(eval_dataset):
+    for images, scales, pad_tops, pad_lefts, original_image_shapes, image_ids in tqdm(eval_dataset):
         preds = model(images)
         preds = tf.cast(preds, tf.float32)
         # decoded_preds: [[bboxes, labels, scores], [bboxes, labels, scores], ...]
-        decoded_preds = pred_decoder(preds, nms_score_threshold, iou_or_sigma=nms_iou_or_sigma, method=nms_method, mode=nms_mode, topk=nms_topk)
+        decoded_preds = pred_decoder(preds, **nms_kwargs)
 
-        for rr, image_shape, scale, image_id in zip(decoded_preds, original_image_shapes, scales, image_ids):  # Loop on batch
+        # Loop on batch
+        for rr, image_shape, scale, pad_top, pad_left, image_id in zip(decoded_preds, original_image_shapes, scales, pad_tops, pad_lefts, image_ids):
             bboxes, labels, scores = rr
             image_id = image_id.numpy()
-            bboxes = scale_bboxes_back_single(bboxes, image_shape, scale, target_shape).numpy()
+            bboxes = scale_bboxes_back_single(bboxes, image_shape, scale, pad_top, pad_left, target_shape).numpy()
             results.extend([to_coco_eval_single(image_id, bb, cc, ss) for bb, cc, ss in zip(bboxes, labels, scores)])  # Loop on prediction results
     return tf.convert_to_tensor(results).numpy()
 
@@ -198,6 +245,7 @@ def coco_evaluation(detection_results, annotation_file=None):
         annotation_file = tf.keras.utils.get_file(origin=url)
     coco_gt = COCO(annotation_file)
     image_ids = list(set(detection_results[:, 0]))
+    print("len(image_ids) =", len(image_ids))
     coco_dt = coco_gt.loadRes(detection_results)
     coco_eval = COCOeval(cocoGt=coco_gt, cocoDt=coco_dt, iouType="bbox")
     coco_eval.params.imgIds = image_ids
@@ -215,10 +263,12 @@ def run_coco_evaluation(
     resize_method="bilinear",
     resize_antialias=False,
     rescale_mode="auto",
+    letterbox_pad=-1,
     use_bgr_input=False,
     take_samples=-1,
     nms_score_threshold=0.001,  # model_eval_results parameters
     nms_iou_or_sigma=0.5,
+    nms_max_output_size=100,
     nms_method="gaussian",
     nms_mode="per_class",
     nms_topk=5000,
@@ -235,7 +285,7 @@ def run_coco_evaluation(
         rescale_mode = getattr(model, "rescale_mode", "torch")
         print(">>>> rescale_mode:", rescale_mode)
 
-    eval_dataset = init_eval_dataset(data_name, input_shape, batch_size, rescale_mode, resize_method, resize_antialias, use_bgr_input)
+    eval_dataset = init_eval_dataset(data_name, input_shape, batch_size, rescale_mode, resize_method, resize_antialias, letterbox_pad, use_bgr_input)
     if take_samples > 0:
         eval_dataset = eval_dataset.take(take_samples)
 
@@ -246,5 +296,14 @@ def run_coco_evaluation(
         pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(input_shape, total_anchors=model.output_shape[1])
         print(">>>> Build decoder, pyramid_levels:", pyramid_levels)
         pred_decoder = DecodePredictions(input_shape, pyramid_levels, anchor_scale, use_anchor_free_mode, use_yolor_anchors_mode)
-    detection_results = model_eval_results(model, eval_dataset, pred_decoder, nms_score_threshold, nms_iou_or_sigma, nms_method, nms_mode, nms_topk)
+
+    nms_kwargs = {
+        "score_threshold": nms_score_threshold,
+        "iou_or_sigma": nms_iou_or_sigma,
+        "max_output_size": nms_max_output_size,
+        "method": nms_method,
+        "mode": nms_mode,
+        "topk": nms_topk,
+    }
+    detection_results = model_eval_results(model, eval_dataset, pred_decoder, nms_kwargs)
     return coco_evaluation(detection_results, annotation_file)

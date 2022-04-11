@@ -9,14 +9,14 @@
     - `85 preds` from `yolor_head` output changed from `[bboxes, object_scores, class_scores]` to `[bboxes, class_scores, object_scores]`.
     - `bboxes` format changed from `[left, top, right, bottom]` to `[top, left, bottom, right]`.
 ## Models
-  | Model      | Params | Image resolution | COCO test AP | Download |
-  | ---------- | ------ | ---------------- | ------------ | -------- |
-  | YOLOR_CSP  | 52.9M  | 640              | 52.8         | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5) |
-  | YOLOR_CSPX | 99.8M  | 640              | 54.8         | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
-  | YOLOR_P6   | 37.3M  | 1280             | 55.7         | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5) |
-  | YOLOR_W6   | 79.9M  | 1280             | 56.9         | [yolor_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_w6_coco.h5) |
-  | YOLOR_E6   | 115.9M | 1280             | 57.6         | [yolor_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_e6_coco.h5) |
-  | YOLOR_D6   | 151.8M | 1280             | 58.2         | [yolor_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_d6_coco.h5) |
+  | Model      | Params | Image resolution | COCO val AP | test AP | Download |
+  | ---------- | ------ | ---------------- | ----------- | ------- | -------- |
+  | YOLOR_CSP  | 52.9M  | 640              | 50.0        | 52.8    | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5)     |
+  | YOLOR_CSPX | 99.8M  | 640              | 51.5        | 54.8    | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
+  | YOLOR_P6   | 37.3M  | 1280             | 52.5        | 55.7    | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5)       |
+  | YOLOR_W6   | 79.9M  | 1280             |             | 56.9    | [yolor_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_w6_coco.h5)       |
+  | YOLOR_E6   | 115.9M | 1280             |             | 57.6    | [yolor_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_e6_coco.h5)       |
+  | YOLOR_D6   | 151.8M | 1280             |             | 58.2    | [yolor_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_d6_coco.h5)       |
 ## Usage
   - **Basic usage**
     ```py

@@ -239,8 +239,9 @@
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m efficientdet.EfficientDetD0 --resize_method bilinear --disable_antialias
     # Specify --use_anchor_free_mode for YOLOX, and BGR input format
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXTiny --use_anchor_free_mode --use_bgr_input --nms_method hard --nms_iou_or_sigma 0.65
-    # Specify --use_yolor_anchors_mode for YOLOR. Note: result still lower than official sets
-    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOR_CSP --use_yolor_anchors_mode --nms_method hard --nms_iou_or_sigma 0.65
+    # Specify --use_yolor_anchors_mode for YOLOR.
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolor.YOLOR_CSP --use_yolor_anchors_mode --nms_method hard --nms_iou_or_sigma 0.65 \
+    --nms_max_output_size 300 --nms_topk -1 --letterbox_pad 64 --input_shape 704
 
     # Specific h5 model
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m checkpoints/yoloxtiny_yolor_anchor.h5 --use_yolor_anchors_mode
@@ -672,51 +673,51 @@
   - [Keras EfficientDet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientdet) includes implementation of [Paper 1911.09070 EfficientDet: Scalable and Efficient Object Detection](https://arxiv.org/pdf/1911.09070.pdf).
   - `Det-AdvProp + AutoAugment` [Paper 2103.13886 Robust and Accurate Object Detection via Adversarial Learning](https://arxiv.org/pdf/2103.13886.pdf).
 
-  | Model                       | Params | Image resolution | COCO test AP | Download |
-  | --------------------------- | ------ | ---------------- | ------------ | -------- |
-  | EfficientDetD0              | 3.9M   | 512              | 34.6         | [efficientdet_d0.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d0_512_coco.h5) |
-  | - Det-AdvProp + AutoAugment | 3.9M   | 512              | 35.3         |          |
-  | EfficientDetD1              | 6.6M   | 640              | 40.5         | [efficientdet_d1.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d1_640_coco.h5) |
-  | - Det-AdvProp + AutoAugment | 6.6M   | 640              | 40.9         |          |
-  | EfficientDetD2              | 8.1M   | 768              | 43.9         | [efficientdet_d2.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d2_768_coco.h5) |
-  | - Det-AdvProp + AutoAugment | 8.1M   | 768              | 44.3         |          |
-  | EfficientDetD3              | 12.0M  | 896              | 47.2         | [efficientdet_d3.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d3_896_coco.h5) |
-  | - Det-AdvProp + AutoAugment | 12.0M  | 896              | 48.0         |          |
-  | EfficientDetD4              | 20.7M  | 1024             | 49.7         | [efficientdet_d4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d4_1024_coco.h5) |
-  | - Det-AdvProp + AutoAugment | 20.7M  | 1024             | 50.4         |          |
-  | EfficientDetD5              | 33.7M  | 1280             | 51.5         | [efficientdet_d5.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d5_1280_coco.h5) |
-  | - Det-AdvProp + AutoAugment | 33.7M  | 1280             | 52.5         |          |
-  | EfficientDetD6              | 51.9M  | 1280             | 52.6         | [efficientdet_d6.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d6_1280_coco.h5) |
-  | EfficientDetD7              | 51.9M  | 1536             | 53.7         | [efficientdet_d7.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d7_1536_coco.h5) |
-  | EfficientDetD7X             | 77.0M  | 1536             | 55.1         | [efficientdet_d7x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d7x_1536_coco.h5) |
-  | EfficientDetLite0           | 3.2M   | 320              | 26.41        | [efficientdet_lite0.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite0_320_coco.h5) |
-  | EfficientDetLite1           | 4.2M   | 384              | 31.50        | [efficientdet_lite1.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite1_384_coco.h5) |
-  | EfficientDetLite2           | 5.3M   | 448              | 35.06        | [efficientdet_lite2.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite2_448_coco.h5) |
-  | EfficientDetLite3           | 8.4M   | 512              | 38.77        | [efficientdet_lite3.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3_512_coco.h5) |
-  | EfficientDetLite3X          | 9.3M   | 640              | 42.64        | [efficientdet_lite3x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3x_640_coco.h5) |
-  | EfficientDetLite4           | 15.1M  | 640              | 43.18        | [efficientdet_lite4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite4_640_coco.h5) |
+  | Model              | Params | Image resolution | COCO val AP | test AP | Download |
+  | ------------------ | ------ | ---------------- | ----------- | ------- | -------- |
+  | EfficientDetD0     | 3.9M   | 512              | 34.3        | 34.6    | [efficientdet_d0.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d0_512_coco.h5)         |
+  | - Det-AdvProp      | 3.9M   | 512              | 35.1        | 35.3    |          |
+  | EfficientDetD1     | 6.6M   | 640              | 40.2        | 40.5    | [efficientdet_d1.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d1_640_coco.h5)         |
+  | - Det-AdvProp      | 6.6M   | 640              | 40.8        | 40.9    |          |
+  | EfficientDetD2     | 8.1M   | 768              | 43.5        | 43.9    | [efficientdet_d2.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d2_768_coco.h5)         |
+  | - Det-AdvProp      | 8.1M   | 768              | 44.3        | 44.3    |          |
+  | EfficientDetD3     | 12.0M  | 896              | 46.8        | 47.2    | [efficientdet_d3.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d3_896_coco.h5)         |
+  | - Det-AdvProp      | 12.0M  | 896              | 47.7        | 48.0    |          |
+  | EfficientDetD4     | 20.7M  | 1024             | 49.3        | 49.7    | [efficientdet_d4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d4_1024_coco.h5)        |
+  | - Det-AdvProp      | 20.7M  | 1024             | 50.4        | 50.4    |          |
+  | EfficientDetD5     | 33.7M  | 1280             | 51.2        | 51.5    | [efficientdet_d5.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d5_1280_coco.h5)        |
+  | - Det-AdvProp      | 33.7M  | 1280             | 52.2        | 52.5    |          |
+  | EfficientDetD6     | 51.9M  | 1280             | 52.1        | 52.6    | [efficientdet_d6.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d6_1280_coco.h5)        |
+  | EfficientDetD7     | 51.9M  | 1536             | 53.4        | 53.7    | [efficientdet_d7.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d7_1536_coco.h5)        |
+  | EfficientDetD7X    | 77.0M  | 1536             | 54.4        | 55.1    | [efficientdet_d7x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d7x_1536_coco.h5)      |
+  | EfficientDetLite0  | 3.2M   | 320              |             | 26.41   | [efficientdet_lite0.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite0_320_coco.h5)   |
+  | EfficientDetLite1  | 4.2M   | 384              |             | 31.50   | [efficientdet_lite1.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite1_384_coco.h5)   |
+  | EfficientDetLite2  | 5.3M   | 448              |             | 35.06   | [efficientdet_lite2.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite2_448_coco.h5)   |
+  | EfficientDetLite3  | 8.4M   | 512              |             | 38.77   | [efficientdet_lite3.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3_512_coco.h5)   |
+  | EfficientDetLite3X | 9.3M   | 640              |             | 42.64   | [efficientdet_lite3x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3x_640_coco.h5) |
+  | EfficientDetLite4  | 15.1M  | 640              |             | 43.18   | [efficientdet_lite4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite4_640_coco.h5)   |
 ## YOLOR
   - [Keras YOLOR](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolor) includes implementation of [Paper 2105.04206 You Only Learn One Representation: Unified Network for Multiple Tasks](https://arxiv.org/pdf/2105.04206.pdf).
 
-  | Model      | Params | Image resolution | COCO test AP | Download |
-  | ---------- | ------ | ---------------- | ------------ | -------- |
-  | YOLOR_CSP  | 52.9M  | 640              | 52.8         | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5) |
-  | YOLOR_CSPX | 99.8M  | 640              | 54.8         | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
-  | YOLOR_P6   | 37.3M  | 1280             | 55.7         | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5) |
-  | YOLOR_W6   | 79.9M  | 1280             | 56.9         | [yolor_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_w6_coco.h5) |
-  | YOLOR_E6   | 115.9M | 1280             | 57.6         | [yolor_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_e6_coco.h5) |
-  | YOLOR_D6   | 151.8M | 1280             | 58.2         | [yolor_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_d6_coco.h5) |
+  | Model      | Params | Image resolution | COCO val AP | test AP | Download |
+  | ---------- | ------ | ---------------- | ----------- | ------- | -------- |
+  | YOLOR_CSP  | 52.9M  | 640              | 50.0        | 52.8    | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5)     |
+  | YOLOR_CSPX | 99.8M  | 640              | 51.5        | 54.8    | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
+  | YOLOR_P6   | 37.3M  | 1280             | 52.5        | 55.7    | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5)       |
+  | YOLOR_W6   | 79.9M  | 1280             |             | 56.9    | [yolor_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_w6_coco.h5)       |
+  | YOLOR_E6   | 115.9M | 1280             |             | 57.6    | [yolor_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_e6_coco.h5)       |
+  | YOLOR_D6   | 151.8M | 1280             |             | 58.2    | [yolor_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_d6_coco.h5)       |
 ## YOLOX
   - [Keras YOLOX](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolox) includes implementation of [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
 
-  | Model     | Params | Image resolution | COCO test AP | Download |
-  | --------- | ------ | ---------------- | ------------ | -------- |
-  | YOLOXNano | 0.91M  | 416              | 25.8         | [yolox_nano_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_nano_coco.h5) |
-  | YOLOXTiny | 5.06M  | 416              | 32.8         | [yolox_tiny_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_tiny_coco.h5) |
-  | YOLOXS    | 9.0M   | 640              | 40.5         | [yolox_s_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_s_coco.h5)       |
-  | YOLOXM    | 25.3M  | 640              | 47.2         | [yolox_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_m_coco.h5)       |
-  | YOLOXL    | 54.2M  | 640              | 50.1         | [yolox_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_l_coco.h5)       |
-  | YOLOXX    | 99.1M  | 640              | 51.5         | [yolox_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_x_coco.h5)       |
+  | Model     | Params | Image resolution | COCO val AP | test AP | Download |
+  | --------- | ------ | ---------------- | ----------- | ------- | -------- |
+  | YOLOXNano | 0.91M  | 416              | 25.8        |         | [yolox_nano_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_nano_coco.h5) |
+  | YOLOXTiny | 5.06M  | 416              | 32.8        |         | [yolox_tiny_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_tiny_coco.h5) |
+  | YOLOXS    | 9.0M   | 640              | 40.5        | 40.5    | [yolox_s_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_s_coco.h5)       |
+  | YOLOXM    | 25.3M  | 640              | 46.9        | 47.2    | [yolox_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_m_coco.h5)       |
+  | YOLOXL    | 54.2M  | 640              | 49.7        | 50.1    | [yolox_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_l_coco.h5)       |
+  | YOLOXX    | 99.1M  | 640              | 51.5        | 51.5    | [yolox_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_x_coco.h5)       |
 ***
 
 # Other implemented tensorflow or keras models

@@ -66,23 +66,23 @@ EfficientDet.__doc__ = __head_doc__.format("") + """  features_pick: specific `l
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model              | Params | Image resolution | COCO test AP |
-  | ------------------ | ------ | ---------------- | ------------ |
-  | EfficientDetD0     | 3.9M   | 512              | 34.6         |
-  | EfficientDetD1     | 6.6M   | 640              | 40.5         |
-  | EfficientDetD2     | 8.1M   | 768              | 43.9         |
-  | EfficientDetD3     | 12.0M  | 896              | 47.2         |
-  | EfficientDetD4     | 20.7M  | 1024             | 49.7         |
-  | EfficientDetD5     | 33.7M  | 1280             | 51.5         |
-  | EfficientDetD6     | 51.9M  | 1280             | 52.6         |
-  | EfficientDetD7     | 51.9M  | 1536             | 53.7         |
-  | EfficientDetD7X    | 77.0M  | 1536             | 55.1         |
-  | EfficientDetLite0  | 3.2M   | 320              | 26.41        |
-  | EfficientDetLite1  | 4.2M   | 384              | 31.50        |
-  | EfficientDetLite2  | 5.3M   | 448              | 35.06        |
-  | EfficientDetLite3  | 8.4M   | 512              | 38.77        |
-  | EfficientDetLite3X | 9.3M   | 640              | 42.64        |
-  | EfficientDetLite4  | 15.1M  | 640              | 43.18        |
+  | Model              | Params | Image resolution | COCO val AP | test AP |
+  | ------------------ | ------ | ---------------- | ----------- | ------- |
+  | EfficientDetD0     | 3.9M   | 512              | 34.3        | 34.6    |
+  | EfficientDetD1     | 6.6M   | 640              | 40.2        | 40.5    |
+  | EfficientDetD2     | 8.1M   | 768              | 43.5        | 43.9    |
+  | EfficientDetD3     | 12.0M  | 896              | 46.8        | 47.2    |
+  | EfficientDetD4     | 20.7M  | 1024             | 49.3        | 49.7    |
+  | EfficientDetD5     | 33.7M  | 1280             | 51.2        | 51.5    |
+  | EfficientDetD6     | 51.9M  | 1280             | 52.1        | 52.6    |
+  | EfficientDetD7     | 51.9M  | 1536             | 53.4        | 53.7    |
+  | EfficientDetD7X    | 77.0M  | 1536             | 54.4        | 55.1    |
+  | EfficientDetLite0  | 3.2M   | 320              |             | 26.41   |
+  | EfficientDetLite1  | 4.2M   | 384              |             | 31.50   |
+  | EfficientDetLite2  | 5.3M   | 448              |             | 35.06   |
+  | EfficientDetLite3  | 8.4M   | 512              |             | 38.77   |
+  | EfficientDetLite3X | 9.3M   | 640              |             | 42.64   |
+  | EfficientDetLite4  | 15.1M  | 640              |             | 43.18   |
 """
 
 __model_doc__ = __head_doc__ + __tail_doc__

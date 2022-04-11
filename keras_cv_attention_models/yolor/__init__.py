@@ -63,14 +63,14 @@ YOLOR.__doc__ = __head_doc__.format(csp_depthes=[2, 8, 8, 4], csp_channels=[128,
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model      | Params | Image resolution | COCO test AP |
-  | ---------- | ------ | ---------------- | ------------ |
-  | YOLOR_CSP  | 52.9M  | 640              | 52.8         |
-  | YOLOR_CSPX | 99.8M  | 640              | 54.8         |
-  | YOLOR_P6   | 37.3M  | 1280             | 55.7         |
-  | YOLOR_W6   | 79.9M  | 1280             | 56.9         |
-  | YOLOR_E6   | 115.9M | 1280             | 57.6         |
-  | YOLOR_D6   | 151.8M | 1280             | 58.2         |
+  | Model      | Params | Image resolution | COCO val AP | test AP |
+  | ---------- | ------ | ---------------- | ----------- | ------- |
+  | YOLOR_CSP  | 52.9M  | 640              | 50.0        | 52.8    |
+  | YOLOR_CSPX | 99.8M  | 640              | 51.5        | 54.8    |
+  | YOLOR_P6   | 37.3M  | 1280             | 52.5        | 55.7    |
+  | YOLOR_W6   | 79.9M  | 1280             |             | 56.9    |
+  | YOLOR_E6   | 115.9M | 1280             |             | 57.6    |
+  | YOLOR_D6   | 151.8M | 1280             |             | 58.2    |
 """
 
 YOLOR_CSP.__doc__ = __head_doc__.format(csp_depthes=[2, 8, 8, 4], csp_channels=[128, 256, 512, 1024]) + __tail_doc__

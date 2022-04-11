@@ -97,78 +97,14 @@
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m efficientdet.EfficientDetD0 --resize_method bilinear --disable_antialias
     # Specify --use_anchor_free_mode for YOLOX, and BGR input format
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXTiny --use_anchor_free_mode --use_bgr_input --nms_method hard --nms_iou_or_sigma 0.65
-    # Specify --use_yolor_anchors_mode for YOLOR. Note: result still lower than official sets
-    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOR_CSP --use_yolor_anchors_mode --nms_method hard --nms_iou_or_sigma 0.65
+    # Specify --use_yolor_anchors_mode for YOLOR.
+    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolor.YOLOR_CSP --use_yolor_anchors_mode --nms_method hard --nms_iou_or_sigma 0.65 \
+    --nms_max_output_size 300 --nms_topk -1 --letterbox_pad 64 --input_shape 704
 
-    # Specific h5 model
+    # Specify h5 model
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m checkpoints/yoloxtiny_yolor_anchor.h5 --use_yolor_anchors_mode
     ```
-  - **efficientdet.EfficientDetD0 result**
-    ```sh
-    # resize method for EfficientDetD0 is bilinear w/o antialias
-    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m efficientdet.EfficientDetD0 --resize_method bilinear --disable_antialias
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.343
-    # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.525
-    # Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.366
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.132
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.400
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.538
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.294
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.460
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.484
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.204
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.568
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.710
-    ```
-    Use same strategy with `YOLOX`, `--nms_method hard --nms_iou_or_sigma 0.65`
-    ```sh
-    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m efficientdet.EfficientDetD0 --nms_method hard --nms_iou_or_sigma 0.65 --resize_method bilinear --disable_antialias
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.342
-    # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.512
-    # Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.369
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.136
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.403
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.536
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.292
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.456
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.492
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.204
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.582
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.720
-    ```
-  - **yolox.YOLOXS result**
-    ```sh
-    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXS -F --nms_method hard --nms_iou_or_sigma 0.65 --use_bgr_input
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.404
-    # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.592
-    # Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.437
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.233
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.449
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.541
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.328
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.533
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.566
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.353
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.622
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.733
-    ```
-    Use same strategy with `EfficientDet`, `--nms_method gaussian --nms_iou_or_sigma 0.5`
-    ```sh
-    CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXS -F --use_bgr_input --resize_method bilinear --disable_antialias
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.403
-    # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.584
-    # Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.438
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.232
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.446
-    # Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.539
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.329
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.544
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.581
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.361
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.634
-    # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.757
-    ```
-  - **Tricks for evaluation**
+  - **Tricks for evaluation from EfficientDet**
     ```py
     from keras_cv_attention_models.coco import eval_func
     from keras_cv_attention_models import efficientdet
@@ -177,10 +113,41 @@
     ```
     | nms_score_threshold    | clip_bbox | nms_method | nms_mode  | nms_topk | Val AP 0.50:0.95, area=all |
     | ---------------------- | --------- | ---------- | --------- | -------- | -------------------------- |
-    | 0.1                    | False     | hard       | global    | -1       | 0.326                      |
-    | 0.001                  | False     | hard       | global    | -1       | 0.330                      |
-    | 0.001                  | True      | hard       | global    | -1       | 0.331                      |
-    | 0.001                  | True      | gaussian   | global    | -1       | 0.333                      |
-    | 0.001                  | True      | gaussian   | per_class | -1       | 0.339                      |
+    | 0.1                    | False     | hard       | global    | 0        | 0.326                      |
+    | 0.001                  | False     | hard       | global    | 0        | 0.330                      |
+    | 0.001                  | True      | hard       | global    | 0        | 0.331                      |
+    | 0.001                  | True      | gaussian   | global    | 0        | 0.333                      |
+    | 0.001                  | True      | gaussian   | per_class | 0        | 0.339                      |
     | 0.001                  | True      | gaussian   | per_class | 5000     | **0.343**                  |
+
+  - **Tricks for evaluation from YOLOR**. Basic is `./coco_eval_script.py -m yolor.YOLOR_CSP --use_yolor_anchors_mode --nms_method hard --nms_iou_or_sigma 0.65`.
+    | nms_max_output_size | nms_topk | letterbox_pad | input_shape | Val AP 0.50:0.95, area=all |
+    | ------------------- | -------- | ------------- | ----------- | -------------------------- |
+    | 100                 | 5000     | -1            | 640         | 0.488                      |
+    | 300                 | 5000     | -1            | 640         | 0.489                      |
+    | 300                 | -1       | -1            | 640         | 0.494                      |
+    | 300                 | -1       | 0             | 640         | 0.496                      |
+    | 300                 | -1       | 0             | 704         | 0.495                      |
+    | 300                 | -1       | 64            | 704         | **0.500**                  |
+
+  - **Methods compare**
+    | Model          | nms_method | nms_iou_or_sigma | nms_max_output_size | nms_topk | letterbox_pad | input_shape | Val AP    |
+    | -------------- | ---------- | ---------------- | ------------------- | -------- | ------------- | ----------- | --------- |
+    | EfficientDetD1 | gaussian   | 0.5              | 100                 | 5000     | -1            | 640         | 0.402     |
+    | EfficientDetD1 | hard       | 0.65             | 100                 | 5000     | -1            | 640         | 0.399     |
+    | EfficientDetD1 | gaussian   | 0.5              | 300                 | -1       | -1            | 640         | **0.403** |
+    | EfficientDetD1 | hard       | 0.65             | 300                 | -1       | -1            | 640         | 0.401     |
+    | EfficientDetD1 | gaussian   | 0.5              | 300                 | -1       | 0             | 640         | 0.400     |
+    | EfficientDetD1 | gaussian   | 0.5              | 300                 | -1       | 64            | 704         | 0.397     |
+    |                |            |                  |                     |          |               |             |           |
+    | YOLOXS         | gaussian   | 0.5              | 100                 | 5000     | -1            | 640         | 0.403     |
+    | YOLOXS         | hard       | 0.65             | 100                 | 5000     | -1            | 640         | 0.404     |
+    | YOLOXS         | hard       | 0.65             | 300                 | 5000     | -1            | 640         | 0.406     |
+    | YOLOXS         | hard       | 0.65             | 300                 | -1       | -1            | 640         | **0.406** |
+    | YOLOXS         | hard       | 0.65             | 300                 | -1       | 0             | 640         | 0.405     |
+    | YOLOXS         | hard       | 0.65             | 300                 | -1       | 64            | 704         | 0.405     |
+    |                |            |                  |                     |          |               |             |           |
+    | YOLOR_CSP      | gaussian   | 0.5              | 100                 | 5000     | -1            | 640         | 0.486     |
+    | YOLOR_CSP      | hard       | 0.65             | 100                 | 5000     | -1            | 640         | 0.488     |
+    | YOLOR_CSP      | hard       | 0.65             | 300                 | -1       | 64            | 704         | **0.500** |
 ***

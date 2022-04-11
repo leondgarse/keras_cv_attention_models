@@ -204,7 +204,7 @@ class RandomProcessImage:
     def __call__(self, datapoint):
         image = datapoint["image"]
         # image = tf.cond(tf.rank(image) > 0, lambda: image, lambda: tf_imread(image))
-        if len(image.shape) < 3:
+        if len(image.shape) < 2:
             image = tf_imread(image)
         if self.random_crop_min > 0 and self.random_crop_min < 1:
             hh, ww = random_crop_fraction(tf.shape(image), scale=(self.random_crop_min, 1.0))
@@ -255,7 +255,7 @@ def evaluation_process_resize_crop(datapoint, target_shape=(224, 224), central_c
     return image, label
 
 
-def recognition_dataset_from_custom_json(data_path):
+def recognition_dataset_from_custom_json(data_path, with_info=False):
     import json
 
     with open(data_path, "r") as ff:
@@ -273,7 +273,7 @@ def recognition_dataset_from_custom_json(data_path):
     train_ds = train_ds.apply(tf.data.experimental.assert_cardinality(len(train))).with_options(options)
     test_ds = test_ds.apply(tf.data.experimental.assert_cardinality(len(test))).with_options(options)
     dataset = {"train": train_ds, test_key: test_ds}
-    return dataset, total_images, num_classes
+    return (dataset, total_images, num_classes) if with_info else dataset
 
 
 def init_dataset(
@@ -296,7 +296,7 @@ def init_dataset(
 ):
     # print(">>>> Dataset args:", locals())
     if data_name.endswith(".json"):
-        dataset, total_images, num_classes = recognition_dataset_from_custom_json(data_name)
+        dataset, total_images, num_classes = recognition_dataset_from_custom_json(data_name, with_info=True)
     else:
         try_gcs = True if len(tf.config.list_logical_devices("TPU")) > 0 else False
         dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)
