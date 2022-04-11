@@ -131,7 +131,7 @@
     | 300                 | -1       | 64            | 704         | **0.500**                  |
 
   - **Methods compare**
-    | Model          | nms_method | nms_iou_or_sigma | nms_max_output_size | nms_topk | letterbox_pad | input_shape | Val AP    |
+    | Model          | nms method | nms iou or sigma | nms max output size | nms topk | letterbox pad | input shape | Val AP    |
     | -------------- | ---------- | ---------------- | ------------------- | -------- | ------------- | ----------- | --------- |
     | EfficientDetD1 | gaussian   | 0.5              | 100                 | 5000     | -1            | 640         | 0.402     |
     | EfficientDetD1 | hard       | 0.65             | 100                 | 5000     | -1            | 640         | 0.399     |
