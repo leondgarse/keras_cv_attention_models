@@ -28,7 +28,7 @@ def parse_arguments(argv):
         help="Wrapper resized image in the center."
         + " For input_shape=640, letterbox_pad=0, image shape=(480, 240), will first resize to (640, 320), then pad top=0 left=160 bottom=0 right=160."
         + " For input_shape=704, letterbox_pad=64, image shape=(480, 240), will first resize to (640, 320), then pad top=32 left=192 bottom=32 right=192."
-        + " Default -1 for disable"
+        + " Default -1 for disable",
     )
     parser.add_argument("--use_bgr_input", action="store_true", help="Use BRG input instead of RGB")
     parser.add_argument("--num_classes", type=int, default=None, help="num_classes if not inited from h5 file. None for model.num_classes")

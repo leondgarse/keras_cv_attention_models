@@ -51,7 +51,7 @@ class DecodePredictions:
         bbox_outputs, class_outputs = pred[:, :4], pred[:, 4:]
         num_classes = class_outputs.shape[-1]
         class_outputs_flatten = tf.reshape(class_outputs, -1)
-        topk = class_outputs_flatten.shape[0] if topk == -1 else topk # select all if -1
+        topk = class_outputs_flatten.shape[0] if topk == -1 else topk  # select all if -1
         _, class_topk_indices = tf.nn.top_k(class_outputs_flatten, k=topk, sorted=False)
         # get original indices for class_outputs, original_indices_hh -> picking indices, original_indices_ww -> picked labels
         original_indices_hh, original_indices_ww = class_topk_indices // num_classes, class_topk_indices % num_classes
@@ -146,9 +146,9 @@ def scale_bboxes_back_single(bboxes, image_shape, scale, pad_top, pad_left, targ
 
 def image_process(image, target_shape, mean, std, resize_method="bilinear", resize_antialias=False, use_bgr_input=False, letterbox_pad=-1):
     if len(image.shape) < 2:
-        image = data.tf_imread(image) # it's image path
+        image = data.tf_imread(image)  # it's image path
     image = tf.cast(image, "float32")
-    image = (image - mean) / std # automl behavior: rescale -> resize
+    image = (image - mean) / std  # automl behavior: rescale -> resize
     image, scale, pad_top, pad_left = data.aspect_aware_resize_and_crop_image(
         image, target_shape, letterbox_pad=letterbox_pad, method=resize_method, antialias=resize_antialias
     )

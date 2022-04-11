@@ -163,7 +163,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         epsilon=1e-8,
         label_smoothing=0.0,
         from_logits=False,
-        **kwargs
+        **kwargs,
     ):
         from keras_cv_attention_models.coco import anchors_func
 
@@ -356,7 +356,7 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
 
         # Original using calculation like sum(mean(loss)) at each pyramid level
         num_valid_each_level = [tf.zeros_like(ii) + tf.reduce_sum(ii) for ii in tf.split(anchor_mark, self.feature_split, axis=-1)]
-        num_valid_each_level = tf.concat(num_valid_each_level, axis=-1) # [batch, total_anchors], num valid for each pyramid level
+        num_valid_each_level = tf.concat(num_valid_each_level, axis=-1)  # [batch, total_anchors], num valid for each pyramid level
         num_valid_each_level = tf.maximum(tf.gather_nd(num_valid_each_level, valid_pick), 1)
 
         # tf.gather_nd works better than tf.gather
