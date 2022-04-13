@@ -42,47 +42,63 @@ FILE_HASH_DICT = {
 }
 
 
-def MBConv(
-    inputs, output_channel, stride, expand, shortcut, kernel_size=3, drop_rate=0, se_ratio=0, is_fused=False, is_torch_mode=False, activation="swish", name=""
+def inverted_residual_block(
+    inputs,
+    output_channel,
+    stride,
+    expand,
+    shortcut,
+    kernel_size=3,
+    drop_rate=0,
+    se_ratio=0,
+    is_fused=False,
+    is_torch_mode=False,
+    se_activation=None,  # None for same with activation
+    se_divisor=1,  # 8 for mobilenetv3
+    se_limit_round_down=0.9,  # 0.95 for fbnet
+    activation="swish",
+    name=None,
 ):
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
     input_channel = inputs.shape[channel_axis]
     bn_eps = TORCH_BATCH_NORM_EPSILON if is_torch_mode else TF_BATCH_NORM_EPSILON
+    hidden_channel = make_divisible(input_channel * expand, 8)
 
     if is_fused and expand != 1:
-        nn = conv2d_no_bias(inputs, input_channel * expand, 3, stride, padding="same", use_torch_padding=is_torch_mode, name=name + "sortcut_")
-        nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name=name + "sortcut_")
+        nn = conv2d_no_bias(inputs, hidden_channel, 3, stride, padding="same", use_torch_padding=is_torch_mode, name=name and name + "sortcut_")
+        nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name=name and name + "sortcut_")
     elif expand != 1:
-        nn = conv2d_no_bias(inputs, input_channel * expand, 1, strides=1, padding="valid", use_torch_padding=is_torch_mode, name=name + "sortcut_")
-        nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name=name + "sortcut_")
+        nn = conv2d_no_bias(inputs, hidden_channel, 1, strides=1, padding="valid", use_torch_padding=is_torch_mode, name=name and name + "sortcut_")
+        nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name=name and name + "sortcut_")
     else:
         nn = inputs
 
     if not is_fused:
         if is_torch_mode and kernel_size // 2 > 0:
-            nn = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name + "pad")(nn)
+            nn = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "pad")(nn)
             padding = "VALID"
         else:
             padding = "SAME"
-        nn = keras.layers.DepthwiseConv2D(kernel_size, padding=padding, strides=stride, use_bias=False, name=name + "MB_dw_")(nn)
-        nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name=name + "MB_dw_")
+        nn = keras.layers.DepthwiseConv2D(kernel_size, padding=padding, strides=stride, use_bias=False, name=name and name + "MB_dw_")(nn)
+        nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name=name and name + "MB_dw_")
 
     if se_ratio > 0:
-        nn = se_module(nn, se_ratio=se_ratio / expand, divisor=1, activation=activation, name=name + "se_")
+        se_activation = activation if se_activation is None else se_activation
+        nn = se_module(nn, se_ratio / expand, divisor=se_divisor, limit_round_down=se_limit_round_down, activation=se_activation, name=name and name + "se_")
 
     # pw-linear
     if is_fused and expand == 1:
-        nn = conv2d_no_bias(nn, output_channel, 3, strides=stride, padding="same", use_torch_padding=is_torch_mode, name=name + "fu_")
-        nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name=name + "fu_")
+        nn = conv2d_no_bias(nn, output_channel, 3, strides=stride, padding="same", use_torch_padding=is_torch_mode, name=name and name + "fu_")
+        nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name=name and name + "fu_")
     else:
-        nn = conv2d_no_bias(nn, output_channel, 1, strides=1, padding="valid", use_torch_padding=is_torch_mode, name=name + "MB_pw_")
-        nn = batchnorm_with_activation(nn, activation=None, epsilon=bn_eps, name=name + "MB_pw_")
+        nn = conv2d_no_bias(nn, output_channel, 1, strides=1, padding="valid", use_torch_padding=is_torch_mode, name=name and name + "MB_pw_")
+        nn = batchnorm_with_activation(nn, activation=None, epsilon=bn_eps, name=name and name + "MB_pw_")
 
     if shortcut:
-        nn = drop_block(nn, drop_rate, name=name + "drop")
-        return keras.layers.Add(name=name + "output")([inputs, nn])
+        nn = drop_block(nn, drop_rate, name=name and name + "drop")
+        return keras.layers.Add(name=name and name + "output")([inputs, nn])
     else:
-        return keras.layers.Activation("linear", name=name + "output")(nn)  # Identity, Just need a name here
+        return keras.layers.Activation("linear", name=name and name + "output")(nn)  # Identity, Just need a name here
 
 
 def EfficientNetV2(
@@ -142,11 +158,11 @@ def EfficientNetV2(
         else:
             cur_is_fused = is_fused[id] if isinstance(is_fused, (list, tuple)) else is_fused
         for block_id in range(depth):
+            name = "stack_{}_block{}_".format(id, block_id)
             stride = stride if block_id == 0 else 1
             shortcut = True if out == pre_out and stride == 1 else False
-            name = "stack_{}_block{}_".format(id, block_id)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
-            nn = MBConv(
+            nn = inverted_residual_block(
                 nn, out, stride, expand, shortcut, kernel_size, block_drop_rate, se_ratio, cur_is_fused, is_torch_mode, activation=activation, name=name
             )
             pre_out = out

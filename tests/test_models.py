@@ -7,6 +7,8 @@ import sys
 sys.path.append(".")
 import keras_cv_attention_models
 
+""" Recognition models defination """
+
 
 def test_Beit_defination():
     mm = keras_cv_attention_models.beit.BeitBasePatch16(pretrained=None)
@@ -192,6 +194,9 @@ def test_WaveMLP_defination():
     assert isinstance(mm, keras.models.Model)
 
 
+""" Recognition models prediction """
+
+
 def test_Beit_new_shape_predict():
     mm = keras_cv_attention_models.beit.BeitBasePatch16(input_shape=(320, 320, 3))
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
@@ -232,6 +237,14 @@ def test_ConvNeXt_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_FBNetV3B_dynamic_predict():
+    mm = keras_cv_attention_models.fbnetv3.FBNetV3B(input_shape=(None, None, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=(160, 256, 3)))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_HaloRegNetZB_predict():
     mm = keras_cv_attention_models.halonet.HaloRegNetZB(pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
@@ -243,6 +256,14 @@ def test_HaloRegNetZB_predict():
 def test_RegNetZB16_predict():
     mm = keras_cv_attention_models.resnet_family.RegNetZB16(pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_LCNet050_dynamic_predict():
+    mm = keras_cv_attention_models.lcnet.LCNet050(input_shape=(None, None, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=(160, 256, 3)))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
@@ -266,9 +287,25 @@ def test_LeViT128S_new_shape_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_MobileNetV3Small075_dynamic_predict():
+    mm = keras_cv_attention_models.mobilenetv3.MobileNetV3Small075(input_shape=(None, None, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=(160, 256, 3)))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_MobileViT_XXS_predict():
     mm = keras_cv_attention_models.mobilevit.MobileViT_XXS(pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_TinyNetD_dynamic_predict():
+    mm = keras_cv_attention_models.tinynet.TinyNetD(input_shape=(None, None, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=(160, 256, 3)))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
@@ -344,6 +381,9 @@ def test_EfficientNetV1B1_noisy_student_predict():
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
+
+
+""" Detection models """
 
 
 def test_EfficientDetD0_predict():

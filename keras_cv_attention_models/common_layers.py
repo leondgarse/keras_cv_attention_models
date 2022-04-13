@@ -20,6 +20,15 @@ def hard_swish(inputs):
 
 
 @tf.keras.utils.register_keras_serializable(package="kecamCommon")
+def hard_sigmoid_torch(inputs):
+    """https://pytorch.org/docs/stable/generated/torch.nn.Hardsigmoid.html
+    toch.nn.Hardsigmoid: 0 if x <= −3 else (1 if x >= 3 else x / 6 + 1/2)
+    keras.activations.hard_sigmoid: 0 if x <= −2.5 else (1 if x >= 2.5 else x / 5 + 1/2) -> tf.clip_by_value(inputs / 5 + 0.5, 0, 1)
+    """
+    return tf.clip_by_value(inputs / 6 + 0.5, 0, 1)
+
+
+@tf.keras.utils.register_keras_serializable(package="kecamCommon")
 def mish(inputs):
     """Mish: A Self Regularized Non-Monotonic Neural Activation Function.
     Paper: [Mish: A Self Regularized Non-Monotonic Neural Activation Function](https://arxiv.org/abs/1908.08681)
@@ -56,6 +65,8 @@ def activation_by_name(inputs, activation="relu", name=None):
     elif activation.lower().startswith("gelu/app"):
         # gelu/approximate
         return tf.nn.gelu(inputs, approximate=True, name=layer_name)
+    elif activation.lower() == ("hard_sigmoid_torch"):
+        return keras.layers.Activation(activation=hard_sigmoid_torch, name=layer_name)(inputs)
     else:
         return keras.layers.Activation(activation=activation, name=layer_name)(inputs)
 
@@ -271,18 +282,21 @@ def output_block(inputs, filters=0, activation="relu", num_classes=1000, drop_ra
     return nn
 
 
-def se_module(inputs, se_ratio=0.25, divisor=8, activation="relu", use_bias=True, name=None):
+def se_module(inputs, se_ratio=0.25, divisor=8, limit_round_down=0.9, activation="relu", use_bias=True, name=None):
     """ Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf """
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
     h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
 
+    # activation could be ("relu", "hard_sigmoid") for mobilenetv3
+    hidden_activation, output_activation = activation if isinstance(activation, (list, tuple)) else (activation, "sigmoid")
     filters = inputs.shape[channel_axis]
-    reduction = make_divisible(filters * se_ratio, divisor)
+    reduction = make_divisible(filters * se_ratio, divisor, limit_round_down=limit_round_down)
+    # print(f"{filters = }, {se_ratio = }, {divisor = }, {reduction = }")
     se = tf.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)
     se = keras.layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_conv")(se)
-    se = activation_by_name(se, activation=activation, name=name)
+    se = activation_by_name(se, activation=hidden_activation, name=name)
     se = keras.layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "2_conv")(se)
-    se = activation_by_name(se, activation="sigmoid", name=name)
+    se = activation_by_name(se, activation=output_activation, name=name)
     return keras.layers.Multiply(name=name and name + "out")([inputs, se])
 
 
@@ -349,13 +363,13 @@ def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trai
     )(inputs)
 
 
-def make_divisible(vv, divisor=4, min_value=None):
+def make_divisible(vv, divisor=4, min_value=None, limit_round_down=0.9):
     """ Copied from https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py """
     if min_value is None:
         min_value = divisor
     new_v = max(min_value, int(vv + divisor / 2) // divisor * divisor)
     # Make sure that round down does not go down by more than 10%.
-    if new_v < 0.9 * vv:
+    if new_v < limit_round_down * vv:
         new_v += divisor
     return new_v
 

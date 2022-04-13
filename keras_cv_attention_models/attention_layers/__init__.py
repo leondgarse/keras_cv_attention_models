@@ -25,6 +25,7 @@ from keras_cv_attention_models.aotnet.aotnet import aot_stack, aot_block, deep_s
 from keras_cv_attention_models.botnet.botnet import RelativePositionalEmbedding, mhsa_with_relative_position_embedding
 from keras_cv_attention_models.cotnet.cotnet import cot_attention
 from keras_cv_attention_models.coat.coat import ConvPositionalEncoding, ConvRelativePositionalEncoding
+from keras_cv_attention_models.efficientnet.efficientnet_v2 import inverted_residual_block
 from keras_cv_attention_models.halonet.halonet import halo_attention
 from keras_cv_attention_models.resnest.resnest import rsoftmax, split_attention_conv2d
 from keras_cv_attention_models.volo.volo import outlook_attention, outlook_attention_simple, BiasLayer, PositionalEmbedding, ClassToken, MixupToken

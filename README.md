@@ -21,10 +21,13 @@
   - [ConvNeXt](#convnext)
   - [CoTNet](#cotnet)
   - [EfficientNet](#efficientnet)
+  - [FBNetV3](#fbnetv3)
   - [GMLP](#gmlp)
   - [HaloNet](#halonet)
+  - [LCNet](#lcnet)
   - [LeViT](#levit)
   - [MLP mixer](#mlp-mixer)
+  - [MobileNetV3](#mobilenetv3)
   - [MobileViT](#mobilevit)
   - [NFNets](#nfnets)
   - [RegNetY](#regnety)
@@ -35,6 +38,7 @@
   - [ResNetQ](#resnetq)
   - [ResNeXt](#resnext)
   - [SwinTransformerV2](#swintransformerv2)
+  - [TinyNet](#tinynet)
   - [UniFormer](#uniformer)
   - [VOLO](#volo)
   - [WaveMLP](#wavemlp)
@@ -465,6 +469,14 @@
   | EfficientNetV1B7               | 66.3M  | 600              | 85.2     | [effv1-b7-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-b7-imagenet.h5)           |
   | - NoisyStudent                 | 66.3M  | 600              | 86.9     | [effv1-b7-noisy_student.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-b7-noisy_student.h5) |
   | EfficientNetV1L2, NoisyStudent | 480.3M | 800              | 88.4     | [effv1-l2-noisy_student.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-l2-noisy_student.h5) |
+## FBNetV3
+  - [Keras FBNetV3](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#fbnetv3) includes implementation of [PDF 2006.02049 FBNetV3: Joint Architecture-Recipe Search using Predictor Pretraining](https://arxiv.org/pdf/2006.02049.pdf).
+
+  | Model    | Params | Image resolution | Top1 Acc | Download |
+  | -------- | ------ | ---------------- | -------- | -------- |
+  | FBNetV3B | 5.57M  | 256              | 79.15    | [fbnetv3_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/fbnetv3_b_imagenet.h5) |
+  | FBNetV3D | 10.31M | 256              | 79.68    | [fbnetv3_d_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/fbnetv3_d_imagenet.h5) |
+  | FBNetV3G | 16.62M | 256              | 82.05    | [fbnetv3_g_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/fbnetv3_g_imagenet.h5) |
 ## GMLP
   - [Keras GMLP](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#gmlp) includes implementation of [PDF 2105.08050 Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050.pdf).
 
@@ -493,6 +505,14 @@
   | HaloRegNetZB   | 11.68M | 224              | 81.042   | [haloregnetz_b_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/haloregnetz_b_224_imagenet.h5) |
   | HaloNet50T     | 22.7M  | 256              | 81.70    | [halonet50t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet50t_256_imagenet.h5) |
   | HaloBotNet50T  | 22.6M  | 256              | 82.0     | [halobotnet50t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halobotnet50t_256_imagenet.h5) |
+## LCNet
+  - [Keras LCNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#lcnet) includes implementation of [PDF 2109.15099 PP-LCNet: A Lightweight CPU Convolutional Neural Network](https://arxiv.org/pdf/2109.15099.pdf).
+
+  | Model    | Params | Image resolution | Top1 Acc | Download |
+  | -------- | ------ | ---------------- | -------- | -------- |
+  | LCNet050 | 1.88M  | 224              | 63.10    | [lcnet_050_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_050_imagenet.h5) |
+  | LCNet075 | 2.36M  | 224              | 68.82    | [lcnet_075_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_075_imagenet.h5) |
+  | LCNet100 | 2.95M  | 224              | 72.10    | [lcnet_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_100_imagenet.h5) |
 ## LeViT
   - [Keras LeViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/levit) is for [PDF 2104.01136 LeViT: a Vision Transformer in ConvNet’s Clothing for Faster Inference](https://arxiv.org/pdf/2104.01136.pdf).
 
@@ -518,6 +538,17 @@
   | - input 448 | 208.2M | 86.78    |                 |                    |                     |
   | MLPMixerH14 | 432.3M | 86.32    |                 |                    |                     |
   | - input 448 | 432.3M | 87.94    |                 |                    |                     |
+## MobileNetV3
+  - [Keras MobileNetV3](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#mobilenetv3) includes implementation of [PDF 1905.02244 Searching for MobileNetV3](https://arxiv.org/pdf/1905.02244.pdf).
+
+  | Model               | Params | Image resolution | Top1 Acc | Download |
+  | ------------------- | ------ | ---------------- | -------- | -------- |
+  | MobileNetV3Small050 | 1.29M  | 224              | 57.89    | [small_050_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_small_050_imagenet.h5) |
+  | MobileNetV3Small075 | 2.04M  | 224              | 65.24    | [small_075_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_small_075_imagenet.h5) |
+  | MobileNetV3Small100 | 2.54M  | 224              | 67.66    | [small_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_small_100_imagenet.h5) |
+  | MobileNetV3Large075 | 3.99M  | 224              | 73.44    | [large_075_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_large_075_imagenet.h5) |
+  | MobileNetV3Large100 | 5.48M  | 224              | 75.77    | [large_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_large_100_imagenet.h5) |
+  | - miil              | 5.48M  | 224              | 77.92    | [large_100_miil.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_large_100_mill.h5) |
 ## MobileViT
   - [Keras MobileViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilevit) is for [PDF 2110.02178 MOBILEVIT: LIGHT-WEIGHT, GENERAL-PURPOSE, AND MOBILE-FRIENDLY VISION TRANSFORMER](https://arxiv.org/pdf/2110.02178.pdf).
 
@@ -624,6 +655,16 @@
   | SwinTransformerV2Base, 22k      | 87.9M  | 384              | 87.1     |          |
   | SwinTransformerV2Large, 22k     | 196.7M | 384              | 87.7     |          |
   | SwinTransformerV2Giant, 22k+ext | 2.60B  | 640              | 90.17    |          |
+## TinyNet
+  - [Keras TinyNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#tinynet) includes implementation of [PDF 2010.14819 Model Rubik’s Cube: Twisting Resolution, Depth and Width for TinyNets](https://arxiv.org/pdf/2010.14819.pdf).
+
+  | Model    | Params | Image resolution | Top1 Acc | Download |
+  | -------- | ------ | ---------------- | -------- | -------- |
+  | TinyNetE | 2.04M  | 106              | 59.86    | [tinynet_e_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/tinynet_e_imagenet.h5) |
+  | TinyNetD | 2.34M  | 152              | 66.96    | [tinynet_d_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/tinynet_d_imagenet.h5) |
+  | TinyNetC | 2.46M  | 184              | 71.23    | [tinynet_c_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/tinynet_c_imagenet.h5) |
+  | TinyNetB | 3.73M  | 188              | 74.98    | [tinynet_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/tinynet_b_imagenet.h5) |
+  | TinyNetA | 6.19M  | 192              | 77.65    | [tinynet_a_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/tinynet_a_imagenet.h5) |
 ## UniFormer
   - [Keras UniFormer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/uniformer) includes implementation of [PDF 2201.09450 UniFormer: Unifying Convolution and Self-attention for Visual Recognition](https://arxiv.org/pdf/2201.09450.pdf).
 
