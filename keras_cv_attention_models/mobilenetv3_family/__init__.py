@@ -1,5 +1,5 @@
 from keras_cv_attention_models.mobilenetv3_family.fbnetv3 import FBNetV3, FBNetV3B, FBNetV3D, FBNetV3G
-from keras_cv_attention_models.mobilenetv3_family.lcnet import LCNet, LCNet050, LCNet075, LCNet100
+from keras_cv_attention_models.mobilenetv3_family.lcnet import LCNet, LCNet050, LCNet075, LCNet100, LCNet150, LCNet200, LCNet250
 from keras_cv_attention_models.mobilenetv3_family.mobilenetv3 import (
     MobileNetV3,
     MobileNetV3Large,
@@ -140,6 +140,9 @@ Model architectures:
   | LCNet050 | 1.88M  | 224              | 63.10    |
   | LCNet075 | 2.36M  | 224              | 68.82    |
   | LCNet100 | 2.95M  | 224              | 72.10    |
+  | LCNet150 | 4.52M  | 224              | 73.71    |
+  | LCNet200 | 6.54M  | 224              | 75.18    |
+  | LCNet250 | 9.04M  | 224              | 76.60    |
 """
 
 LCNet050.__doc__ = __lcnet_head_doc__ + """
@@ -148,6 +151,9 @@ Args:
 
 LCNet075.__doc__ = LCNet050.__doc__
 LCNet100.__doc__ = LCNet050.__doc__
+LCNet150.__doc__ = LCNet050.__doc__
+LCNet200.__doc__ = LCNet050.__doc__
+LCNet250.__doc__ = LCNet050.__doc__
 
 
 __tinynet_head_doc__ = """

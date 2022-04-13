@@ -30,3 +30,18 @@ def LCNet075(input_shape=(224, 224, 3), num_classes=1000, classifier_activation=
 
 def LCNet100(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return LCNet(**locals(), model_name="lcnet_100", **kwargs)
+
+
+def LCNet150(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    use_output_feature_bias = False
+    return LCNet(**locals(), width_ratio=1.5, model_name="lcnet_150", **kwargs)
+
+
+def LCNet200(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    use_output_feature_bias = False
+    return LCNet(**locals(), width_ratio=2.0, model_name="lcnet_200", **kwargs)
+
+
+def LCNet250(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    use_output_feature_bias = False
+    return LCNet(**locals(), width_ratio=2.5, model_name="lcnet_250", **kwargs)

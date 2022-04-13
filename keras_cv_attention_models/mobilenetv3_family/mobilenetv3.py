@@ -18,6 +18,9 @@ PRETRAINED_DICT = {
     "lcnet_050": {"imagenet": "f740b5d73a42f65c5f7baf436d75d75f"},
     "lcnet_075": {"imagenet": "c2dd36d7362a782e70d7b5c7b4422027"},
     "lcnet_100": {"imagenet": "cb349c3f11678abae2799b88163fc614"},
+    "lcnet_150": {"imagenet": "c1d114d56e88ff67e5ae4222db64c4fb"},
+    "lcnet_200": {"imagenet": "46a7426993ec2910b93eab479528af68"},
+    "lcnet_250": {"imagenet": "6dbe4e7bd1dd7a3ec227e2140f2ea162"},
     "mobilenetv3_large_075": {"imagenet": "56dc3594efb27c1df2c679d5486b9379"},
     "mobilenetv3_large_100": {"imagenet": "e5dbb4947d1fac0e5b0f90c7b6c3b6e9"},
     "mobilenetv3_large_100": {"miil_21k": "86d0e21b372ff02498062f55e253b61c"},
@@ -31,7 +34,6 @@ PRETRAINED_DICT = {
     "tinynet_d": {"imagenet": "e08615d88e71f1548d040e697926514e"},
     "tinynet_e": {"imagenet": "514fbbcd582db6d4297a140efb84af9a"},
 }
-
 
 def avg_pool_conv_output(inputs, output_num_features=1280, use_output_feature_bias=True, activation="hard_swish"):
     # nn = keras.layers.AveragePooling2D(pool_size=inputs.shape[1:3], name="avg_pool")(inputs)

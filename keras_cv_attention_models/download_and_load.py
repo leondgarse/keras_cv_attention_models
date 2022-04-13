@@ -82,7 +82,7 @@ def state_dict_stack_by_layer(state_dict, skip_weights=["num_batches_tracked"], 
     stacked_state_dict = {}
     for kk, vv in state_dict.items():
         split_kk = kk.split(".")
-        vv = vv.numpy()
+        vv = vv.numpy() if hasattr(vv, "numpy") else vv
         if split_kk[-1] in skip_weights:
             continue
 
