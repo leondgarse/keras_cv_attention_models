@@ -32,6 +32,7 @@ def parse_arguments(argv):
         help="Pretrianed weights if not from h5. Could be [imagenet, noisy_student, imagenet21k, imagenet21k-ft1k, imagenet_sam], None for model.pretrained",
     )
 
+    args = parser.parse_known_args(argv)[0]
     return args
 
 
