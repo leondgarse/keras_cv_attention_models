@@ -72,11 +72,11 @@ def MobileNetV3(
     se_limit_round_down=0.9,  # 0.95 for FBNetV3
     se_divisor=8,  # 1 for TinyNet
     use_expanded_se_ratio=True,  # False for FBNetV3, TinyNet
-    output_num_features=1280,  # [Stem parameters]
+    output_num_features=1280,  # [Output parameters]
     use_additional_output_conv=True,  # False for LCNet, TinyNet
     use_output_feature_bias=True,  # False for FBNetV3, TinyNet
     use_avg_pool_conv_output=True,  # False for TinyNet
-    input_shape=(224, 224, 3),
+    input_shape=(224, 224, 3),  # [Model common parameters]
     num_classes=1000,
     drop_connect_rate=0,
     classifier_activation="softmax",
