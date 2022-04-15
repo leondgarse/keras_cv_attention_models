@@ -317,6 +317,8 @@ def down_sample_matrix_axis_0(dd, target, method="avg"):
     dd = dd.reshape(1, hh, ww, -1)
     if "avg" in method.lower():
         dd = tf.nn.avg_pool(dd, rate, rate, "VALID").numpy()
+    elif "swin" in method.lower():
+        dd = dd.reshape(1, hh // 2, 2, ww // 2, 2, -1).transpose(0, 1, 3, 4, 2, 5)
     else:
         dd = tf.nn.max_pool(dd, rate, rate, "VALID").numpy()
     dd = dd.reshape(-1, dd.shape[-1])
@@ -368,14 +370,15 @@ def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto
         print(">>>> Attention type: bot")
         mask = [np.array(ii)[0].mean((0)) for ii in attn_scores if len(ii.shape) == 4][::-1]
         mask = [clip_max_value_matrix(ii) for ii in mask]  # Or it will be too dark.
-        cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], "avg") for ii in range(1, len(mask))]
+        cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], "swin") for ii in range(1, len(mask))]
         cum_mask = [matmul_prod(cum_mask[: ii + 1]).mean(0) for ii in range(len(cum_mask))]
         mask = [ii.mean(0) for ii in mask]
-    elif check_type_is("coatnet") or check_type_is("cmt") or check_type_is("uniformer"):
+    elif check_type_is("coatnet") or check_type_is("cmt") or check_type_is("uniformer") or check_type_is("swin"):
         # bot attn_score [batch, num_heads, hh * ww, hh * ww]
-        print(">>>> Attention type: coatnet / cmt / uniformer")
+        print(">>>> Attention type: coatnet / cmt / uniformer / swin")
         mask = [np.array(ii)[0].mean((0)) for ii in attn_scores if len(ii.shape) == 4][::-1]
-        cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], "max") for ii in range(1, len(mask))]
+        downsample_method = "swin" if check_type_is("swin") else "max"
+        cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], downsample_method) for ii in range(1, len(mask))]
         cum_mask = [matmul_prod(cum_mask[: ii + 1]).mean(0) for ii in range(len(cum_mask))]
         mask = [ii.mean(0) for ii in mask]
     elif check_type_is("coat"):
@@ -410,7 +413,7 @@ def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto
         # cot attn_score [batch, 1, 1, filters, randix]
         # volo attn_score [batch, hh, ww, num_heads, kernel_size * kernel_size, kernel_size * kernel_size]
         print("[{}] still don't know how...".format(attn_type))
-        return None, None
+        return None, None, None
 
     masked_image = [apply_mask_2_image(image, ii) for ii in mask]
     cum_masked_image = [apply_mask_2_image(image, ii) for ii in cum_mask]
