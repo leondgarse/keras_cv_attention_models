@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import json
-from keras_cv_attention_models.coco.eval_func import run_coco_evaluation
+from keras_cv_attention_models.coco import eval_func
 import tensorflow as tf
 
 
@@ -18,6 +18,7 @@ def parse_arguments(argv):
     parser.add_argument("-i", "--input_shape", type=int, default=-1, help="Model input shape, Set -1 for using model.input_shape")
     parser.add_argument("-b", "--batch_size", type=int, default=8, help="Batch size")
     parser.add_argument("-d", "--data_name", type=str, default="coco/2017", help="Dataset name from tensorflow_datasets like coco/2017")
+    parser.add_argument("-s", "--save_json", type=str, default=None, help="Save detection results to json file, None for not saving")
     parser.add_argument("--rescale_mode", type=str, default="auto", help="Rescale mode in [tf, torch, raw, raw01]. Default `auto` means using model preset")
     parser.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
     parser.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
@@ -38,8 +39,9 @@ def parse_arguments(argv):
         default=None,
         help="Pretrianed weights if not from h5. Could be coco or specific h5 file, None for model.pretrained",
     )
-    parser.add_argument("-F", "--use_anchor_free_mode", action="store_true", help="Use anchor free mode")
-    parser.add_argument("-R", "--use_yolor_anchors_mode", action="store_true", help="Use yolor anchors mode")
+    parser.add_argument(
+        "-A", "--anchors_mode", type=str, default=None, help="One of [efficientdet, anchor_free, yolor]. Default None for calculated from model output_shape"
+    )
     parser.add_argument(
         "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with it. For efficientdet anchors only"
     )
@@ -77,7 +79,6 @@ if __name__ == "__main__":
     input_shape = None if args.input_shape == -1 else (args.input_shape, args.input_shape, 3)
     antialias = not args.disable_antialias
     data_name = "coco/2017" if args.data_name == "coco" else args.data_name
-    ANCHORS = {"anchor_scale": args.anchor_scale, "use_anchor_free_mode": args.use_anchor_free_mode, "use_yolor_anchors_mode": args.use_yolor_anchors_mode}
 
     if args.model_path.endswith(".h5"):
         model = tf.keras.models.load_model(args.model_path, compile=False)
@@ -90,7 +91,9 @@ if __name__ == "__main__":
     else:  # model_path like: yolor.YOLOR_CSP
         model = args.model_path.strip().split(".")
         model_class = getattr(getattr(keras_cv_attention_models, model[0]), model[1])
-        model_kwargs = ANCHORS.copy()
+        model_kwargs = {"anchor_scale": args.anchor_scale}
+        if args.anchors_mode is not None and args.anchors_mode != "auto":
+            model_kwargs.update({"anchors_mode": args.anchors_mode})
         if input_shape:
             model_kwargs.update({"input_shape": input_shape})
         if args.num_classes:
@@ -100,8 +103,12 @@ if __name__ == "__main__":
         print(">>>> model_kwargs:", model_kwargs)
         model = model_class(**model_kwargs)
 
+    ANCHORS = {"anchor_scale": args.anchor_scale, "anchors_mode": args.anchors_mode}
     NMS = {"nms_score_threshold": args.nms_score_threshold, "nms_iou_or_sigma": args.nms_iou_or_sigma, "nms_max_output_size": args.nms_max_output_size}
     NMS.update({"nms_method": args.nms_method, "nms_mode": args.nms_mode, "nms_topk": args.nms_topk})
     IMAGE = {"resize_method": args.resize_method, "resize_antialias": antialias, "rescale_mode": args.rescale_mode, "use_bgr_input": args.use_bgr_input}
     print(">>>> COCO evaluation:", data_name, "\n   - image:", IMAGE, "\n   - anchors:", ANCHORS, "\n   - nms:", NMS)
-    run_coco_evaluation(model, data_name, input_shape, args.batch_size, letterbox_pad=args.letterbox_pad, **IMAGE, **ANCHORS, **NMS)
+
+    ee = eval_func.COCOEvalCallback(data_name, args.batch_size, **IMAGE, **ANCHORS, **NMS, letterbox_pad=args.letterbox_pad, save_json=args.save_json)
+    ee.model = model
+    ee.on_epoch_end()

@@ -1,6 +1,14 @@
 from keras_cv_attention_models.coco import data, losses, eval_func, anchors_func
-from keras_cv_attention_models.coco.eval_func import DecodePredictions, run_coco_evaluation
-from keras_cv_attention_models.coco.anchors_func import get_anchors, get_anchor_free_anchors, get_yolor_anchors, get_pyramid_levels_by_anchors, decode_bboxes
+from keras_cv_attention_models.coco.eval_func import DecodePredictions, COCOEvalCallback
+from keras_cv_attention_models.coco.anchors_func import (
+    get_anchors_mode_parameters,
+    get_anchors,
+    get_anchor_free_anchors,
+    get_yolor_anchors,
+    get_anchors_mode_by_anchors,
+    get_pyramid_levels_by_anchors,
+    decode_bboxes,
+)
 from keras_cv_attention_models.coco.data import (
     COCO_80_LABEL_DICT,
     COCO_90_LABEL_DICT,
@@ -20,7 +28,7 @@ Args:
   buffer_size: dataset shuffle buffer size.
   info_only: boolean value if returns dataset info only.
   max_labels_per_image: .
-  use_anchor_free_mode: .
+  anchors_mode: .
   anchor_pyramid_levels: .
   anchor_aspect_ratios: .
   anchor_num_scales: .

@@ -1,3 +1,4 @@
+import os
 from keras_cv_attention_models.imagenet import data
 from keras_cv_attention_models.model_surgery import change_model_input_shape
 import tensorflow as tf
@@ -6,7 +7,6 @@ import tensorflow as tf
 class TorchModelInterf:
     def __init__(self, model):
         import torch
-        import os
 
         self.torch = torch
         cvd = os.environ.get("CUDA_VISIBLE_DEVICES", "").strip()
@@ -23,6 +23,8 @@ class TorchModelInterf:
 class TFLiteModelInterf:
     def __init__(self, model_path):
         self.interpreter = tf.lite.Interpreter(model_path=model_path)
+        self.name = os.path.splitext(os.path.basename(model_path))[0]
+
         input_details = self.interpreter.get_input_details()[0]
         self.input_dtype = input_details["dtype"]
         self.input_index = input_details["index"]

@@ -182,6 +182,9 @@ class MyHistory(keras.callbacks.Callback):
             if "val_loss" in self.history:
                 self.history["val_loss"][-1] -= regular_loss
 
+        if "val_ap_ar" in self.model.history.history:  # save coco val_ap_ar
+            self.history.setdefault("val_ap_ar", []).append(self.model.history.history["val_ap_ar"][-1])
+
         if self.initial_file:
             with open(self.initial_file, "w") as ff:
                 json.dump(self.history, ff)

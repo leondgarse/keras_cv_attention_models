@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import json
-from keras_cv_attention_models.coco import data, losses, anchors_func
+from keras_cv_attention_models.coco import data, losses, anchors_func, eval_func
 from keras_cv_attention_models.imagenet import (
     compile_model,
     init_global_strategy,
@@ -60,31 +60,19 @@ def parse_arguments(argv):
 
     """ Anchor arguments """
     anchor_group = parser.add_argument_group("Anchor arguments")
-    anchor_group.add_argument("-F", "--use_anchor_free_mode", action="store_true", help="Use anchor free mode")
-    anchor_group.add_argument("-R", "--use_yolor_anchors_mode", action="store_true", help="Use yolor anchors mode")
+    anchor_group.add_argument(
+        "-A", "--anchors_mode", type=str, default=None, help="One of [efficientdet, anchor_free, yolor]. Default None for det_header preset"
+    )
     anchor_group.add_argument(
         "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with it. For efficientdet anchors only"
     )
-    # anchor_group.add_argument(
-    #     "--anchor_num_scales",
-    #     type=int,
-    #     default=3,
-    #     help="Anchor num scales, `scales = [2 ** (ii / num_scales) * anchor_scale for ii in range(num_scales)]`. Force 1 if use_anchor_free_mode",
-    # )
-    # anchor_group.add_argument(
-    #     "--anchor_aspect_ratios",
-    #     type=float,
-    #     nargs="+",
-    #     default=[1, 2, 0.5],
-    #     help="Anchor aspect ratios, `num_anchors = len(anchor_aspect_ratios) * anchor_num_scales`. Force [1] if use_anchor_free_mode",
-    # )
     anchor_group.add_argument("--anchor_pyramid_levels_min", type=int, default=3, help="Anchor pyramid levels min.")
     anchor_group.add_argument("--anchor_pyramid_levels_max", type=int, default=-1, help="Anchor pyramid levels max. -1 for calculated from model output shape")
 
     """ Loss arguments """
     loss_group = parser.add_argument_group("Loss arguments")
     loss_group.add_argument("--label_smoothing", type=float, default=0, help="Loss label smoothing value")
-    loss_group.add_argument("--use_l1_loss", action="store_true", help="Use additional l1_loss. For use_anchor_free_mode only")
+    loss_group.add_argument("--use_l1_loss", action="store_true", help="Use additional l1_loss. For anchor_free mode only")
     loss_group.add_argument("--bbox_loss_weight", type=float, default=-1, help="Bbox loss weight, -1 means using loss preset values.")
 
     """ Learning rate and weight decay arguments """
@@ -123,12 +111,6 @@ def parse_arguments(argv):
         default="rts",
         help="Positional related augment method besides random scale, combine of r: rotate, t: transplate, s: shear, x: scale_x + scale_y",
     )
-    # ds_group.add_argument(
-    #     "--random_crop_mode",
-    #     type=float,
-    #     default=1.0,
-    #     help="Random crop mode, 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale",
-    # )
     ds_group.add_argument("--mosaic_mix_prob", type=float, default=0.5, help="Mosaic mix probability, 0 to disable")
     ds_group.add_argument("--rescale_mode", type=str, default="torch", help="Rescale mode, one of [tf, torch, raw, raw01]")
     ds_group.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
@@ -136,20 +118,9 @@ def parse_arguments(argv):
 
     args = parser.parse_known_args(argv)[0]
 
-    if args.use_anchor_free_mode:
-        args.num_anchors, args.use_object_scores = 1, True
-    elif args.use_yolor_anchors_mode:
-        args.num_anchors, args.use_object_scores = 3, True
-    else:
-        args.num_anchors, args.use_object_scores = 9, False
-
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
-    args.additional_det_header_kwargs.update(  # num_anchors and use_object_scores affecting model architecture, others for prediction only.
-        {
-            "num_anchors": args.num_anchors,
-            "use_object_scores": args.use_object_scores,
-        }
-    )
+    if args.anchors_mode is not None:
+        args.additional_det_header_kwargs.update({"anchors_mode": args.anchors_mode})
     args.additional_backbone_kwargs = json.loads(args.additional_backbone_kwargs) if args.additional_backbone_kwargs else {}
 
     lr_decay_steps = args.lr_decay_steps.strip().split(",")
@@ -167,11 +138,10 @@ def parse_arguments(argv):
     elif args.basic_save_name is None or args.basic_save_name.startswith("_"):
         data_name = args.data_name.replace("/", "_")
         model_name = args.det_header.split(".")[-1] + ("" if args.backbone is None else ("_" + args.backbone.split(".")[-1]))
-        anchor_mode = "anchor_free" if args.use_anchor_free_mode else ("yolor_anchor" if args.use_yolor_anchors_mode else "effdet_anchor")
         basic_save_name = "{}_{}_{}_{}_batchsize_{}".format(model_name, args.input_shape, args.optimizer, data_name, args.batch_size)
         basic_save_name += "_randaug_{}_mosaic_{}".format(args.magnitude, args.mosaic_mix_prob)
         basic_save_name += "_color_{}_position_{}".format(args.color_augment_method, args.positional_augment_methods)
-        basic_save_name += "_lr512_{}_wd_{}_{}".format(args.lr_base_512, args.weight_decay, anchor_mode)
+        basic_save_name += "_lr512_{}_wd_{}_anchors_mode_{}".format(args.lr_base_512, args.weight_decay, args.anchors_mode)
         args.basic_save_name = basic_save_name if args.basic_save_name is None else (basic_save_name + args.basic_save_name)
     args.enable_float16 = not args.disable_float16
 
@@ -196,28 +166,30 @@ def run_training_by_args(args):
         if args.summary:
             model.summary()
 
+    total_anchors = model.output_shape[1]
+    if args.anchors_mode is None or args.anchors_mode == "auto":
+        args.anchors_mode, num_anchors = anchors_func.get_anchors_mode_by_anchors(input_shape, total_anchors=total_anchors)
+    else:
+        num_anchors = anchors_func.NUM_ANCHORS.get(args.anchors_mode, 9)
+
     if args.anchor_pyramid_levels_max <= 0:
-        total_anchors = model.output_shape[1]
-        pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(input_shape, total_anchors, args.num_anchors, args.anchor_pyramid_levels_min)
+        pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(input_shape, total_anchors, num_anchors, args.anchor_pyramid_levels_min)
         args.anchor_pyramid_levels_max = max(pyramid_levels)
     args.anchor_pyramid_levels = [args.anchor_pyramid_levels_min, args.anchor_pyramid_levels_max]
-    print(">>>> anchor_pyramid_levels:", args.anchor_pyramid_levels)
+    print(">>>> anchor_pyramid_levels: {}, anchors_mode: {}, num_anchors: {}".format(args.anchor_pyramid_levels, args.anchors_mode, num_anchors))
 
+    resize_antialias = not args.disable_antialias
     train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = data.init_dataset(
         data_name=args.data_name,
         input_shape=input_shape,
         batch_size=batch_size,
-        use_anchor_free_mode=args.use_anchor_free_mode,
-        use_yolor_anchors_mode=args.use_yolor_anchors_mode,
+        anchors_mode=args.anchors_mode,
         anchor_pyramid_levels=args.anchor_pyramid_levels,
-        # anchor_aspect_ratios=args.anchor_aspect_ratios,
-        # anchor_num_scales=args.anchor_num_scales,
         anchor_scale=args.anchor_scale,
         rescale_mode=args.rescale_mode,
-        # random_crop_mode=args.random_crop_mode,
         mosaic_mix_prob=args.mosaic_mix_prob,
         resize_method=args.resize_method,
-        resize_antialias=not args.disable_antialias,
+        resize_antialias=resize_antialias,
         color_augment_method=args.color_augment_method,
         positional_augment_methods=args.positional_augment_methods,
         magnitude=args.magnitude,
@@ -237,9 +209,9 @@ def run_training_by_args(args):
             if args.bbox_loss_weight > 0:
                 loss_kwargs.update({"bbox_loss_weight": args.bbox_loss_weight})
 
-            if args.use_anchor_free_mode:
+            if args.anchors_mode == anchors_func.ANCHOR_FREE_MODE:  # == "anchor_free"
                 loss = losses.AnchorFreeLoss(input_shape, args.anchor_pyramid_levels, use_l1_loss=args.use_l1_loss, **loss_kwargs)
-            elif args.use_yolor_anchors_mode:
+            elif args.anchors_mode == anchors_func.YOLOR_MODE:  # == "yolor"
                 loss = losses.YOLORLossWithBbox(input_shape, args.anchor_pyramid_levels, **loss_kwargs)
             else:
                 # loss, metrics = losses.FocalLossWithBbox(label_smoothing=args.label_smoothing), losses.ClassAccuracyWithBbox()
@@ -252,7 +224,16 @@ def run_training_by_args(args):
             model.compile(optimizer=model.optimizer, loss=model.loss, metrics=metrics)
         print(">>>> basic_save_name =", args.basic_save_name)
         # return None, None, None
-        latest_save, hist = train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name)
+
+        if args.data_name == "coco/2017":
+            # Save line width...
+            kw = {"batch_size": batch_size, "rescale_mode": args.rescale_mode, "resize_method": args.resize_method, "resize_antialias": resize_antialias}
+            kw.update({"anchor_scale": args.anchor_scale, "anchors_mode": args.anchors_mode, "model_basic_save_name": args.basic_save_name})
+            coco_ap_eval = eval_func.COCOEvalCallback(args.data_name, start_epoch=epochs * 2 // 3, frequency=1, **kw)  # coco eval starts from 2/3 epochs
+            init_callbacks = [coco_ap_eval]
+        else:
+            init_callbacks = []
+        latest_save, hist = train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name, init_callbacks)
     return model, latest_save, hist
 
 

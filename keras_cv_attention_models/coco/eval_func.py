@@ -1,3 +1,4 @@
+import os
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from keras_cv_attention_models.coco import anchors_func, data
@@ -24,12 +25,10 @@ class DecodePredictions:
     >>> # bboxes = array([[0.433231  , 0.54432285, 0.8778939 , 0.8187578 ]], dtype=float32), labels = array([17]), scores = array([0.85373735], dtype=float32)
     """
 
-    def __init__(
-        self, input_shape=512, pyramid_levels=[3, 7], anchor_scale=4, use_anchor_free_mode=False, use_yolor_anchors_mode=False, use_object_scores="auto"
-    ):
+    def __init__(self, input_shape=512, pyramid_levels=[3, 7], anchors_mode=None, use_object_scores="auto", anchor_scale="auto"):
         self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
-        self.use_object_scores = (use_yolor_anchors_mode or use_anchor_free_mode) if use_object_scores == "auto" else use_object_scores
-        self.anchor_scale, self.use_anchor_free_mode, self.use_yolor_anchors_mode = anchor_scale, use_anchor_free_mode, use_yolor_anchors_mode
+        use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, "auto", anchor_scale)
+        self.anchors_mode, self.use_object_scores, self.anchor_scale = anchors_mode, use_object_scores, anchor_scale  # num_anchors not using
         if input_shape is not None and (isinstance(input_shape, (list, tuple)) and input_shape[0] is not None):
             self.__init_anchor__(input_shape)
         else:
@@ -37,9 +36,9 @@ class DecodePredictions:
 
     def __init_anchor__(self, input_shape):
         input_shape = input_shape[:2] if isinstance(input_shape, (list, tuple)) else (input_shape, input_shape)
-        if self.use_anchor_free_mode:
+        if self.anchors_mode == anchors_func.ANCHOR_FREE_MODE:
             self.anchors = anchors_func.get_anchor_free_anchors(input_shape, self.pyramid_levels)
-        elif self.use_yolor_anchors_mode:
+        elif self.anchors_mode == anchors_func.YOLOR_MODE:
             self.anchors = anchors_func.get_yolor_anchors(input_shape, self.pyramid_levels)
         else:
             aspect_ratios, num_scales, grid_zero_start = [1, 2, 0.5], 3, False
@@ -157,44 +156,9 @@ def image_process(image, target_shape, mean, std, resize_method="bilinear", resi
     return image, scale, pad_top, pad_left
 
 
-def init_eval_dataset_0(
-    data_name="coco/2017",
-    target_shape=(512, 512),
-    batch_size=8,
-    rescale_mode="torch",
-    resize_method="bilinear",
-    resize_antialias=False,
-    letterbox_pad=-1,
-    use_bgr_input=False,
-):
-    mean, std = data.init_mean_std_by_rescale_mode(rescale_mode)
-    mean, std = (mean[::-1], std[::-1]) if rescale_mode == "torch" and use_bgr_input else (mean, std)
-    rescaling = lambda xx: (xx - mean) / std
-
-    if data_name.endswith(".json"):
-        dataset, _, _ = data.detection_dataset_from_custom_json(data_name)
-        image_func = lambda image: data.tf_imread(image)
-    else:
-        dataset = tfds.load(data_name, with_info=False)
-        image_func = lambda image: tf.cast(image, tf.float32)
-    ds = dataset.get("validation", dataset.get("test", None))
-    resize_func = lambda image: data.aspect_aware_resize_and_crop_image(
-        image, target_shape, letterbox_pad=letterbox_pad, method=resize_method, antialias=resize_antialias
-    )
-    # resize_func = lambda image: data.letterbox_scale_down_only(image, target_shape, method=resize_method, antialias=resize_antialias)
-    # ds: [resized_image, scale, pad_top, pad_left, original_image_shape, image_id], automl bahavior: rescale -> resize
-    ds = ds.map(lambda datapoint: (*resize_func(rescaling(image_func(datapoint["image"]))), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
-    ds = ds.batch(batch_size)
-    # ds = ds.map(lambda datapoint: (*resize_func(image_func(datapoint["image"])), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
-    # ds = ds.batch(batch_size).map(lambda ii, jj, kk, mm, nn: (rescaling(ii), jj, kk, mm, nn))
-    if use_bgr_input:
-        ds = ds.map(lambda image, scale, pad_top, pad_left, original_shape, id: (image[:, :, :, ::-1], scale, pad_top, pad_left, original_shape, id))
-    return ds
-
-
 def init_eval_dataset(
     data_name="coco/2017",
-    target_shape=(512, 512),
+    input_shape=(512, 512),
     batch_size=8,
     rescale_mode="torch",
     resize_method="bilinear",
@@ -206,14 +170,14 @@ def init_eval_dataset(
     ds = dataset.get("validation", dataset.get("test", None))
 
     mean, std = data.init_mean_std_by_rescale_mode(rescale_mode)
-    __image_process__ = lambda image: image_process(image, target_shape, mean, std, resize_method, resize_antialias, use_bgr_input, letterbox_pad)
+    __image_process__ = lambda image: image_process(image, input_shape, mean, std, resize_method, resize_antialias, use_bgr_input, letterbox_pad)
     # ds: [resized_image, scale, pad_top, pad_left, original_image_shape, image_id]
     ds = ds.map(lambda datapoint: (*__image_process__(datapoint["image"]), tf.shape(datapoint["image"])[:2], datapoint["image/id"]))
     ds = ds.batch(batch_size)
     return ds
 
 
-def model_eval_results(model, eval_dataset, pred_decoder, nms_kwargs={}):
+def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={}):
     target_shape = (eval_dataset.element_spec[0].shape[1], eval_dataset.element_spec[0].shape[2])
     num_classes = model.output_shape[-1] - 4
     to_91_labels = (lambda label: label + 1) if num_classes >= 90 else (lambda label: data.COCO_80_to_90_LABEL_DICT[label] + 1)
@@ -255,55 +219,134 @@ def coco_evaluation(detection_results, annotation_file=None):
     return coco_eval
 
 
-def run_coco_evaluation(
-    model,
-    data_name="coco/2017",  # init_eval_dataset parameters
-    input_shape=None,
-    batch_size=8,
-    resize_method="bilinear",
-    resize_antialias=False,
-    rescale_mode="auto",
-    letterbox_pad=-1,
-    use_bgr_input=False,
-    take_samples=-1,
-    nms_score_threshold=0.001,  # model_eval_results parameters
-    nms_iou_or_sigma=0.5,
-    nms_max_output_size=100,
-    nms_method="gaussian",
-    nms_mode="per_class",
-    nms_topk=5000,
-    use_anchor_free_mode=False,  # model anchors related parameters
-    use_yolor_anchors_mode=False,
-    anchor_scale=4,  # Init anchors for model prediction. "auto" means 1 if use_anchor_free_mode else 4
-    annotation_file=None,
-    **anchor_kwargs,
-):
-    input_shape = model.input_shape[1:-1] if input_shape is None else input_shape
-    print(">>>> Using input_shape {}.".format(input_shape))
+def to_coco_json(detection_results, save_path, indent=2):
+    import json
 
-    if rescale_mode.lower() == "auto":
-        rescale_mode = getattr(model, "rescale_mode", "torch")
-        print(">>>> rescale_mode:", rescale_mode)
+    __to_coco_json__ = lambda xx: {"image_id": int(xx[0]), "bbox": xx[1:5].tolist(), "score": float(xx[5]), "category_id": int(xx[6])}
+    aa = [__to_coco_json__(ii) for ii in detection_results]
+    with open(save_path, "w") as ff:
+        json.dump(aa, ff, indent=indent)
 
-    eval_dataset = init_eval_dataset(data_name, input_shape, batch_size, rescale_mode, resize_method, resize_antialias, letterbox_pad, use_bgr_input)
-    if take_samples > 0:
-        eval_dataset = eval_dataset.take(take_samples)
 
-    if hasattr(model, "decode_predictions") and model.decode_predictions is not None:
-        print(">>>> Using model preset decode_predictions")
-        pred_decoder = model.decode_predictions
-    else:
-        pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(input_shape, total_anchors=model.output_shape[1])
-        print(">>>> Build decoder, pyramid_levels:", pyramid_levels)
-        pred_decoder = DecodePredictions(input_shape, pyramid_levels, anchor_scale, use_anchor_free_mode, use_yolor_anchors_mode)
+# Wrapper a callback for using in training
+class COCOEvalCallback(tf.keras.callbacks.Callback):
+    """
+    Basic test:
+    >>> from keras_cv_attention_models import efficientdet, coco
+    >>> model = efficientdet.EfficientDetD0()
+    >>> ee = coco.eval_func.COCOEvalCallback(batch_size=4, model_basic_save_name='test', rescale_mode='raw', anchors_mode="anchor_free")
+    >>> ee.model = model
+    >>> ee.on_epoch_end()
+    """
 
-    nms_kwargs = {
-        "score_threshold": nms_score_threshold,
-        "iou_or_sigma": nms_iou_or_sigma,
-        "max_output_size": nms_max_output_size,
-        "method": nms_method,
-        "mode": nms_mode,
-        "topk": nms_topk,
-    }
-    detection_results = model_eval_results(model, eval_dataset, pred_decoder, nms_kwargs)
-    return coco_evaluation(detection_results, annotation_file)
+    def __init__(
+        self,
+        data_name="coco/2017",  # [init_eval_dataset parameters]
+        batch_size=8,
+        resize_method="bilinear",
+        resize_antialias=False,
+        rescale_mode="auto",
+        letterbox_pad=-1,
+        use_bgr_input=False,
+        take_samples=-1,
+        nms_score_threshold=0.001,  # [model_detection_and_decode parameters]
+        nms_iou_or_sigma=0.5,
+        nms_max_output_size=100,
+        nms_method="gaussian",
+        nms_mode="per_class",
+        nms_topk=5000,
+        anchors_mode="auto",  # [model anchors related parameters]
+        anchor_scale=4,  # Init anchors for model prediction. "auto" means 1 if (anchors_mode=="anchor_free" or anchors_mode=="yolor"), else 4
+        annotation_file=None,
+        save_json=None,
+        start_epoch=0,  # [trainign callbacks parameters]
+        frequency=1,
+        model_basic_save_name=None,
+    ):
+        super().__init__()
+        self.anchors_mode, self.anchor_scale = anchors_mode, anchor_scale
+        self.take_samples, self.annotation_file, self.start_epoch, self.frequency = take_samples, annotation_file, start_epoch, frequency
+        self.save_json, self.model_basic_save_name, self.save_path, self.item_key = save_json, model_basic_save_name, "checkpoints", "val_ap_ar"
+
+        self.dataset_kwargs = {
+            "data_name": data_name,
+            "batch_size": batch_size,
+            "rescale_mode": rescale_mode,
+            "resize_method": resize_method,
+            "resize_antialias": resize_antialias,
+            "letterbox_pad": letterbox_pad,
+            "use_bgr_input": use_bgr_input,
+        }
+        self.nms_kwargs = {
+            "score_threshold": nms_score_threshold,
+            "iou_or_sigma": nms_iou_or_sigma,
+            "max_output_size": nms_max_output_size,
+            "method": nms_method,
+            "mode": nms_mode,
+            "topk": nms_topk,
+        }
+        self.built = False
+
+    def build(self, input_shape, output_shape):
+        input_shape = (int(input_shape[1]), int(input_shape[2]))
+        self.eval_dataset = init_eval_dataset(input_shape=input_shape, **self.dataset_kwargs)
+        if self.anchors_mode is None or self.anchors_mode == "auto":
+            self.anchors_mode, num_anchors = anchors_func.get_anchors_mode_by_anchors(input_shape, total_anchors=output_shape[1])
+        else:
+            num_anchors = anchors_func.NUM_ANCHORS.get(self.anchors_mode, 9)
+        pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(input_shape, total_anchors=output_shape[1], num_anchors=num_anchors)
+        print(">>>> [COCOEvalCallback] input_shape: {}, pyramid_levels: {}, anchors_mode: {}".format(input_shape, pyramid_levels, self.anchors_mode))
+        # print(">>>>", self.dataset_kwargs)
+        # print(">>>>", self.nms_kwargs)
+        self.pred_decoder = DecodePredictions(input_shape, pyramid_levels, self.anchors_mode, anchor_scale=self.anchor_scale)
+
+        # Training saving best
+        if self.model_basic_save_name is not None:
+            self.monitor_save = os.path.join(self.save_path, self.model_basic_save_name + "_epoch_{}_" + self.item_key + "_{}.h5")
+            self.monitor_save_re = self.monitor_save.format("*", "*")
+            self.is_better = lambda cur, pre: cur >= pre
+            self.pre_best = -1e5
+
+        self.built = True
+
+    def on_epoch_end(self, epoch=0, logs=None):
+        if epoch < self.start_epoch or epoch % self.frequency != 0:
+            return
+
+        if not self.built:
+            if self.dataset_kwargs.get("rescale_mode", "auto"):
+                self.dataset_kwargs["rescale_mode"] = getattr(self.model, "rescale_mode", "torch")
+            self.build(self.model.input_shape, self.model.output_shape)
+        eval_dataset = self.eval_dataset.take(self.take_samples) if self.take_samples > 0 else self.eval_dataset
+
+        # pred_decoder = self.model.decode_predictions
+        detection_results = model_detection_and_decode(self.model, eval_dataset, self.pred_decoder, self.nms_kwargs)
+        try:
+            coco_eval = coco_evaluation(detection_results, self.annotation_file)
+        except:
+            print(">>>> Error in running coco_evaluation")
+            coco_eval = None
+            data_name = self.data_name.replace("/", "_")
+            self.save_json = "{}_{}_detection_results_error.json".format(self.model.name, data_name) if self.save_json is None else self.save_json
+
+        if self.save_json is not None:
+            to_coco_json(detection_results, self.save_json)
+            print(">>>> Detection results saved to:", self.save_json)
+
+        if hasattr(self.model, "history") and hasattr(self.model.history, "history"):
+            self.model.history.history.setdefault(self.item_key, []).append(coco_eval.stats.tolist())
+
+        # Training save best
+        cur_ap = coco_eval.stats[0]
+        if self.model_basic_save_name is not None and self.is_better(cur_ap, self.pre_best):
+            self.pre_best = cur_ap
+            pre_monitor_saves = tf.io.gfile.glob(self.monitor_save_re)
+            # tf.print(">>>> pre_monitor_saves:", pre_monitor_saves)
+            if len(pre_monitor_saves) != 0:
+                os.remove(pre_monitor_saves[0])
+            monitor_save = self.monitor_save.format(epoch + 1, "{:.4f}".format(cur_ap))
+            tf.print("\n>>>> Save best to:", monitor_save)
+            if self.model is not None:
+                self.model.save(monitor_save)
+
+        return coco_eval

@@ -141,7 +141,7 @@ def compile_model(model, optimizer, lr_base, weight_decay, bce_threshold=1.0, la
 
 
 # @tf.function(jit_compile=True)
-def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoch=0, lr_scheduler=None, basic_save_name=None):
+def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoch=0, lr_scheduler=None, basic_save_name=None, init_callbacks=[]):
     if compiled_model.compiled_loss is None:
         print(">>>> Error: Model NOT compiled.")
         return None
@@ -156,7 +156,7 @@ def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoc
     # ckpt_path = os.path.join("checkpoints", basic_save_name + "epoch_{epoch:03d}_val_acc_{val_acc:.4f}.h5")
     # cur_callbacks = [keras.callbacks.ModelCheckpoint(ckpt_path, monitor="val_loss", save_best_only=True)]
     # cur_callbacks = [keras.callbacks.ModelCheckpoint(os.path.join("checkpoints", basic_save_name + ".h5"))]
-    cur_callbacks = [callbacks.MyCheckpoint(basic_save_name, monitor="val_acc")]
+    cur_callbacks = init_callbacks + [callbacks.MyCheckpoint(basic_save_name, monitor="val_acc")]
     hist_file = os.path.join("checkpoints", basic_save_name + "_hist.json")
     if initial_epoch == 0 and os.path.exists(hist_file):
         # os.remove(hist_file)
