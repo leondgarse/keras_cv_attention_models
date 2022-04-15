@@ -405,8 +405,7 @@ def init_dataset(
     buffer_size=1000,
     info_only=False,
     max_labels_per_image=100,
-    use_anchor_free_mode=False,
-    use_yolor_anchors_mode=False,
+    anchors_mode="efficientdet",
     anchor_pyramid_levels=[3, 7],
     anchor_scale=4,  # For efficientdet anchors only
     rescale_mode="torch",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`
@@ -421,9 +420,6 @@ def init_dataset(
     seed=None,
     **augment_kwargs,  # Too many...
 ):
-    # anchor_aspect_ratios=[1, 2, 0.5],  # [1, 2, 0.5] matches efficientdet anchors format. Force using [1] if use_anchor_free_mode
-    # anchor_num_scales=3,  # Force using 1 if use_anchor_free_mode
-    # anchor_grid_zero_start="auto",  # False for anchor_free_mode, True for others.
     if data_name.endswith(".json"):
         dataset, total_images, num_classes = detection_dataset_from_custom_json(data_name, with_info=True)
     else:
@@ -467,17 +463,17 @@ def init_dataset(
         print(">>>> positional augment methods:", pos_aug.pos_randaug.available_ops)
         train_dataset = train_dataset.map(pos_aug, num_parallel_calls=AUTOTUNE)
 
-    if use_anchor_free_mode:
+    if anchors_mode == anchors_func.ANCHOR_FREE_MODE:  # == "anchor_free"
         # Don't need anchors here, anchor assigning is after getting model predictions.
         bbox_process = lambda bb: to_one_hot_with_class_mark(tf.concat([bb[0], tf.cast(tf.expand_dims(bb[1], -1), bb[0].dtype)], axis=-1), num_classes)
-    elif use_yolor_anchors_mode:
+    elif anchors_mode == anchors_func.YOLOR_MODE:  # == "yolor":
         anchor_ratios, feature_sizes = anchors_func.get_yolor_anchors(input_shape[:2], anchor_pyramid_levels, is_for_training=True)
         total_anchors = tf.cast(anchor_ratios.shape[1] * tf.reduce_sum(feature_sizes[:, 0] * feature_sizes[:, 1]), tf.int32)
         empty_label = tf.zeros([total_anchors, 4 + num_classes + 1])  # All 0
         bbox_process = lambda bb: __yolor_bboxes_labels_batch_func__(bb[0], bb[1], anchor_ratios, feature_sizes, empty_label, num_classes)
     else:
         # grid_zero_start = True if anchor_grid_zero_start == "auto" else anchor_grid_zero_start
-        aspect_ratios, num_scales, anchor_scale, grid_zero_start = [1, 2, 0.5], 3, 4, False  # Use this till meet some others new
+        aspect_ratios, num_scales, grid_zero_start = [1, 2, 0.5], 3, False  # Use this till meet some others new
         anchors = anchors_func.get_anchors(input_shape[:2], anchor_pyramid_levels, aspect_ratios, num_scales, anchor_scale, grid_zero_start)
         num_anchors = anchors.shape[0]
         empty_label = tf.zeros([num_anchors, 4 + num_classes + 1])  # All 0
@@ -548,9 +544,7 @@ def show_image_with_bboxes(image, bboxes, labels=None, confidences=None, is_bbox
     return ax
 
 
-def show_batch_sample(
-    dataset, rescale_mode="torch", rows=-1, label_font_size=8, base_size=3, use_anchor_free_mode=False, use_yolor_anchors_mode=False, **anchor_kwargs
-):
+def show_batch_sample(dataset, rescale_mode="torch", rows=-1, label_font_size=8, base_size=3, anchors_mode="efficientdet", **anchor_kwargs):
     import matplotlib.pyplot as plt
     from keras_cv_attention_models.visualizing import get_plot_cols_rows
 
@@ -560,10 +554,10 @@ def show_batch_sample(
         images, labels = dataset.as_numpy_iterator().next()
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     images = (images * std + mean) / 255
-    if use_yolor_anchors_mode:
+    if anchors_mode == anchors_func.YOLOR_MODE:
         pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(images.shape[1:-1], labels.shape[1])
         anchors = anchors_func.get_yolor_anchors(images.shape[1:-1], pyramid_levels=pyramid_levels, is_for_training=False)
-    elif not use_anchor_free_mode:
+    elif not anchors_mode == anchors_func.ANCHOR_FREE_MODE:
         pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(images.shape[1:-1], labels.shape[1])
         anchors = anchors_func.get_anchors(images.shape[1:-1], pyramid_levels, **anchor_kwargs)
 
@@ -581,13 +575,13 @@ def show_batch_sample(
             valid_label = tf.cast(tf.argmax(valid_preds[:, 4:-1], axis=-1), valid_preds.dtype)
             valid_preds = tf.concat([valid_preds[:, :4], tf.expand_dims(valid_label, -1)], axis=-1)
 
-        if use_yolor_anchors_mode:
+        if anchors_mode == anchors_func.YOLOR_MODE:
             valid_anchors = anchors[pick]
             decoded_centers = (valid_preds[:, :2] + 0.5) * valid_anchors[:, 4:] + valid_anchors[:, :2]
             decoded_hw = valid_preds[:, 2:4] * valid_anchors[:, 4:]
             decoded_corner = anchors_func.center_yxhw_to_corners_nd(tf.concat([decoded_centers, decoded_hw], axis=-1))
             valid_preds = tf.concat([decoded_corner, valid_preds[:, -1:]], axis=-1)
-        elif not use_anchor_free_mode:
+        elif not anchors_mode == anchors_func.ANCHOR_FREE_MODE:
             valid_anchors = anchors[pick]
             valid_preds = anchors_func.decode_bboxes(valid_preds, valid_anchors)
         show_image_with_bboxes(image, valid_preds[:, :4], valid_preds[:, -1], ax=ax, label_font_size=label_font_size)

@@ -25,18 +25,17 @@ Args:
   backbone: backbone model, could be any model with pyramid stage structure. {}
 """
 
-__tail_doc__ = """  use_anchor_free_mode: boolean value if use anchor free mode. Default False.
-  use_yolor_anchors_mode: boolean value if use yolor anchors mode. Default False.
-      Currently 3 types anchors supported:
+__tail_doc__ = """  anchors_mode: one of ["efficientdet", "anchor_free", "yolor"], controls which anchor to use.
       - efficientdet anchors default settings: use_object_scores=False, num_anchors=9, anchor_scale=4,
           aspect_ratios=[1, 2, 0.5], num_scales=3, grid_zero_start=False.
-      - anchor_free_mode default settings: use_object_scores=True, num_anchors=1, anchor_scale=1,
+      - anchor_free default settings: use_object_scores=True, num_anchors=1, anchor_scale=1,
           aspect_ratios=[1], num_scales=1, grid_zero_start=True.
-      - yolor_anchors_mode default settings: use_object_scores=True, num_anchors=3.
+      - yolor default settings: use_object_scores=True, num_anchors=3.
+      Default "efficientdet".
   num_anchors: number of anchors for a single grid point, should be same with dataset used value.
-      Default "auto" means 1 if use_anchor_free_mode else 9
+      Default "auto" means: anchors_mode=="anchor_free" -> 1, anchors_mode=="yolor" -> 3, else 9.
   use_object_scores: bollean value if model header output includes `object_scores`.
-      Default "auto" means same with use_anchor_free_mode.
+      Default "auto" means: True if anchors_mode=="anchor_free" or anchors_mode=="yolor", else False.
   num_classes: total output classes. `90` for EfficientDet pretrained, `80` for `tfds.coco`.
       Set `0` to disable `classifier` output.
   use_sep_conv: set `False` for using `Conv2D` instead of `SeparableConv2D`.
@@ -49,7 +48,7 @@ __tail_doc__ = """  use_anchor_free_mode: boolean value if use anchor free mode.
   pyramid_levels_min: anchors inititial parameter for model prediction, not affecting model architecture. Default `3`.
       pyramid_levels_max is calculated as `pyramid_levels_min + len(features_pick) + additional_features - 1`.
   anchor_scale: anchors inititial parameter for model prediction, not affecting model architecture.
-      Default "auto" means 1 if use_anchor_free_mode else 4.
+      Default "auto" means: 1 if (anchors_mode=="anchor_free" or anchors_mode=="yolor"), else 4.
   rescale_mode: model precessing input, not for model structure. Defulat "torch".
 
 Returns:

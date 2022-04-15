@@ -141,7 +141,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
     # Test with dataset:
     >>> from keras_cv_attention_models import coco, yolox
     >>> tf.random.set_seed(0)
-    >>> train_dataset = coco.init_dataset(batch_size=8, use_anchor_free_mode=True, anchor_pyramid_levels=[3, 5], rescale_mode="raw", seed=42)[0]
+    >>> train_dataset = coco.init_dataset(batch_size=8, anchors_mode="anchor_free", anchor_pyramid_levels=[3, 5], rescale_mode="raw", seed=42)[0]
     >>> images, bboxes_labels = train_dataset.as_numpy_iterator().next()
     >>> mm = yolox.YOLOXS(input_shape=(256, 256, 3))
     >>> preds = mm(images)
@@ -284,7 +284,7 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
     >>> input_shape = (640, 640, 3)
     >>> tf.random.set_seed(0)
     >>> train_dataset = coco.init_dataset(
-    >>>     input_shape=input_shape, batch_size=8, use_yolor_anchors_mode=True, anchor_pyramid_levels=[3, 5], rescale_mode="raw01", seed=42
+    >>>     input_shape=input_shape, batch_size=8, anchors_mode="yolor", anchor_pyramid_levels=[3, 5], rescale_mode="raw01", seed=42
     >>> )[0]
     >>> images, bboxes_labels = train_dataset.as_numpy_iterator().next()
     >>> mm = yolor.YOLOR_CSP(input_shape=input_shape)

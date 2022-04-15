@@ -1,7 +1,26 @@
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
+EFFICIENTDET_MODE = "efficientdet"
+ANCHOR_FREE_MODE = "anchor_free"
+YOLOR_MODE = "yolor"
+NUM_ANCHORS = {ANCHOR_FREE_MODE: 1, YOLOR_MODE: 3, EFFICIENTDET_MODE: 9}
+
 """ Init anchors """
+
+
+def get_anchors_mode_parameters(anchors_mode, use_object_scores="auto", num_anchors="auto", anchor_scale="auto"):
+    if anchors_mode == ANCHOR_FREE_MODE:
+        use_object_scores = True if use_object_scores == "auto" else use_object_scores
+        num_anchors = NUM_ANCHORS[anchors_mode] if num_anchors == "auto" else num_anchors
+    elif anchors_mode == YOLOR_MODE:
+        use_object_scores = True if use_object_scores == "auto" else use_object_scores
+        num_anchors = NUM_ANCHORS[anchors_mode] if num_anchors == "auto" else num_anchors
+    else:
+        use_object_scores = False if use_object_scores == "auto" else use_object_scores
+        num_anchors = NUM_ANCHORS.get(anchors_mode, NUM_ANCHORS[EFFICIENTDET_MODE]) if num_anchors == "auto" else num_anchors
+        anchor_scale = 4 if anchor_scale == "auto" else anchor_scale
+    return use_object_scores, num_anchors, anchor_scale
 
 
 def get_feature_sizes(input_shape, pyramid_levels=[3, 7]):
@@ -112,15 +131,27 @@ def get_yolor_anchors(input_shape=(512, 512), pyramid_levels=[3, 5], offset=0.5,
     return all_anchors  # [center_h, center_w, anchor_h, anchor_w, stride_h, stride_w]
 
 
+def get_anchors_mode_by_anchors(input_shape, total_anchors, num_anchors="auto", pyramid_levels_min=3, num_anchors_at_each_level_cumsum=None):
+    if num_anchors_at_each_level_cumsum is None:
+        feature_sizes = get_feature_sizes(input_shape, [pyramid_levels_min, pyramid_levels_min + 10])[pyramid_levels_min:]
+        feature_sizes = tf.convert_to_tensor(feature_sizes, dtype="int32")
+        num_anchors_at_each_level_cumsum = tf.cumsum(tf.reduce_prod(feature_sizes, axis=-1))
+
+    if num_anchors == "auto":
+        # Pick from [1, 3, 9], 1 for anchor_free, 3 for yolor, 9 for efficientdet
+        picks = tf.convert_to_tensor([1, 3, 9], dtype=tf.int32)
+        max_anchors = num_anchors_at_each_level_cumsum[-1] * picks
+        num_anchors = int(picks[tf.argmax(total_anchors < max_anchors)])
+    dd = {1: ANCHOR_FREE_MODE, 3: YOLOR_MODE, 9: EFFICIENTDET_MODE}
+    return dd[num_anchors], num_anchors
+
+
 def get_pyramid_levels_by_anchors(input_shape, total_anchors, num_anchors="auto", pyramid_levels_min=3):
     feature_sizes = get_feature_sizes(input_shape, [pyramid_levels_min, pyramid_levels_min + 10])[pyramid_levels_min:]
     feature_sizes = tf.convert_to_tensor(feature_sizes, dtype="int32")
     num_anchors_at_each_level_cumsum = tf.cumsum(tf.reduce_prod(feature_sizes, axis=-1))
     if num_anchors == "auto":
-        # Pick from [1, 3, 9], 1 for yolox, 3 for yolor, 9 for efficientdet
-        picks = tf.convert_to_tensor([1, 3, 9], dtype=tf.int32)
-        max_anchors = num_anchors_at_each_level_cumsum[-1] * picks
-        num_anchors = picks[tf.argmax(total_anchors < max_anchors)]
+        _, num_anchors = get_anchors_mode_by_anchors(input_shape, total_anchors, num_anchors, pyramid_levels_min, num_anchors_at_each_level_cumsum)
 
     total_anchors = total_anchors // num_anchors
     pyramid_levels_max = pyramid_levels_min + tf.argmax(num_anchors_at_each_level_cumsum > total_anchors) - 1

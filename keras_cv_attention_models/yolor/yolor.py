@@ -11,7 +11,7 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models.download_and_load import reload_model_weights
-from keras_cv_attention_models.coco.eval_func import DecodePredictions
+from keras_cv_attention_models.coco import eval_func, anchors_func
 
 PRETRAINED_DICT = {
     "yolor_csp": {"coco": "ed0aa82a07c4e65e9cd3d2e6ad2d0548"},
@@ -273,10 +273,9 @@ def YOLOR(
     use_shortcut_bn=True,
     fpn_depth=2,
     features_pick=[-3, -2, -1],
-    use_anchor_free_mode=False,
-    use_yolor_anchors_mode=True,
-    num_anchors="auto",  # "auto" means: use_anchor_free_mode -> 1, use_yolor_anchors_mode -> 3, else 9
-    use_object_scores="auto",  # "auto" means True if use_anchor_free_mode or use_yolor_anchors_mode, else False
+    anchors_mode="yolor",
+    num_anchors="auto",  # "auto" means: anchors_mode=="anchor_free" -> 1, anchors_mode=="yolor" -> 3, else 9
+    use_object_scores="auto",  # "auto" means: True if anchors_mode=="anchor_free" or anchors_mode=="yolor", else False
     input_shape=(640, 640, 3),
     num_classes=80,
     activation="swish",
@@ -285,7 +284,7 @@ def YOLOR(
     pretrained=None,
     model_name="yolor",
     pyramid_levels_min=3,  # Init anchors for model prediction.
-    anchor_scale="auto",  # Init anchors for model prediction. "auto" means 1 if (use_anchor_free_mode or use_yolor_anchors_mode), else 4
+    anchor_scale="auto",  # Init anchors for model prediction. "auto" means 1 if (anchors_mode=="anchor_free" or anchors_mode=="yolor"), else 4
     rescale_mode="raw01",  # For decode predictions, raw01 means input value in range [0, 1].
     kwargs=None,  # Not using, recieving parameter
 ):
@@ -305,16 +304,10 @@ def YOLOR(
         print(">>>> features:", {ii.name: ii.output_shape for ii in features})
         features = [ii.output for ii in features]
 
-    if freeze_backbone:
-        backbone.trainable = False
-    else:
-        backbone.trainable = True
-
-    use_object_scores = (use_yolor_anchors_mode or use_anchor_free_mode) if use_object_scores == "auto" else use_object_scores
-    if num_anchors == "auto":
-        num_anchors = 1 if use_anchor_free_mode else (3 if use_yolor_anchors_mode else 9)
-
+    backbone.trainable = False if freeze_backbone else True
+    use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, num_anchors, anchor_scale)
     inputs = backbone.inputs[0]
+
     fpn_features = path_aggregation_fpn(features, fpn_depth, use_csp_downsample, use_shortcut_bn, activation=activation, name="pafpn_")
     outputs = yolor_head(fpn_features, num_classes, num_anchors, use_object_scores, activation, classifier_activation, name="head_")
     outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
@@ -322,8 +315,7 @@ def YOLOR(
     reload_model_weights(model, PRETRAINED_DICT, "yolor", pretrained)
 
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]
-    anchor_scale = (1 if use_anchor_free_mode or use_yolor_anchors_mode else 4) if anchor_scale == "auto" else anchor_scale
-    post_process = DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchor_scale, use_anchor_free_mode, use_yolor_anchors_mode, use_object_scores)
+    post_process = eval_func.DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale)
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     return model
 
@@ -355,7 +347,7 @@ def YOLOR_P6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80,
     return YOLOR(**locals(), model_name=kwargs.pop("model_name", "yolor_p6"), **kwargs)
 
 
-def YOLOR_W6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained=None, **kwargs):
+def YOLOR_W6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_depthes = [3, 7, 7, 3, 3]
     csp_channels = [128, 256, 512, 768, 1024]
     features_pick = [-4, -3, -2, -1]
@@ -379,7 +371,7 @@ def YOLOR_E6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80,
     return YOLOR(**locals(), model_name=kwargs.pop("model_name", "yolor_e6"), **kwargs)
 
 
-def YOLOR_D6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained=None, **kwargs):
+def YOLOR_D6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_depthes = [3, 15, 15, 7, 7]
     csp_channels = [160, 320, 640, 960, 1280]
     features_pick = [-4, -3, -2, -1]

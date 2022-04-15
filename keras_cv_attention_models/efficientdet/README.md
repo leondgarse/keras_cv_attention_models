@@ -95,22 +95,22 @@
 
     mm.summary()  # Trainable params: 27,142,867
     ```
-  - Currently 3 types anchors supported, **use_anchor_free_mode** controls if using typical `YOLOX anchor_free mode` strategy, **use_yolor_anchors_mode** controls if using yolor anchors, or will be `efficientdet` preset anchors. Default is `use_anchor_free_mode=False, use_yolor_anchors_mode=False`.
+  - Currently 3 types anchors supported, parameter **`anchors_mode`** controls which anchor to use, value in `["efficientdet", "anchor_free", "yolor"]`. Default is `"efficientdet"`.
     ```py
     from keras_cv_attention_models import efficientdet, coatnet
     bb = coatnet.CoAtNet0(input_shape=(256, 256, 3), num_classes=0)
 
-    mm = efficientdet.EfficientDet(backbone=bb, use_anchor_free_mode=True, num_classes=80) # Trainable params: 23,444,424
+    mm = efficientdet.EfficientDet(backbone=bb, anchors_mode="anchor_free", num_classes=80) # Trainable params: 23,444,424
     print(mm.output_shape) # (None, 1364, 85)
 
-    mm = efficientdet.EfficientDet(backbone=bb, use_yolor_anchors_mode=True, num_classes=80) # Trainable params: 23,455,474
+    mm = efficientdet.EfficientDet(backbone=bb, anchors_mode="yolor", num_classes=80) # Trainable params: 23,455,474
     print(mm.output_shape) # (None, 4096, 85)
     ```
     **Default settings for anchors_mode**
 
-    | anchors_mode  | use_object_scores | num_anchors | anchor_scale | aspect_ratios | num_scales | grid_zero_start |
-    | ------------- | ----------------- | ----------- | ------------ | ------------- | ---------- | --------------- |
-    | efficientdet  | False             | 9           | 4            | [1, 2, 0.5]   | 3          | False           |
-    | anchor_free   | True              | 1           | 1            | [1]           | 1          | True            |
-    | yolor_anchors | True              | 3           | None         | presets       | None       | offset=0.5      |
+    | anchors_mode | use_object_scores | num_anchors | anchor_scale | aspect_ratios | num_scales | grid_zero_start |
+    | ------------ | ----------------- | ----------- | ------------ | ------------- | ---------- | --------------- |
+    | efficientdet | False             | 9           | 4            | [1, 2, 0.5]   | 3          | False           |
+    | anchor_free  | True              | 1           | 1            | [1]           | 1          | True            |
+    | yolor        | True              | 3           | None         | presets       | None       | offset=0.5      |
 ***

@@ -1079,7 +1079,6 @@ class RandAugment(ImageAugment):
             "SharpnessIncreasing",
         ]
         self.positional_related_ops = ["Rotate", "ShearX", "ShearY"]
-        # self.positional_related_ops = ["Rotate", "ShearX", "ShearY", "ScaleX", "ScaleY"]
         self.positional_related_ops += ["TranslateXRel", "TranslateYRel"] if use_relative_translate else ["TranslateX", "TranslateY"]
 
         self.available_ops = self.basic_ops

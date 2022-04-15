@@ -71,24 +71,24 @@
     print(mm.output_shape)
     # (None, 4032, 85)
     ```
-  - Currently 3 types anchors supported, **use_anchor_free_mode** controls if using typical `YOLOX anchor_free mode` strategy, **use_yolor_anchors_mode** controls if using yolor anchors, or will be `efficientdet` preset anchors. Default is `use_anchor_free_mode=False, use_yolor_anchors_mode=True`.
+  - Currently 3 types anchors supported, parameter **`anchors_mode`** controls which anchor to use, value in `["efficientdet", "anchor_free", "yolor"]`. Default is `"yolor"`.
     ```py
     from keras_cv_attention_models import efficientnet, yolor
     bb = efficientnet.EfficientNetV2B1(input_shape=(256, 256, 3), num_classes=0)
 
-    mm = yolor.YOLOR(backbone=bb, use_anchor_free_mode=True, use_yolor_anchors_mode=False) # Trainable params: 8,617,074
-    print(mm.output_shape) # (None, 1344, 84)
+    mm = yolor.YOLOR(backbone=bb, anchors_mode="anchor_free") # Trainable params: 8,617,074
+    print(mm.output_shape) # (None, 1344, 85)
 
-    mm = yolor.YOLOR(backbone=bb, use_anchor_free_mode=False, use_yolor_anchors_mode=False) # Trainable params: 8,986,124
-    print(mm.output_shape) # (None, 12096, 85)
+    mm = yolor.YOLOR(backbone=bb, anchors_mode="efficientdet") # Trainable params: 8,986,124
+    print(mm.output_shape) # (None, 12096, 84)
     ```
     **Default settings for anchors_mode**
 
-    | anchors_mode  | use_object_scores | num_anchors | anchor_scale | aspect_ratios | num_scales | grid_zero_start |
-    | ------------- | ----------------- | ----------- | ------------ | ------------- | ---------- | --------------- |
-    | efficientdet  | False             | 9           | 4            | [1, 2, 0.5]   | 3          | False           |
-    | anchor_free   | True              | 1           | 1            | [1]           | 1          | True            |
-    | yolor_anchors | True              | 3           | None         | presets       | None       | offset=0.5      |
+    | anchors_mode | use_object_scores | num_anchors | anchor_scale | aspect_ratios | num_scales | grid_zero_start |
+    | ------------ | ----------------- | ----------- | ------------ | ------------- | ---------- | --------------- |
+    | efficientdet | False             | 9           | 4            | [1, 2, 0.5]   | 3          | False           |
+    | anchor_free  | True              | 1           | 1            | [1]           | 1          | True            |
+    | yolor        | True              | 3           | None         | presets       | None       | offset=0.5      |
 ## Verification with PyTorch version
   ```py
   inputs = np.random.uniform(size=(1, 640, 640, 3)).astype("float32")

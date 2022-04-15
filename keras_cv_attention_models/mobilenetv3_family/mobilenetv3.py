@@ -35,6 +35,7 @@ PRETRAINED_DICT = {
     "tinynet_e": {"imagenet": "514fbbcd582db6d4297a140efb84af9a"},
 }
 
+
 def avg_pool_conv_output(inputs, output_num_features=1280, use_output_feature_bias=True, activation="hard_swish"):
     # nn = keras.layers.AveragePooling2D(pool_size=inputs.shape[1:3], name="avg_pool")(inputs)
     # nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(inputs)[:, None, None, :]

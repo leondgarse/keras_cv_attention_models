@@ -20,17 +20,17 @@ Args:
 
 __tail_doc__ = """  features_pick: specific `layer names` or `pyramid feature indexes` from backbone model.
         Default `[-3, -2, -1]` means using the last 3 pyramid feature output from backbone.
-  use_anchor_free_mode: boolean value if use anchor free mode. Default False.
-  use_yolor_anchors_mode: boolean value if use yolor anchors mode. Default True.
-      Currently 3 types anchors supported:
+  anchors_mode: one of ["efficientdet", "anchor_free", "yolor"], controls which anchor to use.
       - efficientdet anchors default settings: use_object_scores=False, num_anchors=9, anchor_scale=4,
           aspect_ratios=[1, 2, 0.5], num_scales=3, grid_zero_start=False.
-      - anchor_free_mode default settings: use_object_scores=True, num_anchors=1, anchor_scale=1,
+      - anchor_free default settings: use_object_scores=True, num_anchors=1, anchor_scale=1,
           aspect_ratios=[1], num_scales=1, grid_zero_start=True.
-      - yolor_anchors_mode default settings: use_object_scores=True, num_anchors=3.
+      - yolor default settings: use_object_scores=True, num_anchors=3.
+      Default "yolor".
   num_anchors: number of anchors for a single grid point, should be same with dataset used value.
-      Default "auto" means 1 if use_anchor_free_mode else 3
-  use_object_scores: bollean value if model header output includes `object_scores`. Default True.
+      Default "auto" means: anchors_mode=="anchor_free" -> 1, anchors_mode=="yolor" -> 3, else 9.
+  use_object_scores: bollean value if model header output includes `object_scores`.
+      Default "auto" means: True if anchors_mode=="anchor_free" or anchors_mode=="yolor", else False.
   input_shape: input shape if backbone is None, else will use input_shape from backbone.
   num_classes: total output classes. Set `0` to disable `classifier` output. Default 80 for COCO.
   activation: activation used in whole model, default `swish`. Default "swish".
@@ -42,7 +42,7 @@ __tail_doc__ = """  features_pick: specific `layer names` or `pyramid feature in
   pyramid_levels_min: anchors inititial parameter for model prediction, not affecting model architecture. Default `3`.
       pyramid_levels_max is calculated as `pyramid_levels_min + len(features_pick) - 1`.
   anchor_scale: anchors inititial parameter for model prediction, not affecting model architecture.
-      Default "auto" means 1 if use_anchor_free_mode else 4.
+      Default "auto" means: 1 if (anchors_mode=="anchor_free" or anchors_mode=="yolor"), else 4.
   rescale_mode: model precessing input, not for model structure. Defulat "raw01" means input value in range `[0, 1]`.
 
 Returns:

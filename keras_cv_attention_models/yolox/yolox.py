@@ -9,7 +9,7 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models.download_and_load import reload_model_weights
-from keras_cv_attention_models.coco.eval_func import DecodePredictions
+from keras_cv_attention_models.coco import eval_func, anchors_func
 
 PRETRAINED_DICT = {
     "yolox_nano": {"coco": "7c97d60d4cc9d54321176f844acee627"},
@@ -209,10 +209,9 @@ def YOLOX(
     depth_mul=1,
     width_mul=-1,  # -1 means: `min([ii.shape[-1] for ii in features]) / 256` for custom backbones.
     use_depthwise_conv=False,
-    use_anchor_free_mode=True,
-    use_yolor_anchors_mode=False,
-    num_anchors="auto",  # "auto" means 1 if use_anchor_free_mode else 9
-    use_object_scores="auto",  # "auto" means same with use_anchor_free_mode
+    anchors_mode="anchor_free",
+    num_anchors="auto",  # "auto" means: anchors_mode=="anchor_free" -> 1, anchors_mode=="yolor" -> 3, else 9
+    use_object_scores="auto",  # "auto" means: True if anchors_mode=="anchor_free" or anchors_mode=="yolor", else False
     input_shape=(640, 640, 3),
     num_classes=80,
     activation="swish",
@@ -220,7 +219,7 @@ def YOLOX(
     pretrained=None,
     model_name="yolox",
     pyramid_levels_min=3,  # Init anchors for model prediction.
-    anchor_scale="auto",  # Init anchors for model prediction. "auto" means 1 if use_anchor_free_mode else 4
+    anchor_scale="auto",  # Init anchors for model prediction. "auto" means 1 if (anchors_mode=="anchor_free" or anchors_mode=="yolor"), else 4
     rescale_mode="raw",  # For decode predictions, raw means input value in range [0, 255].
     kwargs=None,  # Not using, recieving parameter
 ):
@@ -239,26 +238,18 @@ def YOLOX(
         width_mul = width_mul if width_mul > 0 else min([ii.shape[-1] for ii in features]) / 256
         print(">>>> width_mul:", width_mul)
 
-    if freeze_backbone:
-        backbone.trainable = False
-    else:
-        backbone.trainable = True
-
-    use_object_scores = (use_yolor_anchors_mode or use_anchor_free_mode) if use_object_scores == "auto" else use_object_scores
-    if num_anchors == "auto":
-        num_anchors = 1 if use_anchor_free_mode else (3 if use_yolor_anchors_mode else 9)
-
+    backbone.trainable = False if freeze_backbone else True
+    use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, num_anchors, anchor_scale)
     inputs = backbone.inputs[0]
+
     fpn_features = path_aggregation_fpn(features, depth_mul=depth_mul, use_depthwise_conv=use_depthwise_conv, activation=activation, name="pafpn_")
     outputs = yolox_head(fpn_features, width_mul, num_classes, num_anchors, use_depthwise_conv, use_object_scores, activation=activation, name="head_")
     outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
     model = keras.models.Model(inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "yolox", pretrained)
 
-    # AA = {"aspect_ratios": anchor_aspect_ratios, "num_scales": anchor_num_scales, "anchor_scale": anchor_scale, "grid_zero_start": anchor_grid_zero_start}
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]
-    anchor_scale = (1 if use_anchor_free_mode or use_yolor_anchors_mode else 4) if anchor_scale == "auto" else anchor_scale
-    post_process = DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchor_scale, use_anchor_free_mode, use_yolor_anchors_mode, use_object_scores)
+    post_process = eval_func.DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchors_mode, anchor_scale)
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     return model
 
