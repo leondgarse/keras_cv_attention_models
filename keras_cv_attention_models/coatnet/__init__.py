@@ -51,31 +51,31 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model                               | Params | Image resolution | Top1 Acc |
-  | ----------------------------------- | ------ | ---------------- | -------- |
-  | CoAtNet0                            | 25M    | 224              | 81.6     |
-  | CoAtNet0, Strided DConv             | 25M    | 224              | 82.0     |
-  | CoAtNet0                            | 25M    | 384              | 83.9     |
-  | CoAtNet1                            | 42M    | 224              | 83.3     |
-  | CoAtNet1, Strided DConv             | 42M    | 224              | 83.5     |
-  | CoAtNet1                            | 42M    | 384              | 85.1     |
-  | CoAtNet2                            | 75M    | 224              | 84.1     |
-  | CoAtNet2, Strided DConv             | 75M    | 224              | 84.1     |
-  | CoAtNet2                            | 75M    | 384              | 85.7     |
-  | CoAtNet2                            | 75M    | 512              | 85.9     |
-  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 224              | 87.1     |
-  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 384              | 87.1     |
-  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 512              | 87.3     |
-  | CoAtNet3                            | 168M   | 224              | 84.5     |
-  | CoAtNet3                            | 168M   | 384              | 85.8     |
-  | CoAtNet3                            | 168M   | 512              | 86.0     |
-  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 224              | 87.6     |
-  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 384              | 87.6     |
-  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 512              | 87.9     |
-  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 384              | 87.9     |
-  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |
-  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 384              | 88.4     |
-  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |
+  | Model                               | Params | FLOPs  | Input | Top1 Acc |
+  | ----------------------------------- | ------ | ------ | ----- | -------- |
+  | CoAtNet0                            | 25M    | 4.2G   | 224   | 81.6     |
+  | CoAtNet0, Strided DConv             | 25M    | 4.6G   | 224   | 82.0     |
+  | CoAtNet0                            | 25M    | 13.4G  | 384   | 83.9     |
+  | CoAtNet1                            | 42M    | 8.4G   | 224   | 83.3     |
+  | CoAtNet1, Strided DConv             | 42M    | 8.8G   | 224   | 83.5     |
+  | CoAtNet1                            | 42M    | 27.4G  | 384   | 85.1     |
+  | CoAtNet2                            | 75M    | 15.7G  | 224   | 84.1     |
+  | CoAtNet2, Strided DConv             | 75M    | 16.6G  | 224   | 84.1     |
+  | CoAtNet2                            | 75M    | 49.8G  | 384   | 85.7     |
+  | CoAtNet2                            | 75M    | 96.7G  | 512   | 85.9     |
+  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 16.6G  | 224   | 87.1     |
+  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 49.8G  | 384   | 87.1     |
+  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 96.7G  | 512   | 87.3     |
+  | CoAtNet3                            | 168M   | 34.7G  | 224   | 84.5     |
+  | CoAtNet3                            | 168M   | 107.4G | 384   | 85.8     |
+  | CoAtNet3                            | 168M   | 203.1G | 512   | 86.0     |
+  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 34.7G  | 224   | 87.6     |
+  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 107.4G | 384   | 87.6     |
+  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 203.1G | 512   | 87.9     |
+  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 189.5G | 384   | 87.9     |
+  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 360.9G | 512   | 88.1     |
+  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 189.5G | 384   | 88.4     |
+  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 360.9G | 512   | 88.56    |
 
   **JFT pre-trained models accuracy**
 

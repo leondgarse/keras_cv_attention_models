@@ -11,21 +11,21 @@
   - `L` types models are light versions of `NFNet-F` from `timm`.
   - `ECA` type models are using `attn_type="eca"` instead of `attn_type="se"` from `timm`.
 
-  | Model       | Params | Image resolution | Top1 Acc | Download |
-  | ----------- | ------ | ---------------- | -------- | -------- |
-  | NFNetL0     | 35.07M | 288              | 82.75    | [nfnetl0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetl0_imagenet.h5) |
-  | NFNetF0     | 71.5M  | 256              | 83.6     | [nfnetf0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf0_imagenet.h5) |
-  | NFNetF1     | 132.6M | 320              | 84.7     | [nfnetf1_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf1_imagenet.h5) |
-  | NFNetF2     | 193.8M | 352              | 85.1     | [nfnetf2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf2_imagenet.h5) |
-  | NFNetF3     | 254.9M | 416              | 85.7     | [nfnetf3_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf3_imagenet.h5) |
-  | NFNetF4     | 316.1M | 512              | 85.9     | [nfnetf4_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf4_imagenet.h5) |
-  | NFNetF5     | 377.2M | 544              | 86.0     | [nfnetf5_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf5_imagenet.h5) |
-  | NFNetF6 SAM | 438.4M | 576              | 86.5     | [nfnetf6_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf6_imagenet.h5) |
-  | NFNetF7     | 499.5M | 608              |          |          |
-  | ECA_NFNetL0 | 24.14M | 288              | 82.58    | [eca_nfnetl0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/eca_nfnetl0_imagenet.h5) |
-  | ECA_NFNetL1 | 41.41M | 320              | 84.01    | [eca_nfnetl1_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/eca_nfnetl1_imagenet.h5) |
-  | ECA_NFNetL2 | 56.72M | 384              | 84.70    | [eca_nfnetl2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/eca_nfnetl2_imagenet.h5) |
-  | ECA_NFNetL3 | 72.04M | 448              |          |          |
+  | Model       | Params | FLOPs   | Input | Top1 Acc | Download |
+  | ----------- | ------ | ------- | ----- | -------- | -------- |
+  | NFNetL0     | 35.07M | 7.13G   | 288   | 82.75    | [nfnetl0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetl0_imagenet.h5) |
+  | NFNetF0     | 71.5M  | 12.58G  | 256   | 83.6     | [nfnetf0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf0_imagenet.h5) |
+  | NFNetF1     | 132.6M | 35.95G  | 320   | 84.7     | [nfnetf1_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf1_imagenet.h5) |
+  | NFNetF2     | 193.8M | 63.24G  | 352   | 85.1     | [nfnetf2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf2_imagenet.h5) |
+  | NFNetF3     | 254.9M | 115.75G | 416   | 85.7     | [nfnetf3_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf3_imagenet.h5) |
+  | NFNetF4     | 316.1M | 216.78G | 512   | 85.9     | [nfnetf4_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf4_imagenet.h5) |
+  | NFNetF5     | 377.2M | 291.73G | 544   | 86.0     | [nfnetf5_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf5_imagenet.h5) |
+  | NFNetF6 SAM | 438.4M | 379.75G | 576   | 86.5     | [nfnetf6_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/nfnetf6_imagenet.h5) |
+  | NFNetF7     | 499.5M | 481.80G | 608   |          |          |
+  | ECA_NFNetL0 | 24.14M | 7.12G   | 288   | 82.58    | [eca_nfnetl0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/eca_nfnetl0_imagenet.h5) |
+  | ECA_NFNetL1 | 41.41M | 14.93G  | 320   | 84.01    | [eca_nfnetl1_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/eca_nfnetl1_imagenet.h5) |
+  | ECA_NFNetL2 | 56.72M | 30.12G  | 384   | 84.70    | [eca_nfnetl2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/eca_nfnetl2_imagenet.h5) |
+  | ECA_NFNetL3 | 72.04M | 52.73G  | 448   |          |          |
 ## Usage
   ```py
   from keras_cv_attention_models import nfnets

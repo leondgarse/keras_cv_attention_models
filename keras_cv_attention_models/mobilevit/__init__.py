@@ -42,11 +42,11 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model         | Params | Image resolution | Top1 Acc |
-  | ------------- | ------ | ---------------- | -------- |
-  | MobileViT_XXS | 1.3M   | 256              | 69.0     |
-  | MobileViT_XS  | 2.3M   | 256              | 74.7     |
-  | MobileViT_S   | 5.6M   | 256              | 78.3     |
+  | Model         | Params | FLOPs | Input | Top1 Acc |
+  | ------------- | ------ | ----- | ----- | -------- |
+  | MobileViT_XXS | 1.3M   | 0.42G | 256   | 69.0     |
+  | MobileViT_XS  | 2.3M   | 1.05G | 256   | 74.7     |
+  | MobileViT_S   | 5.6M   | 2.03G | 256   | 78.3     |
 """
 
 MobileViT_XXS.__doc__ = __head_doc__ + """

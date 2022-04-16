@@ -7,14 +7,14 @@
 ***
 
 ## Models
-  | Model         | Params | Image resolution | Top1 Acc | Download            |
-  | ------------- | ------ | ---------------- | -------- | ------------------- |
-  | BotNet50      | 21M    | 224              |          |  |
-  | BotNet101     | 41M    | 224              |          |  |
-  | BotNet152     | 56M    | 224              |          |  |
-  | BotNet26T     | 12.5M  | 256              | 79.246   | [botnet26t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet26t_256_imagenet.h5) |
-  | BotNextECA26T | 10.59M | 256              | 79.270   | [botnext_eca26t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnext_eca26t_256_imagenet.h5) |
-  | BotNetSE33T   | 13.7M  | 256              | 81.2     | [botnet_se33t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet_se33t_256_imagenet.h5) |
+  | Model         | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ------------- | ------ | ------ | ----- | -------- | -------- |
+  | BotNet50      | 21M    | 5.42G  | 224   |          |          |
+  | BotNet101     | 41M    | 9.13G  | 224   |          |          |
+  | BotNet152     | 56M    | 12.84G | 224   |          |          |
+  | BotNet26T     | 12.5M  | 3.30G  | 256   | 79.246   | [botnet26t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet26t_256_imagenet.h5) |
+  | BotNextECA26T | 10.59M | 2.45G  | 256   | 79.270   | [botnext_eca26t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnext_eca26t_256_imagenet.h5) |
+  | BotNetSE33T   | 13.7M  | 3.89G  | 256   | 81.2     | [botnet_se33t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet_se33t_256_imagenet.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import botnet

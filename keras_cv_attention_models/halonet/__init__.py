@@ -56,23 +56,24 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model          | Params | Image resolution | Top1 Acc |
-  | -------------- | ------ | ---------------- | -------- |
-  | HaloNetH0      | 5.5M   | 256              | 77.9     |
-  | HaloNetH1      | 8.1M   | 256              | 79.9     |
-  | HaloNetH2      | 9.4M   | 256              | 80.4     |
-  | HaloNetH3      | 11.8M  | 320              | 81.9     |
-  | HaloNetH4      | 19.1M  | 384              | 83.3     |
-  | - 21k          | 19.1M  | 384              | 85.5     |
-  | HaloNetH5      | 30.7M  | 448              | 84.0     |
-  | HaloNetH6      | 43.4M  | 512              | 84.4     |
-  | HaloNetH7      | 67.4M  | 600              | 84.9     |
-  | HaloNextECA26T | 10.7M  | 256              | 79.50    |
-  | HaloNet26T     | 12.5M  | 256              | 79.13    |
-  | HaloNetSE33T   | 13.7M  | 256              | 80.99    |
-  | HaloRegNetZB   | 11.68M | 224              | 81.042   |
-  | HaloNet50T     | 22.7M  | 256              | 81.70    |
-  | HaloBotNet50T  | 22.6M  | 256              | 82.0     |
+  | Model          | Params | FLOPs   | Input | Top1 Acc |
+  | -------------- | ------ | ------- | ----- | -------- |
+  | HaloNetH0      | 5.5M   | 2.40G   | 256   | 77.9     |
+  | HaloNetH1      | 8.1M   | 3.04G   | 256   | 79.9     |
+  | HaloNetH2      | 9.4M   | 3.37G   | 256   | 80.4     |
+  | HaloNetH3      | 11.8M  | 6.30G   | 320   | 81.9     |
+  | HaloNetH4      | 19.1M  | 12.17G  | 384   | 83.3     |
+  | - 21k          | 19.1M  | 12.17G  | 384   | 85.5     |
+  | HaloNetH5      | 30.7M  | 32.61G  | 448   | 84.0     |
+  | HaloNetH6      | 43.4M  | 53.20G  | 512   | 84.4     |
+  | HaloNetH7      | 67.4M  | 119.64G | 600   | 84.9     |
+  | HaloNextECA26T | 10.7M  | 2.43G   | 256   | 79.50    |
+  | HaloNet26T     | 12.5M  | 3.18G   | 256   | 79.13    |
+  | HaloNetSE33T   | 13.7M  | 3.55G   | 256   | 80.99    |
+  | HaloRegNetZB   | 11.68M | 1.97G   | 224   | 81.042   |
+  | HaloNet50T     | 22.7M  | 5.29G   | 256   | 81.70    |
+  | HaloBotNet50T  | 22.6M  | 5.02G   | 256   | 82.0     |
+
 """
 
 HaloNetH0.__doc__ = __head_doc__ + """

@@ -9,14 +9,31 @@
     - `85 preds` from `yolor_head` output changed from `[bboxes, object_scores, class_scores]` to `[bboxes, class_scores, object_scores]`.
     - `bboxes` format changed from `[left, top, right, bottom]` to `[top, left, bottom, right]`.
 ## Models
-  | Model      | Params | Image resolution | COCO val AP | test AP | Download |
-  | ---------- | ------ | ---------------- | ----------- | ------- | -------- |
-  | YOLOR_CSP  | 52.9M  | 640              | 50.0        | 52.8    | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5)     |
-  | YOLOR_CSPX | 99.8M  | 640              | 51.5        | 54.8    | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
-  | YOLOR_P6   | 37.3M  | 1280             | 52.5        | 55.7    | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5)       |
-  | YOLOR_W6   | 79.9M  | 1280             |             | 56.9    | [yolor_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_w6_coco.h5)       |
-  | YOLOR_E6   | 115.9M | 1280             |             | 57.6    | [yolor_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_e6_coco.h5)       |
-  | YOLOR_D6   | 151.8M | 1280             |             | 58.2    | [yolor_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_d6_coco.h5)       |
+  - `YOLOR_E6` and `YOLOR_D6` weights are from [Github WongKinYiu/yolor/tree/paper](https://github.com/WongKinYiu/yolor/tree/paper), which is using `batchnorm + activation` after concatenating `short` and `deep` branch in `csp_stack`, different from others.
+
+  | Model      | Params | FLOPs   | Input | COCO val AP | test AP | Download |
+  | ---------- | ------ | ------- | ----- | ----------- | ------- | -------- |
+  | YOLOR_CSP  | 52.9M  | 60.25G  | 640   | 50.0        | 52.8    | [yolor_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_coco.h5)     |
+  | YOLOR_CSPX | 99.8M  | 111.11G | 640   | 51.5        | 54.8    | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
+  | YOLOR_P6   | 37.3M  | 162.87G | 1280  | 52.5        | 55.7    | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5)       |
+  | YOLOR_W6   | 79.9M  | 226.67G | 1280  | 53.6 ?      | 56.9    | [yolor_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_w6_coco.h5)       |
+  | YOLOR_E6   | 115.9M | 341.62G | 1280  | 50.8 ?      | 57.6    | [yolor_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_e6_coco.h5)       |
+  | YOLOR_D6   | 151.8M | 467.88G | 1280  | 50.3 ?      | 58.2    | [yolor_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_d6_coco.h5)       |
+
+  **COCO val evaluation results**. More usage info can be found in [COCO Evaluation](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco#evaluation).
+  ```sh
+  CUDA_VISIBLE_DEVICES='0' ./coco_eval_script.py -m yolor.YOLOR_P6 --nms_method hard --nms_iou_or_sigma 0.65 \
+  --nms_max_output_size 300 --nms_topk -1 --letterbox_pad 64 --input_shape 1344
+  ```
+  | Model    | letterbox_pad | input_shape | COCO Val AP 0.50:0.95, area=all |
+  | -------- | ------------- | ----------- | ------------------------------- |
+  | YOLOR_P6 | 0             | 1280        | 0.521                           |
+  | YOLOR_P6 | 64            | 1344        | 0.526                           |
+  | YOLOR_W6 | 0             | 1280        | 0.530                           |
+  | YOLOR_W6 | 64            | 1344        | 0.536                           |
+  | YOLOR_W6 | 128           | 1408        | 0.536                           |
+  | YOLOR_E6 | 64            | 1344        | 0.503                           |
+  | YOLOR_D6 | 64            | 1344        | 0.508                           |
 ## Usage
   - **Basic usage**
     ```py
@@ -110,7 +127,7 @@
   keras_out = mm(inputs)
 
   """ Model outputs verification """
-  # keras channel_last compatible format to pytorch channel_first one
+  # keras channel_last compatible format to pytorch channel_first one, torch_out[0].shape == [1, 3, 80, 80, 85]
   keras_out_reorder = tf.transpose(tf.reshape(keras_out[:, :np.prod(torch_out[0].shape[:-1])], [1, -1, 3, 85]), [0, 2, 1, 3])
   keras_out_reorder = tf.reshape(keras_out_reorder, torch_out[0].shape)
   # [top, left, bottom, right, *class_scores, object_score] -> [left, top, right, bottom ,object_score, *class_scores]

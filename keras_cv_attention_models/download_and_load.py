@@ -214,7 +214,7 @@ def try_save_pth_and_onnx(torch_model, input_shape=(224, 224), save_pth=True, sa
                 verbose=False,
                 keep_initializers_as_inputs=True,
                 training=torch.onnx.TrainingMode.PRESERVE,
-                do_constant_folding=True,
+                do_constant_folding=False,
                 opset_version=13,
             )
             print(">>>> Saved to:", output_name)

@@ -66,24 +66,24 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained=[None, "imagenet", "imagenet21k", "imagenet21k-ft1k"]) + """
 Model architectures:
-  | V2 Model                   | Params | Image resolution | Top1 Acc |
-  | -------------------------- | ------ | ---------------- | -------- |
-  | EfficientNetV2B0           | 7.1M   | 224              | 78.7     |
-  | - ImageNet21k-ft1k         | 7.1M   | 224              | 77.55?   |
-  | EfficientNetV2B1           | 8.1M   | 240              | 79.8     |
-  | - ImageNet21k-ft1k         | 8.1M   | 240              | 79.03?   |
-  | EfficientNetV2B2           | 10.1M  | 260              | 80.5     |
-  | - ImageNet21k-ft1k         | 10.1M  | 260              | 79.48?   |
-  | EfficientNetV2B3           | 14.4M  | 300              | 82.1     |
-  | - ImageNet21k-ft1k         | 14.4M  | 300              | 82.46?   |
-  | EfficientNetV2T            | 13.6M  | 320              | 82.5     |
-  | EfficientNetV2S            | 21.5M  | 384              | 83.9     |
-  | - ImageNet21k-ft1k         | 21.5M  | 384              | 84.9     |
-  | EfficientNetV2M            | 54.1M  | 480              | 85.2     |
-  | - ImageNet21k-ft1k         | 54.1M  | 480              | 86.2     |
-  | EfficientNetV2L            | 119.5M | 480              | 85.7     |
-  | - ImageNet21k-ft1k         | 119.5M | 480              | 86.9     |
-  | EfficientNetV2XL, 21k-ft1k | 206.8M | 512              | 87.2     |
+  | V2 Model                   | Params | FLOPs  | Input | Top1 Acc |
+  | -------------------------- | ------ | ------ | ----- | -------- |
+  | EfficientNetV2B0           | 7.1M   | 0.72G  | 224   | 78.7     |
+  | - ImageNet21k-ft1k         | 7.1M   | 0.72G  | 224   | 77.55?   |
+  | EfficientNetV2B1           | 8.1M   | 1.21G  | 240   | 79.8     |
+  | - ImageNet21k-ft1k         | 8.1M   | 1.21G  | 240   | 79.03?   |
+  | EfficientNetV2B2           | 10.1M  | 1.71G  | 260   | 80.5     |
+  | - ImageNet21k-ft1k         | 10.1M  | 1.71G  | 260   | 79.48?   |
+  | EfficientNetV2B3           | 14.4M  | 3.03G  | 300   | 82.1     |
+  | - ImageNet21k-ft1k         | 14.4M  | 3.03G  | 300   | 82.46?   |
+  | EfficientNetV2T            | 13.6M  | 3.92G  | 320   | 82.5     |
+  | EfficientNetV2S            | 21.5M  | 8.41G  | 384   | 83.9     |
+  | - ImageNet21k-ft1k         | 21.5M  | 8.41G  | 384   | 84.9     |
+  | EfficientNetV2M            | 54.1M  | 24.69G | 480   | 85.2     |
+  | - ImageNet21k-ft1k         | 54.1M  | 24.69G | 480   | 86.2     |
+  | EfficientNetV2L            | 119.5M | 56.27G | 480   | 85.7     |
+  | - ImageNet21k-ft1k         | 119.5M | 56.27G | 480   | 86.9     |
+  | EfficientNetV2XL, 21k-ft1k | 206.8M | 93.66G | 512   | 87.2     |
 
 Training configures: `Eval size` is used as the default model `input_shape` for each model type.
   | Model            | Train size | Eval size | Dropout | Randaug | Mixup |
@@ -145,25 +145,25 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained=[None, "imagenet", "noisy_student"]) + """
 Model architectures:
-  | V1 Model                       | Params | Image resolution | Top1 Acc |
-  | ------------------------------ | ------ | ---------------- | -------- |
-  | EfficientNetV1B0               | 5.3M   | 224              | 77.6     |
-  | - NoisyStudent                 | 5.3M   | 224              | 78.8     |
-  | EfficientNetV1B1               | 7.8M   | 240              | 79.6     |
-  | - NoisyStudent                 | 7.8M   | 240              | 81.5     |
-  | EfficientNetV1B2               | 9.1M   | 260              | 80.5     |
-  | - NoisyStudent                 | 9.1M   | 260              | 82.4     |
-  | EfficientNetV1B3               | 12.2M  | 300              | 81.9     |
-  | - NoisyStudent                 | 12.2M  | 300              | 84.1     |
-  | EfficientNetV1B4               | 19.3M  | 380              | 83.3     |
-  | - NoisyStudent                 | 19.3M  | 380              | 85.3     |
-  | EfficientNetV1B5               | 30.4M  | 456              | 84.3     |
-  | - NoisyStudent                 | 30.4M  | 456              | 86.1     |
-  | EfficientNetV1B6               | 43.0M  | 528              | 84.8     |
-  | - NoisyStudent                 | 43.0M  | 528              | 86.4     |
-  | EfficientNetV1B7               | 66.3M  | 600              | 85.2     |
-  | - NoisyStudent                 | 66.3M  | 600              | 86.9     |
-  | EfficientNetV1L2, NoisyStudent | 480.3M | 800              | 88.4     |
+  | V1 Model                       | Params | FLOPs   | Input | Top1 Acc |
+  | ------------------------------ | ------ | ------- | ----- | -------- |
+  | EfficientNetV1B0               | 5.3M   | 0.39G   | 224   | 77.6     |
+  | - NoisyStudent                 | 5.3M   | 0.39G   | 224   | 78.8     |
+  | EfficientNetV1B1               | 7.8M   | 0.70G   | 240   | 79.6     |
+  | - NoisyStudent                 | 7.8M   | 0.70G   | 240   | 81.5     |
+  | EfficientNetV1B2               | 9.1M   | 1.01G   | 260   | 80.5     |
+  | - NoisyStudent                 | 9.1M   | 1.01G   | 260   | 82.4     |
+  | EfficientNetV1B3               | 12.2M  | 1.86G   | 300   | 81.9     |
+  | - NoisyStudent                 | 12.2M  | 1.86G   | 300   | 84.1     |
+  | EfficientNetV1B4               | 19.3M  | 4.46G   | 380   | 83.3     |
+  | - NoisyStudent                 | 19.3M  | 4.46G   | 380   | 85.3     |
+  | EfficientNetV1B5               | 30.4M  | 10.40G  | 456   | 84.3     |
+  | - NoisyStudent                 | 30.4M  | 10.40G  | 456   | 86.1     |
+  | EfficientNetV1B6               | 43.0M  | 19.29G  | 528   | 84.8     |
+  | - NoisyStudent                 | 43.0M  | 19.29G  | 528   | 86.4     |
+  | EfficientNetV1B7               | 66.3M  | 38.13G  | 600   | 85.2     |
+  | - NoisyStudent                 | 66.3M  | 38.13G  | 600   | 86.9     |
+  | EfficientNetV1L2, NoisyStudent | 480.3M | 477.98G | 800   | 88.4     |
 
 
 Training configures:

@@ -12,20 +12,20 @@
 ## Models
   - It's claimed the `token_label` model works better for down stream tasks like object detection. Reload those weights by `pretrained="token_label"`.
 
-  | Model                 | Params | Image resolution | Top1 Acc | Download |
-  | --------------------- | ------ | ---------------- | -------- | -------- |
-  | UniformerSmall32 + TL | 22M    | 224              | 83.4     | [small_32_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_32_224_token_label.h5) |
-  | UniformerSmall64      | 22M    | 224              | 82.9     | [small_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_64_224_imagenet.h5) |
-  | - Token Labeling      | 22M    | 224              | 83.4     | [small_64_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_64_224_token_label.h5) |
-  | UniformerSmallPlus32  | 24M    | 224              | 83.4     | [small_plus_32_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_32_224_imagenet.h5) |
-  | - Token Labeling      | 24M    | 224              | 83.9     | [small_plus_32_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_32_224_token_label.h5) |
-  | UniformerSmallPlus64  | 24M    | 224              | 83.4     | [small_plus_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_64_224_imagenet.h5) |
-  | - Token Labeling      | 24M    | 224              | 83.6     | [small_plus_64_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_64_224_token_label.h5) |
-  | UniformerBase32 + TL  | 50M    | 224              | 85.1     | [base_32_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_32_224_token_label.h5) |
-  | UniformerBase64       | 50M    | 224              | 83.8     | [base_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_imagenet.h5) |
-  | - Token Labeling      | 50M    | 224              | 84.8     | [base_64_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_token_label.h5) |
-  | UniformerLarge64 + TL | 100M   | 224              | 85.6     | [large_64_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_224_token_label.h5) |
-  | UniformerLarge64 + TL | 100M   | 384              | 86.3     | [large_64_384_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_384_token_label.h5) |
+  | Model                 | Params | FLOPs  | Input | Top1 Acc | Download |
+  | --------------------- | ------ | ------ | ----- | -------- | -------- |
+  | UniformerSmall32 + TL | 22M    | 3.66G  | 224   | 83.4     | [small_32_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_32_224_token_label.h5) |
+  | UniformerSmall64      | 22M    | 3.66G  | 224   | 82.9     | [small_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_64_224_imagenet.h5) |
+  | - Token Labeling      | 22M    | 3.66G  | 224   | 83.4     | [small_64_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_64_224_token_label.h5) |
+  | UniformerSmallPlus32  | 24M    | 4.24G  | 224   | 83.4     | [small_plus_32_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_32_224_imagenet.h5) |
+  | - Token Labeling      | 24M    | 4.24G  | 224   | 83.9     | [small_plus_32_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_32_224_token_label.h5) |
+  | UniformerSmallPlus64  | 24M    | 4.23G  | 224   | 83.4     | [small_plus_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_64_224_imagenet.h5) |
+  | - Token Labeling      | 24M    | 4.23G  | 224   | 83.6     | [small_plus_64_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_64_224_token_label.h5) |
+  | UniformerBase32 + TL  | 50M    | 8.32G  | 224   | 85.1     | [base_32_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_32_224_token_label.h5) |
+  | UniformerBase64       | 50M    | 8.31G  | 224   | 83.8     | [base_64_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_imagenet.h5) |
+  | - Token Labeling      | 50M    | 8.31G  | 224   | 84.8     | [base_64_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_token_label.h5) |
+  | UniformerLarge64 + TL | 100M   | 19.79G | 224   | 85.6     | [large_64_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_224_token_label.h5) |
+  | UniformerLarge64 + TL | 100M   | 63.11G | 384   | 86.3     | [large_64_384_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_384_token_label.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import uniformer

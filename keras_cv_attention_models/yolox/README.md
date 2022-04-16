@@ -8,14 +8,21 @@
     - `yolox_head` output changed from `[bboxes, object_scores, class_scores]` to `[bboxes, class_scores, object_scores]`
     - `bboxes` format changed from `[left, top, right, bottom]` to `[top, left, bottom, right]`.
 ## Models
-  | Model     | Params | Image resolution | COCO val AP | test AP | Download |
-  | --------- | ------ | ---------------- | ----------- | ------- | -------- |
-  | YOLOXNano | 0.91M  | 416              | 25.8        |         | [yolox_nano_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_nano_coco.h5) |
-  | YOLOXTiny | 5.06M  | 416              | 32.8        |         | [yolox_tiny_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_tiny_coco.h5) |
-  | YOLOXS    | 9.0M   | 640              | 40.5        | 40.5    | [yolox_s_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_s_coco.h5)       |
-  | YOLOXM    | 25.3M  | 640              | 46.9        | 47.2    | [yolox_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_m_coco.h5)       |
-  | YOLOXL    | 54.2M  | 640              | 49.7        | 50.1    | [yolox_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_l_coco.h5)       |
-  | YOLOXX    | 99.1M  | 640              | 51.5        | 51.5    | [yolox_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_x_coco.h5)       |
+  | Model     | Params | FLOPs   | Input | COCO val AP | test AP | Download |
+  | --------- | ------ | ------- | ----- | ----------- | ------- | -------- |
+  | YOLOXNano | 0.91M  | 0.53G   | 416   | 25.8        |         | [yolox_nano_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_nano_coco.h5) |
+  | YOLOXTiny | 5.06M  | 3.22G   | 416   | 32.8        |         | [yolox_tiny_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_tiny_coco.h5) |
+  | YOLOXS    | 9.0M   | 13.39G  | 640   | 40.5        | 40.5    | [yolox_s_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_s_coco.h5)       |
+  | YOLOXM    | 25.3M  | 36.84G  | 640   | 46.9        | 47.2    | [yolox_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_m_coco.h5)       |
+  | YOLOXL    | 54.2M  | 77.76G  | 640   | 49.7        | 50.1    | [yolox_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_l_coco.h5)       |
+  | YOLOXX    | 99.1M  | 140.87G | 640   | 51.5        | 51.5    | [yolox_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_x_coco.h5)       |
+
+  **COCO val evaluation**. More usage info can be found in [COCO Evaluation](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco#evaluation).
+  ```py
+  # YOLOX using BGR input format
+  CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXTiny --use_bgr_input --nms_method hard --nms_iou_or_sigma 0.65
+  # >>>> [COCOEvalCallback] input_shape: (416, 416), pyramid_levels: [3, 5], anchors_mode: anchor_free
+  ```
 ## Usage
   - **Basic usage**. Note pretrained `YOLOX` model weights using `BGR` input format.
     ```py

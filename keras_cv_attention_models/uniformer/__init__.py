@@ -54,20 +54,20 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model                 | Params | Image resolution | Top1 Acc |
-  | --------------------- | ------ | ---------------- | -------- |
-  | UniformerSmall32 + TL | 22M    | 224              | 83.4     |
-  | UniformerSmall64      | 22M    | 224              | 82.9     |
-  | - Token Labeling      | 22M    | 224              | 83.4     |
-  | UniformerSmallPlus32  | 24M    | 224              | 83.4     |
-  | - Token Labeling      | 24M    | 224              | 83.9     |
-  | UniformerSmallPlus64  | 24M    | 224              | 83.4     |
-  | - Token Labeling      | 24M    | 224              | 83.6     |
-  | UniformerBase32 + TL  | 50M    | 224              | 85.1     |
-  | UniformerBase64       | 50M    | 224              | 83.8     |
-  | - Token Labeling      | 50M    | 224              | 84.8     |
-  | UniformerLarge64 + TL | 100M   | 224              | 85.6     |
-  | UniformerLarge64 + TL | 100M   | 384              | 86.3     |
+  | Model                 | Params | FLOPs  | Input | Top1 Acc |
+  | --------------------- | ------ | ------ | ----- | -------- |
+  | UniformerSmall32 + TL | 22M    | 3.66G  | 224   | 83.4     |
+  | UniformerSmall64      | 22M    | 3.66G  | 224   | 82.9     |
+  | - Token Labeling      | 22M    | 3.66G  | 224   | 83.4     |
+  | UniformerSmallPlus32  | 24M    | 4.24G  | 224   | 83.4     |
+  | - Token Labeling      | 24M    | 4.24G  | 224   | 83.9     |
+  | UniformerSmallPlus64  | 24M    | 4.23G  | 224   | 83.4     |
+  | - Token Labeling      | 24M    | 4.23G  | 224   | 83.6     |
+  | UniformerBase32 + TL  | 50M    | 8.32G  | 224   | 85.1     |
+  | UniformerBase64       | 50M    | 8.31G  | 224   | 83.8     |
+  | - Token Labeling      | 50M    | 8.31G  | 224   | 84.8     |
+  | UniformerLarge64 + TL | 100M   | 19.79G | 224   | 85.6     |
+  | UniformerLarge64 + TL | 100M   | 63.11G | 384   | 86.3     |
 """
 
 UniformerSmall32.__doc__ = __head_doc__ + """

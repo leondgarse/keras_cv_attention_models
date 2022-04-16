@@ -33,12 +33,15 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model    | Params | Image resolution | Top1 Acc |
-  | -------- | ------ | ---------------- | -------- |
-  | CMTTiny  | 9.5M   | 160              | 79.2     |
-  | CMTXS    | 15.2M  | 192              | 81.8     |
-  | CMTSmall | 25.1M  | 224              | 83.5     |
-  | CMTBig   | 45.7M  | 256              | 84.5     |
+  | Model                              | Params | FLOPs | Input | Top1 Acc |
+  | ---------------------------------- | ------ | ----- | ----- | -------- |
+  | CMTTiny, (Self trained 105 epochs) | 9.5M   | 0.65G | 160   | 77.4     |
+  | - 305 epochs                       | 9.5M   | 0.65G | 160   | 78.8     |
+  | - evaluate 224 (not fine-tuned)    | 9.5M   | 1.32G | 224   | 80.1     |
+  | CMTTiny, 1000 epochs               | 9.5M   | 0.65G | 160   | 79.2     |
+  | CMTXS                              | 15.2M  | 1.58G | 192   | 81.8     |
+  | CMTSmall                           | 25.1M  | 4.09G | 224   | 83.5     |
+  | CMTBig                             | 45.7M  | 9.42G | 256   | 84.5     |
 """
 
 CMTTiny.__doc__ = __head_doc__ + """

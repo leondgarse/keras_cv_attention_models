@@ -31,14 +31,14 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model         | Params | Image resolution | Top1 Acc |
-  | ------------- | ------ | ---------------- | -------- |
-  | BotNet50      | 21M    | 224              |          |
-  | BotNet101     | 41M    | 224              |          |
-  | BotNet152     | 56M    | 224              |          |
-  | BotNet26T     | 12.5M  | 256              | 79.246   |
-  | BotNextECA26T | 10.59M | 256              | 79.270   |
-  | BotNetSE33T   | 13.7M  | 256              | 81.2     |
+  | Model         | Params | FLOPs  | Input | Top1 Acc |
+  | ------------- | ------ | ------ | ----- | -------- |
+  | BotNet50      | 21M    | 5.42G  | 224   |          |
+  | BotNet101     | 41M    | 9.13G  | 224   |          |
+  | BotNet152     | 56M    | 12.84G | 224   |          |
+  | BotNet26T     | 12.5M  | 3.30G  | 256   | 79.246   |
+  | BotNextECA26T | 10.59M | 2.45G  | 256   | 79.270   |
+  | BotNetSE33T   | 13.7M  | 3.89G  | 256   | 81.2     |
 """
 
 BotNet50.__doc__ = __head_doc__ + """

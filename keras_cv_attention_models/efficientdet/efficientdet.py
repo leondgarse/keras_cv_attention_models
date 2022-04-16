@@ -335,5 +335,5 @@ def EfficientDetLite4(input_shape=(640, 640, 3), freeze_backbone=False, num_clas
         backbone = efficientnet.EfficientNetV1Lite4(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
         features_pick = ["stack_2_block3_output", "stack_4_block5_output", "stack_6_block0_output"]
     model_name = kwargs.pop("model_name", "efficientdet_lite4")
-    anchor_scale = kwargs.pop("anchor_scale", 3)
+    anchor_scale = kwargs.pop("anchor_scale", 4)
     return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=224, use_weighted_sum=False, rescale_mode="tf", **kwargs)

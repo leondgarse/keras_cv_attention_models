@@ -32,16 +32,16 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model        | Params | Image resolution | FLOPs | Top1 Acc |
-  | ------------ |:------:| ---------------- | ----- |:--------:|
-  | CotNet50     | 22.2M  | 224              | 3.3   |   81.3   |
-  | CoTNeXt50    | 30.1M  | 224              | 4.3   |   82.1   |
-  | CotNetSE50D  | 23.1M  | 224              | 4.1   |   81.6   |
-  | CotNet101    | 38.3M  | 224              | 6.1   |   82.8   |
-  | CoTNeXt-101  | 53.4M  | 224              | 8.2   |   83.2   |
-  | CotNetSE101D | 40.9M  | 224              | 8.5   |   83.2   |
-  | CotNetSE152D | 55.8M  | 224              | 17.0  |   84.0   |
-  | CotNetSE152D | 55.8M  | 320              | 26.5  |   84.6   |
+  | Model        | Params | FLOPs  | Input | Top1 Acc |
+  | ------------ |:------:| ------ | ----- |:--------:|
+  | CotNet50     | 22.2M  | 3.25G  | 224   |   81.3   |
+  | CotNeXt50    | 30.1M  | 4.3G   | 224   |   82.1   |
+  | CotNetSE50D  | 23.1M  | 4.05G  | 224   |   81.6   |
+  | CotNet101    | 38.3M  | 6.07G  | 224   |   82.8   |
+  | CotNeXt101   | 53.4M  | 8.2G   | 224   |   83.2   |
+  | CotNetSE101D | 40.9M  | 8.44G  | 224   |   83.2   |
+  | CotNetSE152D | 55.8M  | 12.22G | 224   |   84.0   |
+  | CotNetSE152D | 55.8M  | 24.92G | 320   |   84.6   |
 """
 
 CotNet50.__doc__ = __head_doc__ + """

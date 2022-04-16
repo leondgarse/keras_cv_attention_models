@@ -58,15 +58,15 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet", "swsl"]) + """
 Model architectures:
-  | Model                     | Params | Image resolution | Top1 Acc |
-  | ------------------------- | ------ | ---------------- | -------- |
-  | ResNeXt50 (32x4d)         | 25M    | 224              | 79.768   |
-  | - SWSL                    | 25M    | 224              | 82.182   |
-  | ResNeXt50D (32x4d + deep) | 25M    | 224              | 79.676   |
-  | ResNeXt101 (32x4d)        | 42M    | 224              | 80.334   |
-  | - SWSL                    | 42M    | 224              | 83.230   |
-  | ResNeXt101W (32x8d)       | 89M    | 224              | 79.308   |
-  | - SWSL                    | 89M    | 224              | 84.284   |
+  | Model                     | Params | FLOPs  | Input | Top1 Acc |
+  | ------------------------- | ------ | ------ | ----- | -------- |
+  | ResNeXt50 (32x4d)         | 25M    | 4.23G  | 224   | 79.768   |
+  | - SWSL                    | 25M    | 4.23G  | 224   | 82.182   |
+  | ResNeXt50D (32x4d + deep) | 25M    | 4.47G  | 224   | 79.676   |
+  | ResNeXt101 (32x4d)        | 42M    | 7.97G  | 224   | 80.334   |
+  | - SWSL                    | 42M    | 7.97G  | 224   | 83.230   |
+  | ResNeXt101W (32x8d)       | 89M    | 16.41G | 224   | 79.308   |
+  | - SWSL                    | 89M    | 16.41G | 224   | 84.284   |
 """
 
 __resnext_default_doc__ = __resnext_head_doc__ + """
@@ -96,12 +96,12 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet"]) + """
 Model architectures:
-  | Model      | Params | Image resolution | Top1 Acc |
-  | ---------- | ------ | ---------------- | -------- |
-  | ResNet50D  | 25.58M | 224              | 80.530   |
-  | ResNet101D | 44.57M | 224              | 83.022   |
-  | ResNet152D | 60.21M | 224              | 83.680   |
-  | ResNet200D | 64.69M | 224              | 83.962   |
+  | Model      | Params | FLOPs  | Input | Top1 Acc |
+  | ---------- | ------ | ------ | ----- | -------- |
+  | ResNet50D  | 25.58M | 4.33G  | 224   | 80.530   |
+  | ResNet101D | 44.57M | 8.04G  | 224   | 83.022   |
+  | ResNet152D | 60.21M | 11.75G | 224   | 83.680   |
+  | ResNet200D | 64.69M | 15.25G | 224   | 83.962   |
 """
 
 __resnetd_default_doc__ = __resnetd_head_doc__ + """
@@ -155,10 +155,10 @@ Args:
   model_name: string, model name.
 """ + __resnetq_tail_doc__ + """
 Model architectures:
-  | Model     | Params | Image resolution | Top1 Acc |
-  | --------- | ------ | ---------------- | -------- |
-  | ResNet51Q | 35.7M  | 224              | 82.36    |
-  | ResNet61Q | 36.8M  | 224              |          |
+  | Model     | Params | FLOPs | Input | Top1 Acc |
+  | --------- | ------ | ----- | ----- | -------- |
+  | ResNet51Q | 35.7M  | 4.87G | 224   | 82.36    |
+  | ResNet61Q | 36.8M  | 5.96G | 224   |          |
 """
 
 ResNet51Q.__doc__ = __resnetq_head_doc__ + """
@@ -182,13 +182,13 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet"]) + """
 Model architectures:
-  | Model      | Params  | Image resolution | Top1 Acc |
-  | ---------- | ------- | ---------------- | -------- |
-  | RegNetY040 | 20.65M  | 224              | 82.3     |
-  | RegNetY064 | 30.58M  | 224              | 83.0     |
-  | RegNetY080 | 39.18M  | 224              | 83.17    |
-  | RegNetY160 | 83.59M  | 224              | 82.0     |
-  | RegNetY320 | 145.05M | 224              | 82.5     |
+  | Model      | Params  | FLOPs  | Input | Top1 Acc |
+  | ---------- | ------- | ------ | ----- | -------- |
+  | RegNetY040 | 20.65M  | 3.98G  | 224   | 82.3     |
+  | RegNetY064 | 30.58M  | 6.36G  | 224   | 83.0     |
+  | RegNetY080 | 39.18M  | 7.97G  | 224   | 83.17    |
+  | RegNetY160 | 83.59M  | 15.92G | 224   | 82.0     |
+  | RegNetY320 | 145.05M | 32.29G | 224   | 82.5     |
 """
 
 __regnety_default_doc__ = __regnety_head_doc__ + """
@@ -211,15 +211,15 @@ __regnetz_default_doc__ = __regnetz_head_doc__ + """
 Args:
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet"]) + """
 Model architectures:
-  | Model          | Params | Image resolution | Top1 Acc |
-  | -------------- | ------ | ---------------- | -------- |
-  | RegNetZB16     | 9.72M  | 224              | 79.868   |
-  | RegNetZC16     | 13.46M | 256              | 82.164   |
-  | RegNetZC16_EVO | 13.49M | 256              | 81.9     |
-  | RegNetZD32     | 27.58M | 256              | 83.422   |
-  | RegNetZD8      | 23.37M | 256              | 83.5     |
-  | RegNetZD8_EVO  | 23.46M | 256              | 83.42    |
-  | RegNetZE8      | 57.70M | 256              | 84.5     |
+  | Model          | Params | FLOPs | Input | Top1 Acc |
+  | -------------- | ------ | ----- | ----- | -------- |
+  | RegNetZB16     | 9.72M  | 1.44G | 224   | 79.868   |
+  | RegNetZC16     | 13.46M | 2.50G | 256   | 82.164   |
+  | RegNetZC16_EVO | 13.49M | 2.55G | 256   | 81.9     |
+  | RegNetZD32     | 27.58M | 5.96G | 256   | 83.422   |
+  | RegNetZD8      | 23.37M | 3.95G | 256   | 83.5     |
+  | RegNetZD8_EVO  | 23.46M | 4.61G | 256   | 83.42    |
+  | RegNetZE8      | 57.70M | 9.88G | 256   | 84.5     |
 """
 
 RegNetZB16.__doc__ = __regnetz_default_doc__

@@ -5,7 +5,7 @@ Keras implementation of [ConvNeXt](https://github.com/facebookresearch/ConvNeXt)
 Paper [PDF 2201.03545 A ConvNet for the 2020s](https://arxiv.org/pdf/2201.03545.pdf).
 """
 
-__tail_doc__ = """  layer_scale_init_value: init scale value for block's deep branch if create model from scratch. Default `1e-6`.
+__tail_doc__ = """  layer_scale_init_value: layer scale init value, [Going deeper with Image Transformers](https://arxiv.org/abs/2103.17239). Default `1e-6`.
   head_init_scale: init head layer scale value if create model from scratch or fine-tune. Default `1`.
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
@@ -27,20 +27,20 @@ Returns:
     A `keras.Model` instance.
 
 Model architectures:
-  | Model               | Params | Image resolution | Top1 Acc |
-  | ------------------- | ------ | ---------------- | -------- |
-  | ConvNeXtTiny        | 28M    | 224              | 82.1     |
-  | ConvNeXtSmall       | 50M    | 224              | 83.1     |
-  | ConvNeXtBase        | 89M    | 224              | 83.8     |
-  | ConvNeXtBase        | 89M    | 384              | 85.1     |
-  | - ImageNet21k-ft1k  | 89M    | 224              | 85.8     |
-  | - ImageNet21k-ft1k  | 89M    | 384              | 86.8     |
-  | ConvNeXtLarge       | 198M   | 224              | 84.3     |
-  | ConvNeXtLarge       | 198M   | 384              | 85.5     |
-  | - ImageNet21k-ft1k  | 198M   | 224              | 86.6     |
-  | - ImageNet21k-ft1k  | 198M   | 384              | 87.5     |
-  | ConvNeXtXLarge, 21k | 350M   | 224              | 87.0     |
-  | ConvNeXtXLarge, 21k | 350M   | 384              | 87.8     |
+  | Model               | Params | FLOPs   | Input | Top1 Acc |
+  | ------------------- | ------ | ------- | ----- | -------- |
+  | ConvNeXtTiny        | 28M    | 4.49G   | 224   | 82.1     |
+  | ConvNeXtSmall       | 50M    | 8.73G   | 224   | 83.1     |
+  | ConvNeXtBase        | 89M    | 15.42G  | 224   | 83.8     |
+  | ConvNeXtBase        | 89M    | 45.32G  | 384   | 85.1     |
+  | - ImageNet21k-ft1k  | 89M    | 15.42G  | 224   | 85.8     |
+  | - ImageNet21k-ft1k  | 89M    | 45.32G  | 384   | 86.8     |
+  | ConvNeXtLarge       | 198M   | 34.46G  | 224   | 84.3     |
+  | ConvNeXtLarge       | 198M   | 101.28G | 384   | 85.5     |
+  | - ImageNet21k-ft1k  | 198M   | 34.46G  | 224   | 86.6     |
+  | - ImageNet21k-ft1k  | 198M   | 101.28G | 384   | 87.5     |
+  | ConvNeXtXLarge, 21k | 350M   | 61.06G  | 224   | 87.0     |
+  | ConvNeXtXLarge, 21k | 350M   | 179.43G | 384   | 87.8     |
 """
 
 ConvNeXt.__doc__ = __head_doc__ + """

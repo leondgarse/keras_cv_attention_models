@@ -79,14 +79,14 @@ MobileNetV3.__doc__ = __mobilenetv3_head_doc__ + __head_doc__ + """
   [Model common parameters]
 """ + __tail_doc__ + """
 Model architectures:
-  | Model               | Params | Image resolution | Top1 Acc |
-  | ------------------- | ------ | ---------------- | -------- |
-  | MobileNetV3Small050 | 1.29M  | 224              | 57.89    |
-  | MobileNetV3Small075 | 2.04M  | 224              | 65.24    |
-  | MobileNetV3Small100 | 2.54M  | 224              | 67.66    |
-  | MobileNetV3Large075 | 3.99M  | 224              | 73.44    |
-  | MobileNetV3Large100 | 5.48M  | 224              | 75.77    |
-  | - miil              | 5.48M  | 224              | 77.92    |
+  | Model               | Params | FLOPs   | Input | Top1 Acc |
+  | ------------------- | ------ | ------- | ----- | -------- |
+  | MobileNetV3Small050 | 1.29M  | 24.92M  | 224   | 57.89    |
+  | MobileNetV3Small075 | 2.04M  | 44.35M  | 224   | 65.24    |
+  | MobileNetV3Small100 | 2.54M  | 57.62M  | 224   | 67.66    |
+  | MobileNetV3Large075 | 3.99M  | 156.30M | 224   | 73.44    |
+  | MobileNetV3Large100 | 5.48M  | 218.73M | 224   | 75.77    |
+  | - miil              | 5.48M  | 218.73M | 224   | 77.92    |
 """
 
 MobileNetV3Large.__doc__ = MobileNetV3.__doc__
@@ -111,11 +111,11 @@ FBNetV3.__doc__ = __fbnet_head_doc__ + __head_doc__ + """
   [Model common parameters]
 """ + __tail_doc__ + """
 Model architectures:
-  | Model    | Params | Image resolution | Top1 Acc |
-  | -------- | ------ | ---------------- | -------- |
-  | FBNetV3B | 5.57M  | 256              | 79.15    |
-  | FBNetV3D | 10.31M | 256              | 79.68    |
-  | FBNetV3G | 16.62M | 256              | 82.05    |
+  | Model    | Params | FLOPs    | Input | Top1 Acc |
+  | -------- | ------ | -------- | ----- | -------- |
+  | FBNetV3B | 5.57M  | 539.82M  | 256   | 79.15    |
+  | FBNetV3D | 10.31M | 665.02M  | 256   | 79.68    |
+  | FBNetV3G | 16.62M | 1379.30M | 256   | 82.05    |
 """
 
 FBNetV3B.__doc__ = __fbnet_head_doc__ + """
@@ -135,14 +135,14 @@ LCNet.__doc__ = __lcnet_head_doc__ + __head_doc__ + """
   [Model common parameters]
 """ + __tail_doc__ + """
 Model architectures:
-  | Model    | Params | Image resolution | Top1 Acc |
-  | -------- | ------ | ---------------- | -------- |
-  | LCNet050 | 1.88M  | 224              | 63.10    |
-  | LCNet075 | 2.36M  | 224              | 68.82    |
-  | LCNet100 | 2.95M  | 224              | 72.10    |
-  | LCNet150 | 4.52M  | 224              | 73.71    |
-  | LCNet200 | 6.54M  | 224              | 75.18    |
-  | LCNet250 | 9.04M  | 224              | 76.60    |
+  | Model    | Params | FLOPs   | Input | Top1 Acc |
+  | -------- | ------ | ------- | ----- | -------- |
+  | LCNet050 | 1.88M  | 46.02M  | 224   | 63.10    |
+  | LCNet075 | 2.36M  | 96.82M  | 224   | 68.82    |
+  | LCNet100 | 2.95M  | 158.28M | 224   | 72.10    |
+  | LCNet150 | 4.52M  | 338.05M | 224   | 73.71    |
+  | LCNet200 | 6.54M  | 585.35M | 224   | 75.18    |
+  | LCNet250 | 9.04M  | 900.16M | 224   | 76.60    |
 """
 
 LCNet050.__doc__ = __lcnet_head_doc__ + """
@@ -165,13 +165,13 @@ TinyNet.__doc__ = __tinynet_head_doc__ + __head_doc__ + """
   [Model common parameters]
 """ + __tail_doc__ + """
 Model architectures:
-  | Model    | Params | Image resolution | Top1 Acc |
-  | -------- | ------ | ---------------- | -------- |
-  | TinyNetE | 2.04M  | 106              | 59.86    |
-  | TinyNetD | 2.34M  | 152              | 66.96    |
-  | TinyNetC | 2.46M  | 184              | 71.23    |
-  | TinyNetB | 3.73M  | 188              | 74.98    |
-  | TinyNetA | 6.19M  | 192              | 77.65    |
+  | Model    | Params | FLOPs   | Input | Top1 Acc |
+  | -------- | ------ | ------- | ----- | -------- |
+  | TinyNetE | 2.04M  | 25.22M  | 106   | 59.86    |
+  | TinyNetD | 2.34M  | 53.35M  | 152   | 66.96    |
+  | TinyNetC | 2.46M  | 103.22M | 184   | 71.23    |
+  | TinyNetB | 3.73M  | 206.28M | 188   | 74.98    |
+  | TinyNetA | 6.19M  | 343.74M | 192   | 77.65    |
 """
 
 TinyNetE.__doc__ = __tinynet_head_doc__ + """

@@ -29,13 +29,13 @@ Returns:
     A `keras.Model` instance.
 
 Model architectures:
-  | Model            | Params  | Image resolution | Top1 Acc |
-  | ---------------- | ------- | ---------------- | -------- |
-  | BeitBasePatch16  | 86.53M  | 224              | 85.240   |
-  |                  | 86.74M  | 384              | 86.808   |
-  | BeitLargePatch16 | 304.43M | 224              | 87.476   |
-  |                  | 305.00M | 384              | 88.382   |
-  |                  | 305.67M | 512              | 88.584   |
+  | Model                 | Params  | FLOPs   | Input | Top1 Acc |
+  | --------------------- | ------- | ------- | ----- | -------- |
+  | BeitBasePatch16, 21k  | 86.53M  | 17.61G  | 224   | 85.240   |
+  |                       | 86.74M  | 55.70G  | 384   | 86.808   |
+  | BeitLargePatch16, 21k | 304.43M | 61.68G  | 224   | 87.476   |
+  |                       | 305.00M | 191.65G | 384   | 88.382   |
+  |                       | 305.67M | 363.46G | 512   | 88.584   |
 """
 
 Beit.__doc__ = __head_doc__ + """

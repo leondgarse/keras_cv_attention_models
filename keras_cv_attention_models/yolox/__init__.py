@@ -58,14 +58,14 @@ YOLOX.__doc__ = __head_doc__.format(depth_mul=1, width_mul=1) + """  depth_mul: 
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model     | Params | Image resolution | COCO val AP | test AP |
-  | --------- | ------ | ---------------- | ----------- | ------- |
-  | YOLOXNano | 0.91M  | 416              | 25.8        |         |
-  | YOLOXTiny | 5.06M  | 416              | 32.8        |         |
-  | YOLOXS    | 9.0M   | 640              | 40.5        | 40.5    |
-  | YOLOXM    | 25.3M  | 640              | 46.9        | 47.2    |
-  | YOLOXL    | 54.2M  | 640              | 49.7        | 50.1    |
-  | YOLOXX    | 99.1M  | 640              | 51.5        | 51.5    |
+  | Model     | Params | FLOPs   | Input | COCO val AP | test AP |
+  | --------- | ------ | ------- | ----- | ----------- | ------- |
+  | YOLOXNano | 0.91M  | 0.53G   | 416   | 25.8        |         |
+  | YOLOXTiny | 5.06M  | 3.22G   | 416   | 32.8        |         |
+  | YOLOXS    | 9.0M   | 13.39G  | 640   | 40.5        | 40.5    |
+  | YOLOXM    | 25.3M  | 36.84G  | 640   | 46.9        | 47.2    |
+  | YOLOXL    | 54.2M  | 77.76G  | 640   | 49.7        | 50.1    |
+  | YOLOXX    | 99.1M  | 140.87G | 640   | 51.5        | 51.5    |
 """
 
 YOLOXNano.__doc__ = __head_doc__.format(depth_mul=0.33, width_mul=0.25) + __tail_doc__

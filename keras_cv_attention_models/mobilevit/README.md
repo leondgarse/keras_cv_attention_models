@@ -7,11 +7,11 @@
 ***
 
 ## Models
-  | Model         | Params | Image resolution | Top1 Acc | Download |
-  | ------------- | ------ | ---------------- | -------- | -------- |
-  | MobileViT_XXS | 1.3M   | 256              | 69.0     | [mobilevit_xxs_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_xxs_imagenet.h5) |
-  | MobileViT_XS  | 2.3M   | 256              | 74.7     | [mobilevit_xs_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_xs_imagenet.h5) |
-  | MobileViT_S   | 5.6M   | 256              | 78.3     | [mobilevit_s_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_s_imagenet.h5) |
+  | Model         | Params | FLOPs | Input | Top1 Acc | Download |
+  | ------------- | ------ | ----- | ----- | -------- | -------- |
+  | MobileViT_XXS | 1.3M   | 0.42G | 256   | 69.0     | [mobilevit_xxs_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_xxs_imagenet.h5) |
+  | MobileViT_XS  | 2.3M   | 1.05G | 256   | 74.7     | [mobilevit_xs_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_xs_imagenet.h5) |
+  | MobileViT_S   | 5.6M   | 2.03G | 256   | 78.3     | [mobilevit_s_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_s_imagenet.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import mobilevit

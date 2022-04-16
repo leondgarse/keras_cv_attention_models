@@ -17,7 +17,9 @@ def parse_arguments(argv):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-d", "--data_name", type=str, default="coco/2017", help="Dataset name from tensorflow_datasets like coco/2017")
     parser.add_argument("-i", "--input_shape", type=int, default=256, help="Model input shape")
-    parser.add_argument("-B", "--backbone", type=str, default=None, help="Detector backbone, name in format [sub_dir].[model_name]. Default None for header preset.")
+    parser.add_argument(
+        "-B", "--backbone", type=str, default=None, help="Detector backbone, name in format [sub_dir].[model_name]. Default None for header preset."
+    )
     parser.add_argument(
         "--backbone_pretrained",
         type=str,

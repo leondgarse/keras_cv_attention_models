@@ -9,23 +9,23 @@
 
   ![](https://user-images.githubusercontent.com/5744524/151656806-005a80ba-3c35-4707-af29-2a781492a1d9.png)
 ## Models
-  | Model          | Params | Image resolution | Top1 Acc | Download |
-  | -------------- | ------ | ---------------- | -------- | -------- |
-  | HaloNetH0      | 5.5M   | 256              | 77.9     |          |
-  | HaloNetH1      | 8.1M   | 256              | 79.9     |          |
-  | HaloNetH2      | 9.4M   | 256              | 80.4     |          |
-  | HaloNetH3      | 11.8M  | 320              | 81.9     |          |
-  | HaloNetH4      | 19.1M  | 384              | 83.3     |          |
-  | - 21k          | 19.1M  | 384              | 85.5     |          |
-  | HaloNetH5      | 30.7M  | 448              | 84.0     |          |
-  | HaloNetH6      | 43.4M  | 512              | 84.4     |          |
-  | HaloNetH7      | 67.4M  | 600              | 84.9     |          |
-  | HaloNextECA26T | 10.7M  | 256              | 79.50    | [halonext_eca26t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonext_eca26t_256_imagenet.h5) |
-  | HaloNet26T     | 12.5M  | 256              | 79.13    | [halonet26t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet26t_256_imagenet.h5) |
-  | HaloNetSE33T   | 13.7M  | 256              | 80.99    | [halonet_se33t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet_se33t_256_imagenet.h5) |
-  | HaloRegNetZB   | 11.68M | 224              | 81.042   | [haloregnetz_b_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/haloregnetz_b_224_imagenet.h5) |
-  | HaloNet50T     | 22.7M  | 256              | 81.70    | [halonet50t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet50t_256_imagenet.h5) |
-  | HaloBotNet50T  | 22.6M  | 256              | 82.0     | [halobotnet50t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halobotnet50t_256_imagenet.h5) |
+  | Model          | Params | FLOPs   | Input | Top1 Acc | Download |
+  | -------------- | ------ | ------- | ----- | -------- | -------- |
+  | HaloNetH0      | 5.5M   | 2.40G   | 256   | 77.9     |          |
+  | HaloNetH1      | 8.1M   | 3.04G   | 256   | 79.9     |          |
+  | HaloNetH2      | 9.4M   | 3.37G   | 256   | 80.4     |          |
+  | HaloNetH3      | 11.8M  | 6.30G   | 320   | 81.9     |          |
+  | HaloNetH4      | 19.1M  | 12.17G  | 384   | 83.3     |          |
+  | - 21k          | 19.1M  | 12.17G  | 384   | 85.5     |          |
+  | HaloNetH5      | 30.7M  | 32.61G  | 448   | 84.0     |          |
+  | HaloNetH6      | 43.4M  | 53.20G  | 512   | 84.4     |          |
+  | HaloNetH7      | 67.4M  | 119.64G | 600   | 84.9     |          |
+  | HaloNextECA26T | 10.7M  | 2.43G   | 256   | 79.50    | [halonext_eca26t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonext_eca26t_256_imagenet.h5) |
+  | HaloNet26T     | 12.5M  | 3.18G   | 256   | 79.13    | [halonet26t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet26t_256_imagenet.h5) |
+  | HaloNetSE33T   | 13.7M  | 3.55G   | 256   | 80.99    | [halonet_se33t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet_se33t_256_imagenet.h5) |
+  | HaloRegNetZB   | 11.68M | 1.97G   | 224   | 81.042   | [haloregnetz_b_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/haloregnetz_b_224_imagenet.h5) |
+  | HaloNet50T     | 22.7M  | 5.29G   | 256   | 81.70    | [halonet50t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet50t_256_imagenet.h5) |
+  | HaloBotNet50T  | 22.6M  | 5.02G   | 256   | 82.0     | [halobotnet50t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halobotnet50t_256_imagenet.h5) |
 
   Comparing `HaloNetH7` accuracy by replacing Conv layers with Attention in each stage:
 

@@ -36,13 +36,13 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model         | Params | Top1 Acc |
-  | ------------- | ------ | -------- |
-  | CoaTLiteTiny  | 5.7M   | 77.5     |
-  | CoaTLiteMini  | 11M    | 79.1     |
-  | CoaTLiteSmall | 20M    | 81.9     |
-  | CoaTTiny      | 5.5M   | 78.3     |
-  | CoaTMini      | 10M    | 81.0     |
+  | Model         | Params | FLOPs | Input | Top1 Acc |
+  | ------------- | ------ | ----- | ----- | -------- |
+  | CoaTLiteTiny  | 5.7M   | 1.60G | 224   | 77.5     |
+  | CoaTLiteMini  | 11M    | 2.00G | 224   | 79.1     |
+  | CoaTLiteSmall | 20M    | 3.97G | 224   | 81.9     |
+  | CoaTTiny      | 5.5M   | 4.33G | 224   | 78.3     |
+  | CoaTMini      | 10M    | 6.78G | 224   | 81.0     |
 """
 
 __default_doc__ = __head_doc__ + """

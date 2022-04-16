@@ -42,17 +42,24 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet", "imagenet21k", "imagenet_sam"]) + """
 Model architectures:
-  | Model       | Params | Top1 Acc | Pre-trained                         |
-  | ----------- | ------ | -------- | ----------------------------------- |
-  | MLPMixerS32 | 19.1M  | 68.70    | None                                |
-  | MLPMixerS16 | 18.5M  | 73.83    | None                                |
-  | MLPMixerB32 | 60.3M  | 75.53    | imagenet_sam                        |
-  | MLPMixerB16 | 59.9M  | 80.00    | imagenet, imagenet_sam, imagenet21k |
-  | MLPMixerL32 | 206.9M | 80.67    | None                                |
-  | MLPMixerL16 | 208.2M | 84.82    | imagenet, imagenet21k               |
-  | - input 448 | 208.2M | 86.78    | None                                |
-  | MLPMixerH14 | 432.3M | 86.32    | None                                |
-  | - input 448 | 432.3M | 87.94    | None                                |
+  | Model            | Params | FLOPs   | Input | Top1 Acc |
+  | ---------------- | ------ | ------- | ----- | -------- |
+  | MLPMixerS32, JFT | 19.1M  | 1.01G   | 224   | 68.70    |
+  | MLPMixerS16, JFT | 18.5M  | 3.79G   | 224   | 73.83    |
+  | MLPMixerB32, JFT | 60.3M  | 3.25G   | 224   | 75.53    |
+  | - imagenet_sam   | 60.3M  | 3.25G   | 224   | 72.47    |
+  | MLPMixerB16      | 59.9M  | 12.64G  | 224   | 76.44    |
+  | - imagenet21k    | 59.9M  | 12.64G  | 224   | 80.64    |
+  | - imagenet_sam   | 59.9M  | 12.64G  | 224   | 77.36    |
+  | - JFT            | 59.9M  | 12.64G  | 224   | 80.00    |
+  | MLPMixerL32, JFT | 206.9M | 11.30G  | 224   | 80.67    |
+  | MLPMixerL16      | 208.2M | 44.66G  | 224   | 71.76    |
+  | - imagenet21k    | 208.2M | 44.66G  | 224   | 82.89    |
+  | - input 448      | 208.2M | 178.54G | 448   | 83.91    |
+  | - input 224, JFT | 208.2M | 44.66G  | 224   | 84.82    |
+  | - input 448, JFT | 208.2M | 178.54G | 448   | 86.78    |
+  | MLPMixerH14, JFT | 432.3M | 121.22G | 224   | 86.32    |
+  | - input 448, JFT | 432.3M | 484.73G | 448   | 87.94    |
 
   | Specification        | S/32  | S/16  | B/32  | B/16  | L/32  | L/16  | H/14  |
   | -------------------- | ----- | ----- | ----- | ----- | ----- | ----- | ----- |
@@ -184,13 +191,13 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet", "imagenet22k"]) + """
 Model architectures:
-  | Model         | Params | Image resolution | Top1 Acc | Pre-trained |
-  | ------------- | ------ | ---------------- | -------- | ----------- |
-  | ResMLP12      | 15M    | 224              | 77.8     | imagenet    |
-  | ResMLP24      | 30M    | 224              | 80.8     | imagenet    |
-  | ResMLP36      | 116M   | 224              | 81.1     | imagenet    |
-  | ResMLP_B24    | 129M   | 224              | 83.6     | imagenet    |
-  | - imagenet22k | 129M   | 224              | 84.4     | imagenet22k |
+  | Model         | Params | FLOPs   | Input | Top1 Acc |
+  | ------------- | ------ | ------- | ----- | -------- |
+  | ResMLP12      | 15M    | 3.02G   | 224   | 77.8     |
+  | ResMLP24      | 30M    | 5.98G   | 224   | 80.8     |
+  | ResMLP36      | 116M   | 8.94G   | 224   | 81.1     |
+  | ResMLP_B24    | 129M   | 100.39G | 224   | 83.6     |
+  | - imagenet22k | 129M   | 100.39G | 224   | 84.4     |
 """
 
 __resmlp_default_doc__ = __resmlp_head_doc__ + """
@@ -233,11 +240,11 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet"]) + """
 Model architectures:
-    | Model      | Params | Image resolution | Top1 Acc | Pre-trained |
-    | ---------- | ------ | ---------------- | -------- | ----------- |
-    | GMLPTiny16 | 6M     | 224              | 72.3     | None        |
-    | GMLPS16    | 20M    | 224              | 79.6     | imagenet    |
-    | GMLPB16    | 73M    | 224              | 81.6     | None        |
+  | Model      | Params | FLOPs  | Input | Top1 Acc |
+  | ---------- | ------ | ------ | ----- | -------- |
+  | GMLPTiny16 | 6M     | 1.35G  | 224   | 72.3     |
+  | GMLPS16    | 20M    | 4.44G  | 224   | 79.6     |
+  | GMLPB16    | 73M    | 15.82G | 224   | 81.6     |
 """
 
 __gmlp_default_doc__ = __gmlp_head_doc__ + """
@@ -306,12 +313,12 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet"]) + """
 Model architectures:
-  | Model     | Params | Image resolution | Top1 Acc |
-  | --------- | ------ | ---------------- | -------- |
-  | WaveMLP_T | 17M    | 224              | 80.9     |
-  | WaveMLP_S | 30M    | 224              | 82.9     |
-  | WaveMLP_M | 44M    | 224              | 83.3     |
-  | WaveMLP_B | 63M    | 224              | 83.6     |
+  | Model     | Params | FLOPs  | Input | Top1 Acc |
+  | --------- | ------ | ------ | ----- | -------- |
+  | WaveMLP_T | 17M    | 2.47G  | 224   | 80.9     |
+  | WaveMLP_S | 30M    | 4.55G  | 224   | 82.9     |
+  | WaveMLP_M | 44M    | 7.92G  | 224   | 83.3     |
+  | WaveMLP_B | 63M    | 10.26G | 224   | 83.6     |
 """
 
 WaveMLP_T.__doc__ = __wavemlp_head_doc__ + """

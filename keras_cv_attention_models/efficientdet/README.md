@@ -10,29 +10,41 @@
 ***
 
 ## Models
-  | Model              | Params | Image resolution | COCO val AP | test AP | Download |
-  | ------------------ | ------ | ---------------- | ----------- | ------- | -------- |
-  | EfficientDetD0     | 3.9M   | 512              | 34.3        | 34.6    | [efficientdet_d0.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d0_512_coco.h5)         |
-  | - Det-AdvProp      | 3.9M   | 512              | 35.1        | 35.3    |          |
-  | EfficientDetD1     | 6.6M   | 640              | 40.2        | 40.5    | [efficientdet_d1.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d1_640_coco.h5)         |
-  | - Det-AdvProp      | 6.6M   | 640              | 40.8        | 40.9    |          |
-  | EfficientDetD2     | 8.1M   | 768              | 43.5        | 43.9    | [efficientdet_d2.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d2_768_coco.h5)         |
-  | - Det-AdvProp      | 8.1M   | 768              | 44.3        | 44.3    |          |
-  | EfficientDetD3     | 12.0M  | 896              | 46.8        | 47.2    | [efficientdet_d3.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d3_896_coco.h5)         |
-  | - Det-AdvProp      | 12.0M  | 896              | 47.7        | 48.0    |          |
-  | EfficientDetD4     | 20.7M  | 1024             | 49.3        | 49.7    | [efficientdet_d4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d4_1024_coco.h5)        |
-  | - Det-AdvProp      | 20.7M  | 1024             | 50.4        | 50.4    |          |
-  | EfficientDetD5     | 33.7M  | 1280             | 51.2        | 51.5    | [efficientdet_d5.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d5_1280_coco.h5)        |
-  | - Det-AdvProp      | 33.7M  | 1280             | 52.2        | 52.5    |          |
-  | EfficientDetD6     | 51.9M  | 1280             | 52.1        | 52.6    | [efficientdet_d6.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d6_1280_coco.h5)        |
-  | EfficientDetD7     | 51.9M  | 1536             | 53.4        | 53.7    | [efficientdet_d7.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d7_1536_coco.h5)        |
-  | EfficientDetD7X    | 77.0M  | 1536             | 54.4        | 55.1    | [efficientdet_d7x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d7x_1536_coco.h5)      |
-  | EfficientDetLite0  | 3.2M   | 320              |             | 26.41   | [efficientdet_lite0.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite0_320_coco.h5)   |
-  | EfficientDetLite1  | 4.2M   | 384              |             | 31.50   | [efficientdet_lite1.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite1_384_coco.h5)   |
-  | EfficientDetLite2  | 5.3M   | 448              |             | 35.06   | [efficientdet_lite2.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite2_448_coco.h5)   |
-  | EfficientDetLite3  | 8.4M   | 512              |             | 38.77   | [efficientdet_lite3.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3_512_coco.h5)   |
-  | EfficientDetLite3X | 9.3M   | 640              |             | 42.64   | [efficientdet_lite3x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3x_640_coco.h5) |
-  | EfficientDetLite4  | 15.1M  | 640              |             | 43.18   | [efficientdet_lite4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite4_640_coco.h5)   |
+  | Model              | Params | FLOPs   | Input | COCO val AP | test AP | Download |
+  | ------------------ | ------ | ------- | ----- | ----------- | ------- | -------- |
+  | EfficientDetD0     | 3.9M   | 2.55G   | 512   | 34.3        | 34.6    | [efficientdet_d0.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d0_512_coco.h5)         |
+  | - Det-AdvProp      | 3.9M   | 2.55G   | 512   | 35.1        | 35.3    |          |
+  | EfficientDetD1     | 6.6M   | 6.13G   | 640   | 40.2        | 40.5    | [efficientdet_d1.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d1_640_coco.h5)         |
+  | - Det-AdvProp      | 6.6M   | 6.13G   | 640   | 40.8        | 40.9    |          |
+  | EfficientDetD2     | 8.1M   | 11.03G  | 768   | 43.5        | 43.9    | [efficientdet_d2.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d2_768_coco.h5)         |
+  | - Det-AdvProp      | 8.1M   | 11.03G  | 768   | 44.3        | 44.3    |          |
+  | EfficientDetD3     | 12.0M  | 24.95G  | 896   | 46.8        | 47.2    | [efficientdet_d3.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d3_896_coco.h5)         |
+  | - Det-AdvProp      | 12.0M  | 24.95G  | 896   | 47.7        | 48.0    |          |
+  | EfficientDetD4     | 20.7M  | 55.29G  | 1024  | 49.3        | 49.7    | [efficientdet_d4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d4_1024_coco.h5)        |
+  | - Det-AdvProp      | 20.7M  | 55.29G  | 1024  | 50.4        | 50.4    |          |
+  | EfficientDetD5     | 33.7M  | 135.62G | 1280  | 51.2        | 51.5    | [efficientdet_d5.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d5_1280_coco.h5)        |
+  | - Det-AdvProp      | 33.7M  | 135.62G | 1280  | 52.2        | 52.5    |          |
+  | EfficientDetD6     | 51.9M  | 225.93G | 1280  | 52.1        | 52.6    | [efficientdet_d6.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d6_1280_coco.h5)        |
+  | EfficientDetD7     | 51.9M  | 325.34G | 1536  | 53.4        | 53.7    | [efficientdet_d7.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d7_1536_coco.h5)        |
+  | EfficientDetD7X    | 77.0M  | 410.87G | 1536  | 54.4        | 55.1    | [efficientdet_d7x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d7x_1536_coco.h5)      |
+  | EfficientDetLite0  | 3.2M   | 0.98G   | 320   | 27.5        | 26.41   | [efficientdet_lite0.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite0_320_coco.h5)   |
+  | EfficientDetLite1  | 4.2M   | 1.97G   | 384   | 32.6        | 31.50   | [efficientdet_lite1.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite1_384_coco.h5)   |
+  | EfficientDetLite2  | 5.3M   | 3.38G   | 448   | 36.2        | 35.06   | [efficientdet_lite2.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite2_448_coco.h5)   |
+  | EfficientDetLite3  | 8.4M   | 7.50G   | 512   | 39.9        | 38.77   | [efficientdet_lite3.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3_512_coco.h5)   |
+  | EfficientDetLite3X | 9.3M   | 14.01G  | 640   | 44.0        | 42.64   | [efficientdet_lite3x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3x_640_coco.h5) |
+  | EfficientDetLite4  | 15.1M  | 20.20G  | 640   | 44.4        | 43.18   | [efficientdet_lite4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite4_640_coco.h5)   |
+
+  **COCO val evaluation**. More usage info can be found in [COCO Evaluation](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco#evaluation).
+  ```py
+  # EfficientDet using resize method bilinear w/o antialias
+  CUDA_VISIBLE_DEVICES='0' ./coco_eval_script.py -m efficientdet.EfficientDetD0 --resize_method bilinear --disable_antialias
+  # >>>> [COCOEvalCallback] input_shape: (512, 512), pyramid_levels: [3, 7], anchors_mode: efficientdet
+
+  # Specify anchor_scale if not 4
+  CUDA_VISIBLE_DEVICES='0' ./coco_eval_script.py -m efficientdet.EfficientDetLite0 --anchor_scale 3 --resize_method bilinear --disable_antialias
+  # >>>> model_kwargs: {'anchor_scale': 3}
+  # >>>> [COCOEvalCallback] input_shape: (320, 320), pyramid_levels: [3, 7], anchors_mode: efficientdet
+  ```
 ## Usage
   - **Basic usage**
     ```py

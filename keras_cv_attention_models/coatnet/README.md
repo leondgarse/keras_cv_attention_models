@@ -68,44 +68,44 @@
 
     ![coatnet0_ft_224](https://user-images.githubusercontent.com/5744524/157171155-5eacb713-62c0-420a-bb63-57644ab9f0ec.png)
 ## Models
-  | Model                               | Params | Image resolution | Top1 Acc | Download |
-  | ----------------------------------- | ------ | ---------------- | -------- | -------- |
-  | CoAtNet0 (Self trained 105 epochs)  | 23.8M  | 160              | 80.50    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
-  | - fine-tune 224, 37 epochs          | 23.8M  | 224              | 82.23    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
-  | CoAtNet0                            | 25M    | 224              | 81.6     |          |
-  | CoAtNet0, Strided DConv             | 25M    | 224              | 82.0     |          |
-  | CoAtNet0                            | 25M    | 384              | 83.9     |          |
-  | CoAtNet1                            | 42M    | 224              | 83.3     |          |
-  | CoAtNet1, Strided DConv             | 42M    | 224              | 83.5     |          |
-  | CoAtNet1                            | 42M    | 384              | 85.1     |          |
-  | CoAtNet2                            | 75M    | 224              | 84.1     |          |
-  | CoAtNet2, Strided DConv             | 75M    | 224              | 84.1     |          |
-  | CoAtNet2                            | 75M    | 384              | 85.7     |          |
-  | CoAtNet2                            | 75M    | 512              | 85.9     |          |
-  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 224              | 87.1     |          |
-  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 384              | 87.1     |          |
-  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 512              | 87.3     |          |
-  | CoAtNet3                            | 168M   | 224              | 84.5     |          |
-  | CoAtNet3                            | 168M   | 384              | 85.8     |          |
-  | CoAtNet3                            | 168M   | 512              | 86.0     |          |
-  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 224              | 87.6     |          |
-  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 384              | 87.6     |          |
-  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 512              | 87.9     |          |
-  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 384              | 87.9     |          |
-  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 512              | 88.1     |          |
-  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 384              | 88.4     |          |
-  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 512              | 88.56    |          |
+  | Model                               | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ----------------------------------- | ------ | ------ | ----- | -------- | -------- |
+  | CoAtNet0 (Self trained 105 epochs)  | 23.8M  | 2.17G  | 160   | 80.50    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
+  | - fine-tune 224, 37 epochs          | 23.8M  | 4.22G  | 224   | 82.23    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
+  | CoAtNet0                            | 25M    | 4.2G   | 224   | 81.6     |          |
+  | CoAtNet0, Strided DConv             | 25M    | 4.6G   | 224   | 82.0     |          |
+  | CoAtNet0                            | 25M    | 13.4G  | 384   | 83.9     |          |
+  | CoAtNet1                            | 42M    | 8.4G   | 224   | 83.3     |          |
+  | CoAtNet1, Strided DConv             | 42M    | 8.8G   | 224   | 83.5     |          |
+  | CoAtNet1                            | 42M    | 27.4G  | 384   | 85.1     |          |
+  | CoAtNet2                            | 75M    | 15.7G  | 224   | 84.1     |          |
+  | CoAtNet2, Strided DConv             | 75M    | 16.6G  | 224   | 84.1     |          |
+  | CoAtNet2                            | 75M    | 49.8G  | 384   | 85.7     |          |
+  | CoAtNet2                            | 75M    | 96.7G  | 512   | 85.9     |          |
+  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 16.6G  | 224   | 87.1     |          |
+  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 49.8G  | 384   | 87.1     |          |
+  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 96.7G  | 512   | 87.3     |          |
+  | CoAtNet3                            | 168M   | 34.7G  | 224   | 84.5     |          |
+  | CoAtNet3                            | 168M   | 107.4G | 384   | 85.8     |          |
+  | CoAtNet3                            | 168M   | 203.1G | 512   | 86.0     |          |
+  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 34.7G  | 224   | 87.6     |          |
+  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 107.4G | 384   | 87.6     |          |
+  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 203.1G | 512   | 87.9     |          |
+  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 189.5G | 384   | 87.9     |          |
+  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 360.9G | 512   | 88.1     |          |
+  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 189.5G | 384   | 88.4     |          |
+  | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 360.9G | 512   | 88.56    |          |
 
   **JFT pre-trained models accuracy**
 
-  | Model    | Image resolution | Reported Params | self-defined Params | Top1 Acc |
-  | -------- | ---------------- | --------------- | ------------------- | -------- |
-  | CoAtNet3 | 384              | 168M            | 162.85M             | 88.52    |
-  | CoAtNet3 | 512              | 168M            | 163.45M             | 88.81    |
-  | CoAtNet4 | 512              | 275M            | 272.90M             | 89.11    |
-  | CoAtNet5 | 512              | 688M            | 680.15M             | 89.77    |
-  | CoAtNet6 | 512              | 1.47B           | 1.339B              | 90.45    |
-  | CoAtNet7 | 512              | 2.44B           | 2.421B              | 90.88    |
+| Model    | Input | Reported Params | self-defined Params | Top1 Acc |
+| -------- | ----- | --------------- | ------------------- | -------- |
+| CoAtNet3 | 384   | 168M            | 162.85M             | 88.52    |
+| CoAtNet3 | 512   | 168M            | 163.45M             | 88.81    |
+| CoAtNet4 | 512   | 275M            | 272.90M             | 89.11    |
+| CoAtNet5 | 512   | 688M            | 680.15M             | 89.77    |
+| CoAtNet6 | 512   | 1.47B           | 1.339B              | 90.45    |
+| CoAtNet7 | 512   | 2.44B           | 2.421B              | 90.88    |
 
 ## Article detail info
   - L denotes the number of blocks and D denotes the hidden dimension (#channels).

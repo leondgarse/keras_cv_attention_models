@@ -49,13 +49,13 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model     | Params | Image resolution | Top1 Acc |
-  | --------- | ------ | ---------------- | -------- |
-  | LeViT128S | 7.8M   | 224              | 76.6     |
-  | LeViT128  | 9.2M   | 224              | 78.6     |
-  | LeViT192  | 11M    | 224              | 80.0     |
-  | LeViT256  | 19M    | 224              | 81.6     |
-  | LeViT384  | 39M    | 224              | 82.6     |
+  | Model                   | Params | FLOPs | Input | Top1 Acc |
+  | ----------------------- | ------ | ----- | ----- | -------- |
+  | LeViT128S, distillation | 7.8M   | 0.31G | 224   | 76.6     |
+  | LeViT128, distillation  | 9.2M   | 0.41G | 224   | 78.6     |
+  | LeViT192, distillation  | 11M    | 0.66G | 224   | 80.0     |
+  | LeViT256, distillation  | 19M    | 1.13G | 224   | 81.6     |
+  | LeViT384, distillation  | 39M    | 2.36G | 224   | 82.6     |
 """
 
 LeViT128S.__doc__ = __head_doc__ + """
