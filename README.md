@@ -1,6 +1,7 @@
 # Keras_cv_attention_models
 - **coco_train_script.py is under testing**
 - **Modified using `anchors_mode` value in `[anchor_free, yolor, efficientdet]` instead of all previous `use_anchor_free_mode` and `use_yolor_anchors_mode` in `training` / `evaluating` / `model structure`**. - `2022.04.15`
+- **There is a bug in current `coatnet` implementation, that using `vv_dim = out_shape // num_heads` in [coatnet.py#L28](https://github.com/leondgarse/keras_cv_attention_models/blob/main/keras_cv_attention_models/coatnet/coatnet.py#L28) will throw error for `head_dimension=64` or `head_dimension=128`. Considering using `vv_dim = key_dim` instead and retrain the model**...
 
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 

@@ -5,6 +5,7 @@
   - CoAtNet article: [PDF 2106.04803 CoAtNet: Marrying Convolution and Attention for All Data Sizes](https://arxiv.org/pdf/2106.04803.pdf)
   - [Github comvex/coatnet/model.py](https://github.com/blakechi/ComVEX/blob/master/comvex/coatnet/model.py)
   - Architecture is guessed from article, so it's NOT certain.
+  - **There is a bug in current `coatnet` implementation, that using `vv_dim = out_shape // num_heads` in [coatnet.py#L28](https://github.com/leondgarse/keras_cv_attention_models/blob/main/keras_cv_attention_models/coatnet/coatnet.py#L28) will throw error for `head_dimension=64` or `head_dimension=128`. Considering using `vv_dim = key_dim` instead and retrain the model**...
 
   ![](https://user-images.githubusercontent.com/5744524/151656800-1baab0ad-a31b-4ef0-bada-483c83108670.png)
 ***
