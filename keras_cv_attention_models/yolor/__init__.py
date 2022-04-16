@@ -69,8 +69,8 @@ Model architectures:
   | YOLOR_CSPX | 99.8M  | 111.11G | 640   | 51.5        | 54.8    |
   | YOLOR_P6   | 37.3M  | 162.87G | 1280  | 52.5        | 55.7    |
   | YOLOR_W6   | 79.9M  | 226.67G | 1280  | 53.6 ?      | 56.9    |
-  | YOLOR_E6   | 115.9M | 341.62G | 1280  | 50.8 ?      | 57.6    |
-  | YOLOR_D6   | 151.8M | 467.88G | 1280  | 50.3 ?      | 58.2    |
+  | YOLOR_E6   | 115.9M | 341.62G | 1280  | 50.3 ?      | 57.6    |
+  | YOLOR_D6   | 151.8M | 467.88G | 1280  | 50.8 ?      | 58.2    |
 """
 
 YOLOR_CSP.__doc__ = __head_doc__.format(csp_depthes=[2, 8, 8, 4], csp_channels=[128, 256, 512, 1024]) + __tail_doc__

@@ -526,5 +526,5 @@ def get_flops(model):
     options = option_builder.ProfileOptionBuilder.float_operation()
     graph_info = model_analyzer.profile(forward_graph, options=options)
     flops = graph_info.total_float_ops // 2
-    print(">>>> Flops: {:,}, GFlops: {:.4f}G".format(flops, flops / 1e9))
+    print(">>>> FLOPs: {:,}, GFLOPs: {:.4f}G".format(flops, flops / 1e9))
     return flops

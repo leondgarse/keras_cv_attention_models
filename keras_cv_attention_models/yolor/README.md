@@ -17,8 +17,8 @@
   | YOLOR_CSPX | 99.8M  | 111.11G | 640   | 51.5        | 54.8    | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
   | YOLOR_P6   | 37.3M  | 162.87G | 1280  | 52.5        | 55.7    | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5)       |
   | YOLOR_W6   | 79.9M  | 226.67G | 1280  | 53.6 ?      | 56.9    | [yolor_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_w6_coco.h5)       |
-  | YOLOR_E6   | 115.9M | 341.62G | 1280  | 50.8 ?      | 57.6    | [yolor_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_e6_coco.h5)       |
-  | YOLOR_D6   | 151.8M | 467.88G | 1280  | 50.3 ?      | 58.2    | [yolor_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_d6_coco.h5)       |
+  | YOLOR_E6   | 115.9M | 341.62G | 1280  | 50.3 ?      | 57.6    | [yolor_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_e6_coco.h5)       |
+  | YOLOR_D6   | 151.8M | 467.88G | 1280  | 50.8 ?      | 58.2    | [yolor_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_d6_coco.h5)       |
 
   **COCO val evaluation results**. More usage info can be found in [COCO Evaluation](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco#evaluation).
   ```sh

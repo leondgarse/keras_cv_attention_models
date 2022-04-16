@@ -131,9 +131,9 @@
     from keras_cv_attention_models import coatnet, resnest, model_surgery
 
     model_surgery.get_flops(coatnet.CoAtNet0())
-    # >>>> Flops: 4,221,908,559, GFlops: 4.2219G
+    # >>>> FLOPs: 4,221,908,559, GFLOPs: 4.2219G
     model_surgery.get_flops(resnest.ResNest50())
-    # >>>> Flops: 5,378,399,992, GFlops: 5.3784G
+    # >>>> FLOPs: 5,378,399,992, GFLOPs: 5.3784G
     ```
 ## Layers
   - [attention_layers](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `RelativePositionalEmbedding` from `botnet`, `outlook_attention` from `volo`.
@@ -761,8 +761,8 @@
   | YOLOR_CSPX | 99.8M  | 111.11G | 640   | 51.5        | 54.8    | [yolor_csp_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_csp_x_coco.h5) |
   | YOLOR_P6   | 37.3M  | 162.87G | 1280  | 52.5        | 55.7    | [yolor_p6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_p6_coco.h5)       |
   | YOLOR_W6   | 79.9M  | 226.67G | 1280  | 53.6 ?      | 56.9    | [yolor_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_w6_coco.h5)       |
-  | YOLOR_E6   | 115.9M | 341.62G | 1280  | 50.8 ?      | 57.6    | [yolor_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_e6_coco.h5)       |
-  | YOLOR_D6   | 151.8M | 467.88G | 1280  | 50.3 ?      | 58.2    | [yolor_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_d6_coco.h5)       |
+  | YOLOR_E6   | 115.9M | 341.62G | 1280  | 50.3 ?      | 57.6    | [yolor_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_e6_coco.h5)       |
+  | YOLOR_D6   | 151.8M | 467.88G | 1280  | 50.8 ?      | 58.2    | [yolor_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_d6_coco.h5)       |
 ## YOLOX
   - [Keras YOLOX](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolox) includes implementation of [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
 
