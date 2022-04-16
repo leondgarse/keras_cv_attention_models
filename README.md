@@ -1,5 +1,6 @@
 # Keras_cv_attention_models
 - **coco_train_script.py is under testing**
+- **Modified using `anchors_mode` value in `[anchor_free, yolor, efficientdet]` instead of all previous `use_anchor_free_mode` and `use_yolor_anchors_mode` in `training` / `evaluating` / `model structure`**. - `2022.04.15`
 
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 

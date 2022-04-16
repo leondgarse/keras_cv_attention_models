@@ -112,7 +112,9 @@
     from keras_cv_attention_models.coco import eval_func
     from keras_cv_attention_models import efficientdet
     mm = efficientdet.EfficientDetD0()
-    eval_func.run_coco_evaluation(mm, nms_score_threshold=0.001, nms_method="gaussian", nms_mode="per_class", nms_topk=5000, batch_size=8)
+    ee = eval_func.COCOEvalCallback(batch_size=4, nms_score_threshold=0.001, nms_method="gaussian", nms_mode="per_class", nms_topk=5000)
+    ee.model = mm
+    ee.on_epoch_end()
     ```
     | nms_score_threshold    | clip_bbox | nms_method | nms_mode  | nms_topk | Val AP 0.50:0.95, area=all |
     | ---------------------- | --------- | ---------- | --------- | -------- | -------------------------- |

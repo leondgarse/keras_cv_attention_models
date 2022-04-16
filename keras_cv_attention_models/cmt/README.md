@@ -43,7 +43,7 @@
     ```sh
     CUDA_VISIBLE_DEVICES='1' TF_GPU_ALLOCATOR='cuda_malloc_async' TF_XLA_FLAGS='--tf_xla_auto_jit=2' ./train_script.py \
     --seed 0 -m cmt.CMTTiny --lr_decay_steps 300 \
-    --magnitude 7 --additional_model_kwargs '{"drop_connect_rate": 0.05}' -b 160 \
+    --magnitude 7 --additional_model_kwargs '{"drop_connect_rate": 0.05}' -b 160
     ```
     | 305 epochs             | Train acc | Best eval loss, acc on 160 | Epoch 305 eval acc on 224   |
     | ---------------------- | --------- | -------------------------- | --------------------------- |

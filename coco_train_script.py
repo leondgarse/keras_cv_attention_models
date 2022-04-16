@@ -17,14 +17,14 @@ def parse_arguments(argv):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-d", "--data_name", type=str, default="coco/2017", help="Dataset name from tensorflow_datasets like coco/2017")
     parser.add_argument("-i", "--input_shape", type=int, default=256, help="Model input shape")
-    parser.add_argument("--backbone", type=str, default=None, help="Detector backbone, name in format [sub_dir].[model_name]. Default None for header preset.")
+    parser.add_argument("-B", "--backbone", type=str, default=None, help="Detector backbone, name in format [sub_dir].[model_name]. Default None for header preset.")
     parser.add_argument(
         "--backbone_pretrained",
         type=str,
         default="imagenet",
         help="If build backbone with pretrained weights. Mostly one of [imagenet, imagenet21k, noisy_student]",
     )
-    parser.add_argument("--det_header", type=str, default="efficientdet.EfficientDetD0", help="Detector header, name in format [sub_dir].[model_name]")
+    parser.add_argument("-D", "--det_header", type=str, default="efficientdet.EfficientDetD0", help="Detector header, name in format [sub_dir].[model_name]")
     parser.add_argument("--freeze_backbone_epochs", type=int, default=32, help="Epochs training with backbone.trainable=false")
     parser.add_argument(
         "--additional_backbone_kwargs", type=str, default=None, help="Json format backbone kwargs like '{\"drop_connect_rate\": 0.05}'. Note all quote marks"
