@@ -78,7 +78,8 @@
 ## ResNeXt
   - [PDF 1611.05431 Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf)
   - Keras implementation of [Github facebookresearch/ResNeXt](https://github.com/facebookresearch/ResNeXt).
-  - Model weights reloaded from [Tensorflow keras/applications](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/applications/resnet.py) and [Github rwightman/pytorch-image-models](https://github.com/rwightman/pytorch-image-models).
+  - `ResNeXt50` / `ResNeXt101` weights reloaded from [keras-team keras/applications](https://github.com/keras-team/keras/blob/master/keras/applications/resnet.py)
+  - `ResNeXt50D` / `ResNeXt101W` / `ResNeXt101W_64` imagenet weights reloaded from [Github rwightman/pytorch-image-models](https://github.com/rwightman/pytorch-image-models).
   - `SWSL` means `Semi-Weakly Supervised ResNe*t` from [Github facebookresearch/semi-supervised-ImageNet1K-models](https://github.com/facebookresearch/semi-supervised-ImageNet1K-models). **Please note the CC-BY-NC 4.0 license on theses weights, non-commercial use only**.
 
   | Model                     | Params | FLOPs  | Input | Top1 Acc | Download            |
@@ -90,6 +91,7 @@
   | - SWSL                    | 42M    | 7.97G  | 224   | 83.230   | [resnext101_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_swsl.h5)  |
   | ResNeXt101W (32x8d)       | 89M    | 16.41G | 224   | 79.308   | [resnext101_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_imagenet.h5)  |
   | - SWSL                    | 89M    | 16.41G | 224   | 84.284   | [resnext101w_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101w_swsl.h5)  |
+  | ResNeXt101W_64 (64x4d)    | 83.46M | 15.46G | 224   | 82.46    | [resnext101w_64_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101w_64_imagenet.h5)  |
 ## ResNetD
   | Model      | Params | FLOPs  | Input | Top1 Acc | Download |
   | ---------- | ------ | ------ | ----- | -------- | -------- |

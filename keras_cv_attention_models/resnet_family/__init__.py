@@ -1,4 +1,4 @@
-from keras_cv_attention_models.resnet_family.resnext import ResNeXt, ResNeXt50, ResNeXt101, ResNeXt50D, ResNeXt101W
+from keras_cv_attention_models.resnet_family.resnext import ResNeXt, ResNeXt50, ResNeXt101, ResNeXt50D, ResNeXt101W, ResNeXt101W_64
 from keras_cv_attention_models.resnet_family.resnet_quad import ResNetQ, ResNet51Q, ResNet61Q
 from keras_cv_attention_models.resnet_family.resnet_deep import ResNetD, ResNet50D, ResNet101D, ResNet152D, ResNet200D
 from keras_cv_attention_models.resnet_family.regnet import (
@@ -67,6 +67,7 @@ Model architectures:
   | - SWSL                    | 42M    | 7.97G  | 224   | 83.230   |
   | ResNeXt101W (32x8d)       | 89M    | 16.41G | 224   | 79.308   |
   | - SWSL                    | 89M    | 16.41G | 224   | 84.284   |
+  | ResNeXt101W_64 (64x4d)    | 83.46M | 15.46G | 224   | 82.46    |
 """
 
 __resnext_default_doc__ = __resnext_head_doc__ + """
@@ -79,6 +80,7 @@ ResNeXt101W.__doc__ = __resnext_default_doc__
 ResNeXt50D.__doc__ = __resnext_head_doc__ + """
 Args:
 """ + __tail_doc__.format(pretrained_list=[None, "imagenet"])
+ResNeXt101W_64.__doc__ = ResNeXt50D.__doc__
 
 __resnetd_head_doc__ = """
 Github source [leondgarse/keras_cv_attention_models](https://github.com/leondgarse/keras_cv_attention_models).

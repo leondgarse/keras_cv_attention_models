@@ -173,7 +173,7 @@
     CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m aotnet50_epoch_103_val_acc_0.7674.h5 -i 224 --central_crop 0.95
     # >>>> Accuracy top1: 0.78466 top5: 0.94088
     ```
-    ![](https://user-images.githubusercontent.com/5744524/147459813-9b35492a-9057-4a0b-92a5-e13eef99b362.png)
+    ![aotnet50_imagenet](https://user-images.githubusercontent.com/5744524/163795114-b2441e5d-94d5-4310-826a-958426f1343e.png)
   - **Progressive training** refer to [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/pdf/2104.00298.pdf). AotNet50 A3 progressive input shapes `96 128 160`:
     ```sh
     CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./progressive_train_script.py \
@@ -183,7 +183,7 @@
     -s aotnet50_progressive_3_lr_steps_100 --seed 0
     ```
     ![aotnet50_progressive_160](https://user-images.githubusercontent.com/5744524/151286851-221ff8eb-9fe9-4685-aa60-4a3ba98c654e.png)
-  - **`eval_script.py`** is used for evaluating model accuracy.
+  - **`eval_script.py`** is used for evaluating model accuracy. [EfficientNetV2 self tested imagenet accuracy #19](https://github.com/leondgarse/keras_cv_attention_models/discussions/19) just showing how different parameters affecting model accuracy.
     ```sh
     # evaluating pretrained builtin model
     CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m regnet.RegNetZD8
@@ -661,6 +661,7 @@
   | - SWSL                    | 42M    | 7.97G  | 224   | 83.230   | [resnext101_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_swsl.h5)  |
   | ResNeXt101W (32x8d)       | 89M    | 16.41G | 224   | 79.308   | [resnext101_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101_imagenet.h5)  |
   | - SWSL                    | 89M    | 16.41G | 224   | 84.284   | [resnext101w_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101w_swsl.h5)  |
+  | ResNeXt101W_64 (64x4d)    | 83.46M | 15.46G | 224   | 82.46    | [resnext101w_64_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101w_64_imagenet.h5)  |
 ## SwinTransformerV2
   - [Keras SwinTransformerV2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/swin_transformer_v2) includes implementation of [PDF 2111.09883 Swin Transformer V2: Scaling Up Capacity and Resolution](https://arxiv.org/pdf/2111.09883.pdf).
 
