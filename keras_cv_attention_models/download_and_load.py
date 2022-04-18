@@ -190,7 +190,7 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
         model.save(save_name)
 
 
-def try_save_pth_and_onnx(torch_model, input_shape=(224, 224), save_pth=True, save_onnx=True):
+def try_save_pth_and_onnx(torch_model, save_pth=True, save_onnx=True, input_shape=(224, 224)):
     import torch
 
     input_shape = input_shape[:2]
@@ -286,6 +286,7 @@ def keras_reload_from_torch_model(
     """ Keras model weights """
     target_names = [ii.name for ii in keras_model.layers if len(ii.weights) != 0]
     aa = {keras_model.get_layer(ii).name: [jj.shape.as_list() for jj in keras_model.get_layer(ii).weights] for ii in target_names}
+    print(">>>> keras_model total_parameters :", np.sum([np.sum([np.prod(jj) for jj in ii]) for ii in aa.values()]))
     print(">>>> Keras weights:")
     _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
     print()

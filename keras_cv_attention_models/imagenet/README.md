@@ -6,6 +6,7 @@
 	- [Comparing resize methods bicubic or bilinear](#comparing-resize-methods-bicubic-or-bilinear)
 	- [Comparing rescale mode torch or tf](#comparing-rescale-mode-torch-or-tf)
 	- [Comparing optimizer LAMB or AdamW](#comparing-optimizer-lamb-or-adamw)
+	- [Test EvoNormalization](#test-evonormalization)
 - [Progressive training](#progressive-training)
 	- [EfficientNetV2B0 cifar10 basic test](#efficientnetv2b0-cifar10-basic-test)
 	- [AotNet50 A3 progressive 96 128 160](#aotnet50-a3-progressive-96-128-160)
@@ -47,7 +48,7 @@
     }
     fig = eval_func.plot_hists(hhs.values(), list(hhs.keys()), skip_first=1, base_size=8)
     ```
-    ![aotnet50_imagenet](https://user-images.githubusercontent.com/5744524/147459813-9b35492a-9057-4a0b-92a5-e13eef99b362.png)
+    ![aotnet50_imagenet](https://user-images.githubusercontent.com/5744524/163795114-b2441e5d-94d5-4310-826a-958426f1343e.png)
 ## Comparing resize methods bicubic or bilinear
   - Basic standard is `AotNet50` + `A3` configuration from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf) with `batch_size=256, input_shape=(160, 160)`.
     ```sh
@@ -79,6 +80,17 @@
   | 8e-3    | 0.02           | 0.6285    | Epoch 105, 0.001463, 0.7675 | 0.78268, 0.93828           | 0.78268, 0.93828   |
 
   ![aotnet_adamw](https://user-images.githubusercontent.com/5744524/152712334-478ceb8d-e22f-4b3f-a321-af7350f53a08.png)
+## Test EvoNormalization
+  - [evonorm](https://github.com/tensorflow/tpu/blob/master/models/official/resnet/resnet_model.py), paper [PDF 2004.02967 Evolving Normalization-Activation Layers](https://arxiv.org/pdf/2004.02967.pdf).
+  ```sh
+  CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py --seed 0 \
+  --additional_model_kwargs '{"use_evo_norm": true, "evo_norm_group_size": 16}' \
+  -s aotnet50_evonorm
+  ```
+  | evonorm             | Train acc | Best eval loss, acc on 160  | Eval acc top1, top5 on 224 | Epoch 105 eval acc |
+  | ------------------- | --------- | --------------------------- | -------------------------- | ------------------ |
+  | False               | 0.6310    | Epoch 103, 0.001452, 0.7674 | 0.78466, 0.94088           | 0.78476, 0.94098   |
+  | True, group_size 16 | 0.6348    | Epoch 103, 0.001388, 0.7691 | 0.78664, 0.94192           | 0.78630, 0.94192   |
 ***
 
 # Progressive training

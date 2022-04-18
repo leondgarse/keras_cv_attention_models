@@ -10,9 +10,10 @@ def init_mean_std_by_rescale_mode(rescale_mode):
         mean = tf.constant([0.485, 0.456, 0.406]) * 255.0
         std = tf.constant([0.229, 0.224, 0.225]) * 255.0
     elif rescale_mode == "tf":  # [0, 255] -> [-1, 1]
-        # mean, std = 128.0, 128.0
         mean, std = 127.5, 127.5
         # mean, std = 127.5, 128.0
+    elif rescale_mode == "tf128":  # [0, 255] -> [-1, 1]
+        mean, std = 128.0, 128.0
     elif rescale_mode == "raw01":
         mean, std = 0, 255.0  # [0, 255] -> [0, 1]
     else:
@@ -224,7 +225,7 @@ def evaluation_process_crop_resize(datapoint, target_shape=(224, 224), central_c
     image = datapoint["image"]
     if len(image.shape) < 3:
         image = tf_imread(image)
-    if central_crop > 0:
+    if central_crop > 0:  # Do not crop if central_crop == -1
         shape = tf.shape(image)
         height, width = shape[0], shape[1]
         crop_size = tf.cast((central_crop * tf.cast(tf.minimum(height, width), tf.float32)), tf.int32)
