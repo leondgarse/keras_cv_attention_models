@@ -62,14 +62,14 @@
   | EffV2B1      | 240   | torch        | 0.95         | 0.7987  | 0.94936 | 0.798             |
   | EffV2B2      | 260   | torch        | 0.95         | 0.80642 | 0.95262 | 0.805             |
   | EffV2B3      | 300   | torch        | 0.95         | 0.82098 | 0.95896 | 0.821             |
-  | EffV2T       | 320   | torch        | 0.99         | 0.82506 | 0.96228 | 0.823 (input 288) |
-  | EffV2S       | 384   | tf           | 0.99         | 0.8386  | 0.967   | 0.839             |
+  | EffV2T       | 320   | [128, 128]   | 1.0          | 0.82506 | 0.96228 | 0.823 (input 288) |
+  | EffV2S       | 384   | tf           | 0.99         | 0.83892 | 0.96726 | 0.839             |
   | EffV2M       | 480   | tf           | 0.99         | 0.8509  | 0.973   | 0.852             |
   | EffV2L       | 480   | tf           | 0.99         | 0.855   | 0.97324 | 0.857             |
-  | EffV2S ft1k  | 384   | tf           | 0.99         | 0.84328 | 0.97254 | 0.849             |
-  | EffV2M ft1k  | 480   | tf           | 0.99         | 0.85606 | 0.9775  | 0.862             |
-  | EffV2L ft1k  | 480   | tf           | 0.99         | 0.86294 | 0.9799  | 0.869             |
-  | EffV2XL ft1k | 512   | tf           | 0.99         | 0.86532 | 0.97866 | 0.872             |
+  | EffV2S ft1k  | 384   | [128, 128]   | -1           | 0.84804 | 0.97514 | 0.849             |
+  | EffV2M ft1k  | 480   | [128, 128]   | -1           | 0.8609  | 0.97952 | 0.862             |
+  | EffV2L ft1k  | 480   | [128, 128]   | -1           | 0.8683  | 0.9815  | 0.869             |
+  | EffV2XL ft1k | 512   | [128, 128]   | -1           | 0.86782 | 0.9806  | 0.872             |
 ## Usage
   - **Define model and load pretrained weights** Parameter `pretrained` is added in value `[None, "imagenet", "imagenet21k", "imagenet21k-ft1k"]`, default is `imagenet`. Model input value should be in range `[-1, 1]`.
     ```py
