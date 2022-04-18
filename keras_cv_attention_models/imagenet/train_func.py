@@ -156,7 +156,8 @@ def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoc
     # ckpt_path = os.path.join("checkpoints", basic_save_name + "epoch_{epoch:03d}_val_acc_{val_acc:.4f}.h5")
     # cur_callbacks = [keras.callbacks.ModelCheckpoint(ckpt_path, monitor="val_loss", save_best_only=True)]
     # cur_callbacks = [keras.callbacks.ModelCheckpoint(os.path.join("checkpoints", basic_save_name + ".h5"))]
-    cur_callbacks = init_callbacks + [callbacks.MyCheckpoint(basic_save_name, monitor="val_acc")]
+    checkpoint_callback = callbacks.MyCheckpoint(basic_save_name, monitor="val_acc")
+    cur_callbacks = [checkpoint_callback] + init_callbacks
     hist_file = os.path.join("checkpoints", basic_save_name + "_hist.json")
     if initial_epoch == 0 and os.path.exists(hist_file):
         # os.remove(hist_file)
@@ -183,4 +184,4 @@ def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoc
         use_multiprocessing=True,
         workers=8,
     )
-    return cur_callbacks[0].latest_save, hist
+    return checkpoint_callback.latest_save, hist

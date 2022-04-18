@@ -267,6 +267,7 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
         self.anchors_mode, self.anchor_scale = anchors_mode, anchor_scale
         self.take_samples, self.annotation_file, self.start_epoch, self.frequency = take_samples, annotation_file, start_epoch, frequency
         self.save_json, self.model_basic_save_name, self.save_path, self.item_key = save_json, model_basic_save_name, "checkpoints", "val_ap_ar"
+        self.data_name = data_name
 
         self.dataset_kwargs = {
             "data_name": data_name,
@@ -310,16 +311,16 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
         self.built = True
 
     def on_epoch_end(self, epoch=0, logs=None):
+        if not self.built:
+            if self.dataset_kwargs["rescale_mode"] == "auto":
+                self.dataset_kwargs["rescale_mode"] = getattr(self.model, "rescale_mode", "torch")
+            self.build(self.model.input_shape, self.model.output_shape)
+
         if epoch < self.start_epoch or epoch % self.frequency != 0:
             return
 
-        if not self.built:
-            if self.dataset_kwargs.get("rescale_mode", "auto"):
-                self.dataset_kwargs["rescale_mode"] = getattr(self.model, "rescale_mode", "torch")
-            self.build(self.model.input_shape, self.model.output_shape)
-        eval_dataset = self.eval_dataset.take(self.take_samples) if self.take_samples > 0 else self.eval_dataset
-
         # pred_decoder = self.model.decode_predictions
+        eval_dataset = self.eval_dataset.take(self.take_samples) if self.take_samples > 0 else self.eval_dataset
         detection_results = model_detection_and_decode(self.model, eval_dataset, self.pred_decoder, self.nms_kwargs)
         try:
             coco_eval = coco_evaluation(detection_results, self.annotation_file)
@@ -337,7 +338,7 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
             self.model.history.history.setdefault(self.item_key, []).append(coco_eval.stats.tolist())
 
         # Training save best
-        cur_ap = coco_eval.stats[0]
+        cur_ap = coco_eval.stats[0] if coco_eval is not None else 0
         if self.model_basic_save_name is not None and self.is_better(cur_ap, self.pre_best):
             self.pre_best = cur_ap
             pre_monitor_saves = tf.io.gfile.glob(self.monitor_save_re)
