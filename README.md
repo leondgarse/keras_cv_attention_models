@@ -136,6 +136,10 @@
     model_surgery.get_flops(resnest.ResNest50())
     # >>>> FLOPs: 5,378,399,992, GFLOPs: 5.3784G
     ```
+  - **Code format** is using `line-length=160`:
+    ```sh
+    find ./* -name "*.py" | grep -v __init__ | grep -v setup.py | xargs -I {} black -l 160 {}
+    ```
 ## Layers
   - [attention_layers](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `RelativePositionalEmbedding` from `botnet`, `outlook_attention` from `volo`.
   ```py
@@ -174,6 +178,19 @@
     # >>>> Accuracy top1: 0.78466 top5: 0.94088
     ```
     ![aotnet50_imagenet](https://user-images.githubusercontent.com/5744524/163795114-b2441e5d-94d5-4310-826a-958426f1343e.png)
+  - **Restore from break point** by setting `--restore_path` and `--initial_epoch`, and keep other parameters same. `restore_path` is higher priority than `model` and `additional_model_kwargs`, also restore `optimizer` and `loss`. `initial_epoch` is mainly for learning rate scheduler. If not sure where it stopped, check `checkpoints/{save_name}_hist.json`.
+    ```py
+    import json
+    with open("checkpoints/aotnet50_hist.json", "r") as ff:
+        aa = json.load(ff)
+    len(aa['lr'])
+    # 41 --> training is stopped at epoch 41, initial_epoch is 41 then, restart from epoch 42
+    ```
+    ```sh
+    CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py --seed 0 -r checkpoints/aotnet50_latest.h5 -I 41
+    # >>>> Restore model from: checkpoints/aotnet50_latest.h5
+    # Epoch 42/105
+    ```
   - **Progressive training** refer to [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/pdf/2104.00298.pdf). AotNet50 A3 progressive input shapes `96 128 160`:
     ```sh
     CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./progressive_train_script.py \
@@ -446,7 +463,8 @@
   | - ImageNet21k-ft1k         | 10.1M  | 1.71G  | 260   | 79.48?   | [effv2b2-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b2-21k-ft1k.h5) |
   | EfficientNetV2B3           | 14.4M  | 3.03G  | 300   | 82.1     | [effv2b3-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b3-imagenet.h5) |
   | - ImageNet21k-ft1k         | 14.4M  | 3.03G  | 300   | 82.46?   | [effv2b3-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b3-21k-ft1k.h5) |
-  | EfficientNetV2T            | 13.6M  | 3.92G  | 320   | 82.5     | [effv2t-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-t-imagenet.h5)   |
+  | EfficientNetV2T            | 13.6M  | 3.18G  | 288   | 82.34    | [effv2t-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-t-imagenet.h5)   |
+  | EfficientNetV2T_GC         | 13.7M  | 3.19G  | 288   | 82.46    | [effv2t-gc-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-t-gc-imagenet.h5)   |
   | EfficientNetV2S            | 21.5M  | 8.41G  | 384   | 83.9     | [effv2s-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-s-imagenet.h5)   |
   | - ImageNet21k-ft1k         | 21.5M  | 8.41G  | 384   | 84.9     | [effv2s-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-s-21k-ft1k.h5)   |
   | EfficientNetV2M            | 54.1M  | 24.69G | 480   | 85.2     | [effv2m-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-m-imagenet.h5)   |

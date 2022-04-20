@@ -249,7 +249,7 @@ def YOLOX(
     reload_model_weights(model, PRETRAINED_DICT, "yolox", pretrained)
 
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]
-    post_process = eval_func.DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchors_mode, anchor_scale)
+    post_process = eval_func.DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale)
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     return model
 

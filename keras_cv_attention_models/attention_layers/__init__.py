@@ -11,6 +11,7 @@ from keras_cv_attention_models.common_layers import (
     EvoNormalization,
     eca_module,
     fold_by_conv2d_transpose,
+    global_context_module,
     group_norm,
     hard_swish,
     layer_norm,

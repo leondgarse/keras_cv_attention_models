@@ -19,7 +19,8 @@
   | - ImageNet21k-ft1k         | 10.1M  | 1.71G  | 260   | 79.48?   | [effv2b2-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b2-21k-ft1k.h5) |
   | EfficientNetV2B3           | 14.4M  | 3.03G  | 300   | 82.1     | [effv2b3-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b3-imagenet.h5) |
   | - ImageNet21k-ft1k         | 14.4M  | 3.03G  | 300   | 82.46?   | [effv2b3-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b3-21k-ft1k.h5) |
-  | EfficientNetV2T            | 13.6M  | 3.92G  | 320   | 82.5     | [effv2t-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-t-imagenet.h5)   |
+  | EfficientNetV2T            | 13.6M  | 3.18G  | 288   | 82.34    | [effv2t-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-t-imagenet.h5)   |
+  | EfficientNetV2T_GC         | 13.7M  | 3.19G  | 288   | 82.46    | [effv2t-gc-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-t-gc-imagenet.h5)   |
   | EfficientNetV2S            | 21.5M  | 8.41G  | 384   | 83.9     | [effv2s-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-s-imagenet.h5)   |
   | - ImageNet21k-ft1k         | 21.5M  | 8.41G  | 384   | 84.9     | [effv2s-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-s-21k-ft1k.h5)   |
   | EfficientNetV2M            | 54.1M  | 24.69G | 480   | 85.2     | [effv2m-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-m-imagenet.h5)   |
@@ -49,27 +50,6 @@
   | EfficientNetV1B7               | 66.3M  | 38.13G  | 600   | 85.2     | [effv1-b7-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-b7-imagenet.h5)           |
   | - NoisyStudent                 | 66.3M  | 38.13G  | 600   | 86.9     | [effv1-b7-noisy_student.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-b7-noisy_student.h5) |
   | EfficientNetV1L2, NoisyStudent | 480.3M | 477.98G | 800   | 88.4     | [effv1-l2-noisy_student.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-l2-noisy_student.h5) |
-
-  - **Self tested imagenet accuracy**
-    - `rescale_mode` `torch` means `(image - [0.485, 0.456, 0.406]) / [[0.229, 0.224, 0.225]]`, `tf` means `(image - 0.5) / 0.5`
-    - All `resize_method` is `bicubic`.
-    - Some testing detail is not clear, so not exactly matching official reported results.
-    - Testing Detail is [EfficientNetV2 self tested imagenet accuracy](https://github.com/leondgarse/keras_cv_attention_models/discussions/19).
-
-  | model        | input | rescale_mode | central_crop | top 1   | top 5   | Reported top1     |
-  | ------------ | ----- | ------------ | ------------ | ------- | ------- | ----------------- |
-  | EffV2B0      | 224   | torch        | 0.875        | 0.78748 | 0.94386 | 0.787             |
-  | EffV2B1      | 240   | torch        | 0.95         | 0.7987  | 0.94936 | 0.798             |
-  | EffV2B2      | 260   | torch        | 0.95         | 0.80642 | 0.95262 | 0.805             |
-  | EffV2B3      | 300   | torch        | 0.95         | 0.82098 | 0.95896 | 0.821             |
-  | EffV2T       | 320   | [128, 128]   | 1.0          | 0.82506 | 0.96228 | 0.823 (input 288) |
-  | EffV2S       | 384   | tf           | 0.99         | 0.83892 | 0.96726 | 0.839             |
-  | EffV2M       | 480   | tf           | 0.99         | 0.8509  | 0.973   | 0.852             |
-  | EffV2L       | 480   | tf           | 0.99         | 0.855   | 0.97324 | 0.857             |
-  | EffV2S ft1k  | 384   | [128, 128]   | -1           | 0.84804 | 0.97514 | 0.849             |
-  | EffV2M ft1k  | 480   | [128, 128]   | -1           | 0.8609  | 0.97952 | 0.862             |
-  | EffV2L ft1k  | 480   | [128, 128]   | -1           | 0.8683  | 0.9815  | 0.869             |
-  | EffV2XL ft1k | 512   | [128, 128]   | -1           | 0.86782 | 0.9806  | 0.872             |
 ## Usage
   - **Define model and load pretrained weights** Parameter `pretrained` is added in value `[None, "imagenet", "imagenet21k", "imagenet21k-ft1k"]`, default is `imagenet`. Model input value should be in range `[-1, 1]`.
     ```py

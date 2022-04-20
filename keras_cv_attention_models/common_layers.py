@@ -282,6 +282,31 @@ def output_block(inputs, filters=0, activation="relu", num_classes=1000, drop_ra
     return nn
 
 
+def global_context_module(inputs, use_attn=True, ratio=0.25, divisor=1, activation="relu", use_bias=True, name=None):
+    """ Global Context Attention Block, arxiv: https://arxiv.org/pdf/1904.11492.pdf """
+    height, width, filters = inputs.shape[1], inputs.shape[2], inputs.shape[-1]
+
+    # activation could be ("relu", "hard_sigmoid")
+    hidden_activation, output_activation = activation if isinstance(activation, (list, tuple)) else (activation, "sigmoid")
+    reduction = make_divisible(filters * ratio, divisor, limit_round_down=0.0)
+
+    if use_attn:
+        attn = keras.layers.Conv2D(1, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "attn_conv")(inputs)
+        attn = tf.reshape(attn, [-1, 1, 1, height * width])  # [batch, height, width, 1] -> [batch, 1, 1, height * width]
+        attn = tf.nn.softmax(attn, axis=-1)
+        context = tf.reshape(inputs, [-1, 1, height * width, filters])
+        context = attn @ context  # [batch, 1, 1, filters]
+    else:
+        context = tf.reduce_mean(inputs, [1, 2], keepdims=True)
+
+    mlp = keras.layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, name=name and name + "mlp_1_conv")(context)
+    mlp = keras.layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, name=name and name + "ln")(mlp)
+    mlp = activation_by_name(mlp, activation=hidden_activation, name=name)
+    mlp = keras.layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, name=name and name + "mlp_2_conv")(mlp)
+    mlp = activation_by_name(mlp, activation=output_activation, name=name)
+    return keras.layers.Multiply(name=name and name + "out")([inputs, mlp])
+
+
 def se_module(inputs, se_ratio=0.25, divisor=8, limit_round_down=0.9, activation="relu", use_bias=True, name=None):
     """ Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf """
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1

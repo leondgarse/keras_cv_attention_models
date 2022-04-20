@@ -5,6 +5,7 @@ from keras_cv_attention_models.efficientnet.efficientnet_v2 import (
     EfficientNetV2B2,
     EfficientNetV2B3,
     EfficientNetV2T,
+    EfficientNetV2T_GC,
     EfficientNetV2S,
     EfficientNetV2M,
     EfficientNetV2L,
@@ -76,7 +77,8 @@ Model architectures:
   | - ImageNet21k-ft1k         | 10.1M  | 1.71G  | 260   | 79.48?   |
   | EfficientNetV2B3           | 14.4M  | 3.03G  | 300   | 82.1     |
   | - ImageNet21k-ft1k         | 14.4M  | 3.03G  | 300   | 82.46?   |
-  | EfficientNetV2T            | 13.6M  | 3.92G  | 320   | 82.5     |
+  | EfficientNetV2T            | 13.6M  | 3.18G  | 288   | 82.34    |
+  | EfficientNetV2T_GC         | 13.7M  | 3.19G  | 288   | 82.46    |
   | EfficientNetV2S            | 21.5M  | 8.41G  | 384   | 83.9     |
   | - ImageNet21k-ft1k         | 21.5M  | 8.41G  | 384   | 84.9     |
   | EfficientNetV2M            | 54.1M  | 24.69G | 480   | 85.2     |
@@ -126,12 +128,8 @@ Training configures: `Eval size` is used as the default model `input_shape`.
 EfficientNetV2T.__doc__ = __v2_head_doc__ + """Architecture and weights from [Github rwightman/pytorch-image-models](https://github.com/rwightman/pytorch-image-models#july-5-9-2021).
 
 Args:
-""" + __tail_doc__.format(pretrained=[None, "imagenet"]) + """
-Training configures: `Eval size` is used as the default model `input_shape`.
-  | Model   | Train size | Eval size | Dropout | Randaug | Mixup |
-  | ------- | ---------- | --------- | ------- | ------- | ----- |
-  | EffV2T  | 224        | 320       | 0.2     | 0       | 0     |
-"""
+""" + __tail_doc__.format(pretrained=[None, "imagenet"])
+EfficientNetV2T_GC.__doc__ = EfficientNetV2T.__doc__
 
 __v1_head_doc__ = """
 Github source [leondgarse/keras_efficientnet_v2](https://github.com/leondgarse/keras_efficientnet_v2).
