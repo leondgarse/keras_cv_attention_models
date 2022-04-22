@@ -13,8 +13,14 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 
 LAYER_NORM_EPSILON = 1e-6
 PRETRAINED_DICT = {
-    "convnext_tiny": {"imagenet": "1deac703865e190528899d5c489afa37"},
-    "convnext_small": {"imagenet": "7e75873348d445eb2aab4200a5d49f80"},
+    "convnext_tiny": {
+        "imagenet": "1deac703865e190528899d5c489afa37",
+        "imagenet21k-ft1k": {224: "b70650cc030ec528802762f58940095d", 384: "d6653ede30e25e0c6240f546675393ad"},
+    },
+    "convnext_small": {
+        "imagenet": "7e75873348d445eb2aab4200a5d49f80",
+        "imagenet21k-ft1k": {224: "da7c257650b112c1537f2753166fae49", 384: "37ff23f51f2ec9d9b6de2ea7d732ac5f"},
+    },
     "convnext_base": {
         "imagenet": {224: "dddac5dcd13bffc1e05688f529726f8c", 384: "ae8dc9bbca6472dc12de30db95ea1018"},
         "imagenet21k-ft1k": {224: "40f78cec6cd327392a9d24f968f9e76b", 384: "4829ff932a930117525920317083d317"},
