@@ -30,7 +30,11 @@ Model architectures:
   | Model               | Params | FLOPs   | Input | Top1 Acc |
   | ------------------- | ------ | ------- | ----- | -------- |
   | ConvNeXtTiny        | 28M    | 4.49G   | 224   | 82.1     |
+  | - ImageNet21k-ft1k  | 28M    | 4.49G   | 224   | 82.9     |
+  | - ImageNet21k-ft1k  | 28M    | 13.19G  | 384   | 84.1     |
   | ConvNeXtSmall       | 50M    | 8.73G   | 224   | 83.1     |
+  | - ImageNet21k-ft1k  | 50M    | 8.73G   | 224   | 84.6     |
+  | - ImageNet21k-ft1k  | 50M    | 25.67G  | 384   | 85.8     |
   | ConvNeXtBase        | 89M    | 15.42G  | 224   | 83.8     |
   | ConvNeXtBase        | 89M    | 45.32G  | 384   | 85.1     |
   | - ImageNet21k-ft1k  | 89M    | 15.42G  | 224   | 85.8     |
