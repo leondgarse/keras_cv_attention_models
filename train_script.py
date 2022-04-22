@@ -91,6 +91,7 @@ def parse_arguments(argv):
     ds_group.add_argument("--rescale_mode", type=str, default="torch", help="Rescale mode, one of [tf, torch]")
     ds_group.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
     ds_group.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
+    ds_group.add_argument("--disable_positional_related_ops", action="store_true", help="Set use use_positional_related_ops=False for RandAugment")
 
     args = parser.parse_known_args(argv)[0]
 
@@ -143,6 +144,7 @@ def run_training_by_args(args):
         random_erasing_prob=args.random_erasing_prob,
         magnitude=args.magnitude,
         num_layers=args.num_layers,
+        use_positional_related_ops=not args.disable_positional_related_ops,
     )
 
     lr_base = args.lr_base_512 * batch_size / 512

@@ -157,6 +157,7 @@ class RandomProcessImage:
         use_cutout=False,
         use_relative_translate=True,
         use_color_increasing=True,
+        use_positional_related_ops=True,
         **randaug_kwargs,
     ):
         self.magnitude = magnitude
@@ -186,6 +187,7 @@ class RandomProcessImage:
                 use_cutout=use_cutout,
                 use_relative_translate=use_relative_translate,
                 use_color_increasing=use_color_increasing,
+                use_positional_related_ops=use_positional_related_ops,
                 **randaug_kwargs,
             )
 
@@ -209,16 +211,16 @@ class RandomProcessImage:
             image = tf_imread(image)
         if self.random_crop_min > 0 and self.random_crop_min < 1:
             hh, ww = random_crop_fraction(tf.shape(image), scale=(self.random_crop_min, 1.0))
-            input_image = tf.image.random_crop(image, (hh, ww, 3))
+            image = tf.image.random_crop(image, (hh, ww, 3))
         elif self.central_crop > 0:
-            input_image = tf.image.central_crop(image, self.central_crop)
-        input_image = tf.image.resize(input_image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
-        input_image = self.process(input_image)
-        input_image = tf.cast(input_image, tf.float32)
-        input_image.set_shape([*self.target_shape[:2], 3])
+            image = tf.image.central_crop(image, self.central_crop)
+        image = tf.image.resize(image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
+        image = self.process(image)
+        image = tf.cast(image, tf.float32)
+        image.set_shape([*self.target_shape[:2], 3])
 
         label = datapoint["label"]
-        return input_image, label
+        return image, label
 
 
 def evaluation_process_crop_resize(datapoint, target_shape=(224, 224), central_crop=1.0, resize_method="bilinear", antialias=False):
@@ -293,6 +295,8 @@ def init_dataset(
     random_erasing_prob=0.0,
     magnitude=0,
     num_layers=2,
+    use_positional_related_ops=True,
+    seed=None,
     **augment_kwargs,  # Too many...
 ):
     # print(">>>> Dataset args:", locals())
@@ -311,16 +315,17 @@ def init_dataset(
     AUTOTUNE = tf.data.AUTOTUNE
     train_process = RandomProcessImage(
         target_shape=input_shape,
-        central_crop=1.0,
+        central_crop=-1,  # Resize directly w/o crop, if random_crop_min not in (0, 1)
         random_crop_min=random_crop_min,
         resize_method=resize_method,
         resize_antialias=resize_antialias,
         random_erasing_prob=random_erasing_prob,
         magnitude=magnitude,
         num_layers=num_layers,
+        use_positional_related_ops=use_positional_related_ops,
         **augment_kwargs,
     )
-    train_dataset = dataset["train"].shuffle(buffer_size).map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE).batch(batch_size)
+    train_dataset = dataset["train"].shuffle(buffer_size, seed=seed).map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE).batch(batch_size)
 
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     # rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
