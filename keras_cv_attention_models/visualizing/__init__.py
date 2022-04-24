@@ -5,6 +5,7 @@ from keras_cv_attention_models.visualizing.visualizing import (
     make_gradcam_heatmap,
     make_and_apply_gradcam_heatmap,
     plot_attention_score_maps,
+    tensorboard_parallel_coordinates_plot,
 )
 
 visualize_filters.__doc__ = """
@@ -120,4 +121,33 @@ Example:
 >>> url = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Free%21_%283987584939%29.jpg'
 >>> imm = plt.imread(keras.utils.get_file('aa.jpg', url))
 >>> _ = visualizing.plot_attention_score_maps(beit.BeitBasePatch16(), imm, rescale_mode='tf', rows=2)
+"""
+
+tensorboard_parallel_coordinates_plot.__doc__ = """
+Parallel coordinates plotting using TensorBoard, wrapper of https://www.tensorflow.org/tensorboard/hyperparameter_tuning_with_hparams
+
+Args:
+  dataframe: data saved in `pd.DataFrame`.
+  metrics_name: dataframe column name used as result metrics.
+  metrics_display_name: speficy another name for displaying metrics. Default None for using `metrics_name`.
+  skip_columns: list value of column names which will be ignored. Default `[]`.
+  log_dir: tensorboard log saving directory. Default 'logs/hparam_tuning'.
+      Note need to manually clean saved data if plotting new data using same log_dir.
+
+Example:
+>>> import pandas as pd
+>>> from keras_cv_attention_models import visualizing
+>>> aotnet50_imagnet_results = {
+>>>   "optimizer": ["lamb", "lamb", "adamw", "adamw", "adamw"],
+>>>   "rescale_mode": ["torch", "tf", "torch", "torch", "torch"],
+>>>   "lr_base": [8e-3, 8e-3, 4e-3, 4e-3, 8e-3],
+>>>   "weight_decay": [0.05, 0.05, 0.05, 0.02, 0.02],
+>>>   "accuracy": [78.48, 78.31, 77.92, 78.06, 78.27],
+>>> }
+>>> aa = pd.DataFrame(aotnet50_imagnet_results)
+>>> visualizing.tensorboard_parallel_coordinates_plot(aa, 'accuracy', log_dir="logs/aotnet50_imagnet_results")
+>>> # >>>> Start tensorboard by: ! tensorboard --logdir logs/aotnet50_imagnet_results
+>>> # >>>> Then select `HPARAMS` -> `PARALLEL COORDINATES VIEW`
+>>> ! tensorboard --logdir logs/aotnet50_imagnet_results
+>>> # TensorBoard 2.8.0 at http://localhost:6006/ (Press CTRL+C to quit)
 """

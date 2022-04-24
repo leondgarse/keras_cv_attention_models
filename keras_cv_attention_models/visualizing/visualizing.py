@@ -2,6 +2,8 @@ import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
 
+""" visualize_filters """
+
 
 def __gradient_ascent_step__(feature_extractor, image_var, filter_index, optimizer):
     with tf.GradientTape() as tape:
@@ -175,6 +177,9 @@ def visualize_filters(
     return losses, np.stack(filter_images), ax
 
 
+""" make_and_apply_gradcam_heatmap """
+
+
 def make_gradcam_heatmap(model, processed_image, layer_name="auto", pred_index=None, use_v2=True):
     # First, we create a model that maps the input image to the activations
     # of the last conv layer as well as the output predictions
@@ -273,6 +278,9 @@ def make_and_apply_gradcam_heatmap(model, image, layer_name="auto", rescale_mode
         plt.tight_layout()
         plt.show()
     return superimposed_img, heatmap, preds
+
+
+""" plot_attention_score_maps """
 
 
 def matmul_prod(aa):
@@ -426,3 +434,46 @@ def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto
     axes[1].set_title("Accumulated attention scores: attn_scores[{}:] --> attn_scores[0:]".format(len(mask) - 1) + layer_name_title)
     fig.tight_layout()
     return mask, cum_mask, fig
+
+
+""" plot_attention_score_maps """
+
+
+def tensorboard_parallel_coordinates_plot(dataframe, metrics_name, metrics_display_name=None, skip_columns=[], log_dir="logs/hparam_tuning"):
+    import os
+    import pandas as pd
+    import numpy as np
+    from tensorboard.plugins.hparams import api as hp
+
+    skip_columns = skip_columns + [metrics_name]
+    to_hp_discrete = lambda column: hp.HParam(column, hp.Discrete(np.unique(dataframe[column].values).tolist()))
+    hp_params_dict = {column: to_hp_discrete(column) for column in dataframe.columns if column not in skip_columns}
+
+    if dataframe[metrics_name].values.dtype == "object":  # Not numeric
+        import json
+
+        metrics_map = {ii: id for id, ii in enumerate(np.unique(dataframe[metrics_name]))}
+        description = json.dumps(metrics_map)
+    else:
+        metrics_map, description = None, None
+
+    METRICS = metrics_name if metrics_display_name is None else metrics_display_name
+    with tf.summary.create_file_writer(log_dir).as_default():
+        metrics = [hp.Metric(METRICS, display_name=METRICS, description=description)]
+        hp.hparams_config(hparams=list(hp_params_dict.values()), metrics=metrics)
+
+    for id in dataframe.index:
+        log = dataframe.iloc[id]
+        hparams = {hp_unit: log[column] for column, hp_unit in hp_params_dict.items()}
+        print({hp_unit.name: hparams[hp_unit] for hp_unit in hparams})
+        run_dir = os.path.join(log_dir, "run-%d" % id)
+        with tf.summary.create_file_writer(run_dir).as_default():
+            hp.hparams(hparams)  # record the values used in this trial
+            metric_item = log[metrics_name] if metrics_map is None else metrics_map[log[metrics_name]]
+            tf.summary.scalar(METRICS, metric_item, step=1)
+
+    print()
+    if metrics_map is not None:
+        print(">>>> metrics_map:", metrics_map)
+    print(">>>> Start tensorboard by: ! tensorboard --logdir {}".format(log_dir))
+    print(">>>> Then select `HPARAMS` -> `PARALLEL COORDINATES VIEW`")
