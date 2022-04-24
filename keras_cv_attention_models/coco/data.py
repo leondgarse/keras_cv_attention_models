@@ -155,7 +155,7 @@ def random_flip_left_right_with_bboxes(image, bboxes, probability=0.5):
     )
 
 
-def random_hsv(image, hue_delta=0.015, saturation_delta=0.7, brightness_delta=0.4, show_sample=False):
+def random_hsv(image, hue_delta=0.015, saturation_delta=0.7, brightness_delta=0.4, contrast_delta=0, show_sample=False):
     # augment_hsv https://github.com/WongKinYiu/yolor/blob/main/utils/datasets.py#L941
     if show_sample:
         import matplotlib.pyplot as plt
@@ -164,13 +164,16 @@ def random_hsv(image, hue_delta=0.015, saturation_delta=0.7, brightness_delta=0.
         aa = tf.concat([tf.image.adjust_hue(image, -hue_delta), tf.image.adjust_hue(image, hue_delta)], axis=1)
         bb = tf.concat([tf.image.adjust_saturation(image, 1 - saturation_delta), tf.image.adjust_saturation(image, 1 + saturation_delta)], axis=1)
         cc = tf.concat([tf.image.adjust_brightness(image, -brightness_delta), tf.image.adjust_brightness(image, brightness_delta)], axis=1)
-        plt.imshow(tf.concat([aa, bb, cc], axis=0))
+        dd = tf.concat([tf.image.adjust_contrast(image, 1 - contrast_delta), tf.image.adjust_contrast(image, 1 + contrast_delta)], axis=1)
+        plt.imshow(tf.concat([aa, bb, cc, dd], axis=0))
         plt.axis("off")
         plt.tight_layout()
 
-    image = tf.image.random_brightness(image, brightness_delta)
-    image = tf.image.random_saturation(image, 1 - saturation_delta, 1 + saturation_delta)
     image = tf.image.random_hue(image, hue_delta)
+    image = tf.image.random_saturation(image, 1 - saturation_delta, 1 + saturation_delta)
+    image = tf.image.random_brightness(image, brightness_delta)
+    if contrast_delta > 0:
+        image = tf.image.random_contrast(image, 1 - contrast_delta, 1 + contrast_delta)
     return image
 
 
