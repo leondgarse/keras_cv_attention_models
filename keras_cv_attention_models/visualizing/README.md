@@ -1,29 +1,18 @@
-## Visualizing
-  - Visualizing convnet filters or attention map scores, and other display related.
+# Visualizing
+<!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
+
+- [Summary](#summary)
+- [Visualize filters](#visualize-filters)
+- [Make gradcam heatmap](#make-gradcam-heatmap)
+- [Make and apply gradcam heatmap](#make-and-apply-gradcam-heatmap)
+- [Plot attention score maps](#plot-attention-score-maps)
+- [TensorBoard Parallel Coordinates Plot](#tensorboard-parallel-coordinates-plot)
+
+<!-- /TOC -->
 ***
+## Summary
+  - Visualizing convnet filters or attention map scores, and other display related.
 
-## TensorBoard Parallel Coordinates Plot
-  - Simmilar results with [Visualize the results in TensorBoard's HParams plugin](https://www.tensorflow.org/tensorboard/hyperparameter_tuning_with_hparams#4_visualize_the_results_in_tensorboards_hparams_plugin). Wrapped function just plotting ignoring training in the tutorial. The logic is using `metrics_name` specified key as metrics, using other columns as `HParams`. For any other detail, refer original tutorial.
-  ```py
-  import pandas as pd
-  aotnet50_imagnet_results = {
-    "optimizer": ["lamb", "lamb", "adamw", "adamw", "adamw"],
-    "rescale_mode": ["torch", "tf", "torch", "torch", "torch"],
-    "lr_base": [8e-3, 8e-3, 4e-3, 4e-3, 8e-3],
-    "weight_decay": [0.05, 0.05, 0.05, 0.02, 0.02],
-    "accuracy": [78.48, 78.31, 77.92, 78.06, 78.27],
-  }
-  aa = pd.DataFrame(aotnet50_imagnet_results)
-
-  from keras_cv_attention_models import visualizing
-  visualizing.tensorboard_parallel_coordinates_plot(aa, 'accuracy', log_dir="logs/aotnet50_imagnet_results")
-  # >>>> Start tensorboard by: ! tensorboard --logdir logs/aotnet50_imagnet_results
-  # >>>> Then select `HPARAMS` -> `PARALLEL COORDINATES VIEW`
-
-  ! tensorboard --logdir logs/aotnet50_imagnet_results
-  # TensorBoard 2.8.0 at http://localhost:6006/ (Press CTRL+C to quit)
-  ```
-  ![aotnet50_imagenet_parallel_coordinates](https://user-images.githubusercontent.com/5744524/164968989-7a443fe8-48e2-486a-995a-fe469e171088.png)
 ## Visualize filters
   - Displaying the visual patterns that convnet filters respond to. Will create input images that maximize the activation of specific filters in a target layer. Such images represent a visualization of the pattern that the filter responds to. Copied and modified from [keras.io/examples Visualizing what convnets learn](https://keras.io/examples/vision/visualizing_what_convnets_learn/).
   - Note: models using `Conv2D` with `groups != 1` not supporting on CPU. Needs backward steps.
@@ -119,4 +108,26 @@
     _ = visualizing.plot_attention_score_maps(attn_scores, imm, attn_type='beit', rows=2)
     ```
     ![](https://user-images.githubusercontent.com/5744524/147209624-5e10e7e2-2120-48cb-bc13-6761c5348a32.png)
+## TensorBoard Parallel Coordinates Plot
+  - Simmilar results with [Visualize the results in TensorBoard's HParams plugin](https://www.tensorflow.org/tensorboard/hyperparameter_tuning_with_hparams#4_visualize_the_results_in_tensorboards_hparams_plugin). Wrapped function just plotting ignoring training in the tutorial. The logic is using `metrics_name` specified key as metrics, using other columns as `HParams`. For any other detail, refer original tutorial.
+  ```py
+  import pandas as pd
+  aotnet50_imagnet_results = {
+    "optimizer": ["lamb", "lamb", "adamw", "adamw", "adamw"],
+    "rescale_mode": ["torch", "tf", "torch", "torch", "torch"],
+    "lr_base": [8e-3, 8e-3, 4e-3, 4e-3, 8e-3],
+    "weight_decay": [0.05, 0.05, 0.05, 0.02, 0.02],
+    "accuracy": [78.48, 78.31, 77.92, 78.06, 78.27],
+  }
+  aa = pd.DataFrame(aotnet50_imagnet_results)
+
+  from keras_cv_attention_models import visualizing
+  visualizing.tensorboard_parallel_coordinates_plot(aa, 'accuracy', log_dir="logs/aotnet50_imagnet_results")
+  # >>>> Start tensorboard by: ! tensorboard --logdir logs/aotnet50_imagnet_results
+  # >>>> Then select `HPARAMS` -> `PARALLEL COORDINATES VIEW`
+
+  ! tensorboard --logdir logs/aotnet50_imagnet_results
+  # TensorBoard 2.8.0 at http://localhost:6006/ (Press CTRL+C to quit)
+  ```
+  ![aotnet50_imagenet_parallel_coordinates](https://user-images.githubusercontent.com/5744524/164968989-7a443fe8-48e2-486a-995a-fe469e171088.png)
 ***
