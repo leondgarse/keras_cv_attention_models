@@ -14,7 +14,7 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-PRETRAINED_DICT = {"coatnet0": {"imagenet": {160: "4b58c14e1e5e65ce01b1c36c47e1c87e", 224: "25a7668fe23a74dc88879ecf491d111b"}}}
+PRETRAINED_DICT = {"coatnet0": {"imagenet": {160: "bc4375d2f03b99ac4252770331f0d22f", 224: "29213248739d600cc526c11a79d06775"}}}
 
 
 def mhsa_with_multi_head_relative_position_embedding(
@@ -25,12 +25,15 @@ def mhsa_with_multi_head_relative_position_embedding(
     qk_scale = 1.0 / tf.math.sqrt(tf.cast(key_dim, inputs.dtype))
     out_shape = cc if out_shape is None or not out_weight else out_shape
     qk_out = num_heads * key_dim
-    vv_dim = out_shape // num_heads
+    # vv_dim = out_shape // num_heads
+    vv_dim = key_dim
 
     # qkv = keras.layers.Dense(emb_dim * 3, use_bias=False, name=name and name + "qkv")(inputs)
-    qkv = conv2d_no_bias(inputs, qk_out * 2 + out_shape, kernel_size=1, name=name and name + "qkv_")
+    # qkv = conv2d_no_bias(inputs, qk_out * 2 + out_shape, kernel_size=1, name=name and name + "qkv_")
+    qkv = conv2d_no_bias(inputs, qk_out * 3, kernel_size=1, name=name and name + "qkv_")
     qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
-    query, key, value = tf.split(qkv, [qk_out, qk_out, out_shape], axis=-1)
+    query, key, value = tf.split(qkv, [qk_out, qk_out, qk_out], axis=-1)
+    # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {num_heads = }, {key_dim = }, {vv_dim = }")
     # query = [batch, num_heads, hh * ww, key_dim]
     query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])
     # key = [batch, num_heads, key_dim, hh * ww]

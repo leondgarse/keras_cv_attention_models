@@ -39,14 +39,18 @@
     | CoAtNet0_15              | conv,bn,gelu,conv | prenorm bn,V2      | prenorm ln,V2      | ln,conv,gelu,conv | 0.7999     |
     | CoAtNet0_16              | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | 0.8019     |
     | - drop_connect 0.05      | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | 0.8017     |
-    | - wd exc pos_emb         | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | **0.8050** |
+    | - wd exc pos_emb         | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | **0.8048** |
     | - wd exc pos_emb, mag 10 | conv,bn,gelu,conv | prenorm bn,V1      | prenorm ln,V1      | ln,conv,gelu,conv | 0.8024     |
   - **Training**. Using `A3` recipe with `batch_size=128, input_shape=(160, 160)`. Weight decay excluding positional embedding is default behavior now.
     ```sh
     CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py -m coatnet.CoAtNet0 \
     --seed 0 --batch_size 128 -s CoAtNet0_160
     ```
-    Changing evaluating input_shape for `CoATNet` is not very helpful.
+    Evaluating on 224 input resolution without fine-tune:
+    ```sh
+    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m coatnet.CoAtNet0 --pretrained checkpoints/CoAtNet0_160_latest.h5 -b 8 -i 224
+    # >>>> Accuracy top1: 0.81056 top5: 0.95362
+    ```
   - **Plot**
     ![coatnet0_160](https://user-images.githubusercontent.com/5744524/154603658-a96aa137-167a-47a8-987f-ec5599a289f8.png)
   - **Fine-tuning 160 -> 224, 37 epochs**
@@ -65,14 +69,14 @@
     | 7                  | 0.2               | Epoch 34/37 loss: 0.0030 - acc: 0.6658 - val_loss: 0.0011 - val_acc: 0.8176     |
     | 10                 | 0.05              | Epoch 36/37 loss: 0.0028 - acc: 0.6783 - val_loss: 0.0011 - val_acc: 0.8199     |
     | 10, wd exc pos_emb | 0.05              | Epoch 35/37 loss: 0.0028 - acc: 0.6811 - val_loss: 0.0011 - val_acc: 0.8206     |
-    | 15, wd exc pos_emb | 0.05              | Epoch 36/37 loss: 0.0028 - acc: 0.6810 - val_loss: 0.0011 - val_acc: **0.8223** |
+    | 15, wd exc pos_emb | 0.05              | Epoch 36/37 loss: 0.0028 - acc: 0.6796 - val_loss: 0.0011 - val_acc: **0.8221** |
 
     ![coatnet0_ft_224](https://user-images.githubusercontent.com/5744524/157171155-5eacb713-62c0-420a-bb63-57644ab9f0ec.png)
 ## Models
   | Model                               | Params | FLOPs  | Input | Top1 Acc | Download |
   | ----------------------------------- | ------ | ------ | ----- | -------- | -------- |
-  | CoAtNet0 (Self trained 105 epochs)  | 23.8M  | 2.17G  | 160   | 80.50    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
-  | - fine-tune 224, 37 epochs          | 23.8M  | 4.22G  | 224   | 82.23    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
+  | CoAtNet0 (Self trained 105 epochs)  | 23.8M  | 2.17G  | 160   | 80.48    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
+  | - fine-tune 224, 37 epochs          | 23.8M  | 4.22G  | 224   | 82.21    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
   | CoAtNet0                            | 25M    | 4.2G   | 224   | 81.6     |          |
   | CoAtNet0, Strided DConv             | 25M    | 4.6G   | 224   | 82.0     |          |
   | CoAtNet0                            | 25M    | 13.4G  | 384   | 83.9     |          |
@@ -99,15 +103,14 @@
 
   **JFT pre-trained models accuracy**
 
-| Model    | Input | Reported Params | self-defined Params | Top1 Acc |
-| -------- | ----- | --------------- | ------------------- | -------- |
-| CoAtNet3 | 384   | 168M            | 162.85M             | 88.52    |
-| CoAtNet3 | 512   | 168M            | 163.45M             | 88.81    |
-| CoAtNet4 | 512   | 275M            | 272.90M             | 89.11    |
-| CoAtNet5 | 512   | 688M            | 680.15M             | 89.77    |
-| CoAtNet6 | 512   | 1.47B           | 1.339B              | 90.45    |
-| CoAtNet7 | 512   | 2.44B           | 2.421B              | 90.88    |
-
+  | Model    | Image resolution | Reported Params    | self-defined Params    | Top1 Acc |
+  | -------- | ---------------- | ------------------ | ---------------------- | -------- |
+  | CoAtNet3 | 384              | 168M, FLOPs 114G   | 160.64M, FLOPs 109.67G | 88.52    |
+  | CoAtNet3 | 512              | 168M, FLOPs 214G   | 161.24M, FLOPs 205.06G | 88.81    |
+  | CoAtNet4 | 512              | 275M, FLOPs 361G   | 270.69M, FLOPs 359.77G | 89.11    |
+  | CoAtNet5 | 512              | 688M, FLOPs 812G   | 676.23M, FLOPs 807.06G | 89.77    |
+  | CoAtNet6 | 512              | 1.47B, FLOPs 1521G | 1.336B, FLOPs 1470.56G | 90.45    |
+  | CoAtNet7 | 512              | 2.44B, FLOPs 2586G | 2.413B, FLOPs 2537.56G | 90.88    |
 ## Article detail info
   - L denotes the number of blocks and D denotes the hidden dimension (#channels).
   - For all Conv and MBConv blocks, we always use the kernel size 3.

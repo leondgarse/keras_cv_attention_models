@@ -79,14 +79,14 @@ Model architectures:
 
   **JFT pre-trained models accuracy**
 
-  | Model    | Image resolution | Reported Params | self-defined Params | Top1 Acc |
-  | -------- | ---------------- | --------------- | ------------------- | -------- |
-  | CoAtNet3 | 384              | 168M            | 162.96M             | 88.52    |
-  | CoAtNet3 | 512              | 168M            | 163.57M             | 88.81    |
-  | CoAtNet4 | 512              | 275M            | 273.10M             | 89.11    |
-  | CoAtNet5 | 512              | 688M            | 680.47M             | 89.77    |
-  | CoAtNet6 | 512              | 1.47B           | 1.340B              | 90.45    |
-  | CoAtNet7 | 512              | 2.44B           | 2.422B              | 90.88    |
+  | Model    | Image resolution | Reported Params    | self-defined Params    | Top1 Acc |
+  | -------- | ---------------- | ------------------ | ---------------------- | -------- |
+  | CoAtNet3 | 384              | 168M, FLOPs 114G   | 160.64M, FLOPs 109.67G | 88.52    |
+  | CoAtNet3 | 512              | 168M, FLOPs 214G   | 161.24M, FLOPs 205.06G | 88.81    |
+  | CoAtNet4 | 512              | 275M, FLOPs 361G   | 270.69M, FLOPs 359.77G | 89.11    |
+  | CoAtNet5 | 512              | 688M, FLOPs 812G   | 676.23M, FLOPs 807.06G | 89.77    |
+  | CoAtNet6 | 512              | 1.47B, FLOPs 1521G | 1.336B, FLOPs 1470.56G | 90.45    |
+  | CoAtNet7 | 512              | 2.44B, FLOPs 2586G | 2.413B, FLOPs 2537.56G | 90.88    |
 """
 
 CoAtNet0.__doc__ = __head_doc__ + """
