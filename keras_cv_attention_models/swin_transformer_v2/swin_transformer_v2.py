@@ -60,6 +60,7 @@ class PairWiseRelativePositionalEmbedding(keras.layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
+        # No weight for this layer, just need to wrapper a layer, or will not in model structure
         return self.relative_coords_log
 
 
@@ -190,8 +191,8 @@ def patch_merging(inputs, name=""):
         inputs = tf.pad(inputs, [[0, 0], [0, should_pad_hh], [0, should_pad_ww], [0, 0]])
 
     # limit transpose perm <= 4
-    nn = tf.reshape(inputs, [-1, 2, inputs.shape[2], input_channel])  # [batch * inputs.shape[1] // 2, 2, inputs.shape[2], input_channel]
-    nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * inputs.shape[1] // 2, inputs.shape[2], 2, input_channel]
+    nn = tf.reshape(inputs, [-1, 2, inputs.shape[2], input_channel])  # [batch * inputs.shape[1] // 2, height 2, inputs.shape[2], input_channel]
+    nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * inputs.shape[1] // 2, inputs.shape[2], height 2, input_channel]
     nn = tf.reshape(nn, [-1, inputs.shape[1] // 2, inputs.shape[2] // 2, 2 * 2 * input_channel])
     nn = layer_norm(nn, name=name)
     nn = keras.layers.Dense(2 * input_channel, use_bias=False, name=name + "dense")(nn)

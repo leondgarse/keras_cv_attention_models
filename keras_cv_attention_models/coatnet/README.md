@@ -5,7 +5,7 @@
   - CoAtNet article: [PDF 2106.04803 CoAtNet: Marrying Convolution and Attention for All Data Sizes](https://arxiv.org/pdf/2106.04803.pdf)
   - [Github comvex/coatnet/model.py](https://github.com/blakechi/ComVEX/blob/master/comvex/coatnet/model.py)
   - Architecture is guessed from article, so it's NOT certain.
-  - **There is a bug in current `coatnet` implementation, that using `vv_dim = out_shape // num_heads` in [coatnet.py#L28](https://github.com/leondgarse/keras_cv_attention_models/blob/main/keras_cv_attention_models/coatnet/coatnet.py#L28) will throw error for `head_dimension=64` or `head_dimension=128`. Considering using `vv_dim = key_dim` instead and retrain the model**...
+  - **`CoAtNet` is using `vv_dim = key_dim` instead of previous `vv_dim = out_shape // num_heads` now, and pretrained weights updated, be caution of this update if wanna reload earlier models**. - `2022.04.24`
 
   ![](https://user-images.githubusercontent.com/5744524/151656800-1baab0ad-a31b-4ef0-bada-483c83108670.png)
 ***
@@ -23,7 +23,7 @@
   imm = tf.keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
   print(tf.keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.9993543), ('n02123159', 'tiger_cat', 0.0004485707), ... ]
+  # [('n02124075', 'Egyptian_cat', 0.9965784), ('n02123159', 'tiger_cat', 0.0020929438), ... ]
   ```
 ## Training
   - As model structure not certain, these are most tests.
