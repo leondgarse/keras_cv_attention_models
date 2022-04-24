@@ -73,20 +73,20 @@
 
     ![coatnet0_ft_224](https://user-images.githubusercontent.com/5744524/157171155-5eacb713-62c0-420a-bb63-57644ab9f0ec.png)
 ## Models
-  - Self defined models are using `Stride-2 DepthwiseConv2D` by default. Set `use_dw_strides=False` for using `strides=2` in `Conv2D` layer instead.
+  - Self defined models are using `Stride-2 DConv2D` by default. Set `use_dw_strides=False` for using `strides=2` in `Conv2D` layer instead.
 
   | Model                               | Params | FLOPs  | Input | Top1 Acc | Download |
   | ----------------------------------- | ------ | ------ | ----- | -------- | -------- |
   | CoAtNet0 (Self trained 105 epochs)  | 23.8M  | 2.17G  | 160   | 80.48    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
   | - fine-tune 224, 37 epochs          | 23.8M  | 4.22G  | 224   | 82.21    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
   | CoAtNet0                            | 25M    | 4.2G   | 224   | 81.6     |          |
-  | CoAtNet0, Stride-2 DepthwiseConv2D  | 25M    | 4.6G   | 224   | 82.0     |          |
+  | CoAtNet0, Stride-2 DConv2D          | 25M    | 4.6G   | 224   | 82.0     |          |
   | CoAtNet0                            | 25M    | 13.4G  | 384   | 83.9     |          |
   | CoAtNet1                            | 42M    | 8.4G   | 224   | 83.3     |          |
-  | CoAtNet1, Stride-2 DepthwiseConv2D  | 42M    | 8.8G   | 224   | 83.5     |          |
+  | CoAtNet1, Stride-2 DConv2D          | 42M    | 8.8G   | 224   | 83.5     |          |
   | CoAtNet1                            | 42M    | 27.4G  | 384   | 85.1     |          |
   | CoAtNet2                            | 75M    | 15.7G  | 224   | 84.1     |          |
-  | CoAtNet2, Stride-2 DepthwiseConv2D  | 75M    | 16.6G  | 224   | 84.1     |          |
+  | CoAtNet2, Stride-2 DConv2D          | 75M    | 16.6G  | 224   | 84.1     |          |
   | CoAtNet2                            | 75M    | 49.8G  | 384   | 85.7     |          |
   | CoAtNet2                            | 75M    | 96.7G  | 512   | 85.9     |          |
   | CoAtNet2, ImageNet-21k pretrain     | 75M    | 16.6G  | 224   | 87.1     |          |
@@ -105,14 +105,14 @@
 
   **JFT pre-trained models accuracy**
 
-  | Model                              | Input | Reported Params    | self-defined Params    | Top1 Acc |
-  | ---------------------------------- | ----- | ------------------ | ---------------------- | -------- |
-  | CoAtNet3, Stride-2 DepthwiseConv2D | 384   | 168M, FLOPs 114G   | 160.64M, FLOPs 109.67G | 88.52    |
-  | CoAtNet3, Stride-2 DepthwiseConv2D | 512   | 168M, FLOPs 214G   | 161.24M, FLOPs 205.06G | 88.81    |
-  | CoAtNet4                           | 512   | 275M, FLOPs 361G   | 270.69M, FLOPs 359.77G | 89.11    |
-  | CoAtNet5                           | 512   | 688M, FLOPs 812G   | 676.23M, FLOPs 807.06G | 89.77    |
-  | CoAtNet6                           | 512   | 1.47B, FLOPs 1521G | 1.336B, FLOPs 1470.56G | 90.45    |
-  | CoAtNet7                           | 512   | 2.44B, FLOPs 2586G | 2.413B, FLOPs 2537.56G | 90.88    |
+  | Model                      | Input | Reported Params    | self-defined Params    | Top1 Acc |
+  | -------------------------- | ----- | ------------------ | ---------------------- | -------- |
+  | CoAtNet3, Stride-2 DConv2D | 384   | 168M, FLOPs 114G   | 160.64M, FLOPs 109.67G | 88.52    |
+  | CoAtNet3, Stride-2 DConv2D | 512   | 168M, FLOPs 214G   | 161.24M, FLOPs 205.06G | 88.81    |
+  | CoAtNet4                   | 512   | 275M, FLOPs 361G   | 270.69M, FLOPs 359.77G | 89.11    |
+  | CoAtNet5                   | 512   | 688M, FLOPs 812G   | 676.23M, FLOPs 807.06G | 89.77    |
+  | CoAtNet6                   | 512   | 1.47B, FLOPs 1521G | 1.336B, FLOPs 1470.56G | 90.45    |
+  | CoAtNet7                   | 512   | 2.44B, FLOPs 2586G | 2.413B, FLOPs 2537.56G | 90.88    |
 ## Article detail info
   - L denotes the number of blocks and D denotes the hidden dimension (#channels).
   - For all Conv and MBConv blocks, we always use the kernel size 3.
