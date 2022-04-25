@@ -209,15 +209,17 @@ class RandomProcessImage:
         # image = tf.cond(tf.rank(image) > 0, lambda: image, lambda: tf_imread(image))
         if len(image.shape) < 2:
             image = tf_imread(image)
+        channel = image.shape[-1]
+
         if self.random_crop_min > 0 and self.random_crop_min < 1:
             hh, ww = random_crop_fraction(tf.shape(image), scale=(self.random_crop_min, 1.0))
-            image = tf.image.random_crop(image, (hh, ww, 3))
+            image = tf.image.random_crop(image, (hh, ww, channel))
         elif self.central_crop > 0:
             image = tf.image.central_crop(image, self.central_crop)
         image = tf.image.resize(image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
         image = self.process(image)
         image = tf.cast(image, tf.float32)
-        image.set_shape([*self.target_shape[:2], 3])
+        image.set_shape([*self.target_shape[:2], channel])
 
         label = datapoint["label"]
         return image, label
@@ -296,15 +298,18 @@ def init_dataset(
     magnitude=0,
     num_layers=2,
     use_positional_related_ops=True,
+    use_shuffle=True,
     seed=None,
     **augment_kwargs,  # Too many...
 ):
     # print(">>>> Dataset args:", locals())
+    is_tpu = True if len(tf.config.list_logical_devices("TPU")) > 0 else False  # Set True for try_gcs and drop_remainder
+
     if data_name.endswith(".json"):
         dataset, total_images, num_classes = recognition_dataset_from_custom_json(data_name, with_info=True)
     else:
-        try_gcs = True if len(tf.config.list_logical_devices("TPU")) > 0 else False
-        dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)
+        # try_gcs = True if len(tf.config.list_logical_devices("TPU")) > 0 else False
+        dataset, info = tfds.load(data_name, with_info=True, try_gcs=is_tpu)
         num_classes = info.features["label"].num_classes
         total_images = info.splits["train"].num_examples
     steps_per_epoch = int(tf.math.ceil(total_images / float(batch_size)))
@@ -325,7 +330,10 @@ def init_dataset(
         use_positional_related_ops=use_positional_related_ops,
         **augment_kwargs,
     )
-    train_dataset = dataset["train"].shuffle(buffer_size, seed=seed).map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE).batch(batch_size)
+    train_dataset = dataset["train"]
+    if use_shuffle:
+        train_dataset = train_dataset.shuffle(buffer_size, seed=seed)
+    train_dataset = train_dataset.map(lambda xx: train_process(xx), num_parallel_calls=AUTOTUNE).batch(batch_size, drop_remainder=is_tpu)
 
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     # rescaling = lambda xx: (tf.clip_by_value(xx, 0, 255) - mean) / std
