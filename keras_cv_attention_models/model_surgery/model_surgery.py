@@ -293,6 +293,17 @@ def get_pyramide_feture_layers(model, match_reg="^stack_?(\\d+).*output.*$"):
     return list(ee.values())
 
 
+def get_global_avg_pool_layer_id(model):
+    """ Search GlobalAveragePooling2D layer id """
+    num_total_layers = len(model.layers)
+    for header_layer_id, layer in enumerate(model.layers[::-1]):
+        header_layer_id = num_total_layers - header_layer_id - 1
+        print("[Search pool layer] header_layer_id = {}, layer.name = {}".format(header_layer_id, layer.name))
+        if isinstance(layer, keras.layers.GlobalAveragePooling2D):
+            break
+    return header_layer_id
+
+
 def convert_to_mixed_float16(model, convert_batch_norm=False):
     policy = keras.mixed_precision.Policy("mixed_float16")
     policy_config = keras.utils.serialize_keras_object(policy)

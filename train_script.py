@@ -9,6 +9,8 @@ from keras_cv_attention_models.imagenet import (
     init_model,
     train,
 )
+from keras_cv_attention_models import model_surgery
+from tensorflow import keras
 
 
 def parse_arguments(argv):
@@ -45,6 +47,8 @@ def parse_arguments(argv):
         "--additional_model_kwargs", type=str, default=None, help="Json format model kwargs like '{\"drop_connect_rate\": 0.05}'. Note all quote marks"
     )
     parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
+    parser.add_argument("--freeze_backbone", action="store_true", help="Freeze backbone, set layer.trainable=False till model GlobalAveragePooling2D layer")
+    parser.add_argument("--freeze_norm_layers", action="store_true", help="Set layer.trainable=False for BatchNormalization and LayerNormalization")
     parser.add_argument("--summary", action="store_true", help="show model summary")
     parser.add_argument("--disable_float16", action="store_true", help="Disable mixed_float16 training")
     parser.add_argument("--TPU", action="store_true", help="Run training on TPU [Not working]")
@@ -129,7 +133,7 @@ def run_training_by_args(args):
     strategy = init_global_strategy(args.enable_float16, args.seed, args.TPU)
 
     batch_size = args.batch_size * strategy.num_replicas_in_sync
-    input_shape = (args.input_shape, args.input_shape, 3)
+    input_shape = (args.input_shape, args.input_shape)
     train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = init_dataset(
         data_name=args.data_name,
         input_shape=input_shape,
@@ -146,6 +150,8 @@ def run_training_by_args(args):
         num_layers=args.num_layers,
         use_positional_related_ops=not args.disable_positional_related_ops,
     )
+    channel = train_dataset.element_spec[0].shape[-1]  # Just in case channel is not 3, like mnist being 1...
+    input_shape = (*input_shape, channel)
 
     lr_base = args.lr_base_512 * batch_size / 512
     warmup_steps, cooldown_steps, t_mul, m_mul = args.lr_warmup_steps, args.lr_cooldown_steps, args.lr_t_mul, args.lr_m_mul  # Save line-width
@@ -156,6 +162,15 @@ def run_training_by_args(args):
 
     with strategy.scope():
         model = init_model(args.model, input_shape, num_classes, args.pretrained, args.restore_path, **args.additional_model_kwargs)
+        if args.freeze_backbone:
+            pool_layer_id = model_surgery.get_global_avg_pool_layer_id(model)
+            for id in range(pool_layer_id):
+                model.layers[id].trainable = False
+        if args.freeze_norm_layers:
+            for ii in model.layers:
+                if isinstance(ii, keras.layers.BatchNormalization) or isinstance(ii, keras.layers.LayerNormalization):
+                    ii.trainable = False
+
         if args.summary:
             model.summary()
         if model.optimizer is None:

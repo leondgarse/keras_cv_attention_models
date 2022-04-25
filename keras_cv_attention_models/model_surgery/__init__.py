@@ -11,6 +11,7 @@ from keras_cv_attention_models.model_surgery.model_surgery import (
     get_actual_survival_probabilities,
     get_actual_drop_connect_rates,
     get_flops,
+    get_global_avg_pool_layer_id,
     get_pyramide_feture_layers,
     prepare_for_tflite,
     replace_ReLU,
