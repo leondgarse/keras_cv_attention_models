@@ -365,7 +365,8 @@ def init_dataset(
         test_dataset = dataset["validation"].map(test_process)
     elif "test" in dataset:
         test_dataset = dataset["test"].map(test_process)
-    test_dataset = test_dataset.batch(batch_size).map(lambda xx, yy: (rescaling(xx), as_one_hot(yy)))
+    # Have to drop_remainder also for test set...
+    test_dataset = test_dataset.batch(batch_size, drop_remainder=is_tpu).map(lambda xx, yy: (rescaling(xx), as_one_hot(yy)))
     return train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
 
 
