@@ -25,7 +25,7 @@ def halo_attention(
         key_dim = make_divisible(cc * key_dim, divisor=8) // num_heads  # regard as key_dim_ratio
     else:
         key_dim = cc // num_heads  # Default value
-    qk_scale = 1.0 / tf.math.sqrt(tf.cast(key_dim, inputs.dtype))
+    qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
     out_shape = cc if out_shape is None else out_shape
     emb_dim = num_heads * key_dim
     kv_kernel = block_size + halo_size * 2

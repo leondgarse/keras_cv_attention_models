@@ -44,6 +44,15 @@ def ResNeXt101W(input_shape=(224, 224, 3), num_classes=1000, activation="relu", 
     return ResNeXt(**locals(), model_name="resnext101w", **kwargs)
 
 
+def ResNeXt101W_se(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained=None, **kwargs):
+    # timm using an additional conv + bn before se_module
+    num_blocks = [3, 4, 23, 3]
+    hidden_channel_ratio = 1
+    se_ratio = 0.25 / 4
+    stem_type = "deep"
+    return ResNeXt(**locals(), model_name="resnext101w", **kwargs)
+
+
 def ResNeXt101W_64(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
     hidden_channel_ratio = 1

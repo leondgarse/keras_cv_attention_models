@@ -24,7 +24,7 @@ PRETRAINED_DICT = {
 
 def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, strides=2, attn_dropout=0, output_dropout=0, name=""):
     _, height, width, channel = inputs.shape
-    qk_scale = tf.math.sqrt(tf.cast(embed_dim // num_heads, inputs.dtype))
+    qk_scale = float(1.0 / tf.math.sqrt(tf.cast(embed_dim // num_heads, "float32")))
     hh, ww = int(tf.math.ceil(height / strides)), int(tf.math.ceil(width / strides))
 
     vv = keras.layers.Dense(embed_dim, use_bias=False, name=name + "v")(inputs)
@@ -78,8 +78,7 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
 def outlook_attention_simple(inputs, embed_dim, num_heads=6, kernel_size=3, attn_dropout=0, name=""):
     """ Simple version not using unfold and fold """
     key_dim = embed_dim // num_heads
-    FLOAT_DTYPE = tf.keras.mixed_precision.global_policy().compute_dtype
-    qk_scale = tf.math.sqrt(tf.cast(key_dim, FLOAT_DTYPE))
+    qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
 
     height, width = inputs.shape[1], inputs.shape[2]
     hh, ww = int(tf.math.ceil(height / kernel_size)), int(tf.math.ceil(width / kernel_size))  # 14, 14

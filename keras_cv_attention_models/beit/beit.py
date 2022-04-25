@@ -124,7 +124,7 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
 def attention_block(inputs, num_heads=4, key_dim=0, out_weight=True, out_bias=False, qv_bias=True, attn_dropout=0, name=None):
     _, bb, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
-    qk_scale = 1.0 / tf.math.sqrt(tf.cast(key_dim, inputs.dtype))
+    qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
     emded_dim = num_heads * key_dim
 
     qkv = keras.layers.Dense(emded_dim * 3, use_bias=False, name=name and name + "qkv")(inputs)

@@ -70,11 +70,10 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
 
 def scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_dim, activation="hard_swish", name=""):
     # qq, kk, vv: [batch, num_heads, blocks, key_dim]
-    FLOAT_DTYPE = tf.keras.mixed_precision.global_policy().compute_dtype
-    qk_scale = tf.math.sqrt(tf.cast(key_dim, FLOAT_DTYPE))
+    qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
     # print(f"{qq.shape = }, {kk.shape = }")
-    # attn = tf.matmul(qq, kk, transpose_b=True) / qk_scale   # [batch, num_heads, q_blocks, k_blocks]
-    attn = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1], transpose_b=True))([qq, kk]) / qk_scale
+    # attn = tf.matmul(qq, kk, transpose_b=True) * qk_scale   # [batch, num_heads, q_blocks, k_blocks]
+    attn = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1], transpose_b=True))([qq, kk]) * qk_scale
     # print(f"{attn.shape = }")
     attn = MultiHeadPositionalEmbedding(name=name + "attn_pos")(attn)
     # attn = tf.nn.softmax(attn, axis=-1)
