@@ -53,14 +53,19 @@ def multi_head_self_attention_channel(
     return attention_output
 
 
-def window_attention(inputs, window_size, num_heads=4, shift_size=0, name=""):
+def window_attention(inputs, window_size, num_heads=4, name=""):
     input_channel = inputs.shape[-1]
     window_height = window_size[0] if window_size[0] < inputs.shape[1] else inputs.shape[1]
     window_width = window_size[1] if window_size[1] < inputs.shape[2] else inputs.shape[2]
 
-    # window_partition, partition windows
-    patch_height, patch_width = inputs.shape[1] // window_height, inputs.shape[2] // window_width
-    # print(f">>>> patch_merging {inputs.shape = }, {patch_height = }, {patch_width = }, {window_height = }, {window_width = }")
+    # window_partition, partition windows, ceil mode
+    patch_height, patch_width = int(tf.math.ceil(inputs.shape[1] / window_height)), int(tf.math.ceil(inputs.shape[2] / window_width))
+    should_pad_hh, should_pad_ww = patch_height * window_height - inputs.shape[1], patch_width * window_width - inputs.shape[2]
+    # print(f">>>> window_attention {inputs.shape = }, {should_pad_hh = }, {should_pad_ww = }")
+    if should_pad_hh or should_pad_ww:
+        inputs = tf.pad(inputs, [[0, 0], [0, should_pad_hh], [0, should_pad_ww], [0, 0]])
+
+    # print(f">>>> window_attention {inputs.shape = }, {patch_height = }, {patch_width = }, {window_height = }, {window_width = }")
     # [batch * patch_height, window_height, patch_width, window_width * input_channel], limit transpose perm <= 4
     nn = tf.reshape(inputs, [-1, window_height, patch_width, window_width * input_channel])
     nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, patch_width, window_height, window_width * input_channel]
@@ -73,6 +78,8 @@ def window_attention(inputs, window_size, num_heads=4, shift_size=0, name=""):
     nn = tf.reshape(nn, [-1, patch_width, window_height, window_width * input_channel])
     nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, window_height, patch_width, window_width * input_channel]
     nn = tf.reshape(nn, [-1, patch_height * window_height, patch_width * window_width, input_channel])
+    if should_pad_hh or should_pad_ww:
+        nn = nn[:, : nn.shape[1] - should_pad_hh, : nn.shape[2] - should_pad_ww, :]  # In case should_pad_hh or should_pad_ww is 0
 
     return nn
 
@@ -116,6 +123,7 @@ def DaViT(
     num_heads=[3, 6, 12, 24],
     stem_width=-1,
     stem_patch_size=4,
+    # window_size=7,
     window_ratio=32,
     mlp_ratio=4,
     layer_scale=-1,
@@ -133,7 +141,9 @@ def DaViT(
     stem_width = stem_width if stem_width > 0 else out_channels[0]
     nn = conv2d_no_bias(inputs, stem_width, kernel_size=7, strides=stem_patch_size, use_bias=True, padding="SAME", name="stem_")
     nn = layer_norm(nn, name="stem_")
-    window_size = [input_shape[0] // window_ratio, input_shape[1] // window_ratio]
+    # window_size = [input_shape[0] // window_ratio, input_shape[1] // window_ratio]
+    window_size = [int(tf.math.ceil(input_shape[0] / window_ratio)), int(tf.math.ceil(input_shape[1] / window_ratio))]
+    # window_size = window_size[:2] if isinstance(window_size, (list, tuple)) else [window_size, window_size]
 
     """ stages """
     total_blocks = sum(num_blocks)
@@ -141,8 +151,10 @@ def DaViT(
     for stack_id, (num_block, out_channel, num_head) in enumerate(zip(num_blocks, out_channels, num_heads)):
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id > 0:
-            nn = layer_norm(nn, name=stack_name + "downsample_")
-            nn = conv2d_no_bias(nn, out_channel, kernel_size=2, strides=2, use_bias=True, padding="VALID", name=stack_name + "downsample_")
+            ds_name = stack_name + "downsample_"
+            nn = layer_norm(nn, name=ds_name)
+            # Set use_torch_padding=False, as kernel_size == 2, otherwise shape will be enlarged by 1
+            nn = conv2d_no_bias(nn, out_channel, kernel_size=2, strides=2, use_bias=True, padding="SAME", use_torch_padding=False, name=ds_name)
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks

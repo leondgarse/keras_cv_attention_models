@@ -30,17 +30,17 @@
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 0.72440475), ('n02123159', 'tiger_cat', 0.0824333), ...]
   ```
-  **Change input resolution** `input_shape` should be divisible by `window_ratio`, default is `32`.
+  **Change input resolution**. Note if `input_shape` is not divisible by `window_ratio`, which default is `32`, will pad for `shifted_window_attention`.
   ```py
   from keras_cv_attention_models import swin_transformer_v2
-  mm = swin_transformer_v2.SwinTransformerV2Tiny_ns(input_shape=(512, 256, 3), pretrained="imagenet")
+  mm = swin_transformer_v2.SwinTransformerV2Tiny_ns(input_shape=(510, 255, 3), pretrained="imagenet")
   # >>>> Load pretrained from: ~/.keras/models/swin_transformer_v2_tiny_ns_224_imagenet.h5
 
   # Run prediction
   from skimage.data import chelsea
   preds = mm(mm.preprocess_input(chelsea()))
   print(mm.decode_predictions(preds))
-  # [('n02124075', 'Egyptian_cat', 0.4695489), ('n02123159', 'tiger_cat', 0.15133126), ...]
+  # [('n02124075', 'Egyptian_cat', 0.5416627), ('n02123159', 'tiger_cat', 0.17523797), ...]
   ```
   Reloading weights with new input_shape not divisible by default `window_ratio` works in some cases, like `input_shape` and `window_ratio` both downsample half:
   ```py

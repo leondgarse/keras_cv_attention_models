@@ -31,17 +31,17 @@
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 0.39985177), ('n02123159', 'tiger_cat', 0.036589254), ...]
   ```
-  **Change input resolution** `input_shape` should be divisible by `window_ratio`, default is `32`.
+  **Change input resolution**. Note if `input_shape` is not divisible by `window_ratio`, which default is `32`, will pad for `window_attention`.
   ```py
   from keras_cv_attention_models import davit
-  mm = davit.DaViT_T(input_shape=(512, 256, 3), pretrained="imagenet")
+  mm = davit.DaViT_T(input_shape=(376, 227, 3), pretrained="imagenet")
   # >>>> Load pretrained from: ~/.keras/models/davit_t_imagenet.h5
 
   # Run prediction
   from skimage.data import chelsea
   preds = mm(mm.preprocess_input(chelsea()))
   print(mm.decode_predictions(preds))
-  # [('n02124075', 'Egyptian_cat', 0.10399398), ('n02123045', 'tabby', 0.010947623), ...]
+  # [('n02124075', 'Egyptian_cat', 0.17319576), ('n02123159', 'tiger_cat', 0.017631555), ...]
   ```
   Reloading weights with new input_shape not divisible by default `window_ratio` works in some cases, like `input_shape` and `window_ratio` both downsample half:
   ```py
@@ -53,6 +53,6 @@
   from skimage.data import chelsea
   preds = mm(mm.preprocess_input(chelsea()))
   print(mm.decode_predictions(preds))
-  # [('n02124075', 'Egyptian_cat', 0.9296805), ('n02123045', 'tabby', 0.02081764), ...]
+  # [('n02124075', 'Egyptian_cat', 0.7279274), ('n02123045', 'tabby', 0.021591123), ...]
   ```
 ***

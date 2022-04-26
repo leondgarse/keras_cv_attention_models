@@ -237,8 +237,8 @@ def test_ConvNeXt_predict():
     assert out[1] == "Egyptian_cat"
 
 
-def test_DaViT_T_predict():
-    mm = keras_cv_attention_models.davit.DaViT_T(pretrained="imagenet")
+def test_DaViT_T_new_shape_predict():
+    mm = keras_cv_attention_models.davit.DaViT_T(input_shape=(376, 227, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 

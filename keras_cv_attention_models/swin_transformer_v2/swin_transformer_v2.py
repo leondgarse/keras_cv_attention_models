@@ -135,24 +135,28 @@ def shifted_window_attention(inputs, window_size, num_heads=4, shift_size=0, nam
     shift_size = 0 if (window_height == inputs.shape[1] and window_width == inputs.shape[2]) else shift_size
     should_shift = shift_size > 0
 
+    # window_partition, partition windows, ceil mode padding if not divisible by window_size
+    # patch_height, patch_width = inputs.shape[1] // window_height, inputs.shape[2] // window_width
+    patch_height, patch_width = int(tf.math.ceil(inputs.shape[1] / window_height)), int(tf.math.ceil(inputs.shape[2] / window_width))
+    should_pad_hh, should_pad_ww = patch_height * window_height - inputs.shape[1], patch_width * window_width - inputs.shape[2]
+    # print(f">>>> shifted_window_attention {inputs.shape = }, {should_pad_hh = }, {should_pad_ww = }")
+    if should_pad_hh or should_pad_ww:
+        inputs = tf.pad(inputs, [[0, 0], [0, should_pad_hh], [0, should_pad_ww], [0, 0]])
+
     if should_shift:
         shift_height, shift_width = int(window_height * shift_size), int(window_width * shift_size)
         # tf.roll is not supported by tflite
         # inputs = tf.roll(inputs, shift=(shift_height * -1, shift_width * -1), axis=[1, 2])
         inputs = tf.concat([inputs[:, shift_height:], inputs[:, :shift_height]], axis=1)
         inputs = tf.concat([inputs[:, :, shift_width:], inputs[:, :, :shift_width]], axis=2)
-        mask = make_window_attention_mask(inputs.shape[1], inputs.shape[2], window_height, window_width, shift_height, shift_width)
-    else:
-        mask = None
 
-    # window_partition, partition windows
-    patch_height, patch_width = inputs.shape[1] // window_height, inputs.shape[2] // window_width
-    # print(f">>>> patch_merging {inputs.shape = }, {patch_height = }, {patch_width = }, {window_height = }, {window_width = }")
+    # print(f">>>> shifted_window_attention {inputs.shape = }, {patch_height = }, {patch_width = }, {window_height = }, {window_width = }")
     # [batch * patch_height, window_height, patch_width, window_width * input_channel], limit transpose perm <= 4
     nn = tf.reshape(inputs, [-1, window_height, patch_width, window_width * input_channel])
     nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, patch_width, window_height, window_width * input_channel]
     nn = tf.reshape(nn, [-1, window_height, window_width, input_channel])  # [batch * patch_height * patch_width, window_height, window_width, input_channel]
 
+    mask = make_window_attention_mask(inputs.shape[1], inputs.shape[2], window_height, window_width, shift_height, shift_width) if should_shift else None
     nn = window_multi_head_self_attention(nn, num_heads=num_heads, mask=mask, name=name)
 
     # window_reverse, merge windows
@@ -165,6 +169,12 @@ def shifted_window_attention(inputs, window_size, num_heads=4, shift_size=0, nam
         # nn = tf.roll(nn, shift=(shift_height, shift_width), axis=[1, 2])
         nn = tf.concat([nn[:, -shift_height:], nn[:, :-shift_height]], axis=1)
         nn = tf.concat([nn[:, :, -shift_width:], nn[:, :, :-shift_width]], axis=2)
+
+    # print(f">>>> shifted_window_attention before: {nn.shape = }, {should_pad_hh = }, {should_pad_ww = }")
+    if should_pad_hh or should_pad_ww:
+        nn = nn[:, : nn.shape[1] - should_pad_hh, : nn.shape[2] - should_pad_ww, :]  # In case should_pad_hh or should_pad_ww is 0
+    # print(f">>>> shifted_window_attention after: {nn.shape = }")
+
     return nn
 
 
@@ -223,7 +233,8 @@ def SwinTransformerV2(
     inputs = keras.layers.Input(input_shape)
     nn = keras.layers.Conv2D(embed_dim, kernel_size=stem_patch_size, strides=stem_patch_size, use_bias=True, name="stem_conv")(inputs)
     nn = layer_norm(nn, name="stem_")
-    window_size = [input_shape[0] // window_ratio, input_shape[1] // window_ratio]
+    # window_size = [input_shape[0] // window_ratio, input_shape[1] // window_ratio]
+    window_size = [int(tf.math.ceil(input_shape[0] / window_ratio)), int(tf.math.ceil(input_shape[1] / window_ratio))]
 
     """ stages """
     total_blocks = sum(num_blocks)
