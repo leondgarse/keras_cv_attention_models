@@ -1,4 +1,4 @@
-from keras_cv_attention_models.davit.davit import DaViT, DaViT_T, DaViT_S, DaViT_B, multi_head_self_attention_channel
+from keras_cv_attention_models.davit.davit import DaViT, DaViT_T, DaViT_S, DaViT_B, DaViT_L, DaViT_H, DaViT_G, multi_head_self_attention_channel
 
 __head_doc__ = """
 Keras implementation of [Github dingmyu/davit](https://github.com/dingmyu/davit).
@@ -25,21 +25,23 @@ Returns:
     A `keras.Model` instance.
 """
 
-
 DaViT.__doc__ = __head_doc__ + """
 Args:
   num_blocks: number of blocks in each stack.
   out_channels: output channels for each stack.
   num_heads: num heads for each stack.
-  stem_width: output dimension for stem block.
+  stem_width: output dimension for stem block, default `-1` for using out_channels[0]
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model   | Params | FLOPs  | Input | Top1 Acc |
-  | ------- | ------ | ------ | ----- | -------- |
-  | DaViT_T | 28.36M | 4.56G  | 224   | 82.8     |
-  | DaViT_S | 49.75M | 8.83G  | 224   | 84.2     |
-  | DaViT_B | 87.95M | 15.55G | 224   | 84.6     |
+  | Model         | Params | FLOPs  | Input | Top1 Acc |
+  | ------------- | ------ | ------ | ----- | -------- |
+  | DaViT_T       | 28.36M | 4.56G  | 224   | 82.8     |
+  | DaViT_S       | 49.75M | 8.83G  | 224   | 84.2     |
+  | DaViT_B       | 87.95M | 15.55G | 224   | 84.6     |
+  | DaViT_L, 21k  | 196.8M | 103.2G | 384   | 87.5     |
+  | DaViT_H, 1.5B | 348.9M | 327.3G | 512   | 90.2     |
+  | DaViT_G, 1.5B | 1.406B | 1.022T | 512   | 90.4     |
 """
 
 DaViT_T.__doc__ = __head_doc__ + """
@@ -48,6 +50,9 @@ Args:
 
 DaViT_S.__doc__ = DaViT_T.__doc__
 DaViT_B.__doc__ = DaViT_T.__doc__
+DaViT_L.__doc__ = DaViT_T.__doc__
+DaViT_H.__doc__ = DaViT_T.__doc__
+DaViT_G.__doc__ = DaViT_T.__doc__
 
 multi_head_self_attention_channel.__doc__ = __head_doc__ + """
 Multi head self attention on channel dimension. Defined as function, not layer.

@@ -7,11 +7,14 @@
 ***
 
 ## Models
-  | Model   | Params | FLOPs  | Input | Top1 Acc | Download |
-  | ------- | ------ | ------ | ----- | -------- | -------- |
-  | DaViT_T | 28.36M | 4.56G  | 224   | 82.8     | [davit_t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/davit/davit_t_imagenet.h5) |
-  | DaViT_S | 49.75M | 8.83G  | 224   | 84.2     | [davit_s_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/davit/davit_s_imagenet.h5) |
-  | DaViT_B | 87.95M | 15.55G | 224   | 84.6     | [davit_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/davit/davit_b_imagenet.h5) |
+  | Model         | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ------------- | ------ | ------ | ----- | -------- | -------- |
+  | DaViT_T       | 28.36M | 4.56G  | 224   | 82.8     | [davit_t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/davit/davit_t_imagenet.h5) |
+  | DaViT_S       | 49.75M | 8.83G  | 224   | 84.2     | [davit_s_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/davit/davit_s_imagenet.h5) |
+  | DaViT_B       | 87.95M | 15.55G | 224   | 84.6     | [davit_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/davit/davit_b_imagenet.h5) |
+  | DaViT_L, 21k  | 196.8M | 103.2G | 384   | 87.5     |          |
+  | DaViT_H, 1.5B | 348.9M | 327.3G | 512   | 90.2     |          |
+  | DaViT_G, 1.5B | 1.406B | 1.022T | 512   | 90.4     |          |
 ## Usage
   ```py
   from keras_cv_attention_models import davit

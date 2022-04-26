@@ -114,7 +114,7 @@ def DaViT(
     num_blocks=[2, 2, 6, 2],
     out_channels=[96, 192, 384, 768],
     num_heads=[3, 6, 12, 24],
-    stem_width=96,
+    stem_width=-1,
     stem_patch_size=4,
     window_ratio=32,
     mlp_ratio=4,
@@ -130,6 +130,7 @@ def DaViT(
 ):
     """ Patch stem """
     inputs = keras.layers.Input(input_shape)
+    stem_width = stem_width if stem_width > 0 else out_channels[0]
     nn = conv2d_no_bias(inputs, stem_width, kernel_size=7, strides=stem_patch_size, use_bias=True, padding="SAME", name="stem_")
     nn = layer_norm(nn, name="stem_")
     window_size = [input_shape[0] // window_ratio, input_shape[1] // window_ratio]
@@ -171,5 +172,25 @@ def DaViT_B(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="
     num_blocks = [2, 2, 18, 2]
     out_channels = [128, 256, 512, 1024]
     num_heads = [4, 8, 16, 32]
-    stem_width = 128
     return DaViT(**locals(), model_name="davit_b", **kwargs)
+
+
+def DaViT_L(input_shape=(384, 384, 3), num_classes=1000, classifier_activation="softmax", pretrained=None, **kwargs):
+    num_blocks = [2, 2, 18, 2]
+    out_channels = [192, 384, 768, 1536]
+    num_heads = [6, 12, 24, 48]
+    return DaViT(**locals(), model_name="davit_l", **kwargs)
+
+
+def DaViT_H(input_shape=(512, 512, 3), num_classes=1000, classifier_activation="softmax", pretrained=None, **kwargs):
+    num_blocks = [2, 2, 18, 2]
+    out_channels = [256, 512, 1024, 2048]
+    num_heads = [8, 16, 32, 64]
+    return DaViT(**locals(), model_name="davit_h", **kwargs)
+
+
+def DaViT_G(input_shape=(512, 512, 3), num_classes=1000, classifier_activation="softmax", pretrained=None, **kwargs):
+    num_blocks = [2, 2, 24, 6]
+    out_channels = [384, 768, 1536, 3072]
+    num_heads = [12, 24, 48, 96]
+    return DaViT(**locals(), model_name="davit_g", **kwargs)

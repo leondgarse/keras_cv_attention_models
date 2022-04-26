@@ -51,7 +51,7 @@ def parse_arguments(argv):
     parser.add_argument("--freeze_norm_layers", action="store_true", help="Set layer.trainable=False for BatchNormalization and LayerNormalization")
     parser.add_argument("--summary", action="store_true", help="show model summary")
     parser.add_argument("--disable_float16", action="store_true", help="Disable mixed_float16 training")
-    parser.add_argument("--TPU", action="store_true", help="Run training on TPU [Not working]")
+    parser.add_argument("--TPU", action="store_true", help="Run training on TPU. Will set True for dataset `try_gcs` and `drop_remainder`")
 
     """ Loss arguments """
     loss_group = parser.add_argument_group("Loss arguments")
