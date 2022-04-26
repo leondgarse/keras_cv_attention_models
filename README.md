@@ -22,6 +22,7 @@
   - [CoAtNet](#coatnet)
   - [ConvNeXt](#convnext)
   - [CoTNet](#cotnet)
+  - [DaViT](#davit)
   - [EfficientNet](#efficientnet)
   - [FBNetV3](#fbnetv3)
   - [GMLP](#gmlp)
@@ -454,6 +455,14 @@
   | CotNetSE101D | 40.9M  | 8.44G  | 224   |   83.2   | [cotnet_se101d_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se101d_224_imagenet.h5) |
   | CotNetSE152D | 55.8M  | 12.22G | 224   |   84.0   | [cotnet_se152d_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_224_imagenet.h5) |
   | CotNetSE152D | 55.8M  | 24.92G | 320   |   84.6   | [cotnet_se152d_320_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_320_imagenet.h5) |
+## DaViT
+  - [Keras DaViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/davit) is for [PDF 2204.03645 DaViT: Dual Attention Vision Transformers](https://arxiv.org/pdf/2204.03645.pdf).
+
+  | Model   | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ------- | ------ | ------ | ----- | -------- | -------- |
+  | DaViT_T | 28.36M | 4.56G  | 224   | 82.8     | [davit_t_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/davit/davit_t_imagenet.h5) |
+  | DaViT_S | 49.75M | 8.83G  | 224   | 84.2     | [davit_s_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/davit/davit_s_imagenet.h5) |
+  | DaViT_B | 87.95M | 15.55G | 224   | 84.6     | [davit_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/davit/davit_b_imagenet.h5) |
 ## EfficientNet
   - [Keras EfficientNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientnet) includes implementation of [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298).
 

@@ -8,6 +8,7 @@ from keras_cv_attention_models import coatnet
 from keras_cv_attention_models import convnext
 from keras_cv_attention_models import cotnet
 from keras_cv_attention_models import cmt
+from keras_cv_attention_models import davit
 from keras_cv_attention_models import efficientnet
 from keras_cv_attention_models import efficientdet
 from keras_cv_attention_models import halonet

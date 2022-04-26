@@ -177,6 +177,13 @@ def test_multi_head_self_attention():
     assert out.shape == [input_shape[0], input_shape[1], input_shape[2], out_shape]
 
 
+def test_multi_head_self_attention_channel():
+    input_shape = [2, 14, 16, 256]
+    out_shape = 384
+    out = attention_layers.multi_head_self_attention_channel(tf.ones(input_shape), num_heads=4, out_shape=out_shape)
+    assert out.shape == [input_shape[0], input_shape[1], input_shape[2], out_shape]
+
+
 def test_MultiHeadPositionalEmbedding():
     aa = attention_layers.MultiHeadPositionalEmbedding()
     input_shape = [2, 8, 16, 49]

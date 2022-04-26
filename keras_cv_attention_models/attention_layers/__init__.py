@@ -40,6 +40,7 @@ from keras_cv_attention_models.beit.beit import MultiHeadRelativePositionalEmbed
 from keras_cv_attention_models.coatnet.coatnet import mhsa_with_multi_head_relative_position_embedding
 from keras_cv_attention_models.cmt.cmt import light_mhsa_with_multi_head_relative_position_embedding
 from keras_cv_attention_models.uniformer.uniformer import multi_head_self_attention
+from keras_cv_attention_models.davit.davit import multi_head_self_attention_channel
 
 CompatibleExtractPatches.__doc__ = """
 For issue https://github.com/leondgarse/keras_cv_attention_models/issues/8,
