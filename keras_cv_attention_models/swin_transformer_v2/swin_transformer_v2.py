@@ -13,6 +13,7 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 PRETRAINED_DICT = {
     "swin_transformer_v2_tiny_ns": {"imagenet": {224: "c3272af88ba0cf09c818ac558ca9970e"}},
     "swin_transformer_v2_small": {"imagenet": {224: "d885a15b6d19cf72eee3a43d9c548579"}},
+    "swin_transformer_v2_small_ns": {"imagenet": {224: "89d5a63d528bbb88a4a287871e868414"}},
 }
 
 
@@ -275,6 +276,12 @@ def SwinTransformerV2Tiny_ns(input_shape=(224, 224, 3), num_classes=1000, classi
 def SwinTransformerV2Small(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 18, 2]
     return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_small", **kwargs)
+
+
+def SwinTransformerV2Small_ns(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [2, 2, 18, 2]
+    use_stack_norm = True
+    return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_small_ns", **kwargs)
 
 
 def SwinTransformerV2Base(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained=None, **kwargs):

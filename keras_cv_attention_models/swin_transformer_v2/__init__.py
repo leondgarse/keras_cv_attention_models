@@ -6,6 +6,7 @@ from keras_cv_attention_models.swin_transformer_v2.swin_transformer_v2 import (
     SwinTransformerV2Tiny,
     SwinTransformerV2Tiny_ns,
     SwinTransformerV2Small,
+    SwinTransformerV2Small_ns,
     SwinTransformerV2Base,
     SwinTransformerV2Large,
     SwinTransformerV2Giant,
@@ -48,6 +49,7 @@ Model architectures:
   | ------------------------------- | ------ | ------- | ----- | -------- |
   | SwinTransformerV2Tiny_ns        | 28.3M  | 4.69G   | 224   | 81.8     |
   | SwinTransformerV2Small          | 49.7M  | 9.12G   | 224   | 83.13    |
+  | SwinTransformerV2Small_ns       | 49.7M  | 9.12G   | 224   | 83.5     |
   | SwinTransformerV2Base, 22k      | 87.9M  | 50.89G  | 384   | 87.1     |
   | SwinTransformerV2Large, 22k     | 196.7M | 109.40G | 384   | 87.7     |
   | SwinTransformerV2Giant, 22k+ext | 2.60B  | 4.26T   | 640   | 90.17    |
@@ -59,6 +61,7 @@ Args:
 
 SwinTransformerV2Tiny_ns.__doc__ = SwinTransformerV2Tiny.__doc__
 SwinTransformerV2Small.__doc__ = SwinTransformerV2Tiny.__doc__
+SwinTransformerV2Small_ns.__doc__ = SwinTransformerV2Tiny.__doc__
 SwinTransformerV2Base.__doc__ = SwinTransformerV2Tiny.__doc__
 SwinTransformerV2Large.__doc__ = SwinTransformerV2Tiny.__doc__
 SwinTransformerV2Giant.__doc__ = SwinTransformerV2Tiny.__doc__
