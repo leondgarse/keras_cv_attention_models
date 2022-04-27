@@ -216,7 +216,7 @@ class MyCheckpoint(keras.callbacks.Callback):
         # tf.print(">>>> Save latest to:", self.latest_save)
         if self.model is not None:
             self.model.save(self.latest_save)
-        if self.monitor not in logs:
+        if self.monitor is not None and self.monitor not in logs:
             all_val_acc = [ii for ii in logs.keys() if "val" in ii and "acc" in ii]
             all_val_loss = [ii for ii in logs.keys() if "val" in ii and "loss" in ii]
             if len(all_val_acc) > 0:
@@ -224,10 +224,11 @@ class MyCheckpoint(keras.callbacks.Callback):
             elif len(all_val_loss) > 0:
                 self.__init_monitor_strategy__(all_val_loss[0])
             else:
-                self.__init_monitor_strategy__("loss")
+                # self.__init_monitor_strategy__("loss")
+                self.monitor = None  # Not saving if not using eval dataset
 
-        cur_monitor_val = logs.get(self.monitor, 0)
-        if self.is_better(cur_monitor_val, self.pre_best):
+        cur_monitor_val = logs.get(self.monitor, self.pre_best)
+        if self.monitor is not None and self.is_better(cur_monitor_val, self.pre_best):
             self.pre_best = cur_monitor_val
             pre_monitor_saves = tf.io.gfile.glob(self.monitor_save_re)
             # tf.print(">>>> pre_monitor_saves:", pre_monitor_saves)

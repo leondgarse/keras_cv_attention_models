@@ -231,8 +231,9 @@ def run_training_by_args(args):
             # Save line width...
             kw = {"batch_size": batch_size, "rescale_mode": args.rescale_mode, "resize_method": args.resize_method, "resize_antialias": resize_antialias}
             kw.update({"anchor_scale": args.anchor_scale, "anchors_mode": args.anchors_mode, "model_basic_save_name": args.basic_save_name})
-            coco_ap_eval = eval_func.COCOEvalCallback(args.data_name, start_epoch=epochs * 2 // 3, frequency=1, **kw)  # coco eval starts from 2/3 epochs
+            coco_ap_eval = eval_func.COCOEvalCallback("coco/2017", start_epoch=epochs * 2 // 3, frequency=1, **kw)  # coco eval starts from 2/3 epochs
             init_callbacks = [coco_ap_eval]
+            test_dataset = None  # COCO eval using coco_ap_eval callback, set `validation_data` for `model.fit` to None
         else:
             init_callbacks = []
         latest_save, hist = train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name, init_callbacks)

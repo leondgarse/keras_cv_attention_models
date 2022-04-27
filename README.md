@@ -213,6 +213,7 @@
     # evaluating specific tflite model
     CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m xxx.tflite
     ```
+  - [EfficientNetV2B0 transfer learning on cifar10 testing freezing backbone #55](https://github.com/leondgarse/keras_cv_attention_models/discussions/55).
 ## COCO training and evaluating
   - **Currently still under testing**.
   - [COCO](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco) contains more detail usage.
