@@ -192,15 +192,6 @@
     # >>>> Restore model from: checkpoints/aotnet50_latest.h5
     # Epoch 42/105
     ```
-  - **Progressive training** refer to [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/pdf/2104.00298.pdf). AotNet50 A3 progressive input shapes `96 128 160`:
-    ```sh
-    CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./progressive_train_script.py \
-    --progressive_epochs 33 66 -1 \
-    --progressive_input_shapes 96 128 160 \
-    --progressive_magnitudes 2 4 6 \
-    -s aotnet50_progressive_3_lr_steps_100 --seed 0
-    ```
-    ![aotnet50_progressive_160](https://user-images.githubusercontent.com/5744524/151286851-221ff8eb-9fe9-4685-aa60-4a3ba98c654e.png)
   - **`eval_script.py`** is used for evaluating model accuracy. [EfficientNetV2 self tested imagenet accuracy #19](https://github.com/leondgarse/keras_cv_attention_models/discussions/19) just showing how different parameters affecting model accuracy.
     ```sh
     # evaluating pretrained builtin model
@@ -213,7 +204,16 @@
     # evaluating specific tflite model
     CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m xxx.tflite
     ```
-  - [EfficientNetV2B0 transfer learning on cifar10 testing freezing backbone #55](https://github.com/leondgarse/keras_cv_attention_models/discussions/55).
+  - **Progressive training** refer to [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/pdf/2104.00298.pdf). AotNet50 A3 progressive input shapes `96 128 160`:
+    ```sh
+    CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./progressive_train_script.py \
+    --progressive_epochs 33 66 -1 \
+    --progressive_input_shapes 96 128 160 \
+    --progressive_magnitudes 2 4 6 \
+    -s aotnet50_progressive_3_lr_steps_100 --seed 0
+    ```
+    ![aotnet50_progressive_160](https://user-images.githubusercontent.com/5744524/151286851-221ff8eb-9fe9-4685-aa60-4a3ba98c654e.png)
+  - Training with `freeze_backbone` or `freeze_norm_layers`: [EfficientNetV2B0 transfer learning on cifar10 testing freezing backbone #55](https://github.com/leondgarse/keras_cv_attention_models/discussions/55).
 ## COCO training and evaluating
   - **Currently still under testing**.
   - [COCO](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco) contains more detail usage.
