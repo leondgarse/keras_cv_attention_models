@@ -46,6 +46,7 @@ class DivideScale(keras.layers.Layer):
 @tf.keras.utils.register_keras_serializable(package="swinv2")
 class PairWiseRelativePositionalEmbedding(keras.layers.Layer):
     def __init__(self, **kwargs):
+        # No weight, just need to wrapper a layer, or will not in model structure
         super().__init__(**kwargs)
 
     def build(self, input_shape):
@@ -61,16 +62,67 @@ class PairWiseRelativePositionalEmbedding(keras.layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
-        # No weight for this layer, just need to wrapper a layer, or will not in model structure
         return self.relative_coords_log
 
 
-def window_multi_head_self_attention(inputs, filters=-1, num_heads=4, meta_hidden_dim=384, mask=None, out_bias=True, attn_dropout=0, out_dropout=0, name=None):
-    input_channel = inputs.shape[-1]
-    filters = filters if filters > 0 else input_channel
-    key_dim = input_channel // num_heads
+@tf.keras.utils.register_keras_serializable(package="swinv2")
+class WindowAttentionMask(keras.layers.Layer):
+    def __init__(self, height, width, window_height, window_width, shift_height=0, shift_width=0, **kwargs):
+        # No weight, just need to wrapper a layer, or will meet some error in model saving or loading...
+        # float_dtype = tf.keras.mixed_precision.global_policy().compute_dtype
+        self.height, self.width, self.window_height, self.window_width = height, width, window_height, window_width
+        self.shift_height, self.shift_width = shift_height, shift_width
+        self.blocks = (self.height // self.window_height) * (self.width // self.window_width)
+        super().__init__(**kwargs)
 
-    qkv = keras.layers.Dense(input_channel * 3, use_bias=True, name=name and name + "qkv")(inputs)
+    def build(self, input_shape):
+        hh_split = [0, self.height - self.window_height, self.height - self.shift_height, self.height]
+        ww_split = [0, self.width - self.window_width, self.width - self.shift_width, self.width]
+        mask_value, total_ww, mask = 0, len(ww_split) - 1, []
+        for hh_id in range(len(hh_split) - 1):
+            hh = hh_split[hh_id + 1] - hh_split[hh_id]
+            rr = [tf.zeros([hh, ww_split[id + 1] - ww_split[id]]) + (id + mask_value) for id in range(total_ww)]
+            mask.append(tf.concat(rr, axis=-1))
+            mask_value += total_ww
+        mask = tf.concat(mask, axis=0)
+        # return mask
+
+        mask = tf.reshape(mask, [self.height // self.window_height, self.window_height, self.width // self.window_width, self.window_width])
+        mask = tf.transpose(mask, [0, 2, 1, 3])
+        mask = tf.reshape(mask, [-1, self.window_height * self.window_width])
+        attn_mask = tf.expand_dims(mask, 1) - tf.expand_dims(mask, 2)
+        attn_mask = tf.cast(tf.where(attn_mask != 0, -100, 0), self._compute_dtype)
+        self.attn_mask = tf.expand_dims(tf.expand_dims(attn_mask, 1), 0)  # expand dims on batch and num_heads
+
+        self.num_heads, self.query_blocks = input_shape[1], input_shape[2]
+
+    def call(self, inputs, **kwargs):
+        # inputs: [batch_size * blocks, num_heads, query_blocks, query_blocks]
+        nn = tf.reshape(inputs, [-1, self.blocks, self.num_heads, self.query_blocks, self.query_blocks])
+        nn = nn + self.attn_mask
+        return tf.reshape(nn, [-1, self.num_heads, self.query_blocks, self.query_blocks])
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "height": self.height,
+            "width": self.width,
+            "window_height": self.window_height,
+            "window_width": self.window_width,
+            "shift_height": self.shift_height,
+            "shift_width": self.shift_width,
+        })
+        return config
+
+
+def window_mhsa_with_pair_wise_positional_embedding(
+    inputs, num_heads=4, key_dim=0, meta_hidden_dim=384, mask=None, out_bias=True, attn_dropout=0, out_dropout=0, name=None
+):
+    input_channel = inputs.shape[-1]
+    key_dim = key_dim if key_dim > 0 else input_channel // num_heads
+    qk_out = key_dim * num_heads
+
+    qkv = keras.layers.Dense(qk_out * 3, use_bias=True, name=name and name + "qkv")(inputs)
     qkv = tf.reshape(qkv, [-1, qkv.shape[1] * qkv.shape[2], qkv.shape[-1]])
     query, key, value = tf.split(qkv, 3, axis=-1)
     query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, key_dim]
@@ -88,12 +140,7 @@ def window_multi_head_self_attention(inputs, filters=-1, num_heads=4, meta_hidde
     attn = attn + relative_position_bias
 
     if mask is not None:
-        query_blocks = attn.shape[2]
-        attn = tf.reshape(attn, [-1, mask.shape[0], num_heads, query_blocks, query_blocks])
-        # attn += tf.expand_dims(tf.expand_dims(mask, 1), 0)  # expand dims on batch and num_heads
-        mask = tf.expand_dims(tf.expand_dims(mask, 1), 0)  # expand dims on batch and num_heads
-        attn = keras.layers.Add()([attn, mask])
-        attn = tf.reshape(attn, [-1, num_heads, query_blocks, query_blocks])
+        attn = mask(attn)
     attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attn)
 
     if attn_dropout > 0:
@@ -104,29 +151,9 @@ def window_multi_head_self_attention(inputs, filters=-1, num_heads=4, meta_hidde
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
     # [batch, hh, ww, num_heads * vv_dim] * [num_heads * vv_dim, out] --> [batch, hh, ww, out]
-    attention_output = keras.layers.Dense(input_channel, use_bias=out_bias, name=name and name + "output")(attention_output)
+    attention_output = keras.layers.Dense(qk_out, use_bias=out_bias, name=name and name + "output")(attention_output)
     attention_output = keras.layers.Dropout(out_dropout, name=name and name + "out_drop")(attention_output) if out_dropout > 0 else attention_output
     return attention_output
-
-
-def make_window_attention_mask(height, width, window_height, window_width, shift_height, shift_width):
-    # float_dtype = tf.keras.mixed_precision.global_policy().compute_dtype
-    hh_split = [0, height - window_height, height - shift_height, height]
-    ww_split = [0, width - window_width, width - shift_width, width]
-    mask_value, total_ww, mask = 0, len(ww_split) - 1, []
-    for hh_id in range(len(hh_split) - 1):
-        hh = hh_split[hh_id + 1] - hh_split[hh_id]
-        rr = [tf.zeros([hh, ww_split[id + 1] - ww_split[id]]) + (id + mask_value) for id in range(total_ww)]
-        mask.append(tf.concat(rr, axis=-1))
-        mask_value += total_ww
-    mask = tf.concat(mask, axis=0)
-    # return mask
-
-    mask = tf.reshape(mask, [height // window_height, window_height, width // window_width, window_width])
-    mask = tf.transpose(mask, [0, 2, 1, 3])
-    mask = tf.reshape(mask, [-1, window_height * window_width])
-    attn_mask = tf.expand_dims(mask, 1) - tf.expand_dims(mask, 2)
-    return tf.cast(tf.where(attn_mask != 0, -100, 0), "float32")
 
 
 def shifted_window_attention(inputs, window_size, num_heads=4, shift_size=0, name=""):
@@ -157,8 +184,8 @@ def shifted_window_attention(inputs, window_size, num_heads=4, shift_size=0, nam
     nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, patch_width, window_height, window_width * input_channel]
     nn = tf.reshape(nn, [-1, window_height, window_width, input_channel])  # [batch * patch_height * patch_width, window_height, window_width, input_channel]
 
-    mask = make_window_attention_mask(inputs.shape[1], inputs.shape[2], window_height, window_width, shift_height, shift_width) if should_shift else None
-    nn = window_multi_head_self_attention(nn, num_heads=num_heads, mask=mask, name=name)
+    mask = WindowAttentionMask(inputs.shape[1], inputs.shape[2], window_height, window_width, shift_height, shift_width) if should_shift else None
+    nn = window_mhsa_with_pair_wise_positional_embedding(nn, num_heads=num_heads, mask=mask, name=name)
 
     # window_reverse, merge windows
     # [batch * patch_height, patch_width, window_height, window_width * input_channel], limit transpose perm <= 4
