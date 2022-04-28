@@ -41,6 +41,12 @@ from keras_cv_attention_models.coatnet.coatnet import mhsa_with_multi_head_relat
 from keras_cv_attention_models.cmt.cmt import light_mhsa_with_multi_head_relative_position_embedding
 from keras_cv_attention_models.uniformer.uniformer import multi_head_self_attention
 from keras_cv_attention_models.davit.davit import multi_head_self_attention_channel
+from keras_cv_attention_models.swin_transformer_v2.swin_transformer_v2 import (
+    DivideScale,
+    PairWiseRelativePositionalEmbedding,
+    WindowAttentionMask,
+    window_mhsa_with_pair_wise_positional_embedding,
+)
 
 CompatibleExtractPatches.__doc__ = """
 For issue https://github.com/leondgarse/keras_cv_attention_models/issues/8,

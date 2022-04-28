@@ -88,6 +88,12 @@ def test_ConvRelativePositionalEncoding():
     assert aa(tf.ones(input_shape), tf.ones(input_shape)).shape == input_shape
 
 
+def test_DivideScale():
+    aa = attention_layers.DivideScale(axis=[1, 2])
+    input_shape = [1, 32, 32, 192]
+    assert aa(tf.ones(input_shape)).shape == input_shape
+
+
 def test_cot_attention():
     input_shape = [2, 28, 28, 192]
     assert attention_layers.cot_attention(tf.ones(input_shape), kernel_size=3).shape == input_shape
@@ -208,6 +214,14 @@ def test_outlook_attention_simple():
     assert out.shape == input_shape
 
 
+def test_PairWiseRelativePositionalEmbedding():
+    aa = attention_layers.PairWiseRelativePositionalEmbedding()
+    window_patch, window_height, window_width, channel = 9, 5, 3, 192
+    input_shape = [window_patch, window_height, window_width, channel]
+    output_shape = [window_height * window_width, window_height * window_width, 2]
+    assert aa(tf.ones(input_shape)).shape == output_shape
+
+
 def test_phase_aware_token_mixing():
     input_shape = [2, 28, 28, 192]
     out_channel = 384
@@ -275,6 +289,21 @@ def test_CompatibleExtractPatches():
     patches_2 = attention_layers.CompatibleExtractPatches(sizes=3, strides=2, rates=1, padding="SAME", compressed=True)(inputs)
     patches_tpu_2 = attention_layers.CompatibleExtractPatches(3, 2, 1, padding="SAME", compressed=True, force_conv=True)(inputs)
     tf.assert_less(tf.abs(patches_2 - patches_tpu_2), 1e-7)
+
+
+def test_WindowAttentionMask():
+    height, width, window_height, window_width, shift_height, shift_width = 36, 48, 6, 6, 3, 3
+    num_heads, query_blocks = 8, window_height * window_width
+    input_shape = [1 * (height // window_height) * (width // window_width), num_heads, query_blocks, query_blocks]
+
+    aa = attention_layers.WindowAttentionMask(height, width, window_height, window_width, shift_height, shift_width)
+    assert aa(tf.ones(input_shape)).shape == input_shape
+
+
+def test_window_mhsa_with_pair_wise_positional_embedding():
+    input_shape = [4, 7, 8, 256]
+    out = attention_layers.window_mhsa_with_pair_wise_positional_embedding(tf.ones(input_shape), num_heads=4)
+    assert out.shape == input_shape
 
 
 def test_ZeroInitGain():
