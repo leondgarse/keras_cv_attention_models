@@ -56,9 +56,8 @@ DaViT_G.__doc__ = DaViT_T.__doc__
 
 multi_head_self_attention_channel.__doc__ = __head_doc__ + """
 Multi head self attention on channel dimension. Defined as function, not layer.
-It's different from traditional MHSA, that using `key @ value` calculating `attention_scores`.
-`attention_scores` shape `[batch, num_heads, key_dim, key_dim]`.
-Then generate output by `attention_scores @ query`.
+It's different from traditional MHSA, that using `attention_scores` shape `[batch, num_heads, key_dim, key_dim]`,
+while traditional MHSA `attention_scores` shape `[batch, num_heads, hh * ww, hh * ww]`
 
 Args:
   inputs: input tensor.
@@ -74,13 +73,12 @@ Examples:
 
 >>> from keras_cv_attention_models import attention_layers
 >>> inputs = keras.layers.Input([14, 16, 256])
->>> nn = attention_layers.multi_head_self_attention_channel(inputs, num_heads=4, out_shape=512)
+>>> nn = attention_layers.multi_head_self_attention_channel(inputs, num_heads=4, out_shape=512, name="attn_")
 >>> print(f"{nn.shape = }")
 # nn.shape = TensorShape([None, 14, 16, 512])
 
 >>> mm = keras.models.Model(inputs, nn)
 >>> mm.summary()
 >>> print({ii.name: ii.shape for ii in mm.weights})
-# {'dense/kernel:0': TensorShape([256, 768]),
-#  'dense_1/kernel:0': TensorShape([256, 512])}
+# {'attn_qkv/kernel:0': TensorShape([256, 768]), 'attn_output/kernel:0': TensorShape([256, 512])}
 """
