@@ -1,16 +1,7 @@
 #!/usr/bin/env python3
 import os
 import json
-from keras_cv_attention_models.imagenet import (
-    compile_model,
-    init_global_strategy,
-    init_dataset,
-    init_lr_scheduler,
-    init_model,
-    train,
-)
-from keras_cv_attention_models import model_surgery
-from tensorflow import keras
+from keras_cv_attention_models.imagenet import data, train_func
 
 
 def parse_arguments(argv):
@@ -97,6 +88,10 @@ def parse_arguments(argv):
     ds_group.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
     ds_group.add_argument("--disable_positional_related_ops", action="store_true", help="Set use use_positional_related_ops=False for RandAugment")
 
+    """ Token labeling parameters """
+    tl_group = parser.add_argument_group("Token labeling arguments")
+    tl_group.add_argument("--token_label_file", type=str, default=None, help="Specific token label file path")
+
     args = parser.parse_known_args(argv)[0]
 
     # args.additional_model_kwargs = {"drop_connect_rate": 0.05}
@@ -130,11 +125,22 @@ def run_training_by_args(args):
     print(">>>> ALl args:", args)
     # return None, None, None
 
-    strategy = init_global_strategy(args.enable_float16, args.seed, args.TPU)
-
+    strategy = train_func.init_global_strategy(args.enable_float16, args.seed, args.TPU)
     batch_size = args.batch_size * strategy.num_replicas_in_sync
     input_shape = (args.input_shape, args.input_shape)
-    train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = init_dataset(
+    use_token_label = False if args.token_label_file is None else True
+
+    # Init model first, for in case of use_token_label, getting token_label_target_patches
+    total_images, num_classes, steps_per_epoch, num_channels = data.init_dataset(args.data_name, batch_size=batch_size, info_only=True)
+    input_shape = (*input_shape, num_channels)  # Just in case channel is not 3, like mnist being 1...
+    with strategy.scope():
+        model = train_func.init_model(args.model, input_shape, num_classes, args.pretrained, args.restore_path, **args.additional_model_kwargs)
+        model = train_func.model_post_process(model, args.freeze_backbone, args.freeze_norm_layers, use_token_label)
+        if args.summary:
+            model.summary()
+    token_label_target_patches = model.output_shape[-1][1:-1] if use_token_label else -1
+
+    train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = data.init_dataset(
         data_name=args.data_name,
         input_shape=input_shape,
         batch_size=batch_size,
@@ -149,35 +155,33 @@ def run_training_by_args(args):
         magnitude=args.magnitude,
         num_layers=args.num_layers,
         use_positional_related_ops=not args.disable_positional_related_ops,
+        token_label_file=args.token_label_file,
+        token_label_target_patches=token_label_target_patches,
     )
-    channel = train_dataset.element_spec[0].shape[-1]  # Just in case channel is not 3, like mnist being 1...
-    input_shape = (*input_shape, channel)
 
     lr_base = args.lr_base_512 * batch_size / 512
     warmup_steps, cooldown_steps, t_mul, m_mul = args.lr_warmup_steps, args.lr_cooldown_steps, args.lr_t_mul, args.lr_m_mul  # Save line-width
-    lr_scheduler, lr_total_epochs = init_lr_scheduler(
+    lr_scheduler, lr_total_epochs = train_func.init_lr_scheduler(
         lr_base, args.lr_decay_steps, args.lr_min, args.lr_decay_on_batch, args.lr_warmup, warmup_steps, cooldown_steps, t_mul, m_mul
     )
     epochs = args.epochs if args.epochs != -1 else lr_total_epochs
 
     with strategy.scope():
-        model = init_model(args.model, input_shape, num_classes, args.pretrained, args.restore_path, **args.additional_model_kwargs)
-        if args.freeze_backbone:
-            pool_layer_id = model_surgery.get_global_avg_pool_layer_id(model)
-            for id in range(pool_layer_id):
-                model.layers[id].trainable = False
-        if args.freeze_norm_layers:
-            for ii in model.layers:
-                if isinstance(ii, keras.layers.BatchNormalization) or isinstance(ii, keras.layers.LayerNormalization):
-                    ii.trainable = False
+        if use_token_label:
+            cls_loss = train_func.init_loss(args.bce_threshold, args.label_smoothing)
+            aux_loss = train_func.init_loss(args.bce_threshold, args.label_smoothing)
+            loss = [cls_loss, aux_loss]
+            loss_weights = [1, 0.5]
+            metrics = {model.output_names[0]: "acc", model.output_names[1]: None}
+        else:
+            loss = train_func.init_loss(args.bce_threshold, args.label_smoothing)
+            loss_weights, metrics = None, ["acc"]
 
-        if args.summary:
-            model.summary()
         if model.optimizer is None:
-            model = compile_model(model, args.optimizer, lr_base, args.weight_decay, args.bce_threshold, args.label_smoothing)
+            model = train_func.compile_model(model, args.optimizer, lr_base, args.weight_decay, loss, loss_weights, metrics)
         print(">>>> basic_save_name =", args.basic_save_name)
         # return None, None, None
-        latest_save, hist = train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name)
+        latest_save, hist = train_func.train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name)
     return model, latest_save, hist
 
 

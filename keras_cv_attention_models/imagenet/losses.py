@@ -31,3 +31,13 @@ class BinaryCrossEntropyTimm(tf.keras.losses.BinaryCrossentropy):
         config = super(BinaryCrossEntropyTimm, self).get_config()
         config.update({"target_threshold": self.target_threshold, "label_smoothing": self.label_smoothing})
         return config
+
+
+# Not using, from VOLO
+def token_label_class_loss(y_true, y_pred):
+    # tf.print(", y_true:", y_true.shape, "y_pred:", y_pred.shape, end="")
+    if y_pred.shape[-1] != y_true.shape[-1]:
+        y_pred, cls_lambda = y_pred[:, :-1], y_pred[:, -1:]
+        y_true = tf.cast(y_true, y_pred.dtype)
+        y_true = cls_lambda * y_true + (1 - cls_lambda) * y_true[::-1]
+    return keras.losses.categorical_crossentropy(y_true, y_pred, from_logits=True)

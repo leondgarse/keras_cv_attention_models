@@ -3,6 +3,7 @@ import keras_cv_attention_models
 import tensorflow as tf
 from tensorflow import keras
 from keras_cv_attention_models.imagenet import callbacks, losses
+from keras_cv_attention_models import model_surgery
 
 GLOBAL_STRATEGY = None
 
@@ -97,25 +98,29 @@ def init_loss(bce_threshold=1.0, label_smoothing=0):
     return loss
 
 
-def init_model(model, input_shape=(224, 224, 3), num_classes=1000, pretrained=None, restore_path=None, **kwargs):
+def init_model(model=None, input_shape=(224, 224, 3), num_classes=1000, pretrained=None, restore_path=None, **kwargs):
     if isinstance(model, keras.models.Model):
         print(">>> Got a keras.models.Model: {}, do nothing with it.".format(model.name))
         return model
 
-    print(">>>> init_model kwargs:", kwargs)
-    model_name = model.strip().split(".")
     if restore_path:
         import tensorflow_addons as tfa
 
         print(">>>> Restore model from:", restore_path)
         model = keras.models.load_model(restore_path)
+        return model
+
+    if input_shape != -1:
+        kwargs.update({"input_shape": input_shape})  # Use model default input_shape if not specified
+    print(">>>> init_model kwargs:", kwargs)
+
+    model_name = model.strip().split(".")
+    if len(model_name) == 1:
+        model = getattr(keras.applications, model_name[0])(classes=num_classes, weights=pretrained, **kwargs)
     else:
-        if len(model_name) == 1:
-            model = getattr(keras.applications, model_name[0])(classes=num_classes, weights=pretrained, input_shape=input_shape, **kwargs)
-        else:
-            model_class = getattr(getattr(keras_cv_attention_models, model_name[0]), model_name[1])
-            model = model_class(num_classes=num_classes, input_shape=input_shape, pretrained=pretrained, **kwargs)
-        print(">>>> Built model name:", model.name)
+        model_class = getattr(getattr(keras_cv_attention_models, model_name[0]), model_name[1])
+        model = model_class(num_classes=num_classes, pretrained=pretrained, **kwargs)
+    print(">>>> Built model name:", model.name)
 
     if model_name[0] == "aotnet" and pretrained is not None and pretrained.endswith(".h5"):
         # Currently aotnet not loading from pretrained...
@@ -124,19 +129,31 @@ def init_model(model, input_shape=(224, 224, 3), num_classes=1000, pretrained=No
     return model
 
 
-def compile_model(model, optimizer, lr_base, weight_decay, bce_threshold=1.0, label_smoothing=0, loss=None, metrics=["acc"]):
+def model_post_process(model, freeze_backbone=False, freeze_norm_layers=False, use_token_label=False):
+    if freeze_backbone:
+        pool_layer_id = model_surgery.get_global_avg_pool_layer_id(model)
+        for id in range(pool_layer_id):
+            model.layers[id].trainable = False
+
+    if freeze_norm_layers:
+        for ii in model.layers:
+            if isinstance(ii, keras.layers.BatchNormalization) or isinstance(ii, keras.layers.LayerNormalization):
+                ii.trainable = False
+
+    if use_token_label:
+        model = model_surgery.convert_to_token_label_model(model)
+    return model
+
+
+def compile_model(model, optimizer, lr_base, weight_decay, loss, loss_weights=None, metrics=["acc"]):
     if isinstance(optimizer, str):
         optimizer = optimizer.lower()
         if optimizer == "sgd" and weight_decay > 0:
             # Add L2 regularizer
-            from keras_cv_attention_models import model_surgery
-
             model = model_surgery.add_l2_regularizer_2_model(model, weight_decay=weight_decay, apply_to_batch_normal=False)
         optimizer = init_optimizer(optimizer, lr_base, weight_decay)
-    if loss is None:
-        loss = init_loss(bce_threshold, label_smoothing)
     print(">>>> Loss: {}, Optimizer: {}".format(loss.__class__.__name__, optimizer.__class__.__name__))
-    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    model.compile(optimizer=optimizer, loss=loss, loss_weights=loss_weights, metrics=metrics)
     return model
 
 

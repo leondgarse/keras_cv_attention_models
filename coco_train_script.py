@@ -219,7 +219,7 @@ def run_training_by_args(args):
                 # loss, metrics = losses.FocalLossWithBbox(label_smoothing=args.label_smoothing), losses.ClassAccuracyWithBbox()
                 loss = losses.FocalLossWithBbox(**loss_kwargs)
             metrics = losses.ClassAccuracyWithBboxWrapper(loss)
-            model = compile_model(model, args.optimizer, lr_base, args.weight_decay, 1, args.label_smoothing, loss=loss, metrics=metrics)
+            model = compile_model(model, args.optimizer, lr_base, args.weight_decay, loss=loss, metrics=metrics)
         else:
             # Re-compile the metrics after restore from h5
             metrics = losses.ClassAccuracyWithBboxWrapper(model.loss)

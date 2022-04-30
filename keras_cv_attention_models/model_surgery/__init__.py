@@ -8,6 +8,7 @@ from keras_cv_attention_models.model_surgery.model_surgery import (
     convert_to_mixed_float16,
     convert_mixed_float16_to_float32,
     convert_to_fused_conv_bn_model,
+    convert_to_token_label_model,
     get_actual_survival_probabilities,
     get_actual_drop_connect_rates,
     get_flops,

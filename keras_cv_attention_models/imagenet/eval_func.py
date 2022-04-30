@@ -67,7 +67,7 @@ class TFLiteModelInterf:
 
 
 def evaluation(
-    model, data_name="imagenet2012", input_shape=None, batch_size=64, central_crop=1.0, resize_method="bicubic", antialias=False, rescale_mode="auto"
+    model, data_name="imagenet2012", input_shape=None, batch_size=64, central_crop=1.0, resize_method="bicubic", antialias=True, rescale_mode="auto"
 ):
     from tqdm import tqdm
     import numpy as np

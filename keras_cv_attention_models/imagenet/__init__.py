@@ -13,6 +13,7 @@ from keras_cv_attention_models.imagenet import data
 from keras_cv_attention_models.imagenet.data import init_dataset
 from keras_cv_attention_models.imagenet import callbacks
 from keras_cv_attention_models.imagenet import losses
+from keras_cv_attention_models.imagenet import token_label
 
 data.random_crop_fraction.__doc__ = """ https://github.com/tensorflow/models/blob/master/official/vision/image_classification/preprocessing.py
 RandomResizedCrop related function.

@@ -2,6 +2,8 @@ import tensorflow as tf
 from tensorflow import keras
 import tensorflow.keras.backend as K
 
+""" Convert and replacing """
+
 
 class SAMModel(keras.models.Model):
     """
@@ -267,6 +269,41 @@ def replace_stochastic_depth_with_add(model, drop_survival=False):
     return keras.models.clone_model(model, input_tensors=input_tensors, clone_function=__replace_stochastic_depth_with_add__)
 
 
+def convert_to_token_label_model(model, pool_layer_id="auto"):
+    # Search pool layer id
+    num_total_layers = len(model.layers)
+    if pool_layer_id == "auto":
+        for header_layer_id, layer in enumerate(model.layers[::-1]):
+            header_layer_id = num_total_layers - header_layer_id - 1
+            print("[Search pool layer] header_layer_id = {}, layer.name = {}".format(header_layer_id, layer.name))
+            if isinstance(layer, keras.layers.GlobalAveragePooling2D):
+                break
+        pool_layer_id = header_layer_id
+
+    nn = model.layers[pool_layer_id - 1].output  # layer output before pool layer
+
+    # Add header layers w/o pool layer
+    for header_layer_id in range(pool_layer_id + 1, num_total_layers):
+        aa = model.layers[header_layer_id]
+        config = aa.get_config()
+        config["name"] = config["name"] + "_token_label"
+        if isinstance(aa, keras.layers.LayerNormalization) and config["axis"] == [1]:
+            config["axis"] = [-1]
+        # print(config)
+        print("[Build new layer] header_layer_id = {}, layer.name = {}".format(header_layer_id, config["name"]))
+
+        bb = aa.__class__.from_config(config)
+        bb.build(nn.shape)
+        bb.set_weights(aa.get_weights())
+        nn = bb(nn)
+    token_label_model = keras.models.Model(model.inputs[0], [*model.outputs, nn])
+    print("token_label_model.output_shape =", token_label_model.output_shape)
+    return token_label_model
+
+
+""" Get model info """
+
+
 def get_actual_survival_probabilities(model):
     from tensorflow_addons.layers import StochasticDepth
 
@@ -302,6 +339,22 @@ def get_global_avg_pool_layer_id(model):
         if isinstance(layer, keras.layers.GlobalAveragePooling2D):
             break
     return header_layer_id
+
+
+def get_flops(model):
+    # https://github.com/tensorflow/tensorflow/issues/32809#issuecomment-849439287
+    from tensorflow.python.profiler import model_analyzer, option_builder
+
+    input_signature = [tf.TensorSpec(shape=(1, *ii.shape[1:]), dtype=ii.dtype, name=ii.name) for ii in model.inputs]
+    forward_graph = tf.function(model, input_signature).get_concrete_function().graph
+    options = option_builder.ProfileOptionBuilder.float_operation()
+    graph_info = model_analyzer.profile(forward_graph, options=options)
+    flops = graph_info.total_float_ops // 2
+    print(">>>> FLOPs: {:,}, GFLOPs: {:.4f}G".format(flops, flops / 1e9))
+    return flops
+
+
+""" Inference """
 
 
 def convert_to_mixed_float16(model, convert_batch_norm=False):
@@ -436,6 +489,9 @@ def convert_to_fused_conv_bn_model(model):
     return new_model
 
 
+""" TFLite """
+
+
 @keras.utils.register_keras_serializable(package="model_surgery")
 class SplitConv2D(keras.layers.Conv2D):
     def __init__(self, **kwargs):
@@ -526,16 +582,3 @@ def prepare_for_tflite(model):
     model = convert_groups_conv2d_2_split_conv2d(model)
     model = convert_gelu_and_extract_patches_for_tflite(model)
     return model
-
-
-def get_flops(model):
-    # https://github.com/tensorflow/tensorflow/issues/32809#issuecomment-849439287
-    from tensorflow.python.profiler import model_analyzer, option_builder
-
-    input_signature = [tf.TensorSpec(shape=(1, *ii.shape[1:]), dtype=ii.dtype, name=ii.name) for ii in model.inputs]
-    forward_graph = tf.function(model, input_signature).get_concrete_function().graph
-    options = option_builder.ProfileOptionBuilder.float_operation()
-    graph_info = model_analyzer.profile(forward_graph, options=options)
-    flops = graph_info.total_float_ops // 2
-    print(">>>> FLOPs: {:,}, GFLOPs: {:.4f}G".format(flops, flops / 1e9))
-    return flops

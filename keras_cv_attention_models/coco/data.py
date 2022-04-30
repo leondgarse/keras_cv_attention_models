@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from tensorflow import keras
-from keras_cv_attention_models.imagenet.data import init_mean_std_by_rescale_mode, tf_imread, random_crop_fraction
+from keras_cv_attention_models.imagenet.data import init_mean_std_by_rescale_mode, tf_imread, random_crop_and_resize_image
 from keras_cv_attention_models.coco import anchors_func
 
 COCO_LABELS = """person, bicycle, car, motorcycle, airplane, bus, train, truck, boat, traffic light, fire hydrant, stop sign,
@@ -20,19 +20,14 @@ COCO_80_to_90_LABEL_DICT = {id_80: id_90 for id_80, id_90 in enumerate(set(range
 """ Bboxes augment """
 
 
-def resize_and_crop_bboxes(bboxes, source_shape, target_shape, scale=1.0, offset_y=0, offset_x=0):
-    height, width = tf.cast(source_shape[0], bboxes.dtype), tf.cast(source_shape[1], bboxes.dtype)
-    # print(height, width, scale)
-    if isinstance(scale, (list, tuple)):
-        scaled_height, scaled_width = height * scale[0], width * scale[1]
-    else:
-        scaled_height, scaled_width = height * scale, width * scale
-    bboxes *= [scaled_height, scaled_width, scaled_height, scaled_width]
-
-    offset_y, offset_x = tf.cast(offset_y, bboxes.dtype), tf.cast(offset_x, bboxes.dtype)
-    bboxes -= [offset_y, offset_x, offset_y, offset_x]
-    bboxes /= [target_shape[0], target_shape[1], target_shape[0], target_shape[1]]
-    return bboxes
+def rerange_scale_offset_to_01(source_height, source_width, target_height, target_width, scale_hh, scale_ww, offset_hh=0, offset_ww=0):
+    # Input: image size firstly rescale with (scale_hh, scale_ww), then crop as [offset_hh: offset_hh + target_height, offset_ww: offset_ww + target_width]
+    # Output: coords or bbox value in (0, 1) -> * scale - offset
+    source_height, source_width = tf.cast(source_height, "float32"), tf.cast(source_width, "float32")
+    target_height, target_width = tf.cast(target_height, "float32"), tf.cast(target_width, "float32")
+    scale_hh_01, scale_ww_01 = source_height * scale_hh / target_height, source_width * scale_ww / target_width
+    crop_hh_01, crop_ww_01 = tf.cast(offset_hh, "float32") / target_height, tf.cast(offset_ww, "float32") / target_width
+    return scale_hh_01, scale_ww_01, crop_hh_01, crop_ww_01
 
 
 def inverse_affine_matrix_single_6(affine):
@@ -96,23 +91,6 @@ def random_largest_crop_and_resize_images(images, target_shape, method="bilinear
     else:
         images = images[:, crop_hh : crop_hh + target_shape[0], crop_ww : crop_ww + target_shape[1]]
     return images, scale, crop_hh, crop_ww
-
-
-def random_crop_and_resize_image(image, target_shape, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), method="bilinear", antialias=False):
-    height, width = tf.shape(image)[0], tf.shape(image)[1]
-    cropped_hh, cropped_ww = random_crop_fraction((height, width), scale, ratio)
-    cropped_hh, cropped_ww = tf.clip_by_value(cropped_hh, 1, height - 1), tf.clip_by_value(cropped_ww, 1, width - 1)
-    crop_hh = tf.random.uniform((), 0, height - cropped_hh, dtype=cropped_hh.dtype)
-    crop_ww = tf.random.uniform((), 0, width - cropped_ww, dtype=cropped_ww.dtype)
-    image = image[crop_hh : crop_hh + cropped_hh, crop_ww : crop_ww + cropped_ww]
-    image = tf.image.resize(image, target_shape, method=method, antialias=antialias)
-
-    scale_hh = tf.cast(target_shape[0], "float32") / tf.cast(cropped_hh, "float32")
-    scale_ww = tf.cast(target_shape[1], "float32") / tf.cast(cropped_ww, "float32")
-    crop_hh = tf.cast(tf.cast(crop_hh, "float32") * scale_hh, "int32")
-    crop_ww = tf.cast(tf.cast(crop_ww, "float32") * scale_ww, "int32")
-    scale = (scale_hh, scale_ww)
-    return image, scale, crop_hh, crop_ww
 
 
 def get_image_aspect_aware_random_scale_crop(source_shape, target_shape, scale_min=0.1, scale_max=2.0):
@@ -201,7 +179,9 @@ def mosaic_mix_batch(images, bboxes, labels, split_center_min=0.25, split_center
         # print(f"{cur_images.shape = }, {scale = }")
 
         cur_bboxes, cur_labels = tf.gather(bboxes, pick_indices), tf.gather(labels, pick_indices)
-        cur_bboxes = resize_and_crop_bboxes(cur_bboxes, (hh, ww), (1, 1), scale, offset_y=crop_hh, offset_x=crop_ww)  # Don't scale to [0, 1]
+        target_height, target_width = 1, 1  # Don't scale back to [0, 1]
+        scale_hh, scale_ww, crop_hh, crop_ww = rerange_scale_offset_to_01(hh, ww, target_height, target_width, scale, scale, crop_hh, crop_ww)
+        cur_bboxes = cur_bboxes * [scale_hh, scale_ww, scale_hh, scale_ww] - [crop_hh, crop_ww, crop_hh, crop_ww]
 
         """ Re-fine batch bboxes """
         sub_hh, sub_ww = tf.cast(sub_hh, cur_bboxes.dtype), tf.cast(sub_ww, cur_bboxes.dtype)
@@ -266,6 +246,33 @@ class RandomProcessImageWithBboxes:
             # RandAugment positional related ops. Including [shear, rotate, translate], Also returns affine transform matrix
             # self.pos_randaug = augment.PositionalRandAugment(num_layers=num_layers, magnitude=magnitude, **randaug_kwargs)
 
+    def __random_crop_and_resize__(self, image, bbox):
+        height, width = tf.shape(image)[0], tf.shape(image)[1]
+
+        if self.random_crop_mode > 1:
+            scale, crop_hh, crop_ww = get_image_aspect_aware_random_scale_crop((height, width), self.target_shape)
+            image, scale, _, _ = aspect_aware_resize_and_crop_image(
+                image, self.target_shape, scale, crop_hh, crop_ww, method=self.resize_method, antialias=self.resize_antialias
+            )
+            scale_hh, scale_ww, crop_hh, crop_ww = rerange_scale_offset_to_01(
+                height, width, self.target_shape[0], self.target_shape[1], scale, scale, crop_hh, crop_ww
+            )
+        elif self.random_crop_mode == 1:
+            image, scale, crop_hh, crop_ww = random_largest_crop_and_resize_images(image, self.target_shape, self.resize_method, self.resize_antialias)
+            scale_hh, scale_ww, crop_hh, crop_ww = rerange_scale_offset_to_01(
+                height, width, self.target_shape[0], self.target_shape[1], scale, scale, crop_hh, crop_ww
+            )
+        elif self.random_crop_mode > 0 and self.random_crop_mode < 1:
+            image, scale_hh, scale_ww, crop_hh, crop_ww = random_crop_and_resize_image(
+                image, self.target_shape, scale=(self.random_crop_mode, 1.0), method=self.resize_method, antialias=self.resize_antialias
+            )
+        else:
+            image, scale, _, _ = aspect_aware_resize_and_crop_image(image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
+            scale_hh, scale_ww, crop_hh, crop_ww = rerange_scale_offset_to_01(height, width, self.target_shape[0], self.target_shape[1], scale, scale)
+
+        bbox = bbox * [scale_hh, scale_ww, scale_hh, scale_ww] - [crop_hh, crop_ww, crop_hh, crop_ww]
+        return image, bbox
+
     def __call__(self, datapoint):
         image = datapoint["image"]
         objects = datapoint["objects"]
@@ -275,35 +282,16 @@ class RandomProcessImageWithBboxes:
         if is_crowd is not None:
             is_not_crowd = is_crowd == False
             bbox, label = tf.boolean_mask(bbox, is_not_crowd), tf.boolean_mask(label, is_not_crowd)
-        height, width = tf.shape(image)[0], tf.shape(image)[1]
 
         if self.magnitude >= 0:
             image, bbox = random_flip_left_right_with_bboxes(image, bbox)
 
-        if self.random_crop_mode > 1:
-            scale, crop_hh, crop_ww = get_image_aspect_aware_random_scale_crop((height, width), self.target_shape)
-            image, scale, _, _ = aspect_aware_resize_and_crop_image(
-                image, self.target_shape, scale, crop_hh, crop_ww, method=self.resize_method, antialias=self.resize_antialias
-            )
-        elif self.random_crop_mode == 1:
-            image, scale, crop_hh, crop_ww = random_largest_crop_and_resize_images(image, self.target_shape, self.resize_method, self.resize_antialias)
-        elif self.random_crop_mode > 0 and self.random_crop_mode < 1:
-            image, scale, crop_hh, crop_ww = random_crop_and_resize_image(
-                image, self.target_shape, scale=(self.random_crop_mode, 1.0), method=self.resize_method, antialias=self.resize_antialias
-            )
-        else:
-            image, scale, _, _ = aspect_aware_resize_and_crop_image(image, self.target_shape, method=self.resize_method, antialias=self.resize_antialias)
-            crop_hh, crop_ww = 0, 0
-        bbox = resize_and_crop_bboxes(bbox, (height, width), self.target_shape, scale=scale, offset_y=crop_hh, offset_x=crop_ww)
+        image, bbox = self.__random_crop_and_resize__(image, bbox)
         bbox, label = refine_bboxes_labels_single(bbox, label)
 
         if self.magnitude > 0:
             image.set_shape([*self.target_shape[:2], 3])
             image = self.randaug_wo_pos(image)
-            # image = random_hsv(image)
-            # image, affine_matrix = self.pos_randaug(image)
-            # bbox = bboxes_apply_affine(bbox, affine_matrix, input_shape=image.shape)
-            # bbox, label = refine_bboxes_labels_single(bbox, label)
 
         should_pad = self.max_labels_per_image - tf.shape(bbox)[0]
         # label starts from 0 -> person, add 1 here, differs from padded values
