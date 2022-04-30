@@ -50,6 +50,8 @@
   - [YOLOR](#yolor)
   - [YOLOX](#yolox)
 - [Other implemented tensorflow or keras models](#other-implemented-tensorflow-or-keras-models)
+- [Licenses](#licenses)
+- [Citing](#citing)
 
 <!-- /TOC -->
 ***
@@ -820,4 +822,28 @@
   - [Github tensorflow/resnet_rs](https://github.com/tensorflow/tpu/tree/master/models/official/resnet/resnet_rs)
   - [Github google-research/big_transfer](https://github.com/google-research/big_transfer)
   - [perceiver_image_classification](https://keras.io/examples/vision/perceiver_image_classification/)
+***
+
+# Licenses
+  - This part is copied and modified according to [Github rwightman/pytorch-image-models](https://github.com/rwightman/pytorch-image-models).
+  - **Code**. The code here is licensed MIT. It is your responsibility to ensure you comply with licenses here and conditions of any dependent licenses. Where applicable, I've linked the sources/references for various components in docstrings. If you think I've missed anything please create an issue. So far all of the pretrained weights available here are pretrained on ImageNet and COCO with a select few that have some additional pretraining.
+  - **ImageNet Pretrained Weights**. ImageNet was released for non-commercial research purposes only (https://image-net.org/download). It's not clear what the implications of that are for the use of pretrained weights from that dataset. Any models I have trained with ImageNet are done for research purposes and one should assume that the original dataset license applies to the weights. It's best to seek legal advice if you intend to use the pretrained weights in a commercial product.
+  - **COCO Pretrained Weights**. Should follow [cocodataset termsofuse](https://cocodataset.org/#termsofuse). The annotations in COCO dataset belong to the COCO Consortium and are licensed under a [Creative Commons Attribution 4.0 License](https://creativecommons.org/licenses/by/4.0/legalcode). The COCO Consortium does not own the copyright of the images. Use of the images must abide by the [Flickr Terms of Use](https://www.flickr.com/creativecommons/). The users of the images accept full responsibility for the use of the dataset, including but not limited to the use of any copies of copyrighted images that they may create from the dataset.
+  - **Pretrained on more than ImageNet and COCO**. Several weights included or references here were pretrained with proprietary datasets that I do not have access to. These include the Facebook WSL, SSL, SWSL ResNe(Xt) and the Google Noisy Student EfficientNet models. The Facebook models have an explicit non-commercial license (CC-BY-NC 4.0, https://github.com/facebookresearch/semi-supervised-ImageNet1K-models, https://github.com/facebookresearch/WSL-Images). The Google models do not appear to have any restriction beyond the Apache 2.0 license (and ImageNet concerns). In either case, you should contact Facebook or Google with any questions.
+***
+
+# Citing
+  - **BibTeX**
+    ```bibtex
+    @misc{leondgarse,
+      author = {Leondgarse},
+      title = {Keras CV Attention Models},
+      year = {2022},
+      publisher = {GitHub},
+      journal = {GitHub repository},
+      doi = {10.5281/zenodo.6506947},
+      howpublished = {\url{https://github.com/leondgarse/keras_cv_attention_models}}
+    }
+    ```
+  - **Latest DOI**: [![DOI](https://zenodo.org/badge/391777965.svg)](https://zenodo.org/badge/latestdoi/391777965)
 ***
