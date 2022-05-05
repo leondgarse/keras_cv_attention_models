@@ -411,11 +411,12 @@ def init_dataset(
     seed=None,
     **augment_kwargs,  # Too many...
 ):
+    is_tpu = True if len(tf.config.list_logical_devices("TPU")) > 0 else False  # Set True for try_gcs and drop_remainder
+
     if data_name.endswith(".json"):
         dataset, total_images, num_classes = detection_dataset_from_custom_json(data_name, with_info=True)
     else:
-        try_gcs = True if len(tf.config.list_logical_devices("TPU")) > 0 else False
-        dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)
+        dataset, info = tfds.load(data_name, with_info=True, try_gcs=is_tpu)
         num_classes = info.features["objects"]["label"].num_classes
         total_images = info.splits["train"].num_examples
     steps_per_epoch = int(tf.math.ceil(total_images / float(batch_size)))
@@ -435,7 +436,7 @@ def init_dataset(
         num_layers=num_layers,
         **augment_kwargs,
     )
-    train_dataset = dataset["train"].shuffle(buffer_size, seed=seed).map(train_process).batch(batch_size)
+    train_dataset = dataset["train"].shuffle(buffer_size, seed=seed).map(train_process).batch(batch_size, drop_remainder=is_tpu)
     # return train_dataset
 
     if mosaic_mix_prob > 0:
@@ -480,7 +481,7 @@ def init_dataset(
     test_dataset = dataset.get("validation", dataset.get("test", None))
     if test_dataset is not None:
         test_process = RandomProcessImageWithBboxes(target_shape=input_shape, resize_method=resize_method, resize_antialias=resize_antialias, magnitude=-1)
-        test_dataset = test_dataset.map(test_process).batch(batch_size).map(lambda xx, yy: (rescaling(xx), bbox_process(yy)))
+        test_dataset = test_dataset.map(test_process).batch(batch_size, drop_remainder=is_tpu).map(lambda xx, yy: (rescaling(xx), bbox_process(yy)))
 
     return train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
 

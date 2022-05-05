@@ -378,6 +378,17 @@ def build_token_label_dataset(train_dataset, token_label_file):
     return token_label_train_ds
 
 
+def build_distillation_dataset(ds, teacher_model):
+    teacher_model.trainable = False
+    # Using teacher_model outputs instead of actual labels
+    # Using `ds = ds.map(lambda xx, yy: (xx, teacher_model(xx)))` will run teacher_model on CPU, though will on GPU if XLA enabled
+    new_ds = tf.data.Dataset.from_generator(lambda: ((xx, teacher_model(xx)) for xx, yy in ds), output_signature=ds.element_spec)
+    options = tf.data.Options()
+    options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
+    new_ds = new_ds.apply(tf.data.experimental.assert_cardinality(len(ds))).with_options(options)
+    return new_ds
+
+
 def init_dataset(
     data_name="imagenet2012",  # dataset params
     input_shape=(224, 224),
@@ -399,6 +410,7 @@ def init_dataset(
     seed=None,
     token_label_file=None,
     token_label_target_patches=-1,
+    teacher_model=None,
     **augment_kwargs,  # Too many...
 ):
     # print(">>>> Dataset args:", locals())
@@ -423,7 +435,7 @@ def init_dataset(
         train_dataset = build_token_label_dataset(train_dataset, token_label_file)
 
     AUTOTUNE = tf.data.AUTOTUNE
-    train_process = RandomProcessDatapoint(
+    train_pre_batch = RandomProcessDatapoint(
         target_shape=input_shape,
         central_crop=-1,  # Resize directly w/o crop, if random_crop_min not in (0, 1)
         random_crop_min=random_crop_min,
@@ -440,34 +452,40 @@ def init_dataset(
     )
     if use_shuffle:
         train_dataset = train_dataset.shuffle(buffer_size, seed=seed)
-    train_dataset = train_dataset.map(train_process, num_parallel_calls=AUTOTUNE).batch(batch_size, drop_remainder=is_tpu)
+    train_dataset = train_dataset.map(train_pre_batch, num_parallel_calls=AUTOTUNE).batch(batch_size, drop_remainder=is_tpu)
 
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     if use_token_label:
-        train_rescale = lambda xx, yy, token_label: ((xx - mean) / std, tf.one_hot(yy, num_classes), token_label)
+        train_post_batch = lambda xx, yy, token_label: ((xx - mean) / std, tf.one_hot(yy, num_classes), token_label)
     else:
-        train_rescale = lambda xx, yy: ((xx - mean) / std, tf.one_hot(yy, num_classes))
-    train_dataset = train_dataset.map(train_rescale, num_parallel_calls=AUTOTUNE)
-
+        train_post_batch = lambda xx, yy: ((xx - mean) / std, tf.one_hot(yy, num_classes))
+    train_dataset = train_dataset.map(train_post_batch, num_parallel_calls=AUTOTUNE)
     train_dataset = apply_mixup_cutmix(train_dataset, mixup_alpha, cutmix_alpha, switch_prob=0.5)
+
     if use_token_label:
         train_dataset = train_dataset.map(lambda xx, yy, token_label: (xx, (yy, token_label)))
+    elif teacher_model is not None:
+        print(">>>> KLDivergence teacher model provided.")
+        train_dataset = build_distillation_dataset(train_dataset, teacher_model)
+
     train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE)
     # return train_dataset
 
     """ Test dataset """
     test_dataset = dataset.get("validation", dataset.get("test", None))
     if test_dataset is not None:
-        # test_process = lambda xx: evaluation_process_resize_crop(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)  # timm
-        test_process = lambda xx: evaluation_process_crop_resize(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)
-        test_dataset = test_dataset.map(test_process)
+        # test_pre_batch = lambda xx: evaluation_process_resize_crop(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)  # timm
+        test_pre_batch = lambda xx: evaluation_process_crop_resize(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)
+        test_dataset = test_dataset.map(test_pre_batch, num_parallel_calls=AUTOTUNE)
         # Have to drop_remainder also for test set...
         test_dataset = test_dataset.batch(batch_size, drop_remainder=is_tpu)
         if use_token_label:
-            test_rescale = lambda xx, yy: ((xx - mean) / std, (tf.one_hot(yy, num_classes), None))  # just give None on token_label data position
+            test_post_batch = lambda xx, yy: ((xx - mean) / std, (tf.one_hot(yy, num_classes), None))  # just give None on token_label data position
+        # elif teacher_model is not None:
+        #     test_post_batch = lambda xx, yy: ((xx - mean) / std, teacher_model(xx, training=False))
         else:
-            test_rescale = lambda xx, yy: ((xx - mean) / std, tf.one_hot(yy, num_classes))
-        test_dataset = test_dataset.map(test_rescale)
+            test_post_batch = lambda xx, yy: ((xx - mean) / std, tf.one_hot(yy, num_classes))
+        test_dataset = test_dataset.map(test_post_batch)
     return train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
 
 

@@ -1,4 +1,5 @@
 import os
+import time
 import keras_cv_attention_models
 import tensorflow as tf
 from tensorflow import keras
@@ -22,7 +23,7 @@ def init_global_strategy(enable_float16=True, seed=0, TPU=False):
         tf.config.experimental_connect_to_cluster(resolver)
         # This is the TPU initialization code that has to be at the beginning.
         tf.tpu.experimental.initialize_tpu_system(resolver)
-        print("All devices: ", tf.config.list_logical_devices("TPU"))
+        print("[TPU] All devices: ", tf.config.list_logical_devices("TPU"))
         strategy = tf.distribute.TPUStrategy(resolver)
     elif len(gpus) > 1:
         strategy = tf.distribute.MirroredStrategy()
@@ -98,16 +99,30 @@ def init_loss(bce_threshold=1.0, label_smoothing=0):
     return loss
 
 
-def init_model(model=None, input_shape=(224, 224, 3), num_classes=1000, pretrained=None, restore_path=None, **kwargs):
+def init_model(model=None, input_shape=(224, 224, 3), num_classes=1000, pretrained=None, reload_compile=True, **kwargs):
+    """model Could be:
+    1. Saved h5 model path.
+    2. Model name defined in this repo, format [sub_dir].[model_name] like regnet.RegNetZD8.
+    3. timm model like timm.models.resmlp_12_224
+    """
     if isinstance(model, keras.models.Model):
         print(">>> Got a keras.models.Model: {}, do nothing with it.".format(model.name))
         return model
 
-    if restore_path:
+    if model.startswith("timm."):  # model like: timm.models.resmlp_12_224
+        import timm
+        from keras_cv_attention_models.imagenet.eval_func import TorchModelInterf
+
+        print(">>>> Timm model provided:", model)
+        timm_model_name = ".".join(model.split(".")[2:])
+        model = getattr(timm.models, timm_model_name)(pretrained=True, img_size=input_shape[:2], num_classes=num_classes)
+        return TorchModelInterf(model)
+
+    if model.endswith(".h5"):
         import tensorflow_addons as tfa
 
-        print(">>>> Restore model from:", restore_path)
-        model = keras.models.load_model(restore_path)
+        print(">>>> Restore model from:", model)
+        model = keras.models.load_model(model, compile=reload_compile)
         return model
 
     if input_shape != -1:
@@ -158,7 +173,7 @@ def compile_model(model, optimizer, lr_base, weight_decay, loss, loss_weights=No
 
 
 # @tf.function(jit_compile=True)
-def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoch=0, lr_scheduler=None, basic_save_name=None, init_callbacks=[]):
+def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoch=0, lr_scheduler=None, basic_save_name=None, init_callbacks=[], logs="auto"):
     if compiled_model.compiled_loss is None:
         print(">>>> Error: Model NOT compiled.")
         return None
@@ -181,6 +196,11 @@ def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoc
         os.rename(hist_file, hist_file + ".bak")
     cur_callbacks.append(callbacks.MyHistory(initial_file=hist_file))
     cur_callbacks.append(keras.callbacks.TerminateOnNaN())
+    if logs is not None:
+        logs = "logs/" + basic_save_name + "_" + time.strftime("%Y%m%d-%H%M%S") if logs == "auto" else logs
+        cur_callbacks.append(keras.callbacks.TensorBoard(log_dir=logs, histogram_freq=1))
+        print(">>>> TensorBoard log path:", logs)
+
     if lr_scheduler is not None:
         cur_callbacks.append(lr_scheduler)
 
@@ -201,4 +221,7 @@ def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoc
         use_multiprocessing=True,
         workers=8,
     )
+
+    if logs is not None:
+        print(">>>> TensorBoard log path:", logs)
     return checkpoint_callback.latest_save, hist

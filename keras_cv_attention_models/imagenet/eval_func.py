@@ -16,6 +16,7 @@ class TorchModelInterf:
 
     def __call__(self, imgs):
         # print(imgs.shape, imgs[0])
+        imgs = imgs.numpy() if hasattr(imgs, "numpy") else imgs
         output = self.model(self.torch.from_numpy(imgs).permute([0, 3, 1, 2]).to(self.device).float())
         return output.cpu().detach().numpy()
 

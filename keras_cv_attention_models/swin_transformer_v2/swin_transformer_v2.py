@@ -98,20 +98,23 @@ class WindowAttentionMask(keras.layers.Layer):
 
     def call(self, inputs, **kwargs):
         # inputs: [batch_size * blocks, num_heads, query_blocks, query_blocks]
+        # where query_blocks = `window_height * window_width`, blocks = `(height // window_height) * (width // window_width)`
         nn = tf.reshape(inputs, [-1, self.blocks, self.num_heads, self.query_blocks, self.query_blocks])
         nn = nn + self.attn_mask
         return tf.reshape(nn, [-1, self.num_heads, self.query_blocks, self.query_blocks])
 
     def get_config(self):
         config = super().get_config()
-        config.update({
-            "height": self.height,
-            "width": self.width,
-            "window_height": self.window_height,
-            "window_width": self.window_width,
-            "shift_height": self.shift_height,
-            "shift_width": self.shift_width,
-        })
+        config.update(
+            {
+                "height": self.height,
+                "width": self.width,
+                "window_height": self.window_height,
+                "window_width": self.window_width,
+                "shift_height": self.shift_height,
+                "shift_width": self.shift_width,
+            }
+        )
         return config
 
 

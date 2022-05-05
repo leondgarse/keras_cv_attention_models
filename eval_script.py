@@ -19,7 +19,7 @@ def parse_arguments(argv):
     parser.add_argument("-b", "--batch_size", type=int, default=64, help="Batch size")
     parser.add_argument("-d", "--data_name", type=str, default="imagenet2012", help="Dataset name from tensorflow_datasets like imagenet2012 cifar10")
     parser.add_argument(
-        "--rescale_mode", type=str, default="auto", help="Rescale mode, one of [tf, torch, raw, raw01]. Default `auto` means using model preset"
+        "--rescale_mode", type=str, default="auto", help="Rescale mode, one of [tf, torch, raw, raw01, tf128]. Default `auto` means using model preset"
     )
     parser.add_argument("--central_crop", type=float, default=0.95, help="Central crop fraction. Set -1 to disable")
     parser.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")

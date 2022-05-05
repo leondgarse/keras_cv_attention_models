@@ -160,11 +160,11 @@ def run_training_by_args(args):
     # Init model first, for getting actual pyramid_levels
     total_images, num_classes, steps_per_epoch = data.init_dataset(args.data_name, batch_size=batch_size, info_only=True)
     with strategy.scope():
-        pretrained, restore_path = args.pretrained, args.restore_path
         if args.backbone is not None:
-            backbone = init_model(args.backbone, input_shape, 0, args.backbone_pretrained, None, **args.additional_backbone_kwargs)
+            backbone = init_model(args.backbone, input_shape, 0, args.backbone_pretrained, **args.additional_backbone_kwargs)
             args.additional_det_header_kwargs.update({"backbone": backbone})
-        model = init_model(args.det_header, input_shape, num_classes, pretrained, restore_path, **args.additional_det_header_kwargs)
+        det_header = args.det_header if args.restore_path is None else args.restore_path
+        model = init_model(det_header, input_shape, num_classes, args.pretrained, **args.additional_det_header_kwargs)
         if args.summary:
             model.summary()
 
@@ -231,9 +231,11 @@ def run_training_by_args(args):
             # Save line width...
             kw = {"batch_size": batch_size, "rescale_mode": args.rescale_mode, "resize_method": args.resize_method, "resize_antialias": resize_antialias}
             kw.update({"anchor_scale": args.anchor_scale, "anchors_mode": args.anchors_mode, "model_basic_save_name": args.basic_save_name})
-            coco_ap_eval = eval_func.COCOEvalCallback("coco/2017", start_epoch=epochs * 2 // 3, frequency=1, **kw)  # coco eval starts from 2/3 epochs
+            start_epoch, frequency = epochs * 2 // 3, 1  # coco eval starts from 2/3 epochs
+            coco_ap_eval = eval_func.COCOEvalCallback("coco/2017", start_epoch=start_epoch, frequency=frequency, **kw)
             init_callbacks = [coco_ap_eval]
             test_dataset = None  # COCO eval using coco_ap_eval callback, set `validation_data` for `model.fit` to None
+            print(">>>> COCO AP eval start_epoch: {}, frequency: {}".format(start_epoch, frequency))
         else:
             init_callbacks = []
         latest_save, hist = train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name, init_callbacks)

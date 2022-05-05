@@ -354,6 +354,13 @@ def get_flops(model):
     return flops
 
 
+def print_model_params_count(model):
+    aa = []
+    model.summary(print_fn=lambda xx: aa.append(xx) if "params:" in xx else None)
+    print("\n".join(aa))
+    return {ii.split(":")[0]: int("".join(ii.split(":")[1].strip().split(","))) for ii in aa}
+
+
 """ Inference """
 
 

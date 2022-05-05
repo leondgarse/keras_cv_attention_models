@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import json
-from keras_cv_attention_models.imagenet import data, train_func
+from keras_cv_attention_models.imagenet import data, train_func, losses
 
 
 def parse_arguments(argv):
@@ -40,8 +40,14 @@ def parse_arguments(argv):
     parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
     parser.add_argument("--freeze_backbone", action="store_true", help="Freeze backbone, set layer.trainable=False till model GlobalAveragePooling2D layer")
     parser.add_argument("--freeze_norm_layers", action="store_true", help="Set layer.trainable=False for BatchNormalization and LayerNormalization")
-    parser.add_argument("--summary", action="store_true", help="show model summary")
     parser.add_argument("--disable_float16", action="store_true", help="Disable mixed_float16 training")
+    parser.add_argument("--summary", action="store_true", help="show model summary")
+    parser.add_argument(
+        "--tensorboard_logs",
+        type=str,
+        default="auto",
+        help="TensorBoard logs saving path, default auto for `logs/{basic_save_name} + _ + timestamp`. Set None for disable",
+    )
     parser.add_argument("--TPU", action="store_true", help="Run training on TPU. Will set True for dataset `try_gcs` and `drop_remainder`")
 
     """ Loss arguments """
@@ -88,9 +94,17 @@ def parse_arguments(argv):
     ds_group.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
     ds_group.add_argument("--disable_positional_related_ops", action="store_true", help="Set use use_positional_related_ops=False for RandAugment")
 
-    """ Token labeling parameters """
-    tl_group = parser.add_argument_group("Token labeling arguments")
-    tl_group.add_argument("--token_label_file", type=str, default=None, help="Specific token label file path")
+    """ Token labeling and distillation parameters """
+    dt_group = parser.add_argument_group("Token labeling and distillation arguments")
+    dt_group.add_argument("--token_label_file", type=str, default=None, help="Specific token label file path")
+    dt_group.add_argument(
+        "--teacher_model",
+        type=str,
+        default=None,
+        help="Could be: 1. Saved h5 model path. 2. Model name defined in this repo, format [sub_dir].[model_name] like regnet.RegNetZD8. 3. timm model like timm.models.resmlp_12_224",
+    )
+    dt_group.add_argument("--teacher_model_pretrained", type=str, default="imagenet", help="Teacher model pretrained weight, if not built from h5")
+    dt_group.add_argument("--distill_temperature", type=float, default=10, help="Temperature for DistillKLDivergenceLoss")
 
     args = parser.parse_known_args(argv)[0]
 
@@ -116,6 +130,7 @@ def parse_arguments(argv):
         basic_save_name += "_lr512_{}_wd_{}".format(args.lr_base_512, args.weight_decay)
         args.basic_save_name = basic_save_name if args.basic_save_name is None else (basic_save_name + args.basic_save_name)
     args.enable_float16 = not args.disable_float16
+    args.tensorboard_logs = None if args.tensorboard_logs.lower() == "none" else args.tensorboard_logs
 
     return args
 
@@ -129,15 +144,25 @@ def run_training_by_args(args):
     batch_size = args.batch_size * strategy.num_replicas_in_sync
     input_shape = (args.input_shape, args.input_shape)
     use_token_label = False if args.token_label_file is None else True
+    use_teacher_model = False if args.teacher_model is None else True
 
     # Init model first, for in case of use_token_label, getting token_label_target_patches
     total_images, num_classes, steps_per_epoch, num_channels = data.init_dataset(args.data_name, batch_size=batch_size, info_only=True)
     input_shape = (*input_shape, num_channels)  # Just in case channel is not 3, like mnist being 1...
     with strategy.scope():
-        model = train_func.init_model(args.model, input_shape, num_classes, args.pretrained, args.restore_path, **args.additional_model_kwargs)
+        model = args.model if args.restore_path is None else args.restore_path
+        model = train_func.init_model(model, input_shape, num_classes, args.pretrained, **args.additional_model_kwargs)
         model = train_func.model_post_process(model, args.freeze_backbone, args.freeze_norm_layers, use_token_label)
         if args.summary:
             model.summary()
+
+        if use_teacher_model:
+            print(">>>> [Build teacher model]")
+            args.teacher_model = train_func.init_model(args.teacher_model, input_shape, num_classes, args.teacher_model_pretrained, reload_compile=False)
+            if hasattr(args.teacher_model, "layers") and hasattr(args.teacher_model.layers[-1], "activation"):
+                args.teacher_model.layers[-1].activation = None  # Set output activation softmax to linear
+            model.layers[-1].activation = None  # Also set model output activation softmax to linear
+            args.teacher_model.trainable = False
     token_label_target_patches = model.output_shape[-1][1:-1] if use_token_label else -1
 
     train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = data.init_dataset(
@@ -157,6 +182,7 @@ def run_training_by_args(args):
         use_positional_related_ops=not args.disable_positional_related_ops,
         token_label_file=args.token_label_file,
         token_label_target_patches=token_label_target_patches,
+        teacher_model=args.teacher_model,
     )
 
     lr_base = args.lr_base_512 * batch_size / 512
@@ -173,6 +199,10 @@ def run_training_by_args(args):
             loss = [cls_loss, aux_loss]
             loss_weights = [1, 0.5]
             metrics = {model.output_names[0]: "acc", model.output_names[1]: None}
+        elif use_teacher_model:
+            loss = losses.DistillKLDivergenceLoss(temperature=args.distill_temperature)
+            loss_weights, metrics = None, ["acc"]
+            # test_dataset = None
         else:
             loss = train_func.init_loss(args.bce_threshold, args.label_smoothing)
             loss_weights, metrics = None, ["acc"]
@@ -181,7 +211,9 @@ def run_training_by_args(args):
             model = train_func.compile_model(model, args.optimizer, lr_base, args.weight_decay, loss, loss_weights, metrics)
         print(">>>> basic_save_name =", args.basic_save_name)
         # return None, None, None
-        latest_save, hist = train_func.train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name)
+        latest_save, hist = train_func.train(
+            model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name, logs=args.tensorboard_logs
+        )
     return model, latest_save, hist
 
 
