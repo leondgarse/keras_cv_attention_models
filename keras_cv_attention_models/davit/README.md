@@ -15,6 +15,17 @@
   | DaViT_L, 21k  | 196.8M | 103.2G | 384   | 87.5     |          |
   | DaViT_H, 1.5B | 348.9M | 327.3G | 512   | 90.2     |          |
   | DaViT_G, 1.5B | 1.406B | 1.022T | 512   | 90.4     |          |
+
+  **Self tested accuracy**. There may be some detail differences in model output layer or evaluating process.
+  ```sh
+  CUDA_VISIBLE_DEVICES='0' ./eval_script.py -m davit.DaViT_T
+  # >>>> Accuracy top1: 0.82276 top5: 0.96152
+  ```
+  | Model   | Self tested Top1 Acc |
+  | ------- | -------------------- |
+  | DaViT_T | 82.276               |
+  | DaViT_S | 83.810               |
+  | DaViT_B | 84.142               |
 ## Usage
   ```py
   from keras_cv_attention_models import davit

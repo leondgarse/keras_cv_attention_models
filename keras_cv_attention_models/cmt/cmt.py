@@ -13,7 +13,7 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-PRETRAINED_DICT = {"cmt_tiny": {"imagenet": {160: "72402495cb42314cedd1e2714f2de893", 224: "b07899f4e1a28bbe5f2f6a705e22ac97"}}}
+PRETRAINED_DICT = {"cmt_tiny": {"imagenet": {160: "cb269248643e9d50d8bea051563e20a6", 224: "d0f2f0cf649a7aea48a1a4e3a476606c"}}}
 
 
 def light_mhsa_with_multi_head_relative_position_embedding(
