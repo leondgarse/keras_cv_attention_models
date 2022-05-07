@@ -36,8 +36,8 @@ Model architectures:
   | Model                              | Params | FLOPs | Input | Top1 Acc |
   | ---------------------------------- | ------ | ----- | ----- | -------- |
   | CMTTiny, (Self trained 105 epochs) | 9.5M   | 0.65G | 160   | 77.4     |
-  | - 305 epochs                       | 9.5M   | 0.65G | 160   | 78.8     |
-  | - evaluate 224 (not fine-tuned)    | 9.5M   | 1.32G | 224   | 80.1     |
+  | - 305 epochs                       | 9.5M   | 0.65G | 160   | 78.94    |
+  | - fine-tuned 224 (69 epochs)       | 9.5M   | 1.32G | 224   | 80.73    |
   | CMTTiny, 1000 epochs               | 9.5M   | 0.65G | 160   | 79.2     |
   | CMTXS                              | 15.2M  | 1.58G | 192   | 81.8     |
   | CMTSmall                           | 25.1M  | 4.09G | 224   | 83.5     |
