@@ -296,7 +296,7 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
         else:
             num_anchors = anchors_func.NUM_ANCHORS.get(self.anchors_mode, 9)
         pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(input_shape, total_anchors=output_shape[1], num_anchors=num_anchors)
-        print(">>>> [COCOEvalCallback] input_shape: {}, pyramid_levels: {}, anchors_mode: {}".format(input_shape, pyramid_levels, self.anchors_mode))
+        print("\n>>>> [COCOEvalCallback] input_shape: {}, pyramid_levels: {}, anchors_mode: {}".format(input_shape, pyramid_levels, self.anchors_mode))
         # print(">>>>", self.dataset_kwargs)
         # print(">>>>", self.nms_kwargs)
         self.pred_decoder = DecodePredictions(input_shape, pyramid_levels, self.anchors_mode, anchor_scale=self.anchor_scale)

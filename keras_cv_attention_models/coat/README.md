@@ -50,7 +50,7 @@
   print(mm.output_shape)
   # [(None, 784, 216), (None, 196, 216), (None, 49, 216)]
   ```
-  Set `use_shared_cpe=False, use_shared_crpe=False` to disable using shared `ConvPositionalEncoding` and `ConvRelativePositionalEncoding` blocks. will have a better structure view using `netron` or other visualization tools.
+  Set `use_shared_cpe=False, use_shared_crpe=False` to disable using shared `ConvPositionalEncoding` and `ConvRelativePositionalEncoding` blocks. will have a better structure view using `netron` or other visualization tools. Note it's for checking model architecture only, keep input_shape `height == width` if set False.
   ```py
   mm = coat.CoaTMini(pretrained="imagenet", classifier_activation=None, input_shape=(224, 224, 3))
   mm.summary()
