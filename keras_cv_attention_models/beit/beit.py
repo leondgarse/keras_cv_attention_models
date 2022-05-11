@@ -37,6 +37,8 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
             self.cls_token_pos_len = 0
 
     def build(self, attn_shape):
+        # input (with_cls_token=True): `[batch, num_heads, attn_blocks, attn_blocks]`. where `attn_blocks = attn_height * attn_width + class_token`
+        # input (with_cls_token=False): `[batch, num_heads, attn_blocks, attn_blocks]`. where `attn_blocks = attn_height * attn_width`
         # print(attn_shape)
         if self.attn_height == -1:
             height = width = int(tf.math.sqrt(float(attn_shape[2] - self.cls_token_len)))  # hh == ww, e.g. 14

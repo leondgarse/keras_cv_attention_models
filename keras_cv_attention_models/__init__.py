@@ -23,6 +23,7 @@ from keras_cv_attention_models.mobilenetv3_family import lcnet
 from keras_cv_attention_models.mobilenetv3_family import mobilenetv3
 from keras_cv_attention_models.mobilenetv3_family import tinynet
 from keras_cv_attention_models import mobilevit
+from keras_cv_attention_models import nat
 from keras_cv_attention_models import nfnets
 from keras_cv_attention_models import resnest
 from keras_cv_attention_models import resnet_family

@@ -32,6 +32,7 @@
   - [MLP mixer](#mlp-mixer)
   - [MobileNetV3](#mobilenetv3)
   - [MobileViT](#mobilevit)
+  - [NAT](#nat)
   - [NFNets](#nfnets)
   - [RegNetY](#regnety)
   - [RegNetZ](#regnetz)
@@ -610,6 +611,15 @@
   | MobileViT_XXS | 1.3M   | 0.42G | 256   | 69.0     | [mobilevit_xxs_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_xxs_imagenet.h5) |
   | MobileViT_XS  | 2.3M   | 1.05G | 256   | 74.7     | [mobilevit_xs_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_xs_imagenet.h5) |
   | MobileViT_S   | 5.6M   | 2.03G | 256   | 78.3     | [mobilevit_s_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_s_imagenet.h5) |
+## NAT
+  - [Keras NAT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/nat) is for [PDF 2204.07143 Neighborhood Attention Transformer](https://arxiv.org/pdf/2204.07143.pdf).
+
+  | Model     | Params | FLOPs  | Input | Top1 Acc | Download |
+  | --------- | ------ | ------ | ----- | -------- | -------- |
+  | NAT_Mini  | 20.0M  | 2.73G  | 224   | 81.8     | [nat_mini_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_mini_imagenet.h5) |
+  | NAT_Tiny  | 27.9M  | 4.34G  | 224   | 83.2     | [nat_tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_tiny_imagenet.h5) |
+  | NAT_Small | 50.7M  | 7.84G  | 224   | 83.7     | [nat_small_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_small_imagenet.h5) |
+  | NAT_Base  | 89.8M  | 13.76G | 224   | 84.3     | [nat_base_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_base_imagenet.h5) |
 ## NFNets
   - [Keras NFNets](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/nfnets) is for [PDF 2102.06171 High-Performance Large-Scale Image Recognition Without Normalization](https://arxiv.org/pdf/2102.06171.pdf).
 
