@@ -70,6 +70,7 @@ LeViT384.__doc__ = LeViT128S.__doc__
 MultiHeadPositionalEmbedding.__doc__ = __head_doc__ + """
 Multi Head Positional Embedding layer.
 
+Positional embedding shape is `[height * width, num_heads]`.
 input: `[batch, num_heads, query_blocks, key_blocks]`.
 output: `[batch, num_heads, query_blocks, key_blocks] + positional_bias`.
 conditions: query_height == query_width, key_height == key_width, key_height >= query_height
@@ -89,6 +90,9 @@ Examples:
 
 mhsa_with_multi_head_position_and_strides.__doc__ = __head_doc__ + """
 Multi Head Self Attention with MultiHeadPositionalEmbedding and enabled strides on `query`.
+Using additional `BatchNormalization` for `query / key / value`,
+and adding `MultiHeadPositionalEmbedding` to `attention_scores`.
+Also with a `strides` parameter which can further reduce calculation.
 
 input: `[batch, height * width, channel]`.
 output: `[batch, height * width, channel]`.

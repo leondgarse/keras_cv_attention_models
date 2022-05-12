@@ -207,6 +207,10 @@ def test_MultiHeadRelativePositionalKernelBias():
     input_shape = [2, 29 * 29, 8, 3, 5 * 5]
     assert aa(tf.ones(input_shape)).shape == input_shape
 
+    aa = attention_layers.MultiHeadRelativePositionalKernelBias(input_height=19, is_heads_first=True)
+    input_shape = [2, 8, 19 * 29, 5 * 5]
+    assert aa(tf.ones(input_shape)).shape == input_shape
+
 
 def test_neighborhood_attention():
     input_shape = [2, 28, 32, 192]
@@ -274,6 +278,12 @@ def test_se_module():
     assert out.shape == input_shape
 
 
+def test_shifted_window_attention():
+    input_shape = [2, 28, 32, 192]
+    out = attention_layers.shifted_window_attention(tf.ones(input_shape), window_size=7, num_heads=4, shift_size=0.5)
+    assert out.shape == input_shape
+
+
 def test_spatial_gating_block():
     input_shape = [2, 28 * 28, 192]
     out = attention_layers.spatial_gating_block(tf.ones(input_shape))
@@ -301,6 +311,12 @@ def test_CompatibleExtractPatches():
     patches_2 = attention_layers.CompatibleExtractPatches(sizes=3, strides=2, rates=1, padding="SAME", compressed=True)(inputs)
     patches_tpu_2 = attention_layers.CompatibleExtractPatches(3, 2, 1, padding="SAME", compressed=True, force_conv=True)(inputs)
     tf.assert_less(tf.abs(patches_2 - patches_tpu_2), 1e-7)
+
+
+def test_window_attention():
+    input_shape = [2, 28, 32, 192]
+    out = attention_layers.window_attention(tf.ones(input_shape), window_size=7, num_heads=4)
+    assert out.shape == input_shape
 
 
 def test_WindowAttentionMask():

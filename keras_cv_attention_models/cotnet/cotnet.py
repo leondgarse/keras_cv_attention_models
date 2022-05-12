@@ -15,13 +15,6 @@ PRETRAINED_DICT = {
 }
 
 
-def group_conv(inputs, filters, kernel_size, groups=4, name="", **kwargs):
-    # Using groups=num in `Conv2D` is slow with `mixed_float16` policy
-    return conv2d_no_bias(inputs, filters, kernel_size, groups=groups, name=name)
-    # splitted_inputs = tf.split(inputs, groups, axis=-1)
-    # return tf.concat([conv2d_no_bias(splitted_inputs[ii], filters // groups, kernel_size, name=name + "g{}_".format(ii + 1), **kwargs) for ii in range(groups)], axis=-1)
-
-
 def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activation="relu", name=None):
     from tensorflow_addons.layers import GroupNormalization
 
@@ -38,7 +31,7 @@ def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activ
         key_input = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "conv_pad")(inputs)
     else:
         key_input = inputs
-    key = group_conv(key_input, filters, kernel_size, groups=4, name=name and name + "key_")
+    key = conv2d_no_bias(key_input, filters, kernel_size, groups=4, name=name and name + "key_")
     key = batchnorm_with_activation(key, activation=activation, zero_gamma=False, name=name and name + "key_")
 
     # query key

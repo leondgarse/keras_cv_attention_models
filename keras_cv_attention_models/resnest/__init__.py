@@ -50,6 +50,7 @@ ResNest269.__doc__ = ResNest50.__doc__
 
 split_attention_conv2d.__doc__ = __head_doc__ + """
 Split-Attention. Callable function, NOT defined as a layer.
+Generating `attention_scores` using grouped `Conv2D`.
 
 Args:
   inputs: input tensor.

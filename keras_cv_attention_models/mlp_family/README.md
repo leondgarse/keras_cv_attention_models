@@ -41,7 +41,7 @@
 ## MLP mixer
   - [PDF 2105.01601 MLP-Mixer: An all-MLP Architecture for Vision](https://arxiv.org/pdf/2105.01601.pdf).
   - [Github google-research/vision_transformer](https://github.com/google-research/vision_transformer#available-mixer-models).
-  - **Models** `Top1 Acc` is `Pre-trained on JFT-300M` model accuray on `ImageNet 1K` from paper.
+  - **Models**
     | Model            | Params | FLOPs   | Input | Top1 Acc | Download |
     | ---------------- | ------ | ------- | ----- | -------- | -------- |
     | MLPMixerS32, JFT | 19.1M  | 1.01G   | 224   | 68.70    |          |

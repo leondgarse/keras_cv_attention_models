@@ -17,7 +17,6 @@ from keras_cv_attention_models.halonet.halonet import (
     HaloBotNet50T,
 )
 
-
 __head_doc__ = """
 Keras implementation of [Github lucidrains/halonet-pytorch](https://github.com/lucidrains/halonet-pytorch).
 Paper [PDF 2103.12731 Scaling Local Self-Attention for Parameter Efficient Visual Backbones](https://arxiv.org/pdf/2103.12731.pdf).
@@ -100,6 +99,8 @@ HaloBotNet50T.__doc__ = HaloNet26T.__doc__
 
 halo_attention.__doc__ = __head_doc__ + """
 Halo Attention. Defined as function, not layer.
+Extract patches with a `kernel_size` from `key_value` as an enlarged attention area.
+Also adds `RelativePositionalEmbedding` to `attention_scores`.
 
 Args:
   inputs: input tensor.

@@ -61,15 +61,19 @@ NAT_Base.__doc__ = NAT_Mini.__doc__
 MultiHeadRelativePositionalKernelBias.__doc__ = __head_doc__ + """
 Multi Head Relative Positional Kernel Bias layer. Weights depends on `num_heads` and `kernel_size` not on `input_shape`.
 
-input: `[batch, height * width, num_heads, ..., size * size]`
+input (is_heads_first=False): `[batch, height * width, num_heads, ..., size * size]`
+input (is_heads_first=True): `[batch, num_heads, height * width, ..., size * size]`
 positional_bias: `[num_heads, (2 * size - 1) * (2 * size - 1)]`
-output: `[batch, height * width, num_heads, ..., size * size] + gathered positional_bias`.
+output: `input + gathered positional_bias`.
+condition: height >= size, width >= size
 
 Args:
   input_height: specify `height` for `input` if not square, default -1 assums `input_height == input_width`.
+  is_heads_first: boolean value if input is `[batch, num_heads, height * width]` or `[batch, height * width, num_heads]`.
 
 Examples:
 
+# Basic
 >>> from keras_cv_attention_models import attention_layers
 >>> aa = attention_layers.MultiHeadRelativePositionalKernelBias()
 >>> print(f"{aa(tf.ones([1, 29 * 29, 8, 5 * 5])).shape = }")
@@ -77,15 +81,25 @@ Examples:
 >>> print(f'{aa.pos_bias.shape = }, {aa.bias_coords.shape = }')
 # aa.pos_bias.shape = TensorShape([8, 81]), aa.bias_coords.shape = TensorShape([841, 25])
 
+# Specific input_height and a longer input shape
 >>> aa = attention_layers.MultiHeadRelativePositionalKernelBias(input_height=7)
 >>> print(f"{aa(tf.ones([1, 7 * 13, 8, 23, 46, 4, 3 * 3])).shape = }")
 # aa(tf.ones([1, 7 * 13, 8, 23, 46, 4, 3 * 3])).shape = TensorShape([1, 91, 8, 23, 46, 4, 9])
 >>> print(f'{aa.pos_bias.shape = }, {aa.bias_coords.shape = }')
 # aa.pos_bias.shape = TensorShape([8, 25]), aa.bias_coords.shape = TensorShape([91, 1, 1, 1, 9])
+
+# Specific is_heads_first=True
+>>> aa = attention_layers.MultiHeadRelativePositionalKernelBias(input_height=19, is_heads_first=True)
+>>> print(f"{aa(tf.ones([1, 8, 19 * 29, 5 * 5])).shape = }")
+# aa(tf.ones([1, 8, 19 * 29, 5 * 5])).shape = TensorShape([1, 8, 551, 25])
+>>> print(f'{aa.pos_bias.shape = }, {aa.bias_coords.shape = }')
+# aa.pos_bias.shape = TensorShape([8, 81]), aa.bias_coords.shape = TensorShape([551, 25])
 """
 
 neighborhood_attention.__doc__ = __head_doc__ + """
-Neighborhood Attention block, not a layer. Balancing global and local attention.
+Neighborhood Attention block, not a layer.
+Extract patches with a `kernel_size` from `key_value` as an enlarged attention area. Balancing global and local attention.
+Also adds `MultiHeadRelativePositionalKernelBias` with `attention_scores`.
 
 Args:
   inputs: input tensor.

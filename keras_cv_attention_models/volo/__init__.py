@@ -76,9 +76,7 @@ VOLO_d5.__doc__ = VOLO_d1.__doc__
 
 outlook_attention.__doc__ = __head_doc__ + """
 outlook attention. Callable function, NOT defined as a layer.
-
-As the name `fold_overlap_1` indicates, works only if overlap happens once in fold, like `kernel_size=3, strides=2`.
-For `kernel_size=3, strides=1`, overlap happens twice, will NOT work...
+Extract patches with a `kernel_size` from `value` as an enlarged attention area, then matmul with `attention_scores` and fold back.
 
 Args:
   inputs: input tensor.
@@ -129,11 +127,7 @@ ________________________________________________________________________________
 """
 
 outlook_attention_simple.__doc__ = __head_doc__ + """
-A simplidied version of outlook attention. Callable function, NOT defined as a layer.
-Removed `UnfoldMatmulFold` operation.
-
-As the name `fold_overlap_1` indicates, works only if overlap happens once in fold, like `kernel_size=3, strides=2`.
-For `kernel_size=3, strides=1`, overlap happens twice, will NOT work...
+A simplidied version of outlook attention that not using unfold and fold. Callable function, NOT defined as a layer.
 
 Args:
   inputs: input tensor.
@@ -231,6 +225,7 @@ aa(tf.ones([2, 14, 14, 192])).shape = TensorShape([2, 14, 14, 192])
 
 PositionalEmbedding.__doc__ = __head_doc__ + """
 Absolute Positional embedding layer.
+Positional embedding shape is `[1, height, width, channel]`, then adds directly with input.
 
 input: `[batch, height, width, channel]`
 output: `[batch, height, width, channel]`

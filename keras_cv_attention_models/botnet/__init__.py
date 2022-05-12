@@ -57,6 +57,7 @@ BotNetSE33T.__doc__ = BotNet26T.__doc__
 
 mhsa_with_relative_position_embedding.__doc__ = __head_doc__ + """
 Multi head self attention with positional embedding. Defined as function, not layer.
+Typical MHSA with `RelativePositionalEmbedding` added to `attention_scores`.
 
 Args:
   inputs: input tensor.
@@ -87,6 +88,9 @@ nn.shape = TensorShape([None, 14, 16, 256])
 
 RelativePositionalEmbedding.__doc__ = __head_doc__ + """
 Relative Positional Embedding layer. Supports also absolute positional embedding.
+Supports both `absolute` / `relative` positional embedding.
+Layer weights is dotted with input generating positional embedding.
+It's using same value for all headers.
 
 input: `[batch, num_heads, height, width, key_dim]`.
 output: `[batch, num_heads, height, width, position_height, position_width]`

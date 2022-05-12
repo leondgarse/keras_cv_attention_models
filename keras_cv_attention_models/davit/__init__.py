@@ -1,4 +1,14 @@
-from keras_cv_attention_models.davit.davit import DaViT, DaViT_T, DaViT_S, DaViT_B, DaViT_L, DaViT_H, DaViT_G, multi_head_self_attention_channel
+from keras_cv_attention_models.davit.davit import (
+    DaViT,
+    DaViT_T,
+    DaViT_S,
+    DaViT_B,
+    DaViT_L,
+    DaViT_H,
+    DaViT_G,
+    multi_head_self_attention_channel,
+    window_attention,
+)
 
 __head_doc__ = """
 Keras implementation of [Github dingmyu/davit](https://github.com/dingmyu/davit).
@@ -81,4 +91,30 @@ Examples:
 >>> mm.summary()
 >>> print({ii.name: ii.shape for ii in mm.weights})
 # {'attn_qkv/kernel:0': TensorShape([256, 768]), 'attn_output/kernel:0': TensorShape([256, 512])}
+"""
+
+window_attention.__doc__ = __head_doc__ + """
+Window multi head self attention. Defined as function, not layer.
+Typical MHSA with `window_partition` process ahead and `window_reverse` process after.
+
+Args:
+  inputs: input tensor.
+  window_size: window partition size.
+  num_heads: Number of attention heads.
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> inputs = keras.layers.Input([14, 16, 256])
+>>> nn = attention_layers.window_attention(inputs, 7, num_heads=4, name="attn_")
+>>> print(f"{nn.shape = }")
+# nn.shape = TensorShape([None, 14, 16, 256])
+
+>>> mm = keras.models.Model(inputs, nn)
+>>> mm.summary()
+>>> print({ii.name: ii.shape for ii in mm.weights})
+# {'attn_qkv/kernel:0': TensorShape([256, 768]),
+#  'attn_qkv/bias:0': TensorShape([768]),
+#  'attn_output/kernel:0': TensorShape([256, 256]),
+#  'attn_output/bias:0': TensorShape([256])}
 """

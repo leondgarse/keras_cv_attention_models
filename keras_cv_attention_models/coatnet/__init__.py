@@ -105,6 +105,7 @@ CoAtNet7.__doc__ = CoAtNet0.__doc__
 
 mhsa_with_multi_head_relative_position_embedding.__doc__ = __head_doc__ + """
 Multi head self attention with multi head relative positional embedding. Defined as function, not layer.
+Typical MHSA with `MultiHeadRelativePositionalEmbedding` added to `attention_scores`.
 
 Args:
   inputs: input tensor.

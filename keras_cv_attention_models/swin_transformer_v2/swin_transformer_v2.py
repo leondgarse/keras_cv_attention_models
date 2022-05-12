@@ -159,8 +159,9 @@ def window_mhsa_with_pair_wise_positional_embedding(
     return attention_output
 
 
-def shifted_window_attention(inputs, window_size, num_heads=4, shift_size=0, name=""):
+def shifted_window_attention(inputs, window_size, num_heads=4, shift_size=0, name=None):
     input_channel = inputs.shape[-1]
+    window_size = window_size if isinstance(window_size, (list, tuple)) else [window_size, window_size]
     window_height = window_size[0] if window_size[0] < inputs.shape[1] else inputs.shape[1]
     window_width = window_size[1] if window_size[1] < inputs.shape[2] else inputs.shape[2]
     shift_size = 0 if (window_height == inputs.shape[1] and window_width == inputs.shape[2]) else shift_size

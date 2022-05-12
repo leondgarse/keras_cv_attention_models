@@ -1,6 +1,7 @@
 from keras_cv_attention_models.swin_transformer_v2.swin_transformer_v2 import (
     DivideScale,
     PairWiseRelativePositionalEmbedding,
+    shifted_window_attention,
     WindowAttentionMask,
     window_mhsa_with_pair_wise_positional_embedding,
     SwinTransformerV2,
@@ -93,6 +94,7 @@ Examples:
 PairWiseRelativePositionalEmbedding.__doc__ = __head_doc__ + """
 Pair Wise Relative Positional Embedding layer.
 No weight, just need to wrapper a layer, or will not in model structure.
+Returns a `log` encoded bias depending on input `[height, width]`.
 
 input: `[batch * window_patch, window_height, window_width, channel]`.
 output: relative_coords_log `[window_height * window_width, window_height * window_width, 2]`.
@@ -141,6 +143,8 @@ Examples:
 
 window_mhsa_with_pair_wise_positional_embedding.__doc__ = __head_doc__ + """
 Multi head self attention block with PairWiseRelativePositionalEmbedding, also supports mask.
+Generating `attention_scores` by calculating cosine similarity between `query` and `key`,
+and applying `PairWiseRelativePositionalEmbedding`.
 
 input: `[batch * patch_height * patch_width, window_height, window_width, input_channel]`.
 output: `[batch * patch_height * patch_width, window_height, window_width, num_heads * key_dim]`.
@@ -166,6 +170,39 @@ Examples:
 >>> nn = attention_layers.window_mhsa_with_pair_wise_positional_embedding(nn, num_heads=4, name="attn_")
 >>> print(f"{nn.shape = }")
 # nn.shape = TensorShape([None, 7, 8, 256])
+
+>>> mm = keras.models.Model(inputs, nn)
+>>> mm.summary()
+>>> print({ii.name: ii.shape for ii in mm.weights})
+# {'attn_qkv/kernel:0': TensorShape([256, 768]),
+#  'attn_qkv/bias:0': TensorShape([768]),
+#  'attn_meta_Dense_0/kernel:0': TensorShape([2, 384]),
+#  'attn_meta_Dense_0/bias:0': TensorShape([384]),
+#  'attn_meta_Dense_1/kernel:0': TensorShape([384, 4]),
+#  'attn_meta_Dense_1/bias:0': TensorShape([4]),
+#  'attn_scale/weight:0': TensorShape([1, 4, 1, 1]),
+#  'attn_output/kernel:0': TensorShape([256, 256]),
+#  'attn_output/bias:0': TensorShape([256])}
+"""
+
+shifted_window_attention.__doc__ = __head_doc__ + """
+Window multi head self attention. Defined as function, not layer.
+`window_mhsa_with_pair_wise_positional_embedding` with `window_partition` process ahead and `window_reverse` process after.
+Also supports window shift.
+
+Args:
+  inputs: input tensor.
+  window_size: window partition size.
+  num_heads: Number of attention heads.
+  shift_size: window shift retio in `(0, 1)`.
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> inputs = keras.layers.Input([14, 16, 256])
+>>> nn = attention_layers.shifted_window_attention(inputs, 7, num_heads=4, shift_size=0.5, name="attn_")
+>>> print(f"{nn.shape = }")
+# nn.shape = TensorShape([None, 14, 16, 256])
 
 >>> mm = keras.models.Model(inputs, nn)
 >>> mm.summary()

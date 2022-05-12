@@ -59,6 +59,7 @@ CoaTMini.__doc__ = __default_doc__.format(model_name="CoaTMini", **coat.BLOCK_CO
 
 ConvPositionalEncoding.__doc__ = __head_doc__ + """
 Convolutional Position Encoding. Note: This module is similar to the conditional position encoding in CPVT.
+Applies a `DepthwiseConv2D` layer with input, then adds with input.
 
 input: `[batch, class_token + height * width, channel]`.
 output: `[batch, class_token + height * width, channel]`.
@@ -78,6 +79,7 @@ aa(tf.ones([1, 1 + 14 * 14, 256])).shape = TensorShape([1, 197, 256])
 
 ConvRelativePositionalEncoding.__doc__ = __head_doc__ + """
 Convolutional with Relative Position Encoding.
+Applies multi `DepthwiseConv2D` layers with split input, then adds with input.
 
 input:
     query: `[batch, num_heads, class_token + height * width, channel // num_heads]`.

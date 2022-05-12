@@ -55,6 +55,7 @@ CotNetSE152D.__doc__ = CotNet50.__doc__
 
 cot_attention.__doc__ = __head_doc__ + """
 Contextual transformer. Callable function, NOT defined as a layer.
+It's using `GroupNormalization` / grouped `Conv2D` / `extract_patches` and other strategies.
 
 Args:
   inputs: input tensor.

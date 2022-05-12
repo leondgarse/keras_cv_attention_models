@@ -22,16 +22,17 @@ PRETRAINED_DICT = {
 
 @tf.keras.utils.register_keras_serializable(package="kecam/nat")
 class MultiHeadRelativePositionalKernelBias(tf.keras.layers.Layer):
-    def __init__(self, input_height=-1, **kwargs):
+    def __init__(self, input_height=-1, is_heads_first=False, **kwargs):
         super().__init__(**kwargs)
-        self.input_height = input_height
+        self.input_height, self.is_heads_first = input_height, is_heads_first
 
     def build(self, input_shape):
-        # input_shape: [batch, height * width, num_heads, ..., size * size]
-        num_heads = input_shape[2]
+        # input (is_heads_first=False): `[batch, height * width, num_heads, ..., size * size]`
+        # input (is_heads_first=True): `[batch, num_heads, height * width, ..., size * size]`
+        blocks, num_heads = (input_shape[2], input_shape[1]) if self.is_heads_first else (input_shape[1], input_shape[2])
         size = int(tf.math.sqrt(float(input_shape[-1])))
-        height = self.input_height if self.input_height > 0 else int(tf.math.sqrt(float(input_shape[1])))
-        width = input_shape[1] // height
+        height = self.input_height if self.input_height > 0 else int(tf.math.sqrt(float(blocks)))
+        width = blocks // height
         pos_size = 2 * size - 1
         initializer = tf.initializers.truncated_normal(stddev=0.02)
         self.pos_bias = self.add_weight(name="positional_embedding", shape=(num_heads, pos_size * pos_size), initializer=initializer, trainable=True)
@@ -46,14 +47,18 @@ class MultiHeadRelativePositionalKernelBias(tf.keras.layers.Layer):
 
         bias_coords_shape = [bias_coords.shape[0]] + [1] * (len(input_shape) - 4) + [bias_coords.shape[1]]
         self.bias_coords = tf.reshape(bias_coords, bias_coords_shape)  # [height * width, 1 * n, size * size]
-        self.transpose_perm = [1, 0] + list(range(2, len(input_shape) - 1))  # transpose [num_heads, height * width] -> [height * width, num_heads]
+        if not self.is_heads_first:
+            self.transpose_perm = [1, 0] + list(range(2, len(input_shape) - 1))  # transpose [num_heads, height * width] -> [height * width, num_heads]
 
     def call(self, inputs):
-        return inputs + tf.transpose(tf.gather(self.pos_bias, self.bias_coords, axis=-1), self.transpose_perm)
+        if self.is_heads_first:
+            return inputs + tf.gather(self.pos_bias, self.bias_coords, axis=-1)
+        else:
+            return inputs + tf.transpose(tf.gather(self.pos_bias, self.bias_coords, axis=-1), self.transpose_perm)
 
     def get_config(self):
         base_config = super().get_config()
-        base_config.update({"input_height": self.input_height})
+        base_config.update({"input_height": self.input_height, "is_heads_first": self.is_heads_first})
         return base_config
 
 

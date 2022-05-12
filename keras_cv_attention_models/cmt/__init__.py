@@ -1,4 +1,4 @@
-from keras_cv_attention_models.cmt.cmt import CMT, CMTTiny, CMTXS, CMTSmall, CMTBig
+from keras_cv_attention_models.cmt.cmt import CMT, CMTTiny, CMTXS, CMTSmall, CMTBig, light_mhsa_with_multi_head_relative_position_embedding
 
 __head_doc__ = """
 Keras implementation of CMT.
@@ -51,3 +51,38 @@ Args:
 CMTXS.__doc__ = CMTTiny.__doc__
 CMTSmall.__doc__ = CMTTiny.__doc__
 CMTBig.__doc__ = CMTTiny.__doc__
+
+light_mhsa_with_multi_head_relative_position_embedding.__doc__ = __head_doc__ + """
+Light multi head self attention with relative position embedding. Defined as function, not layer.
+Downsample `key_value` with a `sr_ratio` using `DepthwiseConv2D` + `LayerNorm`.
+Also adds `MultiHeadRelativePositionalEmbedding` to `attention_scores`.
+
+Args:
+  inputs: input tensor.
+  num_heads: Number of attention heads.
+  key_dim: Size of each attention head for query, key and value. Default `0` for `key_dim = inputs.shape[-1] // num_heads`.
+  sr_ratio: `key_value` downsample rate.
+  out_shape: The expected shape of an output tensor. If not specified, projects back to the input dim.
+  out_weight: Boolean, whether use an ouput dense.
+  out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
+  attn_dropout: Dropout probability for attention.
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> inputs = keras.layers.Input([14, 16, 256])
+>>> nn = attention_layers.light_mhsa_with_multi_head_relative_position_embedding(inputs, num_heads=4, sr_ratio=3, out_shape=512, name="attn_")
+>>> print(f"{nn.shape = }")
+# nn.shape = TensorShape([None, 14, 16, 512])
+
+>>> mm = keras.models.Model(inputs, nn)
+>>> mm.summary()
+>>> print({ii.name: ii.shape for ii in mm.weights})
+# {'attn_kv_sr_dw_conv/depthwise_kernel:0': TensorShape([3, 3, 256, 1]),
+#  'attn_kv_sr_ln/gamma:0': TensorShape([256]),
+#  'attn_kv_sr_ln/beta:0': TensorShape([256]),
+#  'attn_query/kernel:0': TensorShape([256, 256]),
+#  'attn_key_value/kernel:0': TensorShape([256, 512]),
+#  'attn_pos_emb/positional_embedding:0': TensorShape([4, 837]),
+#  'attn_output/kernel:0': TensorShape([256, 512])}
+"""

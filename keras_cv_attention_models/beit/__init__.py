@@ -63,6 +63,7 @@ BeitLargePatch16.__doc__ = BeitBasePatch16.__doc__
 MultiHeadRelativePositionalEmbedding.__doc__ = __head_doc__ + """
 Multi Head Relative Positional Embedding layer.
 
+Positional embedding shape is `[num_heads, (2 * height - 1) * (2 * width - 1)]`.
 input (with_cls_token=True): `[batch, num_heads, attn_blocks, attn_blocks]`. where `attn_blocks = attn_height * attn_width + class_token`
 input (with_cls_token=False): `[batch, num_heads, attn_blocks, attn_blocks]`. where `attn_blocks = attn_height * attn_width`
 output: `[batch, num_heads, attn_blocks, attn_blocks] + positional_bias`.

@@ -145,7 +145,7 @@
     find ./* -name "*.py" | grep -v __init__ | grep -v setup.py | xargs -I {} black -l 160 {}
     ```
 ## Layers
-  - [attention_layers](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `RelativePositionalEmbedding` from `botnet`, `outlook_attention` from `volo`.
+  - [attention_layers](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `RelativePositionalEmbedding` from `botnet`, `outlook_attention` from `volo`, and many other `Positional Embedding Layers` / `Attention Blocks`.
   ```py
   from keras_cv_attention_models import attention_layers
   aa = attention_layers.RelativePositionalEmbedding()
@@ -572,7 +572,6 @@
   | LeViT384, distillation  | 39M    | 2.36G | 224   | 82.6     | [levit384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit384_imagenet.h5) |
 ## MLP mixer
   - [Keras MLP mixer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#mlp-mixer) includes implementation of [PDF 2105.01601 MLP-Mixer: An all-MLP Architecture for Vision](https://arxiv.org/pdf/2105.01601.pdf).
-  - **Models** `Top1 Acc` is `Pre-trained on JFT-300M` model accuray on `ImageNet 1K` from paper.
 
   | Model            | Params | FLOPs   | Input | Top1 Acc | Download |
   | ---------------- | ------ | ------- | ----- | -------- | -------- |
