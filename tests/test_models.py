@@ -163,7 +163,7 @@ def test_ResNeXt_defination():
 
 
 def test_SwinTransformerV2Tiny_defination():
-    mm = keras_cv_attention_models.swin_transformer_v2.SwinTransformerV2Tiny(pretrained=None)
+    mm = keras_cv_attention_models.swin_transformer_v2.SwinTransformerV2Tiny_window8(pretrained=None)
     assert isinstance(mm, keras.models.Model)
 
     mm = keras_cv_attention_models.swin_transformer_v2.SwinTransformerV2Tiny_ns(pretrained=None, num_classes=0)

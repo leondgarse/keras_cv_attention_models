@@ -88,12 +88,6 @@ def test_ConvRelativePositionalEncoding():
     assert aa(tf.ones(input_shape), tf.ones(input_shape)).shape == input_shape
 
 
-def test_DivideScale():
-    aa = attention_layers.DivideScale(axis=[1, 2])
-    input_shape = [1, 32, 32, 192]
-    assert aa(tf.ones(input_shape)).shape == input_shape
-
-
 def test_cot_attention():
     input_shape = [2, 28, 28, 192]
     assert attention_layers.cot_attention(tf.ones(input_shape), kernel_size=3).shape == input_shape
@@ -118,6 +112,12 @@ def test_EvoNormalization():
 
     out = attention_layers.EvoNormalization(data_format="channels_first", num_groups=24)(tf.ones(input_shape))
     assert out.shape == input_shape
+
+
+def test_ExpLogitScale():
+    aa = attention_layers.ExpLogitScale(axis=[1, 2])
+    input_shape = [1, 32, 32, 192]
+    assert aa(tf.ones(input_shape)).shape == input_shape
 
 
 def test_fold_by_conv2d_transpose():
@@ -232,10 +232,13 @@ def test_outlook_attention_simple():
 
 def test_PairWiseRelativePositionalEmbedding():
     aa = attention_layers.PairWiseRelativePositionalEmbedding()
-    window_patch, window_height, window_width, channel = 9, 5, 3, 192
+    window_patch, window_height, window_width, channel = 9, 5, 3, 23
     input_shape = [window_patch, window_height, window_width, channel]
-    output_shape = [window_height * window_width, window_height * window_width, 2]
-    assert aa(tf.ones(input_shape)).shape == output_shape
+    coords_shape = [(2 * window_height - 1) * (2 * window_width - 1), 2]
+    index_shape = [window_height * window_width, window_height * window_width]
+    relative_log_coords, relative_position_index = aa(tf.ones(input_shape))
+    assert relative_log_coords.shape == coords_shape
+    assert relative_position_index.shape == index_shape
 
 
 def test_phase_aware_token_mixing():

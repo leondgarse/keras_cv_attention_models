@@ -272,9 +272,9 @@ def keras_reload_from_torch_model(
         state_dict = torch_model
 
     """ Convert torch weights """
-    torch_params = {kk: (np.cumproduct(vv.shape)[-1] if len(vv.shape) != 0 else 1) for kk, vv in state_dict.items() if ".num_batches_tracked" not in kk}
-    print(">>>> torch_model total_parameters :", np.sum(list(torch_params.values())))
+    # torch_params = {kk: (np.cumproduct(vv.shape)[-1] if len(vv.shape) != 0 else 1) for kk, vv in state_dict.items() if ".num_batches_tracked" not in kk}
     stacked_state_dict = state_dict_stack_by_layer(state_dict, skip_weights=skip_weights, unstack_weights=unstack_weights)
+    print(">>>> torch_model total_parameters :", np.sum([np.sum([np.prod(jj.shape) for jj in ii]) for ii in stacked_state_dict.values()]))
     aa = {kk: [1 if isinstance(jj, float) else jj.shape for jj in vv] for kk, vv in stacked_state_dict.items()}
     print(">>>> Torch weights:")
     _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]

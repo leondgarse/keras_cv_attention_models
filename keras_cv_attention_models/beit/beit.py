@@ -51,13 +51,13 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         pos_shape = (num_heads, num_relative_distance)
         self.relative_position_bias_table = self.add_weight(name="positional_embedding", shape=pos_shape, initializer="zeros", trainable=True)
 
-        xx, yy = tf.meshgrid(range(height), range(width))  # tf.meshgrid is same with np.meshgrid 'xy' mode, while torch.meshgrid 'ij' mode
-        coords = tf.stack([yy, xx], axis=-1)  # [14, 14, 2]
+        hh, ww = tf.meshgrid(range(height), range(width))  # tf.meshgrid is same with np.meshgrid 'xy' mode, while torch.meshgrid 'ij' mode
+        coords = tf.stack([hh, ww], axis=-1)  # [14, 14, 2]
         coords_flatten = tf.reshape(coords, [-1, 2])  # [196, 2]
         relative_coords = coords_flatten[:, None, :] - coords_flatten[None, :, :]  # [196, 196, 2]
-        xx = (relative_coords[:, :, 0] + width - 1) * (2 * height - 1)
-        yy = relative_coords[:, :, 1] + height - 1
-        relative_coords = tf.stack([xx, yy], axis=-1)
+        relative_coords_hh = relative_coords[:, :, 0] + height - 1
+        relative_coords_ww = (relative_coords[:, :, 1] + width - 1) * (2 * height - 1)
+        relative_coords = tf.stack([relative_coords_hh, relative_coords_ww], axis=-1)
 
         relative_position_index = tf.reduce_sum(relative_coords, axis=-1)  # [196, 196]
         if attn_shape[3] != attn_shape[2]:

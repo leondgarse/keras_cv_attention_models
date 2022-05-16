@@ -31,6 +31,9 @@ def parse_arguments(argv):
         default=None,
         help="Pretrianed weights if not from h5. Could be [imagenet, noisy_student, imagenet21k, imagenet21k-ft1k, imagenet_sam], None for model.pretrained",
     )
+    parser.add_argument(
+        "--additional_model_kwargs", type=str, default=None, help="Json format model kwargs like '{\"drop_connect_rate\": 0.05}'. Note all quote marks"
+    )
 
     args = parser.parse_known_args(argv)[0]
     return args
@@ -60,7 +63,7 @@ if __name__ == "__main__":
     else:  # model_path like: volo.VOLO_d1
         model = args.model_path.strip().split(".")
         model_class = getattr(getattr(keras_cv_attention_models, model[0]), model[1])
-        model_kwargs = {}
+        model_kwargs = json.loads(args.additional_model_kwargs) if args.additional_model_kwargs else {}
         if input_shape:
             model_kwargs.update({"input_shape": input_shape})
         if args.num_classes:

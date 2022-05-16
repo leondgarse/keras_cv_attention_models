@@ -1,25 +1,31 @@
 from keras_cv_attention_models.swin_transformer_v2.swin_transformer_v2 import (
-    DivideScale,
+    ExpLogitScale,
     PairWiseRelativePositionalEmbedding,
     shifted_window_attention,
     WindowAttentionMask,
     window_mhsa_with_pair_wise_positional_embedding,
     SwinTransformerV2,
-    SwinTransformerV2Tiny,
-    SwinTransformerV2Tiny_ns,
-    SwinTransformerV2Small,
-    SwinTransformerV2Small_ns,
-    SwinTransformerV2Base,
-    SwinTransformerV2Large,
-    SwinTransformerV2Giant,
+    SwinTransformerV2Tiny_window8,
+    SwinTransformerV2Tiny_window16,
+    SwinTransformerV2Small_window8,
+    SwinTransformerV2Small_window16,
+    SwinTransformerV2Base_window8,
+    SwinTransformerV2Base_window12,
+    SwinTransformerV2Base_window16,
+    SwinTransformerV2Base_window24,
+    SwinTransformerV2Large_window12,
+    SwinTransformerV2Large_window16,
+    SwinTransformerV2Large_window24,
 )
+from keras_cv_attention_models.swin_transformer_v2.swin_transformer_v2_timm import SwinTransformerV2Tiny_ns, SwinTransformerV2Small_ns
 
 __head_doc__ = """
-Keras implementation of [Github timm/swin_transformer_v2_cr](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/swin_transformer_v2_cr.py).
+Keras implementation of [Github microsoft/Swin-Transformer](https://github.com/microsoft/Swin-Transformer).
 Paper [PDF 2111.09883 Swin Transformer V2: Scaling Up Capacity and Resolution](https://arxiv.org/pdf/2111.09883.pdf).
 """
 
-__tail_doc__ = """  window_ratio: window_size ratio, window_size = [input_shape[0] // window_ratio, input_shape[1] // window_ratio].
+__tail_doc__ = """  window_size: window_size for all blocks.
+  pos_scale: If pretrained weights are from different input_shape or window_size, pos_scale is previous actually using window_size.
   stem_patch_size: stem patch size for stem kernel_size and strides.
   layer_scale: layer scale init value. Default `-1` means not applying, any value `>=0` will add a scale value for each block output.
       [Going deeper with Image Transformers](https://arxiv.org/pdf/2103.17239.pdf).
@@ -32,7 +38,7 @@ __tail_doc__ = """  window_ratio: window_size ratio, window_size = [input_shape[
   dropout: dropout rate if top layers is included.
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
-  pretrained: None or one of ["imagenet", "token_label"].
+  pretrained: None or one of ["imagenet", "imagenet22k" "imagenet21k"].
 
 Returns:
     A `keras.Model` instance.
@@ -47,44 +53,57 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model                           | Params | FLOPs   | Input | Top1 Acc |
-  | ------------------------------- | ------ | ------- | ----- | -------- |
-  | SwinTransformerV2Tiny_ns        | 28.3M  | 4.69G   | 224   | 81.8     |
-  | SwinTransformerV2Small          | 49.7M  | 9.12G   | 224   | 83.13    |
-  | SwinTransformerV2Small_ns       | 49.7M  | 9.12G   | 224   | 83.5     |
-  | SwinTransformerV2Base, 22k      | 87.9M  | 50.89G  | 384   | 87.1     |
-  | SwinTransformerV2Large, 22k     | 196.7M | 109.40G | 384   | 87.7     |
-  | SwinTransformerV2Giant, 22k+ext | 2.60B  | 4.26T   | 640   | 90.17    |
+  | Model                                | Params | FLOPs  | Input | Top1 Acc |
+  | ------------------------------------ | ------ | ------ | ----- | -------- |
+  | SwinTransformerV2Tiny_ns             | 28.3M  | 4.69G  | 224   | 81.8     |
+  | SwinTransformerV2Small_ns            | 49.7M  | 9.12G  | 224   | 83.5     |
+  |                                      |        |        |       |          |
+  | SwinTransformerV2Tiny_window8        | 28.3M  | 5.99G  | 256   | 81.8     |
+  | SwinTransformerV2Tiny_window16       | 28.3M  | 6.75G  | 256   | 82.8     |
+  | SwinTransformerV2Small_window8       | 49.7M  | 11.63G | 256   | 83.7     |
+  | SwinTransformerV2Small_window16      | 49.7M  | 12.93G | 256   | 84.1     |
+  | SwinTransformerV2Base_window8        | 87.9M  | 20.44G | 256   | 84.2     |
+  | SwinTransformerV2Base_window16       | 87.9M  | 22.17G | 256   | 84.6     |
+  | SwinTransformerV2Base_window16, 22k  | 87.9M  | 22.17G | 256   | 86.2     |
+  | SwinTransformerV2Base_window24, 22k  | 87.9M  | 55.89G | 384   | 87.1     |
+  | SwinTransformerV2Large_window16, 22k | 196.7M | 48.03G | 256   | 86.9     |
+  | SwinTransformerV2Large_window24, 22k | 196.7M | 117.1G | 384   | 87.6     |
 """
 
-SwinTransformerV2Tiny.__doc__ = __head_doc__ + """
+SwinTransformerV2Tiny_window8.__doc__ = __head_doc__ + """
 Args:
 """ + __tail_doc__
 
-SwinTransformerV2Tiny_ns.__doc__ = SwinTransformerV2Tiny.__doc__
-SwinTransformerV2Small.__doc__ = SwinTransformerV2Tiny.__doc__
-SwinTransformerV2Small_ns.__doc__ = SwinTransformerV2Tiny.__doc__
-SwinTransformerV2Base.__doc__ = SwinTransformerV2Tiny.__doc__
-SwinTransformerV2Large.__doc__ = SwinTransformerV2Tiny.__doc__
-SwinTransformerV2Giant.__doc__ = SwinTransformerV2Tiny.__doc__
+SwinTransformerV2Tiny_window16.__doc__ = SwinTransformerV2Tiny_window8.__doc__
+SwinTransformerV2Small_window8.__doc__ = SwinTransformerV2Tiny_window8.__doc__
+SwinTransformerV2Small_window16.__doc__ = SwinTransformerV2Tiny_window8.__doc__
+SwinTransformerV2Base_window8.__doc__ = SwinTransformerV2Tiny_window8.__doc__
+SwinTransformerV2Base_window12.__doc__ = SwinTransformerV2Tiny_window8.__doc__
+SwinTransformerV2Base_window16.__doc__ = SwinTransformerV2Tiny_window8.__doc__
+SwinTransformerV2Base_window24.__doc__ = SwinTransformerV2Tiny_window8.__doc__
+SwinTransformerV2Large_window12.__doc__ = SwinTransformerV2Tiny_window8.__doc__
+SwinTransformerV2Large_window16.__doc__ = SwinTransformerV2Tiny_window8.__doc__
+SwinTransformerV2Large_window24.__doc__ = SwinTransformerV2Tiny_window8.__doc__
+SwinTransformerV2Tiny_ns.__doc__ = SwinTransformerV2Tiny_window8.__doc__
+SwinTransformerV2Small_ns.__doc__ = SwinTransformerV2Tiny_window8.__doc__
 
-DivideScale.__doc__ = __head_doc__ + """
+ExpLogitScale.__doc__ = __head_doc__ + """
 Apply `inputs / tf.maximum(scale, min_value)` on given axis.
 
 Args:
   axis: list or int number, specific axis apply scaling.
-  initializer: weight initializer.
-  min_value: min value avoiding dividing zero.
+  init_value: weight init value. Actual using is `tf.math.log(init_value)`.
+  max_value: limit scaled max value.
 
 Examples:
 >>> from keras_cv_attention_models import attention_layers
->>> aa = attention_layers.DivideScale()
+>>> aa = attention_layers.ExpLogitScale()
 >>> print(f"{aa(tf.ones([1, 32, 32, 192])).shape = }")
 # aa(tf.ones([1, 32, 32, 192])).shape = TensorShape([1, 32, 32, 192])
 >>> print({ii.name:ii.shape for ii in aa.weights})
 # {'divide_scale/weight:0': TensorShape([192])}
 
->>> bb = attention_layers.DivideScale(axis=[1, 2])
+>>> bb = attention_layers.ExpLogitScale(axis=[1, 2])
 >>> print(f"{bb(tf.ones([1, 32, 32, 192])).shape = }")
 # bb(tf.ones([1, 32, 32, 192])).shape = TensorShape([1, 32, 32, 192])
 >>> print({ii.name:ii.shape for ii in bb.weights})
@@ -94,18 +113,24 @@ Examples:
 PairWiseRelativePositionalEmbedding.__doc__ = __head_doc__ + """
 Pair Wise Relative Positional Embedding layer.
 No weight, just need to wrapper a layer, or will not in model structure.
-Returns a `log` encoded bias depending on input `[height, width]`.
 
 input: `[batch * window_patch, window_height, window_width, channel]`.
-output: relative_coords_log `[window_height * window_width, window_height * window_width, 2]`.
+output:
+    relative_log_coords `[(2 * window_height - 1) * (2 * window_width - 1), 2]`.
+    relative_position_index `[window_height * window_width, window_height * window_width]`
 
-No args.
+Args:
+  pos_scale: If pretrained weights are from different input_shape or window_size, pos_scale is previous actually using window_size.
+      Default -1 for using `[height, width]` from input_shape.
 
 Examples:
 >>> from keras_cv_attention_models import attention_layers
 >>> aa = attention_layers.PairWiseRelativePositionalEmbedding()
->>> print(f"{aa(tf.ones([1 * 9, 4, 4, 192])).shape = }")
-# aa(tf.ones([1 * 9, 4, 4, 192])).shape = TensorShape([16, 16, 2])
+>>> relative_log_coords, relative_position_index = aa(tf.ones([1 * 9, 4, 4, 192]))
+>>> print(f"{relative_log_coords.shape = }, {relative_position_index.shape = }")
+# relative_log_coords.shape = TensorShape([49, 2]), relative_position_index.shape = TensorShape([16, 16])
+>>> print(f"{tf.gather(relative_log_coords, relative_position_index).shape = }")
+# tf.gather(relative_log_coords, relative_position_index).shape = TensorShape([16, 16, 2])
 """
 
 WindowAttentionMask.__doc__ = __head_doc__ + """
@@ -156,7 +181,10 @@ Args:
   out_shape: The expected shape of an output tensor. If not specified, projects back to the input dim.
   meta_hidden_dim: hidden channel for `mlp_block` applied to `PairWiseRelativePositionalEmbedding` output.
   mask: `WindowAttentionMask` layer instance. Default `None` for not applying mask.
+  pos_scale: If pretrained weights are from different input_shape or window_size, pos_scale is previous actually using window_size.
+      Default -1 for using `[height, width]` from input_shape.
   out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
+  qv_bias: Boolean, if use bias for `query` and `value`.
   attn_dropout: Dropout probability for attention scores.
   out_dropout: Dropout probability for attention output.
 
@@ -195,6 +223,8 @@ Args:
   window_size: window partition size.
   num_heads: Number of attention heads.
   shift_size: window shift retio in `(0, 1)`.
+  pos_scale: If pretrained weights are from different input_shape or window_size, pos_scale is previous actually using window_size.
+      Default -1 for using `[height, width]` from input_shape.
 
 Examples:
 

@@ -2,6 +2,7 @@
 - **coco_train_script.py is under testing**
 - **Modified using `anchors_mode` value in `[anchor_free, yolor, efficientdet]` instead of all previous `use_anchor_free_mode` and `use_yolor_anchors_mode` in `training` / `evaluating` / `model structure`**. - `2022.04.15`
 - **`CoAtNet` is using `vv_dim = key_dim` instead of previous `vv_dim = out_shape // num_heads` now, and pretrained weights updated, be caution of this update if wanna reload earlier models**. - `2022.04.24`
+- **`SwinTransformerV2` parameter `window_ratio` is replaced with `window_size` for preferring new weights from official publication**. - `2022.05.16`
 
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
@@ -712,14 +713,21 @@
 ## SwinTransformerV2
   - [Keras SwinTransformerV2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/swin_transformer_v2) includes implementation of [PDF 2111.09883 Swin Transformer V2: Scaling Up Capacity and Resolution](https://arxiv.org/pdf/2111.09883.pdf).
 
-  | Model                           | Params | FLOPs   | Input | Top1 Acc | Download |
-  | ------------------------------- | ------ | ------- | ----- | -------- | -------- |
-  | SwinTransformerV2Tiny_ns        | 28.3M  | 4.69G   | 224   | 81.8     | [tiny_ns_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_tiny_ns_224_imagenet.h5) |
-  | SwinTransformerV2Small          | 49.7M  | 9.12G   | 224   | 83.13    | [small_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_small_224_imagenet.h5) |
-  | SwinTransformerV2Small_ns       | 49.7M  | 9.12G   | 224   | 83.5     | [small_ns_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_small_ns_224_imagenet.h5) |
-  | SwinTransformerV2Base, 22k      | 87.9M  | 50.89G  | 384   | 87.1     |          |
-  | SwinTransformerV2Large, 22k     | 196.7M | 109.40G | 384   | 87.7     |          |
-  | SwinTransformerV2Giant, 22k+ext | 2.60B  | 4.26T   | 640   | 90.17    |          |
+  | Model                                | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ------------------------------------ | ------ | ------ | ----- | -------- | -------- |
+  | SwinTransformerV2Tiny_ns             | 28.3M  | 4.69G  | 224   | 81.8     | [tiny_ns_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_tiny_ns_224_imagenet.h5) |
+  | SwinTransformerV2Small_ns            | 49.7M  | 9.12G  | 224   | 83.5     | [small_ns_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_small_ns_224_imagenet.h5) |
+  |                                      |        |        |       |          |          |
+  | SwinTransformerV2Tiny_window8        | 28.3M  | 5.99G  | 256   | 81.8     | [tiny_window8_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_tiny_window8_256_imagenet.h5) |
+  | SwinTransformerV2Tiny_window16       | 28.3M  | 6.75G  | 256   | 82.8     | [tiny_window16_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_tiny_window16_256_imagenet.h5) |
+  | SwinTransformerV2Small_window8       | 49.7M  | 11.63G | 256   | 83.7     | [small_window8_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_small_window8_256_imagenet.h5) |
+  | SwinTransformerV2Small_window16      | 49.7M  | 12.93G | 256   | 84.1     | [small_window16_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_small_window16_256_imagenet.h5) |
+  | SwinTransformerV2Base_window8        | 87.9M  | 20.44G | 256   | 84.2     | [base_window8_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window8_256_imagenet.h5) |
+  | SwinTransformerV2Base_window16       | 87.9M  | 22.17G | 256   | 84.6     | [base_window16_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window16_256_imagenet.h5) |
+  | SwinTransformerV2Base_window16, 22k  | 87.9M  | 22.17G | 256   | 86.2     | [base_window16_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window16_256_imagenet22k.h5) |
+  | SwinTransformerV2Base_window24, 22k  | 87.9M  | 55.89G | 384   | 87.1     | [base_window24_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window24_256_imagenet22k.h5) |
+  | SwinTransformerV2Large_window16, 22k | 196.7M | 48.03G | 256   | 86.9     | [large_window16_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_large_window16_256_imagenet22k.h5) |
+  | SwinTransformerV2Large_window24, 22k | 196.7M | 117.1G | 384   | 87.6     | [large_window24_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_large_window24_256_imagenet22k.h5) |
 ## TinyNet
   - [Keras TinyNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#tinynet) includes implementation of [PDF 2010.14819 Model Rubik’s Cube: Twisting Resolution, Depth and Width for TinyNets](https://arxiv.org/pdf/2010.14819.pdf).
 
