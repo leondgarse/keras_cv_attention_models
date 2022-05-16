@@ -172,8 +172,8 @@ def window_mhsa_with_pair_wise_positional_embedding(
     qkv = tf.reshape(qkv, [-1, qkv.shape[1] * qkv.shape[2], qkv.shape[-1]])
     query, key, value = tf.split(qkv, 3, axis=-1)
     if qv_bias:
-        query = BiasLayer(name=name + "query_bias")(query)
-        value = BiasLayer(name=name + "value_bias")(value)
+        query = BiasLayer(name=name and name + "query_bias")(query)
+        value = BiasLayer(name=name and name + "value_bias")(value)
     query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, key_dim]
     key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
     value = tf.transpose(tf.reshape(value, [-1, value.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, vv_dim]
