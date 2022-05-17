@@ -19,9 +19,9 @@
   | SwinTransformerV2Base_window8        | 87.9M  | 20.44G | 256   | 84.2     | [base_window8_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window8_256_imagenet.h5) |
   | SwinTransformerV2Base_window16       | 87.9M  | 22.17G | 256   | 84.6     | [base_window16_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window16_256_imagenet.h5) |
   | SwinTransformerV2Base_window16, 22k  | 87.9M  | 22.17G | 256   | 86.2     | [base_window16_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window16_256_imagenet22k.h5) |
-  | SwinTransformerV2Base_window24, 22k  | 87.9M  | 55.89G | 384   | 87.1     | [base_window24_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window24_256_imagenet22k.h5) |
+  | SwinTransformerV2Base_window24, 22k  | 87.9M  | 55.89G | 384   | 87.1     | [base_window24_384_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window24_384_imagenet22k.h5) |
   | SwinTransformerV2Large_window16, 22k | 196.7M | 48.03G | 256   | 86.9     | [large_window16_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_large_window16_256_imagenet22k.h5) |
-  | SwinTransformerV2Large_window24, 22k | 196.7M | 117.1G | 384   | 87.6     | [large_window24_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_large_window24_256_imagenet22k.h5) |
+  | SwinTransformerV2Large_window24, 22k | 196.7M | 117.1G | 384   | 87.6     | [large_window24_384_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_large_window24_384_imagenet22k.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import swin_transformer_v2

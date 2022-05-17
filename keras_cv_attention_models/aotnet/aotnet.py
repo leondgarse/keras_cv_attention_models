@@ -54,8 +54,14 @@ def attn_block(
 
     attn_act = attn_params.pop("activation", activation)
     se_divisor = attn_params.pop("se_divisor", 8)
-    if attn_type == "bot":  # mhsa_with_relative_position_embedding from botnet
+    attn_block = None if attn_type is None else getattr(attention_layers, attn_type, None)
+    need_downsaple = False
+    if attn_block is not None:
+        nn = attn_block(nn, **attn_params, name=name + "attn_")
+        need_downsaple = True
+    elif attn_type == "bot":  # mhsa_with_relative_position_embedding from botnet
         nn = attention_layers.mhsa_with_relative_position_embedding(nn, **attn_params, name=name + "mhsa_")
+        need_downsaple = True
     elif attn_type == "halo":  # halo_attention from halonet
         halo_expansion = attn_params.pop("halo_expansion", 1)
         out_shape = int(filters * halo_expansion)
@@ -66,6 +72,7 @@ def attn_block(
         nn = attention_layers.cot_attention(nn, **attn_params, strides=strides, activation=attn_act, name=name + "cot_")
     elif attn_type == "outlook":  # outlook_attention from volo
         nn = attention_layers.outlook_attention(nn, filters, **attn_params, name=name + "outlook_")
+        need_downsaple = True
     # elif attn_type == "groups_conv":  # ResNeXt like
     #     nn = conv2d_no_bias(nn, filters, **attn_params, strides=strides, padding="SAME", name=name + "GC_")
     else:  # ResNet and `groups > 1` for ResNeXt like
@@ -73,7 +80,8 @@ def attn_block(
         conv_name = (name + "GC_") if groups > 1 else name
         nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", groups=groups, name=conv_name)
 
-    if attn_type in ["bot", "outlook"] and strides != 1:  # Downsample
+    # if strides != 1 and (nn.shape[1] == inputs.shape[1] or nn.shape[2] == inputs.shape[2]):  # Downsample
+    if strides != 1 and need_downsaple:  # Downsample
         # nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
         nn = keras.layers.AveragePooling2D(pool_size=2, strides=strides, name=name + "pool")(nn)
 
