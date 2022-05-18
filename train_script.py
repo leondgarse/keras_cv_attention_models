@@ -97,6 +97,7 @@ def parse_arguments(argv):
     """ Token labeling and distillation parameters """
     dt_group = parser.add_argument_group("Token labeling and distillation arguments")
     dt_group.add_argument("--token_label_file", type=str, default=None, help="Specific token label file path")
+    dt_group.add_argument("--token_label_loss_weight", type=float, default=0.5, help="Token label loss weight if `token_label_file` is not None")
     dt_group.add_argument(
         "--teacher_model",
         type=str,
@@ -104,7 +105,9 @@ def parse_arguments(argv):
         help="Could be: 1. Saved h5 model path. 2. Model name defined in this repo, format [sub_dir].[model_name] like regnet.RegNetZD8. 3. timm model like timm.models.resmlp_12_224",
     )
     dt_group.add_argument("--teacher_model_pretrained", type=str, default="imagenet", help="Teacher model pretrained weight, if not built from h5")
+    dt_group.add_argument("--teacher_model_input_shape", type=int, default=-1, help="Teacher model input_shape, -1 for same with `input_shape`")
     dt_group.add_argument("--distill_temperature", type=float, default=10, help="Temperature for DistillKLDivergenceLoss")
+    dt_group.add_argument("--distill_loss_weight", type=float, default=1, help="Distill loss weight if `teacher_model` is not None")
 
     args = parser.parse_known_args(argv)[0]
 
@@ -145,10 +148,12 @@ def run_training_by_args(args):
     input_shape = (args.input_shape, args.input_shape)
     use_token_label = False if args.token_label_file is None else True
     use_teacher_model = False if args.teacher_model is None else True
+    teacher_model_input_shape = input_shape if args.teacher_model_input_shape == -1 else (args.teacher_model_input_shape, args.teacher_model_input_shape)
 
     # Init model first, for in case of use_token_label, getting token_label_target_patches
     total_images, num_classes, steps_per_epoch, num_channels = data.init_dataset(args.data_name, batch_size=batch_size, info_only=True)
     input_shape = (*input_shape, num_channels)  # Just in case channel is not 3, like mnist being 1...
+    teacher_model_input_shape = (*teacher_model_input_shape, num_channels)  # Just in case channel is not 3, like mnist being 1...
     with strategy.scope():
         model = args.model if args.restore_path is None else args.restore_path
         model = train_func.init_model(model, input_shape, num_classes, args.pretrained, **args.additional_model_kwargs)
@@ -158,11 +163,12 @@ def run_training_by_args(args):
 
         if use_teacher_model:
             print(">>>> [Build teacher model]")
-            args.teacher_model = train_func.init_model(args.teacher_model, input_shape, num_classes, args.teacher_model_pretrained, reload_compile=False)
-            if hasattr(args.teacher_model, "layers") and hasattr(args.teacher_model.layers[-1], "activation"):
-                args.teacher_model.layers[-1].activation = None  # Set output activation softmax to linear
-            model.layers[-1].activation = None  # Also set model output activation softmax to linear
-            args.teacher_model.trainable = False
+            teacher_model = train_func.init_model(
+                args.teacher_model, teacher_model_input_shape, num_classes, args.teacher_model_pretrained, reload_compile=False
+            )
+            model, teacher_model = train_func.init_distill_model(model, teacher_model)
+        else:
+            teacher_model = None
     token_label_target_patches = model.output_shape[-1][1:-1] if use_token_label else -1
 
     train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = data.init_dataset(
@@ -182,7 +188,8 @@ def run_training_by_args(args):
         use_positional_related_ops=not args.disable_positional_related_ops,
         token_label_file=args.token_label_file,
         token_label_target_patches=token_label_target_patches,
-        teacher_model=args.teacher_model,
+        teacher_model=teacher_model,
+        teacher_model_input_shape=teacher_model_input_shape
     )
 
     lr_base = args.lr_base_512 * batch_size / 512
@@ -193,19 +200,11 @@ def run_training_by_args(args):
     epochs = args.epochs if args.epochs != -1 else lr_total_epochs
 
     with strategy.scope():
-        if use_token_label:
-            cls_loss = train_func.init_loss(args.bce_threshold, args.label_smoothing)
-            aux_loss = train_func.init_loss(args.bce_threshold, args.label_smoothing)
-            loss = [cls_loss, aux_loss]
-            loss_weights = [1, 0.5]
-            metrics = {model.output_names[0]: "acc", model.output_names[1]: None}
-        elif use_teacher_model:
-            loss = losses.DistillKLDivergenceLoss(temperature=args.distill_temperature)
-            loss_weights, metrics = None, ["acc"]
-            # test_dataset = None
-        else:
-            loss = train_func.init_loss(args.bce_threshold, args.label_smoothing)
-            loss_weights, metrics = None, ["acc"]
+        token_label_loss_weight = args.token_label_loss_weight if use_token_label else 0
+        distill_loss_weight = args.distill_loss_weight if use_teacher_model else 0
+        loss, loss_weights, metrics = train_func.init_loss(
+            args.bce_threshold, args.label_smoothing, token_label_loss_weight, distill_loss_weight, args.distill_temperature, model.output_names
+        )
 
         if model.optimizer is None:
             model = train_func.compile_model(model, args.optimizer, lr_base, args.weight_decay, loss, loss_weights, metrics)

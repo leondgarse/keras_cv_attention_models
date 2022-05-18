@@ -38,7 +38,8 @@ __tail_doc__ = """  window_size: window_size for all blocks.
   dropout: dropout rate if top layers is included.
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
-  pretrained: None or one of ["imagenet", "imagenet22k" "imagenet21k"].
+  pretrained: value in {pretrained}.
+      Will try to download and load pre-trained model weights if not None.
 
 Returns:
     A `keras.Model` instance.
@@ -51,7 +52,7 @@ Args:
   embed_dim: basic hidden dims, expand * 2 for each stack.
   use_stack_norm: boolean value if apply an additional layer_norm after each stack.
   model_name: string, model name.
-""" + __tail_doc__ + """
+""" + __tail_doc__.format(pretrained=[None, "imagenet", "imagenet22k", "imagenet21k"]) + """
 Model architectures:
   | Model                                | Params | FLOPs  | Input | Top1 Acc |
   | ------------------------------------ | ------ | ------ | ----- | -------- |
@@ -70,22 +71,23 @@ Model architectures:
   | SwinTransformerV2Large_window24, 22k | 196.7M | 117.1G | 384   | 87.6     |
 """
 
-SwinTransformerV2Tiny_window8.__doc__ = __head_doc__ + """
+__default_doc__ = __head_doc__ + """
 Args:
 """ + __tail_doc__
 
-SwinTransformerV2Tiny_window16.__doc__ = SwinTransformerV2Tiny_window8.__doc__
-SwinTransformerV2Small_window8.__doc__ = SwinTransformerV2Tiny_window8.__doc__
-SwinTransformerV2Small_window16.__doc__ = SwinTransformerV2Tiny_window8.__doc__
-SwinTransformerV2Base_window8.__doc__ = SwinTransformerV2Tiny_window8.__doc__
-SwinTransformerV2Base_window12.__doc__ = SwinTransformerV2Tiny_window8.__doc__
-SwinTransformerV2Base_window16.__doc__ = SwinTransformerV2Tiny_window8.__doc__
-SwinTransformerV2Base_window24.__doc__ = SwinTransformerV2Tiny_window8.__doc__
-SwinTransformerV2Large_window12.__doc__ = SwinTransformerV2Tiny_window8.__doc__
-SwinTransformerV2Large_window16.__doc__ = SwinTransformerV2Tiny_window8.__doc__
-SwinTransformerV2Large_window24.__doc__ = SwinTransformerV2Tiny_window8.__doc__
-SwinTransformerV2Tiny_ns.__doc__ = SwinTransformerV2Tiny_window8.__doc__
-SwinTransformerV2Small_ns.__doc__ = SwinTransformerV2Tiny_window8.__doc__
+SwinTransformerV2Tiny_window8.__doc__ = __default_doc__.format(pretrained=[None, "imagenet"])
+SwinTransformerV2Tiny_window16.__doc__ = __default_doc__.format(pretrained=[None, "imagenet"])
+SwinTransformerV2Small_window8.__doc__ = __default_doc__.format(pretrained=[None, "imagenet"])
+SwinTransformerV2Small_window16.__doc__ = __default_doc__.format(pretrained=[None, "imagenet"])
+SwinTransformerV2Base_window8.__doc__ = __default_doc__.format(pretrained=[None, "imagenet"])
+SwinTransformerV2Base_window12.__doc__ = __default_doc__.format(pretrained=[None, "imagenet21k"])
+SwinTransformerV2Base_window16.__doc__ = __default_doc__.format(pretrained=[None, "imagenet", "imagenet22k"])
+SwinTransformerV2Base_window24.__doc__ = __default_doc__.format(pretrained=[None, "imagenet", "imagenet22k"])
+SwinTransformerV2Large_window12.__doc__ = __default_doc__.format(pretrained=[None, "imagenet21k"])
+SwinTransformerV2Large_window16.__doc__ = __default_doc__.format(pretrained=[None, "imagenet22k"])
+SwinTransformerV2Large_window24.__doc__ = __default_doc__.format(pretrained=[None, "imagenet22k"])
+SwinTransformerV2Tiny_ns.__doc__ = __default_doc__.format(pretrained=[None, "imagenet"])
+SwinTransformerV2Small_ns.__doc__ = __default_doc__.format(pretrained=[None, "imagenet"])
 
 ExpLogitScale.__doc__ = __head_doc__ + """
 Apply `inputs / tf.maximum(scale, min_value)` on given axis.

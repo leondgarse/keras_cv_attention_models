@@ -378,11 +378,23 @@ def build_token_label_dataset(train_dataset, token_label_file):
     return token_label_train_ds
 
 
-def build_distillation_dataset(ds, teacher_model):
+def build_distillation_dataset(ds, teacher_model, input_shape, resize_method="bilinear", resize_antialias=False):
     teacher_model.trainable = False
     # Using teacher_model outputs instead of actual labels
     # Using `ds = ds.map(lambda xx, yy: (xx, teacher_model(xx)))` will run teacher_model on CPU, though will on GPU if XLA enabled
-    new_ds = tf.data.Dataset.from_generator(lambda: ((xx, teacher_model(xx)) for xx, yy in ds), output_signature=ds.element_spec)
+
+    # print(f">>>> {ds.element_spec[0].shape = }, {input_shape = }")
+    # gen_func = lambda: ((tf.image.resize(xx, input_shape[:2], method=resize_method, antialias=resize_antialias), (yy, teacher_model(xx))) for xx, yy in ds)
+    # image_signature = tf.TensorSpec(shape=(None, input_shape[0], input_shape[1], ds.element_spec[0].shape[-1]), dtype=tf.float32)
+    # output_signature = (image_signature, (ds.element_spec[1], ds.element_spec[1]))
+    # new_ds = tf.data.Dataset.from_generator(gen_func, output_signature=output_signature)
+
+    output_signature = (ds.element_spec[0], (ds.element_spec[1], ds.element_spec[1]))
+    new_ds = tf.data.Dataset.from_generator(lambda: ((xx, (yy, teacher_model(xx))) for xx, yy in ds), output_signature=output_signature)
+    if ds.element_spec[0].shape[1] != input_shape[0] or ds.element_spec[0].shape[2] != input_shape[1]:
+        resize_func = lambda xx, yy: (tf.image.resize(xx, input_shape[:2], method=resize_method, antialias=resize_antialias), yy)
+        new_ds = new_ds.map(resize_func, num_parallel_calls=tf.data.AUTOTUNE)
+
     options = tf.data.Options()
     options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
     new_ds = new_ds.apply(tf.data.experimental.assert_cardinality(len(ds))).with_options(options)
@@ -411,11 +423,14 @@ def init_dataset(
     token_label_file=None,
     token_label_target_patches=-1,
     teacher_model=None,
+    teacher_model_input_shape=-1,  # -1 means same with input_shape
     **augment_kwargs,  # Too many...
 ):
     # print(">>>> Dataset args:", locals())
     is_tpu = True if len(tf.config.list_logical_devices("TPU")) > 0 else False  # Set True for try_gcs and drop_remainder
     use_token_label = False if token_label_file is None else True
+    use_distill = False if teacher_model is None else True
+    teacher_model_input_shape = input_shape if teacher_model_input_shape == -1 else teacher_model_input_shape
 
     if data_name.endswith(".json"):
         dataset, total_images, num_classes, num_channels = recognition_dataset_from_custom_json(data_name, with_info=True)
@@ -436,7 +451,7 @@ def init_dataset(
 
     AUTOTUNE = tf.data.AUTOTUNE
     train_pre_batch = RandomProcessDatapoint(
-        target_shape=input_shape,
+        target_shape=teacher_model_input_shape if use_distill else input_shape,
         central_crop=-1,  # Resize directly w/o crop, if random_crop_min not in (0, 1)
         random_crop_min=random_crop_min,
         resize_method=resize_method,
@@ -464,9 +479,9 @@ def init_dataset(
 
     if use_token_label:
         train_dataset = train_dataset.map(lambda xx, yy, token_label: (xx, (yy, token_label)))
-    elif teacher_model is not None:
+    elif use_distill:
         print(">>>> KLDivergence teacher model provided.")
-        train_dataset = build_distillation_dataset(train_dataset, teacher_model)
+        train_dataset = build_distillation_dataset(train_dataset, teacher_model, input_shape)
 
     train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE)
     # return train_dataset
@@ -481,8 +496,8 @@ def init_dataset(
         test_dataset = test_dataset.batch(batch_size, drop_remainder=is_tpu)
         if use_token_label:
             test_post_batch = lambda xx, yy: ((xx - mean) / std, (tf.one_hot(yy, num_classes), None))  # just give None on token_label data position
-        # elif teacher_model is not None:
-        #     test_post_batch = lambda xx, yy: ((xx - mean) / std, teacher_model(xx, training=False))
+        elif use_distill:
+            test_post_batch = lambda xx, yy: ((xx - mean) / std, (tf.one_hot(yy, num_classes), None))
         else:
             test_post_batch = lambda xx, yy: ((xx - mean) / std, tf.one_hot(yy, num_classes))
         test_dataset = test_dataset.map(test_post_batch)

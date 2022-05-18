@@ -91,12 +91,30 @@ def is_decoupled_weight_decay(optimizer):
     return isinstance(optimizer, tfa.optimizers.weight_decay_optimizers.DecoupledWeightDecayExtension)
 
 
-def init_loss(bce_threshold=1.0, label_smoothing=0):
+def init_loss(bce_threshold=1.0, label_smoothing=0, token_label_loss_weight=0, distill_loss_weight=0, distill_temperature=10, model_output_names=[]):
+    from_logits = True if distill_loss_weight > 0 else False  # classifier_activation is set to None for distill model, set from_logits=True for distill
     if bce_threshold >= 0 and bce_threshold < 1:
-        loss = losses.BinaryCrossEntropyTimm(target_threshold=bce_threshold, label_smoothing=label_smoothing)
+        cls_loss = losses.BinaryCrossEntropyTimm(target_threshold=bce_threshold, label_smoothing=label_smoothing, from_logits=from_logits)
+        aux_loss = losses.BinaryCrossEntropyTimm(target_threshold=bce_threshold, label_smoothing=label_smoothing) if token_label_loss_weight > 0 else None
     else:
-        loss = keras.losses.CategoricalCrossentropy(label_smoothing=label_smoothing)
-    return loss
+        cls_loss = keras.losses.CategoricalCrossentropy(label_smoothing=label_smoothing, from_logits=from_logits)
+        aux_loss = keras.losses.CategoricalCrossentropy(label_smoothing=label_smoothing) if token_label_loss_weight > 0 else None
+
+    if token_label_loss_weight > 0:
+        loss = [cls_loss, aux_loss]
+        loss_weights = [1, token_label_loss_weight]
+        metrics = {model_output_names[0]: "acc", model_output_names[1]: None}
+        # metrics = ["acc", None]
+    elif distill_loss_weight > 0:
+        distill_loss = losses.DistillKLDivergenceLoss(temperature=distill_temperature)
+        loss = [cls_loss, distill_loss]
+        loss_weights = [1, distill_loss_weight]
+        metrics = {model_output_names[0]: "acc", model_output_names[1]: None}
+        # metrics = ["acc", None]
+    else:
+        loss = cls_loss
+        loss_weights, metrics = None, ["acc"]
+    return loss, loss_weights, metrics
 
 
 def init_model(model=None, input_shape=(224, 224, 3), num_classes=1000, pretrained=None, reload_compile=True, **kwargs):
@@ -158,6 +176,17 @@ def model_post_process(model, freeze_backbone=False, freeze_norm_layers=False, u
     if use_token_label:
         model = model_surgery.convert_to_token_label_model(model)
     return model
+
+
+def init_distill_model(model, teacher_model):
+    if hasattr(teacher_model, "layers") and hasattr(teacher_model.layers[-1], "activation"):
+        teacher_model.layers[-1].activation = None  # Set output activation softmax to linear
+    teacher_model.trainable = False
+
+    model.layers[-1].activation = None  # Also set model output activation softmax to linear
+    model = keras.models.Model(model.inputs[0], [model.output, model.output])
+    model.output_names[1] = "distill"
+    return model, teacher_model
 
 
 def compile_model(model, optimizer, lr_base, weight_decay, loss, loss_weights=None, metrics=["acc"]):

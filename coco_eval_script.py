@@ -76,6 +76,14 @@ if __name__ == "__main__":
     import sys
 
     args = parse_arguments(sys.argv[1:])
+
+    if args.model_path.endswith(".json"):
+        # Reloaded from previous saved json results
+        with open(args.model_path, "r") as ff:
+            detection_results = json.load(ff)
+        eval_func.coco_evaluation(detection_results)
+        sys.exit(0)
+
     input_shape = None if args.input_shape == -1 else (args.input_shape, args.input_shape, 3)
     antialias = not args.disable_antialias
     data_name = "coco/2017" if args.data_name == "coco" else args.data_name

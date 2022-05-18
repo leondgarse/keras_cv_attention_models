@@ -208,7 +208,8 @@ def coco_evaluation(detection_results, annotation_file=None):
         url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/coco_annotations_instances_val2017.json"
         annotation_file = tf.keras.utils.get_file(origin=url)
     coco_gt = COCO(annotation_file)
-    image_ids = list(set(detection_results[:, 0]))
+    image_ids = [ii["image_id"] for ii in detection_results] if isinstance(detection_results[0], dict) else detection_results[:, 0]
+    image_ids = list(set(image_ids))
     print("len(image_ids) =", len(image_ids))
     coco_dt = coco_gt.loadRes(detection_results)
     coco_eval = COCOeval(cocoGt=coco_gt, cocoDt=coco_dt, iouType="bbox")

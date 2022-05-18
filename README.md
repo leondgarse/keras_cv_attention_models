@@ -189,7 +189,7 @@
     with open("checkpoints/aotnet50_hist.json", "r") as ff:
         aa = json.load(ff)
     len(aa['lr'])
-    # 41 --> training is stopped at epoch 41, initial_epoch is 41 then, restart from epoch 42
+    # 41 ==> 41 epochs are finished, initial_epoch is 41 then, restart from epoch 42
     ```
     ```sh
     CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS="--tf_xla_auto_jit=2" ./train_script.py --seed 0 -r checkpoints/aotnet50_latest.h5 -I 41
@@ -718,16 +718,16 @@
   | SwinTransformerV2Tiny_ns             | 28.3M  | 4.69G  | 224   | 81.8     | [tiny_ns_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_tiny_ns_224_imagenet.h5) |
   | SwinTransformerV2Small_ns            | 49.7M  | 9.12G  | 224   | 83.5     | [small_ns_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_small_ns_224_imagenet.h5) |
   |                                      |        |        |       |          |          |
-  | SwinTransformerV2Tiny_window8        | 28.3M  | 5.99G  | 256   | 81.8     | [tiny_8_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_tiny_window8_256_imagenet.h5) |
-  | SwinTransformerV2Tiny_window16       | 28.3M  | 6.75G  | 256   | 82.8     | [tiny_16_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_tiny_window16_256_imagenet.h5) |
-  | SwinTransformerV2Small_window8       | 49.7M  | 11.63G | 256   | 83.7     | [small_8_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_small_window8_256_imagenet.h5) |
-  | SwinTransformerV2Small_window16      | 49.7M  | 12.93G | 256   | 84.1     | [small_16_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_small_window16_256_imagenet.h5) |
-  | SwinTransformerV2Base_window8        | 87.9M  | 20.44G | 256   | 84.2     | [base_8_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window8_256_imagenet.h5) |
-  | SwinTransformerV2Base_window16       | 87.9M  | 22.17G | 256   | 84.6     | [base_16_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window16_256_imagenet.h5) |
-  | SwinTransformerV2Base_window16, 22k  | 87.9M  | 22.17G | 256   | 86.2     | [base_16_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window16_256_imagenet22k.h5) |
-  | SwinTransformerV2Base_window24, 22k  | 87.9M  | 55.89G | 384   | 87.1     | [base_24_384_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window24_384_imagenet22k.h5) |
-  | SwinTransformerV2Large_window16, 22k | 196.7M | 48.03G | 256   | 86.9     | [large_16_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_large_window16_256_imagenet22k.h5) |
-  | SwinTransformerV2Large_window24, 22k | 196.7M | 117.1G | 384   | 87.6     | [large_24_384_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_large_window24_384_imagenet22k.h5) |
+  | SwinTransformerV2Tiny_window8        | 28.3M  | 5.99G  | 256   | 81.8     | [tiny_window8_256.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_tiny_window8_256_imagenet.h5) |
+  | SwinTransformerV2Tiny_window16       | 28.3M  | 6.75G  | 256   | 82.8     | [tiny_window16_256.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_tiny_window16_256_imagenet.h5) |
+  | SwinTransformerV2Small_window8       | 49.7M  | 11.63G | 256   | 83.7     | [small_window8_256.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_small_window8_256_imagenet.h5) |
+  | SwinTransformerV2Small_window16      | 49.7M  | 12.93G | 256   | 84.1     | [small_window16_256.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_small_window16_256_imagenet.h5) |
+  | SwinTransformerV2Base_window8        | 87.9M  | 20.44G | 256   | 84.2     | [base_window8_256.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window8_256_imagenet.h5) |
+  | SwinTransformerV2Base_window16       | 87.9M  | 22.17G | 256   | 84.6     | [base_window16_256.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window16_256_imagenet.h5) |
+  | SwinTransformerV2Base_window16, 22k  | 87.9M  | 22.17G | 256   | 86.2     | [base_window16_256_22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window16_256_imagenet22k.h5) |
+  | SwinTransformerV2Base_window24, 22k  | 87.9M  | 55.89G | 384   | 87.1     | [base_window24_384_22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_base_window24_384_imagenet22k.h5) |
+  | SwinTransformerV2Large_window16, 22k | 196.7M | 48.03G | 256   | 86.9     | [large_window16_256_22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_large_window16_256_imagenet22k.h5) |
+  | SwinTransformerV2Large_window24, 22k | 196.7M | 117.1G | 384   | 87.6     | [large_window24_384_22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_large_window24_384_imagenet22k.h5) |
 ## TinyNet
   - [Keras TinyNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#tinynet) includes implementation of [PDF 2010.14819 Model Rubik’s Cube: Twisting Resolution, Depth and Width for TinyNets](https://arxiv.org/pdf/2010.14819.pdf).
 
