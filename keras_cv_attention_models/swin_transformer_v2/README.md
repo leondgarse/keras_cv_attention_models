@@ -59,6 +59,32 @@
   | SwinTransformerV2Tiny_window8 | 128         | 8           | -1        | top1: 0.71194 top5: 0.89518 |
   | SwinTransformerV2Tiny_window8 | 128         | 4           | -1        | top1: 0.5123 top5: 0.74596  |
   | SwinTransformerV2Tiny_window8 | 128         | 4           | 8         | top1: 0.68332 top5: 0.88204 |
+## Training
+  - **SwinTransformerV2Tiny_ns Training** Using `A3` recipe with `batch_size=128, input_shape=(160, 160), epochs=105`. Then run `69` fine-tune epochs with `input_shape` 224. This result just showing `AdamW` works better than `LAMB` for `SwinTransformerV2`. More tuning on hyper-parameters like `mixup_alpha` or more epochs may produce a better result.
+    ```sh
+    CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS='--tf_xla_auto_jit=2' ./train_script.py -m swin_transformer_v2.SwinTransformerV2Tiny_ns \
+    --batch_size 128 -i 160 --lr_base_512 0.003 -p adamw -s SwinTransformerV2Tiny_ns_160_adamw_003
+    ```
+  - **Evaluate using input resolution `224`**:
+    ```sh
+    CUDA_VISIBLE_DEVICES='1' ./eval_script.py -m swin_transformer_v2.SwinTransformerV2Tiny_ns -i 224 \
+    --pretrained checkpoints/SwinTransformerV2Tiny_ns_160_adamw_003_latest.h5
+    ```
+    | Optimizer | lr_base_512 | Train acc | Best eval loss, acc on 160  | Epoch 105 eval acc on 224   |
+    | --------- | ----------- | --------- | --------------------------- | --------------------------- |
+    | lamb      | 0.008       | 0.6670    | Epoch 100, 0.001381, 0.7776 | top1: 0.78434 top5: 0.93982 |
+    | adamw     | 0.008       | 0.6625    | Epoch 105, 0.001319, 0.7803 | top1: 0.7913 top5: 0.94458  |
+    | adamw     | 0.003       | 0.6878    | Epoch 103, 0.001367, 0.7851 | top1: 0.79492 top5: 0.944   |
+  - **Fine-tune 224**
+    ```sh
+    CUDA_VISIBLE_DEVICES='0' TF_XLA_FLAGS='--tf_xla_auto_jit=2' ./train_script.py -m swin_transformer_v2.SwinTransformerV2Tiny_ns \
+    --batch_size 128 -i 224 --lr_decay_steps 64 --lr_warmup_steps 0 --lr_base_512 0.0015 -p adamw \
+    --additional_model_kwargs '{"drop_connect_rate": 0.05}' --magnitude 15 \
+    --pretrained checkpoints/SwinTransformerV2Tiny_ns_160_adamw_003_latest.h5 -s _drc005_E69
+    ```
+  - **Plot**
+
+    ![swinv2_tiny_ns](https://user-images.githubusercontent.com/5744524/168971166-273cf560-210a-4f32-a1a5-98791d96e25e.png)
 ## Verification with PyTorch version
   ```py
   inputs = np.random.uniform(size=(1, 256, 256, 3)).astype("float32")
