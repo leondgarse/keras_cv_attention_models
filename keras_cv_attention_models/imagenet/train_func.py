@@ -173,7 +173,7 @@ def model_post_process(model, freeze_backbone=False, freeze_norm_layers=False, u
             if isinstance(ii, keras.layers.BatchNormalization) or isinstance(ii, keras.layers.LayerNormalization):
                 ii.trainable = False
 
-    if use_token_label:
+    if use_token_label and model.optimizer is None:  # model.optimizer is not None if restored from h5
         model = model_surgery.convert_to_token_label_model(model)
     return model
 
@@ -184,8 +184,9 @@ def init_distill_model(model, teacher_model):
     teacher_model.trainable = False
 
     model.layers[-1].activation = None  # Also set model output activation softmax to linear
-    model = keras.models.Model(model.inputs[0], [model.output, model.output])
-    model.output_names[1] = "distill"
+    if model.optimizer is None:  # model.optimizer is not None if restored from h5
+        model = keras.models.Model(model.inputs[0], [model.output, model.output])
+        model.output_names[1] = "distill"
     return model, teacher_model
 
 

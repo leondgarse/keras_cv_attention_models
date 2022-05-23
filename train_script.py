@@ -45,7 +45,7 @@ def parse_arguments(argv):
     parser.add_argument(
         "--tensorboard_logs",
         type=str,
-        default="auto",
+        default=None,
         help="TensorBoard logs saving path, default auto for `logs/{basic_save_name} + _ + timestamp`. Set None for disable",
     )
     parser.add_argument("--TPU", action="store_true", help="Run training on TPU. Will set True for dataset `try_gcs` and `drop_remainder`")
@@ -133,7 +133,7 @@ def parse_arguments(argv):
         basic_save_name += "_lr512_{}_wd_{}".format(args.lr_base_512, args.weight_decay)
         args.basic_save_name = basic_save_name if args.basic_save_name is None else (basic_save_name + args.basic_save_name)
     args.enable_float16 = not args.disable_float16
-    args.tensorboard_logs = None if args.tensorboard_logs.lower() == "none" else args.tensorboard_logs
+    args.tensorboard_logs = None if args.tensorboard_logs is None or args.tensorboard_logs.lower() == "none" else args.tensorboard_logs
 
     return args
 
@@ -154,6 +154,7 @@ def run_training_by_args(args):
     total_images, num_classes, steps_per_epoch, num_channels = data.init_dataset(args.data_name, batch_size=batch_size, info_only=True)
     input_shape = (*input_shape, num_channels)  # Just in case channel is not 3, like mnist being 1...
     teacher_model_input_shape = (*teacher_model_input_shape, num_channels)  # Just in case channel is not 3, like mnist being 1...
+    assert not (num_channels != 3 and args.rescale_mode == "torch")  # "torch" mode mean and std are 3 channels
     with strategy.scope():
         model = args.model if args.restore_path is None else args.restore_path
         model = train_func.init_model(model, input_shape, num_classes, args.pretrained, **args.additional_model_kwargs)
