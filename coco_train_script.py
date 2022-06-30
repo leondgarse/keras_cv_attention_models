@@ -59,6 +59,12 @@ def parse_arguments(argv):
     parser.add_argument("--summary", action="store_true", help="show model summary")
     parser.add_argument("--disable_float16", action="store_true", help="Disable mixed_float16 training")
     parser.add_argument("--TPU", action="store_true", help="Run training on TPU [Not working]")
+    parser.add_argument(
+        "--tensorboard_logs",
+        type=str,
+        default=None,
+        help="TensorBoard logs saving path, default None for disable. Set auto for `logs/{basic_save_name} + _ + timestamp`.",
+    )
 
     """ Anchor arguments """
     anchor_group = parser.add_argument_group("Anchor arguments")
@@ -77,8 +83,8 @@ def parse_arguments(argv):
     loss_group.add_argument("--use_l1_loss", action="store_true", help="Use additional l1_loss. For anchor_free mode only")
     loss_group.add_argument("--bbox_loss_weight", type=float, default=-1, help="Bbox loss weight, -1 means using loss preset values.")
 
-    """ Learning rate and weight decay arguments """
-    lr_group = parser.add_argument_group("Learning rate and weight decay arguments")
+    """ Optimizer arguments like Learning rate, weight decay and momentum """
+    lr_group = parser.add_argument_group("Optimizer arguments like Learning rate, weight decay and momentum")
     lr_group.add_argument("--lr_base_512", type=float, default=8e-3, help="Learning rate for batch_size=512, lr = lr_base_512 * 512 / batch_size")
     lr_group.add_argument(
         "--weight_decay",
@@ -99,6 +105,7 @@ def parse_arguments(argv):
     lr_group.add_argument("--lr_min", type=float, default=1e-6, help="Learning rate minimum value")
     lr_group.add_argument("--lr_t_mul", type=float, default=2, help="For CosineDecayRestarts, derive the number of iterations in the i-th period")
     lr_group.add_argument("--lr_m_mul", type=float, default=0.5, help="For CosineDecayRestarts, derive the initial learning rate of the i-th period")
+    lr_group.add_argument("--momentum", type=float, default=0.9, help="Momentum for SGD / SGDW / RMSprop optimizer")
 
     """ Dataset parameters """
     ds_group = parser.add_argument_group("Dataset arguments")
@@ -146,6 +153,7 @@ def parse_arguments(argv):
         basic_save_name += "_lr512_{}_wd_{}_anchors_mode_{}".format(args.lr_base_512, args.weight_decay, args.anchors_mode)
         args.basic_save_name = basic_save_name if args.basic_save_name is None else (basic_save_name + args.basic_save_name)
     args.enable_float16 = not args.disable_float16
+    args.tensorboard_logs = None if args.tensorboard_logs is None or args.tensorboard_logs.lower() == "none" else args.tensorboard_logs
 
     return args
 
@@ -219,11 +227,11 @@ def run_training_by_args(args):
                 # loss, metrics = losses.FocalLossWithBbox(label_smoothing=args.label_smoothing), losses.ClassAccuracyWithBbox()
                 loss = losses.FocalLossWithBbox(**loss_kwargs)
             metrics = losses.ClassAccuracyWithBboxWrapper(loss)
-            model = compile_model(model, args.optimizer, lr_base, args.weight_decay, loss=loss, metrics=metrics)
+            model = compile_model(model, args.optimizer, lr_base, args.weight_decay, loss=loss, metrics=metrics, momentum=args.momentum)
         else:
             # Re-compile the metrics after restore from h5
             metrics = losses.ClassAccuracyWithBboxWrapper(model.loss)
-            model.compile(optimizer=model.optimizer, loss=model.loss, metrics=metrics)
+            model.compile(optimizer=model.optimizer, loss=model.loss, metrics=metrics, momentum=args.momentum)
         print(">>>> basic_save_name =", args.basic_save_name)
         # return None, None, None
 
@@ -238,7 +246,9 @@ def run_training_by_args(args):
             print(">>>> COCO AP eval start_epoch: {}, frequency: {}".format(start_epoch, frequency))
         else:
             init_callbacks = []
-        latest_save, hist = train(model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name, init_callbacks)
+        latest_save, hist = train(
+            model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name, init_callbacks, logs=args.tensorboard_logs
+        )
     return model, latest_save, hist
 
 

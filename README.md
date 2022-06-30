@@ -386,7 +386,7 @@
   | CMTTiny_torch, 1000 epochs         | 9.5M   | 0.65G | 160   | 79.2     | [cmt_tiny_torch_160](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_torch_160_imagenet.h5) |
   | CMTXS_torch                        | 15.2M  | 1.58G | 192   | 81.8     |          |
   | CMTSmall_torch                     | 25.1M  | 4.09G | 224   | 83.5     | [cmt_small_torch_224](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_small_torch_224_imagenet.h5) |
-  | CMTBig_torch                       | 45.7M  | 9.42G | 256   | 84.5     | [cmt_base_torch_256](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_base_torch_256_imagenet.h5) |
+  | CMTBase_torch                      | 45.7M  | 9.42G | 256   | 84.5     | [cmt_base_torch_256](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_base_torch_256_imagenet.h5) |
 ## CoaT
   - [Keras CoaT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coat) is for [PDF 2104.06399 CoaT: Co-Scale Conv-Attentional Image Transformers](http://arxiv.org/abs/2104.06399).
 

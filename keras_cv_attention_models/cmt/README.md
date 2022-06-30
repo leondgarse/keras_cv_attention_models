@@ -47,7 +47,7 @@
   | CMTTiny_torch, 1000 epochs         | 9.5M   | 0.65G | 160   | 79.2     | [cmt_tiny_torch_160](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_torch_160_imagenet.h5) |
   | CMTXS_torch                        | 15.2M  | 1.58G | 192   | 81.8     |          |
   | CMTSmall_torch                     | 25.1M  | 4.09G | 224   | 83.5     | [cmt_small_torch_224](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_small_torch_224_imagenet.h5) |
-  | CMTBig_torch                       | 45.7M  | 9.42G | 256   | 84.5     | [cmt_base_torch_256](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_base_torch_256_imagenet.h5) |
+  | CMTBase_torch                      | 45.7M  | 9.42G | 256   | 84.5     | [cmt_base_torch_256](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_base_torch_256_imagenet.h5) |
 ## Training
   - **CMTTiny Training** Using `A3` recipe with `batch_size=256, input_shape=(160, 160), epochs=105`. Note paper reported accuracy is trained `1000` epochs [Results on ImageNet #1](https://github.com/FlyEgle/CMT-pytorch/issues/1).
     ```sh
@@ -92,7 +92,7 @@
   ```py
   inputs = np.random.uniform(size=(1, 224, 224, 3)).astype("float32")
 
-  """ PyTorch cmt_b """
+  """ PyTorch cmt_s """
   sys.path.append('../pytorch-image-models/')
   sys.path.append('../Efficient-AI-Backbones/')
 
@@ -100,7 +100,7 @@
   import torch
   torch_model = cmt_pytorch.cmt_s(img_size=224)
   _ = torch_model.eval()
-  weight = torch.load('cmt_small.pth', map_location=torch.device('cpu'))  # Modify code, makes `proj` first in each block
+  weight = torch.load('cmt_small.pth', map_location=torch.device('cpu'))
   torch_model.load_state_dict(weight['model'])
   torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2)).detach().numpy()
 

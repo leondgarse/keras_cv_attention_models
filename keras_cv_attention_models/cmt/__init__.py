@@ -61,7 +61,7 @@ Model architectures:
   | CMTTiny_torch, 1000 epochs         | 9.5M   | 0.65G | 160   | 79.2     |
   | CMTXS_torch                        | 15.2M  | 1.58G | 192   | 81.8     |
   | CMTSmall_torch                     | 25.1M  | 4.09G | 224   | 83.5     |
-  | CMTBig_torch                       | 45.7M  | 9.42G | 256   | 84.5     |
+  | CMTBase_torch                      | 45.7M  | 9.42G | 256   | 84.5     |
 """
 CMT_torch.__doc__ = CMT.__doc__
 

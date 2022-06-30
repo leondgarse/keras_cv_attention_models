@@ -189,7 +189,8 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         # bboxes_preds_area = pred_hw[:, 0] * pred_hw[:, 1]
         # union_area = bboxes_trues_area + bboxes_preds_area - inter_area
         # iou = inter_area / (union_area + self.epsilon)
-        true_top_left, true_bottom_right = bboxes_trues[:, :2], bboxes_trues[:, 2:4]
+        # true_top_left, true_bottom_right = bboxes_trues[:, :2], bboxes_trues[:, 2:4]
+        true_top_left, true_bottom_right, _ = tf.split(bboxes_trues, [2, 2, -1], axis=-1)
         true_hw = true_bottom_right - true_top_left
         iou = __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_bottom_right, pred_hw, epsilon=self.epsilon)
         return 1 - iou ** 2

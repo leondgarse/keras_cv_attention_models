@@ -59,16 +59,16 @@ def init_lr_scheduler(lr_base, lr_decay_steps, lr_min=1e-5, lr_decay_on_batch=Fa
     return lr_scheduler, lr_total_epochs
 
 
-def init_optimizer(optimizer, lr_base, weight_decay):
+def init_optimizer(optimizer, lr_base, weight_decay, momentum=0.9):
     import tensorflow_addons as tfa
 
     optimizer = optimizer.lower()
     # norm_weights = ["bn/gamma", "bn/beta", "ln/gamma", "ln/beta", "/positional_embedding", "/bias"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
     norm_weights = ["/gamma", "/beta", "/positional_embedding", "/bias"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
     if optimizer == "sgd":
-        optimizer = keras.optimizers.SGD(learning_rate=lr_base, momentum=0.9)
+        optimizer = keras.optimizers.SGD(learning_rate=lr_base, momentum=momentum)
     elif optimizer == "rmsprop":
-        optimizer = keras.optimizers.RMSprop(learning_rate=lr_base, momentum=0.9)
+        optimizer = keras.optimizers.RMSprop(learning_rate=lr_base, momentum=momentum)
     elif optimizer == "lamb":
         optimizer = tfa.optimizers.LAMB(learning_rate=lr_base, weight_decay_rate=weight_decay, exclude_from_weight_decay=norm_weights, global_clipnorm=1.0)
     elif optimizer == "adamw":
@@ -76,7 +76,7 @@ def init_optimizer(optimizer, lr_base, weight_decay):
         if hasattr(optimizer, "exclude_from_weight_decay"):
             setattr(optimizer, "exclude_from_weight_decay", norm_weights)
     elif optimizer == "sgdw":
-        optimizer = tfa.optimizers.SGDW(learning_rate=lr_base, momentum=0.9, weight_decay=lr_base * weight_decay)
+        optimizer = tfa.optimizers.SGDW(learning_rate=lr_base, momentum=momentum, weight_decay=lr_base * weight_decay)
         if hasattr(optimizer, "exclude_from_weight_decay"):
             setattr(optimizer, "exclude_from_weight_decay", norm_weights)
     else:
@@ -104,13 +104,11 @@ def init_loss(bce_threshold=1.0, label_smoothing=0, token_label_loss_weight=0, d
         loss = [cls_loss, aux_loss]
         loss_weights = [1, token_label_loss_weight]
         metrics = {model_output_names[0]: "acc", model_output_names[1]: None}
-        # metrics = ["acc", None]
     elif distill_loss_weight > 0:
         distill_loss = losses.DistillKLDivergenceLoss(temperature=distill_temperature)
         loss = [cls_loss, distill_loss]
         loss_weights = [1, distill_loss_weight]
         metrics = {model_output_names[0]: "acc", model_output_names[1]: None}
-        # metrics = ["acc", None]
     else:
         loss = cls_loss
         loss_weights, metrics = None, ["acc"]
@@ -190,13 +188,13 @@ def init_distill_model(model, teacher_model):
     return model, teacher_model
 
 
-def compile_model(model, optimizer, lr_base, weight_decay, loss, loss_weights=None, metrics=["acc"]):
+def compile_model(model, optimizer, lr_base, weight_decay, loss, loss_weights=None, metrics=["acc"], momentum=0.9):
     if isinstance(optimizer, str):
         optimizer = optimizer.lower()
         if optimizer == "sgd" and weight_decay > 0:
             # Add L2 regularizer
             model = model_surgery.add_l2_regularizer_2_model(model, weight_decay=weight_decay, apply_to_batch_normal=False)
-        optimizer = init_optimizer(optimizer, lr_base, weight_decay)
+        optimizer = init_optimizer(optimizer, lr_base, weight_decay, momentum=momentum)
     print(">>>> Loss: {}, Optimizer: {}".format(loss.__class__.__name__, optimizer.__class__.__name__))
     model.compile(optimizer=optimizer, loss=loss, loss_weights=loss_weights, metrics=metrics)
     return model

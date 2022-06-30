@@ -46,7 +46,7 @@ def parse_arguments(argv):
         "--tensorboard_logs",
         type=str,
         default=None,
-        help="TensorBoard logs saving path, default auto for `logs/{basic_save_name} + _ + timestamp`. Set None for disable",
+        help="TensorBoard logs saving path, default None for disable. Set auto for `logs/{basic_save_name} + _ + timestamp`.",
     )
     parser.add_argument("--TPU", action="store_true", help="Run training on TPU. Will set True for dataset `try_gcs` and `drop_remainder`")
 
@@ -57,8 +57,8 @@ def parse_arguments(argv):
         "--bce_threshold", type=float, default=0.2, help="Value [0, 1) for BCE loss target_threshold, set 1 for using CategoricalCrossentropy"
     )
 
-    """ Learning rate and weight decay arguments """
-    lr_group = parser.add_argument_group("Learning rate and weight decay arguments")
+    """ Optimizer arguments like Learning rate, weight decay and momentum """
+    lr_group = parser.add_argument_group("Optimizer arguments like Learning rate, weight decay and momentum")
     lr_group.add_argument("--lr_base_512", type=float, default=8e-3, help="Learning rate for batch_size=512, lr = lr_base_512 * 512 / batch_size")
     lr_group.add_argument(
         "--weight_decay",
@@ -79,6 +79,7 @@ def parse_arguments(argv):
     lr_group.add_argument("--lr_min", type=float, default=1e-6, help="Learning rate minimum value")
     lr_group.add_argument("--lr_t_mul", type=float, default=2, help="For CosineDecayRestarts, derive the number of iterations in the i-th period")
     lr_group.add_argument("--lr_m_mul", type=float, default=0.5, help="For CosineDecayRestarts, derive the initial learning rate of the i-th period")
+    lr_group.add_argument("--momentum", type=float, default=0.9, help="Momentum for SGD / SGDW / RMSprop optimizer")
 
     """ Dataset parameters """
     ds_group = parser.add_argument_group("Dataset arguments")
@@ -208,7 +209,7 @@ def run_training_by_args(args):
         )
 
         if model.optimizer is None:
-            model = train_func.compile_model(model, args.optimizer, lr_base, args.weight_decay, loss, loss_weights, metrics)
+            model = train_func.compile_model(model, args.optimizer, lr_base, args.weight_decay, loss, loss_weights, metrics, args.momentum)
         print(">>>> basic_save_name =", args.basic_save_name)
         # return None, None, None
         latest_save, hist = train_func.train(
