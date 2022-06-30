@@ -64,6 +64,12 @@ def test_BiasLayer():
     assert aa(tf.ones(input_shape)).shape == input_shape
 
 
+def test_BiasPositionalEmbedding():
+    aa = attention_layers.BiasPositionalEmbedding()
+    input_shape = [2, 4, 36, 9]
+    assert aa(tf.ones(input_shape)).shape == input_shape
+
+
 def test_ChannelAffine():
     aa = attention_layers.ChannelAffine()
     input_shape = [2, 14, 14, 192]

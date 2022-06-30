@@ -1,4 +1,14 @@
-from keras_cv_attention_models.cmt.cmt import CMT, CMTTiny, CMTXS, CMTSmall, CMTBig, light_mhsa_with_multi_head_relative_position_embedding
+from keras_cv_attention_models.cmt.cmt import (
+    CMT,
+    CMT_torch,
+    CMTTiny,
+    CMTTiny_torch,
+    CMTXS_torch,
+    CMTSmall_torch,
+    CMTBase_torch,
+    light_mhsa_with_multi_head_relative_position_embedding,
+    BiasPositionalEmbedding,
+)
 
 __head_doc__ = """
 Keras implementation of CMT.
@@ -30,6 +40,16 @@ Args:
   num_heads: heads number for transformer block.
   sr_ratios: attenstion blocks key_value downsample rate.
   ffn_expansion: IRFFN blocks hidden expansion rate.
+  qkv_bias: boolean value if attention block query / key /value using bias. Default False for CMT, True for CMT_torch,
+  attn_out_bias: boolean value if attention block output using bias. Default False for CMT, True for CMT_torch,
+  attn_use_bn: boolean value if attention block using batchNorm or layerNorm. Default False for CMT, True for CMT_torch,
+  use_block_pos_emb: boolean value if using shared positional embeddings for same block.
+      Default False for CMT using individual `MultiHeadRelativePositionalEmbedding` in each attention block.
+      Default True for CMT_torch using shared `BiasPositionalEmbedding` in attention blocks of same stack.
+  feature_activation: None for same with `activation`, or specific activation for feature block.
+      Default None for CMT, "swish" for CMT_torch,
+  feature_act_first: boolean value if using `activation -> batchnorm` or `batchnorm -> activation` for feature block.
+      Default True for CMT, False for CMT_torch,
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
@@ -38,19 +58,21 @@ Model architectures:
   | CMTTiny, (Self trained 105 epochs) | 9.5M   | 0.65G | 160   | 77.4     |
   | - 305 epochs                       | 9.5M   | 0.65G | 160   | 78.94    |
   | - fine-tuned 224 (69 epochs)       | 9.5M   | 1.32G | 224   | 80.73    |
-  | CMTTiny, 1000 epochs               | 9.5M   | 0.65G | 160   | 79.2     |
-  | CMTXS                              | 15.2M  | 1.58G | 192   | 81.8     |
-  | CMTSmall                           | 25.1M  | 4.09G | 224   | 83.5     |
-  | CMTBig                             | 45.7M  | 9.42G | 256   | 84.5     |
+  | CMTTiny_torch, 1000 epochs         | 9.5M   | 0.65G | 160   | 79.2     |
+  | CMTXS_torch                        | 15.2M  | 1.58G | 192   | 81.8     |
+  | CMTSmall_torch                     | 25.1M  | 4.09G | 224   | 83.5     |
+  | CMTBig_torch                       | 45.7M  | 9.42G | 256   | 84.5     |
 """
+CMT_torch.__doc__ = CMT.__doc__
 
 CMTTiny.__doc__ = __head_doc__ + """
 Args:
 """ + __tail_doc__
 
-CMTXS.__doc__ = CMTTiny.__doc__
-CMTSmall.__doc__ = CMTTiny.__doc__
-CMTBig.__doc__ = CMTTiny.__doc__
+CMTTiny_torch.__doc__ = CMTTiny.__doc__
+CMTXS_torch.__doc__ = CMTTiny.__doc__
+CMTSmall_torch.__doc__ = CMTTiny.__doc__
+CMTBase_torch.__doc__ = CMTTiny.__doc__
 
 light_mhsa_with_multi_head_relative_position_embedding.__doc__ = __head_doc__ + """
 Light multi head self attention with relative position embedding. Defined as function, not layer.
@@ -62,10 +84,13 @@ Args:
   num_heads: Number of attention heads.
   key_dim: Size of each attention head for query, key and value. Default `0` for `key_dim = inputs.shape[-1] // num_heads`.
   sr_ratio: `key_value` downsample rate.
+  qkv_bias: Boolean value if attention block query / key /value using bias.
+  pos_emb: Specific instantiated positional embedding class, or None for using `MultiHeadRelativePositionalEmbedding`.
+  use_bn: Boolean value if attention block using batchNorm or layerNorm.
   out_shape: The expected shape of an output tensor. If not specified, projects back to the input dim.
   out_weight: Boolean, whether use an ouput dense.
   out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
-  attn_dropout: Dropout probability for attention.
+  dropout: Dropout probability for attention.
 
 Examples:
 
@@ -85,4 +110,24 @@ Examples:
 #  'attn_key_value/kernel:0': TensorShape([256, 512]),
 #  'attn_pos_emb/positional_embedding:0': TensorShape([4, 837]),
 #  'attn_output/kernel:0': TensorShape([256, 512])}
+"""
+
+BiasPositionalEmbedding.__doc__ = __head_doc__ + """
+A basic bias only layer, with `load_resized_pos_emb` method.
+
+input: `[batch, num_heads, query_height * query_width, kv_height * kv_width]`.
+       where `kv_height = query_height // sr_ratio, kv_width = query_width // sr_ratio`
+output: input + positional_embedding
+
+Args:
+  axis: The dimension applying bias.
+  attn_height: specify `height` for `attn_blocks` if not square `attn_height != attn_width`.
+
+Examples:
+>>> from keras_cv_attention_models import attention_layers
+>>> aa = attention_layers.BiasPositionalEmbedding()
+>>> print(f"{aa(tf.ones([2, 4, 36, 9])).shape = }")
+# aa(tf.ones([2, 4, 36, 9])).shape = TensorShape([2, 4, 36, 9])
+>>> print(f"{aa.bb.shape = }")
+# aa.bb.shape = TensorShape([4, 36, 9])
 """

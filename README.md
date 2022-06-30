@@ -383,10 +383,10 @@
   | CMTTiny, (Self trained 105 epochs) | 9.5M   | 0.65G | 160   | 77.4     |          |
   | - 305 epochs                       | 9.5M   | 0.65G | 160   | 78.94    | [cmt_tiny_160_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_160_imagenet.h5) |
   | - fine-tuned 224 (69 epochs)       | 9.5M   | 1.32G | 224   | 80.73    | [cmt_tiny_224_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_224_imagenet.h5) |
-  | CMTTiny, 1000 epochs               | 9.5M   | 0.65G | 160   | 79.2     |          |
-  | CMTXS                              | 15.2M  | 1.58G | 192   | 81.8     |          |
-  | CMTSmall                           | 25.1M  | 4.09G | 224   | 83.5     |          |
-  | CMTBig                             | 45.7M  | 9.42G | 256   | 84.5     |          |
+  | CMTTiny_torch, 1000 epochs         | 9.5M   | 0.65G | 160   | 79.2     | [cmt_tiny_torch_160](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_torch_160_imagenet.h5) |
+  | CMTXS_torch                        | 15.2M  | 1.58G | 192   | 81.8     |          |
+  | CMTSmall_torch                     | 25.1M  | 4.09G | 224   | 83.5     | [cmt_small_torch_224](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_small_torch_224_imagenet.h5) |
+  | CMTBig_torch                       | 45.7M  | 9.42G | 256   | 84.5     | [cmt_base_torch_256](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_base_torch_256_imagenet.h5) |
 ## CoaT
   - [Keras CoaT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coat) is for [PDF 2104.06399 CoaT: Co-Scale Conv-Attentional Image Transformers](http://arxiv.org/abs/2104.06399).
 

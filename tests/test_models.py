@@ -30,7 +30,7 @@ def test_CMT_defination():
     mm = keras_cv_attention_models.cmt.CMTTiny(pretrained=None)
     assert isinstance(mm, keras.models.Model)
 
-    mm = keras_cv_attention_models.cmt.CMTXS(pretrained=None, num_classes=0)
+    mm = keras_cv_attention_models.cmt.CMTTiny_torch(pretrained=None, num_classes=0)
     assert isinstance(mm, keras.models.Model)
 
 
@@ -214,7 +214,7 @@ def test_BotNet_new_shape_predict():
 
 
 def test_CMTTiny_new_shape_predict():
-    mm = keras_cv_attention_models.cmt.CMTTiny(input_shape=(320, 320, 3), pretrained="imagenet")
+    mm = keras_cv_attention_models.cmt.CMTTiny(input_shape=(117, 192, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
