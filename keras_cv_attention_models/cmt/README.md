@@ -3,7 +3,7 @@
 
 ## Summary
   - CMT article: [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf).
-  - `CMTTiny_torch` / `CMTSmall_torch` / `CMTBig_torch` are model structure from [Github ggjy/CMT.pytorch](https://github.com/ggjy/CMT.pytorch), model weights also ported from there.
+  - `CMTTiny_torch` / `CMTXS_torch` / `CMTSmall_torch` / `CMTBase_torch` are model structure from [Github ggjy/CMT.pytorch](https://github.com/ggjy/CMT.pytorch), model weights also ported from there.
   - The main difference from `CMTTiny` and `CMTTiny_torch` is `CMTTiny` using individual `MultiHeadRelativePositionalEmbedding` in each attention block, while `CMTTiny_torch` and other `_torch` models using shared `BiasPositionalEmbedding` in attention blocks of same stack.
 
   ![](https://user-images.githubusercontent.com/5744524/151656779-6e6f2203-a7f7-42cf-8833-f4d472c171ae.png)
@@ -28,7 +28,7 @@
   from keras_cv_attention_models import cmt
 
   mm = cmt.CMTSmall_torch(input_shape=(117, 192, 3), pretrained="imagenet")
-  # >>>> Load pretrained from: /home/leondgarse/.keras/models/cmt_small_torch_224_imagenet.h5
+  # >>>> Load pretrained from: ~/.keras/models/cmt_small_torch_224_imagenet.h5
   # >>>> Reload mismatched weights: 224 -> (117, 192)
 
   # Run prediction

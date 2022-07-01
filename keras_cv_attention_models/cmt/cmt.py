@@ -65,10 +65,10 @@ class BiasPositionalEmbedding(keras.layers.Layer):
         source_kv_hh = source_kv_ww = int(tf.math.sqrt(float(source_tt.shape[2])))  # assume source weights are all square shape
 
         tt = tf.reshape(source_tt, [num_heads, source_query_hh, source_query_ww, source_kv_hh * source_kv_ww])  # resize on query dimension first
-        tt = tf.image.resize(tt, [self.query_hh, self.query_ww], method=method)  # [num_heads, query_hh, query_ww, source_kv_hh * source_kv_ww]
+        tt = tf.image.resize(tt, [self.query_hh, self.query_ww], method=method)  # [num_heads, self.query_hh, self.query_ww, source_kv_hh * source_kv_ww]
         tt = tf.reshape(tt, [num_heads, self.query_hh * self.query_ww, source_kv_hh, source_kv_ww])  # resize on key_value dimension
         tt = tf.transpose(tt, [0, 2, 3, 1])  # [num_heads, source_kv_hh, source_kv_ww, self.query_hh * self.query_ww]
-        tt = tf.image.resize(tt, [self.kv_hh, self.kv_ww], method=method)  # [num_heads, kv_hh, kv_ww, query_hh * query_ww]
+        tt = tf.image.resize(tt, [self.kv_hh, self.kv_ww], method=method)  # [num_heads, self.kv_hh, self.kv_ww, self.query_hh * self.query_ww]
         tt = tf.reshape(tt, [num_heads, self.kv_hh * self.kv_ww, self.query_hh * self.query_ww])
         tt = tf.transpose(tt, [0, 2, 1])  # [num_heads, self.query_hh * self.query_ww, self.kv_hh * self.kv_ww]
         self.bb.assign(tt)
