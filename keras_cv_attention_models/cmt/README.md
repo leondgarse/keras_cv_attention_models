@@ -13,7 +13,6 @@
   ```py
   from keras_cv_attention_models import cmt
 
-  # Only CMTTiny pretrained available.
   mm = cmt.CMTTiny()
 
   # Run prediction
@@ -45,11 +44,11 @@
   | - 305 epochs                       | 9.5M   | 0.65G | 160   | 78.94    | [cmt_tiny_160_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_160_imagenet.h5) |
   | - fine-tuned 224 (69 epochs)       | 9.5M   | 1.32G | 224   | 80.73    | [cmt_tiny_224_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_224_imagenet.h5) |
   | CMTTiny_torch, 1000 epochs         | 9.5M   | 0.65G | 160   | 79.2     | [cmt_tiny_torch_160](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_torch_160_imagenet.h5) |
-  | CMTXS_torch                        | 15.2M  | 1.58G | 192   | 81.8     |          |
+  | CMTXS_torch                        | 15.2M  | 1.58G | 192   | 81.8     | [cmt_xs_torch_192](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_xs_torch_192_imagenet.h5) |
   | CMTSmall_torch                     | 25.1M  | 4.09G | 224   | 83.5     | [cmt_small_torch_224](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_small_torch_224_imagenet.h5) |
   | CMTBase_torch                      | 45.7M  | 9.42G | 256   | 84.5     | [cmt_base_torch_256](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_base_torch_256_imagenet.h5) |
 ## Training
-  - **CMTTiny Training** Using `A3` recipe with `batch_size=256, input_shape=(160, 160), epochs=105`. Note paper reported accuracy is trained `1000` epochs [Results on ImageNet #1](https://github.com/FlyEgle/CMT-pytorch/issues/1).
+  - **CMTTiny Training** Using `A3` recipe with `batch_size=256, input_shape=(160, 160), epochs=105`.
     ```sh
     CUDA_VISIBLE_DEVICES='1' TF_GPU_ALLOCATOR='cuda_malloc_async' TF_XLA_FLAGS='--tf_xla_auto_jit=2' ./train_script.py \
     --seed 0 -m cmt.CMTTiny --batch_size 256 -s cmt.CMTTiny_160

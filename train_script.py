@@ -191,7 +191,7 @@ def run_training_by_args(args):
         token_label_file=args.token_label_file,
         token_label_target_patches=token_label_target_patches,
         teacher_model=teacher_model,
-        teacher_model_input_shape=teacher_model_input_shape
+        teacher_model_input_shape=teacher_model_input_shape,
     )
 
     lr_base = args.lr_base_512 * batch_size / 512

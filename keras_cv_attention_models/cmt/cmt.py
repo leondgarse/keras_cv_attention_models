@@ -15,9 +15,11 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 PRETRAINED_DICT = {
     "cmt_tiny": {"imagenet": {160: "cb269248643e9d50d8bea051563e20a6", 224: "d0f2f0cf649a7aea48a1a4e3a476606c"}},
     "cmt_tiny_torch": {"imagenet": {160: "d800c892ef5581d73cbdef5ba61bc443"}},
+    "cmt_xs_torch": {"imagenet": {192: "cb8250ce61d3bcd0d24ace6c4a803f8b"}},
     "cmt_small_torch": {"imagenet": {224: "2efa6fafb040dc617f6eb8f3cbfd051a"}},
     "cmt_base_torch": {"imagenet": {256: "7cb17018b0bc73d33892e1fb3c57f82b"}},
 }
+
 
 @tf.keras.utils.register_keras_serializable(package="kecam/cmt")
 class BiasPositionalEmbedding(keras.layers.Layer):
@@ -271,11 +273,11 @@ def CMTTiny_torch(input_shape=(160, 160, 3), num_classes=1000, activation="gelu"
     return CMT_torch(**locals(), model_name="cmt_tiny_torch", **kwargs)
 
 
-def CMTXS_torch(input_shape=(192, 192, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def CMTXS_torch(input_shape=(192, 192, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 12, 3]
     out_channels = [52, 104, 208, 416]
     stem_width = 16
-    ffn_expansion = 3.8
+    ffn_expansion = 3.77
     return CMT_torch(**locals(), model_name="cmt_xs_torch", **kwargs)
 
 
