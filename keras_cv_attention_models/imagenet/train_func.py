@@ -64,21 +64,21 @@ def init_optimizer(optimizer, lr_base, weight_decay, momentum=0.9):
 
     optimizer = optimizer.lower()
     # norm_weights = ["bn/gamma", "bn/beta", "ln/gamma", "ln/beta", "/positional_embedding", "/bias"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
-    norm_weights = ["/gamma", "/beta", "/positional_embedding", "/bias"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
+    no_weight_decay = ["/gamma", "/beta", "/bias", "/positional_embedding", "/no_weight_decay"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
     if optimizer == "sgd":
         optimizer = keras.optimizers.SGD(learning_rate=lr_base, momentum=momentum)
     elif optimizer == "rmsprop":
         optimizer = keras.optimizers.RMSprop(learning_rate=lr_base, momentum=momentum)
     elif optimizer == "lamb":
-        optimizer = tfa.optimizers.LAMB(learning_rate=lr_base, weight_decay_rate=weight_decay, exclude_from_weight_decay=norm_weights, global_clipnorm=1.0)
+        optimizer = tfa.optimizers.LAMB(learning_rate=lr_base, weight_decay_rate=weight_decay, exclude_from_weight_decay=no_weight_decay, global_clipnorm=1.0)
     elif optimizer == "adamw":
         optimizer = tfa.optimizers.AdamW(learning_rate=lr_base, weight_decay=lr_base * weight_decay, global_clipnorm=1.0)
         if hasattr(optimizer, "exclude_from_weight_decay"):
-            setattr(optimizer, "exclude_from_weight_decay", norm_weights)
+            setattr(optimizer, "exclude_from_weight_decay", no_weight_decay)
     elif optimizer == "sgdw":
         optimizer = tfa.optimizers.SGDW(learning_rate=lr_base, momentum=momentum, weight_decay=lr_base * weight_decay)
         if hasattr(optimizer, "exclude_from_weight_decay"):
-            setattr(optimizer, "exclude_from_weight_decay", norm_weights)
+            setattr(optimizer, "exclude_from_weight_decay", no_weight_decay)
     else:
         optimizer = getattr(keras.optimizers, optimizer.capitalize())(learning_rate=lr_base)
     return optimizer

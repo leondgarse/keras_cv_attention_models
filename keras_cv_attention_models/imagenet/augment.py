@@ -1102,7 +1102,7 @@ class RandAugment(ImageAugment):
         return func(image, *args)
 
     def select_and_apply_random_policy(self, image):
-        """ Select a random policy from `policies` and apply it to `image`. """
+        """Select a random policy from `policies` and apply it to `image`."""
         policy_to_select = tf.random.uniform([], maxval=len(self.available_ops), dtype=tf.int32)
         branch_fns = [(id, lambda selected=ii: self.apply_policy(selected, image)) for id, ii in enumerate(self.available_ops)]
         image = tf.switch_case(branch_index=policy_to_select, branch_fns=branch_fns, default=lambda: tf.identity(image))
@@ -1171,7 +1171,7 @@ class PositionalRandAugment(RandAugment):
         return func(image, *args, return_affine_matrix=True)
 
     def select_and_apply_random_policy(self, image):
-        """ Select a random policy from `policies` and apply it to `image`. """
+        """Select a random policy from `policies` and apply it to `image`."""
         policy_to_select = tf.random.uniform([], maxval=len(self.available_ops), dtype=tf.int32)
         branch_fns = [(id, lambda selected=ii: self.apply_policy(selected, image)) for id, ii in enumerate(self.available_ops)]
         return tf.switch_case(branch_index=policy_to_select, branch_fns=branch_fns, default=lambda: self.DEFAULT_AFFINE)

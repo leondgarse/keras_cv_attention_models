@@ -241,7 +241,7 @@ def NormFreeNet(
 
     drop_connect_rates = tf.split(tf.linspace(0.0, drop_connect_rate, sum(num_blocks)), num_blocks)
     drop_connect_rates = [ii.numpy().tolist() for ii in drop_connect_rates]
-    beta_list = [(1 + alpha ** 2 * ii) ** -0.5 for ii in range(max(num_blocks) + 1)]
+    beta_list = [(1 + alpha**2 * ii) ** -0.5 for ii in range(max(num_blocks) + 1)]
     pre_beta = 1.0
     for id, (num_block, out_channel, stride, drop_connect) in enumerate(zip(num_blocks, out_channels, strides, drop_connect_rates)):
         name = "stack{}_".format(id + 1)

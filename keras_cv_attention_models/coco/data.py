@@ -94,7 +94,7 @@ def random_largest_crop_and_resize_images(images, target_shape, method="bilinear
 
 
 def get_image_aspect_aware_random_scale_crop(source_shape, target_shape, scale_min=0.1, scale_max=2.0):
-    """ https://github.com/google/automl/tree/master/efficientdet/dataloader.py#L67 """
+    """https://github.com/google/automl/tree/master/efficientdet/dataloader.py#L67"""
     random_scale_factor = tf.random.uniform((), scale_min, scale_max)
     scaled_y, scaled_x = random_scale_factor * target_shape[0], random_scale_factor * target_shape[1]
     height, width = tf.cast(source_shape[0], tf.float32), tf.cast(source_shape[1], tf.float32)

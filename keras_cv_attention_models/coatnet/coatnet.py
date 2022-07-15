@@ -75,7 +75,7 @@ def res_MBConv(
     activation="gelu",
     name="",
 ):
-    """ x ← Proj(Pool(x)) + Conv (DepthConv (Conv (Norm(x), stride = 2)))) """
+    """x ← Proj(Pool(x)) + Conv (DepthConv (Conv (Norm(x), stride = 2))))"""
     preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, name=name + "preact_")
 
     if conv_short_cut:
@@ -101,7 +101,7 @@ def res_MBConv(
 
 
 def res_ffn(inputs, expansion=4, kernel_size=1, drop_rate=0, activation="gelu", name=""):
-    """ x ← x + Module (Norm(x)), similar with typical MLP block """
+    """x ← x + Module (Norm(x)), similar with typical MLP block"""
     # preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, name=name + "preact_")
     preact = layer_norm(inputs, name=name + "preact_")
 
@@ -115,7 +115,7 @@ def res_ffn(inputs, expansion=4, kernel_size=1, drop_rate=0, activation="gelu", 
 
 
 def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, head_dimension=32, drop_rate=0, activation="gelu", name=""):
-    """ x ← Proj(Pool(x)) + Attention (Pool(Norm(x))) """
+    """x ← Proj(Pool(x)) + Attention (Pool(Norm(x)))"""
     # preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, name=name + "preact_")
     preact = layer_norm(inputs, name=name + "preact_")
 

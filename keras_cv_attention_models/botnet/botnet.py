@@ -35,7 +35,7 @@ class RelativePositionalEmbedding(keras.layers.Layer):
         self.position_height = self.position_height if self.position_height > height else height
         self.position_width = self.position_width if self.position_width > width else width
         self.key_dim = key_dim
-        stddev = key_dim ** -0.5
+        stddev = key_dim**-0.5
 
         if self.use_absolute_pos:
             hh_shape = (key_dim, self.position_height)

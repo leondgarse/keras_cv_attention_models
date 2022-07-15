@@ -15,7 +15,7 @@ CONV_KERNEL_INITIALIZER = keras.initializers.VarianceScaling(scale=2.0, mode="fa
 
 @tf.keras.utils.register_keras_serializable(package="kecamCommon")
 def hard_swish(inputs):
-    """ `out = xx * relu6(xx + 3) / 6`, arxiv: https://arxiv.org/abs/1905.02244 """
+    """`out = xx * relu6(xx + 3) / 6`, arxiv: https://arxiv.org/abs/1905.02244"""
     return inputs * tf.nn.relu6(inputs + 3) / 6
 
 
@@ -46,7 +46,7 @@ def phish(inputs):
 
 
 def activation_by_name(inputs, activation="relu", name=None):
-    """ Typical Activation layer added hard_swish and prelu. """
+    """Typical Activation layer added hard_swish and prelu."""
     if activation is None:
         return inputs
 
@@ -190,7 +190,7 @@ class EvoNormalization(tf.keras.layers.Layer):
 def batchnorm_with_activation(
     inputs, activation=None, zero_gamma=False, epsilon=1e-5, momentum=0.9, act_first=False, use_evo_norm=False, evo_norm_group_size=-1, name=None
 ):
-    """ Performs a batch normalization followed by an activation. """
+    """Performs a batch normalization followed by an activation."""
     if use_evo_norm:
         nonlinearity = False if activation is None else True
         num_groups = inputs.shape[-1] // evo_norm_group_size  # Currently using gorup_size as parameter only
@@ -213,14 +213,14 @@ def batchnorm_with_activation(
 
 
 def layer_norm(inputs, zero_gamma=False, epsilon=LAYER_NORM_EPSILON, name=None):
-    """ Typical LayerNormalization with epsilon=1e-5 """
+    """Typical LayerNormalization with epsilon=1e-5"""
     norm_axis = -1 if K.image_data_format() == "channels_last" else 1
     gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
     return keras.layers.LayerNormalization(axis=norm_axis, epsilon=epsilon, gamma_initializer=gamma_initializer, name=name and name + "ln")(inputs)
 
 
 def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, name=None):
-    """ Typical GroupNormalization with epsilon=1e-5 """
+    """Typical GroupNormalization with epsilon=1e-5"""
     from tensorflow_addons.layers import GroupNormalization
 
     norm_axis = -1 if K.image_data_format() == "channels_last" else 1
@@ -228,7 +228,7 @@ def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, name=None):
 
 
 def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", use_bias=False, groups=1, use_torch_padding=True, name=None, **kwargs):
-    """ Typical Conv2D with `use_bias` default as `False` and fixed padding """
+    """Typical Conv2D with `use_bias` default as `False` and fixed padding"""
     pad = (kernel_size[0] // 2, kernel_size[1] // 2) if isinstance(kernel_size, (list, tuple)) else (kernel_size // 2, kernel_size // 2)
     if use_torch_padding and padding.upper() == "SAME" and max(pad) != 0:
         inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
@@ -249,7 +249,7 @@ def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", u
 
 
 def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", use_bias=False, use_torch_padding=True, name=None, **kwargs):
-    """ Typical DepthwiseConv2D with `use_bias` default as `False` and fixed padding """
+    """Typical DepthwiseConv2D with `use_bias` default as `False` and fixed padding"""
     pad = (kernel_size[0] // 2, kernel_size[1] // 2) if isinstance(kernel_size, (list, tuple)) else (kernel_size // 2, kernel_size // 2)
     if use_torch_padding and padding.upper() == "SAME" and max(pad) != 0:
         inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "dw_pad")(inputs)
@@ -284,7 +284,7 @@ def output_block(inputs, filters=0, activation="relu", num_classes=1000, drop_ra
 
 
 def global_context_module(inputs, use_attn=True, ratio=0.25, divisor=1, activation="relu", use_bias=True, name=None):
-    """ Global Context Attention Block, arxiv: https://arxiv.org/pdf/1904.11492.pdf """
+    """Global Context Attention Block, arxiv: https://arxiv.org/pdf/1904.11492.pdf"""
     height, width, filters = inputs.shape[1], inputs.shape[2], inputs.shape[-1]
 
     # activation could be ("relu", "hard_sigmoid")
@@ -309,7 +309,7 @@ def global_context_module(inputs, use_attn=True, ratio=0.25, divisor=1, activati
 
 
 def se_module(inputs, se_ratio=0.25, divisor=8, limit_round_down=0.9, activation="relu", use_bias=True, name=None):
-    """ Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf """
+    """Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf"""
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
     h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
 
@@ -327,7 +327,7 @@ def se_module(inputs, se_ratio=0.25, divisor=8, limit_round_down=0.9, activation
 
 
 def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
-    """ Efficient Channel Attention block, arxiv: https://arxiv.org/pdf/1910.03151.pdf """
+    """Efficient Channel Attention block, arxiv: https://arxiv.org/pdf/1910.03151.pdf"""
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
     h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
 
@@ -348,13 +348,13 @@ def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
 
 
 def drop_connect_rates_split(num_blocks, start=0.0, end=0.0):
-    """ split drop connect rate in range `(start, end)` according to `num_blocks` """
+    """split drop connect rate in range `(start, end)` according to `num_blocks`"""
     drop_connect_rates = tf.split(tf.linspace(start, end, sum(num_blocks)), num_blocks)
     return [ii.numpy().tolist() for ii in drop_connect_rates]
 
 
 def drop_block(inputs, drop_rate=0, name=None):
-    """ Stochastic Depth block by Dropout, arxiv: https://arxiv.org/abs/1603.09382 """
+    """Stochastic Depth block by Dropout, arxiv: https://arxiv.org/abs/1603.09382"""
     if drop_rate > 0:
         noise_shape = [None] + [1] * (len(inputs.shape) - 1)  # [None, 1, 1, 1]
         return keras.layers.Dropout(drop_rate, noise_shape=noise_shape, name=name and name + "drop")(inputs)
@@ -377,7 +377,7 @@ def __anti_alias_downsample_initializer__(weight_shape, dtype="float32"):
 
 
 def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trainable=False, name=None):
-    """ DepthwiseConv2D performing anti-aliasing downsample, arxiv: https://arxiv.org/pdf/1904.11486.pdf """
+    """DepthwiseConv2D performing anti-aliasing downsample, arxiv: https://arxiv.org/pdf/1904.11486.pdf"""
     return keras.layers.DepthwiseConv2D(
         kernel_size=kernel_size,
         strides=strides,
@@ -390,7 +390,7 @@ def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trai
 
 
 def make_divisible(vv, divisor=4, min_value=None, limit_round_down=0.9):
-    """ Copied from https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py """
+    """Copied from https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py"""
     if min_value is None:
         min_value = divisor
     new_v = max(min_value, int(vv + divisor / 2) // divisor * divisor)
@@ -530,7 +530,7 @@ class CompatibleExtractPatches(keras.layers.Layer):
 
 
 class PreprocessInput:
-    """ `rescale_mode` `torch` means `(image - [0.485, 0.456, 0.406]) / [0.229, 0.224, 0.225]`, `tf` means `(image - 0.5) / 0.5` """
+    """`rescale_mode` `torch` means `(image - [0.485, 0.456, 0.406]) / [0.229, 0.224, 0.225]`, `tf` means `(image - 0.5) / 0.5`"""
 
     def __init__(self, input_shape=(224, 224, 3), rescale_mode="torch"):
         self.rescale_mode = rescale_mode

@@ -177,7 +177,7 @@ def curve_fit(source, target_len=10, skip=5, use_recent=40):
     def func_curv(x, a, b, c, d):
         pp = np.log(x)
         # pp = 1 / x
-        return a * pp ** 3 + b * pp ** 2 + c * pp + d
+        return a * pp**3 + b * pp**2 + c * pp + d
 
     recent_source = source[skip:]
     use_recent = len(source) if use_recent == -1 else use_recent

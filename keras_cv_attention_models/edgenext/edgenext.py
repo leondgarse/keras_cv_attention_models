@@ -22,6 +22,7 @@ PRETRAINED_DICT = {
 }
 LAYER_NORM_EPSILON = 1e-6
 
+
 @tf.keras.utils.register_keras_serializable(package="kecam/edgenext")
 class PositionalEncodingFourier(keras.layers.Layer):
     def __init__(self, filters=32, temperature=1e4, **kwargs):

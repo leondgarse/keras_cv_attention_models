@@ -34,7 +34,7 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
     pool_padding = "VALID" if height % strides == 0 and width % strides == 0 else "SAME"
     attn = keras.layers.AveragePooling2D(pool_size=strides, strides=strides, padding=pool_padding)(inputs)
     # [1, 14, 14, 486]
-    attn = keras.layers.Dense(kernel_size ** 4 * num_heads, name=name + "attn")(attn) / qk_scale
+    attn = keras.layers.Dense(kernel_size**4 * num_heads, name=name + "attn")(attn) / qk_scale
     # [1, 14, 14, 6, 9, 9]
     attn = tf.reshape(attn, (-1, hh, ww, num_heads, kernel_size * kernel_size, kernel_size * kernel_size))
     # attention_weights = tf.nn.softmax(attn, axis=-1)
@@ -76,7 +76,7 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
 
 
 def outlook_attention_simple(inputs, embed_dim, num_heads=6, kernel_size=3, attn_dropout=0, name=""):
-    """ Simple version not using unfold and fold """
+    """Simple version not using unfold and fold"""
     key_dim = embed_dim // num_heads
     qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
 
@@ -94,7 +94,7 @@ def outlook_attention_simple(inputs, embed_dim, num_heads=6, kernel_size=3, attn
 
     # attn = keras.layers.AveragePooling2D(pool_size=3, strides=2, padding='SAME')(inputs)
     attn = keras.layers.AveragePooling2D(pool_size=kernel_size, strides=kernel_size)(inputs)
-    attn = keras.layers.Dense(kernel_size ** 4 * num_heads, use_bias=True, name=name + "attn")(attn) / qk_scale
+    attn = keras.layers.Dense(kernel_size**4 * num_heads, use_bias=True, name=name + "attn")(attn) / qk_scale
     attn = tf.reshape(attn, [-1, hh, ww, num_heads, kernel_size * kernel_size, kernel_size * kernel_size])  # [1, 14, 14, 6, 4, 4]
     # attn = tf.nn.softmax(attn, axis=-1)
     attn = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attn)

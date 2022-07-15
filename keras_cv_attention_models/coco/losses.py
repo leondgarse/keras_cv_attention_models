@@ -24,7 +24,7 @@ def __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_
         rho_height = (true_top_left[:, 0] + true_bottom_right[:, 0] - pred_top_left[:, 0] - pred_bottom_right[:, 0]) ** 2
         rho_width = (true_top_left[:, 1] + true_bottom_right[:, 1] - pred_top_left[:, 1] - pred_bottom_right[:, 1]) ** 2
         rho = (rho_height + rho_width) / 4
-        vv_scale = 4 / math.pi ** 2
+        vv_scale = 4 / math.pi**2
         vv = vv_scale * (tf.atan(true_hw[:, 1] / (true_hw[:, 0] + epsilon)) - tf.atan(pred_hw[:, 1] / (pred_hw[:, 0] + epsilon))) ** 2
         alpha = tf.stop_gradient(vv / ((1 + epsilon) - iou + vv))
         return iou - (rho / outer_area + vv * alpha)
@@ -193,7 +193,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         true_top_left, true_bottom_right, _ = tf.split(bboxes_trues, [2, 2, -1], axis=-1)
         true_hw = true_bottom_right - true_top_left
         iou = __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_bottom_right, pred_hw, epsilon=self.epsilon)
-        return 1 - iou ** 2
+        return 1 - iou**2
 
     def __valid_call_single__(self, bbox_labels_true, bbox_labels_pred):
         bbox_labels_true_assined = tf.stop_gradient(self.anchor_assign(bbox_labels_true, bbox_labels_pred))

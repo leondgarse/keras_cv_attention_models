@@ -265,7 +265,7 @@ def tiered_stem(inputs, stem_width, activation="relu", last_strides=1, bn_params
 
 
 def aot_stem(inputs, stem_width, type=None, activation="relu", quad_stem_act=False, last_strides=1, bn_params={}, name=None):
-    """ stem_type in value `[None, "deep", "deep2", "quad", "tiered"]`. """
+    """stem_type in value `[None, "deep", "deep2", "quad", "tiered"]`."""
     if type == "deep":
         nn = deep_stem(inputs, stem_width, activation=activation, last_strides=last_strides, bn_params=bn_params, name=name)
     elif type == "deep2":  # RegNetZD8_EVO
@@ -317,7 +317,7 @@ def AotNet(
     pretrained=None,
     kwargs=None,
 ):
-    """ Stem """
+    """Stem"""
     inputs = keras.layers.Input(shape=input_shape)
     bn_params = {"use_evo_norm": use_evo_norm, "evo_norm_group_size": evo_norm_group_size, "epsilon": bn_epsilon}
     nn = aot_stem(inputs, stem_width, stem_type, activation, quad_stem_act, last_strides=stem_last_strides, bn_params=bn_params, name="stem_")

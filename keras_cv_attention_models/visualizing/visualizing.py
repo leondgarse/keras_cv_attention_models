@@ -80,7 +80,7 @@ def put_text_on_image(image, text, coord=(5, 5), color=(255, 0, 0)):
 
 
 def stack_and_plot_images(images, texts=None, margin=5, margin_value=0, rows=-1, ax=None, base_size=3):
-    """ Stack and plot a list of images. Returns ax, stacked_images """
+    """Stack and plot a list of images. Returns ax, stacked_images"""
     import matplotlib.pyplot as plt
 
     cols, rows = get_plot_cols_rows(len(images), rows)

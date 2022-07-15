@@ -1,4 +1,4 @@
-# ___Keras Neighborhood Attention Transformer___
+# ___Keras EdgeNeXt___
 ***
 
 ## Summary

@@ -54,7 +54,7 @@ def random_crop_fraction(size, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), log_d
 
 
 def random_crop_and_resize_image(image, target_shape, scale=(0.08, 1.0), ratio=(0.75, 1.3333333), method="bilinear", antialias=False):
-    """ Random crop and resize, return `image, scale_hh, scale_ww, crop_hh, crop_ww` """
+    """Random crop and resize, return `image, scale_hh, scale_ww, crop_hh, crop_ww`"""
     height, width = tf.shape(image)[0], tf.shape(image)[1]
     cropped_hh, cropped_ww = random_crop_fraction((height, width), scale, ratio)
     cropped_hh, cropped_ww = tf.clip_by_value(cropped_hh, 1, height - 1), tf.clip_by_value(cropped_ww, 1, width - 1)
@@ -81,7 +81,7 @@ def random_crop_and_resize_image(image, target_shape, scale=(0.08, 1.0), ratio=(
 
 
 def random_erasing_per_pixel(image, num_layers=1, scale=(0.02, 0.33333333), ratio=(0.3, 3.3333333), probability=0.5):
-    """ https://github.com/rwightman/pytorch-image-models/blob/master/timm/data/random_erasing.py """
+    """https://github.com/rwightman/pytorch-image-models/blob/master/timm/data/random_erasing.py"""
     if tf.random.uniform(()) > probability:
         return image
 

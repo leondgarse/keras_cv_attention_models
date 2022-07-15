@@ -43,7 +43,7 @@ class MultiHeadRelativePositionalKernelBias(tf.keras.layers.Layer):
         bias_ww = tf.concat([idx_ww[: size // 2], tf.repeat(idx_ww[size // 2], width - size + 1), idx_ww[size // 2 + 1 :]], axis=-1)
         bias_hw = tf.expand_dims(bias_hh, -1) * pos_size + bias_ww
         bias_coords = tf.expand_dims(bias_hw, -1) + coords
-        bias_coords = tf.reshape(bias_coords, [-1, size ** 2])[::-1]  # torch.flip(bias_coords, [0])
+        bias_coords = tf.reshape(bias_coords, [-1, size**2])[::-1]  # torch.flip(bias_coords, [0])
 
         bias_coords_shape = [bias_coords.shape[0]] + [1] * (len(input_shape) - 4) + [bias_coords.shape[1]]
         self.bias_coords = tf.reshape(bias_coords, bias_coords_shape)  # [height * width, 1 * n, size * size]
@@ -149,7 +149,7 @@ def NAT(
     model_name="nat",
     kwargs=None,
 ):
-    """ ConvTokenizer stem """
+    """ConvTokenizer stem"""
     inputs = keras.layers.Input(input_shape)
     stem_width = stem_width if stem_width > 0 else out_channels[0]
     nn = conv2d_no_bias(inputs, stem_width // 2, kernel_size=3, strides=2, use_bias=True, padding="SAME", name="stem_1_")

@@ -315,7 +315,7 @@ def get_actual_drop_connect_rates(model):
 
 
 def get_pyramide_feture_layers(model, match_reg="^stack_?(\\d+).*output.*$"):
-    """ Pick all stack output layers """
+    """Pick all stack output layers"""
     import re
 
     dd = {}
@@ -331,7 +331,7 @@ def get_pyramide_feture_layers(model, match_reg="^stack_?(\\d+).*output.*$"):
 
 
 def get_global_avg_pool_layer_id(model):
-    """ Search GlobalAveragePooling2D layer id """
+    """Search GlobalAveragePooling2D layer id"""
     num_total_layers = len(model.layers)
     for header_layer_id, layer in enumerate(model.layers[::-1]):
         header_layer_id = num_total_layers - header_layer_id - 1

@@ -108,7 +108,7 @@ def get_yolor_anchors(input_shape=(512, 512), pyramid_levels=[3, 5], offset=0.5,
     # print(f"{pyramid_levels = }, {feature_sizes = }, {anchor_ratios = }")
     if is_for_training:
         # YOLOLayer https://github.com/WongKinYiu/yolor/blob/main/models/models.py#L351
-        anchor_ratios = anchor_ratios[: len(pyramid_levels)] / [[[2 ** ii]] for ii in pyramid_levels]
+        anchor_ratios = anchor_ratios[: len(pyramid_levels)] / [[[2**ii]] for ii in pyramid_levels]
         feature_sizes = tf.convert_to_tensor(feature_sizes[min(pyramid_levels) : max(pyramid_levels) + 1], tf.float32)
         return anchor_ratios, feature_sizes
 
@@ -176,12 +176,12 @@ def iou_nd(bboxes, anchors):
 
 
 def corners_to_center_yxhw_nd(ss):
-    """ input: [top, left, bottom, right], output: [center_h, center_w], [height, width] """
+    """input: [top, left, bottom, right], output: [center_h, center_w], [height, width]"""
     return (ss[:, :2] + ss[:, 2:]) * 0.5, ss[:, 2:] - ss[:, :2]
 
 
 def center_yxhw_to_corners_nd(ss):
-    """ input: [center_h, center_w, height, width], output: [top, left, bottom, right] """
+    """input: [center_h, center_w, height, width], output: [top, left, bottom, right]"""
     top_left = ss[:, :2] - ss[:, 2:] * 0.5
     bottom_right = top_left + ss[:, 2:]
     return tf.concat([top_left, bottom_right], axis=-1)

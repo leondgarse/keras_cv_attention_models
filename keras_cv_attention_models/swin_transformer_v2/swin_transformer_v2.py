@@ -313,7 +313,7 @@ def SwinTransformerV2(
     model_name="swin_transformer_v2",
     kwargs=None,
 ):
-    """ Patch stem """
+    """Patch stem"""
     inputs = keras.layers.Input(input_shape)
     nn = keras.layers.Conv2D(embed_dim, kernel_size=stem_patch_size, strides=stem_patch_size, use_bias=True, name="stem_conv")(inputs)
     nn = layer_norm(nn, name="stem_")

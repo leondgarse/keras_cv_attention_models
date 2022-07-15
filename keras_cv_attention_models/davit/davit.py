@@ -137,7 +137,7 @@ def DaViT(
     model_name="davit",
     kwargs=None,
 ):
-    """ Patch stem """
+    """Patch stem"""
     inputs = keras.layers.Input(input_shape)
     stem_width = stem_width if stem_width > 0 else out_channels[0]
     nn = conv2d_no_bias(inputs, stem_width, kernel_size=7, strides=stem_patch_size, use_bias=True, padding="SAME", name="stem_")
