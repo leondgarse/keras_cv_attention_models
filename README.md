@@ -24,6 +24,7 @@
   - [ConvNeXt](#convnext)
   - [CoTNet](#cotnet)
   - [DaViT](#davit)
+  - [EdgeNeXt](#edgenext)
   - [EfficientNet](#efficientnet)
   - [FBNetV3](#fbnetv3)
   - [GMLP](#gmlp)
@@ -472,6 +473,15 @@
   | DaViT_L, 21k  | 196.8M | 103.2G | 384   | 87.5     |          |
   | DaViT_H, 1.5B | 348.9M | 327.3G | 512   | 90.2     |          |
   | DaViT_G, 1.5B | 1.406B | 1.022T | 512   | 90.4     |          |
+## EdgeNeXt
+  - [Keras EdgeNeXt](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/edgenext) is for [PDF 2206.10589 EdgeNeXt: Efficiently Amalgamated CNN-Transformer Architecture for Mobile Vision Applications](https://arxiv.org/pdf/2206.10589.pdf).
+
+  | Model             | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ----------------- | ------ | ------ | ----- | -------- | -------- |
+  | EdgeNeXt_XX_Small | 1.33M  | 266M   | 256   | 71.23    | [edgenext_xx_small_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_xx_small_256_imagenet.h5) |
+  | EdgeNeXt_X_Small  | 2.34M  | 547M   | 256   | 74.96    | [edgenext_x_small_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_x_small_256_imagenet.h5) |
+  | EdgeNeXt_Small    | 5.59M  | 1.27G  | 256   | 79.41    | [edgenext_small_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_imagenet.h5) |
+  | - usi             | 5.59M  | 1.27G  | 256   | 81.07    | [edgenext_small_256_usi.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_usi.h5) |
 ## EfficientNet
   - [Keras EfficientNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientnet) includes implementation of [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298).
 

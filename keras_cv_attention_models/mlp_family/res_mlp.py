@@ -12,17 +12,26 @@ PRETRAINED_DICT = {
 
 @keras.utils.register_keras_serializable(package="resmlp")
 class ChannelAffine(keras.layers.Layer):
-    def __init__(self, use_bias=True, weight_init_value=1, **kwargs):
+    def __init__(self, use_bias=True, weight_init_value=1, axis=-1, **kwargs):
         super(ChannelAffine, self).__init__(**kwargs)
-        self.use_bias, self.weight_init_value = use_bias, weight_init_value
+        self.use_bias, self.weight_init_value, self.axis = use_bias, weight_init_value, axis
         self.ww_init = keras.initializers.Constant(weight_init_value) if weight_init_value != 1 else "ones"
         self.bb_init = "zeros"
         self.supports_masking = False
 
     def build(self, input_shape):
-        self.ww = self.add_weight(name="weight", shape=(input_shape[-1],), initializer=self.ww_init, trainable=True)
+        if self.axis == -1 or self.axis == len(input_shape) - 1:
+            ww_shape = (input_shape[-1],)
+        else:
+            ww_shape = [1] * len(input_shape)
+            axis = self.axis if isinstance(self.axis, (list, tuple)) else [self.axis]
+            for ii in axis:
+                ww_shape[ii] = input_shape[ii]
+            ww_shape = ww_shape[1:]  # Exclude batch dimension
+
+        self.ww = self.add_weight(name="weight", shape=ww_shape, initializer=self.ww_init, trainable=True)
         if self.use_bias:
-            self.bb = self.add_weight(name="bias", shape=(input_shape[-1],), initializer=self.bb_init, trainable=True)
+            self.bb = self.add_weight(name="bias", shape=ww_shape, initializer=self.bb_init, trainable=True)
         super(ChannelAffine, self).build(input_shape)
 
     def call(self, inputs, **kwargs):
@@ -33,7 +42,7 @@ class ChannelAffine(keras.layers.Layer):
 
     def get_config(self):
         config = super(ChannelAffine, self).get_config()
-        config.update({"use_bias": self.use_bias, "weight_init_value": self.weight_init_value})
+        config.update({"use_bias": self.use_bias, "weight_init_value": self.weight_init_value, "axis": self.axis})
         return config
 
 

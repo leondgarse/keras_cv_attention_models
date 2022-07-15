@@ -258,8 +258,7 @@ def keras_reload_from_torch_model(
         state_dict = torch_model.state_dict()
 
         try:
-            from torchsummary import summary
-
+            # from torchsummary import summary
             # summary(torch_model, (3, *input_shape), device="cpu")
             """ Torch Run predict """
             out = torch_model(torch.from_numpy(np.expand_dims(img.transpose(2, 0, 1), 0).astype("float32")))

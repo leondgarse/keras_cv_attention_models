@@ -99,6 +99,11 @@ def test_cot_attention():
     assert attention_layers.cot_attention(tf.ones(input_shape), kernel_size=3).shape == input_shape
 
 
+def test_cross_covariance_attention():
+    input_shape = [2, 14, 16, 192]
+    assert attention_layers.cross_covariance_attention(tf.ones(input_shape)).shape == input_shape
+
+
 def test_eca_module():
     input_shape = [2, 28, 28, 192]
     out = attention_layers.eca_module(tf.ones(input_shape))
@@ -256,6 +261,12 @@ def test_phase_aware_token_mixing():
 
 def test_PositionalEmbedding():
     aa = attention_layers.PositionalEmbedding()
+    input_shape = [2, 8, 16, 49]
+    assert aa(tf.ones(input_shape)).shape == input_shape
+
+
+def test_PositionalEncodingFourier():
+    aa = attention_layers.PositionalEncodingFourier()
     input_shape = [2, 8, 16, 49]
     assert aa(tf.ones(input_shape)).shape == input_shape
 

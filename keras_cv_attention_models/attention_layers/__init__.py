@@ -42,6 +42,7 @@ from keras_cv_attention_models.coatnet.coatnet import mhsa_with_multi_head_relat
 from keras_cv_attention_models.cmt.cmt import light_mhsa_with_multi_head_relative_position_embedding, BiasPositionalEmbedding
 from keras_cv_attention_models.uniformer.uniformer import multi_head_self_attention
 from keras_cv_attention_models.davit.davit import multi_head_self_attention_channel, window_attention
+from keras_cv_attention_models.edgenext.edgenext import PositionalEncodingFourier, cross_covariance_attention
 from keras_cv_attention_models.swin_transformer_v2.swin_transformer_v2 import (
     ExpLogitScale,
     PairWiseRelativePositionalEmbedding,

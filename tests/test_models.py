@@ -66,6 +66,14 @@ def test_CovNeXt_defination():
     assert isinstance(mm, keras.models.Model)
 
 
+def test_EdgeNeXt_defination():
+    mm = keras_cv_attention_models.edgenext.EdgeNeXt_Small(pretrained=None)
+    assert isinstance(mm, keras.models.Model)
+
+    mm = keras_cv_attention_models.edgenext.EdgeNeXt_X_Small(pretrained=None, num_classes=0)
+    assert isinstance(mm, keras.models.Model)
+
+
 def test_GMLP_defination():
     mm = keras_cv_attention_models.mlp_family.GMLPB16(pretrained=None)
     assert isinstance(mm, keras.models.Model)
@@ -247,6 +255,14 @@ def test_ConvNeXt_predict():
 
 def test_DaViT_T_new_shape_predict():
     mm = keras_cv_attention_models.davit.DaViT_T(input_shape=(376, 227, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_EdgeNeXt_XX_Small_new_shape_predict():
+    mm = keras_cv_attention_models.edgenext.EdgeNeXt_XX_Small(input_shape=(174, 269, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 

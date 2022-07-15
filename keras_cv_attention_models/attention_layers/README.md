@@ -14,9 +14,11 @@
   - **MultiHeadRelativePositionalEmbedding** from `beit`. Positional embedding shape is `[num_heads, (2 * height - 1) * (2 * width - 1)]`.
   - **PairWiseRelativePositionalEmbedding** from `swin_transformer_v2`. No weight for this layer, returns a `log` encoded bias depending on input `[height, width]`.
   - **PositionalEmbedding** from `volo`. Positional embedding shape is `[1, height, width, channel]`, then adds directly with input.
+  - **PositionalEncodingFourier** from `edgenext`. Layer weight shape depends on parameter `filters` and input channel dimension only, and using `sin` / `cos` encoded distances.
   - **RelativePositionalEmbedding** from `botnet`. Supports both `absolute` / `relative` positional embedding. Layer weights is dotted with input generating positional embedding. It's using same value for all headers.
 ## Attention Blocks
   - **cot_attention** from `cotnet`. It's using `GroupNormalization` / grouped `Conv2D` / `extract_patches` and other strategies.
+  - **cross_covariance_attention** from `edgenext`. It's different from traditional MHSA. This is using `attention_scores` shape `[batch, num_heads, key_dim, key_dim]`, while traditional MHSA `attention_scores` shape `[batch, num_heads, hh * ww, hh * ww]`. Also using cosine distance between `query` and `key` calculating `attention_scores`.
   - **halo_attention** from `halonet`. Extract patches with a `kernel_size` from `key_value` as an enlarged attention area. Also adds `RelativePositionalEmbedding` to `attention_scores`.
   - **light_mhsa_with_multi_head_relative_position_embedding** from `cmt`. Downsample `key_value` with a `sr_ratio` using `DepthwiseConv2D` + `LayerNorm`. Also adds `MultiHeadRelativePositionalEmbedding` to `attention_scores`.
   - **mhsa_with_multi_head_position_and_strides** from `levit`. Using additional `BatchNormalization` for `query / key / value`, and adding `MultiHeadPositionalEmbedding` to `attention_scores`. Also with a `strides` parameter which can further reduce calculation.
