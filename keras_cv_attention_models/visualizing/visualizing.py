@@ -203,6 +203,8 @@ def make_gradcam_heatmap(model, processed_image, layer_name="auto", pred_index=N
     # This is the gradient of the output neuron (top predicted or chosen)
     # with regard to the output feature map of the last conv layer
     grads = tape.gradient(class_channel, last_conv_layer_output)
+    grads = tf.cast(grads, preds.dtype)
+    last_conv_layer_output = tf.cast(last_conv_layer_output, preds.dtype)
 
     if use_v2:
         # gradcam_plus_plus from: https://github.com/keisen/tf-keras-vis/blob/master/tf_keras_vis/gradcam_plus_plus.py
