@@ -45,7 +45,7 @@ def mhsa_with_relative_position_embedding_with_global_query(
 
     attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, hh * ww, hh * ww]
     attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
-    print(f"{query.shape = }, {key.shape = }, {value.shape = }, {attention_scores.shape = }, {hh = }")
+    # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {attention_scores.shape = }, {hh = }")
     attention_scores = MultiHeadRelativePositionalEmbedding(with_cls_token=False, attn_height=hh, name=name and name + "pos_emb")(attention_scores)
     attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores) if attn_dropout > 0 else attention_scores
 
@@ -62,12 +62,12 @@ def mhsa_with_relative_position_embedding_with_global_query(
     return attention_output
 
 
-def gc_vit_block(inputs, window_size, num_heads=4, global_query=None, mlp_ratio=4, layer_scale=0, drop_rate=0, activation="gelu", name=""):
-    print(global_query)
+def gcvit_block(inputs, window_size, num_heads=4, global_query=None, mlp_ratio=4, layer_scale=0, drop_rate=0, activation="gelu", name=""):
+    # print(global_query)
     input_channel = inputs.shape[-1]
     attn = layer_norm(inputs, name=name + "attn_")
     attention_block = lambda xx: mhsa_with_relative_position_embedding_with_global_query(
-        xx, num_heads=num_heads, global_query=global_query, qkv_bias=True, name=name + "window_mhsa_"
+        xx, num_heads=num_heads, global_query=global_query, qkv_bias=True, out_bias=True, name=name + "window_mhsa_"
     )
     attn = window_attention(attn, window_size=window_size, attention_block=attention_block)  # Don't need a name here
     attn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "1_gamma")(attn) if layer_scale >= 0 else attn
@@ -92,12 +92,12 @@ def to_global_query(inputs, window_ratio, num_heads=4, activation="gelu", name="
             query = extract_feature(query, strides=2, activation=activation, name=name + "down{}_".format(num_window))
     # q_global = q_global.repeat(B_//B, 1, 1, 1)
     # q = q_global.reshape(B_, self.num_heads, N, C // self.num_heads)
-    print(f"{inputs.shape = }, {query.shape = }, {num_window = }, {window_ratio = }")
+    # print(f"{inputs.shape = }, {query.shape = }, {num_window = }, {window_ratio = }")
     query = tf.reshape(query, [-1, query.shape[1] * query.shape[2], num_heads, input_channel // num_heads])
     query = tf.transpose(query, [0, 2, 1, 3])
     # query = tf.repeat(query, num_window, axis=0)
     query = tf.concat([query] * (num_window * num_window), axis=0)
-    print(f"{query.shape = }")
+    # print(f"{query.shape = }")
     return query
 
 def down_sample(inputs, out_channels=-1, activation="gelu", name=""):
@@ -112,7 +112,7 @@ def extract_feature(inputs, strides=2, activation="gelu", name=""):
     input_channel = inputs.shape[-1]
     nn = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="same", name=name + "extract_")
     nn = activation_by_name(nn, activation=activation, name=name + "extract_")
-    nn = se_module(nn, divisor=1, activation=activation, name=name + "extract_se_")
+    nn = se_module(nn, divisor=1, use_bias=False, activation=activation, use_conv=False, name=name + "extract_se_")
     nn = conv2d_no_bias(nn, input_channel, kernel_size=1, name=name + "extract_")
     nn = inputs + nn
     return keras.layers.MaxPool2D(pool_size=3, strides=strides, padding="SAME", name=name + "extract_maxpool")(nn) if strides > 1 else nn
@@ -124,8 +124,7 @@ def GCViT(
     window_ratios=[8, 4, 1, 1],
     embed_dim=64,
     mlp_ratio=3,
-    stem_patch_size=4,
-    layer_scale=0,
+    layer_scale=-1,
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",
@@ -148,18 +147,16 @@ def GCViT(
     for stack_id, (num_block, num_head, window_ratio) in enumerate(zip(num_blocks, num_heads, window_ratios)):
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id > 0:
-            nn = down_sample(nn, name=stack_name)
+            nn = down_sample(nn, out_channels=nn.shape[-1] * 2, name=stack_name)
 
         window_size = (nn.shape[1] // window_ratio, nn.shape[2] // window_ratio)
-        down_rate = 1 if stack_id == num_stacks - 1 else (num_stacks - stack_id - 1)
-        last_strides = 1 if stack_id == num_stacks - 1 or window_ratio == 2 else 2
         global_query = to_global_query(nn, window_ratio, num_head, activation=activation, name=stack_name + "q_global_")
 
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             cur_global_query = None if block_id % 2 == 0 else global_query
-            nn = gc_vit_block(nn, window_size, num_head, cur_global_query, mlp_ratio, layer_scale, block_drop_rate, activation=activation, name=block_name)
+            nn = gcvit_block(nn, window_size, num_head, cur_global_query, mlp_ratio, layer_scale, block_drop_rate, activation=activation, name=block_name)
             global_block_id += 1
     nn = layer_norm(nn, name="pre_output_")
 
@@ -171,4 +168,28 @@ def GCViT(
 
 
 def GCViT_XXTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return SwinTransformerV2(**locals(), model_name="gcvit_xxtiny", **kwargs)
+    return GCViT(**locals(), model_name="gcvit_xx_tiny", **kwargs)
+
+def GCViT_XTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 4, 6, 5]
+    return GCViT(**locals(), model_name="gcvit_x_tiny", **kwargs)
+
+def GCViT_Tiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 4, 19, 5]
+    return GCViT(**locals(), model_name="gcvit_tiny", **kwargs)
+
+def GCViT_Small(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 4, 19, 5]
+    num_heads = [3, 6, 12, 24]
+    embed_dim = 96
+    mlp_ratio = 2
+    layer_scale = 1e-5
+    return GCViT(**locals(), model_name="gcvit_small", **kwargs)
+
+def GCViT_Base(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 4, 19, 5]
+    num_heads = [4, 8, 16, 32]
+    embed_dim = 128
+    mlp_ratio = 2
+    layer_scale = 1e-5
+    return GCViT(**locals(), model_name="gcvit_base", **kwargs)

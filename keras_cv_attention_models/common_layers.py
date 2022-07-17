@@ -308,7 +308,7 @@ def global_context_module(inputs, use_attn=True, ratio=0.25, divisor=1, activati
     return keras.layers.Multiply(name=name and name + "out")([inputs, mlp])
 
 
-def se_module(inputs, se_ratio=0.25, divisor=8, limit_round_down=0.9, activation="relu", use_bias=True, name=None):
+def se_module(inputs, se_ratio=0.25, divisor=8, limit_round_down=0.9, activation="relu", use_bias=True, use_conv=True, name=None):
     """Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf"""
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
     h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
@@ -319,9 +319,15 @@ def se_module(inputs, se_ratio=0.25, divisor=8, limit_round_down=0.9, activation
     reduction = make_divisible(filters * se_ratio, divisor, limit_round_down=limit_round_down)
     # print(f"{filters = }, {se_ratio = }, {divisor = }, {reduction = }")
     se = tf.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)
-    se = keras.layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_conv")(se)
+    if use_conv:
+        se = keras.layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_conv")(se)
+    else:
+        se = keras.layers.Dense(reduction, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_dense")(se)
     se = activation_by_name(se, activation=hidden_activation, name=name)
-    se = keras.layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "2_conv")(se)
+    if use_conv:
+        se = keras.layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "2_conv")(se)
+    else:
+        se = keras.layers.Dense(filters, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "2_dense")(se)
     se = activation_by_name(se, activation=output_activation, name=name)
     return keras.layers.Multiply(name=name and name + "out")([inputs, se])
 
