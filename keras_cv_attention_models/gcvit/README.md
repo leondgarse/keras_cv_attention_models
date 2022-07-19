@@ -16,7 +16,17 @@
   | GCViT_XTiny  | 20.0M  | 2.96G | 224   | 81.9     |          |
   | GCViT_Tiny   | 28.2M  | 4.83G | 224   | 83.2     | [gcvit_tiny_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_tiny_224_imagenet.h5) |
   | GCViT_Small  | 51.1M  | 8.63G | 224   | 83.9     | [gcvit_small_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_small_224_imagenet.h5) |
-  | GCViT_Small  | 90.3M  | 14.9G | 224   | 84.4     | [gcvit_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_base_224_imagenet.h5) |
+  | GCViT_Base   | 90.3M  | 14.9G | 224   | 84.4     | [gcvit_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_base_224_imagenet.h5) |
+
+  Self tested accuracy
+  ```sh
+  CUDA_VISIBLE_DEVICES='0' ./eval_script.py -m gcvit.GCViT_Tiny
+  ```
+  | Model       | Top1 Acc |
+  | ----------- | -------- |
+  | GCViT_Tiny  | 81.604   |
+  | GCViT_Small | 80.298   |
+  | GCViT_Base  | 83.7     |
 ## Usage
   ```py
   from keras_cv_attention_models import gcvit
