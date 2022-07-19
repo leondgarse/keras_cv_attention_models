@@ -538,8 +538,8 @@
 
   | Model        | Params | FLOPs | Input | Top1 Acc | Download |
   | ------------ | ------ | ----- | ----- | -------- | -------- |
-  | GCViT_XXTiny | 12.0M  | 2.15G |       |          |          |
-  | GCViT_XTiny  | 20.0M  | 2.96G |       |          |          |
+  | GCViT_XXTiny | 12.0M  | 2.15G | 224   | 19.6     |          |
+  | GCViT_XTiny  | 20.0M  | 2.96G | 224   | 81.9     |          |
   | GCViT_Tiny   | 28.2M  | 4.83G | 224   | 83.2     | [gcvit_tiny_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_tiny_224_imagenet.h5) |
   | GCViT_Small  | 51.1M  | 8.63G | 224   | 83.9     | [gcvit_small_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_small_224_imagenet.h5) |
   | GCViT_Small  | 90.3M  | 14.9G | 224   | 84.4     | [gcvit_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_base_224_imagenet.h5) |

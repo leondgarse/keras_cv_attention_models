@@ -12,6 +12,7 @@ from keras_cv_attention_models import davit
 from keras_cv_attention_models import efficientnet
 from keras_cv_attention_models import efficientdet
 from keras_cv_attention_models import edgenext
+from keras_cv_attention_models import gcvit
 from keras_cv_attention_models import halonet
 from keras_cv_attention_models import levit
 from keras_cv_attention_models import mlp_family
