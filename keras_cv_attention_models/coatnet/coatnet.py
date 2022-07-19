@@ -18,7 +18,7 @@ PRETRAINED_DICT = {"coatnet0": {"imagenet": {160: "bc4375d2f03b99ac4252770331f0d
 
 
 def mhsa_with_multi_head_relative_position_embedding(
-    inputs, num_heads=4, key_dim=0, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
+    inputs, num_heads=4, key_dim=0, global_query=None, out_shape=None, out_weight=True, qkv_bias=False, out_bias=False, attn_dropout=0, name=None
 ):
     _, hh, ww, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
@@ -28,29 +28,29 @@ def mhsa_with_multi_head_relative_position_embedding(
     # vv_dim = out_shape // num_heads
     vv_dim = key_dim
 
-    # qkv = keras.layers.Dense(emb_dim * 3, use_bias=False, name=name and name + "qkv")(inputs)
-    # qkv = conv2d_no_bias(inputs, qk_out * 2 + out_shape, kernel_size=1, name=name and name + "qkv_")
-    qkv = conv2d_no_bias(inputs, qk_out * 3, kernel_size=1, name=name and name + "qkv_")
-    qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
-    query, key, value = tf.split(qkv, [qk_out, qk_out, qk_out], axis=-1)
-    # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {num_heads = }, {key_dim = }, {vv_dim = }")
-    # query = [batch, num_heads, hh * ww, key_dim]
-    query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])
-    # key = [batch, num_heads, key_dim, hh * ww]
-    key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])
-    # value = [batch, num_heads, hh * ww, vv_dim]
-    value = tf.transpose(tf.reshape(value, [-1, value.shape[1], num_heads, vv_dim]), [0, 2, 1, 3])
+    if global_query is not None:
+        kv = conv2d_no_bias(inputs, qk_out * 2, kernel_size=1, use_bias=qkv_bias, name=name and name + "kv_")
+        kv = tf.reshape(kv, [-1, kv.shape[1] * kv.shape[2], kv.shape[-1]])
+        key, value = tf.split(kv, [qk_out, out_shape], axis=-1)
+        query = global_query
+    else:
+        # qkv = keras.layers.Dense(emb_dim * 3, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
+        # qkv = conv2d_no_bias(inputs, qk_out * 2 + out_shape, kernel_size=1, name=name and name + "qkv_")
+        qkv = conv2d_no_bias(inputs, qk_out * 3, kernel_size=1, use_bias=qkv_bias, name=name and name + "qkv_")
+        qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
+        query, key, value = tf.split(qkv, [qk_out, qk_out, qk_out], axis=-1)
+        # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {num_heads = }, {key_dim = }, {vv_dim = }")
+        query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, key_dim]
+    key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
+    value = tf.transpose(tf.reshape(value, [-1, value.shape[1], num_heads, vv_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, vv_dim]
 
-    # query *= qk_scale
-    # [batch, num_heads, hh * ww, hh * ww]
-    attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale
+    attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, hh * ww, hh * ww]
+    # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {attention_scores.shape = }, {hh = }")
     attention_scores = MultiHeadRelativePositionalEmbedding(with_cls_token=False, attn_height=hh, name=name and name + "pos_emb")(attention_scores)
     attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
+    attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores) if attn_dropout > 0 else attention_scores
 
-    if attn_dropout > 0:
-        attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
-    # value = [batch, num_heads, hh * ww, vv_dim]
-    # attention_output = [batch, num_heads, hh * ww, vv_dim]
+    # value = [batch, num_heads, hh * ww, vv_dim], attention_output = [batch, num_heads, hh * ww, vv_dim]
     attention_output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
     attention_output = tf.transpose(attention_output, perm=[0, 2, 1, 3])
     attention_output = tf.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * vv_dim])
@@ -59,6 +59,7 @@ def mhsa_with_multi_head_relative_position_embedding(
     if out_weight:
         # [batch, hh, ww, num_heads * vv_dim] * [num_heads * vv_dim, out] --> [batch, hh, ww, out]
         attention_output = keras.layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
+    # attention_output = keras.layers.Dropout(output_dropout, name=name and name + "out_drop")(attention_output) if output_dropout > 0 else attention_output
     return attention_output
 
 

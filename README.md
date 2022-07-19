@@ -27,6 +27,7 @@
   - [EdgeNeXt](#edgenext)
   - [EfficientNet](#efficientnet)
   - [FBNetV3](#fbnetv3)
+  - [GCViT](#gcvit)
   - [GMLP](#gmlp)
   - [HaloNet](#halonet)
   - [LCNet](#lcnet)
@@ -532,6 +533,16 @@
   | FBNetV3B | 5.57M  | 539.82M  | 256   | 79.15    | [fbnetv3_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/fbnetv3_b_imagenet.h5) |
   | FBNetV3D | 10.31M | 665.02M  | 256   | 79.68    | [fbnetv3_d_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/fbnetv3_d_imagenet.h5) |
   | FBNetV3G | 16.62M | 1379.30M | 256   | 82.05    | [fbnetv3_g_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/fbnetv3_g_imagenet.h5) |
+## GCViT
+  - [Keras GCViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/gcvit) includes implementation of[PDF 2206.09959 Global Context Vision Transformers](https://arxiv.org/pdf/2206.09959.pdf).
+
+  | Model        | Params | FLOPs | Input | Top1 Acc | Download |
+  | ------------ | ------ | ----- | ----- | -------- | -------- |
+  | GCViT_XXTiny | 12.0M  | 2.15G |       |          |          |
+  | GCViT_XTiny  | 20.0M  | 2.96G |       |          |          |
+  | GCViT_Tiny   | 28.2M  | 4.83G | 224   | 83.2     | [gcvit_tiny_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_tiny_224_imagenet.h5) |
+  | GCViT_Small  | 51.1M  | 8.63G | 224   | 83.9     | [gcvit_small_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_small_224_imagenet.h5) |
+  | GCViT_Small  | 90.3M  | 14.9G | 224   | 84.4     | [gcvit_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_base_224_imagenet.h5) |
 ## GMLP
   - [Keras GMLP](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#gmlp) includes implementation of [PDF 2105.08050 Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050.pdf).
 

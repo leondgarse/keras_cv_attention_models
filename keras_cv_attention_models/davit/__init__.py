@@ -96,11 +96,15 @@ Examples:
 window_attention.__doc__ = __head_doc__ + """
 Window multi head self attention. Defined as function, not layer.
 Typical MHSA with `window_partition` process ahead and `window_reverse` process after.
+Also works like a wrapper, perform `window_partition -> attention_block -> window_reverse`.
 
 Args:
   inputs: input tensor.
   window_size: window partition size.
   num_heads: Number of attention heads.
+  attention_block: specific callable attention block, instead of preset MHSA.
+      3 parameters are required supporting: `inputs, num_heads, name`
+  kwargs: any additional kwargs for `attention_block`.
 
 Examples:
 

@@ -53,7 +53,7 @@ def multi_head_self_attention_channel(
     return attention_output
 
 
-def window_attention(inputs, window_size, num_heads=4, qkv_bias=True, out_bias=True, attention_block=None, name=None):
+def window_attention(inputs, window_size, num_heads=4, attention_block=None, name=None, **kwargs):
     input_channel = inputs.shape[-1]
     window_size = window_size if isinstance(window_size, (list, tuple)) else [window_size, window_size]
     window_height = window_size[0] if window_size[0] < inputs.shape[1] else inputs.shape[1]
@@ -73,9 +73,9 @@ def window_attention(inputs, window_size, num_heads=4, qkv_bias=True, out_bias=T
     nn = tf.reshape(nn, [-1, window_height, window_width, input_channel])  # [batch * patch_height * patch_width, window_height, window_width, input_channel]
 
     if attention_block:
-        nn = attention_block(nn)
+        nn = attention_block(nn, num_heads=num_heads, name=name, **kwargs)
     else:
-        nn = multi_head_self_attention(nn, num_heads=num_heads, qkv_bias=qkv_bias, out_bias=out_bias, name=name)
+        nn = multi_head_self_attention(nn, num_heads=num_heads, qkv_bias=True, out_bias=True, name=name)
 
     # window_reverse, merge windows
     # [batch * patch_height, patch_width, window_height, window_width * input_channel], limit transpose perm <= 4

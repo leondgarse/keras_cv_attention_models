@@ -74,6 +74,14 @@ def test_EdgeNeXt_defination():
     assert isinstance(mm, keras.models.Model)
 
 
+def test_GCViT_defination():
+    mm = keras_cv_attention_models.gcvit.GCViT_XXTiny(pretrained=None)
+    assert isinstance(mm, keras.models.Model)
+
+    mm = keras_cv_attention_models.gcvit.GCViT_XTiny(pretrained=None, num_classes=0)
+    assert isinstance(mm, keras.models.Model)
+
+
 def test_GMLP_defination():
     mm = keras_cv_attention_models.mlp_family.GMLPB16(pretrained=None)
     assert isinstance(mm, keras.models.Model)
