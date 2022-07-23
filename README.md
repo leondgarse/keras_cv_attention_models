@@ -1,9 +1,5 @@
 # Keras_cv_attention_models
 - **coco_train_script.py is under testing**
-- **Modified using `anchors_mode` value in `[anchor_free, yolor, efficientdet]` instead of all previous `use_anchor_free_mode` and `use_yolor_anchors_mode` in `training` / `evaluating` / `model structure`**. - `2022.04.15`
-- **`CoAtNet` is using `vv_dim = key_dim` instead of previous `vv_dim = out_shape // num_heads` now, and pretrained weights updated, be caution of this update if wanna reload earlier models**. - `2022.04.24`
-- **`SwinTransformerV2` parameter `window_ratio` is replaced with `window_size` for preferring new weights from official publication**. - `2022.05.16`
-
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [General Usage](#general-usage)

@@ -16,6 +16,8 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
     "efficientformer_l1": {"imagenet": {224: "7698d40d502ccc548a7e2890fb33db34"}},
+    "efficientformer_l3": {"imagenet": {224: "ee3d11742d233bc2ec36648440cb5a0b"}},
+    "efficientformer_l7": {"imagenet": {224: "66c26fc1e0bd39bbf6886d570956d178"}},
 }
 
 
@@ -114,12 +116,12 @@ def EfficientFormerL1(input_shape=(224, 224, 3), num_classes=1000, activation="g
 def EfficientFormerL3(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
     num_blocks = [4, 4, 12, 6]
     out_channels = [64, 128, 320, 512]
-    attn_blocks_in_last_stack = 4
+    num_attn_blocks_in_last_stack = 4
     return EfficientFormer(**locals(), model_name="efficientformer_l3", **kwargs)
 
 
 def EfficientFormerL7(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
     num_blocks = [6, 6, 18, 8]
     out_channels = [96, 192, 384, 768]
-    attn_blocks_in_last_stack = 4
+    num_attn_blocks_in_last_stack = 8
     return EfficientFormer(**locals(), model_name="efficientformer_l7", **kwargs)

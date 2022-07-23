@@ -4,6 +4,8 @@
 ## Summary
   - Keras implementation of [Github snap-research/efficientformer](https://github.com/snap-research/efficientformer). Paper [PDF 2206.01191 EfficientFormer: Vision Transformers at MobileNet Speed](https://arxiv.org/pdf/2206.01191.pdf).
   - Model weights reloaded from official publication.
+
+  ![efficientformer](https://user-images.githubusercontent.com/5744524/180598201-e7d47c9e-0e36-40bf-9a2b-7c6a5f6b9d56.PNG)
 ## Models
   | Model                      | Params | FLOPs | Input | Top1 Acc | Download |
   | -------------------------- | ------ | ----- | ----- | -------- | -------- |
@@ -55,8 +57,7 @@
 ## Verification with PyTorch version
   ```py
   input_shape = 224
-  # inputs = np.random.uniform(size=(1, input_shape, input_shape, 3)).astype("float32")
-  inputs = np.ones((1, input_shape, input_shape, 3)).astype("float32")
+  inputs = np.random.uniform(size=(1, input_shape, input_shape, 3)).astype("float32")
 
   """ PyTorch efficientformer_l1 """
   sys.path.append('../EfficientFormer/')
