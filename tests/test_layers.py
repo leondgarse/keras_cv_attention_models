@@ -154,11 +154,11 @@ def test_light_mhsa_with_multi_head_relative_position_embedding():
 
 
 def test_mhsa_with_multi_head_position_and_strides():
-    input_shape = [2, 28 * 28, 192]
+    input_shape = [2, 28, 18, 192]
     strides = 2
     output_dim = 384
     out = attention_layers.mhsa_with_multi_head_position_and_strides(tf.ones(input_shape), output_dim=output_dim, num_heads=4, key_dim=16, strides=strides)
-    assert out.shape == [input_shape[0], input_shape[1] // strides // strides, output_dim]
+    assert out.shape == [input_shape[0], input_shape[1] // strides, input_shape[2] // strides, output_dim]
 
 
 def test_mhsa_with_relative_position_embedding():

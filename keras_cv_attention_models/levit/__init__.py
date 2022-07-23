@@ -7,6 +7,7 @@ from keras_cv_attention_models.levit.levit import (
     LeViT384,
     MultiHeadPositionalEmbedding,
     mhsa_with_multi_head_position_and_strides,
+    mhsa_with_multi_head_position,
 )
 
 
@@ -73,7 +74,12 @@ Multi Head Positional Embedding layer.
 Positional embedding shape is `[height * width, num_heads]`.
 input: `[batch, num_heads, query_blocks, key_blocks]`.
 output: `[batch, num_heads, query_blocks, key_blocks] + positional_bias`.
-conditions: query_height == query_width, key_height == key_width, key_height >= query_height
+conditions: key_height >= query_height, key_width >= query_width
+
+Args:
+  query_height: specify `height` for `query_blocks` if not square `query_height != query_width`.
+  key_height: specify `height` for `key_blocks`.
+      `-1` for auto calculating from `query_height` and `kk_blocks / qq_blocks` ratio. Works in most cases.
 
 Examples:
 
@@ -88,14 +94,54 @@ Examples:
 >>> plt.imshow(aa.bb_pos)
 """
 
+mhsa_with_multi_head_position.__doc__ = __head_doc__ + """
+Multi Head Self Attention with MultiHeadPositionalEmbedding.
+Using additional `BatchNormalization` for `query / key / value`,
+and adding `MultiHeadPositionalEmbedding` to `attention_scores`.
+
+input: `[batch, height, width, channel]`.
+output: `[batch, height, width, channel]`.
+
+Args:
+  inputs: Input tensor.
+  output_dim: The expected channel dimension of output.
+  num_heads: Number of attention heads.
+  key_dim: Size of each attention head for query and key.
+  attn_ratio: value channel dimension expansion.
+  use_bn: boolean value if use BN layers for qkv and output.
+  activation: activation for output, `None` to disable.
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> inputs = keras.layers.Input([14, 12, 192])
+>>> nn = attention_layers.mhsa_with_multi_head_position(inputs, output_dim=384, num_heads=4, key_dim=16)
+>>> print(f"{nn.shape = }")
+# nn.shape = TensorShape([None, 14, 12, 384])
+
+>>> mm = keras.models.Model(inputs, nn)
+>>> print({ii.name:ii.numpy().shape for ii in mm.weights})
+# {'dense/kernel:0': (192, 192),
+#  'batch_normalization/gamma:0': (192,),
+#  'batch_normalization/beta:0': (192,),
+#  'batch_normalization/moving_mean:0': (192,),
+#  'batch_normalization/moving_variance:0': (192,),
+#  'multi_head_positional_embedding/positional_embedding:0': (168, 4),
+#  'dense_1/kernel:0': (64, 384),
+#  'batch_normalization_1/gamma:0': (384,),
+#  'batch_normalization_1/beta:0': (384,),
+#  'batch_normalization_1/moving_mean:0': (384,),
+#  'batch_normalization_1/moving_variance:0': (384,)}
+"""
+
 mhsa_with_multi_head_position_and_strides.__doc__ = __head_doc__ + """
 Multi Head Self Attention with MultiHeadPositionalEmbedding and enabled strides on `query`.
 Using additional `BatchNormalization` for `query / key / value`,
 and adding `MultiHeadPositionalEmbedding` to `attention_scores`.
 Also with a `strides` parameter which can further reduce calculation.
 
-input: `[batch, height * width, channel]`.
-output: `[batch, height * width, channel]`.
+input: `[batch, height, width, channel]`.
+output: `[batch, height, width, channel]`.
 
 Args:
   inputs: Input tensor.
@@ -104,31 +150,33 @@ Args:
   key_dim: Size of each attention head for query and key.
   attn_ratio: value channel dimension expansion.
   strides: query strides on height and width dimension.
+  use_bn: boolean value if use BN layers for qkv and output.
   activation: activation for output, `None` to disable.
 
 Examples:
 
 >>> from keras_cv_attention_models import attention_layers
->>> inputs = keras.layers.Input([14 * 14, 192])
+>>> inputs = keras.layers.Input([14, 12, 192])
 >>> nn = attention_layers.mhsa_with_multi_head_position_and_strides(inputs, output_dim=384, num_heads=4, key_dim=16, strides=2)
 >>> print(f"{nn.shape = }")
-# nn.shape = TensorShape([None, 49, 384])
+# nn.shape = TensorShape([None, 7, 6, 384])
 
 >>> mm = keras.models.Model(inputs, nn)
 >>> print({ii.name:ii.numpy().shape for ii in mm.weights})
-{'kv/kernel:0': (192, 192),
- 'q/kernel:0': (192, 64),
- 'kv_bn/gamma:0': (192,),
- 'kv_bn/beta:0': (192,),
- 'kv_bn/moving_mean:0': (192,),
- 'kv_bn/moving_variance:0': (192,),
- 'q_bn/gamma:0': (64,), 'q_bn/beta:0': (64,),
- 'q_bn/moving_mean:0': (64,),
- 'q_bn/moving_variance:0': (64,),
- 'attn_pos/positional_embedding:0': (196, 4),
- 'out/kernel:0': (128, 384),
- 'out_bn/gamma:0': (384,),
- 'out_bn/beta:0': (384,),
- 'out_bn/moving_mean:0': (384,),
- 'out_bn/moving_variance:0': (384,)}
+# {'dense_4/kernel:0': (192, 192),
+#  'dense_3/kernel:0': (192, 64),
+#  'batch_normalization_4/gamma:0': (192,),
+#  'batch_normalization_4/beta:0': (192,),
+#  'batch_normalization_4/moving_mean:0': (192,),
+#  'batch_normalization_4/moving_variance:0': (192,),
+#  'batch_normalization_3/gamma:0': (64,),
+#  'batch_normalization_3/beta:0': (64,),
+#  'batch_normalization_3/moving_mean:0': (64,),
+#  'batch_normalization_3/moving_variance:0': (64,),
+#  'multi_head_positional_embedding_1/positional_embedding:0': (168, 4),
+#  'dense_5/kernel:0': (128, 384),
+#  'batch_normalization_5/gamma:0': (384,),
+#  'batch_normalization_5/beta:0': (384,),
+#  'batch_normalization_5/moving_mean:0': (384,),
+#  'batch_normalization_5/moving_variance:0': (384,)}
 """

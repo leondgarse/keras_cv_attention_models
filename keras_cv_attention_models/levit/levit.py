@@ -16,15 +16,29 @@ PRETRAINED_DICT = {
 
 @tf.keras.utils.register_keras_serializable(package="levit")
 class MultiHeadPositionalEmbedding(keras.layers.Layer):
-    def __init__(self, **kwargs):
+    def __init__(self, query_height=-1, key_height=-1, **kwargs):
         super(MultiHeadPositionalEmbedding, self).__init__(**kwargs)
+        self.query_height, self.key_height = query_height, key_height
 
     def build(self, input_shape, **kwargs):
         _, num_heads, qq_blocks, kk_blocks = input_shape
         self.bb = self.add_weight(name="positional_embedding", shape=(kk_blocks, num_heads), initializer="zeros", trainable=True)
+
+        if self.query_height == -1:
+            q_blocks_h = q_blocks_w = int(tf.math.sqrt(float(qq_blocks)))  # hh == ww
+        else:
+            q_blocks_h, q_blocks_w = self.query_height, int(qq_blocks / self.query_height)
+
         strides = int(tf.math.ceil(tf.math.sqrt(float(kk_blocks / qq_blocks))))
-        q_blocks_h = q_blocks_w = int(tf.math.sqrt(float(qq_blocks)))
-        k_blocks_h = k_blocks_w = int(tf.math.sqrt(float(kk_blocks)))
+        if self.key_height == -1:
+            k_blocks_h = q_blocks_h * strides
+            while kk_blocks % k_blocks_h != 0:
+                k_blocks_h -= 1
+            k_blocks_w = int(kk_blocks / k_blocks_h)
+        else:
+            k_blocks_h, k_blocks_w = self.key_height, int(kk_blocks / self.key_height)
+        self.k_blocks_h, self.k_blocks_w = k_blocks_h, k_blocks_w
+        # print(f"{q_blocks_h = }, {q_blocks_w = }, {k_blocks_h = }, {k_blocks_w = }, {strides = }")
 
         x1, y1 = tf.meshgrid(range(q_blocks_h), range(q_blocks_w))
         x2, y2 = tf.meshgrid(range(k_blocks_h), range(k_blocks_w))
@@ -42,6 +56,11 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
         pos_bias = tf.transpose(pos_bias, [2, 0, 1])
         return inputs + pos_bias
 
+    def get_config(self):
+        base_config = super().get_config()
+        base_config.update({"query_height": self.query_height, "key_height": self.key_height})
+        return base_config
+
     def load_resized_pos_emb(self, source_layer, method="nearest"):
         if isinstance(source_layer, dict):
             source_bb = source_layer["positional_embedding:0"]  # weights
@@ -49,8 +68,8 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
             source_bb = source_layer.bb  # layer
         hh = ww = int(tf.math.sqrt(float(source_bb.shape[0])))
         ss = tf.reshape(source_bb, (hh, ww, source_bb.shape[-1]))  # [hh, ww, num_heads]
-        target_hh = target_ww = int(tf.math.sqrt(float(self.bb.shape[0])))
-        tt = tf.image.resize(ss, [target_hh, target_ww], method=method)  # [target_hh, target_ww, num_heads]
+        # target_hh = target_ww = int(tf.math.sqrt(float(self.bb.shape[0])))
+        tt = tf.image.resize(ss, [self.k_blocks_h, self.k_blocks_w], method=method)  # [target_hh, target_ww, num_heads]
         tt = tf.reshape(tt, (self.bb.shape))  # [target_hh * target_ww, num_heads]
         self.bb.assign(tt)
 
@@ -68,63 +87,64 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
         return fig
 
 
-def scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_dim, activation="hard_swish", name=""):
+def scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_shape, use_bn=True, activation="hard_swish", name=None):
+    height, width, output_dim = output_shape
     # qq, kk, vv: [batch, num_heads, blocks, key_dim]
     qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
     # print(f"{qq.shape = }, {kk.shape = }")
     # attn = tf.matmul(qq, kk, transpose_b=True) * qk_scale   # [batch, num_heads, q_blocks, k_blocks]
     attn = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1], transpose_b=True))([qq, kk]) * qk_scale
     # print(f"{attn.shape = }")
-    attn = MultiHeadPositionalEmbedding(name=name + "attn_pos")(attn)
+    attn = MultiHeadPositionalEmbedding(query_height=height, name=name and name + "attn_pos")(attn)
     # attn = tf.nn.softmax(attn, axis=-1)
     attn = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attn)
 
     # output = tf.matmul(attn, vv)    # [batch, num_heads, q_blocks, key_dim * attn_ratio]
     output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attn, vv])
     output = tf.transpose(output, perm=[0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
-    output = tf.reshape(output, [-1, output.shape[1], output.shape[2] * output.shape[3]])  # [batch, q_blocks, channel * attn_ratio]
+    output = tf.reshape(output, [-1, height, width, output.shape[2] * output.shape[3]])  # [batch, q_blocks, channel * attn_ratio]
     if activation:
         output = activation_by_name(output, activation=activation, name=name)
-    output = keras.layers.Dense(output_dim, use_bias=False, name=name + "out")(output)
-    output = batchnorm_with_activation(output, activation=None, zero_gamma=True, name=name + "out_")
+    output = keras.layers.Dense(output_dim, use_bias=False, name=name and name + "out")(output)
+    if use_bn:
+        output = batchnorm_with_activation(output, activation=None, zero_gamma=True, name=name and name + "out_")
     return output
 
 
-def mhsa_with_multi_head_position(inputs, output_dim, num_heads, key_dim, attn_ratio, activation="hard_swish", name=""):
-    _, blocks, _ = inputs.shape
+def mhsa_with_multi_head_position(inputs, output_dim, num_heads, key_dim, attn_ratio=1, use_bn=True, activation="hard_swish", name=None):
+    _, height, width, _ = inputs.shape
     embed_dim = key_dim * num_heads
 
     qkv_dim = (attn_ratio + 1 + 1) * embed_dim
-    qkv = keras.layers.Dense(qkv_dim, use_bias=False, name=name + "qkv")(inputs)
-    qkv = batchnorm_with_activation(qkv, activation=None, name=name + "qkv_")
-    qkv = tf.reshape(qkv, (-1, blocks, num_heads, qkv_dim // num_heads))
+    qkv = keras.layers.Dense(qkv_dim, use_bias=False, name=name and name + "qkv")(inputs)
+    qkv = batchnorm_with_activation(qkv, activation=None, name=name and name + "qkv_") if use_bn else qkv
+    qkv = tf.reshape(qkv, (-1, qkv.shape[1] * qkv.shape[2], num_heads, qkv_dim // num_heads))
     qkv = tf.transpose(qkv, perm=[0, 2, 1, 3])
     qq, kk, vv = tf.split(qkv, [key_dim, key_dim, key_dim * attn_ratio], axis=-1)
-    return scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_dim=output_dim, activation=activation, name=name)
+    output_shape = (height, width, output_dim)
+    return scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_shape=output_shape, use_bn=use_bn, activation=activation, name=name)
 
 
-def mhsa_with_multi_head_position_and_strides(inputs, output_dim, num_heads, key_dim, attn_ratio=2, strides=1, activation="hard_swish", name=""):
-    _, blocks, channel = inputs.shape
+def mhsa_with_multi_head_position_and_strides(inputs, output_dim, num_heads, key_dim, attn_ratio=1, strides=1, use_bn=True, activation="hard_swish", name=None):
     embed_dim = key_dim * num_heads
 
-    if strides != 1:
-        width = int(tf.sqrt(float(blocks)))
-        qq = tf.reshape(inputs, (-1, width, width, channel))[:, ::strides, ::strides, :]
-        qq = tf.reshape(qq, [-1, qq.shape[1] * qq.shape[2], channel])
-    else:
-        qq = inputs
-    qq = keras.layers.Dense(embed_dim, use_bias=False, name=name + "q")(qq)
-    qq = batchnorm_with_activation(qq, activation=None, name=name + "q_")
-    qq = tf.reshape(qq, [-1, qq.shape[1], num_heads, key_dim])
+    qq = inputs[:, ::strides, ::strides, :] if strides > 1 else inputs
+    height, width = qq.shape[1], qq.shape[2]
+    # print(f"{height = }, {width = }, {strides = }, {inputs.shape = }")
+    qq = keras.layers.Dense(embed_dim, use_bias=False, name=name and name + "q")(qq)
+    qq = batchnorm_with_activation(qq, activation=None, name=name and name + "q_") if use_bn else qq
+    qq = tf.reshape(qq, [-1, qq.shape[1] * qq.shape[2], num_heads, key_dim])
     qq = tf.transpose(qq, [0, 2, 1, 3])
 
     kv_dim = (attn_ratio + 1) * embed_dim
-    kv = keras.layers.Dense(kv_dim, use_bias=False, name=name + "kv")(inputs)
-    kv = batchnorm_with_activation(kv, activation=None, name=name + "kv_")
-    kv = tf.reshape(kv, (-1, blocks, num_heads, kv_dim // num_heads))
+    kv = keras.layers.Dense(kv_dim, use_bias=False, name=name and name + "kv")(inputs)
+    kv = batchnorm_with_activation(kv, activation=None, name=name and name + "kv_") if use_bn else kv
+    kv = tf.reshape(kv, (-1, kv.shape[1] * kv.shape[2], num_heads, kv_dim // num_heads))
     kv = tf.transpose(kv, perm=[0, 2, 1, 3])
     kk, vv = tf.split(kv, [key_dim, key_dim * attn_ratio], axis=-1)
-    return scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_dim=output_dim, activation=activation, name=name)
+    output_shape = (height, width, output_dim)
+    # print(f"{qq.shape = }, {kk.shape = }, {vv.shape = }, {output_shape = }")
+    return scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_shape=output_shape, use_bn=use_bn, activation=activation, name=name)
 
 
 def res_mhsa_with_multi_head_position(inputs, embed_dim, num_heads, key_dim, attn_ratio, drop_rate=0, activation="hard_swish", name=""):
@@ -178,14 +198,14 @@ def patch_stem(inputs, stem_width, activation="hard_swish", name=""):
 
 
 def LeViT(
-    patch_channel,
-    out_channels,
-    num_heads,
-    depthes,
-    key_dims,
-    attn_ratios,
-    mlp_ratios,
-    strides,
+    patch_channel=128,
+    out_channels=[256, 384, 384],  # C
+    num_heads=[4, 6, 8],  # N
+    depthes=[2, 3, 4],  # X
+    key_dims=[16, 16, 16],  # D
+    attn_ratios=[2, 2, 2],  # attn_ratio
+    mlp_ratios=[2, 2, 2],  # mlp_ratio
+    strides=[2, 2, 0],  # down_ops, strides
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="hard_swish",
@@ -199,7 +219,7 @@ def LeViT(
 ):
     inputs = keras.layers.Input(input_shape)
     nn = patch_stem(inputs, patch_channel, activation=activation, name="stem_")
-    nn = tf.reshape(nn, [-1, nn.shape[1] * nn.shape[2], patch_channel])
+    # nn = tf.reshape(nn, [-1, nn.shape[1] * nn.shape[2], patch_channel])
 
     global_block_id = 0
     total_blocks = sum(depthes)
@@ -217,7 +237,7 @@ def LeViT(
     if num_classes == 0:
         out = nn
     else:
-        nn = keras.layers.GlobalAveragePooling1D()(nn)  # tf.reduce_mean(nn, axis=1)
+        nn = keras.layers.GlobalAveragePooling2D()(nn)  # tf.reduce_mean(nn, axis=1)
         if dropout > 0 and dropout < 1:
             nn = keras.layers.Dropout(dropout)(nn)
         out = batchnorm_with_activation(nn, activation=None, name="head_")
@@ -234,75 +254,38 @@ def LeViT(
     return model
 
 
-BLOCK_CONFIGS = {
-    "128s": {
-        "patch_channel": 128,
-        "out_channels": [256, 384, 384],  # C
-        "num_heads": [4, 6, 8],  # N
-        "depthes": [2, 3, 4],  # X
-        "key_dims": [16, 16, 16],  # D
-        "attn_ratios": [2, 2, 2],  # attn_ratio
-        "mlp_ratios": [2, 2, 2],  # mlp_ratio
-        "strides": [2, 2, 0],  # down_ops, strides
-    },
-    "128": {
-        "patch_channel": 128,
-        "out_channels": [256, 384, 384],  # C
-        "num_heads": [4, 8, 12],  # N
-        "depthes": [4, 4, 4],  # X
-        "key_dims": [16, 16, 16],  # D
-        "attn_ratios": [2, 2, 2],  # attn_ratio
-        "mlp_ratios": [2, 2, 2],  # mlp_ratio
-        "strides": [2, 2, 0],  # down_ops, strides
-    },
-    "192": {
-        "patch_channel": 192,
-        "out_channels": [288, 384, 384],  # C
-        "num_heads": [3, 5, 6],  # N
-        "depthes": [4, 4, 4],  # X
-        "key_dims": [32, 32, 32],  # D
-        "attn_ratios": [2, 2, 2],  # attn_ratio
-        "mlp_ratios": [2, 2, 2],  # mlp_ratio
-        "strides": [2, 2, 0],  # down_ops, strides
-    },
-    "256": {
-        "patch_channel": 256,
-        "out_channels": [384, 512, 512],  # C
-        "num_heads": [4, 6, 8],  # N
-        "depthes": [4, 4, 4],  # X
-        "key_dims": [32, 32, 32],  # D
-        "attn_ratios": [2, 2, 2],  # attn_ratio
-        "mlp_ratios": [2, 2, 2],  # mlp_ratio
-        "strides": [2, 2, 0],  # down_ops, strides
-    },
-    "384": {
-        "patch_channel": 384,
-        "out_channels": [512, 768, 768],  # C
-        "num_heads": [6, 9, 12],  # N
-        "depthes": [4, 4, 4],  # X
-        "key_dims": [32, 32, 32],  # D
-        "attn_ratios": [2, 2, 2],  # attn_ratio
-        "mlp_ratios": [2, 2, 2],  # mlp_ratio
-        "strides": [2, 2, 0],  # down_ops, strides
-    },
-}
-
-
 def LeViT128S(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True, classifier_activation=None, pretrained="imagenet", **kwargs):
-    return LeViT(**BLOCK_CONFIGS["128s"], **locals(), model_name="levit128s", **kwargs)
+    return LeViT(**locals(), model_name="levit128s", **kwargs)
 
 
 def LeViT128(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True, classifier_activation=None, pretrained="imagenet", **kwargs):
-    return LeViT(**BLOCK_CONFIGS["128"], **locals(), model_name="levit128", **kwargs)
+    num_heads = [4, 8, 12]
+    depthes = [4, 4, 4]
+    return LeViT(**locals(), model_name="levit128", **kwargs)
 
 
 def LeViT192(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True, classifier_activation=None, pretrained="imagenet", **kwargs):
-    return LeViT(**BLOCK_CONFIGS["192"], **locals(), model_name="levit192", **kwargs)
+    patch_channel = 192
+    out_channels = [288, 384, 384]
+    num_heads = [3, 5, 6]
+    depthes = [4, 4, 4]
+    key_dims = [32, 32, 32]
+    return LeViT(**locals(), model_name="levit192", **kwargs)
 
 
 def LeViT256(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True, classifier_activation=None, pretrained="imagenet", **kwargs):
-    return LeViT(**BLOCK_CONFIGS["256"], **locals(), model_name="levit256", **kwargs)
+    patch_channel = 256
+    out_channels = [384, 512, 512]
+    num_heads = [4, 6, 8]
+    depthes = [4, 4, 4]
+    key_dims = [32, 32, 32]
+    return LeViT(**locals(), model_name="levit256", **kwargs)
 
 
 def LeViT384(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True, classifier_activation=None, pretrained="imagenet", **kwargs):
-    return LeViT(**BLOCK_CONFIGS["384"], **locals(), model_name="levit384", **kwargs)
+    patch_channel = 384
+    out_channels = [512, 768, 768]
+    num_heads = [6, 9, 12]
+    depthes = [4, 4, 4]
+    key_dims = [32, 32, 32]
+    return LeViT(**locals(), model_name="levit384", **kwargs)

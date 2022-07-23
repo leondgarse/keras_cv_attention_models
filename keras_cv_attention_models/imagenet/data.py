@@ -520,10 +520,10 @@ def show_batch_sample(dataset, rescale_mode="tf", rows=-1, base_size=3):
     mean, std = (mean.numpy(), std.numpy()) if hasattr(mean, "numpy") else (mean, std)
     images = (images * std + mean) / 255
 
-    if labels.shape[-1] == 1000:
+    if tf.shape(labels)[-1] == 1000:
         labels = [ii[0][1] for ii in keras.applications.imagenet_utils.decode_predictions(labels, top=1)]
-    else:
-        labels = tf.argmax(labels, axis=-1).numpy()
+    elif isinstance(labels[0], (list, tuple)):
+        labels = tf.argmax(labels, axis=-1).numpy()  # If 2 dimension
     ax, _ = visualizing.stack_and_plot_images(images, texts=labels, rows=rows, ax=None, base_size=base_size)
     return ax
 

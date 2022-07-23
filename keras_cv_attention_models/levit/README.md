@@ -41,21 +41,20 @@
   ```py
   from keras_cv_attention_models import levit
   # Will download and load pretrained imagenet weights.
-  mm = levit.LeViT256(input_shape=(320, 320, 3), pretrained="imagenet", use_distillation=True, classifier_activation=None)
+  mm = levit.LeViT256(input_shape=(292, 213, 3), pretrained="imagenet", use_distillation=True, classifier_activation=None)
   # >>>> Load pretrained from: ~/.keras/models/levit256_imagenet.h5
-  # WARNING:tensorflow:Skipping loading of weights for layer stack1_block1_attn_pos due to mismatch in shape ((400, 4) vs (196, 4)).
+  # WARNING:tensorflow:Skipping loading of weights for layer stack1_block1_attn_pos due to mismatch in shape ((266, 4) vs (196, 4)).
   # ...
-  # >>>> Reload mismatched PositionalEmbedding weights: 224 -> 320
+  # >>>> Reload mismatched PositionalEmbedding weights: 224 -> (292, 213)
   # >>>> Reload layer: stack1_block1_attn_pos
   # ...
 
-  # Run predict again using (320, 320)
   from skimage.data import chelsea
   imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0))
   pred = tf.nn.softmax((pred[0] + pred[1]) / 2).numpy()
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.88537), ('n02123159', 'tiger_cat', 0.09331669), ...]
+  # [('n02124075', 'Egyptian_cat', 0.8671425), ('n02123159', 'tiger_cat', 0.06060877), ...]
   ```
 ## Verification with PyTorch version
   ```py
