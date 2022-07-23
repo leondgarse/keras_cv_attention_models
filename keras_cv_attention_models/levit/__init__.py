@@ -104,11 +104,13 @@ output: `[batch, height, width, channel]`.
 
 Args:
   inputs: Input tensor.
-  output_dim: The expected channel dimension of output.
   num_heads: Number of attention heads.
-  key_dim: Size of each attention head for query and key.
+  key_dim: Size of each attention head for query and key. Default `-1` for `key_dim = input_channels // num_heads`.
+  output_dim: The expected channel dimension of output. Default `-1` for same with input.
   attn_ratio: value channel dimension expansion.
   use_bn: boolean value if use BN layers for qkv and output.
+  qkv_bias: boolean value if use bias for qkv layer.
+  out_bias: boolean value if use bias for output layer.
   activation: activation for output, `None` to disable.
 
 Examples:
@@ -147,10 +149,13 @@ Args:
   inputs: Input tensor.
   output_dim: The expected channel dimension of output.
   num_heads: Number of attention heads.
-  key_dim: Size of each attention head for query and key.
+  key_dim: Size of each attention head for query and key. Default `-1` for `key_dim = input_channels // num_heads`.
+  output_dim: The expected channel dimension of output. Default `-1` for same with input.
   attn_ratio: value channel dimension expansion.
   strides: query strides on height and width dimension.
   use_bn: boolean value if use BN layers for qkv and output.
+  qkv_bias: boolean value if use bias for qkv layer.
+  out_bias: boolean value if use bias for output layer.
   activation: activation for output, `None` to disable.
 
 Examples:

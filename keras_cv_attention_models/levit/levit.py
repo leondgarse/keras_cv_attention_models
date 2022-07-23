@@ -87,7 +87,7 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
         return fig
 
 
-def scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_shape, use_bn=True, activation="hard_swish", name=None):
+def scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_shape, use_bn=True, out_bias=False, activation=None, name=None):
     height, width, output_dim = output_shape
     # qq, kk, vv: [batch, num_heads, blocks, key_dim]
     qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
@@ -105,50 +105,61 @@ def scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_shape, 
     output = tf.reshape(output, [-1, height, width, output.shape[2] * output.shape[3]])  # [batch, q_blocks, channel * attn_ratio]
     if activation:
         output = activation_by_name(output, activation=activation, name=name)
-    output = keras.layers.Dense(output_dim, use_bias=False, name=name and name + "out")(output)
+    output = keras.layers.Dense(output_dim, use_bias=out_bias, name=name and name + "out")(output)
     if use_bn:
         output = batchnorm_with_activation(output, activation=None, zero_gamma=True, name=name and name + "out_")
     return output
 
 
-def mhsa_with_multi_head_position(inputs, output_dim, num_heads, key_dim, attn_ratio=1, use_bn=True, activation="hard_swish", name=None):
-    _, height, width, _ = inputs.shape
+def mhsa_with_multi_head_position(
+    inputs, num_heads, key_dim=-1, output_dim=-1, attn_ratio=1, use_bn=True, qkv_bias=False, out_bias=False, activation=None, name=None
+):
+    _, height, width, input_channels = inputs.shape
+    key_dim = key_dim if key_dim > 0 else input_channels // num_heads
+    output_dim = output_dim if output_dim > 0 else input_channels
     embed_dim = key_dim * num_heads
 
     qkv_dim = (attn_ratio + 1 + 1) * embed_dim
-    qkv = keras.layers.Dense(qkv_dim, use_bias=False, name=name and name + "qkv")(inputs)
+    qkv = keras.layers.Dense(qkv_dim, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
     qkv = batchnorm_with_activation(qkv, activation=None, name=name and name + "qkv_") if use_bn else qkv
     qkv = tf.reshape(qkv, (-1, qkv.shape[1] * qkv.shape[2], num_heads, qkv_dim // num_heads))
     qkv = tf.transpose(qkv, perm=[0, 2, 1, 3])
     qq, kk, vv = tf.split(qkv, [key_dim, key_dim, key_dim * attn_ratio], axis=-1)
     output_shape = (height, width, output_dim)
-    return scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_shape=output_shape, use_bn=use_bn, activation=activation, name=name)
+    return scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_shape, use_bn, out_bias, activation=activation, name=name)
 
 
-def mhsa_with_multi_head_position_and_strides(inputs, output_dim, num_heads, key_dim, attn_ratio=1, strides=1, use_bn=True, activation="hard_swish", name=None):
+def mhsa_with_multi_head_position_and_strides(
+    inputs, num_heads, key_dim=-1, output_dim=-1, attn_ratio=1, strides=1, use_bn=True, qkv_bias=False, out_bias=False, activation=None, name=None
+):
+    _, _, _, input_channels = inputs.shape
+    key_dim = key_dim if key_dim > 0 else input_channels // num_heads
+    output_dim = output_dim if output_dim > 0 else input_channels
+    emded_dim = num_heads * key_dim
+
     embed_dim = key_dim * num_heads
 
     qq = inputs[:, ::strides, ::strides, :] if strides > 1 else inputs
     height, width = qq.shape[1], qq.shape[2]
     # print(f"{height = }, {width = }, {strides = }, {inputs.shape = }")
-    qq = keras.layers.Dense(embed_dim, use_bias=False, name=name and name + "q")(qq)
+    qq = keras.layers.Dense(embed_dim, use_bias=qkv_bias, name=name and name + "q")(qq)
     qq = batchnorm_with_activation(qq, activation=None, name=name and name + "q_") if use_bn else qq
     qq = tf.reshape(qq, [-1, qq.shape[1] * qq.shape[2], num_heads, key_dim])
     qq = tf.transpose(qq, [0, 2, 1, 3])
 
     kv_dim = (attn_ratio + 1) * embed_dim
-    kv = keras.layers.Dense(kv_dim, use_bias=False, name=name and name + "kv")(inputs)
+    kv = keras.layers.Dense(kv_dim, use_bias=qkv_bias, name=name and name + "kv")(inputs)
     kv = batchnorm_with_activation(kv, activation=None, name=name and name + "kv_") if use_bn else kv
     kv = tf.reshape(kv, (-1, kv.shape[1] * kv.shape[2], num_heads, kv_dim // num_heads))
     kv = tf.transpose(kv, perm=[0, 2, 1, 3])
     kk, vv = tf.split(kv, [key_dim, key_dim * attn_ratio], axis=-1)
     output_shape = (height, width, output_dim)
     # print(f"{qq.shape = }, {kk.shape = }, {vv.shape = }, {output_shape = }")
-    return scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_shape=output_shape, use_bn=use_bn, activation=activation, name=name)
+    return scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_shape, use_bn, out_bias, activation=activation, name=name)
 
 
 def res_mhsa_with_multi_head_position(inputs, embed_dim, num_heads, key_dim, attn_ratio, drop_rate=0, activation="hard_swish", name=""):
-    nn = mhsa_with_multi_head_position(inputs, embed_dim, num_heads, key_dim, attn_ratio, activation=activation, name=name)
+    nn = mhsa_with_multi_head_position(inputs, num_heads, key_dim, embed_dim, attn_ratio, activation=activation, name=name)
     if drop_rate > 0:
         nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop")(nn)
     return keras.layers.Add(name=name + "add")([inputs, nn])
@@ -179,7 +190,7 @@ def attention_mlp_stack(inputs, out_channel, num_heads, depth, key_dim, attn_rat
         block_name = name + "downsample_"
         ds_num_heads = embed_dim // key_dim
         ds_attn_ratio = attn_ratio * strides
-        nn = mhsa_with_multi_head_position_and_strides(nn, out_channel, ds_num_heads, key_dim, ds_attn_ratio, strides, name=block_name)
+        nn = mhsa_with_multi_head_position_and_strides(nn, ds_num_heads, key_dim, out_channel, ds_attn_ratio, strides, activation=activation, name=block_name)
         if mlp_ratio > 0:
             nn = res_mlp_block(nn, mlp_ratio, drop_rate, activation=activation, name=block_name + "mlp_")
     return keras.layers.Activation("linear", name=name + "output")(nn)  # Identity, Just need a name here

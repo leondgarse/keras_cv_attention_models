@@ -25,6 +25,7 @@
   - [CoTNet](#cotnet)
   - [DaViT](#davit)
   - [EdgeNeXt](#edgenext)
+  - [EfficientFormer](#efficientformer)
   - [EfficientNet](#efficientnet)
   - [FBNetV3](#fbnetv3)
   - [GCViT](#gcvit)
@@ -483,6 +484,14 @@
   | EdgeNeXt_X_Small  | 2.34M  | 547M   | 256   | 74.96    | [edgenext_x_small_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_x_small_256_imagenet.h5) |
   | EdgeNeXt_Small    | 5.59M  | 1.27G  | 256   | 79.41    | [edgenext_small_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_imagenet.h5) |
   | - usi             | 5.59M  | 1.27G  | 256   | 81.07    | [edgenext_small_256_usi.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_usi.h5) |
+## EfficientFormer
+  - [Keras EfficientFormer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientformer) is for [PDF 2206.01191 EfficientFormer: Vision Transformers at MobileNet Speed](https://arxiv.org/pdf/2206.01191.pdf).
+
+  | Model                      | Params | FLOPs | Input | Top1 Acc | Download |
+  | -------------------------- | ------ | ----- | ----- | -------- | -------- |
+  | EfficientFormerL1, distill | 12.3M  | 1.31G | 224   | 79.2     | [l1_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l1_224_imagenet.h5) |
+  | EfficientFormerL3, distill | 31.4M  | 3.95G | 224   | 82.4     | [l3_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l3_224_imagenet.h5) |
+  | EfficientFormerL7, distill | 74.4M  | 9.79G | 224   | 83.3     | [l7_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l7_224_imagenet.h5) |
 ## EfficientNet
   - [Keras EfficientNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientnet) includes implementation of [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298).
 
