@@ -22,6 +22,12 @@ PRETRAINED_DICT = {
     "mobilevit_xxs": {"imagenet": "f9d1d4f7329726b4bb9069cd631a152e"},
     "mobilevit_xs": {"imagenet": "dcd8591668946aa4ddb0159dfe65cc2b"},
     "mobilevit_s": {"imagenet": "55f1051035ecd14e90ae3df80fd0c7f3"},
+    "mobilevit_v2_050": {"imagenet": {256: "a842a40c0f49dc2bbe935493caed061b"}},
+    "mobilevit_v2_075": {"imagenet": {256: "8588b3d6bf4aa750766ddc6d01824c67"}},
+    "mobilevit_v2_100": {"imagenet": {256: "55d499bbc29f0f6379a4cc6f610e10e8"}},
+    "mobilevit_v2_125": {"imagenet": {256: "b8af7b7668774796530f19dd5b6080fb"}},
+    "mobilevit_v2_150": {"imagenet": {256: "065e7a07f7e2d0d74a33913195df9044"}, "imagenet22k": {256: "cf3c4ec278154ece62e8967faa5c0391"}},
+    "mobilevit_v2_200": {"imagenet": {256: "1fe59d8bb2662761084d1c04259a778d"}},
 }
 
 
@@ -43,12 +49,12 @@ def linear_self_attention(inputs, qkv_bias=False, out_bias=False, attn_dropout=0
     input_channel = inputs.shape[-1]
     qkv = conv2d_no_bias(inputs, 1 + input_channel * 2, kernel_size=1, use_bias=qkv_bias, name=name and name + "qkv_")
     query, key, value = tf.split(qkv, [1, input_channel, input_channel], axis=-1)
-    context_score = keras.layers.Softmax(axis=[1, 2], name=name and name + "attention_scores")(query)
+    context_score = keras.layers.Softmax(axis=2, name=name and name + "attention_scores")(query)  # on patch_hh * patch_ww dimension
     context_score = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(context_score) if attn_dropout > 0 else context_score
     # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {context_score.shape = }")
 
     context_vector = keras.layers.Multiply()([key, context_score])  # [batch, height, width, input_channel]
-    context_vector = tf.reduce_sum(context_vector, keepdims=True, axis=[1, 2])
+    context_vector = tf.reduce_sum(context_vector, keepdims=True, axis=2)  # on patch_hh * patch_ww dimension
 
     out = tf.nn.relu(value) * context_vector
     out = conv2d_no_bias(out, input_channel, kernel_size=1, use_bias=out_bias, name=name and name + "output")
@@ -72,9 +78,9 @@ def mhsa_mlp_block(
     name=None,
 ):
     attn = group_norm(inputs, groups=num_norm_groups, name=name + "attn_") if num_norm_groups > 0 else layer_norm(inputs, name=name + "attn_")
-    if use_linear_attention:
+    if use_linear_attention:  # V2
         attn = linear_self_attention(attn, qkv_bias=qkv_bias, out_bias=True, attn_dropout=attn_drop_rate, name=name and name + "attn_mhsa_")
-    else:
+    else:  # V1
         attn = multi_head_self_attention(attn, num_heads, qkv_bias=qkv_bias, out_bias=True, attn_dropout=attn_drop_rate, name=name and name + "attn_mhsa_")
     attn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name and name + "1_gamma")(attn) if layer_scale >= 0 else attn
     attn = drop_block(attn, drop_rate=drop_rate, name=name and name + "attn_")
@@ -87,24 +93,24 @@ def mhsa_mlp_block(
     return keras.layers.Add(name=name and name + "output")([attn_out, mlp])
 
 
-def transformer_pre_process(inputs, out_channel, patch_size=2, resize_first=False, use_depthwise=False, activation="swish", name=""):
+def transformer_pre_process(inputs, out_channel, patch_size=2, resize_first=False, use_depthwise=False, patches_to_batch=True, activation="swish", name=""):
     nn = inputs
 
-    if resize_first:
-        patch_hh, patch_ww, _ = int(tf.math.ceil(nn.shape[1] / patch_size)), int(tf.math.ceil(nn.shape[2] / patch_size)), nn.shape[-1]
+    if resize_first:  # V2
+        patch_hh, patch_ww = int(tf.math.ceil(nn.shape[1] / patch_size)), int(tf.math.ceil(nn.shape[2] / patch_size))
         # print(f"transformer_pre_process before resize: {nn.shape = }")
         if patch_hh * patch_size != nn.shape[1] or patch_ww * patch_size != nn.shape[2]:
             nn = tf.image.resize(nn, [patch_hh * patch_size, patch_ww * patch_size], method="bilinear")
 
-    if use_depthwise:
+    if use_depthwise:  # V2
         nn = depthwise_conv2d_no_bias(nn, kernel_size=3, strides=1, padding="SAME", name=name + "pre_1_")
-    else:
+    else:  # V1
         nn = conv2d_no_bias(nn, nn.shape[-1], kernel_size=3, strides=1, padding="SAME", name=name + "pre_1_")
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "pre_1_")
     nn = conv2d_no_bias(nn, out_channel, kernel_size=1, strides=1, name=name + "pre_2_")
 
-    if not resize_first:
-        patch_hh, patch_ww, _ = int(tf.math.ceil(nn.shape[1] / patch_size)), int(tf.math.ceil(nn.shape[2] / patch_size)), nn.shape[-1]
+    if not resize_first:  # V1
+        patch_hh, patch_ww = int(tf.math.ceil(nn.shape[1] / patch_size)), int(tf.math.ceil(nn.shape[2] / patch_size))
         # print(f"transformer_pre_process before resize: {nn.shape = }")
         if patch_hh * patch_size != nn.shape[1] or patch_ww * patch_size != nn.shape[2]:
             nn = tf.image.resize(nn, [patch_hh * patch_size, patch_ww * patch_size], method="bilinear")
@@ -116,16 +122,20 @@ def transformer_pre_process(inputs, out_channel, patch_size=2, resize_first=Fals
     nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_hh * h_patch_size, w_patch_size, patch_ww, channel]
     nn = tf.reshape(nn, [-1, patch_hh, patch_size * patch_size, patch_ww * out_channel])  # [batch, patch_hh, h_patch_size * w_patch_size, patch_ww * channel]
     nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch, h_patch_size * w_patch_size, patch_hh, patch_ww * channel]
-    # extract_shape = [-1, patch_hh, patch_ww, out_channel] if patches_to_batch else [-1, patch_size * patch_size, patch_hh * patch_ww, out_channel]
-    extract_shape = [-1, patch_hh, patch_ww, out_channel]
+    extract_shape = [-1, patch_hh, patch_ww, out_channel] if patches_to_batch else [-1, patch_size * patch_size, patch_hh * patch_ww, out_channel]
     nn = tf.reshape(nn, extract_shape)
 
     return nn
 
 
-def transformer_post_process(inputs, pre_attn, out_channel, patch_size=2, activation="swish", name=""):
+def transformer_post_process(inputs, pre_attn, out_channel, patch_size=2, patch_height=-1, activation="swish", name=""):
+    if patch_height == -1:  # V1, [batch * 4, height // 2, width // 2, channel]
+        patch_hh, patch_ww, channel = inputs.shape[1], inputs.shape[2], inputs.shape[-1]
+    else:  # V2, [batch, 4, height // 2 * width // 2, channel]
+        patch_hh, patch_ww, channel = patch_height, inputs.shape[2] // patch_height, inputs.shape[-1]
+    # print(f"{patch_hh = }, {patch_ww = }, {channel = }, {inputs.shape = }")
+
     # [batch * 4, height // 2, width // 2, channel] -> [batch, height // 2, 2, width // 2, 2, channel] -> [batch, height, width, channel]
-    patch_hh, patch_ww, channel = inputs.shape[1], inputs.shape[2], inputs.shape[-1]
     nn = tf.reshape(inputs, [-1, patch_size * patch_size, patch_hh, patch_ww * channel])  # [batch, h_patch_size * w_patch_size, patch_hh, patch_ww * channel]
     nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch, patch_hh, h_patch_size * w_patch_size, patch_ww * channel]
     nn = tf.reshape(nn, [-1, patch_size, patch_ww, channel])  # [batch * patch_hh * h_patch_size, w_patch_size, patch_ww, channel]
@@ -138,7 +148,7 @@ def transformer_post_process(inputs, pre_attn, out_channel, patch_size=2, activa
 
     nn = conv2d_no_bias(nn, out_channel, kernel_size=1, strides=1, name=name + "post_1_")
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "post_1_")
-    if pre_attn is not None:
+    if pre_attn is not None:  # V1
         nn = tf.concat([pre_attn, nn], axis=-1)
         nn = conv2d_no_bias(nn, out_channel, kernel_size=3, strides=1, padding="SAME", name=name + "post_2_")
         nn = batchnorm_with_activation(nn, activation=activation, name=name + "post_2_")
@@ -154,6 +164,7 @@ def MobileViT(
     expand_ratio=4,
     stem_width=16,
     patch_size=2,
+    patches_to_batch=True,
     resize_first=False,  # V2 paramer
     use_depthwise=False,  # V2 paramer
     use_fusion=True,  # V2 paramer
@@ -207,11 +218,12 @@ def MobileViT(
             else:
                 if block_id == 1:  # pre
                     pre_attn = nn if use_fusion else None
-                    nn = transformer_pre_process(nn, attn_channel, patch_size, resize_first, use_depthwise, activation=activation, name=name)
+                    patch_height = -1 if patches_to_batch else int(tf.math.ceil(nn.shape[1] / patch_size))
+                    nn = transformer_pre_process(nn, attn_channel, patch_size, resize_first, use_depthwise, patches_to_batch, activation=activation, name=name)
                 nn = mhsa_mlp_block(nn, attn_channel, layer_scale=layer_scale, **mhsa_mlp_block_common_kwargs, name=name)
                 if block_id == num_block - 1:  # post
                     nn = group_norm(nn, groups=num_norm_groups, name=name + "post_") if num_norm_groups > 0 else layer_norm(nn, name=name + "post_")
-                    nn = transformer_post_process(nn, pre_attn, out_channel, patch_size, activation=post_activation, name=name)
+                    nn = transformer_post_process(nn, pre_attn, out_channel, patch_size, patch_height, activation=post_activation, name=name)
 
     nn = output_block(nn, output_num_features, activation, num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
     model = keras.models.Model(inputs, nn, name=model_name)
@@ -226,6 +238,7 @@ def MobileViT_V2(
     attn_channels=0.5,  # Can be a list matching out_channels, or a float number for expansion ratio of out_channels
     expand_ratio=2,
     stem_width=32,
+    patches_to_batch=False,
     resize_first=True,
     use_depthwise=True,
     use_fusion=False,

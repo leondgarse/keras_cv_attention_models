@@ -1,4 +1,17 @@
-from keras_cv_attention_models.mobilevit.mobilevit import MobileViT, MobileViT_XXS, MobileViT_XS, MobileViT_S
+from keras_cv_attention_models.mobilevit.mobilevit import (
+    MobileViT,
+    MobileViT_XXS,
+    MobileViT_XS,
+    MobileViT_S,
+    MobileViT_V2,
+    MobileViT_V2_050,
+    MobileViT_V2_075,
+    MobileViT_V2_100,
+    MobileViT_V2_125,
+    MobileViT_V2_150,
+    MobileViT_V2_175,
+    MobileViT_V2_200,
+)
 
 __head_doc__ = """
 Keras implementation of [Github apple/ml-cvnets/mobilevit](https://github.com/apple/ml-cvnets/blob/main/cvnets/models/classification/mobilevit.py).
