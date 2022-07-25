@@ -146,6 +146,12 @@ def test_halo_attention():
     assert out.shape == [input_shape[0], input_shape[1], input_shape[2], out_shape]
 
 
+def test_linear_self_attention():
+    input_shape = [2, 14, 16, 256]
+    out = attention_layers.linear_self_attention(tf.ones(input_shape), attn_axis=-1)
+    assert out.shape == input_shape
+
+
 def test_light_mhsa_with_multi_head_relative_position_embedding():
     input_shape = [2, 14, 16, 256]
     out_shape = 384

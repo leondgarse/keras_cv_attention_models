@@ -111,8 +111,10 @@ Args:
   inputs: input tensor.
   num_heads: Number of attention heads.
   key_dim: Size of each attention head for query and key. Default `0` for `key_dim = inputs.shape[-1] // num_heads`.
+  global_query: whether use a specified `query` from outside. Default `None` for not using.
   out_shape: The expected shape of an output tensor. If not specified, projects back to the input dim.
   out_weight: Boolean, whether use an ouput dense.
+  qkv_bias: Boolean, whether the qkv dense layer use bias vectors/matrices.
   out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
   attn_dropout: Dropout probability for attention.
 

@@ -32,6 +32,7 @@
   - [MLP mixer](#mlp-mixer)
   - [MobileNetV3](#mobilenetv3)
   - [MobileViT](#mobilevit)
+  - [MobileViT_V2](#mobilevit_v2)
   - [NAT](#nat)
   - [NFNets](#nfnets)
   - [RegNetY](#regnety)
@@ -637,6 +638,24 @@
   | MobileViT_XXS | 1.3M   | 0.42G | 256   | 69.0     | [mobilevit_xxs_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_xxs_imagenet.h5) |
   | MobileViT_XS  | 2.3M   | 1.05G | 256   | 74.7     | [mobilevit_xs_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_xs_imagenet.h5) |
   | MobileViT_S   | 5.6M   | 2.03G | 256   | 78.3     | [mobilevit_s_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_s_imagenet.h5) |
+## MobileViT_V2
+  - [Keras MobileViT_V2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilevit) is for [PDF 2206.02680 Separable Self-attention for Mobile Vision Transformers](https://arxiv.org/pdf/2206.02680.pdf).
+
+  | Model              | Params | FLOPs | Input | Top1 Acc | Download |
+  | ------------------ | ------ | ----- | ----- | -------- | -------- |
+  | MobileViT_V2_050   | 1.37M  | 0.47G | 256   | 70.18    | [v2_050_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_050_256_imagenet.h5) |
+  | MobileViT_V2_075   | 2.87M  | 1.04G | 256   | 75.56    | [v2_075_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_075_256_imagenet.h5) |
+  | MobileViT_V2_100   | 4.90M  | 1.83G | 256   | 78.09    | [v2_100_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_100_256_imagenet.h5) |
+  | MobileViT_V2_125   | 7.48M  | 2.84G | 256   | 79.65    | [v2_125_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_125_256_imagenet.h5) |
+  | MobileViT_V2_150   | 10.6M  | 4.07G | 256   | 80.38    | [v2_150_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_150_256_imagenet.h5) |
+  | - imagenet22k      | 10.6M  | 4.07G | 256   | 81.46    | [v2_150_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_150_256_imagenet22k.h5) |
+  | - imagenet22k, 384 | 10.6M  | 9.15G | 384   | 82.60    | [v2_150_384_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_150_384_imagenet22k.h5) |
+  | MobileViT_V2_175   | 14.3M  | 5.52G | 256   | 80.84    | [v2_175_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_175_256_imagenet.h5) |
+  | - imagenet22k      | 14.3M  | 5.52G | 256   | 81.94    | [v2_175_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_175_256_imagenet22k.h5) |
+  | - imagenet22k, 384 | 14.3M  | 12.4G | 384   | 82.93    | [v2_175_384_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_175_384_imagenet22k.h5) |
+  | MobileViT_V2_200   | 18.4M  | 7.12G | 256   | 81.17    | [v2_200_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_200_256_imagenet.h5) |
+  | - imagenet22k      | 18.4M  | 7.12G | 256   | 82.36    | [v2_200_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_200_256_imagenet22k.h5) |
+  | - imagenet22k, 384 | 18.4M  | 16.2G | 384   | 83.41    | [v2_200_384_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_200_384_imagenet22k.h5) |
 ## NAT
   - [Keras NAT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/nat) is for [PDF 2204.07143 Neighborhood Attention Transformer](https://arxiv.org/pdf/2204.07143.pdf).
 

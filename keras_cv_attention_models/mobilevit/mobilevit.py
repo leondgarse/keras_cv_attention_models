@@ -26,8 +26,18 @@ PRETRAINED_DICT = {
     "mobilevit_v2_075": {"imagenet": {256: "8588b3d6bf4aa750766ddc6d01824c67"}},
     "mobilevit_v2_100": {"imagenet": {256: "55d499bbc29f0f6379a4cc6f610e10e8"}},
     "mobilevit_v2_125": {"imagenet": {256: "b8af7b7668774796530f19dd5b6080fb"}},
-    "mobilevit_v2_150": {"imagenet": {256: "065e7a07f7e2d0d74a33913195df9044"}, "imagenet22k": {256: "cf3c4ec278154ece62e8967faa5c0391"}},
-    "mobilevit_v2_200": {"imagenet": {256: "1fe59d8bb2662761084d1c04259a778d"}},
+    "mobilevit_v2_150": {
+        "imagenet": {256: "065e7a07f7e2d0d74a33913195df9044"},
+        "imagenet22k": {256: "cf3c4ec278154ece62e8967faa5c0391", 384: "cdcfaebb573f8cd1f41044ac0e958204"},
+    },
+    "mobilevit_v2_175": {
+        "imagenet": {256: "627719428c6cb35f071a7ea69a6961c4"},
+        "imagenet22k": {256: "b849708a6b2c1f115b8b8c366e1d1a19", 384: "d3feef5108b6195d1c5525fb185bf720"},
+    },
+    "mobilevit_v2_200": {
+        "imagenet": {256: "1fe59d8bb2662761084d1c04259a778d"},
+        "imagenet22k": {256: "931f0be1761bcf8443359ec1661bb6a7", 384: "1dc6cdafb187611e5a4819272d64fba7"},
+    },
 }
 
 
@@ -45,16 +55,16 @@ def bottle_in_linear_out_block(inputs, out_channel, strides=1, expand_ratio=4, u
     return out
 
 
-def linear_self_attention(inputs, qkv_bias=False, out_bias=False, attn_dropout=0, name=None):
+def linear_self_attention(inputs, qkv_bias=False, out_bias=False, attn_axis=2, attn_dropout=0, name=None):
     input_channel = inputs.shape[-1]
     qkv = conv2d_no_bias(inputs, 1 + input_channel * 2, kernel_size=1, use_bias=qkv_bias, name=name and name + "qkv_")
     query, key, value = tf.split(qkv, [1, input_channel, input_channel], axis=-1)
-    context_score = keras.layers.Softmax(axis=2, name=name and name + "attention_scores")(query)  # on patch_hh * patch_ww dimension
+    context_score = keras.layers.Softmax(axis=attn_axis, name=name and name + "attention_scores")(query)  # on patch_hh * patch_ww dimension
     context_score = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(context_score) if attn_dropout > 0 else context_score
     # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {context_score.shape = }")
 
     context_vector = keras.layers.Multiply()([key, context_score])  # [batch, height, width, input_channel]
-    context_vector = tf.reduce_sum(context_vector, keepdims=True, axis=2)  # on patch_hh * patch_ww dimension
+    context_vector = tf.reduce_sum(context_vector, keepdims=True, axis=attn_axis)  # on patch_hh * patch_ww dimension
 
     out = tf.nn.relu(value) * context_vector
     out = conv2d_no_bias(out, input_channel, kernel_size=1, use_bias=out_bias, name=name and name + "output")
@@ -67,9 +77,9 @@ def mhsa_mlp_block(
     num_heads=4,
     qkv_bias=True,
     mlp_ratio=4,
-    num_norm_groups=-1,
-    use_linear_attention=False,
-    use_conv_mlp=False,
+    num_norm_groups=-1,  # -1 or 0 for V1 using layer_norm, or 1 for V2 using group_norm
+    use_linear_attention=False,  # False for V1, True for V2
+    use_conv_mlp=False,  # False for V1, True for V2
     mlp_drop_rate=0,
     attn_drop_rate=0,
     drop_rate=0,
@@ -164,13 +174,13 @@ def MobileViT(
     expand_ratio=4,
     stem_width=16,
     patch_size=2,
-    patches_to_batch=True,
-    resize_first=False,  # V2 paramer
-    use_depthwise=False,  # V2 paramer
-    use_fusion=True,  # V2 paramer
-    num_norm_groups=-1,  # V2 paramer. -1 or 0 for layer_norm, or use group_norm. For v2 it's num_norm_groups=1
-    use_linear_attention=False,  # V2 paramer
-    use_conv_mlp=False,
+    patches_to_batch=True,  # True for V1, False for V2
+    resize_first=False,  # False for V1, True for V2
+    use_depthwise=False,  # False for V1, True for V2
+    use_fusion=True,  # True for V1, False for V2
+    num_norm_groups=-1,  # -1 or 0 for V1 using layer_norm, or 1 for V2 using group_norm
+    use_linear_attention=False,  # False for V1, True for V2
+    use_conv_mlp=False,  # False for V1, True for V2
     output_num_features=640,
     layer_scale=-1,
     input_shape=(256, 256, 3),
@@ -206,7 +216,6 @@ def MobileViT(
         stack_name = "stack{}_".format(id + 1)
         is_conv_block = True if block_type[0].lower() == "c" else False
         attn_channel = attn_channels[id] if isinstance(attn_channels, (list, tuple)) else make_divisible(attn_channels * out_channel, divisor=8)
-        # nn = stack(nn, num_block, out_channel, is_conv_block, stride, expand_ratio, attn_channel, drop_connect, layer_scale, activation, name=stack_name)
         for block_id in range(num_block):
             name = stack_name + "block{}_".format(block_id + 1)
             stride = stride if block_id == 0 else 1
@@ -232,31 +241,6 @@ def MobileViT(
     return model
 
 
-def MobileViT_V2(
-    num_blocks=[1, 2, 3, 5, 4],
-    out_channels=[64, 128, 256, 384, 512],
-    attn_channels=0.5,  # Can be a list matching out_channels, or a float number for expansion ratio of out_channels
-    expand_ratio=2,
-    stem_width=32,
-    patches_to_batch=False,
-    resize_first=True,
-    use_depthwise=True,
-    use_fusion=False,
-    num_norm_groups=1,  # -1 or 0 for layer_norm, or use group_norm. For v2 it's num_norm_groups=1
-    use_linear_attention=True,
-    use_conv_mlp=True,
-    output_num_features=0,
-    model_name="mobilevit_v2",
-    **kwargs,
-):
-    kwargs.pop("kwargs", None)
-    return MobileViT(**locals(), **kwargs)
-
-
-def get_mobilevit_v2_width(multiplier=1.0):
-    return int(32 * multiplier), [int(ii * multiplier) for ii in [64, 128, 256, 384, 512]]  # stem_width, out_channels
-
-
 def MobileViT_XXS(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [1, 3, 3, 5, 4]
     out_channels = [16, 24, 48, 64, 80]
@@ -279,37 +263,3 @@ def MobileViT_S(input_shape=(256, 256, 3), num_classes=1000, activation="swish",
     out_channels = [32, 64, 96, 128, 160]
     attn_channels = 1.5
     return MobileViT(**locals(), model_name="mobilevit_s", **kwargs)
-
-
-def MobileViT_V2_050(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    stem_width, out_channels = get_mobilevit_v2_width(0.5)
-    return MobileViT_V2(**locals(), model_name="mobilevit_v2_050", **kwargs)
-
-
-def MobileViT_V2_075(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    stem_width, out_channels = get_mobilevit_v2_width(0.75)
-    return MobileViT_V2(**locals(), model_name="mobilevit_v2_075", **kwargs)
-
-
-def MobileViT_V2_100(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return MobileViT_V2(**locals(), model_name="mobilevit_v2_100", **kwargs)
-
-
-def MobileViT_V2_125(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    stem_width, out_channels = get_mobilevit_v2_width(1.25)
-    return MobileViT_V2(**locals(), model_name="mobilevit_v2_125", **kwargs)
-
-
-def MobileViT_V2_150(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    stem_width, out_channels = get_mobilevit_v2_width(1.5)
-    return MobileViT_V2(**locals(), model_name="mobilevit_v2_150", **kwargs)
-
-
-def MobileViT_V2_175(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    stem_width, out_channels = get_mobilevit_v2_width(1.75)
-    return MobileViT_V2(**locals(), model_name="mobilevit_v2_175", **kwargs)
-
-
-def MobileViT_V2_200(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    stem_width, out_channels = get_mobilevit_v2_width(2.0)
-    return MobileViT_V2(**locals(), model_name="mobilevit_v2_200", **kwargs)
