@@ -60,8 +60,9 @@ def to_global_query(inputs, window_ratio, num_heads=4, activation="gelu", name="
     query = tf.transpose(query, [0, 2, 1, 3])
     query = tf.repeat(query, num_window * num_window, axis=0)
     # query = tf.transpose(query, [0, 3, 1, 2])
-    # query = tf.reshape(query, [-1, num_heads, query.shape[2] * query.shape[3], input_channel // num_heads])
-    # query = tf.concat([query] * (num_window * num_window), axis=0)
+    # query = tf.reshape(query, [-1, query.shape[2] * query.shape[3], num_heads, input_channel // num_heads])
+    # query = tf.transpose(query, [0, 2, 1, 3])
+    # query = tf.repeat(query, num_window * num_window, axis=0)
     # print(f"{query.shape = }")
     return query
 
@@ -82,7 +83,11 @@ def extract_feature(inputs, strides=2, activation="gelu", name=""):
     nn = se_module(nn, divisor=1, use_bias=False, activation=activation, use_conv=False, name=name + "extract_se_")
     nn = conv2d_no_bias(nn, input_channel, kernel_size=1, name=name + "extract_")
     nn = inputs + nn
-    return keras.layers.MaxPool2D(pool_size=3, strides=strides, padding="SAME", name=name + "extract_maxpool")(nn) if strides > 1 else nn
+    # return keras.layers.MaxPool2D(pool_size=3, strides=strides, padding="SAME", name=name + "extract_maxpool")(nn) if strides > 1 else nn
+    if strides > 1:
+        nn = tf.pad(nn, [[0, 0], [1, 1], [1, 1], [0, 0]])
+        nn = keras.layers.MaxPool2D(pool_size=3, strides=strides, padding="VALID", name=name + "extract_maxpool")(nn)
+    return nn
 
 
 def GCViT(
@@ -105,7 +110,7 @@ def GCViT(
 ):
     """Patch stem"""
     inputs = keras.layers.Input(input_shape)
-    nn = keras.layers.Conv2D(embed_dim, kernel_size=3, strides=2, use_bias=True, name="stem_conv")(inputs)
+    nn = conv2d_no_bias(inputs, embed_dim, kernel_size=3, strides=2, use_bias=True, padding="SAME", name="stem_conv")
     nn = down_sample(nn, name="stem_")
 
     """ stages """

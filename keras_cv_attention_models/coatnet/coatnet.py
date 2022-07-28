@@ -29,12 +29,13 @@ def mhsa_with_multi_head_relative_position_embedding(
     vv_dim = key_dim
 
     if global_query is not None:
+        # kv = keras.layers.Dense(qk_out * 2, use_bias=qkv_bias, name=name and name + "kv")(inputs)
         kv = conv2d_no_bias(inputs, qk_out * 2, kernel_size=1, use_bias=qkv_bias, name=name and name + "kv_")
         kv = tf.reshape(kv, [-1, kv.shape[1] * kv.shape[2], kv.shape[-1]])
         key, value = tf.split(kv, [qk_out, out_shape], axis=-1)
         query = global_query
     else:
-        # qkv = keras.layers.Dense(emb_dim * 3, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
+        # qkv = keras.layers.Dense(qk_out * 3, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
         # qkv = conv2d_no_bias(inputs, qk_out * 2 + out_shape, kernel_size=1, name=name and name + "qkv_")
         qkv = conv2d_no_bias(inputs, qk_out * 3, kernel_size=1, use_bias=qkv_bias, name=name and name + "qkv_")
         qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
