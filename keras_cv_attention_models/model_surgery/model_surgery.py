@@ -314,7 +314,7 @@ def get_actual_drop_connect_rates(model):
     return [ii.rate for ii in model.layers if isinstance(ii, keras.layers.Dropout) or isinstance(ii, DropConnect)]
 
 
-def get_pyramide_feture_layers(model, match_reg="^stack_?(\\d+).*output.*$"):
+def get_pyramide_feature_layers(model, match_reg="^stack_?(\\d+).*output.*$"):
     """Pick all stack output layers"""
     import re
 

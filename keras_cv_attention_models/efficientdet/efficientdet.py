@@ -163,7 +163,7 @@ def EfficientDet(
     if isinstance(features_pick[0], str):
         fpn_features = [backbone.get_layer(layer_name) for layer_name in features_pick]
     else:
-        features = model_surgery.get_pyramide_feture_layers(backbone)
+        features = model_surgery.get_pyramide_feature_layers(backbone)
         fpn_features = [features[id] for id in features_pick]
     print(">>>> features:", {ii.name: ii.output_shape for ii in fpn_features})
     fpn_features = [ii.output for ii in fpn_features]

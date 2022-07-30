@@ -109,7 +109,16 @@
     print(mm.decode_predictions(preds))
     # [[('n02124075', 'Egyptian_cat', 0.9653769), ('n02123159', 'tiger_cat', 0.018427467), ...]
     ```
-  - **Exclude model top layers by set `num_classes=0`**
+  - **`num_classes={custom output classes}`** others than `1000` or `0` will just skip loading the header Dense layer weights. As `model.load_weights(weight_file, by_name=True, skip_mismatch=True)` is used for loading weights.
+    ```py
+    from keras_cv_attention_models import swin_transformer_v2
+
+    mm = swin_transformer_v2.SwinTransformerV2Tiny_window8(num_classes=64)
+    # >>>> Load pretrained from: ~/.keras/models/swin_transformer_v2_tiny_window8_256_imagenet.h5
+    # WARNING:tensorflow:Skipping loading weights for layer #601 (named predictions) due to mismatch in shape for weight predictions/kernel:0. Weight expects shape (768, 64). Received saved weight with shape (768, 1000)
+    # WARNING:tensorflow:Skipping loading weights for layer #601 (named predictions) due to mismatch in shape for weight predictions/bias:0. Weight expects shape (64,). Received saved weight with shape (1000,)
+    ```
+  - **`num_classes=0`** set for excluding model top `GlobalAveragePooling2D + Dense` layers.
     ```py
     from keras_cv_attention_models import resnest
     mm = resnest.ResNest50(num_classes=0)

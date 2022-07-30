@@ -83,8 +83,11 @@ def stack_and_plot_images(images, texts=None, margin=5, margin_value=0, rows=-1,
     """Stack and plot a list of images. Returns ax, stacked_images"""
     import matplotlib.pyplot as plt
 
-    cols, rows = get_plot_cols_rows(len(images), rows)
-    images = images[: rows * cols]
+    cols, rows = get_plot_cols_rows(len(images), rows, ceil_mode=True)
+    if cols * rows > len(images):
+        padded = cols * rows - len(images)
+        images += [np.zeros_like(images[-1]) + 255 for ii in range(padded)]
+    # images = images[: rows * cols]
     # print(">>>> rows:", rows, ", cols:", cols, ", total:", len(images))
 
     if texts is not None:
@@ -321,11 +324,13 @@ def clip_max_value_matrix(dd, axis=0):
 def down_sample_matrix_axis_0(dd, target, method="avg"):
     if dd.shape[0] == target:
         return dd
-
     rate = int(np.sqrt(dd.shape[0] // target))
     hh = ww = int(np.sqrt(dd.shape[0]))
     dd = dd.reshape(1, hh, ww, -1)
-    if "avg" in method.lower():
+    if rate == 0:  # Upsample
+        hh = ww = int(np.sqrt(target))
+        dd = tf.image.resize(dd, [hh, ww]).numpy()
+    elif "avg" in method.lower():
         dd = tf.nn.avg_pool(dd, rate, rate, "VALID").numpy()
     elif "swin" in method.lower():
         dd = dd.reshape(1, hh // 2, 2, ww // 2, 2, -1).transpose(0, 1, 3, 4, 2, 5)
@@ -380,7 +385,7 @@ def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto
         print(">>>> Attention type: bot")
         mask = [np.array(ii)[0].mean((0)) for ii in attn_scores if len(ii.shape) == 4][::-1]
         mask = [clip_max_value_matrix(ii) for ii in mask]  # Or it will be too dark.
-        cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], "swin") for ii in range(1, len(mask))]
+        cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], "avg") for ii in range(1, len(mask))]
         cum_mask = [matmul_prod(cum_mask[: ii + 1]).mean(0) for ii in range(len(cum_mask))]
         mask = [ii.mean(0) for ii in mask]
     elif check_type_is("coatnet") or check_type_is("cmt") or check_type_is("uniformer") or check_type_is("swin"):
