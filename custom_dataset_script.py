@@ -30,12 +30,15 @@ def walk_through_image_folder(data_path, depth=2, image_classes_rule=None):
 
 
 class ImageClassesRule_map:
-    def __init__(self, dir, dir_rule="*", excludes=[], is_int_label=False):
+    def __init__(self, dir, dir_rule="*", excludes=[]):
         raw_labels = [os.path.basename(ii) for ii in glob(os.path.join(dir, dir_rule))]
-        self.raw_labels = sorted([ii for ii in raw_labels if ii not in excludes])
-        if is_int_label:
+        raw_labels = [ii for ii in raw_labels if ii not in excludes]
+        is_all_numeric = sum([str.isnumeric(ii) for ii in raw_labels]) == len(raw_labels)
+        if is_all_numeric:
+            self.raw_labels = sorted(raw_labels, key=lambda xx: int(xx))
             self.labels_2_indices = {ii: int(ii) for ii in self.raw_labels}
         else:
+            self.raw_labels = sorted(raw_labels)
             self.labels_2_indices = {ii: id for id, ii in enumerate(self.raw_labels)}
         self.indices_2_labels = {vv: kk for kk, vv in self.labels_2_indices.items()}
 
@@ -44,13 +47,13 @@ class ImageClassesRule_map:
         return self.labels_2_indices[raw_image_label]
 
 
-def build_recognition_dataset_json(train_path, test_path=None, test_split=0.0, is_int_label=False, save_name=None):
+def build_recognition_dataset_json(train_path, test_path=None, test_split=0.0, save_name=None):
     if save_name is None:
         save_name = os.path.basename(os.path.dirname(train_path)) + ".json"
     elif not save_name.endswith(".json"):
         save_name += ".json"
     # print(f">>>> {train_path = }, {test_path = }, {test_split = }, {save_name = }")
-    image_classes_rule = ImageClassesRule_map(train_path, is_int_label=is_int_label)
+    image_classes_rule = ImageClassesRule_map(train_path)
     x_train, y_train = walk_through_image_folder(train_path, image_classes_rule=image_classes_rule)
     if test_path is not None:
         x_test, y_test = walk_through_image_folder(test_path, image_classes_rule=image_classes_rule)
@@ -196,7 +199,7 @@ def parse_arguments(argv):
     parser.add_argument("--train_images", required=True, type=str, help="Train images path")
     parser.add_argument("--test_images", type=str, default=None, help="Test images path")
     parser.add_argument("--test_split", type=float, default=0, help="Test split if `test_images` is None")
-    parser.add_argument("--is_int_label", action="store_true", help="[Recognition] convert label by int, or will be sorted and enumerated label")
+    # parser.add_argument("--is_int_label", action="store_true", help="[Recognition] convert label by int, or will be sorted and enumerated label")
     parser.add_argument("--train_labels", type=str, default=None, help="[Detection] train bbox + label path")
     parser.add_argument("--test_labels", type=str, default=None, help="[Detection] test bbox + label path. None for same with `train_labels`")
     parser.add_argument("--bbox_source_format", type=str, default="yxyx", help="[Detection] Bbox source format: " + BBOX_FORMAT_STR)
@@ -223,7 +226,7 @@ if __name__ == "__main__":
 
     args = parse_arguments(sys.argv[1:])
     if args.train_labels is None:
-        save_name = build_recognition_dataset_json(args.train_images, args.test_images, args.test_split, args.is_int_label, args.save_name)
+        save_name = build_recognition_dataset_json(args.train_images, args.test_images, args.test_split, args.save_name)
     else:
         save_name = build_detection_dataset_json(
             args.train_images, args.train_labels, args.test_images, args.test_labels, args.test_split, args.bbox_source_format, args.save_name
