@@ -30,7 +30,7 @@ class DivideScale(keras.layers.Layer):
             axis = self.axis if isinstance(self.axis, (list, tuple)) else [self.axis]
             for ii in axis:
                 weight_shape[ii] = input_shape[ii]
-        self.scale = self.add_weight(name="weight", shape=weight_shape, initializer=self.initializer, trainable=True)
+        self.scale = self.add_weight(name="weight", shape=weight_shape, initializer=self.initializer, trainable=True, dtype=self.dtype)
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):

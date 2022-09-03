@@ -43,8 +43,8 @@ class ExpLogitScale(keras.layers.Layer):
                 weight_shape[ii] = input_shape[ii]
 
         initializer = tf.initializers.constant(tf.math.log(self.init_value))
-        self.scale = self.add_weight(name="weight", shape=weight_shape, initializer=initializer, trainable=True)
-        self.__max_value__ = tf.math.log(self.max_value)
+        self.scale = self.add_weight(name="weight", shape=weight_shape, initializer=initializer, trainable=True, dtype=self.dtype)
+        self.__max_value__ = tf.cast(tf.math.log(self.max_value), self._compute_dtype)
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
