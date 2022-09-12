@@ -15,12 +15,11 @@ PRETRAINED_DICT = {
     "hornet_base": {"imagenet": {224: "b5e808fe5996a8cc980552994f5ca875"}},
     "hornet_base_gf": {"imagenet": {224: "c08c8dc1666c4afbc98e856fa7e53c99"}},
     "hornet_large": {"imagenet22k": {224: "27e7a8f18657c82cf9ad07dc21df9a35"}},
-    "hornet_large_gf": {"imagenet22k": {224: "ffd3e68dae2a365d0ecb5df2f0ea881b"}},
-    "hornet_large_gf": {"imagenet22k": {384: "1e3bd0f4b63f65ff7aa3397129ff7a23"}},
-    "hornet_small": {"imagenet": {224: "4f29c19491c7e51faa4161fcf3888531"}},
-    "hornet_small_gf": {"imagenet": {224: "96c7f2c640b27b967a962377e71217ec"}},
-    "hornet_tiny": {"imagenet": {224: "b1de78ead2cbc7649c6fbf3452ac4401"}},
-    "hornet_tiny_gf": {"imagenet": {224: "358ab295b616cb4b0910aef4afbbf1d9"}},
+    "hornet_large_gf": {"imagenet22k": {224: "ffd3e68dae2a365d0ecb5df2f0ea881b", 384: "1e3bd0f4b63f65ff7aa3397129ff7a23"}},
+    "hornet_small_gf": {"imagenet": {224: "79ae2409e29b125ba9978227f353cd7e"}},
+    "hornet_small": {"imagenet": {224: "4ac8b8552a750303d65cae5fa0ff8013"}},
+    "hornet_tiny_gf": {"imagenet": {224: "49323a163df84196e9d40a65289e54a9"}},
+    "hornet_tiny": {"imagenet": {224: "7bdafa31599cb863b42d960b9d7f5ae4"}},
 }
 
 
@@ -42,7 +41,7 @@ class ComplexDense(keras.layers.Layer):
         complex_weight = tf.cast(complex_weight, inputs.dtype)
         return inputs * complex_weight
 
-    def load_resized_pos_emb(self, source_layer, method="bilinear"):
+    def load_resized_weights(self, source_layer, method="bilinear"):
         if isinstance(source_layer, dict):
             source_tt = source_layer["complex_weight:0"]  # weights
         else:
@@ -58,12 +57,12 @@ def global_local_filter(inputs, name=None):
     dw = depthwise_conv2d_no_bias(dw, 3, padding="SAME", use_bias=False, name=name)
 
     # fft = tf.py_function(lambda xx: np.fft.rfft2(xx, axes=(1, 2), norm='ortho'), [fft], Tout=tf.complex128)
-    ortho_norm = float(tf.sqrt(float(height * width)))
     # np.fft.rfft2(aa, axes=[1, 2]) ==> tf.transpose(tf.signal.rfft2d(tf.transpose(aa, [0, 3, 1, 2])), [0, 2, 3, 1])
+    # ortho_norm = float(tf.sqrt(float(height * width)))
     fft = tf.transpose(fft, [0, 3, 1, 2])
     fft = keras.layers.Lambda(tf.signal.rfft2d)(fft)
     fft = tf.transpose(fft, [0, 2, 3, 1])
-    # fft /= ortho_norm  # Means `norm='ortho'`, but will multiply back for `irfft2d`, not affecting results.
+    # fft /= ortho_norm  # Means `norm='ortho'`, but will multiply back for `irfft2d` anyway, not affecting results.
     # fft.set_shape([None, height, (width + 2) // 2, channel // 2])
     # print(f">>>> {inputs.shape = }, {fft.shape = }, {fft.dtype = }")
     fft = ComplexDense(name=name and name + "complex_dense")(fft)
@@ -82,17 +81,17 @@ def global_local_filter(inputs, name=None):
     return out
 
 
-def gnconv(inputs, use_global_local_filter=False, gn_split=5, scale=1.0, name=None):
+def gnconv(inputs, use_global_local_filter=False, dw_kernel_size=7, gn_split=3, scale=0.3333333, name=None):
     input_channel = inputs.shape[-1]
     nn = conv2d_no_bias(inputs, input_channel * 2, kernel_size=1, use_bias=True, name=name and name + "pre_")
-    split_dims = [input_channel // (2 ** ii) for ii in range(gn_split)][::-1]
+    split_dims = [input_channel // (2**ii) for ii in range(gn_split)][::-1]
     # print(f">>>> {nn.shape = }, {split_dims = }")
     pw_first, dw_list = tf.split(nn, [split_dims[0], sum(split_dims)], axis=-1)
 
     if use_global_local_filter:
         dw_list = global_local_filter(dw_list, name=name and name + "gf_")
     else:
-        dw_list = depthwise_conv2d_no_bias(dw_list, kernel_size=7, padding="SAME", use_bias=True, name=name and name + "list_")
+        dw_list = depthwise_conv2d_no_bias(dw_list, kernel_size=dw_kernel_size, padding="SAME", use_bias=True, name=name and name + "list_")
     dw_list *= scale
 
     dw_list = tf.split(dw_list, split_dims, axis=-1)
@@ -105,7 +104,7 @@ def gnconv(inputs, use_global_local_filter=False, gn_split=5, scale=1.0, name=No
     return nn
 
 
-def block(inputs, mlp_ratio=4, use_global_local_filter=False, gn_split=5, scale=1.0, layer_scale=0, drop_rate=0, activation="gelu", name=""):
+def block(inputs, mlp_ratio=4, use_global_local_filter=False, gn_split=3, scale=0.3333333, layer_scale=0, drop_rate=0, activation="gelu", name=""):
     # print(global_query)
     input_channel = inputs.shape[-1]
     attn = layer_norm(inputs, name=name + "attn_")
@@ -176,42 +175,43 @@ def HorNet(
     return model
 
 
-def HorNetTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def HorNetTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HorNet(**locals(), model_name="hornet_tiny", **kwargs)
 
 
-def HorNetTinyGF(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def HorNetTinyGF(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     use_global_local_filter = [False, False, True, True]
     return HorNet(**locals(), model_name="hornet_tiny_gf", **kwargs)
 
 
-def HorNetSmall(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def HorNetSmall(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 96
     return HorNet(**locals(), model_name="hornet_small", **kwargs)
 
-def HorNetSmallGF(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+
+def HorNetSmallGF(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 96
     use_global_local_filter = [False, False, True, True]
     return HorNet(**locals(), model_name="hornet_small_gf", **kwargs)
 
 
-def HorNetBase(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def HorNetBase(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 128
     return HorNet(**locals(), model_name="hornet_base", **kwargs)
 
 
-def HorNetBaseGF(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def HorNetBaseGF(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 128
     use_global_local_filter = [False, False, True, True]
     return HorNet(**locals(), model_name="hornet_base_gf", **kwargs)
 
 
-def HorNetLarge(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def HorNetLarge(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet22k", **kwargs):
     embed_dim = 192
     return HorNet(**locals(), model_name="hornet_large", **kwargs)
 
 
-def HorNetLargeGF(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def HorNetLargeGF(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet22k", **kwargs):
     embed_dim = 192
     use_global_local_filter = [False, False, True, True]
     return HorNet(**locals(), model_name="hornet_large_gf", **kwargs)

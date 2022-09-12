@@ -98,6 +98,14 @@ def test_HaloNet_defination():
     assert isinstance(mm, keras.models.Model)
 
 
+def test_HorNet_defination():
+    mm = keras_cv_attention_models.halonet.HorNetSmall(pretrained=None)
+    assert isinstance(mm, keras.models.Model)
+
+    mm = keras_cv_attention_models.halonet.HorNetSmallGF(pretrained=None, num_classes=0)
+    assert isinstance(mm, keras.models.Model)
+
+
 def test_LeViT_defination():
     mm = keras_cv_attention_models.levit.LeViT128(pretrained=None)
     assert isinstance(mm, keras.models.Model)
@@ -287,6 +295,14 @@ def test_FBNetV3B_dynamic_predict():
 
 def test_HaloRegNetZB_predict():
     mm = keras_cv_attention_models.halonet.HaloRegNetZB(pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_HorNetTinyGF_new_shape_predict():
+    mm = keras_cv_attention_models.hornet.HorNetTinyGF(input_shape=(174, 255, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 

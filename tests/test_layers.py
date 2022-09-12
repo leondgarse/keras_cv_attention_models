@@ -76,6 +76,12 @@ def test_ChannelAffine():
     assert aa(tf.ones(input_shape)).shape == input_shape
 
 
+def test_ComplexDense():
+    aa = attention_layers.ComplexDense()
+    input_shape = [2, 14, 14, 192]
+    assert aa(tf.ones(input_shape)).shape == input_shape
+
+
 def test_ClassToken():
     aa = attention_layers.ClassToken()
     input_shape = [2, 14 * 14, 192]
@@ -137,6 +143,20 @@ def test_fold_by_conv2d_transpose():
     pathes = attention_layers.CompatibleExtractPatches(sizes=3, strides=2, rates=1, padding="VALID")(pad_inputs)
     reverse = attention_layers.fold_by_conv2d_transpose(pathes, inputs.shape[1:], kernel_size=3, strides=2, padding="SAME")
     assert reverse.shape == inputs.shape
+
+
+def test_global_local_filter():
+    input_shape = [2, 28, 28, 192]
+    out = attention_layers.global_local_filter(tf.ones(input_shape))
+    assert out.shape == input_shape
+
+
+def test_gnconv():
+    input_shape = [2, 28, 28, 192]
+    out_1 = attention_layers.gnconv(tf.ones(input_shape), use_global_local_filter=False)
+    assert out_1.shape == input_shape
+    out_2 = attention_layers.gnconv(tf.ones(input_shape), use_global_local_filter=True)
+    assert out_2.shape == input_shape
 
 
 def test_halo_attention():
