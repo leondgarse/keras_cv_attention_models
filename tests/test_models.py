@@ -99,10 +99,10 @@ def test_HaloNet_defination():
 
 
 def test_HorNet_defination():
-    mm = keras_cv_attention_models.halonet.HorNetSmall(pretrained=None)
+    mm = keras_cv_attention_models.hornet.HorNetSmall(pretrained=None)
     assert isinstance(mm, keras.models.Model)
 
-    mm = keras_cv_attention_models.halonet.HorNetSmallGF(pretrained=None, num_classes=0)
+    mm = keras_cv_attention_models.hornet.HorNetSmallGF(pretrained=None, num_classes=0)
     assert isinstance(mm, keras.models.Model)
 
 
