@@ -34,7 +34,7 @@
   #  ('n02127052', 'lynx', 0.0043538176),
   #  ('n02123597', 'Siamese_cat', 0.0007328492)]
   ```
-  **Change input resolution** if input_shape is not `(224, 224, 3)`, will load `PositionalEmbedding` weights by `load_resized_pos_emb`.
+  **Change input resolution** if input_shape is not `(224, 224, 3)`, will load `PositionalEmbedding` weights by `load_resized_weights`.
   ```py
   from keras_cv_attention_models import botnet
   mm = botnet.BotNet26T(input_shape=(320, 320, 3), num_classes=1000, pretrained="imagenet")

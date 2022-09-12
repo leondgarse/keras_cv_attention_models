@@ -25,6 +25,7 @@ PRETRAINED_DICT = {
     "gcvit_base": {"imagenet": {224: "ef6e4015239f68dcabbb8ae9cb799d76"}},
 }
 
+
 def gcvit_block(inputs, window_size, num_heads=4, global_query=None, mlp_ratio=4, layer_scale=0, drop_rate=0, activation="gelu", name=""):
     # print(global_query)
     input_channel = inputs.shape[-1]

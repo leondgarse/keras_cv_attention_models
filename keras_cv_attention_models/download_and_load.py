@@ -64,7 +64,7 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, request_
                     # ss = {ww.decode().split("/")[-1] : tf.convert_to_tensor(ss[ww]) for ww in ss.attrs['weight_names']}
                     ss = {ww.decode("utf8") if hasattr(ww, "decode") else ww: tf.convert_to_tensor(ss[ww]) for ww in ss.attrs["weight_names"]}
                     ss = {kk.split("/")[-1]: vv for kk, vv in ss.items()}
-                    model.get_layer(ii.name).load_resized_pos_emb(ss, method=method)
+                    model.get_layer(ii.name).load_resized_weights(ss, method=method)
             ff.close()
 
         # print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
@@ -72,7 +72,7 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, request_
         # for ii in model.layers:
         #     if isinstance(ii, mismatch_class):
         #         print(">>>> Reload layer:", ii.name)
-        #         model.get_layer(ii.name).load_resized_pos_emb(bb.get_layer(ii.name))
+        #         model.get_layer(ii.name).load_resized_weights(bb.get_layer(ii.name))
         except:
             print("[Error] something went wrong in load_weights_with_mismatch")
             pass

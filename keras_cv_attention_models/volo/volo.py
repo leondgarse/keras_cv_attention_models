@@ -200,7 +200,7 @@ class PositionalEmbedding(keras.layers.Layer):
     def call(self, inputs, **kwargs):
         return inputs + self.pp
 
-    def load_resized_pos_emb(self, source_layer, method="nearest"):
+    def load_resized_weights(self, source_layer, method="nearest"):
         # For input 224 --> [1, 14, 14, 384], convert to 384 --> [1, 24, 24, 384]
         if isinstance(source_layer, dict):
             source_pp = source_layer["positional_embedding:0"]  # weights

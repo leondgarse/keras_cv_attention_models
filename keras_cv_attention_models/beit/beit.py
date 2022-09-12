@@ -85,7 +85,7 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         base_config.update({"with_cls_token": self.with_cls_token, "attn_height": self.attn_height, "num_heads": self.num_heads})
         return base_config
 
-    def load_resized_pos_emb(self, source_layer, method="nearest"):
+    def load_resized_weights(self, source_layer, method="nearest"):
         if isinstance(source_layer, dict):
             source_tt = source_layer["positional_embedding:0"]  # weights
             # source_tt = source_layer["pos_emb:0"]  # weights

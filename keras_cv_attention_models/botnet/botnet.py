@@ -109,7 +109,7 @@ class RelativePositionalEmbedding(keras.layers.Layer):
                 pos_emb = pos_emb[:, :, :, :, :hh, :ww]
         return pos_emb
 
-    def load_resized_pos_emb(self, source_layer, method="nearest"):
+    def load_resized_weights(self, source_layer, method="nearest"):
         # For input 224 --> [128, 27], convert to 480 --> [128, 30]
         if isinstance(source_layer, dict):
             source_pos_emb_h = source_layer["r_height:0"]  # weights

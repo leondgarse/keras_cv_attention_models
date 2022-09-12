@@ -32,7 +32,7 @@
   #  ('n02127052', 'lynx', 0.013072581),
   #  ('n02123597', 'Siamese_cat', 0.0062989206)]
   ```
-  **Change input resolution** if input_shape is not within pre-trained, will load `MultiHeadRelativePositionalEmbedding` weights by `load_resized_pos_emb`.
+  **Change input resolution** if input_shape is not within pre-trained, will load `MultiHeadRelativePositionalEmbedding` weights by `load_resized_weights`.
   ```py
   from keras_cv_attention_models import beit
   mm = beit.BeitLargePatch16(input_shape=(640, 640, 3), num_classes=1000, pretrained="imagenet21k-ft1k")

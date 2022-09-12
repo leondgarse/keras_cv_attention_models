@@ -6,7 +6,7 @@
   - Basic blocks with some default behavior like `activation_by_name`, `anti_alias_downsample`, `batchnorm_with_activation`, `conv2d_no_bias`, `drop_block`, `layer_norm`, `se_module` from `common_layers`.
   - Layers / blocks defined in model implementations, like `mhsa_with_relative_position_embedding` from `botnet`, `ChannelAffine` from `res_mlp`, `mlp_block` from `mlp_mixer`, which sometimes can be reused.
 ## Positional Embedding Layers
-  - **BiasPositionalEmbedding** from `cmt`. A basic bias layer with `load_resized_pos_emb` method. Positional embedding shape is `[num_heads, query_height * query_width, kv_height * kv_width]`.
+  - **BiasPositionalEmbedding** from `cmt`. A basic bias layer with `load_resized_weights` method. Positional embedding shape is `[num_heads, query_height * query_width, kv_height * kv_width]`.
   - **ConvPositionalEncoding** from `coat`. Applies a `DepthwiseConv2D` layer with input, then adds with input.
   - **ConvRelativePositionalEncoding** from `coat`. Applies multi `DepthwiseConv2D` layers with split input, then adds with input.
   - **MultiHeadPositionalEmbedding** from `levit`. Positional embedding shape is `[height * width, num_heads]`.

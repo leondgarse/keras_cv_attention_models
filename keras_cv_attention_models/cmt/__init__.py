@@ -113,7 +113,7 @@ Examples:
 """
 
 BiasPositionalEmbedding.__doc__ = __head_doc__ + """
-A basic bias only layer, with `load_resized_pos_emb` method.
+A basic bias only layer, with `load_resized_weights` method.
 
 input: `[batch, num_heads, query_height * query_width, kv_height * kv_width]`.
        where `kv_height = query_height // sr_ratio, kv_width = query_width // sr_ratio`

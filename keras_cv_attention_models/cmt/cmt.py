@@ -54,7 +54,7 @@ class BiasPositionalEmbedding(keras.layers.Layer):
         config.update({"axis": self.axis, "attn_height": self.attn_height})  # Not saving initializer in config
         return config
 
-    def load_resized_pos_emb(self, source_layer, method="nearest"):
+    def load_resized_weights(self, source_layer, method="nearest"):
         if isinstance(source_layer, dict):
             source_tt = source_layer["positional_embedding:0"]  # weights
             # source_tt = source_layer["pos_emb:0"]  # weights

@@ -32,7 +32,7 @@
   print(mm.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 12.834192), ('n02123045', 'tabby', 7.9686913), ...]
   ```
-  **Change input resolution** if input_shape is not within pretrained, will load `PositionalEmbedding` weights by `load_resized_pos_emb`.
+  **Change input resolution** if input_shape is not within pretrained, will load `PositionalEmbedding` weights by `load_resized_weights`.
   ```py
   from keras_cv_attention_models import volo
 
