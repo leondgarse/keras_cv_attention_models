@@ -89,6 +89,7 @@ def mhsa_mlp_block(
 ):
     attn = group_norm(inputs, groups=num_norm_groups, name=name + "attn_") if num_norm_groups > 0 else layer_norm(inputs, name=name + "attn_")
     if use_linear_attention:  # V2
+        attn = keras.layers.Reshape(attn.shape[1:])(attn)  # Have to add one, or will throw error when converting tflite, if GroupNorm is followed by Conv2D
         attn = linear_self_attention(attn, qkv_bias=qkv_bias, out_bias=True, attn_dropout=attn_drop_rate, name=name and name + "attn_mhsa_")
     else:  # V1
         attn = multi_head_self_attention(attn, num_heads, qkv_bias=qkv_bias, out_bias=True, attn_dropout=attn_drop_rate, name=name and name + "attn_mhsa_")
