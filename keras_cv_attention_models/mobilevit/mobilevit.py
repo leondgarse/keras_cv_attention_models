@@ -98,6 +98,8 @@ def mhsa_mlp_block(
     attn_out = keras.layers.Add(name=name and name + "attn_out")([inputs, attn])
 
     mlp = group_norm(attn_out, groups=num_norm_groups, name=name + "mlp_") if num_norm_groups > 0 else layer_norm(attn_out, name=name + "mlp_")
+    if use_conv_mlp:  # V2
+        mlp = keras.layers.Reshape(mlp.shape[1:])(mlp)  # Have to add one, or will throw error when converting tflite, if GroupNorm is followed by Conv2D
     mlp = mlp_block(mlp, int(out_channel * mlp_ratio), drop_rate=mlp_drop_rate, use_conv=use_conv_mlp, activation=activation, name=name and name + "mlp_")
     mlp = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name and name + "2_gamma")(mlp) if layer_scale >= 0 else mlp
     mlp = drop_block(mlp, drop_rate=drop_rate, name=name and name + "mlp_")
