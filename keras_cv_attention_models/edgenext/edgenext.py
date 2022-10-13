@@ -15,8 +15,10 @@ from keras_cv_attention_models.attention_layers import (
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
-    "edgenext_small": {"imagenet": {256: "0234641a703283de1cb0d935bb0325e4"}},
-    "edgenext_small": {"usi": {256: "c237761b5bd5c32041d6b758186a0716"}},
+    "edgenext_small": {
+        "imagenet": {256: "0234641a703283de1cb0d935bb0325e4"},
+        "usi": {256: "c237761b5bd5c32041d6b758186a0716"},
+    },
     "edgenext_x_small": {"imagenet": {256: "472df7659422c7feffbec8012a0f6fa4"}},
     "edgenext_xx_small": {"imagenet": {256: "4190ba28c7caa2fe73215448f8abebd6"}},
 }
