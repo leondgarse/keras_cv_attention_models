@@ -1,7 +1,8 @@
 import os
+import numpy as np
+import tensorflow as tf
 from keras_cv_attention_models.imagenet import data
 from keras_cv_attention_models.model_surgery import change_model_input_shape
-import tensorflow as tf
 
 
 class TorchModelInterf:
@@ -67,12 +68,26 @@ class TFLiteModelInterf:
         return tf.concat(preds, 0).numpy()
 
 
+class ONNXModelInterf:
+    def __init__(self, model_file):
+        import onnxruntime as ort
+
+        ort.set_default_logger_severity(3)
+        self.ort_session = ort.InferenceSession(model_file)
+        self.output_names = [self.ort_session.get_outputs()[0].name]
+        self.input_name = self.ort_session.get_inputs()[0].name
+
+    def __call__(self, imgs):
+        imgs = imgs.transpose(0, 3, 1, 2).astype("float32")
+        preds = [self.ort_session.run(self.output_names, {self.input_name: img[None]})[0][0] for img in imgs]
+        return np.array(preds)
+
+
 def evaluation(
     model, data_name="imagenet2012", input_shape=None, batch_size=64, central_crop=1.0, resize_method="bicubic", antialias=True, rescale_mode="auto"
 ):
-    from tqdm import tqdm
-    import numpy as np
     import types
+    from tqdm import tqdm
 
     if isinstance(model, tf.keras.models.Model):
         input_shape = model.input_shape[1:-1] if input_shape is None else input_shape[:2]
@@ -84,6 +99,8 @@ def evaluation(
         print(">>>> Using input_shape {} for TFLite model.".format(input_shape))
     elif isinstance(model, types.LambdaType):
         model_interf = model
+    elif isinstance(model, str) and model.endswith(".onnx"):
+        model_interf = ONNXModelInterf(model)
     else:
         model_interf = TorchModelInterf(model)
         assert input_shape is not None
@@ -172,7 +189,6 @@ def combine_hist_into_one(hist_list, save_file=None):
 
 def curve_fit(source, target_len=10, skip=5, use_recent=40):
     from scipy.optimize import curve_fit
-    import numpy as np
 
     def func_curv(x, a, b, c, d):
         pp = np.log(x)
@@ -210,7 +226,6 @@ def plot_and_peak_scatter(ax, source_array, peak_method, label, skip_first=0, co
 def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["bottom"], skip_first=0, pred_curve=0):
     import os
     import json
-    import numpy as np
     import matplotlib as mpl
     import matplotlib.pyplot as plt
 
