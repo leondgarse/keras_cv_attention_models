@@ -81,7 +81,10 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, request_
 def state_dict_stack_by_layer(state_dict, skip_weights=["num_batches_tracked"], unstack_weights=[]):
     stacked_state_dict = {}
     for kk, vv in state_dict.items():
-        split_kk = kk.split(".")
+        if kk[-2] == ":":
+            kk = kk[:-2]  # Keras weight name like "..../weight:0"
+        split_token = "/" if "/" in kk else "."
+        split_kk = kk.split(split_token)
         vv = vv.numpy() if hasattr(vv, "numpy") else vv
         if split_kk[-1] in skip_weights:
             continue
@@ -90,7 +93,7 @@ def state_dict_stack_by_layer(state_dict, skip_weights=["num_batches_tracked"], 
             stacked_state_dict[kk] = [vv]
         else:
             # split_kk[-1] in ["weight", "bias", "running_mean", "running_var", "gain"]
-            layer_name = ".".join(split_kk[:-1])
+            layer_name = split_token.join(split_kk[:-1])
             stacked_state_dict.setdefault(layer_name, []).append(vv)
     return stacked_state_dict
 

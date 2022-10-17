@@ -53,7 +53,46 @@ def multi_head_self_attention_channel(
     return attention_output
 
 
-def window_attention(inputs, window_size, num_heads=4, attention_block=None, name=None, **kwargs):
+def __window_partition__(inputs, patch_height, patch_width, window_height, window_width):
+    input_channel = inputs.shape[-1]
+    # print(f">>>> window_attention {inputs.shape = }, {patch_height = }, {patch_width = }, {window_height = }, {window_width = }")
+    # [batch * patch_height, window_height, patch_width, window_width * input_channel], limit transpose perm <= 4
+    nn = tf.reshape(inputs, [-1, window_height, patch_width, window_width * input_channel])
+    nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, patch_width, window_height, window_width * input_channel]
+    nn = tf.reshape(nn, [-1, window_height, window_width, input_channel])  # [batch * patch_height * patch_width, window_height, window_width, input_channel]
+    return nn
+
+
+def __window_reverse__(inputs, patch_height, patch_width, window_height, window_width):
+    input_channel = inputs.shape[-1]
+    # [batch * patch_height, patch_width, window_height, window_width * input_channel], limit transpose perm <= 4
+    nn = tf.reshape(inputs, [-1, patch_width, window_height, window_width * input_channel])
+    nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, window_height, patch_width, window_width * input_channel]
+    nn = tf.reshape(nn, [-1, patch_height * window_height, patch_width * window_width, input_channel])
+    return nn
+
+
+def __grid_window_partition__(inputs, patch_height, patch_width, window_height, window_width):
+    input_channel = inputs.shape[-1]
+    nn = tf.reshape(inputs, [-1, window_height, patch_height, window_width * patch_width * input_channel])
+    nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch, patch_height, window_height, window_width * patch_width * input_channel]
+    nn = tf.reshape(nn, [-1, window_height * window_width, patch_width, input_channel])
+    nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, patch_width, window_height * window_width, input_channel]
+    nn = tf.reshape(nn, [-1, window_height, window_width, input_channel])
+    return nn
+
+
+def __grid_window_reverse__(inputs, patch_height, patch_width, window_height, window_width):
+    input_channel = inputs.shape[-1]
+    nn = tf.reshape(inputs, [-1, patch_width, window_height * window_width, input_channel])
+    nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, window_height * window_width, patch_width, input_channel]
+    nn = tf.reshape(nn, [-1, patch_height, window_height, window_width * patch_width * input_channel])
+    nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch, window_height, patch_height, window_width * patch_width * input_channel]
+    nn = tf.reshape(nn, [-1, window_height * patch_height, window_width * patch_width, input_channel])
+    return nn
+
+
+def window_attention(inputs, window_size, num_heads=4, is_grid=False, attention_block=None, name=None, **kwargs):
     input_channel = inputs.shape[-1]
     window_size = window_size if isinstance(window_size, (list, tuple)) else [window_size, window_size]
     window_height = window_size[0] if window_size[0] < inputs.shape[1] else inputs.shape[1]
@@ -66,11 +105,11 @@ def window_attention(inputs, window_size, num_heads=4, attention_block=None, nam
     if should_pad_hh or should_pad_ww:
         inputs = tf.pad(inputs, [[0, 0], [0, should_pad_hh], [0, should_pad_ww], [0, 0]])
 
-    # print(f">>>> window_attention {inputs.shape = }, {patch_height = }, {patch_width = }, {window_height = }, {window_width = }")
-    # [batch * patch_height, window_height, patch_width, window_width * input_channel], limit transpose perm <= 4
-    nn = tf.reshape(inputs, [-1, window_height, patch_width, window_width * input_channel])
-    nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, patch_width, window_height, window_width * input_channel]
-    nn = tf.reshape(nn, [-1, window_height, window_width, input_channel])  # [batch * patch_height * patch_width, window_height, window_width, input_channel]
+    if is_grid:
+        nn = __grid_window_partition__(inputs, patch_height, patch_width, window_height, window_width)
+    else:
+        nn = __window_partition__(inputs, patch_height, patch_width, window_height, window_width)
+
 
     if attention_block:
         nn = attention_block(nn, num_heads=num_heads, name=name, **kwargs)
@@ -78,10 +117,11 @@ def window_attention(inputs, window_size, num_heads=4, attention_block=None, nam
         nn = multi_head_self_attention(nn, num_heads=num_heads, qkv_bias=True, out_bias=True, name=name)
 
     # window_reverse, merge windows
-    # [batch * patch_height, patch_width, window_height, window_width * input_channel], limit transpose perm <= 4
-    nn = tf.reshape(nn, [-1, patch_width, window_height, window_width * input_channel])
-    nn = tf.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, window_height, patch_width, window_width * input_channel]
-    nn = tf.reshape(nn, [-1, patch_height * window_height, patch_width * window_width, input_channel])
+    if is_grid:
+        nn = __grid_window_reverse__(nn, patch_height, patch_width, window_height, window_width)
+    else:
+        nn = __window_reverse__(nn, patch_height, patch_width, window_height, window_width)
+
     if should_pad_hh or should_pad_ww:
         nn = nn[:, : nn.shape[1] - should_pad_hh, : nn.shape[2] - should_pad_ww, :]  # In case should_pad_hh or should_pad_ww is 0
 

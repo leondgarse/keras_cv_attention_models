@@ -27,23 +27,27 @@ def mhsa_with_multi_head_relative_position_embedding(
     qk_out = num_heads * key_dim
     # vv_dim = out_shape // num_heads
     vv_dim = key_dim
+    blocks = hh * ww
 
     if global_query is not None:
         # kv = keras.layers.Dense(qk_out * 2, use_bias=qkv_bias, name=name and name + "kv")(inputs)
         kv = conv2d_no_bias(inputs, qk_out * 2, kernel_size=1, use_bias=qkv_bias, name=name and name + "kv_")
-        kv = tf.reshape(kv, [-1, kv.shape[1] * kv.shape[2], kv.shape[-1]])
+        kv = tf.reshape(kv, [-1, blocks, kv.shape[-1]])
         key, value = tf.split(kv, [qk_out, out_shape], axis=-1)
         query = global_query
     else:
         # qkv = conv2d_no_bias(inputs, qk_out * 2 + out_shape, use_bias=qkv_bias, kernel_size=1, name=name and name + "qkv_")
         # qkv = keras.layers.Dense(qk_out * 3, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
+        # query = keras.layers.Dense(qk_out, use_bias=qkv_bias, name=name and name + "query")(inputs)
+        # key = keras.layers.Dense(qk_out, use_bias=qkv_bias, name=name and name + "key")(inputs)
+        # value = keras.layers.Dense(qk_out, use_bias=qkv_bias, name=name and name + "value")(inputs)
         qkv = conv2d_no_bias(inputs, qk_out * 3, kernel_size=1, use_bias=qkv_bias, name=name and name + "qkv_")
-        qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
+        # qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
         query, key, value = tf.split(qkv, [qk_out, qk_out, qk_out], axis=-1)
         # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {num_heads = }, {key_dim = }, {vv_dim = }")
-        query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, key_dim]
-    key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
-    value = tf.transpose(tf.reshape(value, [-1, value.shape[1], num_heads, vv_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, vv_dim]
+        query = tf.transpose(tf.reshape(query, [-1, blocks, num_heads, key_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, key_dim]
+    key = tf.transpose(tf.reshape(key, [-1, blocks, num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
+    value = tf.transpose(tf.reshape(value, [-1, blocks, num_heads, vv_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, vv_dim]
 
     attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, hh * ww, hh * ww]
     # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {attention_scores.shape = }, {hh = }")
