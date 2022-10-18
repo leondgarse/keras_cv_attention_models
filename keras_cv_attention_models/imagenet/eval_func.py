@@ -70,17 +70,22 @@ class TFLiteModelInterf:
 
 class ONNXModelInterf:
     def __init__(self, model_file):
+        import onnx
         import onnxruntime as ort
 
         ort.set_default_logger_severity(3)
-        self.ort_session = ort.InferenceSession(model_file)
+        model_content = onnx.load_model(model_file)
+        model_content.graph.input[0].type.tensor_type.shape.dim[0].dim_param = 'None'  # Set batch_size as dynamic
+        self.ort_session = ort.InferenceSession(model_content.SerializeToString())
         self.output_names = [self.ort_session.get_outputs()[0].name]
         self.input_name = self.ort_session.get_inputs()[0].name
+        self.input_shape = self.ort_session.get_inputs()[0].shape
+        self.output_shape = [None] + self.ort_session.get_inputs()[0].shape[1:]
 
     def __call__(self, imgs):
+        imgs = imgs.numpy() if hasattr(imgs, "numpy") else imgs
         imgs = imgs.transpose(0, 3, 1, 2).astype("float32")
-        preds = [self.ort_session.run(self.output_names, {self.input_name: img[None]})[0][0] for img in imgs]
-        return np.array(preds)
+        return self.ort_session.run(self.output_names, {self.input_name: imgs})[0]
 
 
 def evaluation(
