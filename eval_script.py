@@ -60,6 +60,8 @@ if __name__ == "__main__":
         model = tf.keras.models.load_model(args.model_path, compile=False)
     elif args.model_path.endswith(".tflite"):
         model = args.model_path
+    elif args.model_path.endswith(".onnx"):
+        model = args.model_path
     else:  # model_path like: volo.VOLO_d1
         model = args.model_path.strip().split(".")
         model_class = getattr(getattr(keras_cv_attention_models, model[0]), model[1])
