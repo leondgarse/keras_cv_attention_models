@@ -84,10 +84,14 @@ class ONNXModelInterf:
         self.input_shape = self.ort_session.get_inputs()[0].shape
         self.output_shape = self.ort_session.get_outputs()[0].shape
 
+        # Regard channel shape as the smallest value, and if it's on dimension 1, regard as channel first NCHW format
+        self.data_format = "NCHW" if min(self.input_shape[1:]) == self.input_shape[1] else "NHWC"
+
     def __call__(self, imgs):
         imgs = imgs.numpy() if hasattr(imgs, "numpy") else imgs
-        imgs = imgs.transpose(0, 3, 1, 2).astype("float32")
-        return self.ort_session.run(self.output_names, {self.input_name: imgs})[0]
+        if self.data_format == "NCHW":
+            imgs = imgs.transpose(0, 3, 1, 2)
+        return self.ort_session.run(self.output_names, {self.input_name: imgs.astype("float32")})[0]
 
 
 def evaluation(
@@ -108,8 +112,8 @@ def evaluation(
         model_interf = model
     elif isinstance(model, str) and model.endswith(".onnx"):
         model_interf = ONNXModelInterf(model)
-        input_shape = model_interf.input_shape[1:-1]
-        print(">>>> Using input_shape {} for ONNX model.".format(input_shape))
+        input_shape = model_interf.input_shape[2:] if model_interf.data_format == "NCHW" else model_interf.input_shape[1:-1]
+        print(">>>> Using input_shape {} for ONNX model, data_format: {}.".format(input_shape, model_interf.data_format))
     else:
         model_interf = TorchModelInterf(model)
         assert input_shape is not None
