@@ -109,6 +109,7 @@ def evaluation(
     elif isinstance(model, str) and model.endswith(".onnx"):
         model_interf = ONNXModelInterf(model)
         input_shape = model_interf.input_shape[1:-1]
+        print(">>>> Using input_shape {} for ONNX model.".format(input_shape))
     else:
         model_interf = TorchModelInterf(model)
         assert input_shape is not None
