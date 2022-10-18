@@ -151,6 +151,13 @@
     model_surgery.get_flops(resnest.ResNest50())
     # >>>> FLOPs: 5,378,399,992, GFLOPs: 5.3784G
     ```
+  - **`tensorflow_addons`** is not imported by default. While reloading model depending on `GroupNormalization` like `MobileViTV2` from `h5` directly, needs to import `tensorflow_addons` manually first.
+    ```py
+    import tensorflow_addons as tfa
+
+    model_path = os.path.expanduser('~/.keras/models/mobilevit_v2_050_256_imagenet.h5')
+    mm = keras.models.load_model(model_path)
+    ```
   - **Code format** is using `line-length=160`:
     ```sh
     find ./* -name "*.py" | grep -v __init__ | grep -v setup.py | xargs -I {} black -l 160 {}
