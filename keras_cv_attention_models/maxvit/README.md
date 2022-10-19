@@ -25,22 +25,22 @@
   imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.5994264), ('n02123159', 'tiger_cat', 0.085186124), ...]
+  # [('n02124075', 'Egyptian_cat', 0.700786), ('n02123159', 'tiger_cat', 0.04504126), ...]
   ```
   **Change input resolution**.
   ```py
   from keras_cv_attention_models import maxvit
   mm = maxvit.MaxViT_T(input_shape=(117, 393, 3), pretrained="imagenet")
-  # >>>> Load pretrained from: ~/.keras/models/hornet_tiny_gf_224_imagenet.h5
+  # >>>> Load pretrained from: ~/.keras/models/maxvit_t_224_imagenet.h5
   # ...
   # >>>> Reload mismatched weights: 224 -> (117, 393)
-  # >>>> Reload layer: stack3_block1_gnconv_gf_complex_dense
+  # >>>> Reload layer: stack_1_block_1/block_window_mhsa/pos_emb
   # ...
-  # >>>> Reload layer: stack4_block2_gnconv_gf_complex_dense
+  # >>>> Reload layer: stack_4_block_2/grid_window_mhsa/pos_emb
 
   # Run prediction
   from skimage.data import chelsea
   preds = mm(mm.preprocess_input(chelsea()))
   print(mm.decode_predictions(preds))
-  # [('n02124075', 'Egyptian_cat', 0.74485517), ('n02123045', 'tabby', 0.025426276), ...]
+  # [('n02124075', 'Egyptian_cat', 0.77995235), ('n02123045', 'tabby', 0.017138876), ...]
   ```

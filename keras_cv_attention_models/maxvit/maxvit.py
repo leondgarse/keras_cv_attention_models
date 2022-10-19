@@ -16,7 +16,7 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-PRETRAINED_DICT = {"maxvit_t": {"imagenet": {224: "1d787c374117f3ccfd20487a505d56a9"}}}
+PRETRAINED_DICT = {"maxvit_t": {"imagenet": {224: "e5cfd6a6bd4dea939860b6d8a29a911a"}}}
 
 
 def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion=4, se_ratio=0, use_torch_mode=False, drop_rate=0, activation="gelu", name=""):
