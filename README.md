@@ -643,16 +643,16 @@
   | MaxViT_Small                    | 69M    | 67.6G  | 512   | 86.19    |          |
   | MaxViT_Base                     | 119M   | 24.2G  | 224   | 84.95    | [maxvit_t_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_224_imagenet.h5) |
   | MaxViT_Base                     | 119M   | 74.2G  | 384   | 86.34    |          |
-  | - imagenet21k-ft1k              | 119M   | 74.2G  | 384   |          |          |
+  | - imagenet21k-ft1k              | 119M   | 74.2G  | 384   | 88.24    |          |
   | MaxViT_Base                     | 119M   | 138.5G | 512   | 86.66    |          |
-  | - imagenet21k-ft1k              | 119M   | 138.5G | 512   |          |          |
+  | - imagenet21k-ft1k              | 119M   | 138.5G | 512   | 88.38    |          |
   | MaxViT_Large                    | 212M   | 43.9G  | 224   | 85.17    | [maxvit_t_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_224_imagenet.h5) |
   | MaxViT_Large                    | 212M   | 133.1G | 384   | 86.40    |          |
-  | - imagenet21k-ft1k              | 212M   | 133.1G | 384   |          |          |
+  | - imagenet21k-ft1k              | 212M   | 133.1G | 384   | 88.32    |          |
   | MaxViT_Large                    | 212M   | 245.4G | 512   | 86.70    |          |
-  | - imagenet21k-ft1k              | 212M   | 245.4G | 512   |          |          |
-  | MaxViT_XLarge, imagenet21k-ft1k | 475M   | 293.7G | 384   |          |          |
-  | MaxViT_XLarge, imagenet21k-ft1k | 475M   | 535.2G | 512   |          |          |
+  | - imagenet21k-ft1k              | 212M   | 245.4G | 512   | 88.46    |          |
+  | MaxViT_XLarge, imagenet21k-ft1k | 475M   | 293.7G | 384   | 88.51    |          |
+  | MaxViT_XLarge, imagenet21k-ft1k | 475M   | 535.2G | 512   | 88.70    |          |
 ## MLP mixer
   - [Keras MLP mixer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#mlp-mixer) includes implementation of [PDF 2105.01601 MLP-Mixer: An all-MLP Architecture for Vision](https://arxiv.org/pdf/2105.01601.pdf).
 
