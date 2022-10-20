@@ -227,6 +227,8 @@ class RandomProcessImageWithBboxes:
         if magnitude > 0:
             from keras_cv_attention_models.imagenet import augment
 
+            if color_augment_method is None:
+                self.randaug_wo_pos = lambda image: image
             if color_augment_method.lower() == "autoaug":
                 self.randaug_wo_pos = augment.AutoAugment(augmentation_name="simple")
             elif color_augment_method.lower() == "randaug":
@@ -404,7 +406,7 @@ def init_dataset(
     mosaic_mix_prob=0.0,
     resize_method="bilinear",  # ["bilinear", "bicubic"]
     resize_antialias=False,
-    color_augment_method="random_hsv",  # one of ["random_hsv", "autoaug", "randaug"]
+    color_augment_method="random_hsv",  # one of ["random_hsv", "autoaug", "randaug", None]
     positional_augment_methods="rts",  # Positional augment method besides scale, combine of r: rotate, t: transplate, s: shear
     magnitude=0,
     num_layers=2,

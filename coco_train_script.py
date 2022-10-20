@@ -112,7 +112,7 @@ def parse_arguments(argv):
     ds_group.add_argument("--magnitude", type=int, default=6, help="Positional Randaug magnitude value, including rotate / shear / transpose")
     ds_group.add_argument("--num_layers", type=int, default=2, help="Number of randaug applied sequentially to an image. Usually best in [1, 3]")
     ds_group.add_argument(
-        "--color_augment_method", type=str, default="random_hsv", help="None positional related augment method, one of [random_hsv, autoaug, randaug]"
+        "--color_augment_method", type=str, default="random_hsv", help="None positional related augment method, one of [None, random_hsv, autoaug, randaug]"
     )
     ds_group.add_argument(
         "--positional_augment_methods",
@@ -126,6 +126,8 @@ def parse_arguments(argv):
     ds_group.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
 
     args = parser.parse_known_args(argv)[0]
+    if args.color_augment_method.lower() == "none":
+        args.color_augment_method = None
 
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
     if args.anchors_mode is not None:
