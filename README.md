@@ -30,6 +30,7 @@
   - [HorNet](#hornet)
   - [LCNet](#lcnet)
   - [LeViT](#levit)
+  - [MaxViT](#maxvit)
   - [MLP mixer](#mlp-mixer)
   - [MobileNetV3](#mobilenetv3)
   - [MobileViT](#mobilevit)
@@ -629,6 +630,29 @@
   | LeViT192, distillation  | 11M    | 0.66G | 224   | 80.0     | [levit192_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit192_imagenet.h5) |
   | LeViT256, distillation  | 19M    | 1.13G | 224   | 81.6     | [levit256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit256_imagenet.h5) |
   | LeViT384, distillation  | 39M    | 2.36G | 224   | 82.6     | [levit384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit384_imagenet.h5) |
+## MaxViT
+  - [Keras MaxViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/maxvit) is for [PDF 2204.01697 MaxViT: Multi-Axis Vision Transformer](https://arxiv.org/pdf/2204.01697.pdf).
+
+  | Model                           | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ------------------------------- | ------ | ------ | ----- | -------- | -------- |
+  | MaxViT_Tiny                     | 31M    | 5.6G   | 224   | 83.62    | [maxvit_t_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_tiny_224_imagenet.h5) |
+  | MaxViT_Tiny                     | 31M    | 17.7G  | 384   | 85.24    |          |
+  | MaxViT_Tiny                     | 31M    | 33.7G  | 512   | 85.72    |          |
+  | MaxViT_Small                    | 69M    | 11.7G  | 224   | 84.45    | [maxvit_t_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_small_224_imagenet.h5) |
+  | MaxViT_Small                    | 69M    | 36.1G  | 384   | 85.74    |          |
+  | MaxViT_Small                    | 69M    | 67.6G  | 512   | 86.19    |          |
+  | MaxViT_Base                     | 119M   | 24.2G  | 224   | 84.95    | [maxvit_t_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_224_imagenet.h5) |
+  | MaxViT_Base                     | 119M   | 74.2G  | 384   | 86.34    |          |
+  | - imagenet21k-ft1k              | 119M   | 74.2G  | 384   |          |          |
+  | MaxViT_Base                     | 119M   | 138.5G | 512   | 86.66    |          |
+  | - imagenet21k-ft1k              | 119M   | 138.5G | 512   |          |          |
+  | MaxViT_Large                    | 212M   | 43.9G  | 224   | 85.17    | [maxvit_t_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_224_imagenet.h5) |
+  | MaxViT_Large                    | 212M   | 133.1G | 384   | 86.40    |          |
+  | - imagenet21k-ft1k              | 212M   | 133.1G | 384   |          |          |
+  | MaxViT_Large                    | 212M   | 245.4G | 512   | 86.70    |          |
+  | - imagenet21k-ft1k              | 212M   | 245.4G | 512   |          |          |
+  | MaxViT_XLarge, imagenet21k-ft1k | 475M   | 293.7G | 384   |          |          |
+  | MaxViT_XLarge, imagenet21k-ft1k | 475M   | 535.2G | 512   |          |          |
 ## MLP mixer
   - [Keras MLP mixer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#mlp-mixer) includes implementation of [PDF 2105.01601 MLP-Mixer: An all-MLP Architecture for Vision](https://arxiv.org/pdf/2105.01601.pdf).
 

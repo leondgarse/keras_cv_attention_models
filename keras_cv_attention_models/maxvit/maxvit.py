@@ -16,7 +16,12 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-PRETRAINED_DICT = {"maxvit_t": {"imagenet": {224: "e5cfd6a6bd4dea939860b6d8a29a911a"}}}
+PRETRAINED_DICT = {
+    "maxvit_tiny": {"imagenet": {224: "e5cfd6a6bd4dea939860b6d8a29a911a"}},
+    "maxvit_small": {"imagenet": {224: "6bbaff1c6316486c3ac29b607d9ebb13"}},
+    "maxvit_base": {"imagenet": {224: "00c833043b87ef2861ecf79820d827e0"}},
+    "maxvit_large": {"imagenet": {224: "93d079fa8171986cc272f6fb4e9b0255"}},
+}
 
 
 def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion=4, se_ratio=0, use_torch_mode=False, drop_rate=0, activation="gelu", name=""):
@@ -74,7 +79,7 @@ def MaxViT(
     se_ratio=0.25,
     head_dimension=32,
     window_ratio=32,
-    output_filter=512,
+    output_filter=-1,  # -1 for out_channels[-1], 0 to disable
     use_torch_mode=False,
     input_shape=(224, 224, 3),
     num_classes=1000,
@@ -107,7 +112,7 @@ def MaxViT(
         for block_id in range(num_block):
             name = "stack_{}_block_{}/".format(stack_id + 1, block_id + 1)
             stride = stack_strides if block_id == 0 else 1
-            conv_short_cut = True if block_id == 0 and stack_id != 0 else False
+            conv_short_cut = True if block_id == 0 and nn.shape[-1] != out_channel else False
             block_se_ratio = stack_se_ratio[block_id] if isinstance(stack_se_ratio, (list, tuple)) else stack_se_ratio
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             global_block_id += 1
@@ -117,13 +122,12 @@ def MaxViT(
             nn = res_attn_ffn(
                 nn, out_channel, head_dimension, window_size, is_grid=False, drop_rate=block_drop_rate, activation=activation, name=name + "block_"
             )
-            nn = res_attn_ffn(
-                nn, out_channel, head_dimension, window_size, is_grid=True, drop_rate=block_drop_rate, activation=activation, name=name + "grid_"
-            )
+            nn = res_attn_ffn(nn, out_channel, head_dimension, window_size, is_grid=True, drop_rate=block_drop_rate, activation=activation, name=name + "grid_")
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         nn = layer_norm(nn, name="post_")
+        output_filter = out_channels[-1] if output_filter == -1 else output_filter
         if output_filter > 0:
             nn = keras.layers.Dense(output_filter, name="features")(nn)
             nn = activation_by_name(nn, "tanh", name="features_")
@@ -137,36 +141,36 @@ def MaxViT(
     return model
 
 
-def MaxViT_T(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def MaxViT_Tiny(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 5, 2]
     out_channels = [64, 128, 256, 512]
     stem_width = 64
-    return MaxViT(**locals(), model_name="maxvit_t", **kwargs)
+    return MaxViT(**locals(), model_name="maxvit_tiny", **kwargs)
 
 
-def MaxViT_S(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def MaxViT_Small(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 5, 2]
     out_channels = [96, 192, 384, 768]
     stem_width = 64
-    return MaxViT(**locals(), model_name="maxvit_s", **kwargs)
+    return MaxViT(**locals(), model_name="maxvit_small", **kwargs)
 
 
-def MaxViT_B(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def MaxViT_Base(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 6, 14, 2]
     out_channels = [96, 192, 384, 768]
     stem_width = 64
-    return MaxViT(**locals(), model_name="maxvit_b", **kwargs)
+    return MaxViT(**locals(), model_name="maxvit_base", **kwargs)
 
 
-def MaxViT_L(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def MaxViT_Large(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 6, 14, 2]
     out_channels = [128, 256, 512, 1024]
     stem_width = 128
-    return MaxViT(**locals(), model_name="maxvit_l", **kwargs)
+    return MaxViT(**locals(), model_name="maxvit_large", **kwargs)
 
 
-def MaxViT_XL(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def MaxViT_XLarge(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 6, 14, 2]
     out_channels = [192, 384, 768, 1536]
     stem_width = 192
-    return MaxViT(**locals(), model_name="maxvit_xl", **kwargs)
+    return MaxViT(**locals(), model_name="maxvit_xlarge", **kwargs)
