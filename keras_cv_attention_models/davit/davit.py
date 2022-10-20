@@ -110,7 +110,6 @@ def window_attention(inputs, window_size, num_heads=4, is_grid=False, attention_
     else:
         nn = __window_partition__(inputs, patch_height, patch_width, window_height, window_width)
 
-
     if attention_block:
         nn = attention_block(nn, num_heads=num_heads, name=name, **kwargs)
     else:

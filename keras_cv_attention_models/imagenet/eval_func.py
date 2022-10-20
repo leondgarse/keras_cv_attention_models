@@ -75,8 +75,8 @@ class ONNXModelInterf:
 
         ort.set_default_logger_severity(3)
         model_content = onnx.load_model(model_file)
-        model_content.graph.input[0].type.tensor_type.shape.dim[0].dim_param = 'None'  # Set batch_size as dynamic
-        model_content.graph.output[0].type.tensor_type.shape.dim[0].dim_param = 'None'  # Set batch_size as dynamic
+        model_content.graph.input[0].type.tensor_type.shape.dim[0].dim_param = "None"  # Set batch_size as dynamic
+        model_content.graph.output[0].type.tensor_type.shape.dim[0].dim_param = "None"  # Set batch_size as dynamic
 
         self.ort_session = ort.InferenceSession(model_content.SerializeToString())
         self.input_name = self.ort_session.get_inputs()[0].name
