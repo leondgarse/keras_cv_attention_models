@@ -126,8 +126,6 @@ def parse_arguments(argv):
     ds_group.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
 
     args = parser.parse_known_args(argv)[0]
-    if args.color_augment_method.lower() == "none":
-        args.color_augment_method = None
 
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
     if args.anchors_mode is not None:
