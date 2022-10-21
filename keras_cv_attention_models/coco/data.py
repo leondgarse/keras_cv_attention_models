@@ -227,11 +227,9 @@ class RandomProcessImageWithBboxes:
         if magnitude > 0:
             from keras_cv_attention_models.imagenet import augment
 
-            if color_augment_method is None:
-                self.randaug_wo_pos = lambda image: image
-            if color_augment_method.lower() == "autoaug":
+            if isinstance(color_augment_method, str) and color_augment_method.lower() == "autoaug":
                 self.randaug_wo_pos = augment.AutoAugment(augmentation_name="simple")
-            elif color_augment_method.lower() == "randaug":
+            elif isinstance(color_augment_method, str) and color_augment_method.lower() == "randaug":
                 # TODO: Need to pick color related methods, "Invert" / "Posterize" may not working well here.
                 print(">>>> RandAugment: magnitude = %d" % magnitude)
                 self.randaug_wo_pos = augment.RandAugment(
@@ -242,8 +240,11 @@ class RandomProcessImageWithBboxes:
                     use_positional_related_ops=False,  # Set False to exlude [shear, rotate, translate]
                     **randaug_kwargs,
                 )
-            else:
+            elif isinstance(color_augment_method, str):
                 self.randaug_wo_pos = random_hsv
+            else:
+                print(">>>> Using user defined color_augment_method: {}".format(getattr(color_augment_method, "__name__", color_augment_method)))
+                self.randaug_wo_pos = color_augment_method
 
             # RandAugment positional related ops. Including [shear, rotate, translate], Also returns affine transform matrix
             # self.pos_randaug = augment.PositionalRandAugment(num_layers=num_layers, magnitude=magnitude, **randaug_kwargs)
@@ -406,7 +407,7 @@ def init_dataset(
     mosaic_mix_prob=0.0,
     resize_method="bilinear",  # ["bilinear", "bicubic"]
     resize_antialias=False,
-    color_augment_method="random_hsv",  # one of ["random_hsv", "autoaug", "randaug", None]
+    color_augment_method="random_hsv",  # one of ["random_hsv", "autoaug", "randaug"], or totally custom one like `lambda image: image`
     positional_augment_methods="rts",  # Positional augment method besides scale, combine of r: rotate, t: transplate, s: shear
     magnitude=0,
     num_layers=2,
@@ -450,7 +451,7 @@ def init_dataset(
         train_dataset = train_dataset.map(mosaic_mix, num_parallel_calls=AUTOTUNE)
     # return train_dataset
 
-    if magnitude > 0:
+    if magnitude > 0 and positional_augment_methods is not None and len(positional_augment_methods) != 0:
         # Apply randaug rotate / shear / transform after mosaic mix
         max_labels_per_image = (max_labels_per_image * 4) if mosaic_mix_prob > 0 else max_labels_per_image
         pos_aug = PositionalRandAugmentWithBboxes(magnitude, num_layers, max_labels_per_image, positional_augment_methods, **augment_kwargs)

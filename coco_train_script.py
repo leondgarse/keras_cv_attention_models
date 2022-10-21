@@ -112,7 +112,7 @@ def parse_arguments(argv):
     ds_group.add_argument("--magnitude", type=int, default=6, help="Positional Randaug magnitude value, including rotate / shear / transpose")
     ds_group.add_argument("--num_layers", type=int, default=2, help="Number of randaug applied sequentially to an image. Usually best in [1, 3]")
     ds_group.add_argument(
-        "--color_augment_method", type=str, default="random_hsv", help="None positional related augment method, one of [None, random_hsv, autoaug, randaug]"
+        "--color_augment_method", type=str, default="random_hsv", help="None positional related augment method, one of [random_hsv, autoaug, randaug]"
     )
     ds_group.add_argument(
         "--positional_augment_methods",
@@ -202,7 +202,7 @@ def run_training_by_args(args):
         mosaic_mix_prob=args.mosaic_mix_prob,
         resize_method=args.resize_method,
         resize_antialias=resize_antialias,
-        color_augment_method=args.color_augment_method,
+        color_augment_method=args.color_augment_method,  # If would like custom augmentation function, just pass a function like `lambda image: image`
         positional_augment_methods=args.positional_augment_methods,
         magnitude=args.magnitude,
         num_layers=args.num_layers,
