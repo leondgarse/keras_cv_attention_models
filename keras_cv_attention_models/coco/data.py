@@ -227,7 +227,9 @@ class RandomProcessImageWithBboxes:
         if magnitude > 0:
             from keras_cv_attention_models.imagenet import augment
 
-            if isinstance(color_augment_method, str) and color_augment_method.lower() == "autoaug":
+            if color_augment_method is None:
+                self.randaug_wo_pos = lambda image: image
+            elif isinstance(color_augment_method, str) and color_augment_method.lower() == "autoaug":
                 self.randaug_wo_pos = augment.AutoAugment(augmentation_name="simple")
             elif isinstance(color_augment_method, str) and color_augment_method.lower() == "randaug":
                 # TODO: Need to pick color related methods, "Invert" / "Posterize" may not working well here.
