@@ -210,7 +210,9 @@ def EfficientDet(
 
 def EfficientDetD0(input_shape=(512, 512, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B0(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
+        backbone = efficientnet.EfficientNetV1B0(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, **backbone_kwargs)
+        del backbone_kwargs
         features_pick = ["stack_2_block1_output", "stack_4_block2_output", "stack_6_block0_output"]
     model_name = kwargs.pop("model_name", "efficientdet_d0")
     return EfficientDet(**locals(), fpn_depth=3, head_depth=3, num_channels=64, **kwargs)
@@ -218,7 +220,9 @@ def EfficientDetD0(input_shape=(512, 512, 3), freeze_backbone=False, num_classes
 
 def EfficientDetD1(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B1(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
+        backbone = efficientnet.EfficientNetV1B1(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, **backbone_kwargs)
+        del backbone_kwargs
         features_pick = ["stack_2_block2_output", "stack_4_block3_output", "stack_6_block1_output"]
     model_name = kwargs.pop("model_name", "efficientdet_d1")
     return EfficientDet(**locals(), fpn_depth=4, head_depth=3, num_channels=88, **kwargs)
@@ -226,7 +230,9 @@ def EfficientDetD1(input_shape=(640, 640, 3), freeze_backbone=False, num_classes
 
 def EfficientDetD2(input_shape=(768, 768, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B2(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
+        backbone = efficientnet.EfficientNetV1B2(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, **backbone_kwargs)
+        del backbone_kwargs
         features_pick = ["stack_2_block2_output", "stack_4_block3_output", "stack_6_block1_output"]
     model_name = kwargs.pop("model_name", "efficientdet_d2")
     return EfficientDet(**locals(), fpn_depth=5, head_depth=3, num_channels=112, **kwargs)
@@ -234,7 +240,9 @@ def EfficientDetD2(input_shape=(768, 768, 3), freeze_backbone=False, num_classes
 
 def EfficientDetD3(input_shape=(896, 896, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B3(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
+        backbone = efficientnet.EfficientNetV1B3(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, **backbone_kwargs)
+        del backbone_kwargs
         features_pick = ["stack_2_block2_output", "stack_4_block4_output", "stack_6_block1_output"]
     model_name = kwargs.pop("model_name", "efficientdet_d3")
     return EfficientDet(**locals(), fpn_depth=6, head_depth=4, num_channels=160, **kwargs)
@@ -242,7 +250,9 @@ def EfficientDetD3(input_shape=(896, 896, 3), freeze_backbone=False, num_classes
 
 def EfficientDetD4(input_shape=(1024, 1024, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B4(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
+        backbone = efficientnet.EfficientNetV1B4(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, **backbone_kwargs)
+        del backbone_kwargs
         features_pick = ["stack_2_block3_output", "stack_4_block5_output", "stack_6_block1_output"]
     model_name = kwargs.pop("model_name", "efficientdet_d4")
     return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=224, **kwargs)
@@ -250,7 +260,9 @@ def EfficientDetD4(input_shape=(1024, 1024, 3), freeze_backbone=False, num_class
 
 def EfficientDetD5(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B5(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
+        backbone = efficientnet.EfficientNetV1B5(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, **backbone_kwargs)
+        del backbone_kwargs
         features_pick = ["stack_2_block4_output", "stack_4_block6_output", "stack_6_block2_output"]
     model_name = kwargs.pop("model_name", "efficientdet_d5")
     return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=288, **kwargs)
@@ -258,7 +270,9 @@ def EfficientDetD5(input_shape=(1280, 1280, 3), freeze_backbone=False, num_class
 
 def EfficientDetD6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B6(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
+        backbone = efficientnet.EfficientNetV1B6(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, **backbone_kwargs)
+        del backbone_kwargs
         features_pick = ["stack_2_block5_output", "stack_4_block7_output", "stack_6_block2_output"]
     model_name = kwargs.pop("model_name", "efficientdet_d6")
     return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, **kwargs)
@@ -266,7 +280,9 @@ def EfficientDetD6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_class
 
 def EfficientDetD7(input_shape=(1536, 1536, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B6(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
+        backbone = efficientnet.EfficientNetV1B6(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, **backbone_kwargs)
+        del backbone_kwargs
         features_pick = ["stack_2_block5_output", "stack_4_block7_output", "stack_6_block2_output"]
     anchor_scale = kwargs.pop("anchor_scale", 5)
     model_name = kwargs.pop("model_name", "efficientdet_d7")
@@ -275,7 +291,9 @@ def EfficientDetD7(input_shape=(1536, 1536, 3), freeze_backbone=False, num_class
 
 def EfficientDetD7X(input_shape=(1536, 1536, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
-        backbone = efficientnet.EfficientNetV1B7(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
+        backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
+        backbone = efficientnet.EfficientNetV1B7(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation, **backbone_kwargs)
+        del backbone_kwargs
         features_pick = ["stack_2_block6_output", "stack_4_block9_output", "stack_6_block3_output"]
     additional_features = 3
     model_name = kwargs.pop("model_name", "efficientdet_d7x")
