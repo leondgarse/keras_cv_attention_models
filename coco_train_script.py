@@ -124,6 +124,7 @@ def parse_arguments(argv):
     ds_group.add_argument("--rescale_mode", type=str, default="torch", help="Rescale mode, one of [tf, torch, raw, raw01]")
     ds_group.add_argument("--resize_method", type=str, default="bicubic", help="Resize method from tf.image.resize, like [bilinear, bicubic]")
     ds_group.add_argument("--disable_antialias", action="store_true", help="Set use antialias=False for tf.image.resize")
+    ds_group.add_argument("--max_labels_per_image", type=int, default=100, help="Max number of ground truth labels used in a single image")
 
     args = parser.parse_known_args(argv)[0]
 
@@ -193,6 +194,7 @@ def run_training_by_args(args):
         data_name=args.data_name,
         input_shape=input_shape,
         batch_size=batch_size,
+        max_labels_per_image=args.max_labels_per_image,
         anchors_mode=args.anchors_mode,
         anchor_pyramid_levels=args.anchor_pyramid_levels,
         anchor_scale=args.anchor_scale,
@@ -235,17 +237,14 @@ def run_training_by_args(args):
         print(">>>> basic_save_name =", args.basic_save_name)
         # return None, None, None
 
-        if args.data_name == "coco/2017":
-            # Save line width...
-            kw = {"batch_size": batch_size, "rescale_mode": args.rescale_mode, "resize_method": args.resize_method, "resize_antialias": resize_antialias}
-            kw.update({"anchor_scale": args.anchor_scale, "anchors_mode": args.anchors_mode, "model_basic_save_name": args.basic_save_name})
-            start_epoch, frequency = epochs * 2 // 3, 1  # coco eval starts from 2/3 epochs
-            coco_ap_eval = eval_func.COCOEvalCallback("coco/2017", start_epoch=start_epoch, frequency=frequency, **kw)
-            init_callbacks = [coco_ap_eval]
-            test_dataset = None  # COCO eval using coco_ap_eval callback, set `validation_data` for `model.fit` to None
-            print(">>>> COCO AP eval start_epoch: {}, frequency: {}".format(start_epoch, frequency))
-        else:
-            init_callbacks = []
+        # Save line width...
+        kw = {"batch_size": batch_size, "rescale_mode": args.rescale_mode, "resize_method": args.resize_method, "resize_antialias": resize_antialias}
+        kw.update({"anchor_scale": args.anchor_scale, "anchors_mode": args.anchors_mode, "model_basic_save_name": args.basic_save_name})
+        start_epoch, frequency = epochs * 2 // 3, 1  # coco eval starts from 2/3 epochs
+        coco_ap_eval = eval_func.COCOEvalCallback(args.data_name, start_epoch=start_epoch, frequency=frequency, **kw)
+        init_callbacks = [coco_ap_eval]
+        test_dataset = None  # COCO eval using coco_ap_eval callback, set `validation_data` for `model.fit` to None
+        print(">>>> COCO AP eval start_epoch: {}, frequency: {}".format(start_epoch, frequency))
         latest_save, hist = train(
             model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name, init_callbacks, logs=args.tensorboard_logs
         )
