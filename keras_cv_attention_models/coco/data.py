@@ -507,12 +507,16 @@ def draw_bboxes(bboxes, ax=None):
     return ax
 
 
-def show_image_with_bboxes(image, bboxes, labels=None, confidences=None, is_bbox_width_first=False, ax=None, label_font_size=8, num_classes=80):
+def show_image_with_bboxes(
+    image, bboxes, labels=None, confidences=None, is_bbox_width_first=False, ax=None, label_font_size=8, num_classes=80, indices_2_labels=None
+):
     import matplotlib.pyplot as plt
     import numpy as np
 
+    need_plt_show = False
     if ax is None:
         fig, ax = plt.subplots()
+        need_plt_show = True
     ax.imshow(image)
     bboxes = np.array(bboxes)
     if is_bbox_width_first:
@@ -525,7 +529,9 @@ def show_image_with_bboxes(image, bboxes, labels=None, confidences=None, is_bbox
 
         if labels is not None:
             label = int(labels[id])
-            if num_classes == 90:
+            if indices_2_labels is not None:
+                label = indices_2_labels.get(label, indices_2_labels.get(str(label), "None"))
+            elif num_classes == 90:
                 label = COCO_90_LABEL_DICT[label]
             elif num_classes == 80:
                 label = COCO_80_LABEL_DICT[label]
@@ -537,11 +543,14 @@ def show_image_with_bboxes(image, bboxes, labels=None, confidences=None, is_bbox
             ax.text(bb[1], bb[0] - 5, label, color=color, fontsize=label_font_size)
     ax.set_axis_off()
     plt.tight_layout()
-    plt.show()
+    if need_plt_show:
+        plt.show()
     return ax
 
 
-def show_batch_sample(dataset, rescale_mode="torch", rows=-1, label_font_size=8, base_size=3, anchors_mode="efficientdet", **anchor_kwargs):
+def show_batch_sample(
+    dataset, rescale_mode="torch", rows=-1, label_font_size=8, base_size=3, anchors_mode="efficientdet", indices_2_labels=None, **anchor_kwargs
+):
     import matplotlib.pyplot as plt
     from keras_cv_attention_models.visualizing import get_plot_cols_rows
 
@@ -581,7 +590,7 @@ def show_batch_sample(dataset, rescale_mode="torch", rows=-1, label_font_size=8,
         elif not anchors_mode == anchors_func.ANCHOR_FREE_MODE:
             valid_anchors = anchors[pick]
             valid_preds = anchors_func.decode_bboxes(valid_preds, valid_anchors)
-        show_image_with_bboxes(image, valid_preds[:, :4], valid_preds[:, -1], ax=ax, label_font_size=label_font_size)
+        show_image_with_bboxes(image, valid_preds[:, :4], valid_preds[:, -1], ax=ax, label_font_size=label_font_size, indices_2_labels=indices_2_labels)
     fig.tight_layout()
     plt.show()
     return fig
