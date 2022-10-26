@@ -45,6 +45,8 @@ def parse_arguments(argv):
     parser.add_argument(
         "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with it. For efficientdet anchors only"
     )
+    anchor_group.add_argument("--aspect_ratios", type=*, default=(1, 2, 0.5), help="For efficientdet anchors only. anchors aspect ratio")
+    anchor_group.add_argument("--num_scales", type=int, default=3, help="For efficientdet anchors only. number of scale for each aspect_ratios")
     # parser.add_argument(
     #     "--anchor_pyramid_levels_min", type=int, default=3, help="Anchor pyramid levels min, max is calculated from model output shape"
     # )
@@ -111,7 +113,7 @@ if __name__ == "__main__":
         print(">>>> model_kwargs:", model_kwargs)
         model = model_class(**model_kwargs)
 
-    ANCHORS = {"anchor_scale": args.anchor_scale, "anchors_mode": args.anchors_mode}
+    ANCHORS = {"anchor_scale": args.anchor_scale, "anchors_mode": args.anchors_mode, "aspect_ratios": args.aspect_ratios, "num_scales": args.num_scales}
     NMS = {"nms_score_threshold": args.nms_score_threshold, "nms_iou_or_sigma": args.nms_iou_or_sigma, "nms_max_output_size": args.nms_max_output_size}
     NMS.update({"nms_method": args.nms_method, "nms_mode": args.nms_mode, "nms_topk": args.nms_topk})
     IMAGE = {"resize_method": args.resize_method, "resize_antialias": antialias, "rescale_mode": args.rescale_mode, "use_bgr_input": args.use_bgr_input}
