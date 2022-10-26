@@ -25,9 +25,12 @@ class DecodePredictions:
     >>> # bboxes = array([[0.433231  , 0.54432285, 0.8778939 , 0.8187578 ]], dtype=float32), labels = array([17]), scores = array([0.85373735], dtype=float32)
     """
 
-    def __init__(self, input_shape=512, pyramid_levels=[3, 7], anchors_mode=None, use_object_scores="auto", anchor_scale="auto"):
+    def __init__(
+        self, input_shape=512, pyramid_levels=[3, 7], anchors_mode=None, use_object_scores="auto", anchor_scale="auto", aspect_ratios=(1, 2, 0.5), num_scales=3
+    ):
         self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
         use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, "auto", anchor_scale)
+        self.aspect_ratios, self.num_scales = aspect_ratios, num_scales
         self.anchors_mode, self.use_object_scores, self.anchor_scale = anchors_mode, use_object_scores, anchor_scale  # num_anchors not using
         if input_shape is not None and (isinstance(input_shape, (list, tuple)) and input_shape[0] is not None):
             self.__init_anchor__(input_shape)
@@ -41,8 +44,8 @@ class DecodePredictions:
         elif self.anchors_mode == anchors_func.YOLOR_MODE:
             self.anchors = anchors_func.get_yolor_anchors(input_shape, self.pyramid_levels)
         else:
-            aspect_ratios, num_scales, grid_zero_start = [1, 2, 0.5], 3, False
-            self.anchors = anchors_func.get_anchors(input_shape, self.pyramid_levels, aspect_ratios, num_scales, self.anchor_scale, grid_zero_start)
+            grid_zero_start = False
+            self.anchors = anchors_func.get_anchors(input_shape, self.pyramid_levels, self.aspect_ratios, self.num_scales, self.anchor_scale, grid_zero_start)
         return self.anchors
 
     def __topk_class_boxes_single__(self, pred, topk=5000):
@@ -206,30 +209,35 @@ def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={},
     return tf.convert_to_tensor(results).numpy()
 
 
-def coco_evaluation(detection_results, annotations=None):
-    from pycocotools.coco import COCO
-    from pycocotools.cocoeval import COCOeval
+class COCOEvaluation:
+    def __init__(self, annotations=None):
+        from pycocotools.coco import COCO
 
-    if annotations is None:
-        url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/coco_annotations_instances_val2017.json"
-        annotations = tf.keras.utils.get_file(origin=url)
+        if annotations is None:
+            url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/coco_annotations_instances_val2017.json"
+            annotations = tf.keras.utils.get_file(origin=url)
 
-    if isinstance(annotations, dict):  # json already loaded as dict
-        coco_gt = COCO()
-        coco_gt.dataset = annotations
-        coco_gt.createIndex()
-    else:
-        coco_gt = COCO(annotations)
-    image_ids = [ii["image_id"] for ii in detection_results] if isinstance(detection_results[0], dict) else [ii[0] for ii in detection_results]
-    image_ids = list(set(image_ids))
-    print("len(image_ids) =", len(image_ids))
-    coco_dt = coco_gt.loadRes(detection_results)
-    coco_eval = COCOeval(cocoGt=coco_gt, cocoDt=coco_dt, iouType="bbox")
-    coco_eval.params.imgIds = image_ids
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    coco_eval.summarize()
-    return coco_eval
+        if isinstance(annotations, dict):  # json already loaded as dict
+            coco_gt = COCO()
+            coco_gt.dataset = annotations
+            coco_gt.createIndex()
+        else:
+            coco_gt = COCO(annotations)
+        self.coco_gt = coco_gt
+
+    def __call__(self, detection_results):
+        from pycocotools.cocoeval import COCOeval
+
+        image_ids = [ii["image_id"] for ii in detection_results] if isinstance(detection_results[0], dict) else [ii[0] for ii in detection_results]
+        image_ids = list(set(image_ids))
+        print("len(image_ids) =", len(image_ids))
+        coco_dt = self.coco_gt.loadRes(detection_results)
+        coco_eval = COCOeval(cocoGt=self.coco_gt, cocoDt=coco_dt, iouType="bbox")
+        coco_eval.params.imgIds = image_ids
+        coco_eval.evaluate()
+        coco_eval.accumulate()
+        coco_eval.summarize()
+        return coco_eval
 
 
 def to_coco_json(detection_results, save_path, indent=2):
@@ -301,6 +309,8 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
         nms_topk=5000,
         anchors_mode="auto",  # [model anchors related parameters]
         anchor_scale=4,  # Init anchors for model prediction. "auto" means 1 if (anchors_mode=="anchor_free" or anchors_mode=="yolor"), else 4
+        aspect_ratios=(1, 2, 0.5),  # For efficientdet anchors only
+        num_scales=3,  # For efficientdet anchors only
         annotation_file=None,
         save_json=None,
         start_epoch=0,  # [trainign callbacks parameters]
@@ -350,7 +360,10 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
         print("\n>>>> [COCOEvalCallback] input_shape: {}, pyramid_levels: {}, anchors_mode: {}".format(input_shape, pyramid_levels, self.anchors_mode))
         # print(">>>>", self.dataset_kwargs)
         # print(">>>>", self.nms_kwargs)
-        self.pred_decoder = DecodePredictions(input_shape, pyramid_levels, self.anchors_mode, anchor_scale=self.anchor_scale)
+
+        self.pred_decoder = DecodePredictions(
+            input_shape, pyramid_levels, self.anchors_mode, anchor_scale=self.anchor_scale, aspect_ratios=aspect_ratios, num_scales=num_scales
+        )
 
         # Training saving best
         if self.model_basic_save_name is not None:
@@ -359,6 +372,7 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
             self.is_better = lambda cur, pre: cur >= pre
             self.pre_best = -1e5
 
+        self.coco_evaluation = COCOEvaluation(self.annotation_file)
         self.built = True
 
     def on_epoch_end(self, epoch=0, logs=None):
@@ -374,7 +388,7 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
         eval_dataset = self.eval_dataset.take(self.take_samples) if self.take_samples > 0 else self.eval_dataset
         detection_results = model_detection_and_decode(self.model, eval_dataset, self.pred_decoder, self.nms_kwargs, self.is_coco, self.image_id_map)
         try:
-            coco_eval = coco_evaluation(detection_results, self.annotation_file)
+            coco_eval = self.coco_evaluation(detection_results)
         except:
             print(">>>> Error in running coco_evaluation")
             coco_eval = None
