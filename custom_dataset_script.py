@@ -79,8 +79,7 @@ def build_recognition_dataset_json(train_path, test_path=None, test_split=0.0, s
 """ Detection dataset """
 
 
-def match_detection_labels(image_names, label_path):
-
+def match_detection_labels_dir(image_names, label_path):
     xxs, yys = [], []
     for image_name in tqdm(image_names, "Matching image name with label"):
         # print(image_name)
@@ -92,7 +91,48 @@ def match_detection_labels(image_names, label_path):
         else:
             xxs.append(image_name)
             yys.append(yy[0])
-    return xxs, yys
+    return xxs, yys, None
+
+
+def match_detection_labels_coco_annotation(image_names, label_path, target_ids=None):
+    with open(label_path, 'r') as ff:
+        aa = json.load(ff)
+
+    if image_names is not None:
+        image_names = {os.path.basename(ii): ii for ii in image_names}  # map filename to file path
+
+    image_info_dict = {ii['id']: ii for ii in aa['images']}
+    rrs = {}
+    for ii in aa['annotations']:
+        if target_ids is not None and ii['category_id'] not in target_ids:
+            continue
+
+        image_info = image_info_dict[ii['image_id']]
+        file_name = image_info["file_name"]
+        file_name = file_name if image_names is None else image_names.get(file_name, None)
+        if file_name is None:
+            continue
+
+        bbox = ii['bbox']
+        left = bbox[0] / image_info["width"]
+        top = bbox[1] / image_info["height"]
+        right = (bbox[0] + bbox[2]) / image_info["width"]
+        bottom = (bbox[1] + bbox[3]) / image_info["height"]
+
+        rr = rrs.get(file_name, {"label": [], "bbox": []})
+        rr["label"].append(ii['category_id'])
+        rr["bbox"].append([top, left, bottom, right])
+        rrs[file_name] = rr
+
+    indices_2_labels = {int(ii['id']): ii['name'] for ii in aa['categories']}
+    return list(rrs.keys()), list(rrs.values()), indices_2_labels
+
+
+def match_detection_labels(image_names, label_path):
+    if label_path.endswith(".json"):
+        return match_detection_labels_coco_annotation(image_names, label_path)
+    else:
+        return match_detection_labels_dir(image_names, label_path)
 
 
 def convert_to_corner_by_format(bbox, bbox_source_format="yxyx"):
@@ -136,13 +176,13 @@ def build_detection_dataset_json(
 
     """ Read training data """
     x_train = walk_through_image_folder(train_image_path, depth=1)
-    x_train, y_train = match_detection_labels(x_train, train_label_path)
+    x_train, y_train, indices_2_labels = match_detection_labels(x_train, train_label_path)
 
     """ Read or split test data """
     if test_image_path is not None:
         x_test = walk_through_image_folder(test_image_path, depth=1)
         test_label_path = train_label_path if test_label_path is None else test_label_path
-        x_test, y_test = match_detection_labels(x_test, test_label_path)
+        x_test, y_test, _ = match_detection_labels(x_test, test_label_path)
     else:
         from sklearn.model_selection import train_test_split
 
@@ -151,16 +191,19 @@ def build_detection_dataset_json(
     """ Read bbox + label data """
     x_train = [os.path.abspath(ii) for ii in x_train]
     x_test = [os.path.abspath(ii) for ii in x_test]
-    train = [{"image": ii, "objects": read_coco_objects(jj)} for ii, jj in zip(x_train, y_train)]
-    test = [{"image": ii, "objects": read_coco_objects(jj)} for ii, jj in zip(x_test, y_test)]
+    train = [{"image": ii, "objects": jj if isinstance(jj, dict) else read_coco_objects(jj)} for ii, jj in zip(x_train, y_train)]
+    test = [{"image": ii, "objects": jj if isinstance(jj, dict) else read_coco_objects(jj)} for ii, jj in zip(x_test, y_test)]
     # num_classes = max([max(ii["objects"]["label"]) for ii in train]) + 1
 
     """ Convert label string to int, convert bbox to corner [top, left, bottom, right] format """
     all_labels = set()
     for ii in train:
         all_labels.update(set(ii["objects"]["label"]))
-    is_digit_labels = min([ii.isdigit() for ii in all_labels])  # Check if all True
-    if is_digit_labels:
+    is_digit_labels = min([isinstance(ii, int) or ii.isdigit() for ii in all_labels])  # Check if all True
+    if indices_2_labels is not None:  # Already inited from annotation json file
+        label_convert_func = lambda xx: xx
+        num_classes = max(indices_2_labels.keys()) + 1
+    elif is_digit_labels:
         label_convert_func = int
         indices_2_labels = {int(ii): ii for ii in all_labels}
         num_classes = max(indices_2_labels.keys()) + 1
@@ -200,8 +243,15 @@ def parse_arguments(argv):
     parser.add_argument("--test_images", type=str, default=None, help="Test images path")
     parser.add_argument("--test_split", type=float, default=0, help="Test split if `test_images` is None")
     # parser.add_argument("--is_int_label", action="store_true", help="[Recognition] convert label by int, or will be sorted and enumerated label")
-    parser.add_argument("--train_labels", type=str, default=None, help="[Detection] train bbox + label path")
-    parser.add_argument("--test_labels", type=str, default=None, help="[Detection] test bbox + label path. None for same with `train_labels`")
+    parser.add_argument(
+        "--train_labels", type=str, default=None, help="[Detection] train bbox + label path, can be directory or COCO format annotation json file"
+    )
+    parser.add_argument(
+        "--test_labels",
+        type=str,
+        default=None,
+        help="[Detection] test bbox + label path. None for same with `train_labels`, can be directory or COCO format annotation json file",
+    )
     parser.add_argument("--bbox_source_format", type=str, default="yxyx", help="[Detection] Bbox source format: " + BBOX_FORMAT_STR)
     parser.add_argument("-s", "--save_name", type=str, default=None, help="Target json file save name")
 
