@@ -141,9 +141,10 @@ def get_anchors_mode_by_anchors(input_shape, total_anchors, num_anchors="auto", 
         # Pick from [1, 3, 9], 1 for anchor_free, 3 for yolor, 9 for efficientdet
         picks = tf.convert_to_tensor([1, 3, 9], dtype=tf.int32)
         max_anchors = num_anchors_at_each_level_cumsum[-1] * picks
-        num_anchors = int(picks[tf.argmax(total_anchors < max_anchors)])
+        num_anchors = tf.math.ceil(total_anchors / max_anchors[0]) if total_anchors > max_anchors[-1] else picks[tf.argmax(total_anchors < max_anchors)]
+        num_anchors = int(num_anchors)
     dd = {1: ANCHOR_FREE_MODE, 3: YOLOR_MODE, 9: EFFICIENTDET_MODE}
-    return dd[num_anchors], num_anchors
+    return dd.get(num_anchors, EFFICIENTDET_MODE), num_anchors
 
 
 def get_pyramid_levels_by_anchors(input_shape, total_anchors, num_anchors="auto", pyramid_levels_min=3):

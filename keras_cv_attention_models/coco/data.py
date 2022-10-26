@@ -404,6 +404,8 @@ def init_dataset(
     anchors_mode="efficientdet",
     anchor_pyramid_levels=[3, 7],
     anchor_scale=4,  # For efficientdet anchors only
+    aspect_ratios=(1, 2, 0.5),  # For efficientdet anchors only
+    num_scales=3,  # For efficientdet anchors only
     rescale_mode="torch",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`
     random_crop_mode=1.0,  # 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale
     mosaic_mix_prob=0.0,
@@ -470,7 +472,7 @@ def init_dataset(
         bbox_process = lambda bb: __yolor_bboxes_labels_batch_func__(bb[0], bb[1], anchor_ratios, feature_sizes, empty_label, num_classes)
     else:
         # grid_zero_start = True if anchor_grid_zero_start == "auto" else anchor_grid_zero_start
-        aspect_ratios, num_scales, grid_zero_start = [1, 2, 0.5], 3, False  # Use this till meet some others new
+        grid_zero_start = False  # Use this till meet some others new
         anchors = anchors_func.get_anchors(input_shape[:2], anchor_pyramid_levels, aspect_ratios, num_scales, anchor_scale, grid_zero_start)
         num_anchors = anchors.shape[0]
         empty_label = tf.zeros([num_anchors, 4 + num_classes + 1])  # All 0

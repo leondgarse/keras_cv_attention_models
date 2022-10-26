@@ -9,6 +9,7 @@ from keras_cv_attention_models.imagenet import (
     init_model,
     train,
 )
+import pycocotools  # Try import first, not using here, just in case it throws error later
 
 
 def parse_arguments(argv):
@@ -72,8 +73,11 @@ def parse_arguments(argv):
         "-A", "--anchors_mode", type=str, default=None, help="One of [efficientdet, anchor_free, yolor]. Default None for det_header preset"
     )
     anchor_group.add_argument(
-        "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with it. For efficientdet anchors only"
+        "--anchor_scale", type=int, default=4, help="For efficientdet anchors only. base anchor for a single grid point will multiply with it."
     )
+    anchor_group.add_argument("--aspect_ratios", type=*, default=(1, 2, 0.5), help="For efficientdet anchors only. anchors aspect ratio")
+    anchor_group.add_argument("--num_scales", type=int, default=3, help="For efficientdet anchors only. number of scale for each aspect_ratios")
+
     anchor_group.add_argument("--anchor_pyramid_levels_min", type=int, default=3, help="Anchor pyramid levels min.")
     anchor_group.add_argument("--anchor_pyramid_levels_max", type=int, default=-1, help="Anchor pyramid levels max. -1 for calculated from model output shape")
 
@@ -131,6 +135,8 @@ def parse_arguments(argv):
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
     if args.anchors_mode is not None:
         args.additional_det_header_kwargs.update({"anchors_mode": args.anchors_mode})
+    if args.anchors_mode == anchors_func.EFFICIENTDET_MODE and len(args.aspect_ratios) * args.num_scales != 9:
+        args.additional_det_header_kwargs.update({"num_anchors": len(args.aspect_ratios) * args.num_scales})
     args.additional_backbone_kwargs = json.loads(args.additional_backbone_kwargs) if args.additional_backbone_kwargs else {}
 
     lr_decay_steps = args.lr_decay_steps.strip().split(",")
@@ -198,6 +204,8 @@ def run_training_by_args(args):
         anchors_mode=args.anchors_mode,
         anchor_pyramid_levels=args.anchor_pyramid_levels,
         anchor_scale=args.anchor_scale,
+        aspect_ratios=args.aspect_ratios,
+        num_scales=args.num_scales,
         rescale_mode=args.rescale_mode,
         mosaic_mix_prob=args.mosaic_mix_prob,
         resize_method=args.resize_method,
@@ -240,6 +248,7 @@ def run_training_by_args(args):
         # Save line width...
         kw = {"batch_size": batch_size, "rescale_mode": args.rescale_mode, "resize_method": args.resize_method, "resize_antialias": resize_antialias}
         kw.update({"anchor_scale": args.anchor_scale, "anchors_mode": args.anchors_mode, "model_basic_save_name": args.basic_save_name})
+        kw.update({"aspect_ratios": args.aspect_ratios, "num_scales": args.num_scales})
         start_epoch, frequency = epochs * 2 // 3, 1  # coco eval starts from 2/3 epochs
         coco_ap_eval = eval_func.COCOEvalCallback(args.data_name, start_epoch=start_epoch, frequency=frequency, **kw)
         init_callbacks = [coco_ap_eval]
