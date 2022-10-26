@@ -104,7 +104,7 @@ def mhsa_mlp_block(
     mlp = mlp_block(mlp, int(out_channel * mlp_ratio), drop_rate=mlp_drop_rate, use_conv=use_conv_mlp, activation=activation, name=name and name + "mlp_")
     mlp = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name and name + "2_gamma")(mlp) if layer_scale >= 0 else mlp
     mlp = drop_block(mlp, drop_rate=drop_rate, name=name and name + "mlp_")
-    return keras.layers.Add(name=name and name + "output")([attn_out, mlp])
+    return keras.layers.Add(name=name and name + "out")([attn_out, mlp])
 
 
 def transformer_pre_process(inputs, out_channel, patch_size=2, resize_first=False, use_depthwise=False, patches_to_batch=True, activation="swish", name=""):
@@ -166,7 +166,7 @@ def transformer_post_process(inputs, pre_attn, out_channel, patch_size=2, patch_
         nn = tf.concat([pre_attn, nn], axis=-1)
         nn = conv2d_no_bias(nn, out_channel, kernel_size=3, strides=1, padding="SAME", name=name + "post_2_")
         nn = batchnorm_with_activation(nn, activation=activation, name=name + "post_2_")
-    return nn
+    return keras.layers.Activation("linear", name=name + "output")(nn)  # Identity, Just need a name here
 
 
 def MobileViT(
