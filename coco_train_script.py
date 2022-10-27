@@ -75,9 +75,8 @@ def parse_arguments(argv):
     anchor_group.add_argument(
         "--anchor_scale", type=int, default=4, help="For efficientdet anchors only. base anchor for a single grid point will multiply with it."
     )
-    anchor_group.add_argument("--aspect_ratios", type=*, default=(1, 2, 0.5), help="For efficientdet anchors only. anchors aspect ratio")
+    anchor_group.add_argument("--aspect_ratios", nargs="*", default=(1, 2, 0.5), help="For efficientdet anchors only. anchors aspect ratio")
     anchor_group.add_argument("--num_scales", type=int, default=3, help="For efficientdet anchors only. number of scale for each aspect_ratios")
-
     anchor_group.add_argument("--anchor_pyramid_levels_min", type=int, default=3, help="Anchor pyramid levels min.")
     anchor_group.add_argument("--anchor_pyramid_levels_max", type=int, default=-1, help="Anchor pyramid levels max. -1 for calculated from model output shape")
 

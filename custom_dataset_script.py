@@ -95,36 +95,36 @@ def match_detection_labels_dir(image_names, label_path):
 
 
 def match_detection_labels_coco_annotation(image_names, label_path, target_ids=None):
-    with open(label_path, 'r') as ff:
+    with open(label_path, "r") as ff:
         aa = json.load(ff)
 
     if image_names is not None:
         image_names = {os.path.basename(ii): ii for ii in image_names}  # map filename to file path
 
-    image_info_dict = {ii['id']: ii for ii in aa['images']}
+    image_info_dict = {ii["id"]: ii for ii in aa["images"]}
     rrs = {}
-    for ii in aa['annotations']:
-        if target_ids is not None and ii['category_id'] not in target_ids:
+    for ii in aa["annotations"]:
+        if target_ids is not None and ii["category_id"] not in target_ids:
             continue
 
-        image_info = image_info_dict[ii['image_id']]
+        image_info = image_info_dict[ii["image_id"]]
         file_name = image_info["file_name"]
         file_name = file_name if image_names is None else image_names.get(file_name, None)
         if file_name is None:
             continue
 
-        bbox = ii['bbox']
+        bbox = ii["bbox"]
         left = bbox[0] / image_info["width"]
         top = bbox[1] / image_info["height"]
         right = (bbox[0] + bbox[2]) / image_info["width"]
         bottom = (bbox[1] + bbox[3]) / image_info["height"]
 
         rr = rrs.get(file_name, {"label": [], "bbox": []})
-        rr["label"].append(ii['category_id'])
+        rr["label"].append(ii["category_id"])
         rr["bbox"].append([top, left, bottom, right])
         rrs[file_name] = rr
 
-    indices_2_labels = {int(ii['id']): ii['name'] for ii in aa['categories']}
+    indices_2_labels = {int(ii["id"]): ii["name"] for ii in aa["categories"]}
     return list(rrs.keys()), list(rrs.values()), indices_2_labels
 
 

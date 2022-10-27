@@ -5,6 +5,10 @@ import tensorflow as tf
 from keras_cv_attention_models.imagenet import data
 from keras_cv_attention_models.model_surgery import change_model_input_shape
 
+CLASS_INDEX_IMAGENET21K = None
+
+""" Imagenet evaluation """
+
 
 class TorchModelInterf:
     def __init__(self, model):
@@ -147,21 +151,42 @@ def evaluation(
     return y_true, y_pred_top_1, y_pred_top_5
 
 
+""" Decode predictions """
+
+
+def decode_predictions(preds, top=5):
+    preds = np.array(preds)
+    if preds.shape[-1] == 1000:
+        return tf.keras.applications.imagenet_utils.decode_predictions(preds, top=top)
+    elif preds.shape[-1] == 21843:
+        return decode_predictions_imagenet21k(preds, top=top)
+    else:
+        print("[Error] not imagenet or imagenet21k prediction, not supported")
+
+
 def decode_predictions_imagenet21k(preds, top=5):
     """Similar function from keras.applications.imagenet_utils.decode_predictions, just using imagenet21k class index"""
-    if len(preds.shape) != 2 or preds.shape[1] != 1000:
-        pass
-    url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/imagenet21k_class_index.json"
-    class_index_path = tf.keras.utils.get_file(origin=url)
-    with open(class_index_path) as ff:
-        class_index = json.load(ff)
+    if len(preds.shape) != 2 or preds.shape[-1] != 21843:
+        print("[Error] not imagenet21k prediction")
+        return
+
+    global CLASS_INDEX_IMAGENET21K
+    if CLASS_INDEX_IMAGENET21K is None:
+        url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/imagenet21k_class_index.json"
+        class_index_path = tf.keras.utils.get_file(origin=url)
+        with open(class_index_path) as ff:
+            CLASS_INDEX_IMAGENET21K = json.load(ff)
+
     results = []
     for pred in preds:
         top_indices = pred.argsort()[-top:][::-1]
-        result = [tuple(class_index[str(i)]) + (pred[i],) for i in top_indices]
+        result = [tuple(CLASS_INDEX_IMAGENET21K[str(i)]) + (pred[i],) for i in top_indices]
         result.sort(key=lambda x: x[2], reverse=True)
         results.append(result)
     return results
+
+
+""" Plotting related """
 
 
 def parse_timm_log(log_file, pick_keys=None):
