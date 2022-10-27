@@ -45,7 +45,7 @@ setup(
     install_requires=[
         "tensorflow-macos;platform_system=='Darwin'",
         "tensorflow;platform_system!='Darwin'",
-        "tensorflow-addons",
+        "tensorflow-addons;platform_machine!='aarch64' and platform_machine!='aarch32'",
         "tensorflow-datasets"
     ],
     python_requires=">=3.6",
