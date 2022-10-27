@@ -112,12 +112,16 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
     def show_pos_emb(self, rows=1, base_size=2):
         import matplotlib.pyplot as plt
 
-        hh = ww = int(tf.math.sqrt(float(self.relative_position_bias_table.shape[0] - self.cls_token_pos_len)))
-        ss = tf.reshape(self.relative_position_bias_table[: hh * ww], (hh, ww, -1)).numpy()
-        cols = int(tf.math.ceil(ss.shape[-1] / rows))
+        num_heads = self.relative_position_bias_table.shape[0]
+        pos_emb = tf.gather(self.relative_position_bias_table, self.relative_position_index, axis=1).numpy()
+        # hh = ww = int(tf.math.sqrt(float(self.relative_position_bias_table.shape[1] - self.cls_token_pos_len)))
+        # ss = tf.reshape(self.relative_position_bias_table[:, : hh * ww], (num_heads, hh, ww)).numpy()
+        cols = int(tf.math.ceil(num_heads / rows))
         fig, axes = plt.subplots(rows, cols, figsize=(base_size * cols, base_size * rows))
         for id, ax in enumerate(axes.flatten()):
-            ax.imshow(ss[:, :, id])
+            if id >= num_heads:
+                break
+            ax.imshow(pos_emb[id])
             ax.set_axis_off()
         fig.tight_layout()
         return fig
