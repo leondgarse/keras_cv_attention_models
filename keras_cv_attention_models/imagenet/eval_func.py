@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 import tensorflow as tf
 from keras_cv_attention_models.imagenet import data
@@ -146,6 +147,23 @@ def evaluation(
     return y_true, y_pred_top_1, y_pred_top_5
 
 
+def decode_predictions_imagenet21k(preds, top=5):
+    """Similar function from keras.applications.imagenet_utils.decode_predictions, just using imagenet21k class index"""
+    if len(preds.shape) != 2 or preds.shape[1] != 1000:
+        pass
+    url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/imagenet21k_class_index.json"
+    class_index_path = tf.keras.utils.get_file(origin=url)
+    with open(class_index_path) as ff:
+        class_index = json.load(ff)
+    results = []
+    for pred in preds:
+        top_indices = pred.argsort()[-top:][::-1]
+        result = [tuple(class_index[str(i)]) + (pred[i],) for i in top_indices]
+        result.sort(key=lambda x: x[2], reverse=True)
+        results.append(result)
+    return results
+
+
 def parse_timm_log(log_file, pick_keys=None):
     with open(log_file, "r") as ff:
         aa = ff.readlines()
@@ -185,8 +203,6 @@ def parse_timm_log(log_file, pick_keys=None):
 
 
 def combine_hist_into_one(hist_list, save_file=None):
-    import json
-
     hh = {}
     for hist in hist_list:
         with open(hist, "r") as ff:
@@ -237,8 +253,6 @@ def plot_and_peak_scatter(ax, source_array, peak_method, label, skip_first=0, co
 
 
 def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["bottom"], skip_first=0, pred_curve=0):
-    import os
-    import json
     import matplotlib as mpl
     import matplotlib.pyplot as plt
 

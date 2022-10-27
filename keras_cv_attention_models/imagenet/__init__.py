@@ -1,4 +1,4 @@
-from keras_cv_attention_models.imagenet.eval_func import evaluation, plot_hists, combine_hist_into_one, parse_timm_log
+from keras_cv_attention_models.imagenet.eval_func import evaluation, plot_hists, combine_hist_into_one, parse_timm_log, decode_predictions_imagenet21k
 from keras_cv_attention_models.imagenet.train_func import (
     compile_model,
     init_global_strategy,
