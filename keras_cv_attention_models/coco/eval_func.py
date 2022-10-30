@@ -34,7 +34,13 @@ class DecodePredictions(tf.keras.layers.Layer):
         anchor_scale="auto",
         aspect_ratios=(1, 2, 0.5),
         num_scales=3,
-        as_static=False,
+        score_threshold=0.3,  # decode parameter, can be set new value in `self.call`
+        iou_or_sigma=0.5,  # decode parameter, can be set new value in `self.call`
+        max_output_size=100,  # decode parameter, can be set new value in `self.call`
+        method="hard",  # decode parameter, can be set new value in `self.call`
+        mode="global",  # decode parameter, can be set new value in `self.call`
+        topk=0,  # decode parameter, can be set new value in `self.call`
+        use_static_output=False,  # Set to True if using this as an actual layer, especially for converting tflite
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -47,7 +53,15 @@ class DecodePredictions(tf.keras.layers.Layer):
         else:
             self.anchors = None
         self.__input_shape__ = input_shape
-        self.as_static = as_static
+        self.use_static_output = use_static_output
+        self.nms_kwargs = {
+            "score_threshold": score_threshold,
+            "iou_or_sigma": iou_or_sigma,
+            "max_output_size": max_output_size,
+            "method": method,
+            "mode": mode,
+            "topk": topk,
+        }
 
     def __init_anchor__(self, input_shape):
         input_shape = input_shape[:2] if isinstance(input_shape, (list, tuple)) else (input_shape, input_shape)
@@ -142,22 +156,29 @@ class DecodePredictions(tf.keras.layers.Layer):
         else:
             bboxs, lables, confidences = self.__nms_global__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
 
-        return self.__to_static__(bboxs, lables, confidences, max_output_size) if self.as_static else (bboxs, lables, confidences)
+        return self.__to_static__(bboxs, lables, confidences, max_output_size) if self.use_static_output else (bboxs, lables, confidences)
 
-    def call(self, preds, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=0, input_shape=None):
+    def call(self, preds, input_shape=None, training=False, **nms_kwargs):
         """
         https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
-        iou_or_sigma: means `soft_nms_sigma` if method is "gaussian", else `iou_threshold`.
-        method: "gaussian" or "hard".
-        mode: "global" or "per_class". "per_class" is strategy from `torchvision.ops.batched_nms`
-        topk: Using topk highest scores, each bbox may have multi labels. Set `0` to disable, `-1` using all.
+
+        input_shape: actual input shape if model using dynamic input shape `[None, None, 3]`.
+        nms_kwargs:
+          score_threshold: float value in (0, 1), min score threshold, lower output score will be excluded. Default 0.3.
+          iou_or_sigma: means `soft_nms_sigma` if method is "gaussian", else `iou_threshold`. Default 0.5.
+          max_output_size: max output size for `tf.image.non_max_suppression_with_scores`. Default 100.
+              If use_static_output=True, fixed output shape will be `[batch, max_output_size, 5]`.
+          method: "gaussian" or "hard".  Default "hard".
+          mode: "global" or "per_class". "per_class" is strategy from `torchvision.ops.batched_nms`. Default "global".
+          topk: Using topk highest scores, each bbox may have multi labels. Set `0` to disable, `-1` using all. Default 0.
         """
-        if self.as_static:
-            return tf.map_fn(lambda xx: self.__decode_single__(xx, score_threshold, iou_or_sigma, max_output_size, method, mode, topk), preds)
+        self.nms_kwargs.update(nms_kwargs)
+        if self.use_static_output:
+            return tf.map_fn(lambda xx: self.__decode_single__(xx, **nms_kwargs), preds)
         elif len(preds.shape) == 3:
-            return [self.__decode_single__(pred, score_threshold, iou_or_sigma, max_output_size, method, mode, topk, input_shape) for pred in preds]
+            return [self.__decode_single__(pred, **self.nms_kwargs, input_shape=input_shape) for pred in preds]
         else:
-            return self.__decode_single__(preds, score_threshold, iou_or_sigma, max_output_size, method, mode, topk, input_shape)
+            return self.__decode_single__(preds, **self.nms_kwargs, input_shape=input_shape)
 
     def get_config(self):
         config = super().get_config()
@@ -169,8 +190,9 @@ class DecodePredictions(tf.keras.layers.Layer):
             "anchor_scale": self.anchor_scale,
             "aspect_ratios": self.aspect_ratios,
             "num_scales": self.num_scales,
-            "as_static": self.as_static,
+            "use_static_output": self.use_static_output,
         })
+        config.update(self.nms_kwargs)
         return config
 
 
