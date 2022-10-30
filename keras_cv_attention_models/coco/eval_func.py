@@ -4,8 +4,8 @@ import tensorflow_datasets as tfds
 from keras_cv_attention_models.coco import anchors_func, data
 from tqdm import tqdm
 
-
-class DecodePredictions:
+@tf.keras.utils.register_keras_serializable(package="kecam/coco")
+class DecodePredictions(tf.keras.layers.Layer):
     """
     The most simple version decoding prediction and NMS:
 
@@ -26,8 +26,18 @@ class DecodePredictions:
     """
 
     def __init__(
-        self, input_shape=512, pyramid_levels=[3, 7], anchors_mode=None, use_object_scores="auto", anchor_scale="auto", aspect_ratios=(1, 2, 0.5), num_scales=3
+        self,
+        input_shape=512,
+        pyramid_levels=[3, 7],
+        anchors_mode=None,
+        use_object_scores="auto",
+        anchor_scale="auto",
+        aspect_ratios=(1, 2, 0.5),
+        num_scales=3,
+        as_static=False,
+        **kwargs,
     ):
+        super().__init__(**kwargs)
         self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
         use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, "auto", anchor_scale)
         self.aspect_ratios, self.num_scales = aspect_ratios, num_scales
@@ -36,6 +46,8 @@ class DecodePredictions:
             self.__init_anchor__(input_shape)
         else:
             self.anchors = None
+        self.__input_shape__ = input_shape
+        self.as_static = as_static
 
     def __init_anchor__(self, input_shape):
         input_shape = input_shape[:2] if isinstance(input_shape, (list, tuple)) else (input_shape, input_shape)
@@ -46,6 +58,7 @@ class DecodePredictions:
         else:
             grid_zero_start = False
             self.anchors = anchors_func.get_anchors(input_shape, self.pyramid_levels, self.aspect_ratios, self.num_scales, self.anchor_scale, grid_zero_start)
+        self.__input_shape__ = input_shape
         return self.anchors
 
     def __topk_class_boxes_single__(self, pred, topk=5000):
@@ -86,14 +99,21 @@ class DecodePredictions:
         cls_offset = tf.cast(labels, bbs.dtype) * (tf.reduce_max(bbs) + 1)
         bbs_per_class = bbs + tf.expand_dims(cls_offset, -1)
         rr, nms_scores = tf.image.non_max_suppression_with_scores(bbs_per_class, ccs, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
-        return tf.gather(bbs, rr).numpy(), tf.gather(labels, rr).numpy(), nms_scores.numpy()
+        return tf.gather(bbs, rr), tf.gather(labels, rr), nms_scores
 
     def __nms_global__(self, bbs, ccs, labels, score_threshold=0.3, iou_threshold=0.5, soft_nms_sigma=0.5, max_output_size=100):
         rr, nms_scores = tf.image.non_max_suppression_with_scores(bbs, ccs, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
-        return tf.gather(bbs, rr).numpy(), tf.gather(labels, rr).numpy(), nms_scores.numpy()
+        return tf.gather(bbs, rr), tf.gather(labels, rr), nms_scores
 
     def __object_score_split__(self, pred):
         return pred[:, :-1], pred[:, -1]  # May overwrite
+
+    def __to_static__(self, bboxs, lables, confidences, max_output_size=100):
+        indices = tf.expand_dims(tf.range(tf.shape(bboxs)[0]), -1)
+        lables = tf.cast(lables, bboxs.dtype)
+        concated = tf.concat([bboxs, tf.expand_dims(lables, -1), tf.expand_dims(confidences, -1)], axis=-1)
+        concated = tf.tensor_scatter_nd_update(tf.zeros([max_output_size, concated.shape[-1]], dtype=bboxs.dtype), indices, concated)
+        return concated
 
     def __decode_single__(self, pred, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=0, input_shape=None):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
@@ -118,11 +138,13 @@ class DecodePredictions:
         iou_threshold, soft_nms_sigma = (1.0, iou_or_sigma / 2) if method.lower() == "gaussian" else (iou_or_sigma, 0.0)
 
         if mode == "per_class":
-            return self.__nms_per_class__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
+            bboxs, lables, confidences = self.__nms_per_class__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
         else:
-            return self.__nms_global__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
+            bboxs, lables, confidences = self.__nms_global__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
 
-    def __call__(self, preds, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=0, input_shape=None):
+        return self.__to_static__(bboxs, lables, confidences, max_output_size) if self.as_static else (bboxs, lables, confidences)
+
+    def call(self, preds, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=0, input_shape=None):
         """
         https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
         iou_or_sigma: means `soft_nms_sigma` if method is "gaussian", else `iou_threshold`.
@@ -130,8 +152,26 @@ class DecodePredictions:
         mode: "global" or "per_class". "per_class" is strategy from `torchvision.ops.batched_nms`
         topk: Using topk highest scores, each bbox may have multi labels. Set `0` to disable, `-1` using all.
         """
-        preds = preds if len(preds.shape) == 3 else [preds]
-        return [self.__decode_single__(pred, score_threshold, iou_or_sigma, max_output_size, method, mode, topk, input_shape) for pred in preds]
+        if self.as_static:
+            return tf.map_fn(lambda xx: self.__decode_single__(xx, score_threshold, iou_or_sigma, max_output_size, method, mode, topk), preds)
+        elif len(preds.shape) == 3:
+            return [self.__decode_single__(pred, score_threshold, iou_or_sigma, max_output_size, method, mode, topk, input_shape) for pred in preds]
+        else:
+            return self.__decode_single__(preds, score_threshold, iou_or_sigma, max_output_size, method, mode, topk, input_shape)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "input_shape": self.__input_shape__,
+            "pyramid_levels": self.pyramid_levels,
+            "anchors_mode": self.anchors_mode,
+            "use_object_scores": self.use_object_scores,
+            "anchor_scale": self.anchor_scale,
+            "aspect_ratios": self.aspect_ratios,
+            "num_scales": self.num_scales,
+            "as_static": self.as_static,
+        })
+        return config
 
 
 def scale_bboxes_back_single(bboxes, image_shape, scale, pad_top, pad_left, target_shape):
@@ -381,7 +421,7 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
                 self.dataset_kwargs["rescale_mode"] = getattr(self.model, "rescale_mode", "torch")
             self.build(self.model.input_shape, self.model.output_shape)
 
-        if epoch < self.start_epoch or epoch % self.frequency != 0:
+        if epoch + 1 < self.start_epoch or epoch % self.frequency != 0:
             return
 
         # pred_decoder = self.model.decode_predictions
