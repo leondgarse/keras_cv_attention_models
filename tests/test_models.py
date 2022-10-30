@@ -480,7 +480,7 @@ def test_EfficientDetD0_predict():
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     assert pred.shape == (1, 49104, 94)
 
-    pred_label = mm.decode_predictions(pred)[0][1]
+    pred_label = mm.decode_predictions(pred)[0][1].numpy()
     assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
 
 
@@ -490,7 +490,7 @@ def test_EfficientDetD1_dynamic_predict():
     pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
     assert pred.shape == (1, 16641, 94)
 
-    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1]
+    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
     assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
 
 
@@ -500,7 +500,7 @@ def test_EfficientDetLite1_dynamic_predict():
     pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
     assert pred.shape == (1, 16641, 94)
 
-    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1]
+    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
     assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
 
 
@@ -516,7 +516,7 @@ def test_YOLOXTiny_predict():
     pred = mm(mm.preprocess_input(chelsea()[:, :, ::-1]))  # Chelsea the cat
     assert pred.shape == (1, 3549, 85)
 
-    pred_label = mm.decode_predictions(pred)[0][1]
+    pred_label = mm.decode_predictions(pred)[0][1].numpy()
     assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
 
 
@@ -526,7 +526,7 @@ def test_YOLOXS_dynamic_predict():
     pred = mm(mm.preprocess_input(chelsea()[:, :, ::-1], input_shape=input_shape))  # Chelsea the cat
     assert pred.shape == (1, 1110, 85)
 
-    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1]
+    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
     assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
 
 
@@ -542,7 +542,7 @@ def test_YOLOR_CSP_predict():
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     assert pred.shape == (1, 25200, 85)
 
-    pred_label = mm.decode_predictions(pred)[0][1]
+    pred_label = mm.decode_predictions(pred)[0][1].numpy()
     assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
 
 
@@ -552,7 +552,7 @@ def test_YOLOR_CSP_dynamic_predict():
     pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
     assert pred.shape == (1, 3330, 85)
 
-    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1]
+    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
     assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
 
 
