@@ -357,16 +357,17 @@
     converter = tf.lite.TFLiteConverter.from_keras_model(mm)
     open(mm.name + ".tflite", "wb").write(converter.convert())
     ```
-  - **Detection models** including `efficinetdet` / `yolox` / `yolor`, model can be converted a TFLite format directly. If need [DecodePredictions](https://github.com/leondgarse/keras_cv_attention_models/blob/main/keras_cv_attention_models/coco/eval_func.py#L8) also included in TFLite model, need to set `use_static_output=True` for `DecodePredictions`, as TFLite requires a more static output shape.
+  - **Detection models** including `efficinetdet` / `yolox` / `yolor`, model can be converted a TFLite format directly. If need [DecodePredictions](https://github.com/leondgarse/keras_cv_attention_models/blob/main/keras_cv_attention_models/coco/eval_func.py#L8) also included in TFLite model, need to set `use_static_output=True` for `DecodePredictions`, as TFLite requires a more static output shape. Model output shape will be fixed as `[batch, max_output_size, 6]`. The last dimension `6` means `[bbox_top, bbox_left, bbox_bottom, bbox_right, label_index, confidence]`, and those valid ones are where `confidence > 0`.
     ```py
     """ Init model """
     from keras_cv_attention_models import efficientdet
     model = efficientdet.EfficientDetD0(pretrained="coco")
 
-    """ Create a model with DecodePredictions using `use_static_output=True`, that output shape being fixed """
+    """ Create a model with DecodePredictions using `use_static_output=True` """
     model.decode_predictions.use_static_output = True
     # parameters like score_threshold / iou_or_sigma can be set another value if needed.
-    bb = keras.models.Model(model.inputs[0], model.decode_predictions(model.outputs[0], score_threshold=0.5))
+    nn = model.decode_predictions(model.outputs[0], score_threshold=0.5)
+    bb = keras.models.Model(model.inputs[0], nn)
 
     """ Convert TFLite """
     converter = tf.lite.TFLiteConverter.from_keras_model(bb)
@@ -374,8 +375,9 @@
 
     """ Inference test """
     from keras_cv_attention_models.imagenet import eval_func
-    dd = eval_func.TFLiteModelInterf(bb.name + ".tflite")
+    from keras_cv_attention_models import test_images
 
+    dd = eval_func.TFLiteModelInterf(bb.name + ".tflite")
     imm = test_images.cat()
     inputs = tf.expand_dims(tf.image.resize(imm, dd.input_shape[1:-1]), 0)
     inputs = keras.applications.imagenet_utils.preprocess_input(inputs, mode='torch')
@@ -390,6 +392,8 @@
     # labels = array([16.], dtype=float32),
     # confidences = array([0.8309707], dtype=float32)
 
+    """ Show result """
+    from keras_cv_attention_models.coco import data
     data.show_image_with_bboxes(imm, bboxes, labels, confidences, num_classes=90)
     ```
 ***
