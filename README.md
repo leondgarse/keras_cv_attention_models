@@ -317,6 +317,7 @@
 ## TFLite Conversion
   - Currently `TFLite` not supporting `Conv2D with groups>1` / `gelu` / `tf.image.extract_patches` / `tf.transpose with len(perm) > 4`. Some operations could be supported in `tf-nightly` version. May try if encountering issue. More discussion can be found [Converting a trained keras CV attention model to TFLite #17](https://github.com/leondgarse/keras_cv_attention_models/discussions/17). Some speed testing results can be found [How to speed up inference on a quantized model #44](https://github.com/leondgarse/keras_cv_attention_models/discussions/44#discussioncomment-2348910).
   - `tf.nn.gelu(inputs, approximate=True)` activation works for TFLite. Define model with `activation="gelu/approximate"` or `activation="gelu/app"` will set `approximate=True` for `gelu`. **Should better decide before training, or there may be accuracy loss**.
+  - Not supporting `VOLO` / `HaloNet` models converting, cause they need a longer `tf.transpose` `perm`.
   - **model_surgery.convert_groups_conv2d_2_split_conv2d** converts model `Conv2D with groups>1` layers to `SplitConv` using `split -> conv -> concat`:
     ```py
     from keras_cv_attention_models import regnet, model_surgery
@@ -356,7 +357,41 @@
     converter = tf.lite.TFLiteConverter.from_keras_model(mm)
     open(mm.name + ".tflite", "wb").write(converter.convert())
     ```
-  - Not supporting `VOLO` / `HaloNet` models converting, cause they need a longer `tf.transpose` `perm`.
+  - **Detection models** including `efficinetdet` / `yolox` / `yolor`, model can be converted a TFLite format directly. If need [DecodePredictions](https://github.com/leondgarse/keras_cv_attention_models/blob/main/keras_cv_attention_models/coco/eval_func.py#L8) also included in TFLite model, need to set `use_static_output=True` for `DecodePredictions`, as TFLite requires a more static output shape.
+    ```py
+    """ Init model """
+    from keras_cv_attention_models import efficientdet
+    model = efficientdet.EfficientDetD0(pretrained="coco")
+
+    """ Create a model with DecodePredictions using `use_static_output=True`, that output shape being fixed """
+    model.decode_predictions.use_static_output = True
+    # parameters like score_threshold / iou_or_sigma can be set another value if needed.
+    bb = keras.models.Model(model.inputs[0], model.decode_predictions(model.outputs[0], score_threshold=0.5))
+
+    """ Convert TFLite """
+    converter = tf.lite.TFLiteConverter.from_keras_model(bb)
+    open(bb.name + ".tflite", "wb").write(converter.convert())
+
+    """ Inference test """
+    from keras_cv_attention_models.imagenet import eval_func
+    dd = eval_func.TFLiteModelInterf(bb.name + ".tflite")
+
+    imm = test_images.cat()
+    inputs = tf.expand_dims(tf.image.resize(imm, dd.input_shape[1:-1]), 0)
+    inputs = keras.applications.imagenet_utils.preprocess_input(inputs, mode='torch')
+    preds = dd(inputs)[0]
+    print(f"{preds.shape = }")
+    # preds.shape = (100, 6)
+
+    pred = preds[preds[:, -1] > 0]
+    bboxes, labels, confidences = pred[:, :4], pred[:, 4], pred[:, -1]
+    print(f"{bboxes = }, {labels = }, {confidences = }")
+    # bboxes = array([[0.22825494, 0.47238672, 0.816262  , 0.8700745 ]], dtype=float32),
+    # labels = array([16.], dtype=float32),
+    # confidences = array([0.8309707], dtype=float32)
+
+    data.show_image_with_bboxes(imm, bboxes, labels, confidences, num_classes=90)
+    ```
 ***
 
 # Recognition Models
