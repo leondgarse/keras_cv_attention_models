@@ -167,7 +167,7 @@ class DecodePredictions(tf.keras.layers.Layer):
           score_threshold: float value in (0, 1), min score threshold, lower output score will be excluded. Default 0.3.
           iou_or_sigma: means `soft_nms_sigma` if method is "gaussian", else `iou_threshold`. Default 0.5.
           max_output_size: max output size for `tf.image.non_max_suppression_with_scores`. Default 100.
-              If use_static_output=True, fixed output shape will be `[batch, max_output_size, 5]`.
+              If use_static_output=True, fixed output shape will be `[batch, max_output_size, 6]`.
           method: "gaussian" or "hard".  Default "hard".
           mode: "global" or "per_class". "per_class" is strategy from `torchvision.ops.batched_nms`. Default "global".
           topk: Using topk highest scores, each bbox may have multi labels. Set `0` to disable, `-1` using all. Default 0.

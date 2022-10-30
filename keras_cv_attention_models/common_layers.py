@@ -560,8 +560,10 @@ class PreprocessInput:
 
 
 def imagenet_decode_predictions(preds, top=5):
+    from keras_cv_attention_models.imagenet.eval_func import decode_predictions
+
     preds = preds.numpy() if isinstance(preds, tf.Tensor) else preds
-    return tf.keras.applications.imagenet_utils.decode_predictions(preds, top=top)
+    return decode_predictions(preds, top=top)
 
 
 def add_pre_post_process(model, rescale_mode="tf", input_shape=None, post_process=None):
