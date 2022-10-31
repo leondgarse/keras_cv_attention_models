@@ -58,7 +58,7 @@ def res_attn_ffn(inputs, output_channel, head_dimension=32, window_size=7, expan
         inputs, num_heads=num_heads, qkv_bias=True, out_bias=True, name=name
     )
     attn = window_attention(attn, window_size=window_size, num_heads=num_heads, is_grid=is_grid, attention_block=attention_block, name=name + "window_mhsa/")
-    attn = drop_block(attn, drop_rate=drop_rate, name=name)
+    attn = drop_block(attn, drop_rate=drop_rate, name=name + "attn_")
     # print(f"{name = }, {inputs.shape = }, {shortcut.shape = }, {attn.shape = }")
     attn = keras.layers.Add(name=name + "attn_output")([inputs, attn])
 
@@ -66,7 +66,7 @@ def res_attn_ffn(inputs, output_channel, head_dimension=32, window_size=7, expan
     ffn = keras.layers.Dense(input_channel * expansion, name=name + "ffn/1_dense")(ffn)
     ffn = activation_by_name(ffn, activation=activation, name=name)
     ffn = keras.layers.Dense(input_channel, name=name + "ffn/2_dense")(ffn)
-    ffn = drop_block(ffn, drop_rate=drop_rate, name=name)
+    ffn = drop_block(ffn, drop_rate=drop_rate, name=name + "ffn_")
     return keras.layers.Add(name=name + "ffn_output")([attn, ffn])
 
 

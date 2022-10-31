@@ -380,7 +380,7 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
         model_basic_save_name=None,
     ):
         super().__init__()
-        self.anchors_mode, self.anchor_scale = anchors_mode, anchor_scale
+        self.anchors_mode = anchors_mode
         self.take_samples, self.annotation_file, self.start_epoch, self.frequency = take_samples, annotation_file, start_epoch, frequency
         self.save_json, self.model_basic_save_name, self.save_path, self.item_key = save_json, model_basic_save_name, "checkpoints", "val_ap_ar"
         self.data_name = data_name
@@ -401,6 +401,11 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
             "method": nms_method,
             "mode": nms_mode,
             "topk": nms_topk,
+        }
+        self.anchor_kwargs = {
+            "anchor_scale": anchor_scale,
+            "aspect_ratios": aspect_ratios,
+            "num_scales": num_scales,
         }
 
         self.is_coco = True if data_name.startswith("coco") and not data_name.endswith(".json") else False
@@ -423,9 +428,7 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
         # print(">>>>", self.dataset_kwargs)
         # print(">>>>", self.nms_kwargs)
 
-        self.pred_decoder = DecodePredictions(
-            input_shape, pyramid_levels, self.anchors_mode, anchor_scale=self.anchor_scale, aspect_ratios=aspect_ratios, num_scales=num_scales
-        )
+        self.pred_decoder = DecodePredictions(input_shape, pyramid_levels, self.anchors_mode, **self.anchor_kwargs)
 
         # Training saving best
         if self.model_basic_save_name is not None:
