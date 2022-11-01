@@ -264,7 +264,7 @@ def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={},
         # Loop on batch
         for rr, image_shape, scale, pad_top, pad_left, image_id in zip(decoded_preds, original_image_shapes, scales, pad_tops, pad_lefts, image_ids):
             bboxes, labels, scores = rr
-            image_id = image_id.numpy()
+            image_id, bboxes, labels, scores = image_id.numpy(), bboxes.numpy(), labels.numpy(), scores.numpy()
             if image_id_map is not None:
                 image_id = image_id_map[image_id.decode() if isinstance(image_id, bytes) else image_id]
             bboxes = scale_bboxes_back_single(bboxes, image_shape, scale, pad_top, pad_left, target_shape).numpy()
