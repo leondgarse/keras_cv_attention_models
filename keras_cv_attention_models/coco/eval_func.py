@@ -44,6 +44,7 @@ class DecodePredictions(tf.keras.layers.Layer):
         **kwargs,
     ):
         super().__init__(**kwargs)
+
         self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
         use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, "auto", anchor_scale)
         self.aspect_ratios, self.num_scales = aspect_ratios, num_scales
@@ -62,6 +63,7 @@ class DecodePredictions(tf.keras.layers.Layer):
             "mode": mode,
             "topk": topk,
         }
+        super().build(input_shape)
 
     def __init_anchor__(self, input_shape):
         input_shape = input_shape[:2] if isinstance(input_shape, (list, tuple)) else (input_shape, input_shape)

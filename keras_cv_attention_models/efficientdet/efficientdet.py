@@ -166,6 +166,7 @@ def EfficientDet(
         features = model_surgery.get_pyramide_feature_layers(backbone)
         fpn_features = [features[id] for id in features_pick]
     print(">>>> features:", {ii.name: ii.output_shape for ii in fpn_features})
+    print(">>>> num_anchors:", num_anchors)
     fpn_features = [ii.output for ii in fpn_features]
 
     # Build additional input features that are not from backbone.
