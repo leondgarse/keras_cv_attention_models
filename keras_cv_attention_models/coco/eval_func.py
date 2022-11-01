@@ -131,6 +131,7 @@ class DecodePredictions(tf.keras.layers.Layer):
 
     def __decode_single__(self, pred, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=0, input_shape=None):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
+        pred = tf.cast(pred, tf.float32)
         if input_shape is not None:
             self.__init_anchor__(input_shape)
 
