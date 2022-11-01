@@ -425,7 +425,7 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
             self.anchors_mode, num_anchors = anchors_func.get_anchors_mode_by_anchors(input_shape, total_anchors=output_shape[1])
         elif self.anchors_mode == anchors_func.EFFICIENTDET_MODE:
             num_anchors = self.efficient_det_num_anchors
-        else1:
+        else:
             num_anchors = anchors_func.NUM_ANCHORS.get(self.anchors_mode, 9)
         pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(input_shape, total_anchors=output_shape[1], num_anchors=num_anchors)
         print("\n>>>> [COCOEvalCallback] input_shape: {}, pyramid_levels: {}, anchors_mode: {}".format(input_shape, pyramid_levels, self.anchors_mode))
