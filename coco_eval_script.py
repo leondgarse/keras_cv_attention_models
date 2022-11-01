@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import json
-from keras_cv_attention_models.coco import eval_func
+from keras_cv_attention_models.coco import anchors_func, eval_func
 import tensorflow as tf
 
 
@@ -45,7 +45,7 @@ def parse_arguments(argv):
     parser.add_argument(
         "--anchor_scale", type=int, default=4, help="Anchor scale, base anchor for a single grid point will multiply with it. For efficientdet anchors only"
     )
-    parser.add_argument("--aspect_ratios", nargs="*", default=(1, 2, 0.5), help="For efficientdet anchors only. anchors aspect ratio")
+    parser.add_argument("--aspect_ratios", type=float, nargs="*", default=(1, 2, 0.5), help="For efficientdet anchors only. anchors aspect ratio")
     parser.add_argument("--num_scales", type=int, default=3, help="For efficientdet anchors only. number of scale for each aspect_ratios")
     # parser.add_argument(
     #     "--anchor_pyramid_levels_min", type=int, default=3, help="Anchor pyramid levels min, max is calculated from model output shape"
@@ -104,6 +104,8 @@ if __name__ == "__main__":
         model_kwargs = {"anchor_scale": args.anchor_scale}
         if args.anchors_mode is not None and args.anchors_mode != "auto":
             model_kwargs.update({"anchors_mode": args.anchors_mode})
+        if args.anchors_mode == anchors_func.EFFICIENTDET_MODE:
+            model_kwargs.update({"num_anchors": len(args.aspect_ratios) * args.num_scales})
         if input_shape:
             model_kwargs.update({"input_shape": input_shape})
         if args.num_classes:
