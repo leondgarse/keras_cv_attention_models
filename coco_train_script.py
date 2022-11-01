@@ -186,7 +186,7 @@ def run_training_by_args(args):
     total_anchors = model.output_shape[1]
     if args.anchors_mode is None or args.anchors_mode == "auto":
         args.anchors_mode, num_anchors = anchors_func.get_anchors_mode_by_anchors(input_shape, total_anchors=total_anchors)
-    elif self.anchors_mode == anchors_func.EFFICIENTDET_MODE:
+    elif args.anchors_mode == anchors_func.EFFICIENTDET_MODE:
         num_anchors = args.efficient_det_num_anchors
     else:
         num_anchors = anchors_func.NUM_ANCHORS.get(args.anchors_mode, 9)
