@@ -408,6 +408,7 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
             "aspect_ratios": aspect_ratios,
             "num_scales": num_scales,
         }
+        self.efficient_det_num_anchors = len(aspect_ratios) * num_scales
 
         self.is_coco = True if data_name.startswith("coco") and not data_name.endswith(".json") else False
         if self.data_name.endswith(".json") and self.annotation_file is None:
@@ -422,7 +423,9 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
         self.eval_dataset = init_eval_dataset(input_shape=input_shape, **self.dataset_kwargs)
         if self.anchors_mode is None or self.anchors_mode == "auto":
             self.anchors_mode, num_anchors = anchors_func.get_anchors_mode_by_anchors(input_shape, total_anchors=output_shape[1])
-        else:
+        elif self.anchors_mode == anchors_func.EFFICIENTDET_MODE:
+            num_anchors = self.efficient_det_num_anchors
+        else1:
             num_anchors = anchors_func.NUM_ANCHORS.get(self.anchors_mode, 9)
         pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(input_shape, total_anchors=output_shape[1], num_anchors=num_anchors)
         print("\n>>>> [COCOEvalCallback] input_shape: {}, pyramid_levels: {}, anchors_mode: {}".format(input_shape, pyramid_levels, self.anchors_mode))

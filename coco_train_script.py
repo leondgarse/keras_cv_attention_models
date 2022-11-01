@@ -134,8 +134,9 @@ def parse_arguments(argv):
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
     if args.anchors_mode is not None:
         args.additional_det_header_kwargs.update({"anchors_mode": args.anchors_mode})
-    if args.anchors_mode == anchors_func.EFFICIENTDET_MODE and len(args.aspect_ratios) * args.num_scales != 9:
-        args.additional_det_header_kwargs.update({"num_anchors": len(args.aspect_ratios) * args.num_scales})
+    args.efficient_det_num_anchors = len(args.aspect_ratios) * args.num_scales
+    if args.anchors_mode == anchors_func.EFFICIENTDET_MODE:
+        args.additional_det_header_kwargs.update({"num_anchors": args.efficient_det_num_anchors})
     args.additional_backbone_kwargs = json.loads(args.additional_backbone_kwargs) if args.additional_backbone_kwargs else {}
 
     lr_decay_steps = args.lr_decay_steps.strip().split(",")
@@ -185,6 +186,8 @@ def run_training_by_args(args):
     total_anchors = model.output_shape[1]
     if args.anchors_mode is None or args.anchors_mode == "auto":
         args.anchors_mode, num_anchors = anchors_func.get_anchors_mode_by_anchors(input_shape, total_anchors=total_anchors)
+    elif self.anchors_mode == anchors_func.EFFICIENTDET_MODE:
+        num_anchors = args.efficient_det_num_anchors
     else:
         num_anchors = anchors_func.NUM_ANCHORS.get(args.anchors_mode, 9)
 
