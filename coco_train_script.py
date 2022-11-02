@@ -66,6 +66,7 @@ def parse_arguments(argv):
         default=None,
         help="TensorBoard logs saving path, default None for disable. Set auto for `logs/{basic_save_name} + _ + timestamp`.",
     )
+    parser.add_argument("--eval_start_epoch", type=int, default=-1, help="eval process start epoch, default -1 for `epochs * 2 // 3`")
 
     """ Anchor arguments """
     anchor_group = parser.add_argument_group("Anchor arguments")
@@ -251,8 +252,8 @@ def run_training_by_args(args):
         kw = {"batch_size": batch_size, "rescale_mode": args.rescale_mode, "resize_method": args.resize_method, "resize_antialias": resize_antialias}
         kw.update({"anchor_scale": args.anchor_scale, "anchors_mode": args.anchors_mode, "model_basic_save_name": args.basic_save_name})
         kw.update({"aspect_ratios": args.aspect_ratios, "num_scales": args.num_scales, "nms_max_output_size": args.max_labels_per_image})
-        start_epoch, frequency = epochs * 2 // 3, 1  # coco eval starts from 2/3 epochs
-        coco_ap_eval = eval_func.COCOEvalCallback(args.data_name, start_epoch=start_epoch, frequency=frequency, **kw)
+        start_epoch = epochs * 2 // 3 if args.eval_start_epoch < 0 else args.eval_start_epoch  # coco eval starts from 2/3 epochs
+        coco_ap_eval = eval_func.COCOEvalCallback(args.data_name, start_epoch=start_epoch, frequency=1, **kw)
         init_callbacks = [coco_ap_eval]
         test_dataset = None  # COCO eval using coco_ap_eval callback, set `validation_data` for `model.fit` to None
         print(">>>> COCO AP eval start_epoch: {}, frequency: {}".format(start_epoch, frequency))
