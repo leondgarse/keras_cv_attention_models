@@ -250,7 +250,7 @@ def run_training_by_args(args):
         # Save line width...
         kw = {"batch_size": batch_size, "rescale_mode": args.rescale_mode, "resize_method": args.resize_method, "resize_antialias": resize_antialias}
         kw.update({"anchor_scale": args.anchor_scale, "anchors_mode": args.anchors_mode, "model_basic_save_name": args.basic_save_name})
-        kw.update({"aspect_ratios": args.aspect_ratios, "num_scales": args.num_scales})
+        kw.update({"aspect_ratios": args.aspect_ratios, "num_scales": args.num_scales, "nms_max_output_size": args.max_labels_per_image})
         start_epoch, frequency = epochs * 2 // 3, 1  # coco eval starts from 2/3 epochs
         coco_ap_eval = eval_func.COCOEvalCallback(args.data_name, start_epoch=start_epoch, frequency=frequency, **kw)
         init_callbacks = [coco_ap_eval]
