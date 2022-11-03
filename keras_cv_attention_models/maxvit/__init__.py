@@ -13,8 +13,10 @@ __tail_doc__ = """  strides: int or list of int, for strides in the first block 
   window_ratio: window_size ratio, window_size = [input_shape[0] // window_ratio, input_shape[1] // window_ratio].
   output_filter: additional `Dense + tanh` block before ouput block. Default -1 for `out_channels[-1]`, 0 to disable.
   use_torch_mode: whether use torch model or not.
-    True: use_torch_padding = True, epsilon = 1e-5, momentum = 0.9
-    False: use_torch_padding = False, epsilon = 0.001, momentum = 0.99
+      True: use_torch_padding = True, epsilon = 1e-5, momentum = 0.9
+      False: use_torch_padding = False, epsilon = 0.001, momentum = 0.99
+  layer_scale: layer scale init value. `-1` means not applying, any value `>=0` will add a scale value for each block output.
+      [Going deeper with Image Transformers](https://arxiv.org/pdf/2103.17239.pdf). Default -1.
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default "gelu/app" means `tf.nn.gelu(approximate=True)`.
@@ -27,8 +29,9 @@ __tail_doc__ = """  strides: int or list of int, for strides in the first block 
       Set `classifier_activation=None` to return the logits of the "top" layer.
   pretrained: One of `[None, "imagenet", "imagenet21k-ft1k"]`.
   **kwargs: other parameters if available.
+
 Returns:
-    A `keras.Model` instance.
+  A `keras.Model` instance.
 """
 
 MaxViT.__doc__ = __head_doc__ + """

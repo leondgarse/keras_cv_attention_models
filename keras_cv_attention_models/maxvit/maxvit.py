@@ -50,7 +50,7 @@ def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion
     return keras.layers.Add(name=name + "output")([shortcut, nn])
 
 
-def res_attn_ffn(inputs, output_channel, head_dimension=32, window_size=7, expansion=4, is_grid=False, drop_rate=0, activation="gelu", name=""):
+def res_attn_ffn(inputs, output_channel, head_dimension=32, window_size=7, expansion=4, is_grid=False, drop_rate=0, layer_scale=0, activation="gelu", name=""):
     input_channel = inputs.shape[-1]
     attn = layer_norm(inputs, name=name + "attn_preact_")
     num_heads = attn.shape[-1] // head_dimension
@@ -58,6 +58,7 @@ def res_attn_ffn(inputs, output_channel, head_dimension=32, window_size=7, expan
         inputs, num_heads=num_heads, qkv_bias=True, out_bias=True, name=name
     )
     attn = window_attention(attn, window_size=window_size, num_heads=num_heads, is_grid=is_grid, attention_block=attention_block, name=name + "window_mhsa/")
+    attn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "1_gamma")(attn) if layer_scale >= 0 else attn
     attn = drop_block(attn, drop_rate=drop_rate, name=name + "attn_")
     # print(f"{name = }, {inputs.shape = }, {shortcut.shape = }, {attn.shape = }")
     attn = keras.layers.Add(name=name + "attn_output")([inputs, attn])
@@ -66,6 +67,7 @@ def res_attn_ffn(inputs, output_channel, head_dimension=32, window_size=7, expan
     ffn = keras.layers.Dense(input_channel * expansion, name=name + "ffn/1_dense")(ffn)
     ffn = activation_by_name(ffn, activation=activation, name=name)
     ffn = keras.layers.Dense(input_channel, name=name + "ffn/2_dense")(ffn)
+    ffn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "2_gamma")(ffn) if layer_scale >= 0 else ffn
     ffn = drop_block(ffn, drop_rate=drop_rate, name=name + "ffn_")
     return keras.layers.Add(name=name + "ffn_output")([attn, ffn])
 
@@ -81,6 +83,7 @@ def MaxViT(
     window_ratio=32,
     output_filter=-1,  # -1 for out_channels[-1], 0 to disable
     use_torch_mode=False,
+    layer_scale=-1,
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu/app",  # means tf.nn.gelu(approximate=True)
@@ -103,6 +106,14 @@ def MaxViT(
     nn = conv2d_no_bias(nn, stem_width, 3, strides=1, use_bias=True, padding="same", use_torch_padding=use_torch_padding, name="stem_2_")
     window_size = [int(tf.math.ceil(input_shape[0] / window_ratio)), int(tf.math.ceil(input_shape[1] / window_ratio))]
 
+    attn_ffn_common_kwargs = {
+        "head_dimension": head_dimension,
+        "window_size": window_size,
+        "expansion": expansion,
+        "layer_scale": layer_scale,
+        "activation": activation,
+    }
+
     """ Backbone [1, 2, 3, 4] """
     total_blocks = sum(num_blocks)
     global_block_id = 0
@@ -119,10 +130,8 @@ def MaxViT(
             nn = res_MBConv(
                 nn, out_channel, conv_short_cut, stride, expansion, block_se_ratio, use_torch_mode, block_drop_rate, activation, name=name + "mbconv/"
             )
-            nn = res_attn_ffn(
-                nn, out_channel, head_dimension, window_size, is_grid=False, drop_rate=block_drop_rate, activation=activation, name=name + "block_"
-            )
-            nn = res_attn_ffn(nn, out_channel, head_dimension, window_size, is_grid=True, drop_rate=block_drop_rate, activation=activation, name=name + "grid_")
+            nn = res_attn_ffn(nn, out_channel, is_grid=False, drop_rate=block_drop_rate, name=name + "block_", **attn_ffn_common_kwargs)
+            nn = res_attn_ffn(nn, out_channel, is_grid=True, drop_rate=block_drop_rate, name=name + "grid_", **attn_ffn_common_kwargs)
 
     if num_classes > 0:
         nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
