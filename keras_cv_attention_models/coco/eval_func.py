@@ -4,6 +4,7 @@ import tensorflow_datasets as tfds
 from keras_cv_attention_models.coco import anchors_func, data
 from tqdm import tqdm
 
+
 @tf.keras.utils.register_keras_serializable(package="kecam/coco")
 class DecodePredictions(tf.keras.layers.Layer):
     """
@@ -185,16 +186,18 @@ class DecodePredictions(tf.keras.layers.Layer):
 
     def get_config(self):
         config = super().get_config()
-        config.update({
-            "input_shape": self.__input_shape__,
-            "pyramid_levels": self.pyramid_levels,
-            "anchors_mode": self.anchors_mode,
-            "use_object_scores": self.use_object_scores,
-            "anchor_scale": self.anchor_scale,
-            "aspect_ratios": self.aspect_ratios,
-            "num_scales": self.num_scales,
-            "use_static_output": self.use_static_output,
-        })
+        config.update(
+            {
+                "input_shape": self.__input_shape__,
+                "pyramid_levels": self.pyramid_levels,
+                "anchors_mode": self.anchors_mode,
+                "use_object_scores": self.use_object_scores,
+                "anchor_scale": self.anchor_scale,
+                "aspect_ratios": self.aspect_ratios,
+                "num_scales": self.num_scales,
+                "use_static_output": self.use_static_output,
+            }
+        )
         config.update(self.nms_kwargs)
         return config
 

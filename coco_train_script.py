@@ -256,7 +256,7 @@ def run_training_by_args(args):
         frequency = 1
         print(">>>> COCO AP eval start_epoch: {}, frequency: {}".format(start_epoch, frequency))
         coco_ap_eval = eval_func.COCOEvalCallback(args.data_name, start_epoch=start_epoch, frequency=frequency, **kw)
-        
+
         init_callbacks = [coco_ap_eval]
         test_dataset = None  # COCO eval using coco_ap_eval callback, set `validation_data` for `model.fit` to None
         latest_save, hist = train(
