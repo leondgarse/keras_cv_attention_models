@@ -17,6 +17,7 @@
 
       ![random_crop_mode](https://user-images.githubusercontent.com/5744524/201467046-cfd55129-c893-49a9-8de4-bf33e57de4fa.PNG)
   - **Default data augment in `coco_train_script.py`** is `mosaic mix prob=0.5` + `magnitude=6` + `color_augment_method random_hsv` + `positional_augment_methods rotate, shear, transpose` + `random_crop_mode 1.0 for random largest crop`.
+  - **Usage examples**
     ```py
     from keras_cv_attention_models.coco import data
     """ random_hsv + random scale """
