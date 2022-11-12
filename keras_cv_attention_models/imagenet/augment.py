@@ -616,6 +616,11 @@ def _rotate_level_to_arg(level: float):
     return (level,)
 
 
+def _rotate_90_level_to_arg(level: float):
+    level = _randomly_negate_tensor(90.0)
+    return (level,)
+
+
 def _shrink_level_to_arg(level: float):
     """Converts level to ratio by which we shrink the image content."""
     if level == 0:
@@ -726,6 +731,7 @@ NAME_TO_FUNC = {
     "Equalize": equalize,
     "Invert": invert,
     "Rotate": rotate,
+    "Rotate90": rotate,
     "Posterize": posterize,
     "PosterizeIncreasing": posterize,
     "PosterizeOriginal": posterize,
@@ -756,6 +762,7 @@ NAME_TO_FUNC = {
 REPLACE_FUNCS = frozenset(
     {
         "Rotate",
+        "Rotate90",
         "TranslateX",
         "TranslateXRel",
         "ShearX",
@@ -774,6 +781,7 @@ LEVEL_TO_ARG = {
     "Equalize": lambda level: (),
     "Invert": lambda level: (),
     "Rotate": _rotate_level_to_arg,
+    "Rotate90": _rotate_90_level_to_arg,
     # There are several variations of the posterize level scaling in various Tensorflow/Google repositories/papers
     "Posterize": _posterize_level_to_arg,
     "PosterizeIncreasing": _posterize_increasing_level_to_arg,
@@ -1154,10 +1162,12 @@ class PositionalRandAugment(RandAugment):
         self.magnitude, self.magnitude_max, self.magnitude_std = float(magnitude), float(magnitude_max), float(magnitude_std)
         self.translate_const = float(translate_const)
 
-        positional_augment_methods = "" if positional_augment_methods is None else positional_augment_methods.lower()
+        positional_augment_methods = "" if positional_augment_methods is None else positional_augment_methods
         self.available_ops = ["ScaleX", "ScaleY"] if "x" in positional_augment_methods else ["Scale"]
         if "r" in positional_augment_methods:
             self.available_ops += ["Rotate"]
+        if "R" in positional_augment_methods:
+            self.available_ops += ["Rotate90"]
         if "s" in positional_augment_methods:
             self.available_ops += ["ShearX", "ShearY"]
         if "t" in positional_augment_methods:

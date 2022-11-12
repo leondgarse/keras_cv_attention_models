@@ -7,7 +7,7 @@
       - `0` for applying `random_flip_left_right_with_bboxes` only.
       - `> 0` for applying `color related augment` and `positional related augment` if set.
     - **color_augment_method** controls `color related augment`. Possible value are `[None, "random_hsv", "autoaug", "randaug"]`, or totally custom one like `lambda image: image`. For `autoaug` and `randaug`, it's only none-positional related methods. `None` for disable. Default is `"random_hsv"`.
-    - **positional_augment_methods** controls `positional related augment`. Currently it's a combination of `r: rotate`, `t: transplate`, `s: shear`, `x: scale_x + scale_y`. Like `positional_augment_methods="tx"`. `None` or `""` for disable. Default is `"rts"`.
+    - **positional_augment_methods** controls `positional related augment`. Currently it's a combination of `r: rotate`, `R: rotate 90 or -90`, `t: transplate`, `s: shear`, `x: scale_x + scale_y`. Like `positional_augment_methods="tx"`. `None` or `""` for disable. Default is `"rts"`.
     - **mosaic_mix_prob** controls `mosaic mix`. It is applied per batch, means each image is repeated `4` times, then randomly shuffled and mosaic mixup with others in an entire batch. `0` for disable, `> 0` for mosaic mixing probability.
     - **random_crop_mode** controls image crop / scale behavior.
       - `0`, no crop, aspect aware resizing to target shape, eval mode.
