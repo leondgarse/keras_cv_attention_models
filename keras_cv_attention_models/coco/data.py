@@ -412,7 +412,7 @@ def init_dataset(
     random_crop_mode=1.0,  # [augment] 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale
     mosaic_mix_prob=0.0,  # [augment] 0 for disable, > 0 for enable
     color_augment_method="random_hsv",  # [augment] one of ["random_hsv", "autoaug", "randaug"], or totally custom one like `lambda image: image`
-    positional_augment_methods="rts",  # [augment] Positional augment method besides scale, combine of r: rotate, t: transplate, s: shear
+    positional_augment_methods="rts",  # [augment] Positional augment method besides scale, combine of r: rotate, t: transplate, s: shear, x: scale_x + scale_y
     magnitude=0,
     num_layers=2,
     seed=None,

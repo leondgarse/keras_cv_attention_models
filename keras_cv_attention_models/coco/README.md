@@ -1,6 +1,21 @@
 # ___COCO___
 ***
 ## Data
+  - Data augment applying pipeline is `dataset shuffle` -> `random flip left right` -> `random scale and crop` -> `color related augment` -> `batch up` -> `mosaic mix` -> `positional related augment` -> `rescale`.
+    - **magnitude** controls `color related augment` and `positional related augment` level.
+      - `< 0` for turing all off, including `random flip left right`, eval mode.
+      - `0` for applying `random_flip_left_right_with_bboxes` only.
+      - `> 0` for applying `color related augment` and `positional related augment` if set.
+    - **color_augment_method** controls `color related augment`. Possible value are `["random_hsv", "autoaug", "randaug"]`, or totally custom one like `lambda image: image`. `None` for disable.
+    - **positional_augment_methods** controls `positional related augment`. Currently it's a combination of `r: rotate`, `t: transplate`, `s: shear`, `x: scale_x + scale_y`. Like `positional_augment_methods="tx"`. `None` or `""` for disable. Default is `"rts"`.
+    - **mosaic_mix_prob** controls `mosaic mix`. `0` for disable, `> 0` for mixing probability.
+    - **random_crop_mode** controls image crop / scale behavior.
+      - `0`, no crop, aspect aware resizing to target shape, eval mode.
+      - `(0, 1)`, random crop and resize, same as imagenet, using as `scale=(random_crop_mode, 1.0)` for `random_crop_and_resize_image`.
+      - `1`, random largest crop, crop from original image as large as possible to target shape.
+      - `> 1`, random scale and resize from [efficientdet/dataloader.py#L67](https://github.com/google/automl/tree/master/efficientdet/dataloader.py#L67), using as `scale_min=0.1, scale_max=random_crop_mode`.
+
+      ![random_crop_mode](https://user-images.githubusercontent.com/5744524/201467046-cfd55129-c893-49a9-8de4-bf33e57de4fa.PNG)
   - Default data augment in `coco_train_script.py` is `mosaic mix prob=0.5` + `randaug magnitude=6 with rotate, shear, transpose`.
     - `mosaic_mix_prob` is applied per batch, means each image is repeated `4` times, then randomly shuffled and mosaic mixup with others in an entire batch.
     - `color_augment_method` is one of `["random_hsv", "autoaug", "randaug"]`. For `autoaug` and `randaug` using only none-positional related methods.
@@ -25,13 +40,6 @@
     fig = data.show_batch_sample(tt, anchors_mode="anchor_free", rows=1)
     ```
     ![coco_data_aug_3](https://user-images.githubusercontent.com/5744524/162143972-d2d752e6-5702-42d7-9ff0-1243d2c28566.png)
-  - **random_crop_mode** controls image crop / scale behavior.
-    - `0`, no crop, aspect aware resizing to target shape, eval mode.
-    - `(0, 1)`, random crop and resize, same as imagenet, using as `scale=(random_crop_mode, 1.0)` for `random_crop_and_resize_image`.
-    - `1`, random largest crop, crop from original image as large as possible to target shape.
-    - `> 1`, random scale and resize from [efficientdet/dataloader.py#L67](https://github.com/google/automl/tree/master/efficientdet/dataloader.py#L67), using as `scale_min=0.1, scale_max=random_crop_mode`.
-
-    ![random_crop_mode](https://user-images.githubusercontent.com/5744524/201467046-cfd55129-c893-49a9-8de4-bf33e57de4fa.PNG)
   - **TFDS COCO data format**, `bboxes` in format `[top, left, bottom, right]` with value range in `[0, 1]`. It's the default compatible data format for this package.
     ```py
     import tensorflow_datasets as tfds
