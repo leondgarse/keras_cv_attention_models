@@ -255,7 +255,7 @@ class RandomProcessImageWithBboxes:
         height, width = tf.shape(image)[0], tf.shape(image)[1]
 
         if self.random_crop_mode > 1:
-            scale, crop_hh, crop_ww = get_image_aspect_aware_random_scale_crop((height, width), self.target_shape)
+            scale, crop_hh, crop_ww = get_image_aspect_aware_random_scale_crop((height, width), self.target_shape, scale_max=self.random_crop_mode)
             image, scale, _, _ = aspect_aware_resize_and_crop_image(
                 image, self.target_shape, scale, crop_hh, crop_ww, method=self.resize_method, antialias=self.resize_antialias
             )
@@ -407,12 +407,12 @@ def init_dataset(
     aspect_ratios=(1, 2, 0.5),  # For efficientdet anchors only
     num_scales=3,  # For efficientdet anchors only
     rescale_mode="torch",  # rescale mode, ["tf", "torch"], or specific `(mean, std)` like `(128.0, 128.0)`
-    random_crop_mode=1.0,  # 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale
-    mosaic_mix_prob=0.0,
     resize_method="bilinear",  # ["bilinear", "bicubic"]
     resize_antialias=False,
-    color_augment_method="random_hsv",  # one of ["random_hsv", "autoaug", "randaug"], or totally custom one like `lambda image: image`
-    positional_augment_methods="rts",  # Positional augment method besides scale, combine of r: rotate, t: transplate, s: shear
+    random_crop_mode=1.0,  # [augment] 0 for eval mode, (0, 1) for random crop, 1 for random largest crop, > 1 for random scale
+    mosaic_mix_prob=0.0,  # [augment] 0 for disable, > 0 for enable
+    color_augment_method="random_hsv",  # [augment] one of ["random_hsv", "autoaug", "randaug"], or totally custom one like `lambda image: image`
+    positional_augment_methods="rts",  # [augment] Positional augment method besides scale, combine of r: rotate, t: transplate, s: shear
     magnitude=0,
     num_layers=2,
     seed=None,

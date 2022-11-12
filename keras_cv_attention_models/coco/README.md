@@ -25,6 +25,13 @@
     fig = data.show_batch_sample(tt, anchors_mode="anchor_free", rows=1)
     ```
     ![coco_data_aug_3](https://user-images.githubusercontent.com/5744524/162143972-d2d752e6-5702-42d7-9ff0-1243d2c28566.png)
+  - **random_crop_mode** controls image crop / scale behavior.
+    - `0`, no crop, aspect aware resizing to target shape, eval mode.
+    - `(0, 1)`, random crop and resize, same as imagenet, using as `scale=(random_crop_mode, 1.0)` for `random_crop_and_resize_image`.
+    - `1`, random largest crop, crop from original image as large as possible to target shape.
+    - `> 1`, random scale and resize from [efficientdet/dataloader.py#L67](https://github.com/google/automl/tree/master/efficientdet/dataloader.py#L67), using as `scale_min=0.1, scale_max=random_crop_mode`.
+
+    ![random_crop_mode](https://user-images.githubusercontent.com/5744524/201467046-cfd55129-c893-49a9-8de4-bf33e57de4fa.PNG)
   - **TFDS COCO data format**, `bboxes` in format `[top, left, bottom, right]` with value range in `[0, 1]`. It's the default compatible data format for this package.
     ```py
     import tensorflow_datasets as tfds
