@@ -54,7 +54,7 @@ Model architectures:
   | Model                               | Params | FLOPs  | Input | Top1 Acc |
   | ----------------------------------- | ------ | ------ | ----- | -------- |
   | CoAtNet0 (Self trained 105 epochs)  | 23.8M  | 2.17G  | 160   | 80.48    |
-  | - fine-tune 224, 37 epochs          | 23.8M  | 4.22G  | 224   | 82.21    |
+  | CoAtNet0 (Self trained 305 epochs)  | 23.8M  | 4.22G  | 224   | 82.79    |
   | CoAtNet0                            | 25M    | 4.2G   | 224   | 81.6     |
   | CoAtNet0, Stride-2 DConv2D          | 25M    | 4.6G   | 224   | 82.0     |
   | CoAtNet0                            | 25M    | 13.4G  | 384   | 83.9     |

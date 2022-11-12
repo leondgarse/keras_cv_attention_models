@@ -23,7 +23,7 @@
   imm = tf.keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
   print(tf.keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.9965784), ('n02123159', 'tiger_cat', 0.0020929438), ... ]
+  # [('n02124075', 'Egyptian_cat', 0.99324566), ('n02123159', 'tiger_cat', 0.00381939), ... ]
   ```
 ## Training
   - As model structure not certain, these are most tests.
@@ -72,13 +72,20 @@
     | 15, wd exc pos_emb | 0.05              | Epoch 36/37 loss: 0.0028 - acc: 0.6796 - val_loss: 0.0011 - val_acc: **0.8221** |
 
     ![coatnet0_ft_224](https://user-images.githubusercontent.com/5744524/157171155-5eacb713-62c0-420a-bb63-57644ab9f0ec.png)
+  - **Training 224 for 305 epochs**
+    ```sh
+    CUDA_VISIBLE_DEVICES='1' TF_XLA_FLAGS='--tf_xla_auto_jit=2' ./train_script.py --seed 0 \
+    -m coatnet.CoAtNet0 --batch_size 128 -i 224 --lr_decay_steps 300 \
+    --magnitude 15 --additional_model_kwargs'{"drop_connect_rate": 0.1}' -s CoAtNet0_224_decay_300
+    ```
+    ![coatnet0_300](https://user-images.githubusercontent.com/5744524/201463307-7e991fb5-a745-414a-930c-f623412533d9.png)
 ## Models
   - Self defined models are using `Stride-2 DConv2D` by default. Set `use_dw_strides=False` for using `strides=2` in `Conv2D` layer instead.
 
   | Model                               | Params | FLOPs  | Input | Top1 Acc | Download |
   | ----------------------------------- | ------ | ------ | ----- | -------- | -------- |
   | CoAtNet0 (Self trained 105 epochs)  | 23.8M  | 2.17G  | 160   | 80.48    | [coatnet0_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) |
-  | - fine-tune 224, 37 epochs          | 23.8M  | 4.22G  | 224   | 82.21    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
+  | CoAtNet0 (Self trained 305 epochs)  | 23.8M  | 4.22G  | 224   | 82.79    | [coatnet0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) |
   | CoAtNet0                            | 25M    | 4.2G   | 224   | 81.6     |          |
   | CoAtNet0, Stride-2 DConv2D          | 25M    | 4.6G   | 224   | 82.0     |          |
   | CoAtNet0                            | 25M    | 13.4G  | 384   | 83.9     |          |
