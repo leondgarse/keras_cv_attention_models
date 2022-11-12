@@ -3,6 +3,7 @@ from tensorflow import keras
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
+    ChannelAffine,
     conv2d_no_bias,
     depthwise_conv2d_no_bias,
     drop_block,
