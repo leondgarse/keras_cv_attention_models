@@ -193,14 +193,17 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
         model.save(save_name)
 
 
-def try_save_pth_and_onnx(torch_model, save_pth=True, save_onnx=True, input_shape=(224, 224)):
+def try_save_pth_and_onnx(torch_model, save_pth=True, save_onnx=True, input_shape=(10, 3, 224, 224), dtype="float32", save_name=None):
     import torch
+    import numpy as np
 
     input_shape = input_shape[:2]
+    save_name = torch_model.__class__.__name__ if save_name is None else save_name
+    dummy_inputs = torch.from_numpy(np.random.uniform(size=input_shape).astype(dtype))
     if save_pth:
         try:
-            output_name = torch_model.__class__.__name__ + ".pth"
-            traced_cell = torch.jit.trace(torch_model, (torch.randn(10, 3, *input_shape)))
+            output_name = save_name + ".pth"
+            traced_cell = torch.jit.trace(torch_model, (dummy_inputs))
             torch.jit.save(traced_cell, output_name)
             print(">>>> Saved to:", output_name)
         except:
@@ -209,10 +212,10 @@ def try_save_pth_and_onnx(torch_model, save_pth=True, save_onnx=True, input_shap
 
     if save_onnx:
         try:
-            output_name = torch_model.__class__.__name__ + ".onnx"
+            output_name = save_name + ".onnx"
             torch.onnx.export(
                 model=torch_model,
-                args=torch.randn(10, 3, *input_shape),
+                args=dummy_inputs,
                 f=output_name,
                 verbose=False,
                 keep_initializers_as_inputs=True,
