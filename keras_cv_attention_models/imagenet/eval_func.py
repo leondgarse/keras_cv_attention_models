@@ -97,6 +97,7 @@ class ONNXModelInterf:
         if self.data_format == "NCHW":
             imgs = imgs.transpose(0, 3, 1, 2)
         return self.ort_session.run(self.output_names, {self.input_name: imgs.astype("float32")})[0]
+        # return np.array([self.ort_session.run(self.output_names, {self.input_name: imgs[None]})[0][0] for img in imgs])
 
 
 def evaluation(
