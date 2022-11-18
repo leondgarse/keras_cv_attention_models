@@ -1,4 +1,4 @@
-# ___Keras MaxViT___
+# ___Keras GhostNetV2___
 ***
 
 ## Summary

@@ -48,7 +48,7 @@ def ghost_module_multiply(inputs, out_channel, activation="relu", name=""):
 
 
 def ghost_bottleneck(
-    inputs, out_channel, fist_ghost_channel, kernel_size=3, strides=1, se_ratio=0, shortcut=True, use_ghost_module_multiply=False, activation="relu", name=""
+    inputs, out_channel, first_ghost_channel, kernel_size=3, strides=1, se_ratio=0, shortcut=True, use_ghost_module_multiply=False, activation="relu", name=""
 ):
     if shortcut:
         shortcut = depthwise_conv2d_no_bias(inputs, kernel_size, strides, padding="same", name=name + "short_1_")
@@ -59,9 +59,9 @@ def ghost_bottleneck(
         shortcut = inputs
 
     if use_ghost_module_multiply:
-        nn = ghost_module_multiply(inputs, fist_ghost_channel, activation=activation, name=name + "ghost_1_")
+        nn = ghost_module_multiply(inputs, first_ghost_channel, activation=activation, name=name + "ghost_1_")
     else:
-        nn = ghost_module(inputs, fist_ghost_channel, activation=activation, name=name + "ghost_1_")
+        nn = ghost_module(inputs, first_ghost_channel, activation=activation, name=name + "ghost_1_")
 
     if strides > 1:
         nn = depthwise_conv2d_no_bias(nn, kernel_size, strides, padding="same", name=name + "down_")
@@ -95,22 +95,22 @@ def GhostNetV2(
 
     """ stages """
     kernel_sizes = [3, 3, 3, 5, 5, 3, 3, 3, 3, 3, 3, 5, 5, 5, 5, 5]
-    fist_ghost_channels = [16, 48, 72, 72, 120, 240, 200, 184, 184, 480, 672, 672, 960, 960, 960, 960]
+    first_ghost_channels = [16, 48, 72, 72, 120, 240, 200, 184, 184, 480, 672, 672, 960, 960, 960, 960]
     out_channels = [16, 24, 24, 40, 40, 80, 80, 80, 80, 112, 112, 160, 160, 160, 160, 160]
     se_ratios = [0, 0, 0, 0.25, 0.25, 0, 0, 0, 0, 0.25, 0.25, 0.25, 0, 0.25, 0, 0.25]
     strides = [1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1]
 
-    for stack_id, (kernel, stride, fist_ghost, out_channel, se_ratio) in enumerate(zip(kernel_sizes, strides, fist_ghost_channels, out_channels, se_ratios)):
+    for stack_id, (kernel, stride, first_ghost, out_channel, se_ratio) in enumerate(zip(kernel_sizes, strides, first_ghost_channels, out_channels, se_ratios)):
         stack_name = "stack{}_".format(stack_id + 1)
         out_channel = make_divisible(out_channel * width_mul, 4)
-        fist_ghost_channel = make_divisible(fist_ghost * width_mul, 4)
+        first_ghost_channel = make_divisible(first_ghost * width_mul, 4)
         shortcut = False if out_channel == nn.shape[-1] and stride == 1 else True
         use_ghost_module_multiply = True if stack_id > 1 else False
         nn = ghost_bottleneck(
-            nn, out_channel, fist_ghost_channel, kernel, stride, se_ratio, shortcut, use_ghost_module_multiply, activation=activation, name=stack_name
+            nn, out_channel, first_ghost_channel, kernel, stride, se_ratio, shortcut, use_ghost_module_multiply, activation=activation, name=stack_name
         )
 
-    nn = conv2d_no_bias(nn, make_divisible(fist_ghost_channels[-1] * width_mul, 4), 1, strides=1, name="pre_")
+    nn = conv2d_no_bias(nn, make_divisible(first_ghost_channels[-1] * width_mul, 4), 1, strides=1, name="pre_")
     nn = batchnorm_with_activation(nn, activation=activation, name="pre_")
 
     if num_classes > 0:
