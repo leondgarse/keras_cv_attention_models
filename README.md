@@ -25,6 +25,7 @@
   - [EfficientNet](#efficientnet)
   - [FBNetV3](#fbnetv3)
   - [GCViT](#gcvit)
+  - [GhostNetV2](#ghostnetv2)
   - [GMLP](#gmlp)
   - [HaloNet](#halonet)
   - [HorNet](#hornet)
@@ -606,6 +607,15 @@
   | GCViT_Tiny   | 28.2M  | 4.83G | 224   | 83.4     | [gcvit_tiny_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_tiny_224_imagenet.h5) |
   | GCViT_Small  | 51.1M  | 8.63G | 224   | 83.95    | [gcvit_small_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_small_224_imagenet.h5) |
   | GCViT_Base   | 90.3M  | 14.9G | 224   | 84.47    | [gcvit_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_base_224_imagenet.h5) |
+## GhostNetV2
+  - [Keras GhostNetV2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/ghostnetv2) includes implementation of [PDF GhostNetV2: Enhance Cheap Operation with Long-Range Attention](https://openreview.net/pdf/6db544c65bbd0fa7d7349508454a433c112470e2.pdf).
+
+  | Model             | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ----------------- | ------ | ------ | ----- | -------- | -------- |
+  | GhostNetV2_1X     | 6.12M  | 168.5M | 224   | 74.41    | [ghostnetv2_1x_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnetv2_1x_imagenet.h5) |
+  | GhostNetV2 (1.0x) | 6.12M  | 168.5M | 224   | 75.3     |          |
+  | GhostNetV2 (1.3x) | 8.96M  | 271.1M | 224   | 76.9     |          |
+  | GhostNetV2 (1.6x) | 12.39M | 400.9M | 224   | 77.8     |          |
 ## GMLP
   - [Keras GMLP](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#gmlp) includes implementation of [PDF 2105.08050 Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050.pdf).
 
