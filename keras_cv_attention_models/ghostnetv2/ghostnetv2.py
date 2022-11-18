@@ -44,7 +44,7 @@ def ghost_module_multiply(inputs, out_channel, activation="relu", name=""):
     shortcut = tf.image.resize(shortcut, tf.shape(inputs)[1:-1], antialias=False, method="bilinear")
     # shortcut = keras.layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(shortcut)
 
-    return shortcut * nn
+    return keras.layers.Multiply()([shortcut, nn])
 
 
 def ghost_bottleneck(
