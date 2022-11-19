@@ -9,6 +9,8 @@
 ***
 
 ## Models
+  - `GhostNetV2_1X` should be same with `GhostNetV2 (1.0x)`. Weights are ported from official publication. Currently it's only weights with accuracy `74.41` provided.
+
   | Model             | Params | FLOPs  | Input | Top1 Acc | Download |
   | ----------------- | ------ | ------ | ----- | -------- | -------- |
   | GhostNetV2_1X     | 6.12M  | 168.5M | 224   | 74.41    | [ghostnetv2_1x_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnetv2_1x_imagenet.h5) |
@@ -16,7 +18,11 @@
   | GhostNetV2 (1.3x) | 8.96M  | 271.1M | 224   | 76.9     |          |
   | GhostNetV2 (1.6x) | 12.39M | 400.9M | 224   | 77.8     |          |
 
-  - `GhostNetV2_1X` should be same with `GhostNetV2 (1.0x)`. Weights are ported from official publication. Currently it's only weights with accuracy `74.41` provided.
+  | Model           | Params | FLOPs  | Input | Top1 Acc | Download |
+  | --------------- | ------ | ------ | ----- | -------- | -------- |
+  | GhostNet (0.5x) | 2.59M  | 42.6M  | 224   | 66.2     |          |
+  | GhostNet1X      | 5.18M  | 141.7M | 224   | 73.9     | [ghostnet_1x_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_1x_imagenet.h5) |
+  | GhostNet (1.3x) | 7.36M  | 227.7M | 224   | 75.7     |          |
 ## Usage
   ```py
   from keras_cv_attention_models import ghostnetv2
@@ -42,4 +48,4 @@
   # (1, 7, 7, 960)
   print(model(np.ones([1, 512, 384, 3])).shape)
   # (1, 16, 12, 960)
-  ```
+```
