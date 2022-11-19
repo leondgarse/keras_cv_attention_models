@@ -197,36 +197,27 @@ def try_save_pth_and_onnx(torch_model, save_pth=True, save_onnx=True, input_shap
     import torch
     import numpy as np
 
-    input_shape = input_shape[:2]
     save_name = torch_model.__class__.__name__ if save_name is None else save_name
     dummy_inputs = torch.from_numpy(np.random.uniform(size=input_shape).astype(dtype))
     if save_pth:
-        try:
-            output_name = save_name + ".pth"
-            traced_cell = torch.jit.trace(torch_model, (dummy_inputs))
-            torch.jit.save(traced_cell, output_name)
-            print(">>>> Saved to:", output_name)
-        except:
-            print(">>>> Saved pth failed")
-            pass
+        output_name = save_name + ".pth"
+        traced_cell = torch.jit.trace(torch_model, (dummy_inputs))
+        torch.jit.save(traced_cell, output_name)
+        print(">>>> Saved to:", output_name)
 
     if save_onnx:
-        try:
-            output_name = save_name + ".onnx"
-            torch.onnx.export(
-                model=torch_model,
-                args=dummy_inputs,
-                f=output_name,
-                verbose=False,
-                keep_initializers_as_inputs=True,
-                training=torch.onnx.TrainingMode.PRESERVE,
-                do_constant_folding=False,
-                opset_version=13,
-            )
-            print(">>>> Saved to:", output_name)
-        except:
-            print(">>>> Saved onnx failed")
-            pass
+        output_name = save_name + ".onnx"
+        torch.onnx.export(
+            model=torch_model,
+            args=dummy_inputs,
+            f=output_name,
+            verbose=False,
+            keep_initializers_as_inputs=True,
+            training=torch.onnx.TrainingMode.PRESERVE,
+            do_constant_folding=False,
+            opset_version=13,
+        )
+        print(">>>> Saved to:", output_name)
 
 
 def keras_reload_from_torch_model(
