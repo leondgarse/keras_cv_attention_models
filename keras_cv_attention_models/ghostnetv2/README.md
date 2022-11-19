@@ -3,7 +3,8 @@
 
 ## Summary
   - Keras implementation of [Gitee mindspore/models/ghostnetv2](https://gitee.com/mindspore/models/tree/master/research/cv/ghostnetv2). Paper [PDF GhostNetV2: Enhance Cheap Operation with Long-Range Attention](https://openreview.net/pdf/6db544c65bbd0fa7d7349508454a433c112470e2.pdf).
-  - Model weights ported from official publication [download.mindspore ghostnetv2](https://download.mindspore.cn/model_zoo/research/cv/ghostnetv2/).
+  - `GhostNetV2_1X` model weights ported from official publication [download.mindspore ghostnetv2](https://download.mindspore.cn/model_zoo/research/cv/ghostnetv2/).
+  - `GhostNet_1X` model weights ported from official publication [Github huawei-noah/ghostnet_pytorch](https://github.com/huawei-noah/Efficient-AI-Backbones/tree/master/ghostnet_pytorch). Paper [PDF 1911.11907 GhostNet: More Features from Cheap Operations](https://arxiv.org/pdf/1911.11907.pdf).
 
   ![ghostnetv2](https://user-images.githubusercontent.com/5744524/202699896-4c429db1-8038-4dc9-992b-d355d1cfee6e.PNG)
 ***
@@ -21,7 +22,7 @@
   | Model           | Params | FLOPs  | Input | Top1 Acc | Download |
   | --------------- | ------ | ------ | ----- | -------- | -------- |
   | GhostNet (0.5x) | 2.59M  | 42.6M  | 224   | 66.2     |          |
-  | GhostNet1X      | 5.18M  | 141.7M | 224   | 73.9     | [ghostnet_1x_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_1x_imagenet.h5) |
+  | GhostNet_1X     | 5.18M  | 141.7M | 224   | 73.9     | [ghostnet_1x_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_1x_imagenet.h5) |
   | GhostNet (1.3x) | 7.36M  | 227.7M | 224   | 75.7     |          |
 ## Usage
   ```py
@@ -48,4 +49,4 @@
   # (1, 7, 7, 960)
   print(model(np.ones([1, 512, 384, 3])).shape)
   # (1, 16, 12, 960)
-```
+  ```

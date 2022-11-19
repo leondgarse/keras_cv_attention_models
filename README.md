@@ -620,7 +620,7 @@
   | Model           | Params | FLOPs  | Input | Top1 Acc | Download |
   | --------------- | ------ | ------ | ----- | -------- | -------- |
   | GhostNet (0.5x) | 2.59M  | 42.6M  | 224   | 66.2     |          |
-  | GhostNet1X      | 5.18M  | 141.7M | 224   | 73.9     | [ghostnet_1x_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_1x_imagenet.h5) |
+  | GhostNet_1X     | 5.18M  | 141.7M | 224   | 73.9     | [ghostnet_1x_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_1x_imagenet.h5) |
   | GhostNet (1.3x) | 7.36M  | 227.7M | 224   | 75.7     |          |
 ## GMLP
   - [Keras GMLP](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#gmlp) includes implementation of [PDF 2105.08050 Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050.pdf).

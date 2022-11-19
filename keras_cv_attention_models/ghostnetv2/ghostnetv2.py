@@ -16,6 +16,7 @@ PRETRAINED_DICT = {
     "ghostnet_1x": {"imagenet": "df1de036084541c5b8bd36b179c74577"},
 }
 
+
 def ghost_module(inputs, out_channel, activation="relu", name=""):
     ratio = 2
     hidden_channel = int(tf.math.ceil(float(out_channel) / ratio))
@@ -34,6 +35,7 @@ def ghost_module(inputs, out_channel, activation="relu", name=""):
 def ghost_module_multiply(inputs, out_channel, activation="relu", name=""):
     nn = ghost_module(inputs, out_channel, activation=activation, name=name)
 
+    # shortcut = keras.layers.AvgPool2D(pool_size=2, strides=2, padding="SAME")(inputs)
     shortcut = keras.layers.AvgPool2D(pool_size=2, strides=2)(inputs)
     shortcut = conv2d_no_bias(shortcut, out_channel, name=name + "short_1_")
     shortcut = batchnorm_with_activation(shortcut, activation=None, name=name + "short_1_")
@@ -45,6 +47,9 @@ def ghost_module_multiply(inputs, out_channel, activation="relu", name=""):
     # print(f"{shortcut.shape = }, {nn.shape = }")
     shortcut = tf.image.resize(shortcut, tf.shape(inputs)[1:-1], antialias=False, method="bilinear")
     # shortcut = keras.layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(shortcut)
+    # if int(shortcut.shape[1] - nn.shape[1]) > 0 or int(shortcut.shape[2] - nn.shape[2]) > 0:
+    #     shortcut = shortcut[:, :nn.shape[1], :nn.shape[2]]
+    # shortcut = keras.layers.Resizing(nn.shape[1], nn.shape[2])(shortcut)
 
     return keras.layers.Multiply()([shortcut, nn])
 
@@ -142,7 +147,7 @@ def GhostNet(
     stem_width=16,
     stem_strides=2,
     width_mul=1.0,
-    num_ghost_module_v1_stacks=-1,
+    num_ghost_module_v1_stacks=-1,  # num of `ghost_module` stcks on the head, others are `ghost_module_multiply`, set `-1` for all using `ghost_module`
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="relu",

@@ -221,7 +221,7 @@ def layer_norm(inputs, zero_gamma=False, epsilon=LAYER_NORM_EPSILON, name=None):
 
 def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, name=None):
     """Typical GroupNormalization with epsilon=1e-5"""
-    if hasattr(keras.layers, 'GroupNormalization'):
+    if hasattr(keras.layers, "GroupNormalization"):
         GroupNormalization = keras.layers.GroupNormalization  # GroupNormalization is added after TF 2.11.0
     else:
         from tensorflow_addons.layers import GroupNormalization
