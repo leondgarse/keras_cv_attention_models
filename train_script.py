@@ -209,6 +209,8 @@ def run_training_by_args(args):
         )
 
         if model.optimizer is None:
+            # optimizer can be a str like "sgd" / "adamw" / "lamb", or specific initialized `keras.optimizers.xxx` instance.
+            # Or just call `model.compile(...)` by self.
             model = train_func.compile_model(model, args.optimizer, lr_base, args.weight_decay, loss, loss_weights, metrics, args.momentum)
         print(">>>> basic_save_name =", args.basic_save_name)
         # return None, None, None

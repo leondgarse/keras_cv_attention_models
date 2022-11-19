@@ -3,7 +3,7 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 from keras_cv_attention_models.aotnet import AotNet
 from keras_cv_attention_models.download_and_load import reload_model_weights
-from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, CompatibleExtractPatches
+from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, CompatibleExtractPatches, group_norm
 
 BATCH_NORM_EPSILON = 1e-5
 PRETRAINED_DICT = {
@@ -16,8 +16,6 @@ PRETRAINED_DICT = {
 
 
 def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activation="relu", name=None):
-    from tensorflow_addons.layers import GroupNormalization
-
     if downsample_first and strides > 1:
         inputs = keras.layers.ZeroPadding2D(padding=1, name=name and name + "pool_pad")(inputs)
         inputs = keras.layers.AveragePooling2D(3, strides=2, name=name and name + "pool")(inputs)
@@ -44,7 +42,7 @@ def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activ
     embed_ww = batchnorm_with_activation(embed_ww, activation=activation, zero_gamma=False, name=name and name + "embed_ww_1_")
     embed_filters = kernel_size * kernel_size * filters // reduction
     embed_ww = conv2d_no_bias(embed_ww, embed_filters, 1, use_bias=True, name=name and name + "embed_ww_2_")
-    embed_ww = GroupNormalization(groups=filters // reduction, epsilon=BATCH_NORM_EPSILON, name=name and name + "embed_ww_group_norm")(embed_ww)
+    embed_ww = group_norm(embed_ww, groups=filters // reduction, epsilon=BATCH_NORM_EPSILON, name=name and name + "embed_ww_")
     embed_ww = tf.reshape(embed_ww, (-1, height, width, filters // reduction, kernel_size * kernel_size))
     embed_ww = tf.expand_dims(tf.transpose(embed_ww, [0, 1, 2, 4, 3]), axis=-2)  # expand dim on `reduction` axis
 
