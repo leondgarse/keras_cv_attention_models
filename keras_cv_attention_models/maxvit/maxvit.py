@@ -18,11 +18,13 @@ from keras_cv_attention_models.attention_layers import (
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
-    "maxvit_tiny": {"imagenet": {224: "e5cfd6a6bd4dea939860b6d8a29a911a"}},
-    "maxvit_small": {"imagenet": {224: "6bbaff1c6316486c3ac29b607d9ebb13"}},
-    "maxvit_base": {"imagenet": {224: "00c833043b87ef2861ecf79820d827e0"}},
-    "maxvit_large": {"imagenet": {224: "93d079fa8171986cc272f6fb4e9b0255"}},
+    "maxvit_tiny": {"imagenet": {224: "e5cfd6a6bd4dea939860b6d8a29a911a", 384: "25b074ca6258d526c4d931f887599fe1", 512: "c745836c38f0ea98fef30bb3186aaf17"}},
+    "maxvit_small": {"imagenet": {224: "6bbaff1c6316486c3ac29b607d9ebb13", 384: "85d2b77eab2f2645277a00b3f35d77d9", 512: "63b6c283ea6930fdcbe9b0e2f0bdbe6f"}},
+    "maxvit_base": {"imagenet": {224: "00c833043b87ef2861ecf79820d827e0"}, "imagenet21k-ft1k": {384: "9b3f8c948e657450c856b0efb305dc7c", 512: "b0d554b7ea52a8bc87dc6790377f4672"}},
+    "maxvit_large": {"imagenet": {224: "93d079fa8171986cc272f6fb4e9b0255"}, "imagenet21k": {224: "a3540387e39efaee5927e7fd9288cc0b"}, "imagenet21k-ft1k": {384: "4063ab86cf515e7b0ab568cbc5a0726f", 512: "972a7c1cceacb8c1761338c5b6b72605"}},
+    "maxvit_xlarge": {"imagenet21k": {224: "57574f4411cabff061b8946fb768a5df"}, "imagenet21k-ft1k": {384: "6d78913bc04f716ab029bc6dbc0d9799", 512: "f79fc50827d10f43333321ab03fa563c"}},
 }
+
 
 
 def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion=4, se_ratio=0, use_torch_mode=False, drop_rate=0, activation="gelu", name=""):

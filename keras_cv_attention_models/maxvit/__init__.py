@@ -27,7 +27,7 @@ __tail_doc__ = """  strides: int or list of int, for strides in the first block 
   dropout: dropout rate if top layers is included.
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
-  pretrained: One of `[None, "imagenet", "imagenet21k-ft1k"]`.
+  pretrained: One of `[None, "imagenet", "imagenet21k", "imagenet21k-ft1k"]`.
   **kwargs: other parameters if available.
 
 Returns:
@@ -51,11 +51,13 @@ Model architectures:
   | MaxViT_Small                    | 69M    | 36.1G  | 384   | 85.74    |
   | MaxViT_Small                    | 69M    | 67.6G  | 512   | 86.19    |
   | MaxViT_Base                     | 119M   | 24.2G  | 224   | 84.95    |
+  | - imagenet21k                   | 119M   | 24.2G  | 224   |          |
   | MaxViT_Base                     | 119M   | 74.2G  | 384   | 86.34    |
   | - imagenet21k-ft1k              | 119M   | 74.2G  | 384   | 88.24    |
   | MaxViT_Base                     | 119M   | 138.5G | 512   | 86.66    |
   | - imagenet21k-ft1k              | 119M   | 138.5G | 512   | 88.38    |
   | MaxViT_Large                    | 212M   | 43.9G  | 224   | 85.17    |
+  | - imagenet21k                   | 212M   | 43.9G  | 224   |          |
   | MaxViT_Large                    | 212M   | 133.1G | 384   | 86.40    |
   | - imagenet21k-ft1k              | 212M   | 133.1G | 384   | 88.32    |
   | MaxViT_Large                    | 212M   | 245.4G | 512   | 86.70    |
