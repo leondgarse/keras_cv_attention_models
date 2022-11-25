@@ -16,18 +16,18 @@
   | MaxViT_Small                    | 69M    | 36.1G  | 384   | 85.74    | [small_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_small_384_imagenet.h5) |
   | MaxViT_Small                    | 69M    | 67.6G  | 512   | 86.19    | [small_512_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_small_512_imagenet.h5) |
   | MaxViT_Base                     | 119M   | 24.2G  | 224   | 84.95    | [base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_224_imagenet.h5) |
-  | - imagenet21k                   | 119M   | 24.2G  | 224   |          | [base_224_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_224_imagenet21k.h5) |
+  | - imagenet21k                   | 135M   | 24.2G  | 224   |          | [base_224_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_224_imagenet21k.h5) |
   | MaxViT_Base                     | 119M   | 74.2G  | 384   | 86.34    |          |
   | - imagenet21k-ft1k              | 119M   | 74.2G  | 384   | 88.24    | [base_384_21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_384_imagenet21k-ft1k.h5) |
   | MaxViT_Base                     | 119M   | 138.5G | 512   | 86.66    |          |
   | - imagenet21k-ft1k              | 119M   | 138.5G | 512   | 88.38    | [base_512_21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_512_imagenet21k-ft1k.h5) |
   | MaxViT_Large                    | 212M   | 43.9G  | 224   | 85.17    | [large_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_224_imagenet.h5) |
-  | - imagenet21k                   | 212M   | 43.9G  | 224   |          | [large_224_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_224_imagenet21k.h5) |
+  | - imagenet21k                   | 233M   | 43.9G  | 224   |          | [large_224_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_224_imagenet21k.h5) |
   | MaxViT_Large                    | 212M   | 133.1G | 384   | 86.40    |          |
   | - imagenet21k-ft1k              | 212M   | 133.1G | 384   | 88.32    | [large_384_21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_384_imagenet21k-ft1k.h5) |
   | MaxViT_Large                    | 212M   | 245.4G | 512   | 86.70    |          |
   | - imagenet21k-ft1k              | 212M   | 245.4G | 512   | 88.46    | [large_512_21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_512_imagenet21k-ft1k.h5) |
-  | MaxViT_XLarge, imagenet21k      | 475M   | 293.7G | 224   |          | [xlarge_224_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_xlarge_224_imagenet21k.h5) |
+  | MaxViT_XLarge, imagenet21k      | 507M   | 97.7G  | 224   |          | [xlarge_224_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_xlarge_224_imagenet21k.h5) |
   | MaxViT_XLarge, imagenet21k-ft1k | 475M   | 293.7G | 384   | 88.51    | [xlarge_384_21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_xlarge_384_imagenet21k-ft1k.h5) |
   | MaxViT_XLarge, imagenet21k-ft1k | 475M   | 535.2G | 512   | 88.70    | [xlarge_512_21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_xlarge_512_imagenet21k-ft1k.h5) |
 ## Usage
@@ -62,4 +62,17 @@
   preds = mm(mm.preprocess_input(chelsea()))
   print(mm.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.77995235), ('n02123045', 'tabby', 0.017138876), ...]
+  ```
+  **Actual `num_classes` for `"imagenet21k"` models is `21843`**.
+  ```py
+  from keras_cv_attention_models import maxvit
+
+  # Will download and load pretrained imagenet weights.
+  mm = maxvit.MaxViT_Large(pretrained="imagenet21k", num_classes=21843)
+
+  # Run prediction
+  from skimage.data import chelsea
+  preds = mm(mm.preprocess_input(chelsea()))
+  print(mm.decode_predictions(preds))
+  # [('n02124075', 'Egyptian_cat', 0.059920408), ('n02120997', 'feline, felid', 0.04957321), ...]
   ```
