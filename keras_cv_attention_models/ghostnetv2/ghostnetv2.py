@@ -12,8 +12,8 @@ from keras_cv_attention_models.attention_layers import (
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
-    "ghostnetv2_1x": {"imagenet": "4f28597d5f72731ed4ef4f69ec9c1799"},
-    "ghostnet_1x": {"imagenet": "df1de036084541c5b8bd36b179c74577"},
+    "ghostnetv2_100": {"imagenet": "4f28597d5f72731ed4ef4f69ec9c1799"},
+    "ghostnet_100": {"imagenet": "19a0f0f03f20e4bd6c1736102b4d979d"},
 }
 
 
@@ -83,6 +83,11 @@ def ghost_bottleneck(
 
 
 def GhostNetV2(
+    kernel_sizes=[3, 3, 3, 5, 5, 3, 3, 3, 3, 3, 3, 5, 5, 5, 5, 5],
+    first_ghost_channels=[16, 48, 72, 72, 120, 240, 200, 184, 184, 480, 672, 672, 960, 960, 960, 960],
+    out_channels=[16, 24, 24, 40, 40, 80, 80, 80, 80, 112, 112, 160, 160, 160, 160, 160],
+    se_ratios=[0, 0, 0, 0.25, 0.25, 0, 0, 0, 0, 0.25, 0.25, 0.25, 0, 0.25, 0, 0.25],
+    strides=[1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1],
     stem_width=16,
     stem_strides=2,
     width_mul=1.0,
@@ -102,12 +107,6 @@ def GhostNetV2(
     nn = batchnorm_with_activation(nn, activation=activation, name="stem_")
 
     """ stages """
-    kernel_sizes = [3, 3, 3, 5, 5, 3, 3, 3, 3, 3, 3, 5, 5, 5, 5, 5]
-    first_ghost_channels = [16, 48, 72, 72, 120, 240, 200, 184, 184, 480, 672, 672, 960, 960, 960, 960]
-    out_channels = [16, 24, 24, 40, 40, 80, 80, 80, 80, 112, 112, 160, 160, 160, 160, 160]
-    se_ratios = [0, 0, 0, 0.25, 0.25, 0, 0, 0, 0, 0.25, 0.25, 0.25, 0, 0.25, 0, 0.25]
-    strides = [1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1]
-
     for stack_id, (kernel, stride, first_ghost, out_channel, se_ratio) in enumerate(zip(kernel_sizes, strides, first_ghost_channels, out_channels, se_ratios)):
         stack_name = "stack{}_".format(stack_id + 1)
         out_channel = make_divisible(out_channel * width_mul, 4)
@@ -136,14 +135,19 @@ def GhostNetV2(
     return model
 
 
-def GhostNetV2_1X(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return GhostNetV2(**locals(), model_name="ghostnetv2_1x", **kwargs)
+def GhostNetV2_100(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return GhostNetV2(**locals(), model_name="ghostnetv2_100", **kwargs)
 
 
 """ GhostNet V1 """
 
 
 def GhostNet(
+    kernel_sizes=[3, 3, 3, 5, 5, 3, 3, 3, 3, 3, 3, 5, 5, 5, 5, 5],
+    first_ghost_channels=[16, 48, 72, 72, 120, 240, 200, 184, 184, 480, 672, 672, 960, 960, 960, 960],
+    out_channels=[16, 24, 24, 40, 40, 80, 80, 80, 80, 112, 112, 160, 160, 160, 160, 160],
+    se_ratios=[0, 0, 0, 0.25, 0.25, 0, 0, 0, 0, 0.25, 0.25, 0.25, 0, 0.25, 0, 0.25],
+    strides=[1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1],
     stem_width=16,
     stem_strides=2,
     width_mul=1.0,
@@ -160,5 +164,5 @@ def GhostNet(
     return GhostNetV2(**locals())
 
 
-def GhostNet_1X(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return GhostNet(**locals(), model_name="ghostnet_1x", **kwargs)
+def GhostNet_100(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return GhostNet(**locals(), model_name="ghostnet_100", **kwargs)

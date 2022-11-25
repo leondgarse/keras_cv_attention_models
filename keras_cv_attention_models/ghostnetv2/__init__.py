@@ -1,11 +1,17 @@
-from keras_cv_attention_models.ghostnetv2.ghostnetv2 import GhostNetV2, GhostNetV2_1X, GhostNet, GhostNet_1X
+from keras_cv_attention_models.ghostnetv2.ghostnetv2 import GhostNetV2, GhostNetV2_100, GhostNet, GhostNet_100
 
 __v2_head_doc__ = """
 Keras implementation of [Gitee mindspore/models/ghostnetv2](https://gitee.com/mindspore/models/tree/master/research/cv/ghostnetv2).
 Paper [PDF GhostNetV2: Enhance Cheap Operation with Long-Range Attention](https://openreview.net/pdf/6db544c65bbd0fa7d7349508454a433c112470e2.pdf).
 """
 
-__tail_doc__ = """  stem_strides: strides for stem `Conv2D`, default `2`.
+__tail_doc__ = """  kernel_sizes: kernel_size for each stack.
+  first_ghost_channels: num channels for first ghost module in each stack.
+  out_channels: output channels for each stack.
+  se_ratios: se_ratio for each stack.
+  strides: stride for each stack.
+  stem_width: output dimension for stem block.
+  stem_strides: strides for stem `Conv2D`, default `2`.
   num_ghost_module_v1_stacks: num of `ghost_module` stcks on the head, others are `ghost_module_multiply`.
       - for `GhostNet` v1 way, default `-1` for all using `ghost_module`.
       - for `GhostNetV2` way, default `2` for only using `ghost_module` in the first 2 stacks.
@@ -25,19 +31,18 @@ Returns:
 GhostNetV2.__doc__ = __v2_head_doc__ + """
 Args:
   width_mul: expansion ratio of `fist_ghost_channels` and `out_channels` in each block.
-  stem_width: output dimension for stem block.
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
   | Model             | Params | FLOPs  | Input | Top1 Acc |
   | ----------------- | ------ | ------ | ----- | -------- |
-  | GhostNetV2_1X     | 6.12M  | 168.5M | 224   | 74.41    |
+  | GhostNetV2_100    | 6.12M  | 168.5M | 224   | 74.41    |
   | GhostNetV2 (1.0x) | 6.12M  | 168.5M | 224   | 75.3     |
   | GhostNetV2 (1.3x) | 8.96M  | 271.1M | 224   | 76.9     |
   | GhostNetV2 (1.6x) | 12.39M | 400.9M | 224   | 77.8     |
 """
 
-GhostNetV2_1X.__doc__ = __v2_head_doc__ + """
+GhostNetV2_100.__doc__ = __v2_head_doc__ + """
 Args:
 """ + __tail_doc__
 
@@ -56,10 +61,10 @@ Model architectures:
   | Model           | Params | FLOPs  | Input | Top1 Acc |
   | --------------- | ------ | ------ | ----- | -------- |
   | GhostNet (0.5x) | 2.59M  | 42.6M  | 224   | 66.2     |
-  | GhostNet_1X     | 5.18M  | 141.7M | 224   | 73.9     |
+  | GhostNet_100    | 5.18M  | 141.7M | 224   | 74.16    |
   | GhostNet (1.3x) | 7.36M  | 227.7M | 224   | 75.7     |
 """
 
-GhostNet_1X.__doc__ = __v1_head_doc__ + """
+GhostNet_100.__doc__ = __v1_head_doc__ + """
 Args:
 """ + __tail_doc__
