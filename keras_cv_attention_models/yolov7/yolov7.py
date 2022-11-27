@@ -139,11 +139,11 @@ def downsample_merge(inputs, activation="swish", name=""):
 
 
 def path_aggregation_fpn(features, activation="swish", name=""):
-    # p5 ─────┬───> pan_out0
-    #         ↓         ↑
-    # p4 ─> p4p5 ─> pan_out1
-    #         ↓         ↑
-    # p3 ─> pan_out2 ───┘
+    # p5 ───┬─────────────────┬─> out2
+    #       ↓ [up -> concat]  ↑ [down -> concat]
+    # p4 ─> p4p5 ───────────> out1
+    #       ↓ [up -> concat]  ↑ [down -> concat]
+    # p3 ─> p3p4p5 ───────────┴─> out0
     # features: [p3, p4, p5]
     upsamples = [features[-1]]
     p_name = "p{}_".format(len(features) + 2)
