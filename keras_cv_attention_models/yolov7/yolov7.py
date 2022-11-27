@@ -13,17 +13,18 @@ from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.coco import eval_func, anchors_func
 
-PRETRAINED_DICT = {"": {"coco": ""}}
+PRETRAINED_DICT = {"yolov7_csp": {"coco": "52d5def3f37edb0b3c5508d3c5cb8bb0"}}
 
 
 """ Yolov7Backbone """
 BATCH_NORM_EPSILON = 1e-3
-BATCH_NORM_MOMENTUM = 0.03
+BATCH_NORM_MOMENTUM = 0.97
 
 
 def conv_bn(inputs, output_channel, kernel_size=1, strides=1, activation="swish", name=""):
     nn = conv2d_no_bias(inputs, output_channel, kernel_size, strides, padding="SAME", name=name)
     return batchnorm_with_activation(nn, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name)
+
 
 def stack_6(inputs, filters, concats=[-1, -3, -5, -6], mid_ratio=1.0, out_ratio=4, activation="swish", name=""):
     first = conv_bn(inputs, filters, kernel_size=1, strides=1, activation=activation, name=name + "first_")
@@ -41,6 +42,7 @@ def stack_6(inputs, filters, concats=[-1, -3, -5, -6], mid_ratio=1.0, out_ratio=
     nn = conv_bn(nn, int(filters * out_ratio), kernel_size=1, strides=1, activation=activation, name=name + "out_")
     return nn
 
+
 # Same with yolor
 def csp_conv_downsample(inputs, ratio=0.5, activation="swish", name=""):
     input_channel = inputs.shape[-1]
@@ -53,6 +55,7 @@ def csp_conv_downsample(inputs, ratio=0.5, activation="swish", name=""):
 
     nn = tf.concat([conv_branch, pool_branch], axis=-1)
     return nn
+
 
 # Same with yolor
 def res_spatial_pyramid_pooling(inputs, depth=2, expansion=0.5, pool_sizes=(5, 9, 13), activation="swish", name=""):
@@ -73,6 +76,7 @@ def res_spatial_pyramid_pooling(inputs, depth=2, expansion=0.5, pool_sizes=(5, 9
     out = conv_bn(out, hidden_channels, kernel_size=1, activation=activation, name=name + "output_")
     return out
 
+
 def Yolov7Backbone(
     channels=[64, 128, 256, 256],
     stem_width=-1,  # -1 means using channels[0]
@@ -81,7 +85,6 @@ def Yolov7Backbone(
     activation="swish",
     model_name="",
 ):
-    # base_channels = int(width_mul * 64)
     inputs = keras.layers.Input(input_shape)
 
     """ Stem """
@@ -111,7 +114,7 @@ def Yolov7Backbone(
     return model
 
 
-""" path aggregation fpn , using `csp_stack` instead of csp_stack from yolor """
+""" path aggregation fpn, using `stack_6` instead of csp_stack from yolor """
 
 
 def upsample_merge(inputs, activation="swish", name=""):
@@ -161,7 +164,7 @@ def path_aggregation_fpn(features, activation="swish", name=""):
     return downsamples
 
 
-""" YOLORHead """
+""" YOLOV7Head, using Reparam Conv block """
 
 
 def yolov7_head_single(inputs, filters, num_classes=80, num_anchors=3, use_object_scores=True, activation="swish", name=""):
@@ -232,7 +235,7 @@ def YOLOV7(
     outputs = yolov7_head(fpn_features, num_classes, num_anchors, use_object_scores, activation, classifier_activation, name="head_")
     outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
     model = keras.models.Model(inputs, outputs, name=model_name)
-    reload_model_weights(model, PRETRAINED_DICT, "yolor", pretrained)
+    reload_model_weights(model, PRETRAINED_DICT, "yolov7", pretrained)
 
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]
     post_process = eval_func.DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale)

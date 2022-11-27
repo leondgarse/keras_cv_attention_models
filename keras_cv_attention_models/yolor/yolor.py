@@ -25,7 +25,7 @@ PRETRAINED_DICT = {
 
 """ CSPDarknet backbone """
 BATCH_NORM_EPSILON = 1e-4
-BATCH_NORM_MOMENTUM = 0.03
+BATCH_NORM_MOMENTUM = 0.97
 
 
 def conv_dw_pw_block(inputs, filters, kernel_size=1, strides=1, use_depthwise_conv=False, activation="swish", name=""):
