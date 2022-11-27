@@ -13,7 +13,7 @@ from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.coco import eval_func, anchors_func
 
-PRETRAINED_DICT = {"yolov7_csp": {"coco": "52d5def3f37edb0b3c5508d3c5cb8bb0"}}
+PRETRAINED_DICT = {"yolov7_csp": {"coco": "9d05e54b96a9f6293d7bc8fa26dde043"}}
 
 
 """ Yolov7Backbone """
@@ -176,8 +176,8 @@ def yolov7_head_single(inputs, filters, num_classes=80, num_anchors=3, use_objec
 
     ouput_classes = num_classes + (5 if use_object_scores else 4)  # num_anchors = 3, num_anchors * (80 + 5) = 255
     nn = keras.layers.Conv2D(ouput_classes * num_anchors, kernel_size=1, name=name + "2_conv")(nn)
-    return nn
-    # return keras.layers.Reshape([-1, ouput_classes], name=name + "output_reshape")(nn)
+    # return nn
+    return keras.layers.Reshape([-1, ouput_classes], name=name + "output_reshape")(nn)
 
 
 def yolov7_head(inputs, num_classes=80, num_anchors=3, use_object_scores=True, activation="swish", classifier_activation="sigmoid", name=""):
@@ -187,9 +187,9 @@ def yolov7_head(inputs, num_classes=80, num_anchors=3, use_object_scores=True, a
         filters = int(input.shape[-1] * 2)
         out = yolov7_head_single(input, filters, num_classes, num_anchors, use_object_scores, activation=activation, name=cur_name)
         outputs.append(out)
-    return outputs
-    # outputs = tf.concat(outputs, axis=1)
-    # return activation_by_name(outputs, classifier_activation, name="classifier_")
+    # return outputs
+    outputs = tf.concat(outputs, axis=1)
+    return activation_by_name(outputs, classifier_activation, name="classifier_")
 
 
 """ YOLOV7 models, almost same with yolor """
@@ -239,7 +239,7 @@ def YOLOV7(
 
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]
     post_process = eval_func.DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale)
-    # add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
+    add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     return model
 
 
