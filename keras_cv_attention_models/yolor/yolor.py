@@ -202,11 +202,11 @@ def downsample_merge(inputs, csp_depth, use_csp_downsample=False, use_shortcut_b
 
 
 def path_aggregation_fpn(features, fpn_depth=2, use_csp_downsample=False, use_shortcut_bn=True, activation="swish", name=""):
-    # p5 ───┬─────────────────┬─> out2
+    # p5 ---┬-----------------┬-> out2
     #       ↓ [up -> concat]  ↑ [down -> concat]
-    # p4 ─> p4p5 ───────────> out1
+    # p4 -> p4p5 ------------> out1
     #       ↓ [up -> concat]  ↑ [down -> concat]
-    # p3 ─> p3p4p5 ───────────┴─> out0
+    # p3 -> p3p4p5 ------------┴-> out0
     # features: [p3, p4, p5]
     upsamples = [features[-1]]
     p_name = "p{}_".format(len(features) + 2)

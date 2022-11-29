@@ -53,6 +53,7 @@
 - [Detection Models](#detection-models)
   - [EfficientDet](#efficientdet)
   - [YOLOR](#yolor)
+  - [YOLOV7](#yolov7)
   - [YOLOX](#yolox)
 - [Other implemented tensorflow or keras models](#other-implemented-tensorflow-or-keras-models)
 - [Licenses](#licenses)
@@ -979,6 +980,17 @@
   | YOLOR_W6   | 79.9M  | 226.67G | 1280  | 53.6 ?      | 56.9    | [yolor_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_w6_coco.h5)       |
   | YOLOR_E6   | 115.9M | 341.62G | 1280  | 50.3 ?      | 57.6    | [yolor_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_e6_coco.h5)       |
   | YOLOR_D6   | 151.8M | 467.88G | 1280  | 50.8 ?      | 58.2    | [yolor_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_d6_coco.h5)       |
+## YOLOV7
+  - [Keras YOLOV7](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolov7) includes implementation of [Paper 2207.02696 YOLOv7: Trainable bag-of-freebies sets new state-of-the-art for real-time object detectors](https://arxiv.org/pdf/2207.02696.pdf).
+
+  | Model      | Params | FLOPs  | Input | COCO val AP | test AP | Download |
+  | ---------- | ------ | ------ | ----- | ----------- | ------- | -------- |
+  | YOLOV7_CSP | 37.67M | 53.0G  | 640   | 51.4        |         | [yolov7_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_csp_coco.h5) |
+  | YOLOV7_X   | 71.41M | 95.0G  | 640   | 53.1        |         | [yolov7_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_x_coco.h5) |
+  | YOLOV7_W6  | 70.49M | 180.1G | 1280  | 54.9        |         | [yolov7_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_w6_coco.h5) |
+  | YOLOV7_E6  | 97.33M | 257.6G | 1280  | 56.0        |         | [yolov7_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_e6_coco.h5) |
+  | YOLOV7_D6  | 133.9M | 351.4G | 1280  | 56.6        |         | [yolov7_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_d6_coco.h5) |
+  | YOLOV7_E6E | 151.9M | 421.7G | 1280  | 56.8        |         | [yolov7_e6e_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_e6e_coco.h5) |
 ## YOLOX
   - [Keras YOLOX](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolox) includes implementation of [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
 
