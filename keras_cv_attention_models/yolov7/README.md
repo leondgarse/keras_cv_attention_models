@@ -6,14 +6,15 @@
   - [Paper 2207.02696 YOLOv7: Trainable bag-of-freebies sets new state-of-the-art for real-time object detectors](https://arxiv.org/pdf/2207.02696.pdf).
 ***
 ## Models
-  | Model      | Params | FLOPs  | Input | COCO val AP | test AP | Download |
-  | ---------- | ------ | ------ | ----- | ----------- | ------- | -------- |
-  | YOLOV7_CSP | 37.67M | 53.0G  | 640   | 51.4        |         | [yolov7_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_csp_coco.h5) |
-  | YOLOV7_X   | 71.41M | 95.0G  | 640   | 53.1        |         | [yolov7_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_x_coco.h5) |
-  | YOLOV7_W6  | 70.49M | 180.1G | 1280  | 54.9        |         | [yolov7_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_w6_coco.h5) |
-  | YOLOV7_E6  | 97.33M | 257.6G | 1280  | 56.0        |         | [yolov7_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_e6_coco.h5) |
-  | YOLOV7_D6  | 133.9M | 351.4G | 1280  | 56.6        |         | [yolov7_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_d6_coco.h5) |
-  | YOLOV7_E6E | 151.9M | 421.7G | 1280  | 56.8        |         | [yolov7_e6e_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_e6e_coco.h5) |
+  | Model       | Params | FLOPs  | Input | COCO val AP | test AP | Download |
+  | ----------- | ------ | ------ | ----- | ----------- | ------- | -------- |
+  | YOLOV7_Tiny | 6.23M  | 2.90G  | 416   | 33.3        |         | [yolov7_tiny_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_tiny_coco.h5) |
+  | YOLOV7_CSP  | 37.67M | 53.0G  | 640   | 51.4        |         | [yolov7_csp_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_csp_coco.h5) |
+  | YOLOV7_X    | 71.41M | 95.0G  | 640   | 53.1        |         | [yolov7_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_x_coco.h5) |
+  | YOLOV7_W6   | 70.49M | 180.1G | 1280  | 54.9        |         | [yolov7_w6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_w6_coco.h5) |
+  | YOLOV7_E6   | 97.33M | 257.6G | 1280  | 56.0        |         | [yolov7_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_e6_coco.h5) |
+  | YOLOV7_D6   | 133.9M | 351.4G | 1280  | 56.6        |         | [yolov7_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_d6_coco.h5) |
+  | YOLOV7_E6E  | 151.9M | 421.7G | 1280  | 56.8        |         | [yolov7_e6e_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_e6e_coco.h5) |
 
 ## Usage
   - **Basic usage**

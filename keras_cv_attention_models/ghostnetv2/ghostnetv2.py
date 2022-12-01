@@ -92,6 +92,7 @@ def GhostNetV2(
     stem_strides=2,
     width_mul=1.0,
     num_ghost_module_v1_stacks=2,  # num of `ghost_module` stcks on the head, others are `ghost_module_multiply`, set `-1` for all using `ghost_module`
+    output_conv_filter=-1,  # -1 for first_ghost_channels[-1] * width_mul
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="relu",
@@ -117,7 +118,8 @@ def GhostNetV2(
             nn, out_channel, first_ghost_channel, kernel, stride, se_ratio, shortcut, use_ghost_module_multiply, activation=activation, name=stack_name
         )
 
-    nn = conv2d_no_bias(nn, make_divisible(first_ghost_channels[-1] * width_mul, 4), 1, strides=1, name="pre_")
+    output_conv_filter = output_conv_filter if output_conv_filter > 0 else make_divisible(first_ghost_channels[-1] * width_mul, 4)
+    nn = conv2d_no_bias(nn, output_conv_filter, 1, strides=1, name="pre_")
     nn = batchnorm_with_activation(nn, activation=activation, name="pre_")
 
     if num_classes > 0:

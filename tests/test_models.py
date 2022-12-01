@@ -569,3 +569,13 @@ def test_YOLOR_header():
     mm = keras_cv_attention_models.yolor.YOLOR(bb)
 
     assert mm.output_shape == (None, 4032, 85)
+
+
+def test_YOLOV7_Tiny_dynamic_predict():
+    mm = keras_cv_attention_models.yolov7.YOLOV7_Tiny(input_shape=(None, None, 3), pretrained="coco")
+    input_shape = (188, 276, 3)
+    pred = mm(mm.preprocess_input(chelsea()[:, :, ::-1], input_shape=input_shape))  # Chelsea the cat
+    assert pred.shape == (1, 3330, 85)
+
+    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
+    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"

@@ -1,6 +1,7 @@
 from keras_cv_attention_models.yolov7.yolov7 import (
     YOLOV7Backbone,
     YOLOV7,
+    YOLOV7_Tiny,
     YOLOV7_CSP,
     YOLOV7_X,
     YOLOV7_W6,
@@ -57,8 +58,9 @@ YOLOV7.__doc__ = __head_doc__ + """
   stack_out_ratio: .
   use_additional_stack: .
   stem_width: CSPDarknet backbone stem width, default -1 means using csp_channels[0] // 2.
-  use_focus_stem: boolean value if CSPDarknet backbone using focus_stem or conv one, default False.
+  stem_type: One of ["conv3", "focus", "conv1"], "focus" for YOLOV7_*6 models, "conv1" for YOLOV7_Tiny. Default "conv3".
   csp_downsample_ratios: list value controls down sample block channel ratios for each stack.
+  spp_depth: .
 
 [FPN parameters]
   fpn_hidden_channels: .
@@ -75,19 +77,21 @@ YOLOV7.__doc__ = __head_doc__ + """
 [Detector parameters]
 """ + __tail_doc__ + """
 Model architectures:
-  | Model      | Params | FLOPs  | Input | COCO val AP | test AP |
-  | ---------- | ------ | ------ | ----- | ----------- | ------- |
-  | YOLOV7_CSP | 37.67M | 53.0G  | 640   | 51.4        |         |
-  | YOLOV7_X   | 71.41M | 95.0G  | 640   | 53.1        |         |
-  | YOLOV7_W6  | 70.49M | 180.1G | 1280  | 54.9        |         |
-  | YOLOV7_E6  | 97.33M | 257.6G | 1280  | 56.0        |         |
-  | YOLOV7_D6  | 133.9M | 351.4G | 1280  | 56.6        |         |
-  | YOLOV7_E6E | 151.9M | 421.7G | 1280  | 56.8        |         |
+  | Model       | Params | FLOPs  | Input | COCO val AP | test AP |
+  | ----------- | ------ | ------ | ----- | ----------- | ------- |
+  | YOLOV7_Tiny | 6.23M  | 2.90G  | 416   | 33.3        |         |
+  | YOLOV7_CSP  | 37.67M | 53.0G  | 640   | 51.4        |         |
+  | YOLOV7_X    | 71.41M | 95.0G  | 640   | 53.1        |         |
+  | YOLOV7_W6   | 70.49M | 180.1G | 1280  | 54.9        |         |
+  | YOLOV7_E6   | 97.33M | 257.6G | 1280  | 56.0        |         |
+  | YOLOV7_D6   | 133.9M | 351.4G | 1280  | 56.6        |         |
+  | YOLOV7_E6E  | 151.9M | 421.7G | 1280  | 56.8        |         |
 """
 
-YOLOV7_CSP.__doc__ = __head_doc__ + __tail_doc__
-YOLOV7_X.__doc__ = __head_doc__ + __tail_doc__
-YOLOV7_W6.__doc__ = __head_doc__ + __tail_doc__
-YOLOV7_E6.__doc__ = __head_doc__ + __tail_doc__
-YOLOV7_D6.__doc__ = __head_doc__ + __tail_doc__
-YOLOV7_E6E.__doc__ = __head_doc__ + __tail_doc__
+YOLOV7_Tiny.__doc__ = __head_doc__ + __tail_doc__
+YOLOV7_CSP.__doc__ = YOLOV7_Tiny.__doc__
+YOLOV7_X.__doc__ = YOLOV7_Tiny.__doc__
+YOLOV7_W6.__doc__ = YOLOV7_Tiny.__doc__
+YOLOV7_E6.__doc__ = YOLOV7_Tiny.__doc__
+YOLOV7_D6.__doc__ = YOLOV7_Tiny.__doc__
+YOLOV7_E6E.__doc__ = YOLOV7_Tiny.__doc__

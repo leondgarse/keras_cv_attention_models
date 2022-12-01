@@ -18,6 +18,7 @@ PRETRAINED_DICT = {
     "yolov7_d6": {"coco": "f1d59775cd5fcfc687b468c559bc5678"},
     "yolov7_e6": {"coco": "46d1671a9aa074c918c4509d29c16dd4"},
     "yolov7_e6e": {"coco": "b1316a8a431b34d39fc82d5591246713"},
+    "yolov7_tiny": {"coco": "62e082bb032b7836d8494070f9dcacd6"},
     "yolov7_w6": {"coco": "ea153e7121645a55968a80dada90e67c"},
     "yolov7_x": {"coco": "0749c8c7d2554965b6559226aedbe4de"},
 }
@@ -363,7 +364,14 @@ def YOLOV7(
 
 
 def YOLOV7_Tiny(
-    input_shape=(416, 416, 3), freeze_backbone=False, num_classes=80, backbone=None, activation="leaky_relu/0.1", classifier_activation="sigmoid", pretrained="coco", **kwargs
+    input_shape=(416, 416, 3),
+    freeze_backbone=False,
+    num_classes=80,
+    backbone=None,
+    activation="leaky_relu/0.1",
+    classifier_activation="sigmoid",
+    pretrained="coco",
+    **kwargs,
 ):
     # anchors_yolov7_tiny = np.array([[10,13, 16,30, 33,23], [30,61, 62,45, 59,119], [116,90, 156,198, 373,326]])
     # anchors_yolor = np.array([[12,16, 19,36, 40,28], [36,75, 76,55, 72,146], [142,110, 192,243, 459,401]])
@@ -435,12 +443,8 @@ def YOLOV7_D6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80
     stack_concats = [-1, -3, -5, -7, -9, -10]
     stack_depth = 10
     stem_width = 96
-    csp_downsample_ratios = [1, 1, 1, [1, 480 / 640], [1, 640 / 960]]
-
-    fpn_mid_ratio = 0.5
     fpn_stack_depth = 10
-    fpn_csp_downsample_ratio = [1, [1, 288 / 384], [1, 384 / 576]]
-    return YOLOV7_W6(**locals(), model_name=kwargs.pop("model_name", "yolov7_d6"), **kwargs)
+    return YOLOV7_E6(**locals(), model_name=kwargs.pop("model_name", "yolov7_d6"), **kwargs)
 
 
 def YOLOV7_E6E(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
