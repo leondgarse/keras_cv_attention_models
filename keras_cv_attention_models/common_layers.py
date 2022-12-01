@@ -51,21 +51,26 @@ def activation_by_name(inputs, activation="relu", name=None):
         return inputs
 
     layer_name = name and activation and name + activation
-    if activation == "hard_swish":
+    activation_lower = activation.lower()
+    if activation_lower == "hard_swish":
         return keras.layers.Activation(activation=hard_swish, name=layer_name)(inputs)
-    elif activation == "mish":
+    elif activation_lower == "mish":
         return keras.layers.Activation(activation=mish, name=layer_name)(inputs)
-    elif activation == "phish":
+    elif activation_lower == "phish":
         return keras.layers.Activation(activation=phish, name=layer_name)(inputs)
-    elif activation.lower() == "prelu":
+    elif activation_lower == "prelu":
         shared_axes = list(range(1, len(inputs.shape)))
         shared_axes.pop(-1 if K.image_data_format() == "channels_last" else 0)
         # print(f"{shared_axes = }")
         return keras.layers.PReLU(shared_axes=shared_axes, alpha_initializer=tf.initializers.Constant(0.25), name=layer_name)(inputs)
-    elif activation.lower().startswith("gelu/app"):
+    elif activation_lower.startswith("gelu/app"):
         # gelu/approximate
         return tf.nn.gelu(inputs, approximate=True, name=layer_name)
-    elif activation.lower() == ("hard_sigmoid_torch"):
+    elif activation_lower.startswith("leaky_relu/"):
+        # leaky_relu with alpha parameter
+        alpha = float(activation_lower.split("/")[-1])
+        return keras.layers.LeakyReLU(alpha=alpha, name=layer_name)(inputs)
+    elif activation_lower == ("hard_sigmoid_torch"):
         return keras.layers.Activation(activation=hard_sigmoid_torch, name=layer_name)(inputs)
     else:
         return keras.layers.Activation(activation=activation, name=layer_name)(inputs)

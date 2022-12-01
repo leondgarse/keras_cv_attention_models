@@ -88,6 +88,7 @@ def get_yolor_anchors(input_shape=(512, 512), pyramid_levels=[3, 5], offset=0.5,
     # Original yolor using width first, height first here
     if max(pyramid_levels) - min(pyramid_levels) < 3:  # [3, 5], YOLOR_CSP / YOLOR_CSPX
         anchor_ratios = tf.convert_to_tensor([[[16.0, 12], [36, 19], [28, 40]], [[75, 36], [55, 76], [146, 72]], [[110, 142], [243, 192], [401, 459]]])
+        # anchor_ratios = tf.convert_to_tensor([[[13.0, 10], [30, 16], [23, 33]], [[61, 30], [45, 62], [119, 59]], [[90, 116], [198, 156], [326, 373]]])
     elif max(pyramid_levels) - min(pyramid_levels) < 4:  # [3, 6], YOLOR_*6
         anchor_ratios = tf.convert_to_tensor(
             [[[27.0, 19], [40, 44], [94, 38]], [[68, 96], [152, 86], [137, 180]], [[301, 140], [264, 303], [542, 238]], [[615, 436], [380, 739], [792, 925]]]

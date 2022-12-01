@@ -64,13 +64,14 @@ def csp_downsample(inputs, ratio=0.5, activation="swish", name=""):
     hidden_ratio, out_ratio = ratio if isinstance(ratio, (list, tuple)) else (ratio, ratio)
     hidden_channel, out_channel = int(input_channel * hidden_ratio), int(input_channel * out_ratio)
     pool_branch = keras.layers.MaxPool2D(pool_size=2, strides=2, padding="SAME", name=name + "pool")(inputs)
-    pool_branch = conv_bn(pool_branch, out_channel, kernel_size=1, strides=1, activation=activation, name=name + "pool_")
+    if out_channel == 0:
+        nn = pool_branch  # Maxpool only
+    else:
+        pool_branch = conv_bn(pool_branch, out_channel, kernel_size=1, strides=1, activation=activation, name=name + "pool_")
+        conv_branch = conv_bn(inputs, hidden_channel, kernel_size=1, strides=1, activation=activation, name=name + "conv_1_")
+        conv_branch = conv_bn(conv_branch, out_channel, kernel_size=3, strides=2, activation=activation, name=name + "conv_2_")
 
-    # conv_branch = conv_bn(inputs, input_channel, kernel_size=1, strides=1, activation=activation, name=name + "conv_1_") # E6 [HOW???]
-    conv_branch = conv_bn(inputs, hidden_channel, kernel_size=1, strides=1, activation=activation, name=name + "conv_1_")
-    conv_branch = conv_bn(conv_branch, out_channel, kernel_size=3, strides=2, activation=activation, name=name + "conv_2_")
-
-    nn = tf.concat([conv_branch, pool_branch], axis=-1)
+        nn = tf.concat([conv_branch, pool_branch], axis=-1)
     return nn
 
 
@@ -81,13 +82,17 @@ def res_spatial_pyramid_pooling(inputs, depth=2, expansion=0.5, pool_sizes=(5, 9
     short = conv_bn(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "short_")
 
     deep = conv_bn(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "pre_1_")
-    deep = conv_bn(deep, hidden_channels, kernel_size=3, activation=activation, name=name + "pre_2_")
-    deep = conv_bn(deep, hidden_channels, kernel_size=1, activation=activation, name=name + "pre_3_")
-    pp = [keras.layers.MaxPooling2D(pool_size=ii, strides=1, padding="SAME")(deep) for ii in pool_sizes]  # TODO: SAME padding [???]
-    deep = tf.concat([deep, *pp], axis=-1)  # yolov7r SPPCSPC concat, different from yolor
+    if depth > 1:  # depth = 1 for yolov7_tiny
+        deep = conv_bn(deep, hidden_channels, kernel_size=3, activation=activation, name=name + "pre_2_")
+        deep = conv_bn(deep, hidden_channels, kernel_size=1, activation=activation, name=name + "pre_3_")
+    pp = [keras.layers.MaxPooling2D(pool_size=ii, strides=1, padding="SAME")(deep) for ii in pool_sizes]
+    deep = tf.concat([deep, *pp], axis=-1)  # yolov7 SPPCSPC concat, different from yolor
     for id in range(depth - 1):  # First one is `pre`
         deep = conv_bn(deep, hidden_channels, kernel_size=1, activation=activation, name=name + "post_{}_".format(id * 2 + 1))
         deep = conv_bn(deep, hidden_channels, kernel_size=3, activation=activation, name=name + "post_{}_".format(id * 2 + 2))
+
+    if depth == 1:  # For yolov7_tiny
+        deep = conv_bn(deep, hidden_channels, kernel_size=1, activation=activation, name=name + "post_1_")
 
     out = tf.concat([deep, short], axis=-1)
     out = conv_bn(out, hidden_channels, kernel_size=1, activation=activation, name=name + "output_")
@@ -119,19 +124,22 @@ def YOLOV7Backbone(
     stack_out_ratio=1.0,
     use_additional_stack=False,
     stem_width=-1,  # -1 means using channels[0]
-    use_focus_stem=False,
+    stem_type="conv3",  # One of ["conv3", "focus", "conv1"], "focus" for YOLOV7_*6 models, "conv1" for YOLOV7_Tiny
     csp_downsample_ratios=[0, 0.5, 0.5, 0.5],
     out_features=[-3, -2, -1],
+    spp_depth=2,
     input_shape=(512, 512, 3),
     activation="swish",
-    model_name="",
+    model_name="yolov7_backbone",
 ):
     inputs = keras.layers.Input(input_shape)
 
     """ Stem """
     stem_width = stem_width if stem_width > 0 else channels[0]
-    if use_focus_stem:
+    if stem_type == "focus":
         nn = focus_stem(inputs, stem_width, activation=activation, name="stem_")
+    elif stem_type == "conv1":
+        nn = conv_bn(inputs, stem_width, kernel_size=3, strides=2, activation=activation, name="stem_")
     else:
         nn = conv_bn(inputs, stem_width // 2, kernel_size=3, strides=1, activation=activation, name="stem_1_")
         nn = conv_bn(nn, stem_width, kernel_size=3, strides=2, activation=activation, name="stem_2_")
@@ -153,14 +161,14 @@ def YOLOV7Backbone(
             nn = csp_downsample(nn, ratio=csp_downsample_ratio, activation=activation, name=stack_name + "downsample_")
         else:
             # nn = conv_bn(nn, nn.shape[-1] * 2, kernel_size=3, strides=2, activation=activation, name=stack_name + "downsample_")
-            ds_channels = nn.shape[-1] * 2 if csp_downsample_ratio < 1 else csp_downsample_ratio
+            ds_channels = nn.shape[-1] * 2 if csp_downsample_ratio <= 0 else csp_downsample_ratio
             nn = conv_bn(nn, ds_channels, kernel_size=3, strides=2, activation=activation, name=stack_name + "downsample_")
         out_channels = -1 if stack_out_ratio == 1 else int(channel * len(stack_concats) * stack_out_ratio)
         nn = concat_stack(nn, channel, **common_kwargs, out_channels=out_channels, name=stack_name)
 
         if id == len(channels) - 1:
             # add SPPCSPC block if it's the last stack
-            nn = res_spatial_pyramid_pooling(nn, activation=activation, name=stack_name + "spp_")
+            nn = res_spatial_pyramid_pooling(nn, depth=spp_depth, activation=activation, name=stack_name + "spp_")
         features.append(nn)
 
     nn = [features[ii] for ii in out_features]
@@ -293,8 +301,9 @@ def YOLOV7(
     stack_out_ratio=1.0,
     use_additional_stack=False,
     stem_width=-1,  # -1 means using csp_channels[0] // 2
-    use_focus_stem=False,
+    stem_type="conv3",  # One of ["conv3", "focus", "conv1"], "focus" for YOLOV7_*6 models, "conv1" for YOLOV7_Tiny
     csp_downsample_ratios=[0, 0.5, 0.5, 0.5],
+    spp_depth=2,
     fpn_hidden_channels=[256, 128, 256, 512],  # [FPN parameters]
     fpn_channel_ratio=0.25,
     fpn_stack_concats=None,
@@ -320,9 +329,9 @@ def YOLOV7(
 ):
     if backbone is None:
         # Save line width...
-        csp_kwargs = {"out_features": features_pick, "input_shape": input_shape, "activation": activation, "model_name": "backbone"}
+        csp_kwargs = {"out_features": features_pick, "spp_depth": spp_depth, "input_shape": input_shape, "activation": activation, "model_name": "backbone"}
         backbone = YOLOV7Backbone(
-            csp_channels, stack_concats, stack_depth, stack_out_ratio, use_additional_stack, stem_width, use_focus_stem, csp_downsample_ratios, **csp_kwargs
+            csp_channels, stack_concats, stack_depth, stack_out_ratio, use_additional_stack, stem_width, stem_type, csp_downsample_ratios, **csp_kwargs
         )
         features = backbone.outputs
     else:
@@ -353,6 +362,29 @@ def YOLOV7(
     return model
 
 
+def YOLOV7_Tiny(
+    input_shape=(416, 416, 3), freeze_backbone=False, num_classes=80, backbone=None, activation="leaky_relu/0.1", classifier_activation="sigmoid", pretrained="coco", **kwargs
+):
+    # anchors_yolov7_tiny = np.array([[10,13, 16,30, 33,23], [30,61, 62,45, 59,119], [116,90, 156,198, 373,326]])
+    # anchors_yolor = np.array([[12,16, 19,36, 40,28], [36,75, 76,55, 72,146], [142,110, 192,243, 459,401]])
+    # anchors_yolov7_tiny == np.ceil((anchors_yolor * 416 / 512)).astype('int') [TODO]
+    stem_type = "conv1"
+    csp_channels = [32, 64, 128, 256]
+    stack_concats = [-1, -2, -3, -4]
+    stack_depth = 4
+    stack_out_ratio = 0.5
+    csp_downsample_ratios = [0, [0, 0], [0, 0], [0, 0]]  # First 0 for conv_bn downsmaple, others [0, 0] means maxpool
+    spp_depth = 1
+
+    fpn_hidden_channels = [64, 32, 64, 128]
+    fpn_stack_depth = 4
+    fpn_mid_ratio = 1.0
+    fpn_channel_ratio = 0.5
+    fpn_csp_downsample_ratio = [0, 0]  # [0, 0] means using conv_bn downsmaple
+    use_reparam_conv_head = False
+    return YOLOV7(**locals(), model_name=kwargs.pop("model_name", "yolov7_tiny"), **kwargs)
+
+
 def YOLOV7_CSP(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     return YOLOV7(**locals(), model_name=kwargs.pop("model_name", "yolov7_csp"), **kwargs)
 
@@ -370,16 +402,18 @@ def YOLOV7_X(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, b
 
 
 def YOLOV7_W6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
-    csp_channels = [64, 128, 256, 384, 512]
-    features_pick = [-4, -3, -2, -1]
-    use_focus_stem = True
-    csp_downsample_ratios = [128, 256, 512, 768, 1024]
-    stack_out_ratio = 0.5
+    csp_channels = kwargs.pop("csp_channels", [64, 128, 256, 384, 512])
+    features_pick = kwargs.pop("features_pick", [-4, -3, -2, -1])
+    stem_type = kwargs.pop("stem_type", "focus")
+    csp_downsample_ratios = kwargs.pop("csp_downsample_ratios", [128, 256, 512, 768, 1024])
+    stack_out_ratio = kwargs.pop("stack_out_ratio", 0.5)
 
-    fpn_hidden_channels = [384, 256, 128, 256, 384, 512]
-    fpn_channel_ratio = 0.5
-    fpn_csp_downsample_ratio = 0
-    use_reparam_conv_head = False
+    fpn_hidden_channels = kwargs.pop("fpn_hidden_channels", [384, 256, 128, 256, 384, 512])
+    fpn_channel_ratio = kwargs.pop("fpn_channel_ratio", 0.5)
+    fpn_csp_downsample_ratio = kwargs.pop("fpn_csp_downsample_ratio", 0)
+    use_reparam_conv_head = kwargs.pop("use_reparam_conv_head", False)
+
+    kwargs.pop("kwargs", None)  # From other YOLOV7_*6 models
     return YOLOV7(**locals(), model_name=kwargs.pop("model_name", "yolov7_w6"), **kwargs)
 
 
@@ -387,40 +421,26 @@ def YOLOV7_E6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80
     stack_concats = [-1, -3, -5, -7, -8]
     stack_depth = 8
     stem_width = 80
-    csp_channels = [64, 128, 256, 384, 512]
-    features_pick = [-4, -3, -2, -1]
-    use_focus_stem = True
     csp_downsample_ratios = [1, 1, 1, [1, 480 / 640], [1, 640 / 960]]
-    stack_out_ratio = 0.5
 
     fpn_mid_ratio = 0.5
     fpn_stack_depth = 8
-    fpn_hidden_channels = [384, 256, 128, 256, 384, 512]
-    fpn_channel_ratio = 0.5
     fpn_csp_downsample_ratio = [1, [1, 240 / 320], [1, 320 / 480]]
-    use_reparam_conv_head = False
 
     kwargs.pop("kwargs", None)  # From YOLOV7_E6E
-    return YOLOV7(**locals(), model_name=kwargs.pop("model_name", "yolov7_e6"), **kwargs)
+    return YOLOV7_W6(**locals(), model_name=kwargs.pop("model_name", "yolov7_e6"), **kwargs)
 
 
 def YOLOV7_D6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     stack_concats = [-1, -3, -5, -7, -9, -10]
     stack_depth = 10
     stem_width = 96
-    csp_channels = [64, 128, 256, 384, 512]
-    features_pick = [-4, -3, -2, -1]
-    use_focus_stem = True
     csp_downsample_ratios = [1, 1, 1, [1, 480 / 640], [1, 640 / 960]]
-    stack_out_ratio = 0.5
 
     fpn_mid_ratio = 0.5
     fpn_stack_depth = 10
-    fpn_hidden_channels = [384, 256, 128, 256, 384, 512]
-    fpn_channel_ratio = 0.5
     fpn_csp_downsample_ratio = [1, [1, 288 / 384], [1, 384 / 576]]
-    use_reparam_conv_head = False
-    return YOLOV7(**locals(), model_name=kwargs.pop("model_name", "yolov7_d6"), **kwargs)
+    return YOLOV7_W6(**locals(), model_name=kwargs.pop("model_name", "yolov7_d6"), **kwargs)
 
 
 def YOLOV7_E6E(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
