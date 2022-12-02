@@ -43,7 +43,7 @@ def __concat_stack__(inputs, filters, concats=[-1, -3, -5, -6], depth=6, mid_rat
     for id in range(depth - 2):
         nn = conv_bn(gathered[-1], mid_filters, kernel_size=3, strides=1, activation=activation, name=name + "{}_".format(id + 3))
         gathered.append(nn)
-    nn = tf.concat([gathered[ii] for ii in concats], axis=-1)  # [sixth, fourth, second, first] by defualt
+    nn = tf.concat([gathered[ii] for ii in concats], axis=-1)
     out_channels = out_channels if out_channels > 0 else nn.shape[-1]
     nn = conv_bn(nn, out_channels, kernel_size=1, strides=1, activation=activation, name=name + "out_")
     return nn
@@ -59,7 +59,6 @@ def concat_stack(inputs, filters, concats=None, depth=6, mid_ratio=1.0, out_chan
     return nn
 
 
-# Same with yolor
 def csp_downsample(inputs, ratio=0.5, activation="swish", name=""):
     input_channel = inputs.shape[-1]
     hidden_ratio, out_ratio = ratio if isinstance(ratio, (list, tuple)) else (ratio, ratio)
@@ -76,7 +75,7 @@ def csp_downsample(inputs, ratio=0.5, activation="swish", name=""):
     return nn
 
 
-# Same with yolor
+# Almost same with yolor, just supporting YOLOV7_Tiny with depth=1
 def res_spatial_pyramid_pooling(inputs, depth=2, expansion=0.5, pool_sizes=(5, 9, 13), activation="swish", name=""):
     input_channels = inputs.shape[-1]
     hidden_channels = int(input_channels * expansion)
@@ -217,32 +216,27 @@ def path_aggregation_fpn(
     #               v [up 256 -> concat]  ^ [down 512 -> concat]    #               ↓ [up 384 -> concat]  ↑[down 512 -> concat]
     # 37: p4 1024 -> 63: p4p5 256 -------> 88: out1 256             # 37: p4 768 --- 59: p4p5 384 ------- 103: out 384
     #               v [up 128 -> concat]  ^ [down 256 -> concat]    #               ↓ [up 256 -> concat]  ↑[down 384 -> concat]
-    # 24: p3 512 --> 75: p3p4p5 128 ---------> 75: out0 128         # 28: p3 512 --- 71: p3p4p5 256 -- 93: out 256
+    # 24: p3 512 --> 75: p3p4p5 128 ------+--> 75: out0 128         # 28: p3 512 --- 71: p3p4p5 256 -- 93: out 256
     #                                                               #               ↓ [up 128 -> concat]  ↑[down 256 -> concat]
     #                                                               # 19: p2 256 --- 83: p2p3p4p5 128 -----┴-> 83: out 128
     # features: [p3, p4, p5]
     hidden_channels = hidden.copy() if isinstance(hidden, list) else hidden
     upsamples = [features[-1]]
     p_name = "p{}_".format(len(features) + 2)
-    # print(f">>>> features: {[ii.shape for ii in features] = }")
     # upsamples: [p5], features[:-1][::-1]: [p4, p3] -> [p5, p4p5, p3p4p5]
     for id, ii in enumerate(features[:-1][::-1]):
         cur_p_name = "p{}".format(len(features) + 1 - id)
         nn = conv_bn(ii, (ii.shape[-1] * channel_ratio), kernel_size=1, activation=activation, name=name + cur_p_name + "_down_")
-        p_name = cur_p_name + p_name
         hidden_channel = hidden_channels.pop(0) if isinstance(hidden_channels, list) else hidden_channels
-        # print(f">>>> {hidden_channels = }, {hidden_channel = }")
+        p_name = cur_p_name + p_name
         nn = upsample_merge([nn, upsamples[-1]], hidden_channel, mid_ratio, concats, depth, use_additional_stack, activation=activation, name=name + p_name)
         upsamples.append(nn)
 
-    # print(f">>>> upsamples: {[ii.shape for ii in upsamples] = }")
-    # upsamples: [[None, 10, 10, 512], [None, 20, 20, 384], [None, 40, 40, 256], [None, 80, 80, 128]]
     downsamples = [upsamples[-1]]
     # downsamples: [p3p4p5], upsamples[:-1][::-1]: [p4p5, p5] -> [p3p4p5, p3p4p5 + p4p5, p3p4p5 + p4p5 + p5]
     for id, ii in enumerate(upsamples[:-1][::-1]):
         cur_name = name + "c3n{}_".format(id + 3)
         hidden_channel = hidden_channels.pop(0) if isinstance(hidden_channels, list) else hidden_channels
-        # print(f">>>> {hidden_channels = }, {hidden_channel = }")
         cur_csp_downsample_ratio = csp_downsample_ratio.pop(0) if isinstance(csp_downsample_ratio, list) else csp_downsample_ratio
         nn = downsample_merge(
             [downsamples[-1], ii], hidden_channel, mid_ratio, concats, depth, cur_csp_downsample_ratio, use_additional_stack, activation, name=cur_name

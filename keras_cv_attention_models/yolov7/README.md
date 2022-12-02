@@ -56,6 +56,38 @@
     data.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=80)
     ```
     ![yolov7_csp_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/204529451-25656b67-6e78-4daa-b385-3f48b8c8fb17.png)
+## Custom detector using YOLOV7 header
+  - **Backbone** for `YOLOV7` can be any model with pyramid stage structure.
+    ```py
+    from keras_cv_attention_models import efficientnet, yolov7
+    bb = efficientnet.EfficientNetV2B1(input_shape=(256, 256, 3), num_classes=0)
+    mm = yolov7.YOLOV7(backbone=bb)
+    # >>>> features: {'stack_2_block2_output': (None, 32, 32, 48),
+    #                 'stack_4_block5_output': (None, 16, 16, 112),
+    #                 'stack_5_block8_output': (None, 8, 8, 192)}
+
+    mm.summary()  # Trainable params: 12,268,473
+    print(mm.output_shape)
+    # (None, 4032, 85)
+    ```
+  - Currently 3 types anchors supported, parameter **`anchors_mode`** controls which anchor to use, value in `["efficientdet", "anchor_free", "yolor"]`. Default is `"yolor"`.
+    ```py
+    from keras_cv_attention_models import efficientnet, yolov7
+    bb = efficientnet.EfficientNetV2B1(input_shape=(256, 256, 3), num_classes=0)
+
+    mm = yolov7.YOLOV7(backbone=bb, anchors_mode="anchor_free") # Trainable params: 12,213,563
+    print(mm.output_shape) # (None, 1344, 85)
+
+    mm = yolov7.YOLOV7(backbone=bb, anchors_mode="efficientdet") # Trainable params: 12,430,296
+    print(mm.output_shape) # (None, 12096, 84)
+    ```
+    **Default settings for anchors_mode**
+
+    | anchors_mode | use_object_scores | num_anchors | anchor_scale | aspect_ratios | num_scales | grid_zero_start |
+    | ------------ | ----------------- | ----------- | ------------ | ------------- | ---------- | --------------- |
+    | efficientdet | False             | 9           | 4            | [1, 2, 0.5]   | 3          | False           |
+    | anchor_free  | True              | 1           | 1            | [1]           | 1          | True            |
+    | yolor        | True              | 3           | None         | presets       | None       | offset=0.5      |
 ## Verification with PyTorch version
   ```py
   inputs = np.random.uniform(size=(1, 640, 640, 3)).astype("float32")
