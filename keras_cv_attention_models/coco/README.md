@@ -111,7 +111,7 @@
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolox.YOLOXTiny --use_bgr_input --nms_method hard --nms_iou_or_sigma 0.65
     # >>>> [COCOEvalCallback] input_shape: (416, 416), pyramid_levels: [3, 5], anchors_mode: anchor_free
 
-    # YOLOR using letterbox_pad and other tricks.
+    # YOLOR / YOLOV7 using letterbox_pad and other tricks.
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m yolor.YOLOR_CSP --nms_method hard --nms_iou_or_sigma 0.65 \
     --nms_max_output_size 300 --nms_topk -1 --letterbox_pad 64 --input_shape 704
     # >>>> [COCOEvalCallback] input_shape: (704, 704), pyramid_levels: [3, 5], anchors_mode: yolor

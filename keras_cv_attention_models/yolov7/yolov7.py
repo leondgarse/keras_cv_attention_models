@@ -212,21 +212,14 @@ def downsample_merge(
 def path_aggregation_fpn(
     features, hidden, mid_ratio=0.5, channel_ratio=0.25, concats=None, depth=6, csp_downsample_ratio=1, use_additional_stack=False, activation="swish", name=""
 ):
-    # yolov7
-    # 51: p5 512 ---┬---------------------┬-> 101: out2 512
-    #               ↓ [up 256 -> concat]  ↑ [down 512 -> concat]
-    # 37: p4 1024 -> 63: p4p5 256 -------> 88: out1 256
-    #               ↓ [up 128 -> concat]  ↑ [down 256 -> concat]
-    # 24: p3 512 --> 75: p3p4p5 128 -------┴-> 75: out0 128
-    #
-    # yolov7_w6
-    # 47: p5 512 ---┬-----------------┬-> 113: out 512
-    #               ↓ up 384          ↑down 512
-    # 37: p4 768 --- 59: p4p5 384 ---- 103: out 384
-    #               ↓ up 256          ↑down 384
-    # 28: p3 512 --- 71: p3p4p5 256 -- 93: out 256
-    #               ↓ up 128          ↑down 256
-    # 19: p2 256 --- 83: p2p3p4p5 128 -┴-> 83: out 128
+    # yolov7                                                        # yolov7_w6
+    # 51: p5 512 ---+---------------------+-> 101: out2 512         # 47: p5 512 ---┬---------------------┬-> 113: out 512
+    #               v [up 256 -> concat]  ^ [down 512 -> concat]    #               ↓ [up 384 -> concat]  ↑[down 512 -> concat]
+    # 37: p4 1024 -> 63: p4p5 256 -------> 88: out1 256             # 37: p4 768 --- 59: p4p5 384 ------- 103: out 384
+    #               v [up 128 -> concat]  ^ [down 256 -> concat]    #               ↓ [up 256 -> concat]  ↑[down 384 -> concat]
+    # 24: p3 512 --> 75: p3p4p5 128 ---------> 75: out0 128         # 28: p3 512 --- 71: p3p4p5 256 -- 93: out 256
+    #                                                               #               ↓ [up 128 -> concat]  ↑[down 256 -> concat]
+    #                                                               # 19: p2 256 --- 83: p2p3p4p5 128 -----┴-> 83: out 128
     # features: [p3, p4, p5]
     hidden_channels = hidden.copy() if isinstance(hidden, list) else hidden
     upsamples = [features[-1]]
@@ -308,7 +301,7 @@ def YOLOV7(
     fpn_hidden_channels=[256, 128, 256, 512],  # [FPN parameters]
     fpn_channel_ratio=0.25,
     fpn_stack_concats=None,
-    fpn_stack_depth=6,
+    fpn_stack_depth=-1,  # -1 for using same with stack_depth
     fpn_mid_ratio=0.5,
     fpn_csp_downsample_ratio=1,
     use_reparam_conv_head=True,
@@ -349,6 +342,7 @@ def YOLOV7(
     inputs = backbone.inputs[0]
 
     # Save line width...
+    fpn_stack_depth = fpn_stack_depth if fpn_stack_depth > 0 else stack_depth
     fpn_kwargs = {"csp_downsample_ratio": fpn_csp_downsample_ratio, "use_additional_stack": use_additional_stack, "activation": activation, "name": "pafpn_"}
     fpn_features = path_aggregation_fpn(features, fpn_hidden_channels, fpn_mid_ratio, fpn_channel_ratio, fpn_stack_concats, fpn_stack_depth, **fpn_kwargs)
 
@@ -385,7 +379,6 @@ def YOLOV7_Tiny(
     spp_depth = 1
 
     fpn_hidden_channels = [64, 32, 64, 128]
-    fpn_stack_depth = 4
     fpn_mid_ratio = 1.0
     fpn_channel_ratio = 0.5
     fpn_csp_downsample_ratio = [0, 0]  # [0, 0] means using conv_bn downsmaple
@@ -404,7 +397,6 @@ def YOLOV7_X(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, b
 
     fpn_stack_concats = [-1, -3, -5, -7, -8]
     fpn_mid_ratio = 1.0
-    fpn_stack_depth = 8
     use_reparam_conv_head = False
     return YOLOV7(**locals(), model_name=kwargs.pop("model_name", "yolov7_x"), **kwargs)
 
@@ -413,7 +405,7 @@ def YOLOV7_W6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80
     csp_channels = kwargs.pop("csp_channels", [64, 128, 256, 384, 512])
     features_pick = kwargs.pop("features_pick", [-4, -3, -2, -1])
     stem_type = kwargs.pop("stem_type", "focus")
-    csp_downsample_ratios = kwargs.pop("csp_downsample_ratios", [128, 256, 512, 768, 1024])
+    csp_downsample_ratios = kwargs.pop("csp_downsample_ratios", [128, 256, 512, 768, 1024])  # > 1 value means using conv_bn instead of csp_downsample
     stack_out_ratio = kwargs.pop("stack_out_ratio", 0.5)
 
     fpn_hidden_channels = kwargs.pop("fpn_hidden_channels", [384, 256, 128, 256, 384, 512])
@@ -429,13 +421,12 @@ def YOLOV7_E6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80
     stack_concats = [-1, -3, -5, -7, -8]
     stack_depth = 8
     stem_width = 80
-    csp_downsample_ratios = [1, 1, 1, [1, 480 / 640], [1, 640 / 960]]
+    csp_downsample_ratios = [1, 1, 1, [1, 480 / 640], [1, 640 / 960]]  # different from YOLOV7_W6
 
     fpn_mid_ratio = 0.5
-    fpn_stack_depth = 8
-    fpn_csp_downsample_ratio = [1, [1, 240 / 320], [1, 320 / 480]]
+    fpn_csp_downsample_ratio = [1, [1, 240 / 320], [1, 320 / 480]]  # different from YOLOV7_W6
 
-    kwargs.pop("kwargs", None)  # From YOLOV7_E6E
+    kwargs.pop("kwargs", None)  # From YOLOV7_E6E / YOLOV7_D6
     return YOLOV7_W6(**locals(), model_name=kwargs.pop("model_name", "yolov7_e6"), **kwargs)
 
 
@@ -443,7 +434,6 @@ def YOLOV7_D6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80
     stack_concats = [-1, -3, -5, -7, -9, -10]
     stack_depth = 10
     stem_width = 96
-    fpn_stack_depth = 10
     return YOLOV7_E6(**locals(), model_name=kwargs.pop("model_name", "yolov7_d6"), **kwargs)
 
 
