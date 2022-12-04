@@ -21,12 +21,12 @@ PRETRAINED_DICT = {
     "maxvit_tiny": {"imagenet": {224: "e5cfd6a6bd4dea939860b6d8a29a911a", 384: "25b074ca6258d526c4d931f887599fe1", 512: "c745836c38f0ea98fef30bb3186aaf17"}},
     "maxvit_small": {"imagenet": {224: "6bbaff1c6316486c3ac29b607d9ebb13", 384: "85d2b77eab2f2645277a00b3f35d77d9", 512: "63b6c283ea6930fdcbe9b0e2f0bdbe6f"}},
     "maxvit_base": {
-        "imagenet": {224: "00c833043b87ef2861ecf79820d827e0"},
+        "imagenet": {224: "00c833043b87ef2861ecf79820d827e0", 384: "1b6941018ed54944083add016780d9bd", 512: "530f48f41d49f3ad19cb2b7a5f790517"},
         "imagenet21k": {224: "9b89418259927f12b59df91bdaecae82"},
         "imagenet21k-ft1k": {384: "9b3f8c948e657450c856b0efb305dc7c", 512: "b0d554b7ea52a8bc87dc6790377f4672"},
     },
     "maxvit_large": {
-        "imagenet": {224: "93d079fa8171986cc272f6fb4e9b0255"},
+        "imagenet": {224: "93d079fa8171986cc272f6fb4e9b0255", 384: "507afb8b65a99c4dd3c915e3525bdd03", 512: "8ac514a0e3534a24c05eb4087b75454b"},
         "imagenet21k": {224: "a3540387e39efaee5927e7fd9288cc0b"},
         "imagenet21k-ft1k": {384: "4063ab86cf515e7b0ab568cbc5a0726f", 512: "972a7c1cceacb8c1761338c5b6b72605"},
     },

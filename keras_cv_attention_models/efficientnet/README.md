@@ -102,6 +102,36 @@
     print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
     # [('n02124075', 'Egyptian_cat', 0.68414235), ('n02123159', 'tiger_cat', 0.04486668), ...]
     ```
+## Verification with Original version
+  ```py
+  input_shape = 512
+  inputs = np.random.uniform(size=(1, input_shape, input_shape, 3)).astype("float32")
+
+  """ Official EfficientNetV2XL """
+  sys.path.append('../automl/efficientnetv2/')
+  import datasets as orign_datasets
+  import effnetv2_model as orign_effnetv2_model
+
+  dataset = "imagenet21k"
+  model_type = "xl"
+  load_weights = "imagenet21k"
+  cc = orign_datasets.get_dataset_config(dataset)
+  if cc.get("model", None):
+      cc.model.num_classes = cc.data.num_classes
+  else:
+      cc['model'] = None
+  orign_model = orign_effnetv2_model.get_model('efficientnetv2-{}'.format(model_type), model_config=cc.model, weights=load_weights)
+  orign_out = orign_model(inputs, training=False)
+
+  """ Keras EfficientNetV2XL """
+  from keras_cv_attention_models import efficientnet
+  mm = efficientnet.EfficientNetV2XL(pretrained="imagenet21k", classifier_activation=None)
+  keras_out = mm(inputs)
+
+  """ Verification """
+  print(f"{np.allclose(orign_out, keras_out) = }")
+  # np.allclose(orign_out, keras_out) = True
+  ```
 ## Training detail from article
   - **Training configures**, `Eval size` is used as the default `input_shape` for each model type.
 

@@ -1,12 +1,9 @@
 import tensorflow as tf
 from tensorflow import keras
 from keras_cv_attention_models.attention_layers import (
-    BiasLayer,
-    ChannelAffine,
     activation_by_name,
     batchnorm_with_activation,
     conv2d_no_bias,
-    depthwise_conv2d_no_bias,
     add_pre_post_process,
 )
 from keras_cv_attention_models import model_surgery

@@ -154,6 +154,7 @@ def GhostNet(
     stem_strides=2,
     width_mul=1.0,
     num_ghost_module_v1_stacks=-1,  # num of `ghost_module` stcks on the head, others are `ghost_module_multiply`, set `-1` for all using `ghost_module`
+    output_conv_filter=-1,  # -1 for first_ghost_channels[-1] * width_mul
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="relu",

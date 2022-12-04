@@ -49,6 +49,7 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         num_relative_distance = (2 * height - 1) * (2 * width - 1) + self.cls_token_pos_len
         # pos_shape = (num_relative_distance, num_heads)
         pos_shape = (num_heads, num_relative_distance)
+        # initializer = tf.random_normal_initializer(stddev=0.02)
         self.relative_position_bias_table = self.add_weight(name="positional_embedding", shape=pos_shape, initializer="zeros", trainable=True)
 
         hh, ww = tf.meshgrid(range(height), range(width))  # tf.meshgrid is same with np.meshgrid 'xy' mode, while torch.meshgrid 'ij' mode
@@ -113,9 +114,9 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         import matplotlib.pyplot as plt
 
         num_heads = self.relative_position_bias_table.shape[0]
-        pos_emb = tf.gather(self.relative_position_bias_table, self.relative_position_index, axis=1).numpy()
-        # hh = ww = int(tf.math.sqrt(float(self.relative_position_bias_table.shape[1] - self.cls_token_pos_len)))
-        # ss = tf.reshape(self.relative_position_bias_table[:, : hh * ww], (num_heads, hh, ww)).numpy()
+        # pos_emb = tf.gather(self.relative_position_bias_table, self.relative_position_index, axis=1).numpy()
+        hh = ww = int(tf.math.sqrt(float(self.relative_position_bias_table.shape[1] - self.cls_token_pos_len)))
+        pos_emb = tf.reshape(self.relative_position_bias_table[:, : hh * ww], (num_heads, hh, ww)).numpy()
         cols = int(tf.math.ceil(num_heads / rows))
         fig, axes = plt.subplots(rows, cols, figsize=(base_size * cols, base_size * rows))
         for id, ax in enumerate(axes.flatten()):
