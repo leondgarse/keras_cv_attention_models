@@ -307,8 +307,12 @@ def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["
         if acc_key not in hist:
             all_acc_key = [ii for ii in hist.keys() if "acc" in ii and "val" not in ii]
             acc_key = "acc" if len(all_acc_key) == 0 else all_acc_key[0]
+
         val_acc_key = "val_acc"
-        if val_acc_key not in hist:
+        if 'val_ap_ar' in hist:  # It's coco hist
+            hist['val_ap_0.50:0.95'] = [ii[0] for ii in hist['val_ap_ar']]
+            val_acc_key = 'val_ap 0.50:0.95'
+        elif val_acc_key not in hist:
             all_val_acc_key = [ii for ii in hist.keys() if "acc" in ii and "val" in ii]
             val_acc_key = "val_acc" if len(all_val_acc_key) == 0 else all_val_acc_key[0]
 
@@ -321,11 +325,11 @@ def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["
 
         acc = hist.get(acc_key, [])
         if len(acc) > 0:  # For timm log
-            plot_and_peak_scatter(axes[1], acc, np.argmax, name + " accuracy", skip_first, color, cur_va, cur_pred_curve)
+            plot_and_peak_scatter(axes[1], acc, np.argmax, name + " " + acc_key, skip_first, color, cur_va, cur_pred_curve)
 
         val_acc = hist.get(val_acc_key, [])
         if len(val_acc) > 0:  # For timm log
-            plot_and_peak_scatter(axes[1], val_acc, np.argmax, name + " val_accuracy", skip_first, color, cur_va, cur_pred_curve, linestyle="--")
+            plot_and_peak_scatter(axes[1], val_acc, np.argmax, name + " " + val_acc_key, skip_first, color, cur_va, cur_pred_curve, linestyle="--")
 
         if addition_plots is not None and len(addition_plots) != 0:
             for id, ii in enumerate(addition_plots):

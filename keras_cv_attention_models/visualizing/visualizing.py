@@ -248,15 +248,18 @@ def make_gradcam_heatmap(model, processed_image, layer_name="auto", pred_index=N
 def make_and_apply_gradcam_heatmap(model, image, layer_name="auto", rescale_mode="auto", pred_index=None, alpha=0.8, use_v2=True, plot=True):
     import matplotlib.cm as cm
     import matplotlib.pyplot as plt
+    from keras_cv_attention_models.imagenet.data import init_mean_std_by_rescale_mode
 
     if rescale_mode.lower() == "auto":
         rescale_mode = getattr(model, "rescale_mode", "torch")
-        print(">>>> rescale_mode:", rescale_mode)
+    print(">>>> rescale_mode:", rescale_mode)
 
     image = np.array(image)
     image = image * 255 if image.max() < 2 else image  # Makse sure it's [0, 255]
     processed_image = tf.expand_dims(tf.image.resize(image, model.input_shape[1:-1]), 0)
-    processed_image = tf.keras.applications.imagenet_utils.preprocess_input(processed_image, mode=rescale_mode)
+    mean, std = init_mean_std_by_rescale_mode(rescale_mode)
+    processed_image = (processed_image - mean) / std
+    # processed_image = tf.keras.applications.imagenet_utils.preprocess_input(processed_image, mode=rescale_mode)
     heatmap, preds = make_gradcam_heatmap(model, processed_image, layer_name, pred_index=pred_index, use_v2=use_v2)
 
     # Use jet colormap to colorize heatmap. Use RGB values of the colormap
@@ -272,10 +275,13 @@ def make_and_apply_gradcam_heatmap(model, image, layer_name="auto", rescale_mode
     superimposed_img = (jet_heatmap * alpha + image).numpy()
     superimposed_img /= superimposed_img.max()
 
+    top_5_idxes = np.argsort(preds[0])[-5:][::-1]
     if model.output_shape[-1] == 1000:
         decode_pred = tf.keras.applications.imagenet_utils.decode_predictions(preds, top=5)[0]
-        top_5_idxes = np.argsort(preds[0])[-5:][::-1]
         print(">>>> Top5 predictions:", np.array([[ii, *jj] for ii, jj in zip(top_5_idxes, decode_pred)]))
+    else:
+        print(">>>> Top5 predictions:", top_5_idxes)
+
     if plot:
         fig = plt.figure()
         plt.imshow(superimposed_img)
