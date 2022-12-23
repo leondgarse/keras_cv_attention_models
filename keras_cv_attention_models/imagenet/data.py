@@ -1,5 +1,4 @@
 import tensorflow as tf
-import tensorflow_datasets as tfds
 from tensorflow import keras
 
 
@@ -426,6 +425,8 @@ def init_dataset(
     teacher_model_input_shape=-1,  # -1 means same with input_shape
     **augment_kwargs,  # Too many...
 ):
+    import tensorflow_datasets as tfds
+
     # print(">>>> Dataset args:", locals())
     is_tpu = True if len(tf.config.list_logical_devices("TPU")) > 0 else False  # Set True for try_gcs and drop_remainder
     use_token_label = False if token_label_file is None else True

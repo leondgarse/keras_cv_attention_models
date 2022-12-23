@@ -1,6 +1,5 @@
 import os
 import tensorflow as tf
-import tensorflow_datasets as tfds
 from keras_cv_attention_models.coco import anchors_func, data
 from tqdm import tqdm
 
@@ -238,6 +237,8 @@ def init_eval_dataset(
     letterbox_pad=-1,
     use_bgr_input=False,
 ):
+    import tensorflow_datasets as tfds
+
     dataset = data.detection_dataset_from_custom_json(data_name) if data_name.endswith(".json") else tfds.load(data_name)
     ds = dataset.get("validation", dataset.get("test", None))
 

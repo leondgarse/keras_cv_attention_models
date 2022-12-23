@@ -1,5 +1,5 @@
 # Keras_cv_attention_models
-- **coco_train_script.py is under testing**
+- **coco_train_script.py is under testing. Still struggling for this...**
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [General Usage](#general-usage)

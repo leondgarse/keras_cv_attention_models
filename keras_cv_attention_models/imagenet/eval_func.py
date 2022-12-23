@@ -309,9 +309,9 @@ def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["
             acc_key = "acc" if len(all_acc_key) == 0 else all_acc_key[0]
 
         val_acc_key = "val_acc"
-        if 'val_ap_ar' in hist:  # It's coco hist
-            hist['val_ap_0.50:0.95'] = [ii[0] for ii in hist['val_ap_ar']]
-            val_acc_key = 'val_ap 0.50:0.95'
+        if "val_ap_ar" in hist:  # It's coco hist
+            hist["val_ap_0.50:0.95"] = [ii[0] for ii in hist["val_ap_ar"]]
+            val_acc_key = "val_ap 0.50:0.95"
         elif val_acc_key not in hist:
             all_val_acc_key = [ii for ii in hist.keys() if "acc" in ii and "val" in ii]
             val_acc_key = "val_acc" if len(all_val_acc_key) == 0 else all_val_acc_key[0]

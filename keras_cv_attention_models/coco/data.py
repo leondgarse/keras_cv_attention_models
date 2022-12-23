@@ -1,5 +1,4 @@
 import tensorflow as tf
-import tensorflow_datasets as tfds
 from tensorflow import keras
 from keras_cv_attention_models.imagenet.data import init_mean_std_by_rescale_mode, tf_imread, random_crop_and_resize_image
 from keras_cv_attention_models.coco import anchors_func
@@ -418,6 +417,8 @@ def init_dataset(
     seed=None,
     **augment_kwargs,  # Too many...
 ):
+    import tensorflow_datasets as tfds
+
     is_tpu = True if len(tf.config.list_logical_devices("TPU")) > 0 else False  # Set True for try_gcs and drop_remainder
 
     if data_name.endswith(".json"):
