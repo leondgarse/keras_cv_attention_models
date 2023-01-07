@@ -26,10 +26,10 @@ class ModelWithGradForTFLite(tf.Module):
     >>> interpreter.allocate_tensors()
     >>> gradcam = interpreter.get_signature_runner("gradcam")
     >>>
-    >>> gg = gradcam(inputs=tf.expand_dims(tf.image.resize(test_images.dog_cat(), [224, 224]) / 255, 0))
+    >>> image = test_images.dog_cat()
+    >>> gg = gradcam(inputs=tf.expand_dims(tf.image.resize(image , [224, 224]) / 255, 0))
     >>> grads, last_conv_layer_output, class_channel = gg['grads'], gg['last_conv_layer_output'], gg['class_channel']
     >>> # Show
-    >>> image = test_images.dog_cat()
     >>> heatmap = grads_to_heatmap(grads, last_conv_layer_output, class_channel=class_channel, use_v2=True)
     >>> superimposed_img = apply_heatmap(image, heatmap, alpha=0.8, plot=True)
     """

@@ -9,7 +9,6 @@ from keras_cv_attention_models.attention_layers import (
     layer_norm,
     mlp_block,
     mhsa_with_multi_head_position,
-    output_block,
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
@@ -63,11 +62,12 @@ def EfficientFormer(
     use_distillation=True,
     dropout=0,
     pretrained=None,
-    model_name="edgenext",
+    model_name="efficientformer",
     kwargs=None,
 ):
     inputs = keras.layers.Input(input_shape)
     stem_width = stem_width if stem_width > 0 else out_channels[0]
+    stem_activation = stem_activation if stem_activation is not None else activation
     nn = conv2d_no_bias(inputs, stem_width // 2, 3, strides=2, use_bias=True, padding="same", name="stem_1_")
     nn = batchnorm_with_activation(nn, activation=stem_activation, name="stem_1_")
     nn = conv2d_no_bias(nn, stem_width, 3, strides=2, use_bias=True, padding="same", name="stem_2_")
