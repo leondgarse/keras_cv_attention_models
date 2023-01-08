@@ -233,6 +233,7 @@ def keras_reload_from_torch_model(
     specific_match_func=None,
     save_name=None,
     do_convert=True,
+    do_predict=True,
 ):
     import torch
     import numpy as np
@@ -247,23 +248,25 @@ def keras_reload_from_torch_model(
     is_state_dict = isinstance(torch_model, dict)
 
     """ Chelsea the cat  """
-    img = test_images.cat()
-    img = keras.applications.imagenet_utils.preprocess_input(tf.image.resize(img, input_shape), mode="torch").numpy()
+    if do_predict:
+        img = test_images.cat()
+        img = keras.applications.imagenet_utils.preprocess_input(tf.image.resize(img, input_shape), mode="torch").numpy()
 
     if not is_state_dict:
         _ = torch_model.eval()
         state_dict = torch_model.state_dict()
 
-        try:
-            # from torchsummary import summary
-            # summary(torch_model, (3, *input_shape), device="cpu")
-            """Torch Run predict"""
-            out = torch_model(torch.from_numpy(np.expand_dims(img.transpose(2, 0, 1), 0).astype("float32")))
-            out = out.detach().cpu().numpy()
-            # out = tf.nn.softmax(out).numpy()  # If classifier activation is not softmax
-            torch_out = keras.applications.imagenet_utils.decode_predictions(out)
-        except:
-            pass
+        if do_predict:
+            try:
+                # from torchsummary import summary
+                # summary(torch_model, (3, *input_shape), device="cpu")
+                """Torch Run predict"""
+                out = torch_model(torch.from_numpy(np.expand_dims(img.transpose(2, 0, 1), 0).astype("float32")))
+                out = out.detach().cpu().numpy()
+                # out = tf.nn.softmax(out).numpy()  # If classifier activation is not softmax
+                torch_out = keras.applications.imagenet_utils.decode_predictions(out)
+            except:
+                pass
     else:
         state_dict = torch_model
 
@@ -306,12 +309,13 @@ def keras_reload_from_torch_model(
     print()
 
     """ Keras run predict """
-    try:
-        pred = keras_model(tf.expand_dims(img, 0)).numpy()
-        # pred = tf.nn.softmax(pred).numpy()  # If classifier activation is not softmax
-        print(">>>> Keras model prediction:", keras.applications.imagenet_utils.decode_predictions(pred)[0])
-        print()
-        if not is_state_dict:
-            print(">>>> Torch model prediction:", torch_out)
-    except:
-        pass
+    if do_predict:
+        try:
+            pred = keras_model(tf.expand_dims(img, 0)).numpy()
+            # pred = tf.nn.softmax(pred).numpy()  # If classifier activation is not softmax
+            print(">>>> Keras model prediction:", keras.applications.imagenet_utils.decode_predictions(pred)[0])
+            print()
+            if not is_state_dict:
+                print(">>>> Torch model prediction:", torch_out)
+        except:
+            pass

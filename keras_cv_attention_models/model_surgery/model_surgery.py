@@ -364,8 +364,8 @@ def print_model_params_count(model):
 """ Inference """
 
 
-def convert_to_mixed_float16(model, convert_batch_norm=False):
-    policy = keras.mixed_precision.Policy("mixed_float16")
+def convert_to_mixed_float16(model, convert_batch_norm=False, policy_name="mixed_float16"):
+    policy = keras.mixed_precision.Policy(policy_name)
     policy_config = keras.utils.serialize_keras_object(policy)
     from tensorflow.keras.layers import InputLayer, Activation
     from tensorflow.keras.activations import linear

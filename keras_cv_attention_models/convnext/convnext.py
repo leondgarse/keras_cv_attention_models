@@ -37,6 +37,10 @@ PRETRAINED_DICT = {
         "imagenet21k-ft1k": {224: "8d15a1e29f28e3fd8f0e6691e872ebee", 384: "b267df29706944ec4bc60b57c9778be0"},
     },
     "convnext_v2_femto": {"imagenet": "46d4e39a2efb4dc0aa543442b9000d89"},
+    "convnext_v2_huge": {
+        "imagenet": "347d28c6354964c30a04c5f6cadf0ebc",
+        "imagenet21k-ft1k": {384: "dfad27a621300ae254ff812827a03354", 512: "0b40599908e70e42e32c2a206f94abf3"},
+    },
     "convnext_v2_large": {
         "imagenet": "18327817424ada5a1c4ea257079e0694",
         "imagenet21k-ft1k": {224: "4bce3ade2680d7181c782b65df8ed929", 384: "6d01f83513538e1f02640314e044d00e"},
@@ -51,7 +55,6 @@ PRETRAINED_DICT = {
         "imagenet21k-ft1k": {224: "de1db9ab2d8c565767cf81401ceed6ae", 384: "cc9028f2baa22ac1799ca1219e7b2991"},
     },
 }
-
 
 
 def global_response_normalize(inputs, name=None):
@@ -183,49 +186,49 @@ def ConvNeXtV2(
     return ConvNeXt(**locals())
 
 
-def ConvNeXtV2Atto(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+def ConvNeXtV2Atto(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 6, 2]
     out_channels = [40, 80, 160, 320]
     return ConvNeXtV2(**locals(), model_name="convnext_v2_atto", **kwargs)
 
 
-def ConvNeXtV2Femto(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+def ConvNeXtV2Femto(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 6, 2]
     out_channels = [48, 96, 192, 384]
     return ConvNeXtV2(**locals(), model_name="convnext_v2_femto", **kwargs)
 
 
-def ConvNeXtV2Pico(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+def ConvNeXtV2Pico(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 6, 2]
     out_channels = [64, 128, 256, 512]
     return ConvNeXtV2(**locals(), model_name="convnext_v2_pico", **kwargs)
 
 
-def ConvNeXtV2Nano(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+def ConvNeXtV2Nano(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 8, 2]
     out_channels = [80, 160, 320, 640]
     return ConvNeXtV2(**locals(), model_name="convnext_v2_nano", **kwargs)
 
 
-def ConvNeXtV2Tiny(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+def ConvNeXtV2Tiny(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 9, 3]
     out_channels = [96, 192, 384, 768]
     return ConvNeXtV2(**locals(), model_name="convnext_v2_tiny", **kwargs)
 
 
-def ConvNeXtV2Base(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+def ConvNeXtV2Base(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 27, 3]
     out_channels = [128, 256, 512, 1024]
     return ConvNeXtV2(**locals(), model_name="convnext_v2_base", **kwargs)
 
 
-def ConvNeXtV2Large(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+def ConvNeXtV2Large(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 27, 3]
     out_channels = [192, 384, 768, 1536]
     return ConvNeXtV2(**locals(), model_name="convnext_v2_large", **kwargs)
 
 
-def ConvNeXtV2Huge(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+def ConvNeXtV2Huge(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 27, 3]
     out_channels = [352, 704, 1408, 2816]
     return ConvNeXtV2(**locals(), model_name="convnext_v2_huge", **kwargs)

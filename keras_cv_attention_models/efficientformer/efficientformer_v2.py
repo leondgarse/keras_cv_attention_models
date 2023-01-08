@@ -13,7 +13,10 @@ from keras_cv_attention_models.attention_layers import (
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
-    "": {"": {224: ""}},
+    "efficientformer_v2_l": {"imagenet": {224: "3792a3ea9eb9d1e818d4a36c00e422a5"}},
+    "efficientformer_v2_s0": {"imagenet": {224: "88de5ba4a8effd887d53df3020ba8433"}},
+    "efficientformer_v2_s1": {"imagenet": {224: "a0843565d0d01004604d52b0e2ddfa0a"}},
+    "efficientformer_v2_s2": {"imagenet": {224: "07c358cc0f8ea8a02722673bd38bfe97"}},
 }
 
 
@@ -45,6 +48,7 @@ def conv_mhsa_with_multi_head_position(
     kv_blocks = inputs.shape[1] * inputs.shape[2]
 
     if use_local_global_query:
+        # pool_query = keras.layers.AvgPool2D(pool_size=1, strides=2)(inputs)
         pool_query = inputs[:, ::2, ::2]  # nn.AvgPool2d(kernel_size=1, stride=2, padding=0)
         local_query = depthwise_conv2d_no_bias(inputs, use_bias=qkv_bias, kernel_size=3, strides=2, padding="same", name=name and name + "local_query_")
         pre_query = pool_query + local_query
@@ -167,7 +171,7 @@ def EfficientFormerV2(
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id > 0:
             use_attn = True if stack_id >= 3 else False  # Only the last stack
-            nn = down_sample_block(nn, out_channel, use_attn=use_attn, name=stack_name + "downsample_")
+            nn = down_sample_block(nn, out_channel, use_attn=use_attn, activation=activation, name=stack_name + "downsample_")
 
         cur_num_attn_blocks = num_attn_blocks_each_stack[stack_id] if isinstance(num_attn_blocks_each_stack, (list, tuple)) else num_attn_blocks_each_stack
         cur_mlp_ratios = mlp_ratios[stack_id] if isinstance(mlp_ratios, (list, tuple)) else mlp_ratios
@@ -185,7 +189,7 @@ def EfficientFormerV2(
 
     """ output """
     if num_classes > 0:
-        nn = batchnorm_with_activation(nn, activation=stem_activation, name="pre_output_")
+        nn = batchnorm_with_activation(nn, activation=None, name="pre_output_")
         nn = keras.layers.GlobalAveragePooling2D()(nn)  # tf.reduce_mean(nn, axis=1)
         if dropout > 0 and dropout < 1:
             nn = keras.layers.Dropout(dropout)(nn)

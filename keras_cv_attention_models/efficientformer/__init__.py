@@ -1,5 +1,5 @@
 from keras_cv_attention_models.efficientformer.efficientformer import EfficientFormer, EfficientFormerL1, EfficientFormerL3, EfficientFormerL7
-
+from keras_cv_attention_models.efficientformer.efficientformer_v2 import EfficientFormerV2, EfficientFormerV2S0, EfficientFormerV2S1, EfficientFormerV2S2, EfficientFormerV2L
 
 __head_doc__ = """
 Keras implementation of [Github snap-research/efficientformer](https://github.com/snap-research/efficientformer).
