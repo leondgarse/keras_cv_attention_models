@@ -1,3 +1,4 @@
+import tensorflow as tf
 from tensorflow import keras
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
@@ -33,11 +34,20 @@ PRETRAINED_DICT = {
 }
 
 
-def block(inputs, output_channel, layer_scale_init_value=1e-6, drop_rate=0, activation="gelu", name=""):
+def global_response_normalize(inputs, name=None):
+    nn = tf.norm(inputs, axis=(1, 2), keepdims=True)
+    nn = nn / (tf.reduce_mean(nn, axis=-1, keepdims=True) + 1e-6)
+    nn = ChannelAffine(use_bias=True, weight_init_value=0, name=name and name + "gamma")(inputs * nn)
+    return nn + inputs
+
+
+def block(inputs, output_channel, layer_scale_init_value=1e-6, use_grn=False, drop_rate=0, activation="gelu", name=""):
     nn = depthwise_conv2d_no_bias(inputs, kernel_size=7, padding="SAME", use_bias=True, name=name)
     nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name=name)
     nn = keras.layers.Dense(4 * output_channel, name=name + "up_dense")(nn)
     nn = activation_by_name(nn, activation, name=name)
+    if use_grn:
+        nn = global_response_normalize(nn, name=name + "grn_")
     nn = keras.layers.Dense(output_channel, name=name + "down_dense")(nn)
     if layer_scale_init_value > 0:
         nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale_init_value, name=name + "gamma")(nn)
@@ -49,7 +59,8 @@ def ConvNeXt(
     num_blocks=[3, 3, 9, 3],
     out_channels=[96, 192, 384, 768],
     stem_width=-1,
-    layer_scale_init_value=1e-6,
+    layer_scale_init_value=1e-6,  # 1e-6 for v1, 0 for v2
+    use_grn=False,  # False for v1, True for v2
     head_init_scale=1.0,
     input_shape=(224, 224, 3),
     num_classes=1000,
@@ -79,7 +90,7 @@ def ConvNeXt(
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
-            nn = block(nn, out_channel, layer_scale_init_value, block_drop_rate, activation, name=block_name)
+            nn = block(nn, out_channel, layer_scale_init_value, use_grn, block_drop_rate, activation, name=block_name)
             global_block_id += 1
 
     """  Output head """
@@ -127,3 +138,74 @@ def ConvNeXtXlarge(input_shape=(224, 224, 3), num_classes=1000, classifier_activ
     num_blocks = [3, 3, 27, 3]
     out_channels = [256, 512, 1024, 2048]
     return ConvNeXt(**locals(), model_name="convnext_xlarge", **kwargs)
+
+
+""" ConvNeXtV2 """
+
+
+def ConvNeXtV2(
+    num_blocks=[3, 3, 9, 3],
+    out_channels=[96, 192, 384, 768],
+    stem_width=-1,
+    layer_scale_init_value=0,  # 1e-6 for v1, 0 for v2
+    use_grn=True,  # False for v1, True for v2
+    head_init_scale=1.0,
+    input_shape=(224, 224, 3),
+    num_classes=1000,
+    activation="gelu",
+    drop_connect_rate=0.1,
+    classifier_activation="softmax",
+    dropout=0,
+    pretrained=None,
+    model_name="convnext_v2",
+    kwargs=None,
+):
+    return ConvNeXt(**locals())
+
+
+def ConvNeXtV2Atto(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    num_blocks = [2, 2, 6, 2]
+    out_channels = [40, 80, 160, 320]
+    return ConvNeXtV2(**locals(), model_name="convnext_v2_atto", **kwargs)
+
+
+def ConvNeXtV2Femto(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    num_blocks = [2, 2, 6, 2]
+    out_channels = [48, 96, 192, 384]
+    return ConvNeXtV2(**locals(), model_name="convnext_v2_femto", **kwargs)
+
+
+def ConvNeXtV2Pico(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    num_blocks = [2, 2, 6, 2]
+    out_channels = [64, 128, 256, 512]
+    return ConvNeXtV2(**locals(), model_name="convnext_v2_pico", **kwargs)
+
+
+def ConvNeXtV2Nano(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    num_blocks = [2, 2, 8, 2]
+    out_channels = [80, 160, 320, 640]
+    return ConvNeXtV2(**locals(), model_name="convnext_v2_nano", **kwargs)
+
+
+def ConvNeXtV2Tiny(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    num_blocks = [3, 3, 9, 3]
+    out_channels = [96, 192, 384, 768]
+    return ConvNeXtV2(**locals(), model_name="convnext_v2_tiny", **kwargs)
+
+
+def ConvNeXtV2Base(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    num_blocks = [3, 3, 27, 3]
+    out_channels = [128, 256, 512, 1024]
+    return ConvNeXtV2(**locals(), model_name="convnext_v2_base", **kwargs)
+
+
+def ConvNeXtV2Large(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    num_blocks = [3, 3, 27, 3]
+    out_channels = [192, 384, 768, 1536]
+    return ConvNeXtV2(**locals(), model_name="convnext_v2_large", **kwargs)
+
+
+def ConvNeXtV2Huge(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    num_blocks = [3, 3, 27, 3]
+    out_channels = [352, 704, 1408, 2816]
+    return ConvNeXtV2(**locals(), model_name="convnext_v2_huge", **kwargs)

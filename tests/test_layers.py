@@ -151,6 +151,12 @@ def test_global_local_filter():
     assert out.shape == input_shape
 
 
+def test_global_response_normalize():
+    input_shape = [2, 28, 28, 192]
+    out = attention_layers.global_response_normalize(tf.ones(input_shape))
+    assert out.shape == input_shape
+
+
 def test_gnconv():
     input_shape = [2, 28, 28, 192]
     out_1 = attention_layers.gnconv(tf.ones(input_shape), use_global_local_filter=False)
