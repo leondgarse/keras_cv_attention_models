@@ -5,7 +5,7 @@
   - CovNeXt article: [PDF 2201.03545 A ConvNet for the 2020s](https://arxiv.org/pdf/2201.03545.pdf). Model weights reloaded from [Github facebookresearch/ConvNeXt](https://github.com/facebookresearch/ConvNeXt).
   - CovNeXtV2 article: [PDF 2301.00808 ConvNeXt V2: Co-designing and Scaling ConvNets with Masked Autoencoders](https://arxiv.org/pdf/2301.00808.pdf). Model weights reloaded from [Github facebookresearch/ConvNeXt-V2](https://github.com/facebookresearch/ConvNeXt-V2).
 
-  ![](https://user-images.githubusercontent.com/5744524/151656693-fc6e0d6d-4f9f-4c67-adbe-27fe3ce85062.png)
+  ![convnext](https://user-images.githubusercontent.com/5744524/211191223-1d7caf96-9433-477f-99da-702a0efc37a5.png)
 ***
 
 ## Models

@@ -31,7 +31,27 @@ PRETRAINED_DICT = {
         "imagenet21k-ft1k": {224: "dc211e955875f8ab6de7518253e41a46", 384: "68ef87754d6ca634e32d2326c34ddd0b"},
     },
     "convnext_xlarge": {"imagenet21k-ft1k": {224: "7c7ab46f41ac34655f3e035b873a2163", 384: "636db850c0a73ba10e8ab32e91c38df6"}},
+    "convnext_v2_atto": {"imagenet": "e604fa1edfefe6207957feec4f5612db"},
+    "convnext_v2_base": {
+        "imagenet": "879caa3189ed74ed969f9348b82afe47",
+        "imagenet21k-ft1k": {224: "8d15a1e29f28e3fd8f0e6691e872ebee", 384: "b267df29706944ec4bc60b57c9778be0"},
+    },
+    "convnext_v2_femto": {"imagenet": "46d4e39a2efb4dc0aa543442b9000d89"},
+    "convnext_v2_large": {
+        "imagenet": "18327817424ada5a1c4ea257079e0694",
+        "imagenet21k-ft1k": {224: "4bce3ade2680d7181c782b65df8ed929", 384: "6d01f83513538e1f02640314e044d00e"},
+    },
+    "convnext_v2_nano": {
+        "imagenet": "32911de07188225277a47219dbdb4134",
+        "imagenet21k-ft1k": {224: "e1761b343263167eb9f4d6c33c6c892d", 384: "2980c5a37ad16cfbc6c90b8a8bb1c83f"},
+    },
+    "convnext_v2_pico": {"imagenet": "27ed3ae499e0ca6f6b5e3cf8e041ab92"},
+    "convnext_v2_tiny": {
+        "imagenet": "4b0a70c87400993385b668853c4e3654",
+        "imagenet21k-ft1k": {224: "de1db9ab2d8c565767cf81401ceed6ae", 384: "cc9028f2baa22ac1799ca1219e7b2991"},
+    },
 }
+
 
 
 def global_response_normalize(inputs, name=None):
