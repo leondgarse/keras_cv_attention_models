@@ -30,7 +30,7 @@ def conv_mhsa_with_multi_head_position(
     use_local_global_query=False,
     use_talking_head=True,
     qkv_bias=True,
-    activation="relu",
+    activation="gelu",
     name=None,
 ):
     input_channel = inputs.shape[-1]
@@ -42,6 +42,7 @@ def conv_mhsa_with_multi_head_position(
     value_dim = attn_ratio * key_dim
 
     if strides > 1:
+        should_cut_height, should_cut_width = inputs.shape[1] % 2, inputs.shape[2] % 2  # keep shape same with inputs after later UpSampling2D
         inputs = depthwise_conv2d_no_bias(inputs, use_bias=True, kernel_size=3, strides=strides, padding="same", name=name and name + "down_sample_")
         inputs = batchnorm_with_activation(inputs, activation=None, name=name and name + "down_sample_")
 
@@ -96,6 +97,8 @@ def conv_mhsa_with_multi_head_position(
 
     if strides > 1:
         attention_output = keras.layers.UpSampling2D(size=(strides, strides), interpolation="bilinear")(attention_output)
+        if should_cut_height > 0 or should_cut_width > 0:
+            attention_output = attention_output[:, :attention_output.shape[1] - should_cut_height, :attention_output.shape[2] - should_cut_width]
 
     # [batch, hh, ww, num_heads * value_dim] * [num_heads * value_dim, out] --> [batch, hh, ww, out]
     attention_output = activation_by_name(attention_output, activation=activation, name=name)
@@ -122,10 +125,11 @@ def mlp_block_with_additional_depthwise_conv(inputs, hidden_dim, output_channel=
 def res_layer_scale_drop_block(short, deep, layer_scale=0, drop_rate=0, name=""):
     deep = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "gamma")(deep) if layer_scale >= 0 else deep
     deep = drop_block(deep, drop_rate=drop_rate, name=name)
+    # print(f">>>> {short.shape = }, {deep.shape = }")
     return keras.layers.Add(name=name + "output")([short, deep])
 
 
-def down_sample_block(inputs, out_channel, use_attn=False, activation="relu", name=""):
+def down_sample_block(inputs, out_channel, use_attn=False, activation="gelu", name=""):
     conv_branch = conv2d_no_bias(inputs, out_channel, kernel_size=3, strides=2, use_bias=True, padding="SAME", name=name)
     conv_branch = batchnorm_with_activation(conv_branch, activation=None, name=name)
     if use_attn:

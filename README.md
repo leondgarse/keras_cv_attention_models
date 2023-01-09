@@ -23,6 +23,7 @@
   - [DaViT](#davit)
   - [EdgeNeXt](#edgenext)
   - [EfficientFormer](#efficientformer)
+  - [EfficientFormerV2](#efficientformerv2)
   - [EfficientNet](#efficientnet)
   - [FBNetV3](#fbnetv3)
   - [GCViT](#gcvit)
@@ -189,8 +190,9 @@
 ## ImageNet training and evaluating
   - [ImageNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/imagenet) contains more detail usage and some comparing results.
   - [Init Imagenet dataset using tensorflow_datasets #9](https://github.com/leondgarse/keras_cv_attention_models/discussions/9).
-  - For custom dataset, recommending method is using `tfds.load`, refer [Writing custom datasets](https://www.tensorflow.org/datasets/add_dataset) and [Creating private tensorflow_datasets from tfds #48](https://github.com/leondgarse/keras_cv_attention_models/discussions/48) by @Medicmind.
-  - `custom_dataset_script.py` can also be used creating a `json` format file, which can be used as `--data_name xxx.json` for training, detail usage can be found in [Custom recognition dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussion-3971513).
+  - For custom dataset, `custom_dataset_script.py` can be used creating a `json` format file, which can be used as `--data_name xxx.json` for training, detail usage can be found in [Custom recognition dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussion-3971513).
+  - Another method creating custom dataset is using `tfds.load`, refer [Writing custom datasets](https://www.tensorflow.org/datasets/add_dataset) and [Creating private tensorflow_datasets from tfds #48](https://github.com/leondgarse/keras_cv_attention_models/discussions/48) by @Medicmind.
+  - Running an AWS Sagemaker estimator job using `keras_cv_attention_models` can be found in [AWS Sagemaker script example](https://github.com/leondgarse/keras_cv_attention_models/discussions/107) by @Medicmind.
   - `aotnet.AotNet50` default parameters set is a typical `ResNet50` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
   - Default parameters for `train_script.py` is like `A3` configuration from [ResNet strikes back: An improved training procedure in timm](https://arxiv.org/pdf/2110.00476.pdf) with `batch_size=256, input_shape=(160, 160)`.
     ```sh
@@ -528,9 +530,9 @@
   | ConvNeXtV2Large    | 198M   | 34.4G  | 224   | 85.8     | [v2_large_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_large_imagenet.h5) |
   | - ImageNet21k-ft1k | 198M   | 34.4G  | 224   | 87.3     | [v2_large_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_large_224_imagenet21k-ft1k.h5) |
   | - ImageNet21k-ft1k | 198M   | 101.1G | 384   | 88.2     | [v2_large_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_large_384_imagenet21k-ft1k.h5) |
-  | ConvNeXtV2Huge     | 660M   | 115G   | 224   | 86.3     |          |
-  | - ImageNet21k-ft1k | 660M   | 337.9G | 384   | 88.7     |          |
-  | - ImageNet21k-ft1k | 660M   | 600.8G | 512   | 88.9     |          |
+  | ConvNeXtV2Huge     | 660M   | 115G   | 224   | 86.3     | [v2_huge_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_huge_imagenet.h5) |
+  | - ImageNet21k-ft1k | 660M   | 337.9G | 384   | 88.7     | [v2_huge_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_huge_384_imagenet21k-ft1k.h5) |
+  | - ImageNet21k-ft1k | 660M   | 600.8G | 512   | 88.9     | [v2_huge_512_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_huge_512_imagenet21k-ft1k.h5) |
 ## CoTNet
   - [Keras CoTNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cotnet) is for [PDF 2107.12292 Contextual Transformer Networks for Visual Recognition](https://arxiv.org/pdf/2107.12292.pdf).
 
@@ -572,6 +574,15 @@
   | EfficientFormerL1, distill | 12.3M  | 1.31G | 224   | 79.2     | [l1_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l1_224_imagenet.h5) |
   | EfficientFormerL3, distill | 31.4M  | 3.95G | 224   | 82.4     | [l3_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l3_224_imagenet.h5) |
   | EfficientFormerL7, distill | 74.4M  | 9.79G | 224   | 83.3     | [l7_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l7_224_imagenet.h5) |
+## EfficientFormerV2
+  - [Keras EfficientFormer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientformer) includes implementation of [PDF 2212.08059 Rethinking Vision Transformers for MobileNet Size and Speed](https://arxiv.org/pdf/2212.08059.pdf).
+
+  | Model                        | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ---------------------------- | ------ | ------ | ----- | -------- | -------- |
+  | EfficientFormerV2S0, distill | 3.60M  | 405.2M | 224   | 76.2     | [v2_s0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientformer/efficientformer_v2_s0_224_imagenet.h5) |
+  | EfficientFormerV2S1, distill | 6.19M  | 665.6M | 224   | 79.7     | [v2_s1_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientformer/efficientformer_v2_s1_224_imagenet.h5) |
+  | EfficientFormerV2S2, distill | 12.7M  | 1.27G  | 224   | 82.0     | [v2_s2_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientformer/efficientformer_v2_s2_224_imagenet.h5) |
+  | EfficientFormerV2L, distill  | 26.3M  | 2.59G  | 224   | 83.5     | [v2_l_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientformer/efficientformer_v2_l_224_imagenet.h5) |
 ## EfficientNet
   - [Keras EfficientNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientnet) includes implementation of [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298).
 

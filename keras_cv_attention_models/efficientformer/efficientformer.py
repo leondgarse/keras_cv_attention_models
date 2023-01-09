@@ -49,10 +49,10 @@ def meta_block(inputs, is_attn_block=False, num_heads=8, key_dim=32, attn_ratio=
 def EfficientFormer(
     num_blocks=[3, 2, 6, 4],
     out_channels=[48, 96, 224, 448],
-    num_attn_blocks_in_last_stack=1,
+    mlp_ratios=4,
+    num_attn_blocks_each_stack=[0, 0, 0, 1],
     stem_width=-1,
     stem_activation="relu",
-    mlp_ratio=4,
     layer_scale=1e-5,
     input_shape=(224, 224, 3),
     num_classes=1000,
@@ -82,10 +82,14 @@ def EfficientFormer(
             ds_name = stack_name + "downsample_"
             nn = conv2d_no_bias(nn, out_channel, kernel_size=3, strides=2, use_bias=True, padding="SAME", name=ds_name)
             nn = batchnorm_with_activation(nn, activation=None, name=ds_name)
+
+        cur_num_attn_blocks = num_attn_blocks_each_stack[stack_id] if isinstance(num_attn_blocks_each_stack, (list, tuple)) else num_attn_blocks_each_stack
+        cur_mlp_ratios = mlp_ratios[stack_id] if isinstance(mlp_ratios, (list, tuple)) else mlp_ratios
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
-            is_attn_block = True if stack_id == len(num_blocks) - 1 and block_id >= num_block - num_attn_blocks_in_last_stack else False
+            mlp_ratio = cur_mlp_ratios[block_id] if isinstance(cur_mlp_ratios, (list, tuple)) else cur_mlp_ratios
+            is_attn_block = True if block_id > num_block - cur_num_attn_blocks - 1 else False
             nn = meta_block(nn, is_attn_block, mlp_ratio=mlp_ratio, layer_scale=layer_scale, drop_rate=block_drop_rate, activation=activation, name=block_name)
             global_block_id += 1
 
@@ -116,12 +120,12 @@ def EfficientFormerL1(input_shape=(224, 224, 3), num_classes=1000, activation="g
 def EfficientFormerL3(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
     num_blocks = [4, 4, 12, 6]
     out_channels = [64, 128, 320, 512]
-    num_attn_blocks_in_last_stack = 4
+    num_attn_blocks_each_stack = [0, 0, 0, 4]
     return EfficientFormer(**locals(), model_name="efficientformer_l3", **kwargs)
 
 
 def EfficientFormerL7(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
     num_blocks = [6, 6, 18, 8]
     out_channels = [96, 192, 384, 768]
-    num_attn_blocks_in_last_stack = 8
+    num_attn_blocks_each_stack = [0, 0, 0, 8]
     return EfficientFormer(**locals(), model_name="efficientformer_l7", **kwargs)
