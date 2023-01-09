@@ -28,6 +28,8 @@
   | ConvNeXtXLarge, 21k | 350M   | 61.06G  | 224   | 87.0     | [xlarge_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_xlarge_224_imagenet21k-ft1k.h5) |
   | ConvNeXtXLarge, 21k | 350M   | 179.43G | 384   | 87.8     | [xlarge_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_xlarge_384_imagenet21k-ft1k.h5) |
 
+  - **ConvNeXtV2 models** Note: `ConvNeXtV2Huge` weights are in `float16` format, as `float32` ones are too large that exceed 2GB.
+
   | Model              | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------------ | ------ | ------ | ----- | -------- | -------- |
   | ConvNeXtV2Atto     | 3.7M   | 0.55G  | 224   | 76.7     | [v2_atto_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_atto_imagenet.h5) |
@@ -45,26 +47,44 @@
   | ConvNeXtV2Large    | 198M   | 34.4G  | 224   | 85.8     | [v2_large_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_large_imagenet.h5) |
   | - ImageNet21k-ft1k | 198M   | 34.4G  | 224   | 87.3     | [v2_large_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_large_224_imagenet21k-ft1k.h5) |
   | - ImageNet21k-ft1k | 198M   | 101.1G | 384   | 88.2     | [v2_large_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_large_384_imagenet21k-ft1k.h5) |
-  | ConvNeXtV2Huge     | 660M   | 115G   | 224   | 86.3     |          |
-  | - ImageNet21k-ft1k | 660M   | 337.9G | 384   | 88.7     |          |
-  | - ImageNet21k-ft1k | 660M   | 600.8G | 512   | 88.9     |          |
+  | ConvNeXtV2Huge     | 660M   | 115G   | 224   | 86.3     | [v2_huge_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_huge_imagenet.h5) |
+  | - ImageNet21k-ft1k | 660M   | 337.9G | 384   | 88.7     | [v2_huge_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_huge_384_imagenet21k-ft1k.h5) |
+  | - ImageNet21k-ft1k | 660M   | 600.8G | 512   | 88.9     | [v2_huge_512_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_huge_512_imagenet21k-ft1k.h5) |
 ## Usage
   ```py
-  from keras_cv_attention_models import convnext, test_images
+  from keras_cv_attention_models import convnext
   mm = convnext.ConvNeXtBase()
   # >>>> Load pretrained from: ~/.keras/models/convnext_base_224_imagenet.h5
-  preds = mm(mm.preprocess_input(test_images.cat()))
-  print(mm.decode_predictions(preds)[0])
-  # [('n02123159', 'tiger_cat', 0.9018271), ('n02123045', 'tabby', 0.019625964), ...]
+
+  # Run prediction
+  import tensorflow as tf
+  from tensorflow import keras
+  from skimage.data import chelsea
+  imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
+  pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
+  print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
+  # [('n02124075', 'Egyptian_cat', 0.9021103), ('n02123159', 'tiger_cat', 0.017981088), ...]
   ```
   **Change input resolution**
   ```py
-  from keras_cv_attention_models import convnext, test_images
-  mm = convnext.ConvNeXtBase(input_shape=(480, 480, 3), pretrained='imagenet21k-ft1k')
-  # >>>> Load pretrained from: ~/.keras/models/convnext_base_384_imagenet21k-ft1k.h5
-  preds = mm(mm.preprocess_input(test_images.cat()))
+  from keras_cv_attention_models import convnext
+  mm = convnext.ConvNeXtV2Nano(input_shape=(480, 480, 3), pretrained='imagenet21k-ft1k')
+  # >>>> Load pretrained from: ~/.keras/models/convnext_v2_nano_384_imagenet21k-ft1k.h5
+
+  from skimage.data import chelsea
+  preds = mm(mm.preprocess_input(chelsea()))
   print(mm.decode_predictions(preds)[0])
-  # [('n02123045', 'tabby', 0.40823647), ('n02123394', 'Persian_cat', 0.116940685), ...]
+  # [('n02124075', 'Egyptian_cat', 0.7427755), ('n02123159', 'tiger_cat', 0.092012934), ...]
+  ```
+  **Use dynamic input resolution** by set `input_shape=(None, None, 3)`.
+  ```py
+  from keras_cv_attention_models import convnext
+  model = convnext.ConvNeXtBase(input_shape=(None, None, 3), num_classes=0)
+
+  print(model(np.ones([1, 223, 123, 3])).shape)
+  # (1, 6, 3, 1024)
+  print(model(np.ones([1, 32, 526, 3])).shape)
+  # (1, 1, 16, 1024)
   ```
 ## Verification with PyTorch version
   ```py

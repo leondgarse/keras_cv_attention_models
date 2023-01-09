@@ -6,6 +6,8 @@ from keras_cv_attention_models.convnext.convnext import (
     ConvNeXtBase,
     ConvNeXtLarge,
     ConvNeXtXlarge,
+)
+from keras_cv_attention_models.convnext.convnext_v2 import (
     ConvNeXtV2,
     ConvNeXtV2Atto,
     ConvNeXtV2Femto,
