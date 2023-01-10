@@ -193,9 +193,15 @@ class PositionalEmbedding(keras.layers.Layer):
         self.pp_init = tf.initializers.TruncatedNormal(stddev=0.2)
 
     def build(self, input_shape):
-        hh, ww, cc = input_shape[1:]
-        self.pp = self.add_weight(name="positional_embedding", shape=(1, hh, ww, cc), initializer=self.pp_init, trainable=True)
+        self.pp = self.add_weight(name="positional_embedding", shape=(1, *input_shape[1:]), initializer=self.pp_init, trainable=True)
         super(PositionalEmbedding, self).build(input_shape)
+
+        if len(input_shape) == 3:
+            self.is_fused_height_width = True
+            self.height = self.width = int(tf.math.sqrt(float(input_shape[1])))  # height and width in input_shape reshaped as one, like [None, 16 * 16 + 1, 32]
+        else:
+            self.is_fused_height_width = False
+            self.height, self.width = input_shape[1:3]
 
     def call(self, inputs, **kwargs):
         return inputs + self.pp
@@ -206,7 +212,18 @@ class PositionalEmbedding(keras.layers.Layer):
             source_pp = source_layer["positional_embedding:0"]  # weights
         else:
             source_pp = source_layer.pp  # layer
-        self.pp.assign(tf.image.resize(source_pp, self.pp.shape[1:3], method=method))
+
+        source_pp = tf.cast(source_pp, self.pp.dtype)
+        if self.is_fused_height_width:
+            hh = ww = int(tf.math.sqrt(float(source_pp.shape[1])))  # assume source weights are all square shape
+            ss = tf.reshape(source_pp[:, -hh * ww:], [1, hh, ww, -1])  # If has cls_token
+            tt = tf.image.resize(ss, [self.height, self.width], method=method)
+            tt = tf.reshape(tt, [1, self.height * self.width, -1])
+
+            tt = tf.concat([source_pp[:, :-hh * ww], tt], axis=1)  # If has cls_token
+        else:
+            tt = tf.image.resize(source_pp, [self.height, self.width], method=method)
+        self.pp.assign(tt)
 
     def show_pos_emb(self, rows=16, base_size=1):
         import matplotlib.pyplot as plt

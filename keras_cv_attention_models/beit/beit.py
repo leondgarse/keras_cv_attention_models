@@ -10,6 +10,7 @@ from keras_cv_attention_models.attention_layers import (
     drop_block,
     drop_connect_rates_split,
     layer_norm,
+    PositionalEmbedding,
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
@@ -18,9 +19,18 @@ LAYER_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
     "beit_base_patch16": {"imagenet21k-ft1k": {224: "d7102337a13a3983f3b6470de77b5d5c", 384: "76353026477c60f8fdcbcc749fea17b3"}},
+    "beit_v2_base_patch16": {"imagenet21k-ft1k": {224: "d001dcb67cdda16bfdbb2873ab9b13c8"}},
     "beit_large_patch16": {
         "imagenet21k-ft1k": {224: "fce2d162e7fa4dba9a1b1fc5e1dec5ce", 384: "158934d07dd8b1e1c6b96883aa00a748", 512: "64d18088e91df243960e5830aab80a6e"}
     },
+    "beit_v2_large_patch16": {"imagenet21k-ft1k": {224: "b3cee12a545bfb676f9f426ee7158d27"}},
+    "eva_giant_patch14": {
+        "imagenet21k-ft1k": {224: "5a475db6696d6e36ea896ec5dbd1c20d", 336: "fd8eeec10d6b6cb607ce033ea85b8e80", 560: "0ef0d2961523fb2047fbdb59cc347c17"}
+    },
+    "eva_large_patch14": {"imagenet21k-ft1k": {196: "bbeea886fbde4bd1c8c9876345273a99", 336: "4928faafd0177fe8f0d02dab4abc8e83"}},
+    "flexivit_small": {"imagenet": {240: "efb73a97d099a491b69ebfaf8a337df8"}},
+    "flexivit_base": {"imagenet": {240: "dac627debb194928db01e1b9b7a548fd"}},
+    "flexivit_large": {"imagenet": {240: "6faa953227d2ef1df6758f8eb7234490"}},
 }
 
 
@@ -128,13 +138,18 @@ class MultiHeadRelativePositionalEmbedding(keras.layers.Layer):
         return fig
 
 
-def attention_block(inputs, num_heads=4, key_dim=0, out_weight=True, out_bias=False, qv_bias=True, attn_height=-1, attn_dropout=0, name=None):
+def attention_block(
+    inputs, num_heads=4, key_dim=0, qv_bias=True, qkv_bias=False, out_weight=True, out_bias=False, use_pos_emb=False, attn_height=-1, attn_dropout=0, name=None
+):
     _, bb, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
     qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
     emded_dim = num_heads * key_dim
 
-    qkv = keras.layers.Dense(emded_dim * 3, use_bias=False, name=name and name + "qkv")(inputs)
+    # if qkv_bias, just use bias in qkv_dense, and set qv_bias False
+    qkv_bias, qv_bias = (True, False) if qkv_bias else (False, qv_bias)
+
+    qkv = keras.layers.Dense(emded_dim * 3, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
     qkv = tf.reshape(qkv, [-1, bb, qkv.shape[-1]])
     query, key, value = tf.split(qkv, 3, axis=-1)
     # query = [batch, num_heads, cls_token + hh * ww, key_dim]
@@ -153,7 +168,8 @@ def attention_block(inputs, num_heads=4, key_dim=0, out_weight=True, out_bias=Fa
     query *= qk_scale
     # [batch, num_heads, cls_token + hh * ww, cls_token + hh * ww]
     attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key])
-    attention_scores = MultiHeadRelativePositionalEmbedding(attn_height=attn_height, name=name and name + "pos_emb")(attention_scores)
+    if use_pos_emb:
+        attention_scores = MultiHeadRelativePositionalEmbedding(attn_height=attn_height, name=name and name + "pos_emb")(attention_scores)
     # attention_scores = tf.nn.softmax(attention_scores, axis=-1, name=name and name + "_attention_scores")
     attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
 
@@ -176,7 +192,7 @@ def attention_mlp_block(inputs, embed_dim, gamma_init_value=0.1, mlp_ratio=4, dr
     # print(f">>>> {drop_rate = }")
     nn = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, name=name + "attn_")
     nn = attention_block(nn, **attn_params, name=name + "attn_")
-    nn = ChannelAffine(use_bias=False, weight_init_value=gamma_init_value, name=name + "attn_gamma")(nn)
+    nn = ChannelAffine(use_bias=False, weight_init_value=gamma_init_value, name=name + "attn_gamma")(nn) if gamma_init_value > 0 else nn
     nn = drop_block(nn, drop_rate)
     attn_out = keras.layers.Add(name=name + "attn_out")([inputs, nn])
 
@@ -185,7 +201,7 @@ def attention_mlp_block(inputs, embed_dim, gamma_init_value=0.1, mlp_ratio=4, dr
     nn = keras.layers.Dense(embed_dim * mlp_ratio, name=name + "mlp_dense_1")(nn)
     nn = activation_by_name(nn, activation, name=name + "mlp_" + activation)
     nn = keras.layers.Dense(embed_dim, name=name + "mlp_dense_2")(nn)
-    nn = ChannelAffine(use_bias=False, weight_init_value=gamma_init_value, name=name + "mlp_gamma")(nn)
+    nn = ChannelAffine(use_bias=False, weight_init_value=gamma_init_value, name=name + "mlp_gamma")(nn) if gamma_init_value > 0 else nn
     nn = drop_block(nn, drop_rate)
     nn = keras.layers.Add(name=name + "mlp_output")([attn_out, nn])
     return nn
@@ -214,10 +230,13 @@ def Beit(
     patch_size=16,
     attn_key_dim=0,
     attn_qv_bias=True,
+    attn_qkv_bias=False,  # if True, will just use bias in qkv_dense, and set qv_bias False.
     attn_out_weight=True,
     attn_out_bias=True,
     attn_dropout=0,
     gamma_init_value=0.1,
+    use_abs_pos_emb=False,
+    use_abs_pos_emb_on_cls_token=True,  # no_embed_class in timm. If use_abs_pos_emb is True, whether apply pos_emb on cls_token.
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",
@@ -234,16 +253,26 @@ def Beit(
     nn = conv2d_no_bias(inputs, embed_dim, patch_size, strides=patch_size, padding="valid", use_bias=True, name="stem_")
     patch_height = nn.shape[1]
     nn = keras.layers.Reshape([-1, nn.shape[-1]])(nn)
-    nn = ClassToken(name="cls_token")(nn)
+
+    if use_abs_pos_emb and use_abs_pos_emb_on_cls_token:  # EvaLarge and EvaGiant
+        nn = ClassToken(name="cls_token")(nn)
+        nn = PositionalEmbedding(name="positional_embedding")(nn)
+    elif use_abs_pos_emb:  # FlexiViT models
+        nn = PositionalEmbedding(name="positional_embedding")(nn)
+        nn = ClassToken(name="cls_token")(nn)
+    else:  # Beit and BeitV2
+        nn = ClassToken(name="cls_token")(nn)
 
     attn_params = {
         "num_heads": num_heads,
         "key_dim": attn_key_dim,
         "qv_bias": attn_qv_bias,
+        "qkv_bias": attn_qkv_bias,
         "out_weight": attn_out_weight,
         "out_bias": attn_out_bias,
         "attn_height": patch_height,
         "attn_dropout": attn_dropout,
+        "use_pos_emb": not use_abs_pos_emb,
     }
 
     """ forward_tokens """
@@ -266,7 +295,7 @@ def Beit(
         )(nn)
     model = tf.keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="tf")
-    reload_model_weights(model, PRETRAINED_DICT, "beit", pretrained, MultiHeadRelativePositionalEmbedding)
+    reload_model_weights(model, PRETRAINED_DICT, "beit", pretrained, PositionalEmbedding if use_abs_pos_emb else MultiHeadRelativePositionalEmbedding)
     return model
 
 
@@ -275,7 +304,12 @@ def BeitBasePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gel
     depth = 12
     num_heads = 12
     gamma_init_value = 0.1
-    return Beit(**locals(), model_name="beit_base_patch16", **kwargs)
+    kwargs.pop("kwargs", None)  # From BeitV2BasePatch16
+    return Beit(**locals(), model_name=kwargs.pop("model_name", "beit_base_patch16"), **kwargs)
+
+
+def BeitV2BasePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    return BeitBasePatch16(**locals(), **kwargs, model_name="beit_v2_base_patch16")
 
 
 def BeitLargePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
@@ -283,4 +317,73 @@ def BeitLargePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="ge
     depth = 24
     num_heads = 16
     gamma_init_value = 1e-5
-    return Beit(**locals(), model_name="beit_large_patch16", **kwargs)
+    kwargs.pop("kwargs", None)  # From BeitV2LargePatch16
+    return Beit(**locals(), model_name=kwargs.pop("model_name", "beit_large_patch16"), **kwargs)
+
+
+def BeitV2LargePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwarg):
+    return BeitLargePatch16(**locals(), **kwarg, model_name="beit_v2_large_patch16")
+
+
+""" EVA """
+
+
+def EvaLargePatch14(input_shape=(196, 196, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    patch_size = 14
+    embed_dim = 1024
+    depth = 24
+    num_heads = 16
+    gamma_init_value = 0
+    use_abs_pos_emb = True
+    attn_qkv_bias = True
+    return Beit(**locals(), model_name="eva_large_patch14", **kwargs)
+
+
+def EvaGiantPatch14(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    patch_size = 14
+    mlp_ratio = 6144 / 1408
+    embed_dim = 1408
+    depth = 40
+    num_heads = 16
+    gamma_init_value = 0
+    use_abs_pos_emb = True
+    return Beit(**locals(), model_name="eva_giant_patch14", **kwargs)
+
+
+""" FlexiViT """
+
+
+def FlexiViTSmall(input_shape=(240, 240, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    embed_dim = 384
+    depth = 12
+    num_heads = 6
+    gamma_init_value = 0
+    use_abs_pos_emb = True
+    use_abs_pos_emb_on_cls_token = False  # no_embed_class in timm
+    attn_qkv_bias = True
+    use_mean_pooling = False
+    return Beit(**locals(), model_name="flexivit_small", **kwargs)
+
+
+def FlexiViTBase(input_shape=(240, 240, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    embed_dim = 768
+    depth = 12
+    num_heads = 12
+    gamma_init_value = 0
+    use_abs_pos_emb = True
+    use_abs_pos_emb_on_cls_token = False  # no_embed_class in timm
+    attn_qkv_bias = True
+    use_mean_pooling = False
+    return Beit(**locals(), model_name="flexivit_base", **kwargs)
+
+
+def FlexiViTLarge(input_shape=(240, 240, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    embed_dim = 1024
+    depth = 24
+    num_heads = 16
+    gamma_init_value = 0
+    use_abs_pos_emb = True
+    use_abs_pos_emb_on_cls_token = False  # no_embed_class in timm
+    attn_qkv_bias = True
+    use_mean_pooling = False
+    return Beit(**locals(), model_name="flexivit_large", **kwargs)

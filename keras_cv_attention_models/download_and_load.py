@@ -73,8 +73,8 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, request_
         #     if isinstance(ii, mismatch_class):
         #         print(">>>> Reload layer:", ii.name)
         #         model.get_layer(ii.name).load_resized_weights(bb.get_layer(ii.name))
-        except:
-            print("[Error] something went wrong in load_weights_with_mismatch")
+        except Exception as error:
+            print("[Error] something went wrong in load_weights_with_mismatch:", error)
             pass
 
 
