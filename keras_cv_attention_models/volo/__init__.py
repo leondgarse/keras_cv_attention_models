@@ -230,6 +230,9 @@ Positional embedding shape is `[1, height, width, channel]`, then adds directly 
 input: `[batch, height, width, channel]`
 output: `[batch, height, width, channel]`
 
+Args:
+  input_height: specify `height` for inputs if not square `input_height != input_width`.
+
 Examples:
 
 >>> from keras_cv_attention_models import attention_layers

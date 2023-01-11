@@ -132,7 +132,6 @@ Args:
 EfficientNetV2T_GC.__doc__ = EfficientNetV2T.__doc__
 
 __v1_head_doc__ = """
-Github source [leondgarse/keras_efficientnet_v2](https://github.com/leondgarse/keras_efficientnet_v2).
 Keras implementation of [Github tensorflow/tpu/efficientnet](https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet).
 Paper [PDF 1911.04252 Self-training with Noisy Student improves ImageNet classification](https://arxiv.org/pdf/1911.04252.pdf).
 """

@@ -1,5 +1,6 @@
 # Keras_cv_attention_models
 - **coco_train_script.py is under testing. Still struggling for this...**
+- **`keras_cv_attention_models.ghostnetv2` is renamed as `keras_cv_attention_models.ghostnet`, and `keras_cv_attention_models.ghostnetv2` will be removed.**
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [General Usage](#general-usage)
@@ -12,7 +13,8 @@
   - [TFLite Conversion](#tflite-conversion)
 - [Recognition Models](#recognition-models)
   - [AotNet](#aotnet)
-  - [BEIT](#beit)
+  - [BEiT](#beit)
+  - [BEiTV2](#beitv2)
   - [BotNet](#botnet)
   - [CMT](#cmt)
   - [CoaT](#coat)
@@ -25,8 +27,12 @@
   - [EfficientFormer](#efficientformer)
   - [EfficientFormerV2](#efficientformerv2)
   - [EfficientNet](#efficientnet)
+  - [EfficientNetV2](#efficientnetv2)
+  - [EVA](#eva)
   - [FBNetV3](#fbnetv3)
+  - [FlexiViT](#flexivit)
   - [GCViT](#gcvit)
+  - [GhostNet](#ghostnet)
   - [GhostNetV2](#ghostnetv2)
   - [GMLP](#gmlp)
   - [HaloNet](#halonet)
@@ -416,8 +422,8 @@
   model = aotnet.AotNet50V2(attn_types=attn_types, se_ratio=se_ratio, stem_type="deep", strides=1)
   model.summary()
   ```
-## BEIT
-  - [Keras BEIT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) is for [PDF 2106.08254 BEIT: BERT Pre-Training of Image Transformers](https://arxiv.org/pdf/2106.08254.pdf).
+## BEiT
+  - [Keras BEiT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) includes models from [PDF 2106.08254 BEiT: BERT Pre-Training of Image Transformers](https://arxiv.org/pdf/2106.08254.pdf).
 
   | Model                 | Params  | FLOPs   | Input | Top1 Acc | Download                         |
   | --------------------- | ------- | ------- | ----- | -------- | -------------------------------- |
@@ -426,6 +432,15 @@
   | BeitLargePatch16, 21k | 304.43M | 61.68G  | 224   | 87.476   | [beit_large_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_224_imagenet21k-ft1k.h5) |
   |                       | 305.00M | 191.65G | 384   | 88.382   | [beit_large_patch16_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_384_imagenet21k-ft1k.h5) |
   |                       | 305.67M | 363.46G | 512   | 88.584   | [beit_large_patch16_512.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_512_imagenet21k-ft1k.h5) |
+## BEiTV2
+  - [Keras BEiT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) includes models from BeitV2 Paper [PDF 2208.06366 BEiT v2: Masked Image Modeling with Vector-Quantized Visual Tokenizers](https://arxiv.org/pdf/2208.06366.pdf).
+
+  | Model              | Params  | FLOPs  | Input | Top1 Acc | Download |
+  | ------------------ | ------- | ------ | ----- | -------- | -------- |
+  | BeitV2BasePatch16  | 86.53M  | 17.61G | 224   | 85.5     |          |
+  | - imagenet21k-ft1k | 86.53M  | 17.61G | 224   | 86.5     | [beit_v2_base_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_v2_base_patch16_224_imagenet21k-ft1k.h5)  |
+  | BeitV2BasePatch16  | 304.43M | 61.68G | 224   | 87.3     |          |
+  | - imagenet21k-ft1k | 304.43M | 61.68G | 224   | 88.4     | [beit_v2_large_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_v2_large_patch16_224_imagenet21k-ft1k.h5)  |
 ## BotNet
   - [Keras BotNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/botnet) is for [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://arxiv.org/pdf/2101.11605.pdf).
 
@@ -584,27 +599,7 @@
   | EfficientFormerV2S2, distill | 12.7M  | 1.27G  | 224   | 82.0     | [v2_s2_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientformer/efficientformer_v2_s2_224_imagenet.h5) |
   | EfficientFormerV2L, distill  | 26.3M  | 2.59G  | 224   | 83.5     | [v2_l_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientformer/efficientformer_v2_l_224_imagenet.h5) |
 ## EfficientNet
-  - [Keras EfficientNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientnet) includes implementation of [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298).
-
-  | V2 Model                   | Params | FLOPs  | Input | Top1 Acc | Download                                                                                                                                       |
-  | -------------------------- | ------ | ------ | ----- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-  | EfficientNetV2B0           | 7.1M   | 0.72G  | 224   | 78.7     | [effv2b0-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b0-imagenet.h5) |
-  | - ImageNet21k-ft1k         | 7.1M   | 0.72G  | 224   | 77.55?   | [effv2b0-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b0-21k-ft1k.h5) |
-  | EfficientNetV2B1           | 8.1M   | 1.21G  | 240   | 79.8     | [effv2b1-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b1-imagenet.h5) |
-  | - ImageNet21k-ft1k         | 8.1M   | 1.21G  | 240   | 79.03?   | [effv2b1-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b1-21k-ft1k.h5) |
-  | EfficientNetV2B2           | 10.1M  | 1.71G  | 260   | 80.5     | [effv2b2-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b2-imagenet.h5) |
-  | - ImageNet21k-ft1k         | 10.1M  | 1.71G  | 260   | 79.48?   | [effv2b2-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b2-21k-ft1k.h5) |
-  | EfficientNetV2B3           | 14.4M  | 3.03G  | 300   | 82.1     | [effv2b3-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b3-imagenet.h5) |
-  | - ImageNet21k-ft1k         | 14.4M  | 3.03G  | 300   | 82.46?   | [effv2b3-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b3-21k-ft1k.h5) |
-  | EfficientNetV2T            | 13.6M  | 3.18G  | 288   | 82.34    | [effv2t-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-t-imagenet.h5)   |
-  | EfficientNetV2T_GC         | 13.7M  | 3.19G  | 288   | 82.46    | [effv2t-gc-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-t-gc-imagenet.h5)   |
-  | EfficientNetV2S            | 21.5M  | 8.41G  | 384   | 83.9     | [effv2s-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-s-imagenet.h5)   |
-  | - ImageNet21k-ft1k         | 21.5M  | 8.41G  | 384   | 84.9     | [effv2s-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-s-21k-ft1k.h5)   |
-  | EfficientNetV2M            | 54.1M  | 24.69G | 480   | 85.2     | [effv2m-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-m-imagenet.h5)   |
-  | - ImageNet21k-ft1k         | 54.1M  | 24.69G | 480   | 86.2     | [effv2m-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-m-21k-ft1k.h5)   |
-  | EfficientNetV2L            | 119.5M | 56.27G | 480   | 85.7     | [effv2l-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-l-imagenet.h5)   |
-  | - ImageNet21k-ft1k         | 119.5M | 56.27G | 480   | 86.9     | [effv2l-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-l-21k-ft1k.h5)   |
-  | EfficientNetV2XL, 21k-ft1k | 206.8M | 93.66G | 512   | 87.2     | [effv2xl-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-xl-21k-ft1k.h5) |
+  - [Keras EfficientNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientnet) includes implementation of [PDF 1911.04252 Self-training with Noisy Student improves ImageNet classification](https://arxiv.org/pdf/1911.04252.pdf).
 
   | V1 Model                       | Params | FLOPs   | Input | Top1 Acc | Download |
   | ------------------------------ | ------ | ------- | ----- | -------- | -------- |
@@ -625,6 +620,38 @@
   | EfficientNetV1B7               | 66.3M  | 38.13G  | 600   | 85.2     | [effv1-b7-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-b7-imagenet.h5)           |
   | - NoisyStudent                 | 66.3M  | 38.13G  | 600   | 86.9     | [effv1-b7-noisy_student.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-b7-noisy_student.h5) |
   | EfficientNetV1L2, NoisyStudent | 480.3M | 477.98G | 800   | 88.4     | [effv1-l2-noisy_student.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-l2-noisy_student.h5) |
+## EfficientNetV2
+  - [Keras EfficientNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientnet) includes implementation of [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298).
+
+  | V2 Model                   | Params | FLOPs  | Input | Top1 Acc | Download |
+  | -------------------------- | ------ | ------ | ----- | -------- | -------- |
+  | EfficientNetV2B0           | 7.1M   | 0.72G  | 224   | 78.7     | [effv2b0-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b0-imagenet.h5) |
+  | - ImageNet21k-ft1k         | 7.1M   | 0.72G  | 224   | 77.55?   | [effv2b0-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b0-21k-ft1k.h5) |
+  | EfficientNetV2B1           | 8.1M   | 1.21G  | 240   | 79.8     | [effv2b1-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b1-imagenet.h5) |
+  | - ImageNet21k-ft1k         | 8.1M   | 1.21G  | 240   | 79.03?   | [effv2b1-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b1-21k-ft1k.h5) |
+  | EfficientNetV2B2           | 10.1M  | 1.71G  | 260   | 80.5     | [effv2b2-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b2-imagenet.h5) |
+  | - ImageNet21k-ft1k         | 10.1M  | 1.71G  | 260   | 79.48?   | [effv2b2-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b2-21k-ft1k.h5) |
+  | EfficientNetV2B3           | 14.4M  | 3.03G  | 300   | 82.1     | [effv2b3-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b3-imagenet.h5) |
+  | - ImageNet21k-ft1k         | 14.4M  | 3.03G  | 300   | 82.46?   | [effv2b3-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b3-21k-ft1k.h5) |
+  | EfficientNetV2T            | 13.6M  | 3.18G  | 288   | 82.34    | [effv2t-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-t-imagenet.h5)   |
+  | EfficientNetV2T_GC         | 13.7M  | 3.19G  | 288   | 82.46    | [effv2t-gc-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-t-gc-imagenet.h5)   |
+  | EfficientNetV2S            | 21.5M  | 8.41G  | 384   | 83.9     | [effv2s-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-s-imagenet.h5)   |
+  | - ImageNet21k-ft1k         | 21.5M  | 8.41G  | 384   | 84.9     | [effv2s-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-s-21k-ft1k.h5)   |
+  | EfficientNetV2M            | 54.1M  | 24.69G | 480   | 85.2     | [effv2m-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-m-imagenet.h5)   |
+  | - ImageNet21k-ft1k         | 54.1M  | 24.69G | 480   | 86.2     | [effv2m-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-m-21k-ft1k.h5)   |
+  | EfficientNetV2L            | 119.5M | 56.27G | 480   | 85.7     | [effv2l-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-l-imagenet.h5)   |
+  | - ImageNet21k-ft1k         | 119.5M | 56.27G | 480   | 86.9     | [effv2l-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-l-21k-ft1k.h5)   |
+  | EfficientNetV2XL, 21k-ft1k | 206.8M | 93.66G | 512   | 87.2     | [effv2xl-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-xl-21k-ft1k.h5) |
+## EVA
+  - [Keras EVA](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) includes models from [PDF 2211.07636 EVA: Exploring the Limits of Masked Visual Representation Learning at Scale](https://arxiv.org/pdf/2211.07636.pdf).
+
+  | Model                 | Params  | FLOPs    | Input | Top1 Acc | Download |
+  | --------------------- | ------- | -------- | ----- | -------- | -------- |
+  | EvaLargePatch14, 22k  | 304.14M | 61.65G   | 196   | 88.59    | [eva_large_patch14_196.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_large_patch14_196_imagenet21k-ft1k.h5) |
+  |                       | 304.53M | 191.55G  | 336   | 89.20    | [eva_large_patch14_336.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_large_patch14_336_imagenet21k-ft1k.h5) |
+  | EvaGiantPatch14, clip | 1012.6M | 267.40G  | 224   | 89.10    | [eva_giant_patch14_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_224_imagenet21k-ft1k.h5) |
+  | - m30m                | 1013.0M | 621.45G  | 336   | 89.57    | [eva_giant_patch14_336.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_336_imagenet21k-ft1k.h5) |
+  | - m30m                | 1014.4M | 1911.61G | 560   | 89.80    | [eva_giant_patch14_560.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_560_imagenet21k-ft1k.h5) |
 ## FBNetV3
   - [Keras FBNetV3](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#fbnetv3) includes implementation of [PDF 2006.02049 FBNetV3: Joint Architecture-Recipe Search using Predictor Pretraining](https://arxiv.org/pdf/2006.02049.pdf).
 
@@ -633,6 +660,14 @@
   | FBNetV3B | 5.57M  | 539.82M  | 256   | 79.15    | [fbnetv3_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/fbnetv3_b_imagenet.h5) |
   | FBNetV3D | 10.31M | 665.02M  | 256   | 79.68    | [fbnetv3_d_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/fbnetv3_d_imagenet.h5) |
   | FBNetV3G | 16.62M | 1379.30M | 256   | 82.05    | [fbnetv3_g_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/fbnetv3_g_imagenet.h5) |
+## FlexiViT
+  - [Keras FlexiViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) includes models from [PDF 2212.08013 FlexiViT: One Model for All Patch Sizes](https://arxiv.org/pdf/2212.08013.pdf).
+
+  | Model         | Params  | FLOPs  | Input | Top1 Acc | Download |
+  | ------------- | ------- | ------ | ----- | -------- | -------- |
+  | FlexiViTSmall | 22.06M  | 5.36G  | 240   | 82.53    | [flexivit_small_240.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/flexivit_small_240_imagenet.h5) |
+  | FlexiViTBase  | 86.59M  | 20.33G | 240   | 84.66    | [flexivit_base_240.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/flexivit_base_240_imagenet.h5) |
+  | FlexiViTLarge | 304.47M | 71.09G | 240   | 85.64    | [flexivit_large_240.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/flexivit_large_240_imagenet.h5) |
 ## GCViT
   - [Keras GCViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/gcvit) includes implementation of [PDF 2206.09959 Global Context Vision Transformers](https://arxiv.org/pdf/2206.09959.pdf).
 
@@ -643,8 +678,16 @@
   | GCViT_Tiny   | 28.2M  | 4.83G | 224   | 83.4     | [gcvit_tiny_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_tiny_224_imagenet.h5) |
   | GCViT_Small  | 51.1M  | 8.63G | 224   | 83.95    | [gcvit_small_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_small_224_imagenet.h5) |
   | GCViT_Base   | 90.3M  | 14.9G | 224   | 84.47    | [gcvit_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_base_224_imagenet.h5) |
+## GhostNet
+  - [Keras GhostNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/ghostnet) includes implementation of [PDF 1911.11907 GhostNet: More Features from Cheap Operations](https://arxiv.org/pdf/1911.11907.pdf).
+
+  | Model           | Params | FLOPs  | Input | Top1 Acc | Download |
+  | --------------- | ------ | ------ | ----- | -------- | -------- |
+  | GhostNet (0.5x) | 2.59M  | 42.6M  | 224   | 66.2     |          |
+  | GhostNet_100    | 5.18M  | 141.7M | 224   | 74.16    | [ghostnet_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_100_imagenet.h5) |
+  | GhostNet (1.3x) | 7.36M  | 227.7M | 224   | 75.7     |          |
 ## GhostNetV2
-  - [Keras GhostNetV2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/ghostnetv2) includes implementation of [PDF GhostNetV2: Enhance Cheap Operation with Long-Range Attention](https://openreview.net/pdf/6db544c65bbd0fa7d7349508454a433c112470e2.pdf).
+  - [Keras GhostNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/ghostnet) includes implementation of [PDF GhostNetV2: Enhance Cheap Operation with Long-Range Attention](https://openreview.net/pdf/6db544c65bbd0fa7d7349508454a433c112470e2.pdf).
 
   | Model             | Params | FLOPs  | Input | Top1 Acc | Download |
   | ----------------- | ------ | ------ | ----- | -------- | -------- |
@@ -652,12 +695,6 @@
   | GhostNetV2 (1.0x) | 6.12M  | 168.5M | 224   | 75.3     |          |
   | GhostNetV2 (1.3x) | 8.96M  | 271.1M | 224   | 76.9     |          |
   | GhostNetV2 (1.6x) | 12.39M | 400.9M | 224   | 77.8     |          |
-
-  | Model           | Params | FLOPs  | Input | Top1 Acc | Download |
-  | --------------- | ------ | ------ | ----- | -------- | -------- |
-  | GhostNet (0.5x) | 2.59M  | 42.6M  | 224   | 66.2     |          |
-  | GhostNet_100    | 5.18M  | 141.7M | 224   | 74.16    | [ghostnet_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_100_imagenet.h5) |
-  | GhostNet (1.3x) | 7.36M  | 227.7M | 224   | 75.7     |          |
 ## GMLP
   - [Keras GMLP](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#gmlp) includes implementation of [PDF 2105.08050 Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050.pdf).
 

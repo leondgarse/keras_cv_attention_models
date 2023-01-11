@@ -1,9 +1,11 @@
-# ___Keras BEIT___
+# ___Keras BEiT / ViT / FlexiViT / EVA___
 ***
 
 ## Summary
-  - Keras implementation of [beit](https://github.com/microsoft/unilm/tree/master/beit). Paper [PDF 2106.08254 BEIT: BERT Pre-Training of Image Transformers](https://arxiv.org/pdf/2106.08254.pdf).
-  - Model weights reloaded from [Github microsoft/beit](https://github.com/microsoft/unilm/tree/master/beit).
+  - Beit Paper [PDF 2106.08254 BEIT: BERT Pre-Training of Image Transformers](https://arxiv.org/pdf/2106.08254.pdf). Model weights reloaded from [Github microsoft/beit](https://github.com/microsoft/unilm/tree/master/beit).
+  - BeitV2 Paper [PDF 2208.06366 BEiT v2: Masked Image Modeling with Vector-Quantized Visual Tokenizers](https://arxiv.org/pdf/2208.06366.pdf).  Model weights reloaded from [Github microsoft/beit2](https://github.com/microsoft/unilm/tree/master/beit2)
+  - FlexiViT Paper [PDF 2212.08013 FlexiViT: One Model for All Patch Sizes](https://arxiv.org/pdf/2212.08013.pdf). Model weights reloaded from [Github google-research/big_vision](https://github.com/google-research/big_vision/tree/main/big_vision/configs/proj/flexivit).
+  - EVA Paper [PDF 2211.07636 EVA: Exploring the Limits of Masked Visual Representation Learning at Scale](https://arxiv.org/pdf/2211.07636.pdf). Model weights reloaded from [Github baaivision/EVA](https://github.com/baaivision/EVA).
 ***
 
 ## Models
@@ -14,6 +16,29 @@
   | BeitLargePatch16, 21k | 304.43M | 61.68G  | 224   | 87.476   | [beit_large_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_224_imagenet21k-ft1k.h5) |
   |                       | 305.00M | 191.65G | 384   | 88.382   | [beit_large_patch16_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_384_imagenet21k-ft1k.h5) |
   |                       | 305.67M | 363.46G | 512   | 88.584   | [beit_large_patch16_512.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_512_imagenet21k-ft1k.h5) |
+
+  | Model              | Params  | FLOPs  | Input | Top1 Acc | Download |
+  | ------------------ | ------- | ------ | ----- | -------- | -------- |
+  | BeitV2BasePatch16  | 86.53M  | 17.61G | 224   | 85.5     |          |
+  | - imagenet21k-ft1k | 86.53M  | 17.61G | 224   | 86.5     | [beit_v2_base_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_v2_base_patch16_224_imagenet21k-ft1k.h5)  |
+  | BeitV2BasePatch16  | 304.43M | 61.68G | 224   | 87.3     |          |
+  | - imagenet21k-ft1k | 304.43M | 61.68G | 224   | 88.4     | [beit_v2_large_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_v2_large_patch16_224_imagenet21k-ft1k.h5)  |
+
+  | Model         | Params  | FLOPs  | Input | Top1 Acc | Download |
+  | ------------- | ------- | ------ | ----- | -------- | -------- |
+  | FlexiViTSmall | 22.06M  | 5.36G  | 240   | 82.53    | [flexivit_small_240.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/flexivit_small_240_imagenet.h5) |
+  | FlexiViTBase  | 86.59M  | 20.33G | 240   | 84.66    | [flexivit_base_240.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/flexivit_base_240_imagenet.h5) |
+  | FlexiViTLarge | 304.47M | 71.09G | 240   | 85.64    | [flexivit_large_240.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/flexivit_large_240_imagenet.h5) |
+
+  - **EVA models** Note: `EvaGiantPatch14` weights are in `float16` format, as `float32` ones are too large that exceed 2GB.
+
+  | Model                 | Params  | FLOPs    | Input | Top1 Acc | Download |
+  | --------------------- | ------- | -------- | ----- | -------- | -------- |
+  | EvaLargePatch14, 22k  | 304.14M | 61.65G   | 196   | 88.59    | [eva_large_patch14_196.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_large_patch14_196_imagenet21k-ft1k.h5) |
+  |                       | 304.53M | 191.55G  | 336   | 89.20    | [eva_large_patch14_336.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_large_patch14_336_imagenet21k-ft1k.h5) |
+  | EvaGiantPatch14, clip | 1012.6M | 267.40G  | 224   | 89.10    | [eva_giant_patch14_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_224_imagenet21k-ft1k.h5) |
+  | - m30m                | 1013.0M | 621.45G  | 336   | 89.57    | [eva_giant_patch14_336.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_336_imagenet21k-ft1k.h5) |
+  | - m30m                | 1014.4M | 1911.61G | 560   | 89.80    | [eva_giant_patch14_560.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_560_imagenet21k-ft1k.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import beit
@@ -32,25 +57,37 @@
   #  ('n02127052', 'lynx', 0.013072581),
   #  ('n02123597', 'Siamese_cat', 0.0062989206)]
   ```
-  **Change input resolution** if input_shape is not within pre-trained, will load `MultiHeadRelativePositionalEmbedding` weights by `load_resized_weights`.
+  **Change input resolution** if input_shape is not within pre-trained, will load `MultiHeadRelativePositionalEmbedding` / `PositionalEmbedding` weights by `load_resized_weights`.
   ```py
   from keras_cv_attention_models import beit
-  mm = beit.BeitLargePatch16(input_shape=(640, 640, 3), num_classes=1000, pretrained="imagenet21k-ft1k")
-  # >>>> Load pretrained from: /home/leondgarse/.keras/models/beit_large_patch16_512.h5
-  # WARNING:tensorflow:Skipping loading of weights for layer block0_attn_pos_emb due to mismatch in shape ((6244, 16) vs (3972, 16)).
-  # ...
-  # WARNING:tensorflow:Skipping loading of weights for layer block23_attn_pos_emb due to mismatch in shape ((6244, 16) vs (3972, 16)).
-  # >>>> Reload mismatched PositionalEmbedding weights: 512 -> 640
-  # >>>> Reload layer: block0_attn_pos_emb
-  # ...
-  # >>>> Reload layer: block23_attn_pos_emb
+  mm = beit.EvaGiantPatch14(input_shape=(256, 160, 3), num_classes=1000)
+  # >>>> Load pretrained from: /home/leondgarse/.keras/models/eva_giant_patch14_224_imagenet21k-ft1k.h5
+  # WARNING:tensorflow:Skipping loading weights for layer #4 (named positional_embedding) due to mismatch in shape ...
+  # >>>> Reload mismatched weights: 224 -> (256, 160)
+  # >>>> Reload layer: positional_embedding
 
-  # Run prediction on Chelsea with (640, 640) resolution
+  # Run prediction on Chelsea with (256, 160) resolution
   from skimage.data import chelsea
   imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.53013486), ('n02123045', 'tabby', 0.18153024), ...]
+  # [('n02124075', 'Egyptian_cat', 0.7318501), ('n02123045', 'tabby', 0.021020193), ...]
+  ```
+## Custom ViT models load and convert weights from timm torch model
+  - `vit.keras_model_load_weights_from_pytorch_model` can be used for loading most `Beit` / `ViT` / `FlexViT` / `EVA` model weights from initialized timm torch model. Outputs is converted weight file, which can be used for afterward and further usage.
+  ```py
+  """ Build a timm ViT model """
+  import timm
+  torch_model = timm.models.vit_tiny_patch16_224(pretrained=True)
+  _ = torch_model.eval()
+
+  """ Build a ViT model same architecture with torch_model """
+  from keras_cv_attention_models import vit
+  mm = vit.ViT(depth=12, embed_dim=192, num_heads=3, pretrained=None, classifier_activation=None)
+  vit.keras_model_load_weights_from_pytorch_model(mm, torch_model)
+  # >>>> Save model to: vit_224.h5
+  # >>>> Keras model prediction: [('n02123045', 'tabby', 11.990417), ('n02123159', 'tiger_cat', 11.630723), ...]
+  # >>>> Torch model prediction: [[('n02123045', 'tabby', 11.99042), ('n02123159', 'tiger_cat', 11.630725), ...]
   ```
 ## Verification with PyTorch version
   ```py

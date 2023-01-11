@@ -4,6 +4,8 @@
 ## Summary
   - Merged from [Github leondgarse/keras_efficientnet_v2](https://github.com/leondgarse/keras_efficientnet_v2).
   - Keras implementation of [Official efficientnetv2](https://github.com/google/automl/tree/master/efficientnetv2). Article [arXiv 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298) by Mingxing Tan, Quoc V. Le.
+  - EfficientNetV2 paper [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/pdf/2104.00298.pdf). Official implementation [Github google/automl/efficientnetv2](https://github.com/google/automl/tree/master/efficientnetv2).
+  - EfficientNet paper [PDF 1911.04252 Self-training with Noisy Student improves ImageNet classification](https://arxiv.org/pdf/1911.04252.pdf). Official implementation [Github tensorflow/tpu/efficientnet](https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet).
   - `h5` model weights converted from official publication.
   - `effv2-t-imagenet.h5` model weights converted from [Github rwightman/pytorch-image-models](https://github.com/rwightman/pytorch-image-models#july-5-9-2021). which claimed both faster and better accuracy than `b3`. Please notice that `PyTorch` using different `bn_epsilon` and `padding` strategy.
 ***
@@ -29,7 +31,7 @@
   | - ImageNet21k-ft1k         | 119.5M | 56.27G | 480   | 86.9     | [effv2l-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-l-21k-ft1k.h5)   |
   | EfficientNetV2XL, 21k-ft1k | 206.8M | 93.66G | 512   | 87.2     | [effv2xl-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-xl-21k-ft1k.h5) |
 
-  - **EfficientNetV1 noisy_student models** from [Github tensorflow/tpu/efficientnet](https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet). Paper [PDF 1911.04252 Self-training with Noisy Student improves ImageNet classification](https://arxiv.org/pdf/1911.04252.pdf). Parameter `include_preprocessing=False` is added, and the default `False` value makes expecting input value in range `[-1, 1]`, same with `EfficientNetV2`. Default `pretrained` is `noisy_student`.
+  - **EfficientNetV1** parameter `include_preprocessing=False` is added, and the default `False` value makes expecting input value in range `[-1, 1]`, same with `EfficientNetV2`. Default `pretrained` is `noisy_student`.
 
   | V1 Model                       | Params | FLOPs   | Input | Top1 Acc | Download |
   | ------------------------------ | ------ | ------- | ----- | -------- | -------- |

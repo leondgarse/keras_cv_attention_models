@@ -4,9 +4,9 @@ from tensorflow import keras
 
 
 def reload_model_weights(model, pretrained_dict, sub_release, pretrained="imagenet", mismatch_class=None, request_resolution=-1, method="nearest"):
-    if pretrained is None:
+    if not isinstance(pretrained, str):
         return
-    if isinstance(pretrained, str) and pretrained.endswith(".h5"):
+    if pretrained.endswith(".h5"):
         print(">>>> Load pretrained from:", pretrained)
         # model.load_weights(pretrained, by_name=True, skip_mismatch=True)
         load_weights_with_mismatch(model, pretrained, mismatch_class, request_resolution, method)

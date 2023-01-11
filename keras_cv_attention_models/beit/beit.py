@@ -229,21 +229,21 @@ def Beit(
     mlp_ratio=4,
     patch_size=16,
     attn_key_dim=0,
-    attn_qv_bias=True,
-    attn_qkv_bias=False,  # if True, will just use bias in qkv_dense, and set qv_bias False.
+    attn_qv_bias=True,  # Default False for Vit, True for Beit, if True and attn_qkv_bias being False, will add BiasLayer for query and key.
+    attn_qkv_bias=False,  # True for Vit, False for Beit, if True, will just use bias in qkv_dense, and set qv_bias False.
     attn_out_weight=True,
     attn_out_bias=True,
     attn_dropout=0,
-    gamma_init_value=0.1,
-    use_abs_pos_emb=False,
-    use_abs_pos_emb_on_cls_token=True,  # no_embed_class in timm. If use_abs_pos_emb is True, whether apply pos_emb on cls_token.
+    gamma_init_value=0.1,  # 0 for Vit, 0.1 for Beit, if > 0 will use `layer_scale` on block output
+    use_abs_pos_emb=False,  # True for Vit, False for Beit, whether use abcolute positional embedding or relative one in attention blocks
+    use_abs_pos_emb_on_cls_token=True,  # False for FlexiViT, no_embed_class in timm. If use_abs_pos_emb is True, whether apply pos_emb on cls_token.
+    use_mean_pooling=True,  # False for Vit, True for Beit, whether use use mean output or `class_token` output
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",
     drop_connect_rate=0,
-    use_mean_pooling=True,
     classifier_activation="softmax",
-    pretrained="imagenet21k-ft1k",
+    pretrained=None,
     model_name="beit",
     kwargs=None,
 ):
@@ -256,9 +256,9 @@ def Beit(
 
     if use_abs_pos_emb and use_abs_pos_emb_on_cls_token:  # EvaLarge and EvaGiant
         nn = ClassToken(name="cls_token")(nn)
-        nn = PositionalEmbedding(name="positional_embedding")(nn)
+        nn = PositionalEmbedding(input_height=patch_height, name="positional_embedding")(nn)
     elif use_abs_pos_emb:  # FlexiViT models
-        nn = PositionalEmbedding(name="positional_embedding")(nn)
+        nn = PositionalEmbedding(input_height=patch_height, name="positional_embedding")(nn)
         nn = ClassToken(name="cls_token")(nn)
     else:  # Beit and BeitV2
         nn = ClassToken(name="cls_token")(nn)
@@ -325,65 +325,29 @@ def BeitV2LargePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="
     return BeitLargePatch16(**locals(), **kwarg, model_name="beit_v2_large_patch16")
 
 
-""" EVA """
+""" keras_model_load_weights_from_pytorch_model """
 
 
-def EvaLargePatch14(input_shape=(196, 196, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
-    patch_size = 14
-    embed_dim = 1024
-    depth = 24
-    num_heads = 16
-    gamma_init_value = 0
-    use_abs_pos_emb = True
-    attn_qkv_bias = True
-    return Beit(**locals(), model_name="eva_large_patch14", **kwargs)
+def keras_model_load_weights_from_pytorch_model(keras_model, timm_vit_model, save_name=None):
+    from keras_cv_attention_models import download_and_load, attention_layers
 
+    skip_weights = ["relative_position_index"]
+    unstack_weights = ["cls_token", "gamma_1", "gamma_2", "relative_position_bias_table", "q_bias", "v_bias", "pos_embed"]
+    tail_align_dict = {"attn_gamma": -6, "mlp_gamma": -9, "attn_query_bias": -1, "attn_value_bias": -1, "attn_pos_emb": -1}
+    full_name_align_dict = {"cls_token": -2 if "flexivit" in keras_model.name else -1, "positional_embedding": -1}
+    additional_transfer = {attention_layers.MultiHeadRelativePositionalEmbedding: lambda ww: [ww[0].T]}
 
-def EvaGiantPatch14(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
-    patch_size = 14
-    mlp_ratio = 6144 / 1408
-    embed_dim = 1408
-    depth = 40
-    num_heads = 16
-    gamma_init_value = 0
-    use_abs_pos_emb = True
-    return Beit(**locals(), model_name="eva_giant_patch14", **kwargs)
-
-
-""" FlexiViT """
-
-
-def FlexiViTSmall(input_shape=(240, 240, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
-    embed_dim = 384
-    depth = 12
-    num_heads = 6
-    gamma_init_value = 0
-    use_abs_pos_emb = True
-    use_abs_pos_emb_on_cls_token = False  # no_embed_class in timm
-    attn_qkv_bias = True
-    use_mean_pooling = False
-    return Beit(**locals(), model_name="flexivit_small", **kwargs)
-
-
-def FlexiViTBase(input_shape=(240, 240, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
-    embed_dim = 768
-    depth = 12
-    num_heads = 12
-    gamma_init_value = 0
-    use_abs_pos_emb = True
-    use_abs_pos_emb_on_cls_token = False  # no_embed_class in timm
-    attn_qkv_bias = True
-    use_mean_pooling = False
-    return Beit(**locals(), model_name="flexivit_base", **kwargs)
-
-
-def FlexiViTLarge(input_shape=(240, 240, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
-    embed_dim = 1024
-    depth = 24
-    num_heads = 16
-    gamma_init_value = 0
-    use_abs_pos_emb = True
-    use_abs_pos_emb_on_cls_token = False  # no_embed_class in timm
-    attn_qkv_bias = True
-    use_mean_pooling = False
-    return Beit(**locals(), model_name="flexivit_large", **kwargs)
+    download_and_load.keras_reload_from_torch_model(
+        torch_model=timm_vit_model,
+        keras_model=keras_model,
+        input_shape=keras_model.input_shape[1:-1],
+        skip_weights=skip_weights,
+        unstack_weights=unstack_weights,
+        tail_align_dict=tail_align_dict,
+        full_name_align_dict=full_name_align_dict,
+        tail_split_position=1,
+        additional_transfer=additional_transfer,
+        save_name=save_name if save_name is not None else (keras_model.name + "_{}.h5".format(keras_model.input_shape[1])),
+        do_convert=True,
+        # do_predict=False if "eva_giant" in keras_model.name else True,
+    )

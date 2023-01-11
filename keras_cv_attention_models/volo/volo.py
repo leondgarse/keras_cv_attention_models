@@ -188,23 +188,31 @@ def attention_mlp_block(inputs, embed_dim, num_heads=1, mlp_ratio=3, attention_t
 
 @tf.keras.utils.register_keras_serializable(package="volo")
 class PositionalEmbedding(keras.layers.Layer):
-    def __init__(self, **kwargs):
+    def __init__(self, input_height=-1, **kwargs):
         super(PositionalEmbedding, self).__init__(**kwargs)
         self.pp_init = tf.initializers.TruncatedNormal(stddev=0.2)
+        self.input_height = input_height
 
     def build(self, input_shape):
         self.pp = self.add_weight(name="positional_embedding", shape=(1, *input_shape[1:]), initializer=self.pp_init, trainable=True)
         super(PositionalEmbedding, self).build(input_shape)
 
         if len(input_shape) == 3:
+            # height and width in input_shape reshaped as one, like [None, 16 * 16 + 1, 32]
             self.is_fused_height_width = True
-            self.height = self.width = int(tf.math.sqrt(float(input_shape[1])))  # height and width in input_shape reshaped as one, like [None, 16 * 16 + 1, 32]
+            self.height = self.input_height if self.input_height > 0 else int(tf.math.sqrt(float(input_shape[1])))
+            self.width = input_shape[1] // self.height
         else:
             self.is_fused_height_width = False
             self.height, self.width = input_shape[1:3]
 
     def call(self, inputs, **kwargs):
         return inputs + self.pp
+
+    def get_config(self):
+        base_config = super().get_config()
+        base_config.update({"input_height": self.input_height})
+        return base_config
 
     def load_resized_weights(self, source_layer, method="nearest"):
         # For input 224 --> [1, 14, 14, 384], convert to 384 --> [1, 24, 24, 384]
