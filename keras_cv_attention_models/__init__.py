@@ -2,6 +2,8 @@ from .version import __version__
 from keras_cv_attention_models import attention_layers
 from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models import beit
+from keras_cv_attention_models.beit import vit
+from keras_cv_attention_models.beit import eva
 from keras_cv_attention_models import botnet
 from keras_cv_attention_models import coat
 from keras_cv_attention_models import coatnet
@@ -14,7 +16,8 @@ from keras_cv_attention_models import edgenext
 from keras_cv_attention_models import efficientformer
 from keras_cv_attention_models import efficientdet
 from keras_cv_attention_models import gcvit
-from keras_cv_attention_models import ghostnetv2
+from keras_cv_attention_models import ghostnet
+from keras_cv_attention_models import ghostnet as ghostnetv2  # Will be removed
 from keras_cv_attention_models import halonet
 from keras_cv_attention_models import hornet
 from keras_cv_attention_models import levit
