@@ -73,8 +73,34 @@
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 0.7318501), ('n02123045', 'tabby', 0.021020193), ...]
   ```
+## FlexiViT / EVA models with new patch size
+  - For `FlexiViT` / `EVA` models, when setting new `patch_size`, will reload `stem_conv` weights. Source implementation [Github google-research/big_vision/flexi](https://github.com/google-research/big_vision/blob/main/big_vision/models/proj/flexi/vit.py#L30), paper [PDF 2212.08013 FlexiViT: One Model for All Patch Sizes](https://arxiv.org/pdf/2212.08013.pdf).
+  - Not works for `BEiT` models.
+  ```py
+  from skimage.data import chelsea
+  from keras_cv_attention_models import flexivit, beit, eva
+
+  mm = flexivit.FlexiViTSmall(patch_size=32)  # Original is patch_size=16
+  # >>>> Reload mismatched weights: 240 -> (240, 240)
+  # >>>> Reload layer: positional_embedding
+  # >>>> Reload layer: stem_conv
+  print(mm.decode_predictions(mm(mm.preprocess_input(chelsea())))[0])
+  # [('n02124075', 'Egyptian_cat', 0.6939351), ('n02123045', 'tabby', 0.033506528), ...]
+  ```
+  **Also works for EVA models**
+  ```py
+  from skimage.data import chelsea
+  from keras_cv_attention_models import flexivit, beit, eva
+
+  mm = beit.EvaLargePatch14(patch_size=32)  # Original is patch_size=14
+  # >>>> Reload mismatched weights: 196 -> (196, 196)
+  # >>>> Reload layer: positional_embedding
+  # >>>> Reload layer: stem_conv
+  print(mm.decode_predictions(mm(mm.preprocess_input(chelsea())))[0])
+  # [('n02124075', 'Egyptian_cat', 0.47458684), ('n02123045', 'tabby', 0.04412323), ...]
+  ```
 ## Custom ViT models load and convert weights from timm torch model
-  - `vit.keras_model_load_weights_from_pytorch_model` can be used for loading most `Beit` / `ViT` / `FlexViT` / `EVA` model weights from initialized timm torch model. Outputs is converted weight file, which can be used for afterward and further usage.
+  - `keras_model_load_weights_from_pytorch_model` can be used for loading most `Beit` / `ViT` / `FlexViT` / `EVA` model weights from initialized timm torch model. Outputs is converted weight file, which can be used for afterward and further usage.
   ```py
   """ Build a timm ViT model """
   import timm
@@ -82,9 +108,9 @@
   _ = torch_model.eval()
 
   """ Build a ViT model same architecture with torch_model """
-  from keras_cv_attention_models import vit
-  mm = vit.ViT(depth=12, embed_dim=192, num_heads=3, pretrained=None, classifier_activation=None)
-  vit.keras_model_load_weights_from_pytorch_model(mm, torch_model)
+  from keras_cv_attention_models import flexivit
+  mm = flexivit.ViT(depth=12, embed_dim=192, num_heads=3, pretrained=None, classifier_activation=None)
+  flexivit.keras_model_load_weights_from_pytorch_model(mm, torch_model)
   # >>>> Save model to: vit_224.h5
   # >>>> Keras model prediction: [('n02123045', 'tabby', 11.990417), ('n02123159', 'tiger_cat', 11.630723), ...]
   # >>>> Torch model prediction: [[('n02123045', 'tabby', 11.99042), ('n02123159', 'tiger_cat', 11.630725), ...]

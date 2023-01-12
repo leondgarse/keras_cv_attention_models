@@ -224,11 +224,11 @@ class PositionalEmbedding(keras.layers.Layer):
         source_pp = tf.cast(source_pp, self.pp.dtype)
         if self.is_fused_height_width:
             hh = ww = int(tf.math.sqrt(float(source_pp.shape[1])))  # assume source weights are all square shape
-            ss = tf.reshape(source_pp[:, -hh * ww:], [1, hh, ww, -1])  # If has cls_token
+            ss = tf.reshape(source_pp[:, -hh * ww :], [1, hh, ww, -1])  # If has cls_token
             tt = tf.image.resize(ss, [self.height, self.width], method=method)
             tt = tf.reshape(tt, [1, self.height * self.width, -1])
 
-            tt = tf.concat([source_pp[:, :-hh * ww], tt], axis=1)  # If has cls_token
+            tt = tf.concat([source_pp[:, : -hh * ww], tt], axis=1)  # If has cls_token
         else:
             tt = tf.image.resize(source_pp, [self.height, self.width], method=method)
         self.pp.assign(tt)

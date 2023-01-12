@@ -56,7 +56,7 @@
   torch_model.load_state_dict(ss['state_dict'])
   _ = torch_model.eval()
 
-  """ Keras NAT_Mini """
+  """ Keras GCViT_Tiny """
   from keras_cv_attention_models import gcvit
   mm = gcvit.GCViT_Tiny(pretrained="imagenet", classifier_activation=None)
 

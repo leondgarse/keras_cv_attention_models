@@ -23,6 +23,7 @@ def ViT(
     drop_connect_rate=0,
     classifier_activation="softmax",
     pretrained=None,
+    force_reload_mismatch=False,  # set True if patch_size changed, will force reloading pos_emb and stem_conv weights
     model_name="vit",
     kwargs=None,
 ):
@@ -37,6 +38,7 @@ def FlexiViTSmall(input_shape=(240, 240, 3), num_classes=1000, activation="gelu"
     depth = 12
     num_heads = 6
     use_abs_pos_emb_on_cls_token = False  # no_embed_class in timm
+    force_reload_mismatch = kwargs.get("patch_size", 16) != 16  # If patch_size not 16, force reload pos_emb and stem_conv weights
     return ViT(**locals(), model_name="flexivit_small", **kwargs)
 
 
@@ -45,6 +47,7 @@ def FlexiViTBase(input_shape=(240, 240, 3), num_classes=1000, activation="gelu",
     depth = 12
     num_heads = 12
     use_abs_pos_emb_on_cls_token = False  # no_embed_class in timm
+    force_reload_mismatch = kwargs.get("patch_size", 16) != 16  # If patch_size not 16, force reload pos_emb and stem_conv weights
     return ViT(**locals(), model_name="flexivit_base", **kwargs)
 
 
@@ -53,4 +56,5 @@ def FlexiViTLarge(input_shape=(240, 240, 3), num_classes=1000, activation="gelu"
     depth = 24
     num_heads = 16
     use_abs_pos_emb_on_cls_token = False  # no_embed_class in timm
+    force_reload_mismatch = kwargs.get("patch_size", 16) != 16  # If patch_size not 16, force reload pos_emb and stem_conv weights
     return Beit(**locals(), model_name="flexivit_large", **kwargs)

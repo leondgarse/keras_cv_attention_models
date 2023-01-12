@@ -4,10 +4,11 @@ from keras_cv_attention_models.beit.beit import (
     BeitLargePatch16,
     BeitV2BasePatch16,
     BeitV2LargePatch16,
+    PatchConv2DWithResampleWeights,
     MultiHeadRelativePositionalEmbedding,
     keras_model_load_weights_from_pytorch_model,
 )
-from keras_cv_attention_models.beit.vit import ViT, FlexiViTSmall, FlexiViTBase, FlexiViTLarge
+from keras_cv_attention_models.beit.flexivit import ViT, FlexiViTSmall, FlexiViTBase, FlexiViTLarge
 from keras_cv_attention_models.beit.eva import EvaLargePatch14, EvaGiantPatch14
 
 __beit_head_doc__ = """
@@ -48,6 +49,7 @@ __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like 
       Default is `None`.
   pretrained: one of `None` (random initialization) or 'imagenet21k-ft1k' (pre-training on ImageNet21k and fine-tuned ImageNet).
       Will try to download and load pre-trained model weights if not None.
+  force_reload_mismatch: boolean value, set True if `patch_size` changed, will force reloading `pos_emb` and `stem_conv` weights.
 
 Returns:
     A `keras.Model` instance.
@@ -158,6 +160,13 @@ Examples:
 # {'multi_head_relative_positional_embedding_1/pos_emb:0': (3249, 8)}
 
 >>> plt.imshow(aa.relative_position_index)
+"""
+
+PatchConv2DWithResampleWeights.__doc__ = __flexivit_head_doc__ + """
+Source implementation https://github.com/google-research/big_vision/blob/main/big_vision/models/proj/flexi/vit.py#L30
+Typical Conv2D layer with `load_resized_weights` function, also using PyTorch padding style.
+
+Args: Same with Conv2D.
 """
 
 keras_model_load_weights_from_pytorch_model.__doc__ = """

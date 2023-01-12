@@ -222,6 +222,60 @@ class HeadInitializer(tf.initializers.Initializer):
         return base_config
 
 
+@tf.keras.utils.register_keras_serializable(package="beit")
+class PatchConv2DWithResampleWeights(keras.layers.Conv2D):
+    def __init__(self, filters, kernel_size=1, strides=1, padding="valid", use_bias=True, groups=1, **kwargs):
+        super().__init__(filters, kernel_size=kernel_size, strides=strides, padding="valid", use_bias=use_bias, groups=groups, **kwargs)
+        self.padding = padding
+
+    def build(self, input_shape):
+        pad = (self.kernel_size[0] // 2, self.kernel_size[1] // 2)
+        if self.padding.upper() == "SAME" and max(pad) != 0:
+            self.pad = [[0, 0], [pad[0], pad[0]], [pad[1], pad[1]], [0, 0]]
+        else:
+            self.pad = None
+        super().build(input_shape)
+
+    def call(self, inputs, **kwargs):
+        if self.pad is not None:
+            inputs = tf.pad(inputs, self.pad)
+        return super().call(inputs)
+
+    def load_resized_weights(self, source_layer, method="bilinear"):
+        import numpy as np
+
+        if isinstance(source_layer, dict):
+            source_kernel, source_bias = source_layer["kernel:0"], source_layer["bias:0"]  # weights
+        else:
+            source_kernel, source_bias = source_layer.kernel, source_layer.bias  # layer
+
+        # From FlexiViT https://github.com/google-research/big_vision/blob/main/big_vision/models/proj/flexi/vit.py#L30
+        # Paper [PDF 2212.08013 FlexiViT: One Model for All Patch Sizes](https://arxiv.org/pdf/2212.08013.pdf)
+
+        # assume it's channel_last format, source_kernel shape `[patch_size, patch_size, in_channel, out_channel]`
+        source_kernel = np.array(source_kernel)
+        source_shape, target_shape = source_kernel.shape[:2], self.kernel_size
+
+        # get_resize_mat(old_shape, target_shape)
+        # NOTE: we are using tf.image.resize here to match the resize operations in
+        # the data preprocessing pipeline.
+        mat = []
+        for idx in range(source_shape[0] * source_shape[1]):
+            basis_vec = np.zeros(source_shape)
+            basis_vec[np.unravel_index(idx, source_shape)] = 1.0
+            vec = tf.image.resize(np.expand_dims(basis_vec, -1), target_shape, method=method).numpy().reshape(-1)
+            mat.append(vec)
+        resize_mat_pinv = np.linalg.pinv(np.stack(mat))
+
+        # v_resample_kernel = jax.vmap(jax.vmap(lambda kernel: (resize_mat_pinv @ kernel.reshape(-1)).reshape(new_hw), 2, 2), 3, 3)
+        # cc = v_resample_kernel(old)
+        # As it's only one weight, just using two loop here, instead of `jax.vmap`
+        target_weights = np.stack([[(resize_mat_pinv @ jj.reshape(-1)).reshape(target_shape) for jj in ii] for ii in source_kernel.transpose([3, 2, 0, 1])])
+        target_weights = target_weights.transpose([2, 3, 1, 0])
+        self.kernel.assign(target_weights)
+        self.bias.assign(source_bias)
+
+
 def Beit(
     depth=12,
     embed_dim=768,
@@ -244,13 +298,15 @@ def Beit(
     drop_connect_rate=0,
     classifier_activation="softmax",
     pretrained=None,
+    force_reload_mismatch=False,  # set True if patch_size changed, will force reloading pos_emb and stem_conv weights
     model_name="beit",
     kwargs=None,
 ):
     inputs = keras.layers.Input(input_shape)
 
     """ forward_embeddings """
-    nn = conv2d_no_bias(inputs, embed_dim, patch_size, strides=patch_size, padding="valid", use_bias=True, name="stem_")
+    # nn = conv2d_no_bias(inputs, embed_dim, patch_size, strides=patch_size, padding="valid", use_bias=True, name="stem_")
+    nn = PatchConv2DWithResampleWeights(embed_dim, patch_size, strides=patch_size, padding="valid", use_bias=True, name="stem_conv")(inputs)
     patch_height = nn.shape[1]
     nn = keras.layers.Reshape([-1, nn.shape[-1]])(nn)
 
@@ -295,7 +351,8 @@ def Beit(
         )(nn)
     model = tf.keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="tf")
-    reload_model_weights(model, PRETRAINED_DICT, "beit", pretrained, PositionalEmbedding if use_abs_pos_emb else MultiHeadRelativePositionalEmbedding)
+    mismatch_class = [PatchConv2DWithResampleWeights, PositionalEmbedding if use_abs_pos_emb else MultiHeadRelativePositionalEmbedding]
+    reload_model_weights(model, PRETRAINED_DICT, "beit", pretrained, mismatch_class, force_reload_mismatch)
     return model
 
 
@@ -304,6 +361,7 @@ def BeitBasePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gel
     depth = 12
     num_heads = 12
     gamma_init_value = 0.1
+    force_reload_mismatch = kwargs.get("patch_size", 16) != 16  # If patch_size not 16, force reload pos_emb and stem_conv weights
     kwargs.pop("kwargs", None)  # From BeitV2BasePatch16
     return Beit(**locals(), model_name=kwargs.pop("model_name", "beit_base_patch16"), **kwargs)
 
@@ -317,12 +375,15 @@ def BeitLargePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="ge
     depth = 24
     num_heads = 16
     gamma_init_value = 1e-5
+    force_reload_mismatch = kwargs.get("patch_size", 16) != 16  # If patch_size not 16, force reload pos_emb and stem_conv weights
     kwargs.pop("kwargs", None)  # From BeitV2LargePatch16
     return Beit(**locals(), model_name=kwargs.pop("model_name", "beit_large_patch16"), **kwargs)
 
 
-def BeitV2LargePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwarg):
-    return BeitLargePatch16(**locals(), **kwarg, model_name="beit_v2_large_patch16")
+def BeitV2LargePatch16(
+    input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs
+):
+    return BeitLargePatch16(**locals(), **kwargs, model_name="beit_v2_large_patch16")
 
 
 """ keras_model_load_weights_from_pytorch_model """

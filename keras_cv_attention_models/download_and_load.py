@@ -3,13 +3,15 @@ import tensorflow as tf
 from tensorflow import keras
 
 
-def reload_model_weights(model, pretrained_dict, sub_release, pretrained="imagenet", mismatch_class=None, request_resolution=-1, method="nearest"):
+def reload_model_weights(
+    model, pretrained_dict, sub_release, pretrained="imagenet", mismatch_class=None, force_reload_mismatch=False, request_resolution=-1, method=None
+):
     if not isinstance(pretrained, str):
         return
     if pretrained.endswith(".h5"):
         print(">>>> Load pretrained from:", pretrained)
         # model.load_weights(pretrained, by_name=True, skip_mismatch=True)
-        load_weights_with_mismatch(model, pretrained, mismatch_class, request_resolution, method)
+        load_weights_with_mismatch(model, pretrained, mismatch_class, request_resolution=request_resolution, method=method)
         return pretrained
 
     file_hash = pretrained_dict.get(model.name, {}).get(pretrained, None)
@@ -42,29 +44,37 @@ def reload_model_weights(model, pretrained_dict, sub_release, pretrained="imagen
     else:
         print(">>>> Load pretrained from:", pretrained_model)
         # model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
-        load_weights_with_mismatch(model, pretrained_model, mismatch_class, request_resolution, method)
+        load_weights_with_mismatch(model, pretrained_model, mismatch_class, force_reload_mismatch, request_resolution, method)
         return pretrained_model
 
 
-def load_weights_with_mismatch(model, weight_file, mismatch_class=None, request_resolution=-1, method="nearest"):
+def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_reload_mismatch=False, request_resolution=-1, method=None):
     model.load_weights(weight_file, by_name=True, skip_mismatch=True)
     input_height, input_width = model.input_shape[1], model.input_shape[2]
+
     # if mismatch_class is not None:
-    if mismatch_class is not None and (request_resolution != input_height or request_resolution != input_width):
+    if mismatch_class is not None and (force_reload_mismatch or request_resolution != input_height or request_resolution != input_width):
         try:
             import h5py
 
             print(">>>> Reload mismatched weights: {} -> {}".format(request_resolution, (input_height, input_width)))
             ff = h5py.File(weight_file, mode="r")
             weights = ff["model_weights"]
+
+            if isinstance(mismatch_class, (list, tuple)):
+                is_mismatch_class = lambda xx: any([isinstance(ii, mm) for mm in mismatch_class])
+            else:
+                is_mismatch_class = lambda xx: isinstance(ii, mismatch_class)
+
+            method_kwarg = {} if method is None else {"method": method}  # None for using class default one
             for ii in model.layers:
-                if isinstance(ii, mismatch_class) and ii.name in weights:
+                if is_mismatch_class(ii) and ii.name in weights:
                     print(">>>> Reload layer:", ii.name)
                     ss = weights[ii.name]
                     # ss = {ww.decode().split("/")[-1] : tf.convert_to_tensor(ss[ww]) for ww in ss.attrs['weight_names']}
                     ss = {ww.decode("utf8") if hasattr(ww, "decode") else ww: tf.convert_to_tensor(ss[ww]) for ww in ss.attrs["weight_names"]}
                     ss = {kk.split("/")[-1]: vv for kk, vv in ss.items()}
-                    model.get_layer(ii.name).load_resized_weights(ss, method=method)
+                    model.get_layer(ii.name).load_resized_weights(ss, **method_kwarg)
             ff.close()
 
         # print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
@@ -76,6 +86,9 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, request_
         except Exception as error:
             print("[Error] something went wrong in load_weights_with_mismatch:", error)
             pass
+
+
+""" Convert PyTorch weights """
 
 
 def state_dict_stack_by_layer(state_dict, skip_weights=["num_batches_tracked"], unstack_weights=[]):
