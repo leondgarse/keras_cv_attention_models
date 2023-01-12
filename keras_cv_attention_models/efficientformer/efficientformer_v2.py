@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
+    add_with_layer_scale_and_drop_block,
     batchnorm_with_activation,
     conv2d_no_bias,
     ChannelAffine,
@@ -98,7 +99,7 @@ def conv_mhsa_with_multi_head_position(
     if strides > 1:
         attention_output = keras.layers.UpSampling2D(size=(strides, strides), interpolation="bilinear")(attention_output)
         if should_cut_height > 0 or should_cut_width > 0:
-            attention_output = attention_output[:, :attention_output.shape[1] - should_cut_height, :attention_output.shape[2] - should_cut_width]
+            attention_output = attention_output[:, : attention_output.shape[1] - should_cut_height, : attention_output.shape[2] - should_cut_width]
 
     # [batch, hh, ww, num_heads * value_dim] * [num_heads * value_dim, out] --> [batch, hh, ww, out]
     attention_output = activation_by_name(attention_output, activation=activation, name=name)
@@ -120,13 +121,6 @@ def mlp_block_with_additional_depthwise_conv(inputs, hidden_dim, output_channel=
     nn = batchnorm_with_activation(nn, activation=None, name=name + "2_")
     nn = keras.layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
     return nn
-
-
-def res_layer_scale_drop_block(short, deep, layer_scale=0, drop_rate=0, name=""):
-    deep = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "gamma")(deep) if layer_scale >= 0 else deep
-    deep = drop_block(deep, drop_rate=drop_rate, name=name)
-    # print(f">>>> {short.shape = }, {deep.shape = }")
-    return keras.layers.Add(name=name + "output")([short, deep])
 
 
 def down_sample_block(inputs, out_channel, use_attn=False, activation="gelu", name=""):
@@ -186,9 +180,9 @@ def EfficientFormerV2(
             if block_id > num_block - cur_num_attn_blocks - 1:
                 strides = 2 if stack_id == 2 else 1
                 attn_out = conv_mhsa_with_multi_head_position(nn, num_heads=8, key_dim=32, strides=strides, activation=activation, name=block_name + "attn_")
-                nn = res_layer_scale_drop_block(nn, attn_out, layer_scale=layer_scale, drop_rate=block_drop_rate, name=block_name + "attn_")
+                nn = add_with_layer_scale_and_drop_block(nn, attn_out, layer_scale=layer_scale, drop_rate=block_drop_rate, name=block_name + "attn_")
             mlp_out = mlp_block_with_additional_depthwise_conv(nn, nn.shape[-1] * cur_mlp_ratio, activation=activation, name=block_name + "mlp_")
-            nn = res_layer_scale_drop_block(nn, mlp_out, layer_scale=layer_scale, drop_rate=block_drop_rate, name=block_name + "mlp_")
+            nn = add_with_layer_scale_and_drop_block(nn, mlp_out, layer_scale=layer_scale, drop_rate=block_drop_rate, name=block_name + "mlp_")
             global_block_id += 1
 
     """ output """

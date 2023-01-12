@@ -92,6 +92,9 @@ MLP block
 Args:
   inputs: Input tensor.
   hidden_dim: Expanded channel dimension for the first `Dense` layer.
+  output_channel: Number of block output channels. Default `-1` for same with inputs.
+  drop_rate: Dropout rate for inner and output. Default `0` for not using Dropout.
+  use_conv: Boolean value whether using `Dense` or `Conv2D` layer. Default False.
   activation: activation applied, default `gelu`.
 
 Examples:

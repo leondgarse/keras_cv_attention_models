@@ -64,6 +64,14 @@ def global_response_normalize(inputs, name=None):
     return nn + inputs
 
 
+def add_with_layer_scale_and_drop_block(short, deep, layer_scale=0, drop_rate=0, name=""):
+    """Just simplify calling, perform `out = short + drop_block(layer_scale(deep))`"""
+    deep = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "gamma")(deep) if layer_scale > 0 else deep
+    deep = drop_block(deep, drop_rate=drop_rate, name=name)
+    # print(f">>>> {short.shape = }, {deep.shape = }")
+    return keras.layers.Add(name=name + "output")([short, deep])
+
+
 def block(inputs, output_channel, layer_scale_init_value=1e-6, use_grn=False, drop_rate=0, activation="gelu", name=""):
     nn = depthwise_conv2d_no_bias(inputs, kernel_size=7, padding="SAME", use_bias=True, name=name)
     nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name=name)
@@ -72,10 +80,7 @@ def block(inputs, output_channel, layer_scale_init_value=1e-6, use_grn=False, dr
     if use_grn:
         nn = global_response_normalize(nn, name=name + "grn_")
     nn = keras.layers.Dense(output_channel, name=name + "down_dense")(nn)
-    if layer_scale_init_value > 0:
-        nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale_init_value, name=name + "gamma")(nn)
-    nn = drop_block(nn, drop_rate=drop_rate, name=name)
-    return keras.layers.Add(name=name + "output")([inputs, nn])
+    return add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale_init_value, drop_rate=drop_rate, name=name)
 
 
 def ConvNeXt(

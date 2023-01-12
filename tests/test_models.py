@@ -385,6 +385,14 @@ def test_NAT_Mini_new_shape_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_PVT_V2B0_new_shape_predict():
+    mm = keras_cv_attention_models.pvt.PVT_V2B0(input_shape=(174, 255, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_MaxViT_Tiny_new_shape_predict():
     mm = keras_cv_attention_models.maxvit.MaxViT_Tiny(input_shape=(174, 255, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat

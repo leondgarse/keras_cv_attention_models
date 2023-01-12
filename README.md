@@ -46,6 +46,7 @@
   - [MobileViT_V2](#mobilevit_v2)
   - [NAT](#nat)
   - [NFNets](#nfnets)
+  - [PVT_V2](#pvt_v2)
   - [RegNetY](#regnety)
   - [RegNetZ](#regnetz)
   - [ResMLP](#resmlp)
@@ -869,6 +870,17 @@
   | ECA_NFNetL1 | 41.41M | 14.93G  | 320   | 84.01    | [eca_nfnetl1_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/eca_nfnetl1_imagenet.h5) |
   | ECA_NFNetL2 | 56.72M | 30.12G  | 384   | 84.70    | [eca_nfnetl2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/eca_nfnetl2_imagenet.h5) |
   | ECA_NFNetL3 | 72.04M | 52.73G  | 448   |          |          |
+## PVT_V2
+  - [Keras PVT_V2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/pvt) is for [PDF 2106.13797 PVTv2: Improved Baselines with Pyramid Vision Transformer](https://arxiv.org/pdf/2106.13797.pdf).
+
+  | Model    | Params | FLOPs  | Input | Top1 Acc | Download |
+  | -------- | ------ | ------ | ----- | -------- | -------- |
+  | PVT_V2B0 | 3.7G   | 580.3M | 224   | 70.5     | [pvt_v2_b0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b0_imagenet.h5) |
+  | PVT_V2B1 | 14.0G  | 2.14G  | 224   | 78.7     | [pvt_v2_b1_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b1_imagenet.h5) |
+  | PVT_V2B2 | 25.4   | 4.07G  | 224   | 82.0     | [pvt_v2_b2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b2_imagenet.h5) |
+  | PVT_V2B3 | 45.2   | 6.96G  | 224   | 83.1     | [pvt_v2_b3_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b3_imagenet.h5) |
+  | PVT_V2B4 | 62.6   | 10.19G | 224   | 83.6     | [pvt_v2_b4_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b4_imagenet.h5) |
+  | PVT_V2B5 | 82.0   | 11.81G | 224   | 83.8     | [pvt_v2_b5_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b5_imagenet.h5) |
 ## RegNetY
   - [Keras RegNetY](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnet_family#regnety) is for [PDF 2003.13678 Designing Network Design Spaces](https://arxiv.org/pdf/2003.13678.pdf).
 

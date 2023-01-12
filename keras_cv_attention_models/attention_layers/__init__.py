@@ -34,12 +34,17 @@ from keras_cv_attention_models.mlp_family.mlp_mixer import mlp_block, mixer_bloc
 from keras_cv_attention_models.mlp_family.res_mlp import ChannelAffine
 from keras_cv_attention_models.mlp_family.gated_mlp import spatial_gating_block
 from keras_cv_attention_models.mlp_family.wave_mlp import phase_aware_token_mixing
-from keras_cv_attention_models.levit.levit import MultiHeadPositionalEmbedding, mhsa_with_multi_head_position, mhsa_with_multi_head_position_and_strides
+from keras_cv_attention_models.levit.levit import (
+    MultiHeadPositionalEmbedding,
+    mhsa_with_multi_head_position,
+    mhsa_with_multi_head_position_and_strides,
+    scaled_dot_product_attention,
+)
 from keras_cv_attention_models.nat.nat import MultiHeadRelativePositionalKernelBias, neighborhood_attention
 from keras_cv_attention_models.nfnets.nfnets import ScaledStandardizedConv2D, ZeroInitGain
-from keras_cv_attention_models.beit.beit import MultiHeadRelativePositionalEmbedding, HeadInitializer
+from keras_cv_attention_models.beit.beit import MultiHeadRelativePositionalEmbedding, HeadInitializer, PatchConv2DWithResampleWeights
 from keras_cv_attention_models.coatnet.coatnet import mhsa_with_multi_head_relative_position_embedding
-from keras_cv_attention_models.convnext.convnext import global_response_normalize
+from keras_cv_attention_models.convnext.convnext import global_response_normalize, add_with_layer_scale_and_drop_block
 from keras_cv_attention_models.cmt.cmt import light_mhsa_with_multi_head_relative_position_embedding, BiasPositionalEmbedding
 from keras_cv_attention_models.uniformer.uniformer import multi_head_self_attention
 from keras_cv_attention_models.davit.davit import multi_head_self_attention_channel, window_attention

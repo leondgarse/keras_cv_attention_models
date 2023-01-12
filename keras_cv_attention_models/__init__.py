@@ -2,7 +2,7 @@ from .version import __version__
 from keras_cv_attention_models import attention_layers
 from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models import beit
-from keras_cv_attention_models.beit import vit
+from keras_cv_attention_models.beit import flexivit
 from keras_cv_attention_models.beit import eva
 from keras_cv_attention_models import botnet
 from keras_cv_attention_models import coat
@@ -34,6 +34,7 @@ from keras_cv_attention_models import maxvit
 from keras_cv_attention_models import mobilevit
 from keras_cv_attention_models import nat
 from keras_cv_attention_models import nfnets
+from keras_cv_attention_models import pvt
 from keras_cv_attention_models import resnest
 from keras_cv_attention_models import resnet_family
 from keras_cv_attention_models.resnet_family import resnext

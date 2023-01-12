@@ -87,27 +87,29 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
         return fig
 
 
-def scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_shape, use_bn=True, out_bias=False, activation=None, name=None):
-    height, width, output_dim = output_shape
-    # qq, kk, vv: [batch, num_heads, blocks, key_dim]
-    qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
-    # print(f"{qq.shape = }, {kk.shape = }")
-    # attn = tf.matmul(qq, kk, transpose_b=True) * qk_scale   # [batch, num_heads, q_blocks, k_blocks]
-    attn = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1], transpose_b=True))([qq, kk]) * qk_scale
-    # print(f"{attn.shape = }")
-    attn = MultiHeadPositionalEmbedding(query_height=height, name=name and name + "attn_pos")(attn)
-    # attn = tf.nn.softmax(attn, axis=-1)
-    attn = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attn)
+def scaled_dot_product_attention(query, key, value, output_shape, pos_emb=None, out_weight=True, out_bias=False, dropout=0, activation=None, name=None):
+    height, width, output_dim = output_shape[-3:]
+    # query, value: [batch, num_heads, blocks, key_dim], key: [batch, num_heads, key_dim, blocks]
+    qk_scale = float(1.0 / tf.math.sqrt(tf.cast(query.shape[-1], "float32")))
+    # print(f"{query.shape = }, {key.shape = }")
+    attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, q_blocks, k_blocks]
+    # print(f"{attention_scores.shape = }")
+    if pos_emb is not None:
+        # attention_scores = MultiHeadPositionalEmbedding(query_height=height, name=name and name + "attn_pos")(attention_scores)
+        attention_scores = pos_emb(attention_scores)
+    attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
+    if dropout > 0:
+        attention_scores = keras.layers.Dropout(dropout, name=name and name + "attn_drop")(attention_scores)
 
-    # output = tf.matmul(attn, vv)    # [batch, num_heads, q_blocks, key_dim * attn_ratio]
-    output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attn, vv])
+    # output = tf.matmul(attention_scores, value)    # [batch, num_heads, q_blocks, key_dim * attn_ratio]
+    output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
     output = tf.transpose(output, perm=[0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
     output = tf.reshape(output, [-1, height, width, output.shape[2] * output.shape[3]])  # [batch, q_blocks, channel * attn_ratio]
     if activation:
         output = activation_by_name(output, activation=activation, name=name)
-    output = keras.layers.Dense(output_dim, use_bias=out_bias, name=name and name + "out")(output)
-    if use_bn:
-        output = batchnorm_with_activation(output, activation=None, zero_gamma=True, name=name and name + "out_")
+    if out_weight:
+        # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
+        output = keras.layers.Dense(output_dim, use_bias=out_bias, name=name and name + "out")(output)
     return output
 
 
@@ -123,10 +125,15 @@ def mhsa_with_multi_head_position(
     qkv = keras.layers.Dense(qkv_dim, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
     qkv = batchnorm_with_activation(qkv, activation=None, name=name and name + "qkv_") if use_bn else qkv
     qkv = tf.reshape(qkv, (-1, qkv.shape[1] * qkv.shape[2], num_heads, qkv_dim // num_heads))
-    qkv = tf.transpose(qkv, perm=[0, 2, 1, 3])
     qq, kk, vv = tf.split(qkv, [key_dim, key_dim, key_dim * attn_ratio], axis=-1)
+    qq, kk, vv = tf.transpose(qq, [0, 2, 1, 3]), tf.transpose(kk, [0, 2, 3, 1]), tf.transpose(vv, [0, 2, 1, 3])
+
     output_shape = (height, width, output_dim)
-    return scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_shape, use_bn, out_bias, activation=activation, name=name)
+    pos_emb = MultiHeadPositionalEmbedding(query_height=height, name=name and name + "attn_pos")
+    output = scaled_dot_product_attention(qq, kk, vv, output_shape, pos_emb=pos_emb, out_bias=out_bias, activation=activation, name=name)
+    if use_bn:
+        output = batchnorm_with_activation(output, activation=None, zero_gamma=True, name=name and name + "out_")
+    return output
 
 
 def mhsa_with_multi_head_position_and_strides(
@@ -151,11 +158,16 @@ def mhsa_with_multi_head_position_and_strides(
     kv = keras.layers.Dense(kv_dim, use_bias=qkv_bias, name=name and name + "kv")(inputs)
     kv = batchnorm_with_activation(kv, activation=None, name=name and name + "kv_") if use_bn else kv
     kv = tf.reshape(kv, (-1, kv.shape[1] * kv.shape[2], num_heads, kv_dim // num_heads))
-    kv = tf.transpose(kv, perm=[0, 2, 1, 3])
     kk, vv = tf.split(kv, [key_dim, key_dim * attn_ratio], axis=-1)
+    kk, vv = tf.transpose(kk, [0, 2, 3, 1]), tf.transpose(vv, [0, 2, 1, 3])
+
     output_shape = (height, width, output_dim)
     # print(f"{qq.shape = }, {kk.shape = }, {vv.shape = }, {output_shape = }")
-    return scaled_dot_product_attention(qq, kk, vv, key_dim, attn_ratio, output_shape, use_bn, out_bias, activation=activation, name=name)
+    pos_emb = MultiHeadPositionalEmbedding(query_height=height, name=name and name + "attn_pos")
+    output = scaled_dot_product_attention(qq, kk, vv, output_shape, pos_emb=pos_emb, out_bias=out_bias, activation=activation, name=name)
+    if use_bn:
+        output = batchnorm_with_activation(output, activation=None, zero_gamma=True, name=name and name + "out_")
+    return output
 
 
 def res_mhsa_with_multi_head_position(inputs, embed_dim, num_heads, key_dim, attn_ratio, drop_rate=0, activation="hard_swish", name=""):
