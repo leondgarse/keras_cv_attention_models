@@ -9,12 +9,12 @@
 ## Models
   | Model        | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------ | ------ | ------ | ----- | -------- | -------- |
-  | IFormerSmall | 19.9G  | 4.88G  | 224   | 83.4     | [iformer_small_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_small_224_imagenet.h5) |
-  |              | 20.9G  | 16.29G | 384   | 84.6     | [iformer_small_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_small_384_imagenet.h5) |
-  | IFormerBase  | 47.9G  | 9.44G  | 224   | 84.6     | [iformer_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_base_224_imagenet.h5) |
-  |              | 48.9G  | 30.86G | 384   | 85.7     | [iformer_base_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_base_384_imagenet.h5) |
-  | IFormerLarge | 86.6G  | 14.12G | 224   | 84.6     | [iformer_large_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_largel_224_imagenet.h5) |
-  |              | 87.7G  | 45.74M | 384   | 85.8     | [iformer_large_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_largel_384_imagenet.h5) |
+  | IFormerSmall | 19.9M  | 4.88G  | 224   | 83.4     | [iformer_small_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_small_224_imagenet.h5) |
+  |              | 20.9M  | 16.29G | 384   | 84.6     | [iformer_small_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_small_384_imagenet.h5) |
+  | IFormerBase  | 47.9M  | 9.44G  | 224   | 84.6     | [iformer_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_base_224_imagenet.h5) |
+  |              | 48.9M  | 30.86G | 384   | 85.7     | [iformer_base_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_base_384_imagenet.h5) |
+  | IFormerLarge | 86.6M  | 14.12G | 224   | 84.6     | [iformer_large_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_largel_224_imagenet.h5) |
+  |              | 87.7M  | 45.74G | 384   | 85.8     | [iformer_large_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_largel_384_imagenet.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import iformer

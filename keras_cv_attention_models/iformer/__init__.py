@@ -38,12 +38,12 @@ Args:
 Model architectures:
   | Model        | Params | FLOPs  | Input | Top1 Acc |
   | ------------ | ------ | ------ | ----- | -------- |
-  | IFormerSmall | 19.9G  | 4.88G  | 224   | 83.4     |
-  |              | 20.9G  | 16.29G | 384   | 84.6     |
-  | IFormerBase  | 47.9G  | 9.44G  | 224   | 84.6     |
-  |              | 48.9G  | 30.86G | 384   | 85.7     |
-  | IFormerLarge | 86.6G  | 14.12G | 224   | 84.6     |
-  |              | 87.7G  | 45.74M | 384   | 85.8     |
+  | IFormerSmall | 19.9M  | 4.88G  | 224   | 83.4     |
+  |              | 20.9M  | 16.29G | 384   | 84.6     |
+  | IFormerBase  | 47.9M  | 9.44G  | 224   | 84.6     |
+  |              | 48.9M  | 30.86G | 384   | 85.7     |
+  | IFormerLarge | 86.6M  | 14.12G | 224   | 84.6     |
+  |              | 87.7M  | 45.74G | 384   | 85.8     |
 """
 
 IFormerSmall.__doc__ = __head_doc__ + """

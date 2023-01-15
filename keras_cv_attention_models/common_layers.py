@@ -284,7 +284,7 @@ def output_block(inputs, filters=0, activation="relu", num_classes=1000, drop_ra
         nn = batchnorm_with_activation(nn, activation=activation, act_first=act_first, epsilon=bn_eps, name="features_")
 
     if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn) if len(nn.shape) == 4 else nn
         if drop_rate > 0:
             nn = keras.layers.Dropout(drop_rate, name="head_drop")(nn)
         nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)

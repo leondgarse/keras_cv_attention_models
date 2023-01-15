@@ -319,6 +319,14 @@ def test_FBNetV3B_dynamic_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_GPViT_L1_new_shape_predict():
+    mm = keras_cv_attention_models.gpvit.GPViT_L1(input_shape=(112, 157, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=(112, 157, 3)))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_GhostNetV2_100_dynamic_predict():
     mm = keras_cv_attention_models.ghostnet.GhostNetV2_100(input_shape=(None, None, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea(), input_shape=(112, 157, 3)))  # Chelsea the cat

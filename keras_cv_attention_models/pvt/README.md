@@ -9,13 +9,13 @@
 ## Models
   | Model           | Params | FLOPs  | Input | Top1 Acc | Download |
   | --------------- | ------ | ------ | ----- | -------- | -------- |
-  | PVT_V2B0        | 3.7G   | 580.3M | 224   | 70.5     | [pvt_v2_b0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b0_imagenet.h5) |
-  | PVT_V2B1        | 14.0G  | 2.14G  | 224   | 78.7     | [pvt_v2_b1_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b1_imagenet.h5) |
-  | PVT_V2B2        | 25.4G  | 4.07G  | 224   | 82.0     | [pvt_v2_b2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b2_imagenet.h5) |
-  | PVT_V2B2_linear | 22.6G  | 3.94G  | 224   | 82.1     | [pvt_v2_b2_linear.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b2_linear_imagenet.h5) |
-  | PVT_V2B3        | 45.2G  | 6.96G  | 224   | 83.1     | [pvt_v2_b3_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b3_imagenet.h5) |
-  | PVT_V2B4        | 62.6G  | 10.19G | 224   | 83.6     | [pvt_v2_b4_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b4_imagenet.h5) |
-  | PVT_V2B5        | 82.0G  | 11.81G | 224   | 83.8     | [pvt_v2_b5_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b5_imagenet.h5) |
+  | PVT_V2B0        | 3.7M   | 580.3M | 224   | 70.5     | [pvt_v2_b0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b0_imagenet.h5) |
+  | PVT_V2B1        | 14.0M  | 2.14G  | 224   | 78.7     | [pvt_v2_b1_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b1_imagenet.h5) |
+  | PVT_V2B2        | 25.4M  | 4.07G  | 224   | 82.0     | [pvt_v2_b2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b2_imagenet.h5) |
+  | PVT_V2B2_linear | 22.6M  | 3.94G  | 224   | 82.1     | [pvt_v2_b2_linear.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b2_linear_imagenet.h5) |
+  | PVT_V2B3        | 45.2M  | 6.96G  | 224   | 83.1     | [pvt_v2_b3_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b3_imagenet.h5) |
+  | PVT_V2B4        | 62.6M  | 10.19G | 224   | 83.6     | [pvt_v2_b4_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b4_imagenet.h5) |
+  | PVT_V2B5        | 82.0M  | 11.81G | 224   | 83.8     | [pvt_v2_b5_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b5_imagenet.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import pvt

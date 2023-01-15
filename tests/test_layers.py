@@ -207,9 +207,9 @@ def test_mhsa_with_multi_head_relative_position_embedding():
     assert out.shape == [input_shape[0], input_shape[1], input_shape[2], out_shape]
 
 
-def test_mixer_block():
+def test_mlp_mixer_block():
     input_shape = [2, 28 * 28, 192]
-    out = attention_layers.mixer_block(tf.ones(input_shape), tokens_mlp_dim=14 * 14, channels_mlp_dim=9 * 4)
+    out = attention_layers.mlp_mixer_block(tf.ones(input_shape), tokens_mlp_dim=14 * 14, channels_mlp_dim=9 * 4)
     assert out.shape == input_shape
 
 
