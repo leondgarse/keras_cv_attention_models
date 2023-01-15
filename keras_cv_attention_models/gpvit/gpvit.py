@@ -220,7 +220,7 @@ def GPViT(
     nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
     model = tf.keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
-    reload_model_weights(model, PRETRAINED_DICT, "gp_vit", pretrained, PositionalEmbedding)
+    reload_model_weights(model, PRETRAINED_DICT, "gpvit", pretrained, PositionalEmbedding)
     return model
 
 
