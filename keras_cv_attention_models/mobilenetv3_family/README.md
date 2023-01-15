@@ -50,11 +50,14 @@
   | Model    | Params | FLOPs   | Input | Top1 Acc | Download |
   | -------- | ------ | ------- | ----- | -------- | -------- |
   | LCNet050 | 1.88M  | 46.02M  | 224   | 63.10    | [lcnet_050_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_050_imagenet.h5) |
+  | - ssld   | 1.88M  | 46.02M  | 224   | 66.10    | [lcnet_050_ssld.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_050_ssld.h5) |
   | LCNet075 | 2.36M  | 96.82M  | 224   | 68.82    | [lcnet_075_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_075_imagenet.h5) |
   | LCNet100 | 2.95M  | 158.28M | 224   | 72.10    | [lcnet_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_100_imagenet.h5) |
+  | - ssld   | 2.95M  | 158.28M | 224   | 74.39    | [lcnet_100_ssld.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_100_ssld.h5) |
   | LCNet150 | 4.52M  | 338.05M | 224   | 73.71    | [lcnet_150_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_150_imagenet.h5) |
   | LCNet200 | 6.54M  | 585.35M | 224   | 75.18    | [lcnet_200_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_200_imagenet.h5) |
   | LCNet250 | 9.04M  | 900.16M | 224   | 76.60    | [lcnet_250_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_250_imagenet.h5) |
+  | - ssld   | 9.04M  | 900.16M | 224   | 80.82    | [lcnet_250_ssld.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_250_ssld.h5) |
 ## MobileNetV3
   - [PDF 1905.02244 Searching for MobileNetV3](https://arxiv.org/pdf/1905.02244.pdf).
   - Model structure and weights reloaded from [timm/mobilenetv3](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/mobilenetv3.py).

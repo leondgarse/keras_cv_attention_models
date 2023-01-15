@@ -63,7 +63,9 @@ __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like 
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
   dropout: dropout rate if top layers is included.
-  pretrained: None or "imagenet". Only CMTTiny pretrained available.
+  pretrained: None or one of ["imagenet", "miil", "miil_21k", "ssld"].
+      ["miil", "miil_21k"] for `MobileNetV3Large100`.
+      "ssld" for `LCNet050` `LCNet100` `LCNet250`.
   **kwargs: other parameters if available.
 
 Returns:
@@ -138,11 +140,14 @@ Model architectures:
   | Model    | Params | FLOPs   | Input | Top1 Acc |
   | -------- | ------ | ------- | ----- | -------- |
   | LCNet050 | 1.88M  | 46.02M  | 224   | 63.10    |
+  | - ssld   | 1.88M  | 46.02M  | 224   | 66.10    |
   | LCNet075 | 2.36M  | 96.82M  | 224   | 68.82    |
   | LCNet100 | 2.95M  | 158.28M | 224   | 72.10    |
+  | - ssld   | 2.95M  | 158.28M | 224   | 74.39    |
   | LCNet150 | 4.52M  | 338.05M | 224   | 73.71    |
   | LCNet200 | 6.54M  | 585.35M | 224   | 75.18    |
   | LCNet250 | 9.04M  | 900.16M | 224   | 76.60    |
+  | - ssld   | 9.04M  | 900.16M | 224   | 80.82    |
 """
 
 LCNet050.__doc__ = __lcnet_head_doc__ + """
