@@ -18,16 +18,16 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 LAYER_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
-    "iformer_base": {"imagenet": {224: "90c8fe1307bc8cbd73f5a7358e65956d"}},
-    "iformer_large": {"imagenet": {224: "2a116d5780a551846761aa43b1d74395"}},
-    "iformer_small": {"imagenet": {224: "de2f8262da0cc1c6df43b32b827444f1"}},
+    "iformer_base": {"imagenet": {224: "90c8fe1307bc8cbd73f5a7358e65956d", 384: "11d150c128a65f8dcc95871e87209491"}},
+    "iformer_large": {"imagenet": {224: "2a116d5780a551846761aa43b1d74395", 384: "b21ae4484d1f5da7f1425ac301248e29"}},
+    "iformer_small": {"imagenet": {224: "de2f8262da0cc1c6df43b32b827444f1", 384: "e1c7f4e52abf3514437138c62194d2d7"}},
 }
 
 
 def attention_low_frequency_mixer(inputs, num_heads=4, pool_size=1, dropout=0, name=""):
     if pool_size > 1:
         orign_height, orign_width = inputs.shape[1], inputs.shape[2]
-        inputs = keras.layers.AvgPool2D(pool_size, strides=pool_size, name=name + "avg_down")(inputs)
+        inputs = keras.layers.AvgPool2D(pool_size, strides=pool_size, padding="same", name=name + "avg_down")(inputs)
     nn = multi_head_self_attention(inputs, num_heads=num_heads, qkv_bias=True, out_weight=False, attn_dropout=dropout, name=name + "attn_")
     if pool_size > 1:
         nn = keras.layers.UpSampling2D(size=pool_size, name=name + "up")(nn)
@@ -37,30 +37,34 @@ def attention_low_frequency_mixer(inputs, num_heads=4, pool_size=1, dropout=0, n
 
 
 def conv_high_frequency_mixer(inputs, activation="gelu", name=""):
+    nn = conv2d_no_bias(inputs, inputs.shape[-1] * 2, kernel_size=1, name=name)
+    nn = depthwise_conv2d_no_bias(nn, kernel_size=3, padding="same", name=name)
+    nn = activation_by_name(nn, activation=activation, name=name)
+    return nn
+
+
+def pool_high_frequency_mixer(inputs, activation="gelu", name=""):
+    nn = keras.layers.MaxPooling2D(3, strides=1, padding="SAME", name=name + "max")(inputs)
+    nn = conv2d_no_bias(nn, inputs.shape[-1] * 2, kernel_size=1, use_bias=True, name=name)
+    nn = activation_by_name(nn, activation=activation, name=name)
+    return nn
+
+
+def conv_pool_attention_mixer(inputs, num_heads=4, key_dim=0, num_attn_low_heads=1, pool_size=1, dropout=0, activation="gelu", name=""):
     input_channel = inputs.shape[-1]
-    conv_branch, pool_branch = tf.split(inputs, 2, axis=-1)
-
-    conv_branch = conv2d_no_bias(conv_branch, input_channel, kernel_size=1, name=name + "conv_branch_")
-    conv_branch = depthwise_conv2d_no_bias(conv_branch, kernel_size=3, padding="same", name=name + "conv_branch_")
-    conv_branch = activation_by_name(conv_branch, activation=activation, name=name + "conv_branch_")
-
-    pool_branch = keras.layers.MaxPooling2D(3, strides=1, padding="SAME", name=name + "pool_branch_max")(pool_branch)
-    pool_branch = conv2d_no_bias(pool_branch, input_channel, kernel_size=1, use_bias=True, name=name + "pool_branch_")
-    pool_branch = activation_by_name(pool_branch, activation=activation, name=name + "pool_branch_")
-    return tf.concat([conv_branch, pool_branch], axis=-1)
-
-
-def conv_attention_mixer(inputs, num_heads=4, key_dim=0, num_attn_low_heads=1, pool_size=1, dropout=0, activation="gelu", name=""):
-    _, hh, ww, input_channel = inputs.shape
     key_dim = key_dim if key_dim > 0 else input_channel // num_heads
-    attention_low_channels = num_attn_low_heads * key_dim
+    attention_channels = num_attn_low_heads * key_dim
+    conv_channels = (input_channel - attention_channels) // 2
+    pool_channels = input_channel - attention_channels - conv_channels
+    conv_branch, pool_branch, attention_branch = tf.split(inputs, [conv_channels, pool_channels, attention_channels], axis=-1)
+    # print(f"{key_dim = }, {num_heads = }, {num_attn_low_heads = }, {attention_channels = }")
 
-    # print(f"{key_dim = }, {num_heads = }, {num_attn_low_heads = }, {attention_low_channels = }")
-    conv_high, attention_low = tf.split(inputs, [-1, attention_low_channels], axis=-1)
-    conv_high = conv_high_frequency_mixer(conv_high, activation="gelu", name=name + "high_")
-    attention_low = attention_low_frequency_mixer(attention_low, num_heads=num_attn_low_heads, pool_size=pool_size, dropout=dropout, name=name + "low_")
-    high_low = tf.concat([conv_high, attention_low], axis=-1)
-    # print(f"{conv_high.shape = }, {attention_low.shape = }, {high_low.shape = }")
+    conv_branch = conv_high_frequency_mixer(conv_branch, activation=activation, name=name + "high_conv_branch_")
+    pool_branch = pool_high_frequency_mixer(pool_branch, activation=activation, name=name + "high_pool_branch_")
+    attention_branch = attention_low_frequency_mixer(attention_branch, num_heads=num_attn_low_heads, pool_size=pool_size, dropout=dropout, name=name + "low_")
+    high_low = tf.concat([conv_branch, pool_branch, attention_branch], axis=-1)
+    # print(f"{conv_branch.shape = }, {pool_branch.shape = }, {attention_branch.shape = }, {high_low.shape = }")
+
     high_low_fused = depthwise_conv2d_no_bias(high_low, kernel_size=3, padding="same", name=name + "fuse_")
     high_low_out = keras.layers.Add()([high_low, high_low_fused])
 
@@ -75,7 +79,7 @@ def attention_mlp_block(inputs, num_heads=8, num_attn_low_heads=1, pool_size=1, 
 
     """ attention """
     nn = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, name=name + "attn_")
-    nn = conv_attention_mixer(nn, num_heads=num_heads, num_attn_low_heads=num_attn_low_heads, pool_size=pool_size, activation=activation, name=name + "attn_")
+    nn = conv_pool_attention_mixer(nn, num_heads, num_attn_low_heads=num_attn_low_heads, pool_size=pool_size, activation=activation, name=name + "attn_")
     attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "attn_")
 
     """ MLP """
@@ -91,13 +95,13 @@ def InceptionTransformer(
     num_heads=[3, 6, 10, 12],
     num_attn_low_heads=[1, 3, [7] * 4 + [9] * 5, 11],
     pool_sizes=[2, 2, 1, 1],
-    layer_scales=[0, 0, 1e-6, 1e-6],
     mlp_ratios=4,
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",
     drop_connect_rate=0,
     dropout=0,
+    layer_scales=[0, 0, 1e-6, 1e-6],
     classifier_activation="softmax",
     pretrained=None,
     model_name="iformer",

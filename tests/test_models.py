@@ -343,6 +343,14 @@ def test_HorNetTinyGF_new_shape_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_IFormerSmall_new_shape_predict():
+    mm = keras_cv_attention_models.iformer.IFormerSmall(input_shape=(174, 255, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_RegNetZB16_predict():
     mm = keras_cv_attention_models.resnet_family.RegNetZB16(pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat

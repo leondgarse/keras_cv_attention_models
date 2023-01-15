@@ -20,6 +20,7 @@ from keras_cv_attention_models import ghostnet
 from keras_cv_attention_models import ghostnet as ghostnetv2  # Will be removed
 from keras_cv_attention_models import halonet
 from keras_cv_attention_models import hornet
+from keras_cv_attention_models import iformer
 from keras_cv_attention_models import levit
 from keras_cv_attention_models import mlp_family
 from keras_cv_attention_models.mlp_family import mlp_mixer
