@@ -37,6 +37,7 @@
   - [GMLP](#gmlp)
   - [HaloNet](#halonet)
   - [HorNet](#hornet)
+  - [IFormer](#iformer)
   - [LCNet](#lcnet)
   - [LeViT](#levit)
   - [MaxViT](#maxvit)
@@ -682,11 +683,12 @@
 ## GhostNet
   - [Keras GhostNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/ghostnet) includes implementation of [PDF 1911.11907 GhostNet: More Features from Cheap Operations](https://arxiv.org/pdf/1911.11907.pdf).
 
-  | Model           | Params | FLOPs  | Input | Top1 Acc | Download |
-  | --------------- | ------ | ------ | ----- | -------- | -------- |
-  | GhostNet (0.5x) | 2.59M  | 42.6M  | 224   | 66.2     |          |
-  | GhostNet_100    | 5.18M  | 141.7M | 224   | 74.16    | [ghostnet_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_100_imagenet.h5) |
-  | GhostNet (1.3x) | 7.36M  | 227.7M | 224   | 75.7     |          |
+  | Model        | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ------------ | ------ | ------ | ----- | -------- | -------- |
+  | GhostNet_050 | 2.59M  | 42.6M  | 224   | 66.88    | [ghostnet_050_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_050_imagenet.h5) |
+  | GhostNet_100 | 5.18M  | 141.7M | 224   | 74.16    | [ghostnet_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_100_imagenet.h5) |
+  | GhostNet_130 | 7.36M  | 227.7M | 224   | 75.79    | [ghostnet_130_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_130_imagenet.h5) |
+  | - ssld       | 7.36M  | 227.7M | 224   | 79.38    | [ghostnet_130_ssld.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_130_ssld.h5) |
 ## GhostNetV2
   - [Keras GhostNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/ghostnet) includes implementation of [PDF GhostNetV2: Enhance Cheap Operation with Long-Range Attention](https://openreview.net/pdf/6db544c65bbd0fa7d7349508454a433c112470e2.pdf).
 
@@ -738,17 +740,31 @@
   | HorNetLarge   | 194.5M | 34.91G | 224   | 86.8     | [hornet_large_224_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hornet/hornet_large_224_imagenet22k.h5) |
   | HorNetLargeGF | 196.3M | 34.72G | 224   | 87.0     | [hornet_large_gf_224_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hornet/hornet_large_gf_224_imagenet22k.h5) |
   | HorNetLargeGF | 201.8M | 102.0G | 384   | 87.7     | [hornet_large_gf_384_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hornet/hornet_large_gf_384_imagenet22k.h5) |
+## IFormer
+  - [Keras IFormer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/iformer) is for [PDF 2205.12956 Inception Transformer](https://arxiv.org/pdf/2205.12956.pdf).
+
+  | Model        | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ------------ | ------ | ------ | ----- | -------- | -------- |
+  | IFormerSmall | 19.9G  | 4.88G  | 224   | 83.4     | [iformer_small_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_small_224_imagenet.h5) |
+  |              | 20.9G  | 16.29G | 384   | 84.6     | [iformer_small_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_small_384_imagenet.h5) |
+  | IFormerBase  | 47.9G  | 9.44G  | 224   | 84.6     | [iformer_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_base_224_imagenet.h5) |
+  |              | 48.9G  | 30.86G | 384   | 85.7     | [iformer_base_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_base_384_imagenet.h5) |
+  | IFormerLarge | 86.6G  | 14.12G | 224   | 84.6     | [iformer_large_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_largel_224_imagenet.h5) |
+  |              | 87.7G  | 45.74M | 384   | 85.8     | [iformer_large_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_largel_384_imagenet.h5) |
 ## LCNet
   - [Keras LCNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#lcnet) includes implementation of [PDF 2109.15099 PP-LCNet: A Lightweight CPU Convolutional Neural Network](https://arxiv.org/pdf/2109.15099.pdf).
 
   | Model    | Params | FLOPs   | Input | Top1 Acc | Download |
   | -------- | ------ | ------- | ----- | -------- | -------- |
   | LCNet050 | 1.88M  | 46.02M  | 224   | 63.10    | [lcnet_050_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_050_imagenet.h5) |
+  | - ssld   | 1.88M  | 46.02M  | 224   | 66.10    | [lcnet_050_ssld.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_050_ssld.h5) |
   | LCNet075 | 2.36M  | 96.82M  | 224   | 68.82    | [lcnet_075_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_075_imagenet.h5) |
   | LCNet100 | 2.95M  | 158.28M | 224   | 72.10    | [lcnet_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_100_imagenet.h5) |
+  | - ssld   | 2.95M  | 158.28M | 224   | 74.39    | [lcnet_100_ssld.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_100_ssld.h5) |
   | LCNet150 | 4.52M  | 338.05M | 224   | 73.71    | [lcnet_150_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_150_imagenet.h5) |
   | LCNet200 | 6.54M  | 585.35M | 224   | 75.18    | [lcnet_200_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_200_imagenet.h5) |
   | LCNet250 | 9.04M  | 900.16M | 224   | 76.60    | [lcnet_250_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_250_imagenet.h5) |
+  | - ssld   | 9.04M  | 900.16M | 224   | 80.82    | [lcnet_250_ssld.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_250_ssld.h5) |
 ## LeViT
   - [Keras LeViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/levit) is for [PDF 2104.01136 LeViT: a Vision Transformer in ConvNet’s Clothing for Faster Inference](https://arxiv.org/pdf/2104.01136.pdf).
 
@@ -873,14 +889,15 @@
 ## PVT_V2
   - [Keras PVT_V2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/pvt) is for [PDF 2106.13797 PVTv2: Improved Baselines with Pyramid Vision Transformer](https://arxiv.org/pdf/2106.13797.pdf).
 
-  | Model    | Params | FLOPs  | Input | Top1 Acc | Download |
-  | -------- | ------ | ------ | ----- | -------- | -------- |
-  | PVT_V2B0 | 3.7G   | 580.3M | 224   | 70.5     | [pvt_v2_b0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b0_imagenet.h5) |
-  | PVT_V2B1 | 14.0G  | 2.14G  | 224   | 78.7     | [pvt_v2_b1_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b1_imagenet.h5) |
-  | PVT_V2B2 | 25.4   | 4.07G  | 224   | 82.0     | [pvt_v2_b2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b2_imagenet.h5) |
-  | PVT_V2B3 | 45.2   | 6.96G  | 224   | 83.1     | [pvt_v2_b3_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b3_imagenet.h5) |
-  | PVT_V2B4 | 62.6   | 10.19G | 224   | 83.6     | [pvt_v2_b4_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b4_imagenet.h5) |
-  | PVT_V2B5 | 82.0   | 11.81G | 224   | 83.8     | [pvt_v2_b5_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b5_imagenet.h5) |
+  | Model           | Params | FLOPs  | Input | Top1 Acc | Download |
+  | --------------- | ------ | ------ | ----- | -------- | -------- |
+  | PVT_V2B0        | 3.7G   | 580.3M | 224   | 70.5     | [pvt_v2_b0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b0_imagenet.h5) |
+  | PVT_V2B1        | 14.0G  | 2.14G  | 224   | 78.7     | [pvt_v2_b1_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b1_imagenet.h5) |
+  | PVT_V2B2        | 25.4G  | 4.07G  | 224   | 82.0     | [pvt_v2_b2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b2_imagenet.h5) |
+  | PVT_V2B2_linear | 22.6G  | 3.94G  | 224   | 82.1     | [pvt_v2_b2_linear.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b2_linear_imagenet.h5) |
+  | PVT_V2B3        | 45.2G  | 6.96G  | 224   | 83.1     | [pvt_v2_b3_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b3_imagenet.h5) |
+  | PVT_V2B4        | 62.6G  | 10.19G | 224   | 83.6     | [pvt_v2_b4_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b4_imagenet.h5) |
+  | PVT_V2B5        | 82.0G  | 11.81G | 224   | 83.8     | [pvt_v2_b5_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b5_imagenet.h5) |
 ## RegNetY
   - [Keras RegNetY](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnet_family#regnety) is for [PDF 2003.13678 Designing Network Design Spaces](https://arxiv.org/pdf/2003.13678.pdf).
 

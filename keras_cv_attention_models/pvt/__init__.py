@@ -1,4 +1,4 @@
-from keras_cv_attention_models.pvt.pvt import PyramidVisionTransformerV2, PVT_V2B0, PVT_V2B1, PVT_V2B2, PVT_V2B3, PVT_V2B4, PVT_V2B5
+from keras_cv_attention_models.pvt.pvt import PyramidVisionTransformerV2, PVT_V2B0, PVT_V2B1, PVT_V2B2, PVT_V2B2_linear, PVT_V2B3, PVT_V2B4, PVT_V2B5
 
 __head_doc__ = """
 Keras implementation of [Github whai362/PVT](https://github.com/whai362/PVT/tree/v2/classification).
@@ -29,21 +29,23 @@ PyramidVisionTransformerV2.__doc__ = __head_doc__ + """
 Args:
   num_blocks: number of blocks in each stack.
   embed_dims: output channels for each stack.
-  num_heads: int or list value indicates heads number for transformer blocks in each stack
+  num_heads: int or list value indicates heads number for transformer blocks in each stack.
   mlp_ratios: int or list value indicates expand ratio for mlp blocks hidden channel in each stack.
-  sr_ratios: int or list value indicates attenstion blocks key_value downsample rate in each stack
+  sr_ratios: int or list value indicates attention blocks key_value downsample rate in each stack.
   stem_patch_size: stem patch size. Default `7`.
+  use_linear: boolean value if using linear complexity attention layer with `AvgPool2D`. True for `PVT_V2B2_linear`.
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model    | Params | FLOPs  | Input | Top1 Acc |
-  | -------- | ------ | ------ | ----- | -------- |
-  | PVT_V2B0 | 3.7G   | 580.3M | 224   | 70.5     |
-  | PVT_V2B1 | 14.0G  | 2.14G  | 224   | 78.7     |
-  | PVT_V2B2 | 25.4   | 4.07G  | 224   | 82.0     |
-  | PVT_V2B3 | 45.2   | 6.96G  | 224   | 83.1     |
-  | PVT_V2B4 | 62.6   | 10.19G | 224   | 83.6     |
-  | PVT_V2B5 | 82.0   | 11.81G | 224   | 83.8     |
+  | Model           | Params | FLOPs  | Input | Top1 Acc |
+  | --------------- | ------ | ------ | ----- | -------- |
+  | PVT_V2B0        | 3.7G   | 580.3M | 224   | 70.5     |
+  | PVT_V2B1        | 14.0G  | 2.14G  | 224   | 78.7     |
+  | PVT_V2B2        | 25.4G  | 4.07G  | 224   | 82.0     |
+  | PVT_V2B2_linear | 22.6G  | 3.94G  | 224   | 82.1     |
+  | PVT_V2B3        | 45.2G  | 6.96G  | 224   | 83.1     |
+  | PVT_V2B4        | 62.6G  | 10.19G | 224   | 83.6     |
+  | PVT_V2B5        | 82.0G  | 11.81G | 224   | 83.8     |
 """
 
 PVT_V2B0.__doc__ = __head_doc__ + """
@@ -52,6 +54,7 @@ Args:
 
 PVT_V2B1.__doc__ = PVT_V2B0.__doc__
 PVT_V2B2.__doc__ = PVT_V2B0.__doc__
+PVT_V2B2_linear.__doc__ = PVT_V2B0.__doc__
 PVT_V2B3.__doc__ = PVT_V2B0.__doc__
 PVT_V2B4.__doc__ = PVT_V2B0.__doc__
 PVT_V2B5.__doc__ = PVT_V2B0.__doc__

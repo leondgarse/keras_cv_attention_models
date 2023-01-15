@@ -18,6 +18,7 @@ from keras_cv_attention_models.common_layers import (
     make_divisible,
     output_block,
     se_module,
+    addaptive_pooling_2d,
     PreprocessInput,
     imagenet_decode_predictions,
     add_pre_post_process,

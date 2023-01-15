@@ -3,6 +3,7 @@ from tensorflow import keras
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
+    addaptive_pooling_2d,
     conv2d_no_bias,
     depthwise_conv2d_no_bias,
     layer_norm,
@@ -18,6 +19,7 @@ PRETRAINED_DICT = {
     "pvt_v2_b0": {"imagenet": "f7af8430bec6c6b7c71e160f295288ce"},
     "pvt_v2_b1": {"imagenet": "91d70e33baa69338c8c831dbf36caeee"},
     "pvt_v2_b2": {"imagenet": "4902059a9c61661466c2102e070973ff"},
+    "pvt_v2_b2_linear": {"imagenet": "0bd4864b6fc63419cbde100e594f7180"},
     "pvt_v2_b3": {"imagenet": "97d0e12d53898b0f2c66efb30a4b9de8"},
     "pvt_v2_b4": {"imagenet": "166f6323c6fe7a578970efc9cc8e5b17"},
     "pvt_v2_b5": {"imagenet": "43cf0deec87e4d7c25f3f7d57d49b917"},
@@ -25,18 +27,23 @@ PRETRAINED_DICT = {
 
 
 def attention_block_with_conv_down(
-    inputs, num_heads=4, key_dim=0, sr_ratio=1, qkv_bias=True, out_shape=None, out_weight=True, out_bias=True, dropout=0, name=""
+    inputs, num_heads=4, key_dim=0, sr_ratio=1, qkv_bias=True, out_weight=True, out_bias=True, use_linear=False, linear_activation="gelu", dropout=0, name=""
 ):
     _, hh, ww, input_channel = inputs.shape
     key_dim = key_dim if key_dim > 0 else input_channel // num_heads
-    out_shape = input_channel if out_shape is None or not out_weight else out_shape
+    # out_shape = input_channel if out_shape is None or not out_weight else out_shape
     emb_dim = num_heads * key_dim
 
     query = keras.layers.Dense(emb_dim, use_bias=qkv_bias, name=name and name + "query")(inputs)
     # print(f">>>> {inputs.shape = }, {query.shape = }, {sr_ratio = }")
     query = tf.transpose(tf.reshape(query, [-1, inputs.shape[1] * inputs.shape[2], num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, key_dim]
 
-    if sr_ratio > 1:
+    if use_linear:
+        key_value = addaptive_pooling_2d(inputs, output_size=7, reduce="mean")
+        key_value = conv2d_no_bias(key_value, input_channel, kernel_size=1, use_bias=qkv_bias, name=name + "kv_sr_")
+        key_value = layer_norm(key_value, name=name + "kv_sr_")  # Using epsilon=1e-5
+        key_value = activation_by_name(key_value, activation=linear_activation, name=name + "kv_sr_")
+    elif sr_ratio > 1:
         key_value = conv2d_no_bias(inputs, input_channel, kernel_size=sr_ratio, strides=sr_ratio, use_bias=qkv_bias, name=name + "kv_sr_")
         key_value = layer_norm(key_value, name=name + "kv_sr_")  # Using epsilon=1e-5
         # key_value = keras.layers.AvgPool2D(sr_ratio, strides=sr_ratio, name=name + "kv_sr_")(inputs)
@@ -49,13 +56,13 @@ def attention_block_with_conv_down(
     key = tf.transpose(tf.reshape(key, [-1, kv_hh * kv_ww, num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
     value = tf.transpose(tf.reshape(value, [-1, kv_hh * kv_ww, num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, key_dim]
 
-    output_shape = (hh, ww, out_shape)
+    output_shape = (hh, ww, input_channel)
     return scaled_dot_product_attention(query, key, value, output_shape=output_shape, out_weight=out_weight, out_bias=out_bias, dropout=dropout, name=name)
 
 
-def mlp_block_with_depthwise_conv(inputs, hidden_dim, drop_rate=0, activation="gelu", name=""):
+def mlp_block_with_depthwise_conv(inputs, hidden_dim, use_linear=False, drop_rate=0, activation="gelu", name=""):
     input_channel = inputs.shape[-1]
-    first_activation, middle_activation = activation if isinstance(activation, (list, tuple)) else (activation, activation)
+    first_activation, middle_activation = ("relu", activation) if use_linear else (None, activation)
     nn = keras.layers.Dense(hidden_dim, name=name and name + "1_dense")(inputs)
     nn = activation_by_name(nn, first_activation, name=name)
 
@@ -68,17 +75,17 @@ def mlp_block_with_depthwise_conv(inputs, hidden_dim, drop_rate=0, activation="g
     return nn
 
 
-def attention_mlp_block(inputs, embed_dim, num_heads=8, sr_ratio=1, mlp_ratio=4, layer_scale=0.1, drop_rate=0, activation="gelu", name=""):
+def attention_mlp_block(inputs, embed_dim, num_heads=8, sr_ratio=1, mlp_ratio=4, use_linear=False, layer_scale=0.1, drop_rate=0, activation="gelu", name=""):
     input_channel = inputs.shape[-1]
 
     """ attention """
     nn = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, name=name + "attn_")
-    nn = attention_block_with_conv_down(nn, num_heads=num_heads, sr_ratio=sr_ratio, name=name + "attn_")
+    nn = attention_block_with_conv_down(nn, num_heads=num_heads, sr_ratio=sr_ratio, use_linear=use_linear, linear_activation=activation, name=name + "attn_")
     attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "attn_")
 
     """ MLP """
     nn = layer_norm(attn_out, epsilon=LAYER_NORM_EPSILON, name=name + "mlp_")
-    nn = mlp_block_with_depthwise_conv(nn, input_channel * mlp_ratio, activation=(None, activation), name=name + "mlp_")
+    nn = mlp_block_with_depthwise_conv(nn, input_channel * mlp_ratio, use_linear=use_linear, activation=activation, name=name + "mlp_")
     nn = add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "mlp_")
     return nn
 
@@ -90,6 +97,7 @@ def PyramidVisionTransformerV2(
     mlp_ratios=[8, 8, 4, 4],
     sr_ratios=[8, 4, 2, 1],
     stem_patch_size=7,
+    use_linear=False,
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",
@@ -122,7 +130,7 @@ def PyramidVisionTransformerV2(
         for block_id in range(num_block):
             name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
-            nn = attention_mlp_block(nn, embed_dim, stack_num_head, stack_sr_ratio, stack_mlp_ratio, layer_scale, block_drop_rate, activation, name=name)
+            nn = attention_mlp_block(nn, embed_dim, stack_num_head, stack_sr_ratio, stack_mlp_ratio, use_linear, layer_scale, block_drop_rate, activation, name)
             global_block_id += 1
         nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name=name + "output_")
 
@@ -145,6 +153,12 @@ def PVT_V2B1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cla
 def PVT_V2B2(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
     return PyramidVisionTransformerV2(**locals(), model_name="pvt_v2_b2", **kwargs)
+
+
+def PVT_V2B2_linear(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 4, 6, 3]
+    use_linear = True
+    return PyramidVisionTransformerV2(**locals(), model_name="pvt_v2_b2_linear", **kwargs)
 
 
 def PVT_V2B3(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
