@@ -5,6 +5,7 @@
   - Keras implementation of [Gitee mindspore/models/ghostnetv2](https://gitee.com/mindspore/models/tree/master/research/cv/ghostnetv2). Paper [PDF GhostNetV2: Enhance Cheap Operation with Long-Range Attention](https://openreview.net/pdf/6db544c65bbd0fa7d7349508454a433c112470e2.pdf).
   - `GhostNetV2_100` model weights ported from official publication [download.mindspore ghostnetv2](https://download.mindspore.cn/model_zoo/research/cv/ghostnetv2/).
   - `GhostNet_100` model weights ported from official publication [Github huawei-noah/ghostnet_pytorch](https://github.com/huawei-noah/Efficient-AI-Backbones/tree/master/ghostnet_pytorch). Paper [PDF 1911.11907 GhostNet: More Features from Cheap Operations](https://arxiv.org/pdf/1911.11907.pdf).
+  - `GhostNet_050` and `GhostNet_130` model weights ported from [Github PaddlePaddle/PaddleClas](https://github.com/PaddlePaddle/PaddleClas).
 
   ![ghostnetv2](https://user-images.githubusercontent.com/5744524/202699896-4c429db1-8038-4dc9-992b-d355d1cfee6e.PNG)
 ***
@@ -19,11 +20,12 @@
   | GhostNetV2 (1.3x) | 8.96M  | 271.1M | 224   | 76.9     |          |
   | GhostNetV2 (1.6x) | 12.39M | 400.9M | 224   | 77.8     |          |
 
-  | Model           | Params | FLOPs  | Input | Top1 Acc | Download |
-  | --------------- | ------ | ------ | ----- | -------- | -------- |
-  | GhostNet (0.5x) | 2.59M  | 42.6M  | 224   | 66.2     |          |
-  | GhostNet_100    | 5.18M  | 141.7M | 224   | 74.16    | [ghostnet_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_100_imagenet.h5) |
-  | GhostNet (1.3x) | 7.36M  | 227.7M | 224   | 75.7     |          |
+  | Model        | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ------------ | ------ | ------ | ----- | -------- | -------- |
+  | GhostNet_050 | 2.59M  | 42.6M  | 224   | 66.88    | [ghostnet_050_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_050_imagenet.h5) |
+  | GhostNet_100 | 5.18M  | 141.7M | 224   | 74.16    | [ghostnet_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_100_imagenet.h5) |
+  | GhostNet_130 | 7.36M  | 227.7M | 224   | 75.79    | [ghostnet_130_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_130_imagenet.h5) |
+  | - ssld       | 7.36M  | 227.7M | 224   | 79.38    | [ghostnet_130_ssld.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_130_ssld.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import ghostnet

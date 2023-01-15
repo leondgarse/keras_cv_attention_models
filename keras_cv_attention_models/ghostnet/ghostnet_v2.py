@@ -13,11 +13,32 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
     "ghostnetv2_100": {"imagenet": "4f28597d5f72731ed4ef4f69ec9c1799"},
+    "ghostnet_050": {"imagenet": "dbb5a89e19fa78f2f35f38b4c1ae4351"},
     "ghostnet_100": {"imagenet": "19a0f0f03f20e4bd6c1736102b4d979d"},
+    "ghostnet_130": {"imagenet": "3a73bc721765c516a894b567674fc60b", "ssld": "62571bb90d71a7487679ae97642d13fb"},
 }
 
 
-def ghost_module(inputs, out_channel, activation="relu", name=""):
+def decoupled_fully_connected_attention_block(inputs, out_channel, name=""):
+    # nn = keras.layers.AvgPool2D(pool_size=2, strides=2, padding="SAME")(inputs)
+    nn = keras.layers.AvgPool2D(pool_size=2, strides=2)(inputs)
+    nn = conv2d_no_bias(nn, out_channel, name=name + "1_")
+    nn = batchnorm_with_activation(nn, activation=None, name=name + "1_")
+    nn = depthwise_conv2d_no_bias(nn, (1, 5), padding="SAME", name=name + "2_")
+    nn = batchnorm_with_activation(nn, activation=None, name=name + "2_")
+    nn = depthwise_conv2d_no_bias(nn, (5, 1), padding="SAME", name=name + "3_")
+    nn = batchnorm_with_activation(nn, activation=None, name=name + "3_")
+    nn = activation_by_name(nn, "sigmoid", name=name)
+    # print(f"{nn.shape = }, {nn.shape = }")
+    nn = tf.image.resize(nn, tf.shape(inputs)[1:-1], antialias=False, method="bilinear")
+    # nn = keras.layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(nn)
+    # if int(nn.shape[1] - nn.shape[1]) > 0 or int(nn.shape[2] - nn.shape[2]) > 0:
+    #     nn = nn[:, :nn.shape[1], :nn.shape[2]]
+    # nn = keras.layers.Resizing(nn.shape[1], nn.shape[2])(nn)
+    return nn
+
+
+def ghost_module(inputs, out_channel, use_dfc_block=False, activation="relu", name=""):
     ratio = 2
     hidden_channel = int(tf.math.ceil(float(out_channel) / ratio))
     in_channels = inputs.shape[-1]
@@ -29,33 +50,16 @@ def ghost_module(inputs, out_channel, activation="relu", name=""):
     # cheap_conv = conv2d_no_bias(primary_conv, hidden_channel_cheap, kernel_size=3, padding="SAME", groups=hidden_channel_prim, name=name + "cheap_")
     cheap_conv = depthwise_conv2d_no_bias(primary_conv, kernel_size=3, padding="SAME", name=name + "cheap_")
     cheap_conv = batchnorm_with_activation(cheap_conv, activation=activation, name=name + "cheap_")
-    return keras.layers.Concatenate()([primary_conv, cheap_conv])
+    ghost_out = keras.layers.Concatenate()([primary_conv, cheap_conv])
 
-
-def ghost_module_multiply(inputs, out_channel, activation="relu", name=""):
-    nn = ghost_module(inputs, out_channel, activation=activation, name=name)
-
-    # shortcut = keras.layers.AvgPool2D(pool_size=2, strides=2, padding="SAME")(inputs)
-    shortcut = keras.layers.AvgPool2D(pool_size=2, strides=2)(inputs)
-    shortcut = conv2d_no_bias(shortcut, out_channel, name=name + "short_1_")
-    shortcut = batchnorm_with_activation(shortcut, activation=None, name=name + "short_1_")
-    shortcut = depthwise_conv2d_no_bias(shortcut, (1, 5), padding="SAME", name=name + "short_2_")
-    shortcut = batchnorm_with_activation(shortcut, activation=None, name=name + "short_2_")
-    shortcut = depthwise_conv2d_no_bias(shortcut, (5, 1), padding="SAME", name=name + "short_3_")
-    shortcut = batchnorm_with_activation(shortcut, activation=None, name=name + "short_3_")
-    shortcut = activation_by_name(shortcut, "sigmoid", name=name + "short_")
-    # print(f"{shortcut.shape = }, {nn.shape = }")
-    shortcut = tf.image.resize(shortcut, tf.shape(inputs)[1:-1], antialias=False, method="bilinear")
-    # shortcut = keras.layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(shortcut)
-    # if int(shortcut.shape[1] - nn.shape[1]) > 0 or int(shortcut.shape[2] - nn.shape[2]) > 0:
-    #     shortcut = shortcut[:, :nn.shape[1], :nn.shape[2]]
-    # shortcut = keras.layers.Resizing(nn.shape[1], nn.shape[2])(shortcut)
-
-    return keras.layers.Multiply()([shortcut, nn])
+    if use_dfc_block:
+        shortcut = decoupled_fully_connected_attention_block(inputs, out_channel, name=name + "short_")
+        ghost_out = keras.layers.Multiply()([shortcut, ghost_out])
+    return ghost_out
 
 
 def ghost_bottleneck(
-    inputs, out_channel, first_ghost_channel, kernel_size=3, strides=1, se_ratio=0, shortcut=True, use_ghost_module_multiply=False, activation="relu", name=""
+    inputs, out_channel, first_ghost_channel, kernel_size=3, strides=1, se_ratio=0, shortcut=True, use_dfc_block=False, activation="relu", name=""
 ):
     if shortcut:
         shortcut = depthwise_conv2d_no_bias(inputs, kernel_size, strides, padding="same", name=name + "short_1_")
@@ -65,17 +69,14 @@ def ghost_bottleneck(
     else:
         shortcut = inputs
 
-    if use_ghost_module_multiply:
-        nn = ghost_module_multiply(inputs, first_ghost_channel, activation=activation, name=name + "ghost_1_")
-    else:
-        nn = ghost_module(inputs, first_ghost_channel, activation=activation, name=name + "ghost_1_")
+    nn = ghost_module(inputs, first_ghost_channel, use_dfc_block=use_dfc_block, activation=activation, name=name + "ghost_1_")
 
     if strides > 1:
         nn = depthwise_conv2d_no_bias(nn, kernel_size, strides, padding="same", name=name + "down_")
         nn = batchnorm_with_activation(nn, activation=None, name=name + "down_")
 
     if se_ratio > 0:
-        nn = se_module(nn, se_ratio=se_ratio, divisor=4, activation=("relu", "hard_sigmoid_torch"), name=name + "se_")
+        nn = se_module(nn, se_ratio=se_ratio, divisor=4, activation=(activation, "hard_sigmoid_torch"), name=name + "se_")
 
     nn = ghost_module(nn, out_channel, activation=None, name=name + "ghost_2_")
     # print(f">>>> {strides = }, {inputs.shape = }, {shortcut.shape = }, {nn.shape = }")
@@ -91,7 +92,7 @@ def GhostNetV2(
     stem_width=16,
     stem_strides=2,
     width_mul=1.0,
-    num_ghost_module_v1_stacks=2,  # num of `ghost_module` stcks on the head, others are `ghost_module_multiply`, set `-1` for all using `ghost_module`
+    num_ghost_module_v1_stacks=2,  # num of `ghost_module` stcks on the head, others are `ghost_module` with `dfc_block`, set `-1` for all using `ghost_module`
     output_conv_filter=-1,  # -1 for first_ghost_channels[-1] * width_mul
     input_shape=(224, 224, 3),
     num_classes=1000,
@@ -113,10 +114,8 @@ def GhostNetV2(
         out_channel = make_divisible(out_channel * width_mul, 4)
         first_ghost_channel = make_divisible(first_ghost * width_mul, 4)
         shortcut = False if out_channel == nn.shape[-1] and stride == 1 else True
-        use_ghost_module_multiply = True if num_ghost_module_v1_stacks >= 0 and stack_id >= num_ghost_module_v1_stacks else False
-        nn = ghost_bottleneck(
-            nn, out_channel, first_ghost_channel, kernel, stride, se_ratio, shortcut, use_ghost_module_multiply, activation=activation, name=stack_name
-        )
+        use_dfc_block = True if num_ghost_module_v1_stacks >= 0 and stack_id >= num_ghost_module_v1_stacks else False
+        nn = ghost_bottleneck(nn, out_channel, first_ghost_channel, kernel, stride, se_ratio, shortcut, use_dfc_block, activation=activation, name=stack_name)
 
     output_conv_filter = output_conv_filter if output_conv_filter > 0 else make_divisible(first_ghost_channels[-1] * width_mul, 4)
     nn = conv2d_no_bias(nn, output_conv_filter, 1, strides=1, name="pre_")

@@ -1,5 +1,5 @@
 from keras_cv_attention_models.ghostnet.ghostnet_v2 import GhostNetV2, GhostNetV2_100
-from keras_cv_attention_models.ghostnet.ghostnet import GhostNet, GhostNet_100
+from keras_cv_attention_models.ghostnet.ghostnet import GhostNet, GhostNet_050, GhostNet_100, GhostNet_130
 
 __v2_head_doc__ = """
 Keras implementation of [Gitee mindspore/models/ghostnetv2](https://gitee.com/mindspore/models/tree/master/research/cv/ghostnetv2).
@@ -22,7 +22,7 @@ __tail_doc__ = """  kernel_sizes: kernel_size for each stack.
   dropout: dropout rate if top layers is included.
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
-  pretrained: One of `[None, "imagenet"]`.
+  pretrained: One of `[None, "imagenet", "ssld"]`. "ssld" if for `GhostNet_130`.
   **kwargs: other parameters if available.
 
 Returns:
@@ -59,13 +59,17 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model           | Params | FLOPs  | Input | Top1 Acc |
-  | --------------- | ------ | ------ | ----- | -------- |
-  | GhostNet (0.5x) | 2.59M  | 42.6M  | 224   | 66.2     |
-  | GhostNet_100    | 5.18M  | 141.7M | 224   | 74.16    |
-  | GhostNet (1.3x) | 7.36M  | 227.7M | 224   | 75.7     |
+  | Model        | Params | FLOPs  | Input | Top1 Acc |
+  | ------------ | ------ | ------ | ----- | -------- |
+  | GhostNet_050 | 2.59M  | 42.6M  | 224   | 66.88    |
+  | GhostNet_100 | 5.18M  | 141.7M | 224   | 74.16    |
+  | GhostNet_130 | 7.36M  | 227.7M | 224   | 75.79    |
+  | - ssld       | 7.36M  | 227.7M | 224   | 79.38    |
 """
 
-GhostNet_100.__doc__ = __v1_head_doc__ + """
+GhostNet_050.__doc__ = __v1_head_doc__ + """
 Args:
 """ + __tail_doc__
+
+GhostNet_100.__doc__ = GhostNet_050.__doc__
+GhostNet_130.__doc__ = GhostNet_050.__doc__

@@ -190,7 +190,7 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
 
         for add_layer, add_transfer in additional_transfer.items():
             if isinstance(add_layer, str):
-                if tf_layer.name == add_layer:
+                if tf_layer.name.endswith(add_layer):
                     torch_weight = add_transfer(torch_weight)
             elif isinstance(tf_layer, add_layer):
                 torch_weight = add_transfer(torch_weight)

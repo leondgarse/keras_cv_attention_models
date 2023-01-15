@@ -24,5 +24,13 @@ def GhostNet(
     return GhostNetV2(**locals())
 
 
+def GhostNet_050(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return GhostNet(**locals(), width_mul=0.5, model_name="ghostnet_050", **kwargs)
+
+
 def GhostNet_100(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return GhostNet(**locals(), model_name="ghostnet_100", **kwargs)
+
+
+def GhostNet_130(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return GhostNet(**locals(), width_mul=1.3, model_name="ghostnet_130", **kwargs)
