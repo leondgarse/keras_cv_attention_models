@@ -31,7 +31,7 @@ from keras_cv_attention_models.efficientnet.efficientnet_v2 import inverted_resi
 from keras_cv_attention_models.halonet.halonet import halo_attention
 from keras_cv_attention_models.resnest.resnest import rsoftmax, split_attention_conv2d
 from keras_cv_attention_models.volo.volo import outlook_attention, outlook_attention_simple, BiasLayer, PositionalEmbedding, ClassToken, MixupToken
-from keras_cv_attention_models.mlp_family.mlp_mixer import mlp_block, mixer_block
+from keras_cv_attention_models.mlp_family.mlp_mixer import mlp_block, mlp_mixer_block
 from keras_cv_attention_models.mlp_family.res_mlp import ChannelAffine
 from keras_cv_attention_models.mlp_family.gated_mlp import spatial_gating_block
 from keras_cv_attention_models.mlp_family.wave_mlp import phase_aware_token_mixing

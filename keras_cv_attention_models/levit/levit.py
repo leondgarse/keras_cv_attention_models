@@ -88,7 +88,8 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
 
 
 def scaled_dot_product_attention(query, key, value, output_shape, pos_emb=None, out_weight=True, out_bias=False, dropout=0, activation=None, name=None):
-    height, width, output_dim = output_shape[-3:]
+    output_dim = output_shape[-1]
+    blocks = output_shape[1:-1] if output_shape[0] is None or output_shape[0] < 1 else output_shape[:-1]
     # query, value: [batch, num_heads, blocks, key_dim], key: [batch, num_heads, key_dim, blocks]
     qk_scale = float(1.0 / tf.math.sqrt(tf.cast(query.shape[-1], "float32")))
     # print(f"{query.shape = }, {key.shape = }")
@@ -104,7 +105,7 @@ def scaled_dot_product_attention(query, key, value, output_shape, pos_emb=None, 
     # output = tf.matmul(attention_scores, value)    # [batch, num_heads, q_blocks, key_dim * attn_ratio]
     output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
     output = tf.transpose(output, perm=[0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
-    output = tf.reshape(output, [-1, height, width, output.shape[2] * output.shape[3]])  # [batch, q_blocks, channel * attn_ratio]
+    output = tf.reshape(output, [-1, *blocks, output.shape[2] * output.shape[3]])  # [batch, q_blocks, channel * attn_ratio]
     if activation:
         output = activation_by_name(output, activation=activation, name=name)
     if out_weight:

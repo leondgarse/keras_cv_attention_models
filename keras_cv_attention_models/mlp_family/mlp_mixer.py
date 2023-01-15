@@ -38,7 +38,7 @@ def mlp_block(inputs, hidden_dim, output_channel=-1, drop_rate=0, use_conv=False
     return nn
 
 
-def mixer_block(inputs, tokens_mlp_dim, channels_mlp_dim, drop_rate=0, activation="gelu", name=None):
+def mlp_mixer_block(inputs, tokens_mlp_dim, channels_mlp_dim, drop_rate=0, activation="gelu", name=None):
     nn = layer_norm(inputs, name=name and name + "LayerNorm_0")
     nn = keras.layers.Permute((2, 1), name=name and name + "permute_0")(nn)
     nn = mlp_block(nn, tokens_mlp_dim, activation=activation, name=name and name + "token_mixing/")
@@ -79,7 +79,7 @@ def MLPMixer(
     for ii in range(num_blocks):
         name = "{}_{}/".format("MixerBlock", str(ii))
         block_drop_rate = drop_connect_s + (drop_connect_e - drop_connect_s) * ii / num_blocks
-        nn = mixer_block(nn, tokens_mlp_dim, channels_mlp_dim, drop_rate=block_drop_rate, activation=activation, name=name)
+        nn = mlp_mixer_block(nn, tokens_mlp_dim, channels_mlp_dim, drop_rate=block_drop_rate, activation=activation, name=name)
     nn = layer_norm(nn, name="pre_head_layer_norm")
 
     if num_classes > 0:
