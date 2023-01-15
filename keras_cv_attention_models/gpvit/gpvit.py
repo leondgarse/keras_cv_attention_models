@@ -46,9 +46,9 @@ def lepe_attention(inputs, num_heads=4, dropout=0, name=""):
     _, hh, ww, input_channel = query.shape
     blocks = hh * ww
     key_dim = input_channel // num_heads
+    # print(f"{input_channel = }, {num_heads = }, {key_dim = }")
 
     lepe = depthwise_conv2d_no_bias(value, kernel_size=3, use_bias=True, padding="same", name=name + "lepe_")
-    # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {lepe.shape = }")
 
     query = tf.transpose(tf.reshape(query, [-1, blocks, num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, key_dim]
     key = tf.transpose(tf.reshape(key, [-1, blocks, num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
@@ -75,8 +75,8 @@ def window_lepe_attention(inputs, num_heads=4, window_size=2, key_dim=0, qkv_bia
     qkv_left = tf.reshape(qkv_left, [-1, hh, ww, 3 * qkv_left.shape[-1]])
     qkv_right = tf.reshape(qkv_right, [-1, hh, ww, 3 * qkv_right.shape[-1]])
 
-    attn_out_left = window_attention(qkv_left, window_size=(hh, window_size), num_heads=num_heads, attention_block=lepe_attention, name=name + "left_")
-    attn_out_right = window_attention(qkv_right, window_size=(window_size, ww), num_heads=num_heads, attention_block=lepe_attention, name=name + "right_")
+    attn_out_left = window_attention(qkv_left, window_size=(hh, window_size), num_heads=num_heads // 2, attention_block=lepe_attention, name=name + "left_")
+    attn_out_right = window_attention(qkv_right, window_size=(window_size, ww), num_heads=num_heads // 2, attention_block=lepe_attention, name=name + "right_")
     attn_out = tf.concat([attn_out_left, attn_out_right], axis=-1)
     attn_out = keras.layers.Dense(attn_out.shape[-1], use_bias=True, name=name and name + "attn_out")(attn_out)
     return attn_out
