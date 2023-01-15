@@ -7,7 +7,7 @@
   - EfficientFormerV2 Paper [PDF 2212.08059 Rethinking Vision Transformers for MobileNet Size and Speed](https://arxiv.org/pdf/2212.08059.pdf).
   - Model weights reloaded from official publication.
 
-  ![efficientformer](https://user-images.githubusercontent.com/5744524/180598201-e7d47c9e-0e36-40bf-9a2b-7c6a5f6b9d56.PNG)
+  ![efficientformer](https://user-images.githubusercontent.com/5744524/212475387-a4edffe6-9db5-463b-acaa-b20a57ab0c7c.png)
 ## Models
   | Model                      | Params | FLOPs | Input | Top1 Acc | Download |
   | -------------------------- | ------ | ----- | ----- | -------- | -------- |
