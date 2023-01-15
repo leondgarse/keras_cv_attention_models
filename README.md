@@ -32,10 +32,10 @@
   - [FBNetV3](#fbnetv3)
   - [FlexiViT](#flexivit)
   - [GCViT](#gcvit)
-  - [GPViT](#gpvit)
   - [GhostNet](#ghostnet)
   - [GhostNetV2](#ghostnetv2)
   - [GMLP](#gmlp)
+  - [GPViT](#gpvit)
   - [HaloNet](#halonet)
   - [HorNet](#hornet)
   - [IFormer](#iformer)
@@ -66,7 +66,6 @@
   - [YOLOR](#yolor)
   - [YOLOV7](#yolov7)
   - [YOLOX](#yolox)
-- [Other implemented tensorflow or keras models](#other-implemented-tensorflow-or-keras-models)
 - [Licenses](#licenses)
 - [Citing](#citing)
 
@@ -681,15 +680,6 @@
   | GCViT_Tiny   | 28.2M  | 4.83G | 224   | 83.4     | [gcvit_tiny_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_tiny_224_imagenet.h5) |
   | GCViT_Small  | 51.1M  | 8.63G | 224   | 83.95    | [gcvit_small_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_small_224_imagenet.h5) |
   | GCViT_Base   | 90.3M  | 14.9G | 224   | 84.47    | [gcvit_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_base_224_imagenet.h5) |
-## GPViT
-  - [Keras GPViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/gpvit) includes implementation of [PDF 2212.06795 GPVIT: A HIGH RESOLUTION NON-HIERARCHICAL VISION TRANSFORMER WITH GROUP PROPAGATION](https://arxiv.org/pdf/2212.06795.pdf).
-
-  | Model    | Params | FLOPs  | Input | Top1 Acc | Download |
-  | -------- | ------ | ------ | ----- | -------- | -------- |
-  | GPViT_L1 | 9.59M  | 6.15G  | 224   | 80.5     | [gpvit_l1_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpvit/gpvit_l1_224_imagenet.h5) |
-  | GPViT_L2 | 24.2M  | 15.74G | 224   | 83.4     | [gpvit_l2_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpvit/gpvit_l2_224_imagenet.h5) |
-  | GPViT_L3 | 36.7M  | 23.54G | 224   | 84.1     | [gpvit_l3_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpvit/gpvit_l3_224_imagenet.h5) |
-  | GPViT_L4 | 75.5M  | 48.29G | 224   | 84.3     | [gpvit_l4_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpvit/gpvit_l4_224_imagenet.h5) |
 ## GhostNet
   - [Keras GhostNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/ghostnet) includes implementation of [PDF 1911.11907 GhostNet: More Features from Cheap Operations](https://arxiv.org/pdf/1911.11907.pdf).
 
@@ -716,6 +706,15 @@
   | GMLPTiny16 | 6M     | 1.35G  | 224   | 72.3     |          |
   | GMLPS16    | 20M    | 4.44G  | 224   | 79.6     | [gmlp_s16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/gmlp_s16_imagenet.h5) |
   | GMLPB16    | 73M    | 15.82G | 224   | 81.6     |          |
+## GPViT
+  - [Keras GPViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/gpvit) includes implementation of [PDF 2212.06795 GPVIT: A HIGH RESOLUTION NON-HIERARCHICAL VISION TRANSFORMER WITH GROUP PROPAGATION](https://arxiv.org/pdf/2212.06795.pdf).
+
+  | Model    | Params | FLOPs  | Input | Top1 Acc | Download |
+  | -------- | ------ | ------ | ----- | -------- | -------- |
+  | GPViT_L1 | 9.59M  | 6.15G  | 224   | 80.5     | [gpvit_l1_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpvit/gpvit_l1_224_imagenet.h5) |
+  | GPViT_L2 | 24.2M  | 15.74G | 224   | 83.4     | [gpvit_l2_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpvit/gpvit_l2_224_imagenet.h5) |
+  | GPViT_L3 | 36.7M  | 23.54G | 224   | 84.1     | [gpvit_l3_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpvit/gpvit_l3_224_imagenet.h5) |
+  | GPViT_L4 | 75.5M  | 48.29G | 224   | 84.3     | [gpvit_l4_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpvit/gpvit_l4_224_imagenet.h5) |
 ## HaloNet
   - [Keras HaloNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/halonet) is for [PDF 2103.12731 Scaling Local Self-Attention for Parameter Efficient Visual Backbones](https://arxiv.org/pdf/2103.12731.pdf).
 
@@ -1114,14 +1113,6 @@
   | YOLOXM    | 25.3M  | 36.84G  | 640   | 46.9        | 47.2    | [yolox_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_m_coco.h5)       |
   | YOLOXL    | 54.2M  | 77.76G  | 640   | 49.7        | 50.1    | [yolox_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_l_coco.h5)       |
   | YOLOXX    | 99.1M  | 140.87G | 640   | 51.5        | 51.5    | [yolox_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolox/yolox_x_coco.h5)       |
-***
-
-# Other implemented tensorflow or keras models
-  - [Github faustomorales/vit-keras](https://github.com/faustomorales/vit-keras)
-  - [Github rishigami/Swin-Transformer-TF](https://github.com/rishigami/Swin-Transformer-TF)
-  - [Github tensorflow/resnet_rs](https://github.com/tensorflow/tpu/tree/master/models/official/resnet/resnet_rs)
-  - [Github google-research/big_transfer](https://github.com/google-research/big_transfer)
-  - [perceiver_image_classification](https://keras.io/examples/vision/perceiver_image_classification/)
 ***
 
 # Licenses
