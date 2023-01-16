@@ -253,7 +253,7 @@ def keras_reload_from_torch_model(
     import tensorflow as tf
     from keras_cv_attention_models import test_images
 
-    input_shape = input_shape[:2]
+    input_shape = input_shape[:2] if keras_model is None else keras_model.input_shape[1:-1]
     if isinstance(torch_model, str):
         print(">>>> Reload Torch weight file:", torch_model)
         torch_model = torch.load(torch_model, map_location=torch.device("cpu"))
@@ -298,7 +298,7 @@ def keras_reload_from_torch_model(
     """ Keras model weights """
     target_names = [ii.name for ii in keras_model.layers if len(ii.weights) != 0]
     aa = {keras_model.get_layer(ii).name: [jj.shape.as_list() for jj in keras_model.get_layer(ii).weights] for ii in target_names}
-    print(">>>> keras_model total_parameters :", np.sum([np.sum([np.prod(jj) for jj in ii]) for ii in aa.values()]))
+    print(">>>> keras_model total_parameters :", np.sum([np.sum([int(np.prod(jj)) for jj in ii]) for ii in aa.values()]))
     print(">>>> Keras weights:")
     _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
     print()

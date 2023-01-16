@@ -72,6 +72,12 @@ def activation_by_name(inputs, activation="relu", name=None):
         return keras.layers.LeakyReLU(alpha=alpha, name=layer_name)(inputs)
     elif activation_lower == ("hard_sigmoid_torch"):
         return keras.layers.Activation(activation=hard_sigmoid_torch, name=layer_name)(inputs)
+    elif activation_lower == ("squaredrelu") or activation_lower == ("squared_relu"):
+        return (tf.nn.relu(inputs) ** 2)  # Squared ReLU: https://arxiv.org/abs/2109.08668
+    elif activation_lower == ("starrelu") or activation_lower == ("star_relu"):
+        from keras_cv_attention_models.nfnets.nfnets import ZeroInitGain
+
+        return ZeroInitGain(use_bias=True, weight_init_value=1.0, name=layer_name)(tf.nn.relu(inputs) ** 2)  # StarReLU: s * relu(x) ** 2 + b
     else:
         return keras.layers.Activation(activation=activation, name=layer_name)(inputs)
 
@@ -217,11 +223,11 @@ def batchnorm_with_activation(
     return nn
 
 
-def layer_norm(inputs, zero_gamma=False, epsilon=LAYER_NORM_EPSILON, name=None):
+def layer_norm(inputs, zero_gamma=False, epsilon=LAYER_NORM_EPSILON, center=True, name=None):
     """Typical LayerNormalization with epsilon=1e-5"""
     norm_axis = -1 if K.image_data_format() == "channels_last" else 1
-    gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
-    return keras.layers.LayerNormalization(axis=norm_axis, epsilon=epsilon, gamma_initializer=gamma_initializer, name=name and name + "ln")(inputs)
+    gamma_init = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
+    return keras.layers.LayerNormalization(axis=norm_axis, epsilon=epsilon, gamma_initializer=gamma_init, center=center, name=name and name + "ln")(inputs)
 
 
 def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, name=None):

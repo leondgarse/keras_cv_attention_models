@@ -60,6 +60,7 @@ from keras_cv_attention_models.swin_transformer_v2.swin_transformer_v2 import (
 )
 from keras_cv_attention_models.hornet.hornet import ComplexDense, global_local_filter, gnconv
 from keras_cv_attention_models.gpvit.gpvit import PureWeigths
+from keras_cv_attention_models.pvt.pvt import mlp_block_with_depthwise_conv
 
 CompatibleExtractPatches.__doc__ = """
 For issue https://github.com/leondgarse/keras_cv_attention_models/issues/8,

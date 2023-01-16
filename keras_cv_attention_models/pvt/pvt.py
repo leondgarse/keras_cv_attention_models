@@ -60,17 +60,17 @@ def attention_block_with_conv_down(
     return scaled_dot_product_attention(query, key, value, output_shape=output_shape, out_weight=out_weight, out_bias=out_bias, dropout=dropout, name=name)
 
 
-def mlp_block_with_depthwise_conv(inputs, hidden_dim, use_linear=False, drop_rate=0, activation="gelu", name=""):
+def mlp_block_with_depthwise_conv(inputs, hidden_dim, kernel_size=3, use_bias=True, drop_rate=0, activation="gelu", name=""):
     input_channel = inputs.shape[-1]
-    first_activation, middle_activation = ("relu", activation) if use_linear else (None, activation)
-    nn = keras.layers.Dense(hidden_dim, name=name and name + "1_dense")(inputs)
+    first_activation, middle_activation = activation if isinstance(activation, (list, tuple)) else (activation, activation)
+    nn = keras.layers.Dense(hidden_dim, use_bias=use_bias, name=name and name + "1_dense")(inputs)
     nn = activation_by_name(nn, first_activation, name=name)
 
-    nn = depthwise_conv2d_no_bias(nn, use_bias=True, kernel_size=3, strides=1, padding="same", name=name + "mid_")
-    nn = activation_by_name(nn, middle_activation, name=name + "mid_")
+    nn = depthwise_conv2d_no_bias(nn, use_bias=use_bias, kernel_size=kernel_size, strides=1, padding="same", name=name and name + "mid_")
+    nn = activation_by_name(nn, middle_activation, name=name and name + "mid_")
     nn = keras.layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
 
-    nn = keras.layers.Dense(input_channel, name=name and name + "2_dense")(nn)
+    nn = keras.layers.Dense(input_channel, use_bias=use_bias, name=name and name + "2_dense")(nn)
     nn = keras.layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
     return nn
 
@@ -85,7 +85,8 @@ def attention_mlp_block(inputs, embed_dim, num_heads=8, sr_ratio=1, mlp_ratio=4,
 
     """ MLP """
     nn = layer_norm(attn_out, epsilon=LAYER_NORM_EPSILON, name=name + "mlp_")
-    nn = mlp_block_with_depthwise_conv(nn, input_channel * mlp_ratio, use_linear=use_linear, activation=activation, name=name + "mlp_")
+    mlp_activation = ("relu", activation) if use_linear else (None, activation)
+    nn = mlp_block_with_depthwise_conv(nn, input_channel * mlp_ratio, activation=mlp_activation, name=name + "mlp_")
     nn = add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "mlp_")
     return nn
 

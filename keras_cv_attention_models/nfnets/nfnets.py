@@ -83,11 +83,24 @@ class ScaledStandardizedConv2D(tf.keras.layers.Conv2D):
 
 @tf.keras.utils.register_keras_serializable(package="nfnets")
 class ZeroInitGain(tf.keras.layers.Layer):
+    def __init__(self, use_bias=False, weight_init_value=0, bias_init_value=0, **kwargs):
+        super().__init__(**kwargs)
+        self.use_bias = use_bias
+        self.ww_init = keras.initializers.Constant(weight_init_value) if weight_init_value != 0 else "zeros"
+        self.bb_init = keras.initializers.Constant(bias_init_value) if bias_init_value != 0 else "zeros"
+
     def build(self, input_shape):
-        self.gain = self.add_weight(name="gain", shape=(), initializer="zeros", dtype=self.dtype, trainable=True)
+        self.gain = self.add_weight(name="gain", shape=(), initializer=self.ww_init, dtype=self.dtype, trainable=True)
+        if self.use_bias:
+            self.bias = self.add_weight(name="bias", shape=(), initializer=self.bb_init, dtype=self.dtype, trainable=True)
 
     def call(self, inputs):
-        return inputs * self.gain
+        return (inputs * self.gain + self.bias) if self.use_bias else (inputs * self.gain)
+
+    def get_config(self):
+        base_config = super().get_config()
+        base_config.update({"use_bias": self.use_bias})
+        return base_config
 
 
 def std_conv2d_with_init(inputs, filters, kernel_size, strides=1, padding="VALID", torch_padding=False, gamma=1.0, name=None, **kwargs):

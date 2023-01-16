@@ -64,8 +64,9 @@ def global_response_normalize(inputs, name=None):
     return nn + inputs
 
 
-def add_with_layer_scale_and_drop_block(short, deep, layer_scale=0, drop_rate=0, name=""):
+def add_with_layer_scale_and_drop_block(short, deep, layer_scale=0, residual_scale=0, drop_rate=0, name=""):
     """Just simplify calling, perform `out = short + drop_block(layer_scale(deep))`"""
+    short = ChannelAffine(use_bias=False, weight_init_value=residual_scale, name=name + "res_gamma")(short) if residual_scale > 0 else short
     deep = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "gamma")(deep) if layer_scale > 0 else deep
     deep = drop_block(deep, drop_rate=drop_rate, name=name)
     # print(f">>>> {short.shape = }, {deep.shape = }")

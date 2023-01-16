@@ -5,6 +5,7 @@ from keras_cv_attention_models import beit
 from keras_cv_attention_models.beit import flexivit
 from keras_cv_attention_models.beit import eva
 from keras_cv_attention_models import botnet
+from keras_cv_attention_models import caformer
 from keras_cv_attention_models import coat
 from keras_cv_attention_models import coatnet
 from keras_cv_attention_models import convnext
