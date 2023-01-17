@@ -20,6 +20,34 @@ PRETRAINED_DICT = {
         "imagenet": {224: "b8a824d4197161286de2aef08c1be379", 384: "fcd11441f1811124f77a4cad1b328639"},
         "imagenet21k-ft1k": {224: "4b87b7d0393dc607089eff549dfe7319", 384: "05f20bcd5403a6076b1fa3276766b987"},
     },
+    "caformer_s36": {
+        "imagenet": {224: "df683079147328b5cafeb6e98e99a885", 384: "532becc7aaa087430baa1691ed2e64eb"},
+        "imagenet21k-ft1k": {224: "89b40eef0fc073932460e2ba8094acb7", 384: "f4d163c51c8f06f452cd0f312ee51c3d"},
+    },
+    "caformer_m36": {
+        "imagenet": {224: "04a88000f78cc8c1e9b261dc71fa3e6f", 384: "3c3b13ffb3cfbd304897abaef5fb0abf"},
+        "imagenet21k-ft1k": {224: "af5a2978cc60609ed70941f506d4a337", 384: "3055798b1c0f291547911460390c1964"},
+    },
+    "caformer_b36": {
+        "imagenet": {224: "8461e68f9dde4fe6ef201874e4d6cb66", 384: "087bddb30c6f04a44e4b3a08864f2327"},
+        "imagenet21k-ft1k": {224: "47f77c5087b4acd427ec960074136644", 384: "a6c78cb35254870a475487b4a582bcd1"},
+    },
+    "convformer_s18": {
+        "imagenet": {224: "ef64c846c5890258227281fc6d2dedf7", 384: "aa8d9c6e6f47e3934ed329ded7f85674"},
+        "imagenet21k-ft1k": {224: "da24d177fc47d878ae3621be82130ede", 384: "1e8ba700dc67840ecde6c76f0688d2f4"},
+    },
+    "convformer_s36": {
+        "imagenet": {224: "2eee80c9126a08cb09c386de7d9759b6", 384: "a8f175274494598cb322ed0c5f17e4b9"},
+        "imagenet21k-ft1k": {224: "e75e739dc0f09dbd88b326520e4b7fb0", 384: "2f9bfe0664ff3128820d2873915709a1"},
+    },
+    "convformer_m36": {
+        "imagenet": {224: "2e7a8c5f9827b0ca8fe51f9a0aa92223", 384: "3a53ed969febefb1d080ce0b78dcbb33"},
+        "imagenet21k-ft1k": {224: "652c8ec792c50a0f87471c5d53e92940", 384: "f37c31964b650a7700e7820ea4ccf69e"},
+    },
+    "convformer_b36": {
+        "imagenet": {224: "c96d0f4720c36ae19ab8eee02c6e6034", 384: "109236ff75aabe1885ef625c3bfe756c"},
+        "imagenet21k-ft1k": {224: "64774d61660d2e95df8d274785f7708a", 384: "b7e350d127a37ddfa7cd611ce21b4e4b"},
+    },
 }
 
 
@@ -73,13 +101,12 @@ def CAFormer(
     total_blocks = sum(num_blocks)
     global_block_id = 0
     for stack_id, (num_block, out_channel, block_type) in enumerate(zip(num_blocks, out_channels, block_types)):
-        use_attn = True if block_type[0].lower() == "t" else False
-
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id > 0:
             nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, center=False, name=stack_name + "downsample_")
             nn = conv2d_no_bias(nn, out_channel, 3, strides=2, padding="same", use_bias=True, name=stack_name + "downsample_")
 
+        use_attn = True if block_type[0].lower() == "t" else False
         mlp_ratio = mlp_ratios[stack_id] if isinstance(mlp_ratios, (list, tuple)) else mlp_ratios
         layer_scale = layer_scales[stack_id] if isinstance(layer_scales, (list, tuple)) else layer_scales
         residual_scale = residual_scales[stack_id] if isinstance(residual_scales, (list, tuple)) else residual_scales
@@ -103,10 +130,7 @@ def CAFormer(
 
     model = tf.keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
-    if model.name.startswith("caformer_s18"):  # Only this uploaded
-        reload_model_weights(model, PRETRAINED_DICT, "caformer", pretrained)
-    else:
-        convert_from_pytorch_weights(model, pretrained)
+    reload_model_weights(model, PRETRAINED_DICT, "caformer", pretrained)
     return model
 
 
@@ -153,49 +177,3 @@ def ConvFormerM36(input_shape=(224, 224, 3), num_classes=1000, activation="star_
 
 def ConvFormerB36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return CAFormerB36(**locals(), block_types=["conv", "conv", "conv", "conv"], model_name="convformer_b36", **kwargs)
-
-
-""" convert_from_pytorch_weights, load and convert from pth at the first time, then save h5 locally """
-
-
-def convert_from_pytorch_weights(model, pretrained="imagenet"):
-    import os
-    from keras_cv_attention_models import download_and_load, attention_layers
-
-    if pretrained not in ["imagenet", "imagenet21k-ft1k"]:
-        return
-
-    weight_file_name = "{}_{}_{}.h5".format(model.name, model.input_shape[1], pretrained)
-    weight_file = os.path.join(os.path.expanduser("~"), ".keras", "models", weight_file_name)
-    if os.path.exists(weight_file):
-        print(">>>> Load pretrained from:", weight_file)
-        model.load_weights(weight_file, by_name=True, skip_mismatch=True)
-        return
-
-    if not os.path.exists(os.path.dirname(weight_file)):
-        os.makedirs(os.path.dirname(weight_file), exist_ok=True)
-
-    pth_file_name = model.name + ("_384" if model.input_shape[1] > (224 + 384) // 2 else "") + ("" if pretrained == "imagenet" else "_in21ft1k") + ".pth"
-    url = "https://huggingface.co/sail/dl/resolve/main/{}/{}".format(model.name.split("_")[0], pth_file_name)
-    pth_pretrained_model = keras.utils.get_file(pth_file_name, url, cache_subdir="models")  # Not checking hash
-
-    caformer_tail_align_dict = {"stack3": {"mhsa_output": -1, "mlp_Dense_1": -1}, "stack4": {"mhsa_output": -1, "mlp_Dense_1": -1}}
-    convformer_tail_align_dict = {"stack3": {"mlp_sep_2_dense": -1, "mlp_Dense_1": -1}, "stack4": {"mlp_sep_2_dense": -1, "mlp_Dense_1": -1}}
-    full_name_align_dict = {
-        "stack2_downsample_ln": 2, "stack2_downsample_conv": 3,
-        "stack3_downsample_ln": 4, "stack3_downsample_conv": 5,
-        "stack4_downsample_ln": 6, "stack4_downsample_conv": 7,
-    }
-
-    additional_transfer = {attention_layers.ZeroInitGain: lambda ww: [ww[0][0], ww[1][0]]}
-    download_and_load.keras_reload_from_torch_model(
-        torch_model=pth_pretrained_model,
-        keras_model=model,
-        tail_align_dict=caformer_tail_align_dict if model.name.startswith("caformer") else convformer_tail_align_dict,
-        full_name_align_dict=full_name_align_dict,
-        additional_transfer=additional_transfer,
-        save_name=weight_file,
-        do_convert=True,
-        do_predict=False,
-        verbose=0,
-    )
