@@ -457,6 +457,14 @@ def test_TinyNetD_dynamic_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_TinyViT_5M_new_shape_predict():
+    mm = keras_cv_attention_models.tinyvit.TinyViT_5M(input_shape=(160, 160, 3))
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_UniformerSmall64_new_shape_predict():
     mm = keras_cv_attention_models.uniformer.UniformerSmall64(input_shape=(512, 512, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat

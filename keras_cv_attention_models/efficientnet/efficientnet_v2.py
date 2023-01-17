@@ -47,9 +47,9 @@ FILE_HASH_DICT = {
 def inverted_residual_block(
     inputs,
     output_channel,
-    stride,
-    expand,
-    shortcut,
+    stride=1,
+    expand=4,
+    shortcut=False,
     kernel_size=3,
     drop_rate=0,
     se_ratio=0,
@@ -59,6 +59,7 @@ def inverted_residual_block(
     se_divisor=1,  # 8 for mobilenetv3
     se_limit_round_down=0.9,  # 0.95 for fbnet
     use_global_context_instead_of_se=False,
+    use_last_bn_zero_gamma=False,
     activation="swish",
     name=None,
 ):
@@ -96,10 +97,10 @@ def inverted_residual_block(
     # pw-linear
     if is_fused and expand == 1:
         nn = conv2d_no_bias(nn, output_channel, 3, strides=stride, padding="same", use_torch_padding=is_torch_mode, name=name and name + "fu_")
-        nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name=name and name + "fu_")
+        nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=use_last_bn_zero_gamma, epsilon=bn_eps, name=name and name + "fu_")
     else:
         nn = conv2d_no_bias(nn, output_channel, 1, strides=1, padding="valid", use_torch_padding=is_torch_mode, name=name and name + "MB_pw_")
-        nn = batchnorm_with_activation(nn, activation=None, epsilon=bn_eps, name=name and name + "MB_pw_")
+        nn = batchnorm_with_activation(nn, activation=None, zero_gamma=use_last_bn_zero_gamma, epsilon=bn_eps, name=name and name + "MB_pw_")
 
     if shortcut:
         nn = drop_block(nn, drop_rate, name=name and name + "drop")

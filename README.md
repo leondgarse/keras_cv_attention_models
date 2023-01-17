@@ -59,6 +59,7 @@
   - [ResNeXt](#resnext)
   - [SwinTransformerV2](#swintransformerv2)
   - [TinyNet](#tinynet)
+  - [TinyViT](#tinyvit)
   - [UniFormer](#uniformer)
   - [VOLO](#volo)
   - [WaveMLP](#wavemlp)
@@ -464,37 +465,37 @@
   |                    | 26M    | 13.4G | 384   | 85.0     | [caformer_small18_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small18_384_imagenet.h5) |
   | - imagenet21k-ft1k | 26M    | 4.1G  | 224   | 84.1     | [caformer_small18_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small18_224_imagenet21k-ft1k.h5) |
   | - imagenet21k-ft1k | 26M    | 13.4G | 384   | 85.4     | [caformer_small18_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small18_384_imagenet21k-ft1k.h5) |
-  | CAFormerS36        | 39M    | 8.0G  | 224   | 84.5     | Load from huggingface pth |
-  |                    | 39M    | 26.0G | 384   | 85.7     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 39M    | 8.0G  | 224   | 85.8     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 39M    | 26.0G | 384   | 86.9     | Load from huggingface pth |
-  | CAFormerM36        | 56M    | 13.2G | 224   | 85.2     | Load from huggingface pth |
-  |                    | 56M    | 42.0G | 384   | 86.2     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 56M    | 13.2G | 224   | 86.6     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 56M    | 42.0G | 384   | 87.5     | Load from huggingface pth |
-  | CAFormerB36        | 99M    | 23.2G | 224   | 85.5     | Load from huggingface pth |
-  |                    | 99M    | 72.2G | 384   | 86.4     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 99M    | 23.2G | 224   | 87.4     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 99M    | 72.2G | 384   | 88.1     | Load from huggingface pth |
+  | CAFormerS36        | 39M    | 8.0G  | 224   | 84.5     | [caformer_small36_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small36_224_imagenet.h5) |
+  |                    | 39M    | 26.0G | 384   | 85.7     | [caformer_small36_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small36_384_imagenet.h5) |
+  | - imagenet21k-ft1k | 39M    | 8.0G  | 224   | 85.8     | [caformer_small36_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small36_224_imagenet21k-ft1k.h5) |
+  | - imagenet21k-ft1k | 39M    | 26.0G | 384   | 86.9     | [caformer_small36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small36_384_imagenet21k-ft1k.h5) |
+  | CAFormerM36        | 56M    | 13.2G | 224   | 85.2     | [caformer_medium36_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_medium36_224_imagenet.h5) |
+  |                    | 56M    | 42.0G | 384   | 86.2     | [caformer_medium36_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_medium36_384_imagenet.h5) |
+  | - imagenet21k-ft1k | 56M    | 13.2G | 224   | 86.6     | [caformer_medium36_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_medium36_224_imagenet21k-ft1k.h5) |
+  | - imagenet21k-ft1k | 56M    | 42.0G | 384   | 87.5     | [caformer_medium36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_medium36_384_imagenet21k-ft1k.h5) |
+  | CAFormerB36        | 99M    | 23.2G | 224   | 85.5     | [caformer_big36_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_big36_224_imagenet.h5) |
+  |                    | 99M    | 72.2G | 384   | 86.4     | [caformer_big36_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_big36_384_imagenet.h5) |
+  | - imagenet21k-ft1k | 99M    | 23.2G | 224   | 87.4     | [caformer_big36_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_big36_224_imagenet21k-ft1k.h5) |
+  | - imagenet21k-ft1k | 99M    | 72.2G | 384   | 88.1     | [caformer_big36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_big36_384_imagenet21k-ft1k.h5) |
 
   | Model              | Params | FLOPs | Input | Top1 Acc | Download |
   | ------------------ | ------ | ----- | ----- | -------- | -------- |
-  | ConvFormerS18      | 27M    | 3.9G  | 224   | 83.0     | Load from huggingface pth |
-  |                    | 27M    | 11.6G | 384   | 84.4     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 27M    | 3.9G  | 224   | 83.7     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 27M    | 11.6G | 384   | 85.0     | Load from huggingface pth |
-  | ConvFormerS36      | 40M    | 7.6G  | 224   | 84.1     | Load from huggingface pth |
-  |                    | 40M    | 22.4G | 384   | 85.4     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 40M    | 7.6G  | 224   | 85.4     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 40M    | 22.4G | 384   | 86.4     | Load from huggingface pth |
-  | ConvFormerM36      | 57M    | 12.8G | 224   | 84.5     | Load from huggingface pth |
-  |                    | 57M    | 37.7G | 384   | 85.6     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 57M    | 12.8G | 224   | 86.1     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 57M    | 37.7G | 384   | 86.9     | Load from huggingface pth |
-  | ConvFormerB36      | 100M   | 22.6G | 224   | 84.8     | Load from huggingface pth |
-  |                    | 100M   | 66.5G | 384   | 85.7     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 100M   | 22.6G | 224   | 87.0     | Load from huggingface pth |
-  | - imagenet21k-ft1k | 100M   | 66.5G | 384   | 87.6     | Load from huggingface pth |
+  | ConvFormerS18      | 27M    | 3.9G  | 224   | 83.0     | [convformer_s18_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_s18_224_imagenet.h5) |
+  |                    | 27M    | 11.6G | 384   | 84.4     | [convformer_s18_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_s18_384_imagenet.h5) |
+  | - imagenet21k-ft1k | 27M    | 3.9G  | 224   | 83.7     | [convformer_s18_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_s18_224_imagenet_imagenet21k-ft1k.h5) |
+  | - imagenet21k-ft1k | 27M    | 11.6G | 384   | 85.0     | [convformer_s36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_s36_384_imagenet_imagenet21k-ft1k.h5) |
+  | ConvFormerS36      | 40M    | 7.6G  | 224   | 84.1     | [convformer_s36_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_s36_224_imagenet.h5) |
+  |                    | 40M    | 22.4G | 384   | 85.4     | [convformer_s36_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_s36_384_imagenet.h5) |
+  | - imagenet21k-ft1k | 40M    | 7.6G  | 224   | 85.4     | [convformer_s36_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_s36_224_imagenet_imagenet21k-ft1k.h5) |
+  | - imagenet21k-ft1k | 40M    | 22.4G | 384   | 86.4     | [convformer_s36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_s36_384_imagenet_imagenet21k-ft1k.h5) |
+  | ConvFormerM36      | 57M    | 12.8G | 224   | 84.5     | [convformer_m36_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_m36_224_imagenet.h5) |
+  |                    | 57M    | 37.7G | 384   | 85.6     | [convformer_m36_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_m36_384_imagenet.h5) |
+  | - imagenet21k-ft1k | 57M    | 12.8G | 224   | 86.1     | [convformer_m36_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_m36_224_imagenet_imagenet21k-ft1k.h5) |
+  | - imagenet21k-ft1k | 57M    | 37.7G | 384   | 86.9     | [convformer_m36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_m36_384_imagenet_imagenet21k-ft1k.h5) |
+  | ConvFormerB36      | 100M   | 22.6G | 224   | 84.8     | [convformer_b36_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_b36_224_imagenet.h5) |
+  |                    | 100M   | 66.5G | 384   | 85.7     | [convformer_b36_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_b36_384_imagenet.h5) |
+  | - imagenet21k-ft1k | 100M   | 22.6G | 224   | 87.0     | [convformer_b36_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_b36_224_imagenet_imagenet21k-ft1k.h5) |
+  | - imagenet21k-ft1k | 100M   | 66.5G | 384   | 87.6     | [convformer_b36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_b36_384_imagenet_imagenet21k-ft1k.h5) |
 ## CMT
   - [Keras CMT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cmt) is for [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf).
 
@@ -1048,6 +1049,19 @@
   | TinyNetC | 2.46M  | 103.22M | 184   | 71.23    | [tinynet_c_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/tinynet_c_imagenet.h5) |
   | TinyNetB | 3.73M  | 206.28M | 188   | 74.98    | [tinynet_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/tinynet_b_imagenet.h5) |
   | TinyNetA | 6.19M  | 343.74M | 192   | 77.65    | [tinynet_a_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/tinynet_a_imagenet.h5) |
+## TinyViT
+  - [Keras TinyViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/tinyvit) includes implementation of [PDF 2207.10666 TinyViT: Fast Pretraining Distillation for Small Vision Transformers](https://arxiv.org/pdf/2207.10666.pdf).
+
+  | Model                | Params | FLOPs | Input | Top1 Acc | Download |
+  | -------------------- | ------ | ----- | ----- | -------- | -------- |
+  | TinyViT_5M, distill  | 5.4M   | 1.3G  | 224   | 79.1     |          |
+  | - imagenet21k-ft1k   | 5.4M   | 1.3G  | 224   | 80.7     | [tiny_vit_5m_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/tinyvit/tiny_vit_5m_224_imagenet21k-ft1k.h5) |
+  | TinyViT_11M, distill | 11M    | 2.0G  | 224   | 81.5     |          |
+  | - imagenet21k-ft1k   | 11M    | 2.0G  | 224   | 83.2     | [tiny_vit_11m_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/tinyvit/tiny_vit_11m_224_imagenet21k-ft1k.h5) |
+  | TinyViT_21M, distill | 21M    | 4.3G  | 224   | 84.8     |          |
+  | - imagenet21k-ft1k   | 21M    | 4.3G  | 224   | 83.1     | [tiny_vit_21m_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/tinyvit/tiny_vit_21m_224_imagenet21k-ft1k.h5) |
+  |                      | 21M    | 13.8G | 384   | 86.2     |          |
+  |                      | 21M    | 27.0G | 512   | 86.5     |          |
 ## UniFormer
   - [Keras UniFormer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/uniformer) includes implementation of [PDF 2201.09450 UniFormer: Unifying Convolution and Self-attention for Visual Recognition](https://arxiv.org/pdf/2201.09450.pdf).
 

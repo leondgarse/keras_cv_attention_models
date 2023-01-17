@@ -37,6 +37,7 @@ from keras_cv_attention_models import mobilevit
 from keras_cv_attention_models import nat
 from keras_cv_attention_models import nfnets
 from keras_cv_attention_models import pvt
+from keras_cv_attention_models import tinyvit
 from keras_cv_attention_models import resnest
 from keras_cv_attention_models import resnet_family
 from keras_cv_attention_models.resnet_family import resnext
