@@ -16,7 +16,10 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 LAYER_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
-    "caformer_small18": {"imagenet": {224: "b8a824d4197161286de2aef08c1be379", 384: ""}},
+    "caformer_s18": {
+        "imagenet": {224: "b8a824d4197161286de2aef08c1be379", 384: "fcd11441f1811124f77a4cad1b328639"},
+        "imagenet21k-ft1k": {224: "4b87b7d0393dc607089eff549dfe7319", 384: "05f20bcd5403a6076b1fa3276766b987"},
+    },
 }
 
 
@@ -100,28 +103,99 @@ def CAFormer(
 
     model = tf.keras.models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
-    reload_model_weights(model, PRETRAINED_DICT, "caformer", pretrained)
+    if model.name.startswith("caformer_s18"):  # Only this uploaded
+        reload_model_weights(model, PRETRAINED_DICT, "caformer", pretrained)
+    else:
+        convert_from_pytorch_weights(model, pretrained)
     return model
 
 
-def CAFormerSmall18(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return CAFormer(**locals(), model_name="caformer_small18", **kwargs)
+def CAFormerS18(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    kwargs.pop("kwargs", None)
+    return CAFormer(**locals(), model_name=kwargs.pop("model_name", "caformer_s18"), **kwargs)
 
 
-def CAFormerSmall36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def CAFormerS36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 12, 18, 3]
-    return CAFormer(**locals(), model_name="caformer_small36", **kwargs)
+    kwargs.pop("kwargs", None)
+    return CAFormer(**locals(), model_name=kwargs.pop("model_name", "caformer_s36"), **kwargs)
 
 
-def CAFormerMedium36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def CAFormerM36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 12, 18, 3]
     out_channels = [96, 192, 384, 576]
     head_filter = out_channels[-1] * 4
-    return CAFormer(**locals(), model_name="caformer_medium36", **kwargs)
+    kwargs.pop("kwargs", None)
+    return CAFormer(**locals(), model_name=kwargs.pop("model_name", "caformer_m36"), **kwargs)
 
 
-def CAFormerBig36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def CAFormerB36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 12, 18, 3]
     out_channels = [128, 256, 512, 768]
     head_filter = out_channels[-1] * 4
-    return CAFormer(**locals(), model_name="caformer_big36", **kwargs)
+    kwargs.pop("kwargs", None)
+    return CAFormer(**locals(), model_name=kwargs.pop("model_name", "caformer_b36"), **kwargs)
+
+
+""" ConvFormer """
+
+def ConvFormerS18(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return CAFormerS18(**locals(), block_types=["conv", "conv", "conv", "conv"], model_name="convformer_s18", **kwargs)
+
+
+def ConvFormerS36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return CAFormerS36(**locals(), block_types=["conv", "conv", "conv", "conv"], model_name="convformer_s36", **kwargs)
+
+
+def ConvFormerM36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return CAFormerM36(**locals(), block_types=["conv", "conv", "conv", "conv"], model_name="convformer_m36", **kwargs)
+
+
+def ConvFormerB36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return CAFormerB36(**locals(), block_types=["conv", "conv", "conv", "conv"], model_name="convformer_b36", **kwargs)
+
+
+""" convert_from_pytorch_weights, load and convert from pth at the first time, then save h5 locally """
+
+
+def convert_from_pytorch_weights(model, pretrained="imagenet"):
+    import os
+    from keras_cv_attention_models import download_and_load, attention_layers
+
+    if pretrained not in ["imagenet", "imagenet21k-ft1k"]:
+        return
+
+    weight_file_name = "{}_{}_{}.h5".format(model.name, model.input_shape[1], pretrained)
+    weight_file = os.path.join(os.path.expanduser("~"), ".keras", "models", weight_file_name)
+    if os.path.exists(weight_file):
+        print(">>>> Load pretrained from:", weight_file)
+        model.load_weights(weight_file, by_name=True, skip_mismatch=True)
+        return
+
+    if not os.path.exists(os.path.dirname(weight_file)):
+        os.makedirs(os.path.dirname(weight_file), exist_ok=True)
+
+    pth_file_name = model.name + ("_384" if model.input_shape[1] > (224 + 384) // 2 else "") + ("" if pretrained == "imagenet" else "_in21ft1k") + ".pth"
+    url = "https://huggingface.co/sail/dl/resolve/main/{}/{}".format(model.name.split("_")[0], pth_file_name)
+    pth_pretrained_model = keras.utils.get_file(pth_file_name, url, cache_subdir="models")  # Not checking hash
+
+    caformer_tail_align_dict = {"stack3": {"mhsa_output": -1, "mlp_Dense_1": -1}, "stack4": {"mhsa_output": -1, "mlp_Dense_1": -1}}
+    convformer_tail_align_dict = {"stack3": {"mlp_sep_2_dense": -1, "mlp_Dense_1": -1}, "stack4": {"mlp_sep_2_dense": -1, "mlp_Dense_1": -1}}
+    full_name_align_dict = {
+        "stack2_downsample_ln": 2, "stack2_downsample_conv": 3,
+        "stack3_downsample_ln": 4, "stack3_downsample_conv": 5,
+        "stack4_downsample_ln": 6, "stack4_downsample_conv": 7,
+    }
+
+    additional_transfer = {attention_layers.ZeroInitGain: lambda ww: [ww[0][0], ww[1][0]]}
+    download_and_load.keras_reload_from_torch_model(
+        torch_model=pth_pretrained_model,
+        keras_model=model,
+        tail_align_dict=caformer_tail_align_dict if model.name.startswith("caformer") else convformer_tail_align_dict,
+        full_name_align_dict=full_name_align_dict,
+        additional_transfer=additional_transfer,
+        save_name=weight_file,
+        do_convert=True,
+        do_predict=False,
+        verbose=0,
+    )

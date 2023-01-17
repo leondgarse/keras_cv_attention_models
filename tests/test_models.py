@@ -237,6 +237,14 @@ def test_BotNet_new_shape_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_CAFormerS18_new_shape_predict():
+    mm = keras_cv_attention_models.caformer.CAFormerS18(input_shape=(112, 193, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_CMTTiny_new_shape_predict():
     mm = keras_cv_attention_models.cmt.CMTTiny(input_shape=(117, 192, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat

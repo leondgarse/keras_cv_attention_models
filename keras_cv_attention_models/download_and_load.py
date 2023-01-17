@@ -145,7 +145,7 @@ def match_layer_names_with_torch(target_names, tail_align_dict={}, full_name_ali
     return layer_names_matched_torch
 
 
-def align_layer_names_multi_stage(target_names, tail_align_dict={}, full_name_align_dict={}, tail_split_position=2, specific_match_func=None):
+def align_layer_names_multi_stage(target_names, tail_align_dict={}, full_name_align_dict={}, tail_split_position=2, specific_match_func=None, verbose=1):
     if isinstance(tail_split_position, int):
         tail_align_dict, full_name_align_dict, tail_split_position = [tail_align_dict], [full_name_align_dict], [tail_split_position]
     full_name_align_dict = full_name_align_dict if isinstance(full_name_align_dict, (list, tuple)) else [full_name_align_dict]
@@ -154,9 +154,10 @@ def align_layer_names_multi_stage(target_names, tail_align_dict={}, full_name_al
         cur_tail = tail_align_dict[idx] if idx < len(tail_align_dict) else {}
         cur_full = full_name_align_dict[idx] if idx < len(full_name_align_dict) else {}
         cur_split = tail_split_position[idx] if idx < len(tail_split_position) else tail_split_position[-1]
-        print(">>>> tail_align_dict:", cur_tail)
-        print(">>>> full_name_align_dict:", cur_full)
-        print(">>>> tail_split_position:", cur_split)
+        if verbose > 0:
+            print(">>>> tail_align_dict:", cur_tail)
+            print(">>>> full_name_align_dict:", cur_full)
+            print(">>>> tail_split_position:", cur_split)
         target_names = match_layer_names_with_torch(target_names, cur_tail, cur_full, cur_split)
 
     if specific_match_func is not None:
@@ -164,15 +165,17 @@ def align_layer_names_multi_stage(target_names, tail_align_dict={}, full_name_al
     return target_names
 
 
-def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_matched_torch, additional_transfer={}, save_name=None):
+def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_matched_torch, additional_transfer={}, save_name=None, verbose=1):
     import numpy as np
 
     for kk, tf_layer_name in zip(stacked_state_dict.keys(), layer_names_matched_torch):
-        print("  torch layer name: {}, tf layer name: {}".format(kk, tf_layer_name))
+        if verbose > 0:
+            print("  torch layer name: {}, tf layer name: {}".format(kk, tf_layer_name))
         tf_layer = model.get_layer(tf_layer_name)
         tf_weights = tf_layer.get_weights()
         torch_weight = stacked_state_dict[kk]
-        print("    Before: [{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
+        if verbose > 0:
+            print("    Before: [{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
 
         if isinstance(tf_layer, keras.layers.DepthwiseConv2D):  # DepthwiseConv2D is instance of Conv2D, put it first
             torch_weight[0] = np.transpose(torch_weight[0], (2, 3, 0, 1))
@@ -194,15 +197,17 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
                     torch_weight = add_transfer(torch_weight)
             elif isinstance(tf_layer, add_layer):
                 torch_weight = add_transfer(torch_weight)
-        print("    After: [{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
+        if verbose > 0:
+            print("    After: [{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
 
         tf_layer.set_weights(torch_weight)
 
     if save_name is None:
         save_name = model.name + ".h5"
     if len(save_name) != 0:
-        print()
-        print(">>>> Save model to:", save_name)
+        if verbose > 0:
+            print()
+            print(">>>> Save model to:", save_name)
         model.save(save_name)
 
 
@@ -247,6 +252,7 @@ def keras_reload_from_torch_model(
     save_name=None,
     do_convert=True,
     do_predict=True,
+    verbose=1,
 ):
     import torch
     import numpy as np
@@ -286,11 +292,13 @@ def keras_reload_from_torch_model(
     """ Convert torch weights """
     # torch_params = {kk: (np.cumproduct(vv.shape)[-1] if len(vv.shape) != 0 else 1) for kk, vv in state_dict.items() if ".num_batches_tracked" not in kk}
     stacked_state_dict = state_dict_stack_by_layer(state_dict, skip_weights=skip_weights, unstack_weights=unstack_weights)
-    print(">>>> torch_model total_parameters :", np.sum([np.sum([np.prod(jj.shape) for jj in ii]) for ii in stacked_state_dict.values()]))
+    if verbose > 0:
+        print(">>>> torch_model total_parameters :", np.sum([np.sum([np.prod(jj.shape) for jj in ii]) for ii in stacked_state_dict.values()]))
     aa = {kk: [1 if isinstance(jj, float) else jj.shape for jj in vv] for kk, vv in stacked_state_dict.items()}
-    print(">>>> Torch weights:")
-    _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
-    print()
+    if verbose > 0:
+        print(">>>> Torch weights:")
+        _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
+        print()
 
     if keras_model is None:
         return
@@ -298,18 +306,20 @@ def keras_reload_from_torch_model(
     """ Keras model weights """
     target_names = [ii.name for ii in keras_model.layers if len(ii.weights) != 0]
     aa = {keras_model.get_layer(ii).name: [jj.shape.as_list() for jj in keras_model.get_layer(ii).weights] for ii in target_names}
-    print(">>>> keras_model total_parameters :", np.sum([np.sum([int(np.prod(jj)) for jj in ii]) for ii in aa.values()]))
-    print(">>>> Keras weights:")
-    _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
-    print()
+    if verbose > 0:
+        print(">>>> keras_model total_parameters :", np.sum([np.sum([int(np.prod(jj)) for jj in ii]) for ii in aa.values()]))
+        print(">>>> Keras weights:")
+        _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
+        print()
 
     """ Load torch weights and save h5 """
     if len(tail_align_dict) != 0 or len(full_name_align_dict) != 0 or specific_match_func is not None:
-        aligned_names = align_layer_names_multi_stage(target_names, tail_align_dict, full_name_align_dict, tail_split_position, specific_match_func)
+        aligned_names = align_layer_names_multi_stage(target_names, tail_align_dict, full_name_align_dict, tail_split_position, specific_match_func, verbose)
         aa = {keras_model.get_layer(ii).name: [jj.shape.as_list() for jj in keras_model.get_layer(ii).weights] for ii in aligned_names}
-        print(">>>> Keras weights matched torch:")
-        _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
-        print()
+        if verbose > 0:
+            print(">>>> Keras weights matched torch:")
+            _ = [print("  '{}': {}".format(kk, vv)) for kk, vv in aa.items()]
+            print()
     else:
         aligned_names = target_names
 
@@ -317,9 +327,11 @@ def keras_reload_from_torch_model(
         return
 
     save_name = save_name if save_name is not None else keras_model.name + "_imagenet.h5"
-    print(">>>> Keras reload torch weights:")
-    keras_reload_stacked_state_dict(keras_model, stacked_state_dict, aligned_names, additional_transfer, save_name=save_name)
-    print()
+    if verbose > 0:
+        print(">>>> Keras reload torch weights:")
+    keras_reload_stacked_state_dict(keras_model, stacked_state_dict, aligned_names, additional_transfer, save_name=save_name, verbose=verbose)
+    if verbose > 0:
+        print()
 
     """ Keras run predict """
     if do_predict:

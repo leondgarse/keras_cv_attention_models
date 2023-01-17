@@ -16,6 +16,7 @@
   - [BEiT](#beit)
   - [BEiTV2](#beitv2)
   - [BotNet](#botnet)
+  - [CAFormer](#caformer)
   - [CMT](#cmt)
   - [CoaT](#coat)
   - [CoAtNet](#coatnet)
@@ -454,6 +455,46 @@
   | BotNet26T     | 12.5M  | 3.30G  | 256   | 79.246   | [botnet26t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet26t_256_imagenet.h5) |
   | BotNextECA26T | 10.59M | 2.45G  | 256   | 79.270   | [botnext_eca26t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnext_eca26t_256_imagenet.h5) |
   | BotNetSE33T   | 13.7M  | 3.89G  | 256   | 81.2     | [botnet_se33t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet_se33t_256_imagenet.h5) |
+## CAFormer
+  - [Keras CAFormer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/caformer) is for [PDF 2210.13452 MetaFormer Baselines for Vision](https://arxiv.org/pdf/2210.13452.pdf). `CAFormer` is using 2 transformer stacks, while `ConvFormer` is all conv blocks.
+
+  | Model              | Params | FLOPs | Input | Top1 Acc | Download |
+  | ------------------ | ------ | ----- | ----- | -------- | -------- |
+  | CAFormerS18        | 26M    | 4.1G  | 224   | 83.6     | [caformer_small18_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small18_224_imagenet.h5) |
+  |                    | 26M    | 13.4G | 384   | 85.0     | [caformer_small18_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small18_384_imagenet.h5) |
+  | - imagenet21k-ft1k | 26M    | 4.1G  | 224   | 84.1     | [caformer_small18_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small18_224_imagenet21k-ft1k.h5) |
+  | - imagenet21k-ft1k | 26M    | 13.4G | 384   | 85.4     | [caformer_small18_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small18_384_imagenet21k-ft1k.h5) |
+  | CAFormerS36        | 39M    | 8.0G  | 224   | 84.5     | Load from huggingface pth |
+  |                    | 39M    | 26.0G | 384   | 85.7     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 39M    | 8.0G  | 224   | 85.8     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 39M    | 26.0G | 384   | 86.9     | Load from huggingface pth |
+  | CAFormerM36        | 56M    | 13.2G | 224   | 85.2     | Load from huggingface pth |
+  |                    | 56M    | 42.0G | 384   | 86.2     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 56M    | 13.2G | 224   | 86.6     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 56M    | 42.0G | 384   | 87.5     | Load from huggingface pth |
+  | CAFormerB36        | 99M    | 23.2G | 224   | 85.5     | Load from huggingface pth |
+  |                    | 99M    | 72.2G | 384   | 86.4     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 99M    | 23.2G | 224   | 87.4     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 99M    | 72.2G | 384   | 88.1     | Load from huggingface pth |
+
+  | Model              | Params | FLOPs | Input | Top1 Acc | Download |
+  | ------------------ | ------ | ----- | ----- | -------- | -------- |
+  | ConvFormerS18      | 27M    | 3.9G  | 224   | 83.0     | Load from huggingface pth |
+  |                    | 27M    | 11.6G | 384   | 84.4     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 27M    | 3.9G  | 224   | 83.7     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 27M    | 11.6G | 384   | 85.0     | Load from huggingface pth |
+  | ConvFormerS36      | 40M    | 7.6G  | 224   | 84.1     | Load from huggingface pth |
+  |                    | 40M    | 22.4G | 384   | 85.4     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 40M    | 7.6G  | 224   | 85.4     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 40M    | 22.4G | 384   | 86.4     | Load from huggingface pth |
+  | ConvFormerM36      | 57M    | 12.8G | 224   | 84.5     | Load from huggingface pth |
+  |                    | 57M    | 37.7G | 384   | 85.6     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 57M    | 12.8G | 224   | 86.1     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 57M    | 37.7G | 384   | 86.9     | Load from huggingface pth |
+  | ConvFormerB36      | 100M   | 22.6G | 224   | 84.8     | Load from huggingface pth |
+  |                    | 100M   | 66.5G | 384   | 85.7     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 100M   | 22.6G | 224   | 87.0     | Load from huggingface pth |
+  | - imagenet21k-ft1k | 100M   | 66.5G | 384   | 87.6     | Load from huggingface pth |
 ## CMT
   - [Keras CMT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cmt) is for [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf).
 
