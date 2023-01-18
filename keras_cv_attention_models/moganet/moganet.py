@@ -16,6 +16,8 @@ PRETRAINED_DICT = {
     "moganet_xtiny": {"imagenet": "b1a7a1b77777cd8fdc8b5b5333e49215"},
     "moganet_tiny": {"imagenet": {224: "2ecd6f4552fb5bdbd0845c6a49bb67a9", 256: "6be0f1b79d00ba535412c1d1d3c1a71f"}},
     "moganet_small": {"imagenet": "8b090a8058304bdbacdc70896ecb25cd"},
+    "moganet_base": {"imagenet": "3aa0d6fccc312bb7674495b7c0c8153e"},
+    "moganet_large": {"imagenet": "1714094064c837afa3c6f0304563b496"},
 }
 
 
