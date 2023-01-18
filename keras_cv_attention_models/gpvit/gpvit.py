@@ -28,7 +28,8 @@ PRETRAINED_DICT = {
 
 @tf.keras.utils.register_keras_serializable(package="kecam")
 class PureWeigths(keras.layers.Layer):
-    """ Just return a weights with specific shape """
+    """Just return a weights with specific shape"""
+
     def __init__(self, shape, **kwargs):
         super().__init__(**kwargs)
         self.shape = shape

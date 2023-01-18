@@ -73,7 +73,7 @@ def activation_by_name(inputs, activation="relu", name=None):
     elif activation_lower == ("hard_sigmoid_torch"):
         return keras.layers.Activation(activation=hard_sigmoid_torch, name=layer_name)(inputs)
     elif activation_lower == ("squaredrelu") or activation_lower == ("squared_relu"):
-        return (tf.nn.relu(inputs) ** 2)  # Squared ReLU: https://arxiv.org/abs/2109.08668
+        return tf.nn.relu(inputs) ** 2  # Squared ReLU: https://arxiv.org/abs/2109.08668
     elif activation_lower == ("starrelu") or activation_lower == ("star_relu"):
         from keras_cv_attention_models.nfnets.nfnets import ZeroInitGain
 

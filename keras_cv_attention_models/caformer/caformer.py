@@ -163,6 +163,7 @@ def CAFormerB36(input_shape=(224, 224, 3), num_classes=1000, activation="star_re
 
 """ ConvFormer """
 
+
 def ConvFormerS18(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return CAFormerS18(**locals(), block_types=["conv", "conv", "conv", "conv"], model_name="convformer_s18", **kwargs)
 
