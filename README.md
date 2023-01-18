@@ -461,22 +461,22 @@
 
   | Model              | Params | FLOPs | Input | Top1 Acc | Download |
   | ------------------ | ------ | ----- | ----- | -------- | -------- |
-  | CAFormerS18        | 26M    | 4.1G  | 224   | 83.6     | [caformer_s18_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small18_224_imagenet.h5) |
-  | - imagenet21k-ft1k | 26M    | 4.1G  | 224   | 84.1     | [caformer_s18_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small18_224_imagenet21k-ft1k.h5) |
-  |                    | 26M    | 13.4G | 384   | 85.0     | [caformer_s18_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small18_384_imagenet.h5) |
-  | - imagenet21k-ft1k | 26M    | 13.4G | 384   | 85.4     | [caformer_s18_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small18_384_imagenet21k-ft1k.h5) |
-  | CAFormerS36        | 39M    | 8.0G  | 224   | 84.5     | [caformer_s36_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small36_224_imagenet.h5) |
-  | - imagenet21k-ft1k | 39M    | 8.0G  | 224   | 85.8     | [caformer_s36_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small36_224_imagenet21k-ft1k.h5) |
-  |                    | 39M    | 26.0G | 384   | 85.7     | [caformer_s36_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small36_384_imagenet.h5) |
-  | - imagenet21k-ft1k | 39M    | 26.0G | 384   | 86.9     | [caformer_s36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_small36_384_imagenet21k-ft1k.h5) |
-  | CAFormerM36        | 56M    | 13.2G | 224   | 85.2     | [caformer_m36_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_medium36_224_imagenet.h5) |
-  | - imagenet21k-ft1k | 56M    | 13.2G | 224   | 86.6     | [caformer_m36_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_medium36_224_imagenet21k-ft1k.h5) |
-  |                    | 56M    | 42.0G | 384   | 86.2     | [caformer_m36_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_medium36_384_imagenet.h5) |
-  | - imagenet21k-ft1k | 56M    | 42.0G | 384   | 87.5     | [caformer_m36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_medium36_384_imagenet21k-ft1k.h5) |
-  | CAFormerB36        | 99M    | 23.2G | 224   | 85.5     | [caformer_b36_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_big36_224_imagenet.h5) |
-  | - imagenet21k-ft1k | 99M    | 23.2G | 224   | 87.4     | [caformer_b36_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_big36_224_imagenet21k-ft1k.h5) |
-  |                    | 99M    | 72.2G | 384   | 86.4     | [caformer_b36_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_big36_384_imagenet.h5) |
-  | - imagenet21k-ft1k | 99M    | 72.2G | 384   | 88.1     | [caformer_b36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_big36_384_imagenet21k-ft1k.h5) |
+  | CAFormerS18        | 26M    | 4.1G  | 224   | 83.6     | [caformer_s18_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s18_224_imagenet.h5) |
+  | - imagenet21k-ft1k | 26M    | 4.1G  | 224   | 84.1     | [caformer_s18_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s18_224_imagenet21k-ft1k.h5) |
+  |                    | 26M    | 13.4G | 384   | 85.0     | [caformer_s18_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s18_384_imagenet.h5) |
+  | - imagenet21k-ft1k | 26M    | 13.4G | 384   | 85.4     | [caformer_s18_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s18_384_imagenet21k-ft1k.h5) |
+  | CAFormerS36        | 39M    | 8.0G  | 224   | 84.5     | [caformer_s36_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s36_224_imagenet.h5) |
+  | - imagenet21k-ft1k | 39M    | 8.0G  | 224   | 85.8     | [caformer_s36_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s36_224_imagenet21k-ft1k.h5) |
+  |                    | 39M    | 26.0G | 384   | 85.7     | [caformer_s36_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s36_384_imagenet.h5) |
+  | - imagenet21k-ft1k | 39M    | 26.0G | 384   | 86.9     | [caformer_s36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s36_384_imagenet21k-ft1k.h5) |
+  | CAFormerM36        | 56M    | 13.2G | 224   | 85.2     | [caformer_m36_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_m36_224_imagenet.h5) |
+  | - imagenet21k-ft1k | 56M    | 13.2G | 224   | 86.6     | [caformer_m36_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_m36_224_imagenet21k-ft1k.h5) |
+  |                    | 56M    | 42.0G | 384   | 86.2     | [caformer_m36_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_m36_384_imagenet.h5) |
+  | - imagenet21k-ft1k | 56M    | 42.0G | 384   | 87.5     | [caformer_m36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_m36_384_imagenet21k-ft1k.h5) |
+  | CAFormerB36        | 99M    | 23.2G | 224   | 85.5     | [caformer_b36_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_b36_224_imagenet.h5) |
+  | - imagenet21k-ft1k | 99M    | 23.2G | 224   | 87.4     | [caformer_b36_224_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_b36_224_imagenet21k-ft1k.h5) |
+  |                    | 99M    | 72.2G | 384   | 86.4     | [caformer_b36_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_b36_384_imagenet.h5) |
+  | - imagenet21k-ft1k | 99M    | 72.2G | 384   | 88.1     | [caformer_b36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_b36_384_imagenet21k-ft1k.h5) |
 
   | Model              | Params | FLOPs | Input | Top1 Acc | Download |
   | ------------------ | ------ | ----- | ----- | -------- | -------- |
