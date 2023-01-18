@@ -73,6 +73,19 @@
   print(mm.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.7891602), ('n02123159', 'tiger_cat', 0.039598733), ...]
   ```
+## Ablation Study from paper
+  | Activation                         | ConvFormerS18 | CAFormerS18 |
+  | ---------------------------------- | ------------- | ----------- |
+  | star_relu (base line)              | **83.0**      | **83.6**    |
+  | relu                               | 82.1 (-0.9)   | 82.9 (-0.7) |
+  | squared_relu                       | 82.6 (-0.4)   | 83.4 (-0.2) |
+  | gelu                               | 82.7 (-0.3)   | 83.4 (-0.2) |
+  | **Branch outputscaling**           |               |             |
+  | None                               | 82.8 (-0.2)   | 83.2 (-0.4) |
+  | LayerScale                         | 82.8 (-0.0)   | 83.0 (-0.6) |
+  | BranchScale                        | 82.9 (-0.1)   | 83.3 (-0.3) |
+  | **Biases in each block**           |               |             |
+  | Enable biases of Norm, FC and Conv | 83.0 (-0.0)   | 83.5 (-0.1) |
 ## Verification with PyTorch version
   ```py
   """ PyTorch caformer_s18 """
