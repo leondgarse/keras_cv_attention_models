@@ -20,9 +20,12 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 LAYER_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
-    "tiny_vit_11m": {"imagenet21k-ft1k": {224: "f84673169e5c7a4ec526866da24cd5f4"}},
-    "tiny_vit_21m": {"imagenet21k-ft1k": {224: "08d16dd06ddd85c2e4d2d15143c24607"}},
-    "tiny_vit_5m": {"imagenet21k-ft1k": {224: "cd10dbebf0645769dcda3224a0f330c4"}},
+    "tiny_vit_11m": {"imagenet": {224: "6cc52dda567fd70f706d57c69dfd81d8"}, "imagenet21k-ft1k": {224: "f84673169e5c7a4ec526866da24cd5f4"}},
+    "tiny_vit_21m": {
+        "imagenet": {224: "5809a53bc3abe0785475c3f2d501a039"},
+        "imagenet21k-ft1k": {224: "08d16dd06ddd85c2e4d2d15143c24607", 384: "fe6d364e99fa5a7f255ad3f3270bc962", 512: "ba5822042f0cb09bd8189290164b6ec3"},
+    },
+    "tiny_vit_5m": {"imagenet": {224: "a9c53f53e6da6a9b2edf6e773e5e402b"}, "imagenet21k-ft1k": {224: "cd10dbebf0645769dcda3224a0f330c4"}},
 }
 
 
@@ -51,7 +54,8 @@ def TinyViT(
     out_channels=[64, 128, 160, 320],
     block_types=["conv", "transform", "transform", "transform"],
     num_heads=[2, 4, 5, 10],
-    window_sizes=[7, 7, 14, 7],
+    # window_sizes=[7, 7, 14, 7],
+    window_ratios=[8, 4, 1, 1],  # For `input_shape=(224, 224, 3)` will be window_sizes=[7, 7, 14, 7], for `(384, 384, 3)` will be `[12, 12, 24, 12]`.
     mlp_ratio=4,
     input_shape=(224, 224, 3),
     num_classes=1000,
@@ -93,7 +97,10 @@ def TinyViT(
 
         is_conv_block = True if block_type[0].lower() == "c" else False
         num_head = num_heads[stack_id] if isinstance(num_heads, (list, tuple)) else num_heads
-        window_size = window_sizes[stack_id] if isinstance(window_sizes, (list, tuple)) else window_sizes
+        # window_size = window_sizes[stack_id] if isinstance(window_sizes, (list, tuple)) else window_sizes
+        window_ratio = window_ratios[stack_id] if isinstance(window_ratios, (list, tuple)) else window_ratios
+        window_size = [int(tf.math.ceil(nn.shape[1] / window_ratio)), int(tf.math.ceil(nn.shape[2] / window_ratio))]
+        # print(f">>>> {window_size = }")
         for block_id in range(num_block):
             name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks

@@ -34,7 +34,9 @@ Args:
       - `transfrom` or any `t` / `T` starts word, means `multi_head_self_attention` block.
       value could be in format like `"cctt"` or `"CCTT"` or `["conv", "conv", "transfrom", "transform"]`.
   num_heads: int or list of int value indicates attention heads number for each transformer stack.
-  window_sizes: int or list of int value indicates attention heads number for each transformer stack.
+  window_ratios: int or list of int value indicates attention heads window ratio number for each transformer stack.
+      Actual using `window_size = ceil(cur_input_shape / window_ratio)`.
+      For `input_shape=(224, 224, 3)` will be window_sizes=[7, 7, 14, 7], for `(384, 384, 3)` will be `[12, 12, 24, 12]`.
   mlp_ratio: int value indicates expand ratio for mlp blocks hidden channel in each stack.
   model_name: string, model name.
 """ + __tail_doc__ + """
@@ -45,8 +47,8 @@ Model architectures:
   | - imagenet21k-ft1k   | 5.4M   | 1.3G  | 224   | 80.7     |
   | TinyViT_11M, distill | 11M    | 2.0G  | 224   | 81.5     |
   | - imagenet21k-ft1k   | 11M    | 2.0G  | 224   | 83.2     |
-  | TinyViT_21M, distill | 21M    | 4.3G  | 224   | 84.8     |
-  | - imagenet21k-ft1k   | 21M    | 4.3G  | 224   | 83.1     |
+  | TinyViT_21M, distill | 21M    | 4.3G  | 224   | 83.1     |
+  | - imagenet21k-ft1k   | 21M    | 4.3G  | 224   | 84.8     |
   |                      | 21M    | 13.8G | 384   | 86.2     |
   |                      | 21M    | 27.0G | 512   | 86.5     |
 """
