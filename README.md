@@ -47,6 +47,7 @@
   - [MobileNetV3](#mobilenetv3)
   - [MobileViT](#mobilevit)
   - [MobileViT_V2](#mobilevit_v2)
+  - [MogaNet](#moganet)
   - [NAT](#nat)
   - [NFNets](#nfnets)
   - [PVT_V2](#pvt_v2)
@@ -910,6 +911,17 @@
   | MobileViT_V2_200   | 18.4M  | 7.12G | 256   | 81.17    | [v2_200_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_200_256_imagenet.h5) |
   | - imagenet22k      | 18.4M  | 7.12G | 256   | 82.36    | [v2_200_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_200_256_imagenet22k.h5) |
   | - imagenet22k, 384 | 18.4M  | 16.2G | 384   | 83.41    | [v2_200_384_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_200_384_imagenet22k.h5) |
+## MogaNet
+  - [Keras MogaNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/moganet) is for [PDF 2211.03295 Efficient Multi-order Gated Aggregation Network](https://arxiv.org/pdf/2211.03295.pdf).
+
+  | Model        | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ------------ | ------ | ------ | ----- | -------- | -------- |
+  | MogaNetXtiny | 2.96M  | 806M   | 224   | 76.5     | [moganet_xtiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/moganet_xtiny_imagenet.h5) |
+  | MogaNetTiny  | 5.20M  | 1.11G  | 224   | 79.0     | [moganet_tiny_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/moganet_tiny_224_imagenet.h5) |
+  |              | 5.20M  | 1.45G  | 256   | 79.6     | [moganet_tiny_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/moganet_tiny_256_imagenet.h5) |
+  | MogaNetSmall | 25.3M  | 4.98G  | 224   | 83.4     | [moganet_small_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/moganet_small_imagenet.h5) |
+  | MogaNetBase  | 43.7M  | 9.96G  | 224   | 84.2     | [moganet_base_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/moganet_base_imagenet.h5) |
+  | MogaNetLarge | 82.5M  | 15.96G | 224   | 84.6     | [moganet_large_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/moganet_large_imagenet.h5) |
 ## NAT
   - [Keras NAT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/nat) is for [PDF 2204.07143 Neighborhood Attention Transformer](https://arxiv.org/pdf/2204.07143.pdf).
 

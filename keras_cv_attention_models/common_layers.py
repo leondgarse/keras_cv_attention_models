@@ -243,7 +243,12 @@ def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, name=None):
 
 def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", use_bias=False, groups=1, use_torch_padding=True, name=None, **kwargs):
     """Typical Conv2D with `use_bias` default as `False` and fixed padding"""
-    pad = (kernel_size[0] // 2, kernel_size[1] // 2) if isinstance(kernel_size, (list, tuple)) else (kernel_size // 2, kernel_size // 2)
+    if isinstance(padding, str):
+        pad = (kernel_size[0] // 2, kernel_size[1] // 2) if isinstance(kernel_size, (list, tuple)) else (kernel_size // 2, kernel_size // 2)
+    else:  # int or list or tuple with specific value
+        pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
+        padding = "SAME" if max(pad) > 0 else "VALID"
+
     if use_torch_padding and padding.upper() == "SAME" and max(pad) != 0:
         inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
         padding = "VALID"
@@ -264,7 +269,12 @@ def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", u
 
 def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", use_bias=False, use_torch_padding=True, name=None, **kwargs):
     """Typical DepthwiseConv2D with `use_bias` default as `False` and fixed padding"""
-    pad = (kernel_size[0] // 2, kernel_size[1] // 2) if isinstance(kernel_size, (list, tuple)) else (kernel_size // 2, kernel_size // 2)
+    if isinstance(padding, str):
+        pad = (kernel_size[0] // 2, kernel_size[1] // 2) if isinstance(kernel_size, (list, tuple)) else (kernel_size // 2, kernel_size // 2)
+    else:  # int or list or tuple with specific value
+        pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
+        padding = "SAME"
+
     if use_torch_padding and padding.upper() == "SAME" and max(pad) != 0:
         inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "dw_pad")(inputs)
         padding = "VALID"
