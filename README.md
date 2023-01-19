@@ -142,12 +142,12 @@
     print(mm.output_shape)
     # (None, 7, 7, 2048)
     ```
-  - **Reload own model weights by set `pretrained="xxx.h5"`**. Better if reloading model with different `input_shape` and with weights shape not matching.
+  - **Reload own model weights by set `pretrained="xxx.h5"`**. Better than calling `model.load_weights` directly, if reloading model with different `input_shape` and with weights shape not matching.
     ```py
     import os
     from keras_cv_attention_models import coatnet
     pretrained = os.path.expanduser('~/.keras/models/coatnet0_224_imagenet.h5')
-    mm = coatnet.CoAtNet1(input_shape=(384, 384, 3), pretrained=pretrained)
+    mm = coatnet.CoAtNet1(input_shape=(384, 384, 3), pretrained=pretrained)  # No sense, just showing usage
     ```
   - **Alias name `kecam`** can be used instead of `keras_cv_attention_models`. It's `__init__.py` only with one line `from keras_cv_attention_models import *`.
     ```py
