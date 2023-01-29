@@ -1,3 +1,4 @@
+import tensorflow as tf
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, initializers
 from keras_cv_attention_models.download_and_load import reload_model_weights

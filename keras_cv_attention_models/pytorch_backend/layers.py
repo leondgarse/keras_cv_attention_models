@@ -295,6 +295,28 @@ class LayerNormalization(Layer):
         return config
 
 
+class GroupNormalization(Layer):
+    def __init__(self, groups=32, axis=1, epsilon=0.001, center=True, gamma_initializer='ones', **kwargs):
+        self.groups, self.axis, self.epsilon, self.center, self.gamma_initializer = groups, axis, epsilon, center, gamma_initializer
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        module = nn.GroupNorm(num_groups=self.groups, num_channels=input_shape[self.axis], eps=self.epsilon, affine=self.center)
+        if self.axis == -1 or self.axis == len(input_shape):
+            self.module = module
+        else:
+            ndims = len(input_shape)
+            perm = [id for id in range(ndims) if id != self.axis] + [self.axis]  # like axis=1 -> [0, 2, 3, 1]
+            revert_perm = list(range(0, self.axis)) + [ndims - 1] + list(range(self.axis, ndims - 1))  # like axis=1 -> [0, 3, 1, 2]
+            self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
+        super().build(input_shape)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"groups": self.groups, "axis": self.axis, "epsilon": self.epsilon, "center": self.center})
+        return config
+
+
 class Pooling2D(Layer):
     def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", reduce="mean", **kwargs):
         self.pool_size, self.strides, self.padding, self.reduce = pool_size, strides, padding, reduce

@@ -19,7 +19,10 @@ def squeeze(inputs, axis, name=None):
     return Lambda(partial(torch.squeeze, dim=axis), name=name)(inputs)
 
 def clip_by_value(inputs, clip_value_min, clip_value_max, name=None):
-    return Lambda(torch.clip, name=name)(inputs, min=clip_value_min, max=clip_value_max)
+    return Lambda(partial(torch.clip, min=clip_value_min, max=clip_value_max), name=name)(inputs)
+
+def sqrt(inputs, name=None):
+    return Lambda(torch.sqrt, name=name)(inputs)
 
 def relu6(inputs, name=None):
     return Lambda(F.relu6, name=name)(inputs)
@@ -30,8 +33,14 @@ def tanh(inputs, name=None):
 def softplus(inputs, name=None):
     return Lambda(F.softplus, name=name)(inputs)
 
+def softmax(inputs, axis=None, name=None):
+    return Lambda(partial(F.softmax, dim=axis), name=name)(inputs)
+
 def gelu(inputs, approximate=False, name=None):
-    return Lambda(F.gelu, name=name)(inputs, approximate="tanh" if approximate else "none")
+    return Lambda(partial(F.gelu, approximate="tanh" if approximate else "none"), name=name)(inputs)
+
+def reshape(inputs, shape, name=None):
+    return Lambda(partial(torch.reshape, shape=shape), name=name)(inputs)
 
 def convert_to_tensor(inputs):
     return torch.Tensor(inputs)

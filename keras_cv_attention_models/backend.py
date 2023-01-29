@@ -14,6 +14,7 @@ if is_tensorflow_backend:
     __set_functional_attr__(tf.clip_by_value)
     __set_functional_attr__(tf.reduce_mean)
     __set_functional_attr__(tf.reduce_sum)
+    __set_functional_attr__(tf.reshape)
     __set_functional_attr__(tf.norm, "norm")
     __set_functional_attr__(tf.expand_dims, "expand_dims")
     __set_functional_attr__(tf.squeeze, "squeeze")

@@ -1,7 +1,6 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, initializers
@@ -230,14 +229,14 @@ def batchnorm_with_activation(
 def layer_norm(inputs, zero_gamma=False, epsilon=LAYER_NORM_EPSILON, center=True, name=None):
     """Typical LayerNormalization with epsilon=1e-5"""
     norm_axis = -1 if backend.image_data_format() == "channels_last" else 1
-    gamma_init = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
-    return keras.layers.LayerNormalization(axis=norm_axis, epsilon=epsilon, gamma_initializer=gamma_init, center=center, name=name and name + "ln")(inputs)
+    gamma_init = initializers.zeros() if zero_gamma else initializers.ones()
+    return layers.LayerNormalization(axis=norm_axis, epsilon=epsilon, gamma_initializer=gamma_init, center=center, name=name and name + "ln")(inputs)
 
 
 def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, name=None):
     """Typical GroupNormalization with epsilon=1e-5"""
-    if hasattr(keras.layers, "GroupNormalization"):
-        GroupNormalization = keras.layers.GroupNormalization  # GroupNormalization is added after TF 2.11.0
+    if hasattr(layers, "GroupNormalization"):
+        GroupNormalization = layers.GroupNormalization  # GroupNormalization is added after TF 2.11.0
     else:
         from tensorflow_addons.layers import GroupNormalization
 
@@ -320,50 +319,50 @@ def global_context_module(inputs, use_attn=True, ratio=0.25, divisor=1, activati
     reduction = make_divisible(filters * ratio, divisor, limit_round_down=0.0)
 
     if use_attn:
-        attn = keras.layers.Conv2D(1, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "attn_conv")(inputs)
-        attn = tf.reshape(attn, [-1, 1, 1, height * width])  # [batch, height, width, 1] -> [batch, 1, 1, height * width]
-        attn = tf.nn.softmax(attn, axis=-1)
-        context = tf.reshape(inputs, [-1, 1, height * width, filters])
+        attn = layers.Conv2D(1, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "attn_conv")(inputs)
+        attn = functional.reshape(attn, [-1, 1, 1, height * width])  # [batch, height, width, 1] -> [batch, 1, 1, height * width]
+        attn = functional.softmax(attn, axis=-1)
+        context = functional.reshape(inputs, [-1, 1, height * width, filters])
         context = attn @ context  # [batch, 1, 1, filters]
     else:
-        context = tf.reduce_mean(inputs, [1, 2], keepdims=True)
+        context = functional.reduce_mean(inputs, [1, 2], keepdims=True)
 
-    mlp = keras.layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, name=name and name + "mlp_1_conv")(context)
-    mlp = keras.layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, name=name and name + "ln")(mlp)
+    mlp = layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, name=name and name + "mlp_1_conv")(context)
+    mlp = layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, name=name and name + "ln")(mlp)
     mlp = activation_by_name(mlp, activation=hidden_activation, name=name)
-    mlp = keras.layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, name=name and name + "mlp_2_conv")(mlp)
+    mlp = layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, name=name and name + "mlp_2_conv")(mlp)
     mlp = activation_by_name(mlp, activation=output_activation, name=name)
-    return keras.layers.Multiply(name=name and name + "out")([inputs, mlp])
+    return layers.Multiply(name=name and name + "out")([inputs, mlp])
 
 
 def se_module(inputs, se_ratio=0.25, divisor=8, limit_round_down=0.9, activation="relu", use_bias=True, use_conv=True, name=None):
     """Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf"""
-    channel_axis = 1 if K.image_data_format() == "channels_first" else -1
-    h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
+    channel_axis = 1 if backend.image_data_format() == "channels_first" else -1
+    h_axis, w_axis = [2, 3] if backend.image_data_format() == "channels_first" else [1, 2]
 
     # activation could be ("relu", "hard_sigmoid") for mobilenetv3
     hidden_activation, output_activation = activation if isinstance(activation, (list, tuple)) else (activation, "sigmoid")
     filters = inputs.shape[channel_axis]
     reduction = make_divisible(filters * se_ratio, divisor, limit_round_down=limit_round_down)
     # print(f"{filters = }, {se_ratio = }, {divisor = }, {reduction = }")
-    se = tf.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)
+    se = functional.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)
     if use_conv:
-        se = keras.layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_conv")(se)
+        se = layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_conv")(se)
     else:
-        se = keras.layers.Dense(reduction, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_dense")(se)
+        se = layers.Dense(reduction, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_dense")(se)
     se = activation_by_name(se, activation=hidden_activation, name=name)
     if use_conv:
-        se = keras.layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "2_conv")(se)
+        se = layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "2_conv")(se)
     else:
-        se = keras.layers.Dense(filters, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "2_dense")(se)
+        se = layers.Dense(filters, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "2_dense")(se)
     se = activation_by_name(se, activation=output_activation, name=name)
-    return keras.layers.Multiply(name=name and name + "out")([inputs, se])
+    return layers.Multiply(name=name and name + "out")([inputs, se])
 
 
 def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
     """Efficient Channel Attention block, arxiv: https://arxiv.org/pdf/1910.03151.pdf"""
-    channel_axis = 1 if K.image_data_format() == "channels_first" else -1
-    h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
+    channel_axis = 1 if backend.image_data_format() == "channels_first" else -1
+    h_axis, w_axis = [2, 3] if backend.image_data_format() == "channels_first" else [1, 2]
 
     filters = inputs.shape[channel_axis]
     beta, gamma = float(beta), float(gamma)
@@ -371,14 +370,14 @@ def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
     kernel_size = max(tt if tt % 2 else tt + 1, 3)
     pad = kernel_size // 2
 
-    nn = tf.reduce_mean(inputs, [h_axis, w_axis], keepdims=False)
+    nn = functional.reduce_mean(inputs, [h_axis, w_axis], keepdims=False)
     nn = tf.pad(nn, [[0, 0], [pad, pad]])
-    nn = tf.expand_dims(nn, channel_axis)
+    nn = functional.expand_dims(nn, channel_axis)
 
-    nn = keras.layers.Conv1D(1, kernel_size=kernel_size, strides=1, padding="VALID", use_bias=False, name=name and name + "conv1d")(nn)
-    nn = tf.squeeze(nn, axis=channel_axis)
+    nn = layers.Conv1D(1, kernel_size=kernel_size, strides=1, padding="VALID", use_bias=False, name=name and name + "conv1d")(nn)
+    nn = functional.squeeze(nn, axis=channel_axis)
     nn = activation_by_name(nn, activation="sigmoid", name=name)
-    return keras.layers.Multiply(name=name and name + "out")([inputs, nn])
+    return layers.Multiply(name=name and name + "out")([inputs, nn])
 
 
 def drop_connect_rates_split(num_blocks, start=0.0, end=0.0):
@@ -391,7 +390,7 @@ def drop_block(inputs, drop_rate=0, name=None):
     """Stochastic Depth block by Dropout, arxiv: https://arxiv.org/abs/1603.09382"""
     if drop_rate > 0:
         noise_shape = [None] + [1] * (len(inputs.shape) - 1)  # [None, 1, 1, 1]
-        return keras.layers.Dropout(drop_rate, noise_shape=noise_shape, name=name and name + "drop")(inputs)
+        return layers.Dropout(drop_rate, noise_shape=noise_shape, name=name and name + "drop")(inputs)
     else:
         return inputs
 
@@ -404,7 +403,7 @@ def addaptive_pooling_2d(inputs, output_size, reduce="mean", name=None):
     ==> pool_size = in_height - (out_height - 1) * strides, not in_height % strides, in case in_height == strides  will be 0
     """
     h_bins, w_bins = output_size[:2] if isinstance(output_size, (list, tuple)) else (output_size, output_size)
-    reduce_function = keras.layers.MaxPool2D if reduce.lower() == "max" else keras.layers.AvgPool2D
+    reduce_function = layers.MaxPool2D if reduce.lower() == "max" else layers.AvgPool2D
 
     h_strides, w_strides = inputs.shape[1] // h_bins, inputs.shape[2] // w_bins
     h_pool_size, w_pool_size = inputs.shape[1] - (h_bins - 1) * h_strides, inputs.shape[2] - (w_bins - 1) * w_strides
@@ -428,7 +427,7 @@ def __anti_alias_downsample_initializer__(weight_shape, dtype="float32"):
 
 def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trainable=False, name=None):
     """DepthwiseConv2D performing anti-aliasing downsample, arxiv: https://arxiv.org/pdf/1904.11486.pdf"""
-    return keras.layers.DepthwiseConv2D(
+    return layers.DepthwiseConv2D(
         kernel_size=kernel_size,
         strides=strides,
         padding="SAME",
@@ -524,7 +523,7 @@ class CompatibleExtractPatches(layers.Layer):
             self.height, self.width = self.height + pad * 2, self.width + pad * 2
 
         if self.use_conv:
-            self.conv = keras.layers.Conv2D(
+            self.conv = layers.Conv2D(
                 filters=self.filters,
                 kernel_size=self.kernel_size,
                 strides=self.strides,
@@ -613,7 +612,7 @@ class PreprocessInput:
         if input_shape is not None:
             self.set_input_shape(input_shape)
         images = [image] if len(np.shape(image)) == 3 else image
-        images = [np.array(Image.fromarray(image).resize(self.input_shape)) for image in images]
+        images = [np.array(Image.fromarray(np.array(image)).resize(self.input_shape[::-1])) for image in images]
         images = (np.stack(images) - self.mean) / self.std
 
         images = images if backend.image_data_format() == "channels_last" else images.transpose([0, 3, 1, 2])
