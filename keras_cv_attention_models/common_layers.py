@@ -1,6 +1,5 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import backend as K
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, initializers
@@ -96,7 +95,7 @@ class EvoNormalization(layers.Layer):
         super().__init__(**kwargs)
         self.data_format, self.nonlinearity, self.zero_gamma, self.num_groups = data_format, nonlinearity, zero_gamma, num_groups
         self.momentum, self.epsilon = momentum, epsilon
-        self.is_channels_first = True if data_format == "channels_first" or (data_format == "auto" and K.image_data_format() == "channels_first") else False
+        self.is_channels_first = True if data_format == "channels_first" or (data_format == "auto" and backend.image_data_format() == "channels_first") else False
 
     def build(self, input_shape):
         all_axes = list(range(len(input_shape)))
@@ -163,7 +162,7 @@ class EvoNormalization(layers.Layer):
         def _call_test_():
             return self.moving_variance
 
-        var = K.in_train_phase(_call_train_, _call_test_, training=training)
+        var = backend.in_train_phase(_call_train_, _call_test_, training=training)
         return tf.sqrt(var + self.epsilon)
 
     def __instance_std__(self, inputs):
@@ -611,8 +610,9 @@ class PreprocessInput:
 
         if input_shape is not None:
             self.set_input_shape(input_shape)
-        images = [image] if len(np.shape(image)) == 3 else image
-        images = [np.array(Image.fromarray(np.array(image)).resize(self.input_shape[::-1])) for image in images]
+        images = np.array([image] if len(np.shape(image)) == 3 else image)
+        images = (images * 255) if images.max() < 2 else images
+        images = [np.array(Image.fromarray(image.astype('uint8')).resize(self.input_shape[::-1])) for image in images]
         images = (np.stack(images) - self.mean) / self.std
 
         images = images if backend.image_data_format() == "channels_last" else images.transpose([0, 3, 1, 2])

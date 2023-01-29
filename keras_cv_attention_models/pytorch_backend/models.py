@@ -53,8 +53,7 @@ class Model(nn.Module):
         dfs_queue = []
         for ii in self.inputs:
             dfs_queue.extend(ii.next_nodes)
-        # processed_branch_inputs = set()
-        branch_nodes = set()  # {layer_name: value}, node names with multi outputs, or before node with multi inputs
+        branch_nodes = set()  # node names with multi outputs, or before node with multi inputs
         while len(dfs_queue) > 0:
             cur_node = dfs_queue.pop(-1)
             # print(f">>>> {cur_node.name = }, {cur_node.pre_node_names = }, {cur_node.next_node_names = }")

@@ -442,7 +442,7 @@ def test_MobileViT_XXS_predict():
 
 
 def test_MobileViT_V2_050_predict():
-    mm = keras_cv_attention_models.mobilevit.MobileViT_V2_050(input_shape=(112, 157, 3), pretrained="imagenet")
+    mm = keras_cv_attention_models.mobilevit.MobileViT_V2_050(input_shape=(252, 224, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 

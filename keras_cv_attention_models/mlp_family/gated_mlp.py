@@ -1,4 +1,3 @@
-import tensorflow as tf
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, initializers
 from keras_cv_attention_models.download_and_load import reload_model_weights
@@ -17,7 +16,7 @@ def layer_norm(inputs, name=None):
 
 
 def spatial_gating_block(inputs, name=None):
-    uu, vv = tf.split(inputs, 2, axis=-1)
+    uu, vv = functional.split(inputs, 2, axis=-1)
     # print(f">>>> {uu.shape = }, {vv.shape = }")
     vv = layer_norm(vv, name=name and name + "vv_ln")
     vv = layers.Permute((2, 1), name=name and name + "permute_1")(vv)
