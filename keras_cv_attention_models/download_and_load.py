@@ -59,7 +59,7 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_re
 
             print(">>>> Reload mismatched weights: {} -> {}".format(request_resolution, (input_height, input_width)))
             ff = h5py.File(weight_file, mode="r")
-            weights = ff["model_weights"]
+            weights = ff["model_weights"] if "model_weights" in ff else ff  # full model or weights only
 
             if isinstance(mismatch_class, (list, tuple)):
                 is_mismatch_class = lambda xx: any([isinstance(ii, mm) for mm in mismatch_class])

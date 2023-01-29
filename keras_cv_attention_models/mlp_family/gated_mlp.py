@@ -1,6 +1,5 @@
-from tensorflow import keras
-from tensorflow.keras import backend as K
-import tensorflow as tf
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, initializers
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import activation_by_name, add_pre_post_process
 
@@ -12,38 +11,38 @@ PRETRAINED_DICT = {
 
 def layer_norm(inputs, name=None):
     """Typical LayerNormalization with epsilon=1e-5"""
-    norm_axis = -1 if K.image_data_format() == "channels_last" else 1
-    return keras.layers.LayerNormalization(axis=norm_axis, epsilon=BATCH_NORM_EPSILON, name=name)(inputs)
+    norm_axis = -1 if backend.image_data_format() == "channels_last" else 1
+    return layers.LayerNormalization(axis=norm_axis, epsilon=BATCH_NORM_EPSILON, name=name)(inputs)
 
 
 def spatial_gating_block(inputs, name=None):
     uu, vv = tf.split(inputs, 2, axis=-1)
     # print(f">>>> {uu.shape = }, {vv.shape = }")
     vv = layer_norm(vv, name=name and name + "vv_ln")
-    vv = keras.layers.Permute((2, 1), name=name and name + "permute_1")(vv)
-    ww_init = keras.initializers.truncated_normal(stddev=1e-6)
-    vv = keras.layers.Dense(vv.shape[-1], kernel_initializer=ww_init, bias_initializer="ones", name=name and name + "vv_dense")(vv)
-    vv = keras.layers.Permute((2, 1), name=name and name + "permute_2")(vv)
+    vv = layers.Permute((2, 1), name=name and name + "permute_1")(vv)
+    ww_init = initializers.truncated_normal(stddev=1e-6)
+    vv = layers.Dense(vv.shape[-1], kernel_initializer=ww_init, bias_initializer="ones", name=name and name + "vv_dense")(vv)
+    vv = layers.Permute((2, 1), name=name and name + "permute_2")(vv)
     # print(f">>>> {uu.shape = }, {vv.shape = }")
-    gated_out = keras.layers.Multiply()([uu, vv])
+    gated_out = layers.Multiply()([uu, vv])
     return gated_out
 
 
 def res_gated_mlp_block(inputs, channels_mlp_dim, drop_rate=0, activation="gelu", name=None):
     nn = layer_norm(inputs, name=name + "pre_ln")
-    nn = keras.layers.Dense(channels_mlp_dim, name=name + "pre_dense")(nn)
+    nn = layers.Dense(channels_mlp_dim, name=name + "pre_dense")(nn)
     nn = activation_by_name(nn, activation, name=name and name + activation)
     # Drop
 
     # SpatialGatingUnit
     gated_out = spatial_gating_block(nn, name=name)
-    nn = keras.layers.Dense(inputs.shape[-1], name=name + "gated_dense")(gated_out)
+    nn = layers.Dense(inputs.shape[-1], name=name + "gated_dense")(gated_out)
     # Drop
 
     # Drop path
     if drop_rate > 0:
-        nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop")(nn)
-    return keras.layers.Add(name=name + "output")([nn, inputs])
+        nn = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop")(nn)
+    return layers.Add(name=name + "output")([nn, inputs])
 
 
 def GMLP(
@@ -62,9 +61,10 @@ def GMLP(
     model_name="gmlp",
     kwargs=None,
 ):
-    inputs = keras.Input(input_shape)
-    nn = keras.layers.Conv2D(stem_width, kernel_size=patch_size, strides=patch_size, padding="valid", name="stem")(inputs)
-    nn = keras.layers.Reshape([nn.shape[1] * nn.shape[2], stem_width])(nn)
+    inputs = layers.Input(input_shape)
+    nn = layers.Conv2D(stem_width, kernel_size=patch_size, strides=patch_size, padding="valid", name="stem")(inputs)
+    new_shape = [nn.shape[1] * nn.shape[2], stem_width] if backend.image_data_format() == "channels_last" else [stem_width, nn.shape[2] * nn.shape[3]]
+    nn = layers.Reshape(new_shape)(nn)
 
     drop_connect_s, drop_connect_e = drop_connect_rate if isinstance(drop_connect_rate, (list, tuple)) else [drop_connect_rate, drop_connect_rate]
     for ii in range(num_blocks):
@@ -75,17 +75,17 @@ def GMLP(
 
     if num_classes > 0:
         # nn = tf.reduce_mean(nn, axis=1)
-        nn = keras.layers.GlobalAveragePooling1D()(nn)
+        nn = layers.GlobalAveragePooling1D()(nn)
         if dropout > 0 and dropout < 1:
-            nn = keras.layers.Dropout(dropout)(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+            nn = layers.Dropout(dropout)(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     if sam_rho != 0:
         from keras_cv_attention_models.model_surgery import SAMModel
 
         model = SAMModel(inputs, nn, name=model_name)
     else:
-        model = keras.Model(inputs, nn, name=model_name)
+        model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="tf")
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="mlp_family", pretrained=pretrained)
     return model

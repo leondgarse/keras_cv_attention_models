@@ -1,4 +1,5 @@
-from tensorflow import keras
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, initializers
 from keras_cv_attention_models.attention_layers import activation_by_name, add_pre_post_process
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
@@ -10,12 +11,12 @@ PRETRAINED_DICT = {
 }
 
 
-@keras.utils.register_keras_serializable(package="resmlp")
-class ChannelAffine(keras.layers.Layer):
+@backend.register_keras_serializable(package="resmlp")
+class ChannelAffine(layers.Layer):
     def __init__(self, use_bias=True, weight_init_value=1, axis=-1, **kwargs):
-        super(ChannelAffine, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.use_bias, self.weight_init_value, self.axis = use_bias, weight_init_value, axis
-        self.ww_init = keras.initializers.Constant(weight_init_value) if weight_init_value != 1 else "ones"
+        self.ww_init = initializers.Constant(weight_init_value) if weight_init_value != 1 else "ones"
         self.bb_init = "zeros"
         self.supports_masking = False
 
@@ -32,7 +33,7 @@ class ChannelAffine(keras.layers.Layer):
         self.ww = self.add_weight(name="weight", shape=ww_shape, initializer=self.ww_init, trainable=True)
         if self.use_bias:
             self.bb = self.add_weight(name="bias", shape=ww_shape, initializer=self.bb_init, trainable=True)
-        super(ChannelAffine, self).build(input_shape)
+        super().build(input_shape)
 
     def call(self, inputs, **kwargs):
         return inputs * self.ww + self.bb if self.use_bias else inputs * self.ww
@@ -41,37 +42,43 @@ class ChannelAffine(keras.layers.Layer):
         return input_shape
 
     def get_config(self):
-        config = super(ChannelAffine, self).get_config()
+        config = super().get_config()
         config.update({"use_bias": self.use_bias, "weight_init_value": self.weight_init_value, "axis": self.axis})
         return config
 
 
 # NOT using
 def channel_affine(inputs, use_bias=True, weight_init_value=1, name=""):
-    ww_init = keras.initializers.Constant(weight_init_value) if weight_init_value != 1 else "ones"
-    nn = keras.backend.expand_dims(inputs, 1)
-    nn = keras.layers.DepthwiseConv2D(1, depthwise_initializer=ww_init, use_bias=use_bias, name=name)(nn)
-    return keras.backend.squeeze(nn, 1)
+    ww_init = initializers.Constant(weight_init_value) if weight_init_value != 1 else "ones"
+    nn = functional.expand_dims(inputs, 1)
+    nn = layers.DepthwiseConv2D(1, depthwise_initializer=ww_init, use_bias=use_bias, name=name)(nn)
+    return functional.squeeze(nn, 1)
 
 
 def res_mlp_block(inputs, channels_mlp_dim, drop_rate=0, activation="gelu", name=None):
-    nn = ChannelAffine(use_bias=True, name=name + "norm_1")(inputs)
-    nn = keras.layers.Permute((2, 1), name=name + "permute_1")(nn)
-    nn = keras.layers.Dense(nn.shape[-1], name=name + "token_mixing")(nn)
-    nn = keras.layers.Permute((2, 1), name=name + "permute_2")(nn)
-    nn = ChannelAffine(use_bias=False, name=name + "gamma_1")(nn)
-    if drop_rate > 0:
-        nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "token_drop")(nn)
-    token_out = keras.layers.Add(name=name + "add_1")([inputs, nn])
+    channel_axis = -1 if backend.image_data_format() == "channels_last" else 1
+    input_channel = inputs.shape[-1] if backend.image_data_format() == "channels_last" else inputs.shape[1]
 
-    nn = ChannelAffine(use_bias=True, name=name + "norm_2")(token_out)
-    nn = keras.layers.Dense(channels_mlp_dim, name=name + "channel_mixing_1")(nn)
-    nn = activation_by_name(nn, activation, name=name + activation)
-    nn = keras.layers.Dense(inputs.shape[-1], name=name + "channel_mixing_2")(nn)
-    channel_out = ChannelAffine(use_bias=False, name=name + "gamma_2")(nn)
+    nn = ChannelAffine(use_bias=True, axis=channel_axis, name=name + "norm_1")(inputs)
+    nn = layers.Permute((2, 1), name=name + "permute_1")(nn) if backend.image_data_format() == "channels_last" else nn
+    nn = layers.Dense(nn.shape[-1], name=name + "token_mixing")(nn)
+    nn = layers.Permute((2, 1), name=name + "permute_2")(nn) if backend.image_data_format() == "channels_last" else nn
+    nn = ChannelAffine(use_bias=False, axis=channel_axis, name=name + "gamma_1")(nn)
     if drop_rate > 0:
-        channel_out = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "channel_drop")(channel_out)
-    nn = keras.layers.Add(name=name + "output")([channel_out, token_out])
+        nn = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "token_drop")(nn)
+    token_out = layers.Add(name=name + "add_1")([inputs, nn])
+
+    nn = ChannelAffine(use_bias=True, axis=channel_axis, name=name + "norm_2")(token_out)
+    nn = nn if backend.image_data_format() == "channels_last" else layers.Permute((2, 1), name=name and name + "permute_3")(nn)
+    nn = layers.Dense(channels_mlp_dim, name=name + "channel_mixing_1")(nn)
+    nn = activation_by_name(nn, activation, name=name + activation)
+    nn = layers.Dense(input_channel, name=name + "channel_mixing_2")(nn)
+    nn = nn if backend.image_data_format() == "channels_last" else layers.Permute((2, 1), name=name and name + "permute_4")(nn)
+    channel_out = ChannelAffine(use_bias=False, axis=channel_axis, name=name + "gamma_2")(nn)
+    if drop_rate > 0:
+        channel_out = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "channel_drop")(channel_out)
+    # print(f">>>> {inputs.shape = }, {channel_out.shape = }, {token_out.shape = }")
+    nn = layers.Add(name=name + "output")([channel_out, token_out])
     return nn
 
 
@@ -91,30 +98,31 @@ def ResMLP(
     model_name="resmlp",
     kwargs=None,
 ):
-    inputs = keras.Input(input_shape)
-    nn = keras.layers.Conv2D(stem_width, kernel_size=patch_size, strides=patch_size, padding="valid", name="stem")(inputs)
-    nn = keras.layers.Reshape([nn.shape[1] * nn.shape[2], stem_width])(nn)
+    inputs = layers.Input(input_shape)
+    nn = layers.Conv2D(stem_width, kernel_size=patch_size, strides=patch_size, padding="valid", name="stem")(inputs)
+    new_shape = [nn.shape[1] * nn.shape[2], stem_width] if backend.image_data_format() == "channels_last" else [stem_width, nn.shape[2] * nn.shape[3]]
+    nn = layers.Reshape(new_shape)(nn)
 
     drop_connect_s, drop_connect_e = drop_connect_rate if isinstance(drop_connect_rate, (list, tuple)) else [drop_connect_rate, drop_connect_rate]
     for ii in range(num_blocks):
         name = "{}_{}_".format("ResMlpBlock", str(ii + 1))
         block_drop_rate = drop_connect_s + (drop_connect_e - drop_connect_s) * ii / num_blocks
         nn = res_mlp_block(nn, channels_mlp_dim=channels_mlp_dim, drop_rate=block_drop_rate, activation=activation, name=name)
-    nn = ChannelAffine(name="pre_head_norm")(nn)
+    nn = ChannelAffine(axis=-1 if backend.image_data_format() == "channels_last" else 1, name="pre_head_norm")(nn)
 
     if num_classes > 0:
         # nn = tf.reduce_mean(nn, axis=1)
-        nn = keras.layers.GlobalAveragePooling1D()(nn)
+        nn = layers.GlobalAveragePooling1D()(nn)
         if dropout > 0 and dropout < 1:
-            nn = keras.layers.Dropout(dropout)(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+            nn = layers.Dropout(dropout)(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
     if sam_rho != 0:
         from keras_cv_attention_models.model_surgery import SAMModel
 
         model = SAMModel(inputs, nn, name=model_name)
     else:
-        model = keras.Model(inputs, nn, name=model_name)
+        model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="mlp_family", pretrained=pretrained)
     return model

@@ -1,48 +1,48 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
+import numpy as np
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, initializers
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 TF_BATCH_NORM_EPSILON = 0.001
 LAYER_NORM_EPSILON = 1e-5
-CONV_KERNEL_INITIALIZER = keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
+CONV_KERNEL_INITIALIZER = initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
 # CONV_KERNEL_INITIALIZER = 'glorot_uniform'
 
 
 """ Wrapper for default parameters """
 
 
-@tf.keras.utils.register_keras_serializable(package="kecamCommon")
+@backend.register_keras_serializable(package="kecamCommon")
 def hard_swish(inputs):
     """`out = xx * relu6(xx + 3) / 6`, arxiv: https://arxiv.org/abs/1905.02244"""
-    return inputs * tf.nn.relu6(inputs + 3) / 6
+    return inputs * functional.relu6(inputs + 3) / 6
 
 
-@tf.keras.utils.register_keras_serializable(package="kecamCommon")
+@backend.register_keras_serializable(package="kecamCommon")
 def hard_sigmoid_torch(inputs):
     """https://pytorch.org/docs/stable/generated/torch.nn.Hardsigmoid.html
     toch.nn.Hardsigmoid: 0 if x <= −3 else (1 if x >= 3 else x / 6 + 1/2)
     keras.activations.hard_sigmoid: 0 if x <= −2.5 else (1 if x >= 2.5 else x / 5 + 1/2) -> tf.clip_by_value(inputs / 5 + 0.5, 0, 1)
     """
-    return tf.clip_by_value(inputs / 6 + 0.5, 0, 1)
+    return functional.clip_by_value(inputs / 6 + 0.5, 0, 1)
 
 
-@tf.keras.utils.register_keras_serializable(package="kecamCommon")
+@backend.register_keras_serializable(package="kecamCommon")
 def mish(inputs):
     """Mish: A Self Regularized Non-Monotonic Neural Activation Function.
     Paper: [Mish: A Self Regularized Non-Monotonic Neural Activation Function](https://arxiv.org/abs/1908.08681)
     Copied from https://github.com/tensorflow/addons/blob/master/tensorflow_addons/activations/mish.py
     """
-    return inputs * tf.math.tanh(tf.math.softplus(inputs))
+    return inputs * functional.tanh(functional.softplus(inputs))
 
 
-@tf.keras.utils.register_keras_serializable(package="kecamCommon")
+@backend.register_keras_serializable(package="kecamCommon")
 def phish(inputs):
     """Phish is defined as f(x) = xTanH(GELU(x)) with no discontinuities in the f(x) derivative.
     Paper: https://www.techrxiv.org/articles/preprint/Phish_A_Novel_Hyper-Optimizable_Activation_Function/17283824
     """
-    return inputs * tf.math.tanh(tf.nn.gelu(inputs))
+    return inputs * functional.tanh(functional.gelu(inputs))
 
 
 def activation_by_name(inputs, activation="relu", name=None):
@@ -53,37 +53,37 @@ def activation_by_name(inputs, activation="relu", name=None):
     layer_name = name and activation and name + activation
     activation_lower = activation.lower()
     if activation_lower == "hard_swish":
-        return keras.layers.Activation(activation=hard_swish, name=layer_name)(inputs)
+        return layers.Activation(activation=hard_swish, name=layer_name)(inputs)
     elif activation_lower == "mish":
-        return keras.layers.Activation(activation=mish, name=layer_name)(inputs)
+        return layers.Activation(activation=mish, name=layer_name)(inputs)
     elif activation_lower == "phish":
-        return keras.layers.Activation(activation=phish, name=layer_name)(inputs)
+        return layers.Activation(activation=phish, name=layer_name)(inputs)
     elif activation_lower == "prelu":
         shared_axes = list(range(1, len(inputs.shape)))
-        shared_axes.pop(-1 if K.image_data_format() == "channels_last" else 0)
+        shared_axes.pop(-1 if backend.image_data_format() == "channels_last" else 0)
         # print(f"{shared_axes = }")
-        return keras.layers.PReLU(shared_axes=shared_axes, alpha_initializer=tf.initializers.Constant(0.25), name=layer_name)(inputs)
+        return layers.PReLU(shared_axes=shared_axes, alpha_initializer=initializers.Constant(0.25), name=layer_name)(inputs)
     elif activation_lower.startswith("gelu/app"):
         # gelu/approximate
-        return tf.nn.gelu(inputs, approximate=True, name=layer_name)
+        return functional.gelu(inputs, approximate=True, name=layer_name)
     elif activation_lower.startswith("leaky_relu/"):
         # leaky_relu with alpha parameter
         alpha = float(activation_lower.split("/")[-1])
-        return keras.layers.LeakyReLU(alpha=alpha, name=layer_name)(inputs)
+        return layers.LeakyReLU(alpha=alpha, name=layer_name)(inputs)
     elif activation_lower == ("hard_sigmoid_torch"):
-        return keras.layers.Activation(activation=hard_sigmoid_torch, name=layer_name)(inputs)
+        return layers.Activation(activation=hard_sigmoid_torch, name=layer_name)(inputs)
     elif activation_lower == ("squaredrelu") or activation_lower == ("squared_relu"):
-        return tf.nn.relu(inputs) ** 2  # Squared ReLU: https://arxiv.org/abs/2109.08668
+        return functional.relu(inputs) ** 2  # Squared ReLU: https://arxiv.org/abs/2109.08668
     elif activation_lower == ("starrelu") or activation_lower == ("star_relu"):
         from keras_cv_attention_models.nfnets.nfnets import ZeroInitGain
 
-        return ZeroInitGain(use_bias=True, weight_init_value=1.0, name=layer_name)(tf.nn.relu(inputs) ** 2)  # StarReLU: s * relu(x) ** 2 + b
+        return ZeroInitGain(use_bias=True, weight_init_value=1.0, name=layer_name)(functional.relu(inputs) ** 2)  # StarReLU: s * relu(x) ** 2 + b
     else:
-        return keras.layers.Activation(activation=activation, name=layer_name)(inputs)
+        return layers.Activation(activation=activation, name=layer_name)(inputs)
 
 
-@tf.keras.utils.register_keras_serializable(package="kecamCommon")
-class EvoNormalization(tf.keras.layers.Layer):
+@backend.register_keras_serializable(package="kecamCommon")
+class EvoNormalization(layers.Layer):
     def __init__(self, nonlinearity=True, num_groups=-1, zero_gamma=False, momentum=0.99, epsilon=0.001, data_format="auto", **kwargs):
         # [evonorm](https://github.com/tensorflow/tpu/blob/master/models/official/resnet/resnet_model.py)
         # EVONORM_B0: nonlinearity=True, num_groups=-1
@@ -207,11 +207,11 @@ def batchnorm_with_activation(
         num_groups = inputs.shape[-1] // evo_norm_group_size  # Currently using gorup_size as parameter only
         return EvoNormalization(nonlinearity, num_groups=num_groups, zero_gamma=zero_gamma, epsilon=epsilon, momentum=momentum, name=name + "evo_norm")(inputs)
 
-    bn_axis = -1 if K.image_data_format() == "channels_last" else 1
-    gamma_initializer = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
+    bn_axis = -1 if backend.image_data_format() == "channels_last" else 1
+    gamma_initializer = initializers.zeros() if zero_gamma else initializers.ones()
     if act_first and activation:
         inputs = activation_by_name(inputs, activation=activation, name=name)
-    nn = keras.layers.BatchNormalization(
+    nn = layers.BatchNormalization(
         axis=bn_axis,
         momentum=momentum,
         epsilon=epsilon,
@@ -225,7 +225,7 @@ def batchnorm_with_activation(
 
 def layer_norm(inputs, zero_gamma=False, epsilon=LAYER_NORM_EPSILON, center=True, name=None):
     """Typical LayerNormalization with epsilon=1e-5"""
-    norm_axis = -1 if K.image_data_format() == "channels_last" else 1
+    norm_axis = -1 if backend.image_data_format() == "channels_last" else 1
     gamma_init = tf.zeros_initializer() if zero_gamma else tf.ones_initializer()
     return keras.layers.LayerNormalization(axis=norm_axis, epsilon=epsilon, gamma_initializer=gamma_init, center=center, name=name and name + "ln")(inputs)
 
@@ -237,7 +237,7 @@ def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, name=None):
     else:
         from tensorflow_addons.layers import GroupNormalization
 
-    norm_axis = -1 if K.image_data_format() == "channels_last" else 1
+    norm_axis = -1 if backend.image_data_format() == "channels_last" else 1
     return GroupNormalization(groups=groups, axis=norm_axis, epsilon=epsilon, name=name and name + "group_norm")(inputs)
 
 
@@ -250,11 +250,11 @@ def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", u
         padding = "SAME" if max(pad) > 0 else "VALID"
 
     if use_torch_padding and padding.upper() == "SAME" and max(pad) != 0:
-        inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
+        inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
         padding = "VALID"
 
     groups = max(1, groups)
-    return keras.layers.Conv2D(
+    return layers.Conv2D(
         filters,
         kernel_size,
         strides=strides,
@@ -276,9 +276,9 @@ def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", us
         padding = "SAME"
 
     if use_torch_padding and padding.upper() == "SAME" and max(pad) != 0:
-        inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "dw_pad")(inputs)
+        inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "dw_pad")(inputs)
         padding = "VALID"
-    return keras.layers.DepthwiseConv2D(
+    return layers.DepthwiseConv2D(
         kernel_size,
         strides=strides,
         padding=padding,
@@ -300,10 +300,10 @@ def output_block(inputs, filters=0, activation="relu", num_classes=1000, drop_ra
         nn = batchnorm_with_activation(nn, activation=activation, act_first=act_first, epsilon=bn_eps, name="features_")
 
     if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn) if len(nn.shape) == 4 else nn
+        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn) if len(nn.shape) == 4 else nn
         if drop_rate > 0:
-            nn = keras.layers.Dropout(drop_rate, name="head_drop")(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+            nn = layers.Dropout(drop_rate, name="head_drop")(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
     return nn
 
 
@@ -411,7 +411,7 @@ def addaptive_pooling_2d(inputs, output_size, reduce="mean", name=None):
 """ Other layers / functions """
 
 
-@tf.keras.utils.register_keras_serializable(package="kecamCommon")
+@backend.register_keras_serializable(package="kecamCommon")
 def __anti_alias_downsample_initializer__(weight_shape, dtype="float32"):
     import numpy as np
 
@@ -446,7 +446,7 @@ def make_divisible(vv, divisor=4, min_value=None, limit_round_down=0.9):
     return new_v
 
 
-@tf.keras.utils.register_keras_serializable(package="kecamCommon")
+@backend.register_keras_serializable(package="kecamCommon")
 def __unfold_filters_initializer__(weight_shape, dtype="float32"):
     kernel_size = weight_shape[0]
     kernel_out = kernel_size * kernel_size
@@ -495,8 +495,8 @@ def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=
     return out
 
 
-@tf.keras.utils.register_keras_serializable(package="kecamCommon")
-class CompatibleExtractPatches(keras.layers.Layer):
+@backend.register_keras_serializable(package="kecamCommon")
+class CompatibleExtractPatches(layers.Layer):
     def __init__(self, sizes=3, strides=2, rates=1, padding="SAME", compressed=True, force_conv=False, **kwargs):
         super().__init__(**kwargs)
         self.sizes, self.strides, self.rates, self.padding = sizes, strides, rates, padding
@@ -579,35 +579,56 @@ class PreprocessInput:
     """`rescale_mode` `torch` means `(image - [0.485, 0.456, 0.406]) / [0.229, 0.224, 0.225]`, `tf` means `(image - 0.5) / 0.5`"""
 
     def __init__(self, input_shape=(224, 224, 3), rescale_mode="torch"):
-        self.rescale_mode = rescale_mode
-        self.input_shape = input_shape[1:-1] if len(input_shape) == 4 else input_shape[:2]
+        self.set_input_shape(input_shape)
+        self.set_rescale_mode(rescale_mode)
+
+    def set_input_shape(self, input_shape):
+        input_shape = input_shape[1:] if len(input_shape) == 4 else input_shape
+        self.input_shape = input_shape[:-1] if backend.image_data_format() == "channels_last" else input_shape[1:]
+
+    def set_rescale_mode(self, rescale_mode):
+        if isinstance(rescale_mode, (list, tuple)):  # Specific mean and std
+            mean, std = rescale_mode
+        elif rescale_mode == "torch":
+            mean = np.array([0.485, 0.456, 0.406]) * 255.0
+            std = np.array([0.229, 0.224, 0.225]) * 255.0
+        elif rescale_mode == "tf":  # [0, 255] -> [-1, 1]
+            mean, std = 127.5, 127.5
+            # mean, std = 127.5, 128.0
+        elif rescale_mode == "tf128":  # [0, 255] -> [-1, 1]
+            mean, std = 128.0, 128.0
+        elif rescale_mode == "raw01":
+            mean, std = 0, 255.0  # [0, 255] -> [0, 1]
+        else:
+            mean, std = 0, 1  # raw inputs [0, 255]
+        self.mean, self.std, self.rescale_mode = mean, std, rescale_mode
 
     def __call__(self, image, resize_method="bilinear", resize_antialias=False, input_shape=None):
-        input_shape = self.input_shape if input_shape is None else input_shape[:2]
-        image = tf.convert_to_tensor(image)
-        if tf.reduce_max(image) < 2:
-            image *= 255
-        image = tf.image.resize(image, input_shape, method=resize_method, antialias=resize_antialias)
-        if len(image.shape) == 3:
-            image = tf.expand_dims(image, 0)
+        from PIL import Image
 
-        if self.rescale_mode == "raw":
-            return image
-        elif self.rescale_mode == "raw01":
-            return image / 255.0
-        else:
-            return tf.keras.applications.imagenet_utils.preprocess_input(image, mode=self.rescale_mode)
+        if input_shape is not None:
+            self.set_input_shape(input_shape)
+        images = [image] if len(np.shape(image)) == 3 else image
+        images = [np.array(Image.fromarray(image).resize(self.input_shape)) for image in images]
+        images = (np.stack(images) - self.mean) / self.std
+
+        images = images if backend.image_data_format() == "channels_last" else images.transpose([0, 3, 1, 2])
+        return functional.convert_to_tensor(images)
 
 
 def imagenet_decode_predictions(preds, top=5):
     from keras_cv_attention_models.imagenet.eval_func import decode_predictions
 
-    preds = preds.numpy() if isinstance(preds, tf.Tensor) else preds
+    if hasattr(preds, 'detach'):
+        preds = preds.detach()
+    if hasattr(preds, 'numpy'):
+        preds = preds.numpy()
+    # preds = preds.numpy() if isinstance(preds, tf.Tensor) else preds
     return decode_predictions(preds, top=top)
 
 
 def add_pre_post_process(model, rescale_mode="tf", input_shape=None, post_process=None):
-    input_shape = model.input_shape[1:-1] if input_shape is None else input_shape
+    input_shape = model.input_shape[1:] if input_shape is None else input_shape
     model.preprocess_input = PreprocessInput(input_shape, rescale_mode=rescale_mode)
     model.decode_predictions = imagenet_decode_predictions if post_process is None else post_process
     model.rescale_mode = rescale_mode

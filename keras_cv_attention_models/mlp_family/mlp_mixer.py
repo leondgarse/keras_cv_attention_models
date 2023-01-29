@@ -1,7 +1,7 @@
-from tensorflow import keras
-from tensorflow.keras import backend as K
-from keras_cv_attention_models.download_and_load import reload_model_weights
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional
 from keras_cv_attention_models.attention_layers import activation_by_name, add_pre_post_process
+from keras_cv_attention_models.download_and_load import reload_model_weights
 
 BATCH_NORM_EPSILON = 1e-5
 
@@ -18,40 +18,42 @@ PRETRAINED_DICT = {
 
 def layer_norm(inputs, name=None):
     """Typical LayerNormalization with epsilon=1e-5"""
-    norm_axis = -1 if K.image_data_format() == "channels_last" else 1
-    return keras.layers.LayerNormalization(axis=norm_axis, epsilon=BATCH_NORM_EPSILON, name=name)(inputs)
+    norm_axis = -1 if backend.image_data_format() == "channels_last" else 1
+    return layers.LayerNormalization(axis=norm_axis, epsilon=BATCH_NORM_EPSILON, name=name)(inputs)
 
 
 def mlp_block(inputs, hidden_dim, output_channel=-1, drop_rate=0, use_conv=False, use_bias=True, activation="gelu", name=None):
     output_channel = output_channel if output_channel > 0 else inputs.shape[-1]
     if use_conv:
-        nn = keras.layers.Conv2D(hidden_dim, kernel_size=1, use_bias=use_bias, name=name and name + "Conv_0")(inputs)
+        nn = layers.Conv2D(hidden_dim, kernel_size=1, use_bias=use_bias, name=name and name + "Conv_0")(inputs)
     else:
-        nn = keras.layers.Dense(hidden_dim, use_bias=use_bias, name=name and name + "Dense_0")(inputs)
+        nn = layers.Dense(hidden_dim, use_bias=use_bias, name=name and name + "Dense_0")(inputs)
     nn = activation_by_name(nn, activation, name=name)
-    nn = keras.layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
+    nn = layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
     if use_conv:
-        nn = keras.layers.Conv2D(output_channel, kernel_size=1, use_bias=use_bias, name=name and name + "Conv_1")(nn)
+        nn = layers.Conv2D(output_channel, kernel_size=1, use_bias=use_bias, name=name and name + "Conv_1")(nn)
     else:
-        nn = keras.layers.Dense(output_channel, use_bias=use_bias, name=name and name + "Dense_1")(nn)
-    nn = keras.layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
+        nn = layers.Dense(output_channel, use_bias=use_bias, name=name and name + "Dense_1")(nn)
+    nn = layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
     return nn
 
 
 def mlp_mixer_block(inputs, tokens_mlp_dim, channels_mlp_dim, use_bias=True, drop_rate=0, activation="gelu", name=None):
     nn = layer_norm(inputs, name=name and name + "LayerNorm_0")
-    nn = keras.layers.Permute((2, 1), name=name and name + "permute_0")(nn)
+    nn = layers.Permute((2, 1), name=name and name + "permute_0")(nn) if backend.image_data_format() == "channels_last" else nn
     nn = mlp_block(nn, tokens_mlp_dim, use_bias=use_bias, activation=activation, name=name and name + "token_mixing/")
-    nn = keras.layers.Permute((2, 1), name=name and name + "permute_1")(nn)
+    nn = layers.Permute((2, 1), name=name and name + "permute_1")(nn) if backend.image_data_format() == "channels_last" else nn
     if drop_rate > 0:
-        nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name and name + "token_drop")(nn)
-    token_out = keras.layers.Add(name=name and name + "add_0")([nn, inputs])
+        nn = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name and name + "token_drop")(nn)
+    token_out = layers.Add(name=name and name + "add_0")([nn, inputs])
 
     nn = layer_norm(token_out, name=name and name + "LayerNorm_1")
-    channel_out = mlp_block(nn, channels_mlp_dim, use_bias=use_bias, activation=activation, name=name and name + "channel_mixing/")
+    nn = nn if backend.image_data_format() == "channels_last" else layers.Permute((2, 1), name=name and name + "permute_2")(nn)
+    nn = mlp_block(nn, channels_mlp_dim, use_bias=use_bias, activation=activation, name=name and name + "channel_mixing/")
+    channel_out = nn if backend.image_data_format() == "channels_last" else layers.Permute((2, 1), name=name and name + "permute_3")(nn)
     if drop_rate > 0:
-        channel_out = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name and name + "channel_drop")(channel_out)
-    return keras.layers.Add(name=name and name + "output")([channel_out, token_out])
+        channel_out = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name and name + "channel_drop")(channel_out)
+    return layers.Add(name=name and name + "output")([channel_out, token_out])
 
 
 def MLPMixer(
@@ -71,9 +73,10 @@ def MLPMixer(
     model_name="mlp_mixer",
     kwargs=None,
 ):
-    inputs = keras.Input(input_shape)
-    nn = keras.layers.Conv2D(stem_width, kernel_size=patch_size, strides=patch_size, padding="same", name="stem")(inputs)
-    nn = keras.layers.Reshape([nn.shape[1] * nn.shape[2], stem_width])(nn)
+    inputs = layers.Input(input_shape)
+    nn = layers.Conv2D(stem_width, kernel_size=patch_size, strides=patch_size, padding="VALID", name="stem")(inputs)
+    new_shape = [nn.shape[1] * nn.shape[2], stem_width] if backend.image_data_format() == "channels_last" else [stem_width, nn.shape[2] * nn.shape[3]]
+    nn = layers.Reshape(new_shape)(nn)
 
     drop_connect_s, drop_connect_e = drop_connect_rate if isinstance(drop_connect_rate, (list, tuple)) else [drop_connect_rate, drop_connect_rate]
     for ii in range(num_blocks):
@@ -83,17 +86,17 @@ def MLPMixer(
     nn = layer_norm(nn, name="pre_head_layer_norm")
 
     if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling1D()(nn)  # tf.reduce_mean(nn, axis=1)
+        nn = layers.GlobalAveragePooling1D()(nn)  # tf.reduce_mean(nn, axis=1)
         if dropout > 0 and dropout < 1:
-            nn = keras.layers.Dropout(dropout)(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="head")(nn)
+            nn = layers.Dropout(dropout)(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="head")(nn)
 
     if sam_rho != 0:
         from keras_cv_attention_models.model_surgery import SAMModel
 
         model = SAMModel(inputs, nn, name=model_name)
     else:
-        model = keras.Model(inputs, nn, name=model_name)
+        model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="tf")
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="mlp_family", pretrained=pretrained)
     return model
