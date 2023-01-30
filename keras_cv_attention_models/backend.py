@@ -20,5 +20,6 @@ if is_tensorflow_backend:
     __set_functional_attr__(tf.expand_dims, "expand_dims")
     __set_functional_attr__(tf.squeeze, "squeeze")
     __set_functional_attr__(tf.convert_to_tensor, "convert_to_tensor")
+    __set_functional_attr__(tf.image.resize, "resize")
 else:
     from keras_cv_attention_models.pytorch_backend import layers, models, functional, initializers, register_keras_serializable, image_data_format

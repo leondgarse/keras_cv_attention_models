@@ -42,5 +42,8 @@ def gelu(inputs, approximate=False, name=None):
 def reshape(inputs, shape, name=None):
     return Lambda(partial(torch.reshape, shape=shape), name=name)(inputs)
 
+def resize(inputs, size, method='bilinear', preserve_aspect_ratio=False, antialias=False, name=None):
+    return Lambda(partial(F.interpolate, size=size, mode=method, antialias=antialias), name=name)(inputs)  # [TODO] align_corners
+
 def convert_to_tensor(inputs):
     return torch.Tensor(inputs)

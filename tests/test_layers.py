@@ -17,11 +17,11 @@ def test_add_pre_post_process_tf():
     attention_layers.add_pre_post_process(mm, rescale_mode=rescale_mode, input_shape=input_shape)
     aa = mm.preprocess_input(fake_input)
     bb = keras.applications.imagenet_utils.preprocess_input(fake_input, mode=rescale_mode)
-    tf.assert_less(tf.abs(aa - bb), 1e-7)
+    tf.assert_less(tf.abs(aa - bb), 1e-6)
 
     aa = mm.preprocess_input(fake_input[0])
     bb = keras.applications.imagenet_utils.preprocess_input(fake_input, mode=rescale_mode)
-    tf.assert_less(tf.abs(aa - bb), 1e-7)
+    tf.assert_less(tf.abs(aa - bb), 1e-6)
 
 
 def test_add_pre_post_process_torch():
@@ -33,11 +33,11 @@ def test_add_pre_post_process_torch():
     attention_layers.add_pre_post_process(mm, rescale_mode=rescale_mode, input_shape=input_shape)
     aa = mm.preprocess_input(fake_input)
     bb = keras.applications.imagenet_utils.preprocess_input(fake_input, mode=rescale_mode)
-    tf.assert_less(tf.abs(aa - bb), 1e-7)
+    tf.assert_less(tf.abs(aa - bb), 1e-6)
 
     aa = mm.preprocess_input(fake_input[0])
     bb = keras.applications.imagenet_utils.preprocess_input(fake_input, mode=rescale_mode)
-    tf.assert_less(tf.abs(aa - bb), 1e-7)
+    tf.assert_less(tf.abs(aa - bb), 1e-6)
 
 
 def test_add_pre_post_process_raw():
@@ -48,7 +48,7 @@ def test_add_pre_post_process_raw():
 
     attention_layers.add_pre_post_process(mm, rescale_mode=rescale_mode, input_shape=input_shape)
     aa = mm.preprocess_input(fake_input)
-    tf.assert_less(tf.abs(aa - fake_input), 1e-7)
+    tf.assert_less(tf.abs(aa - fake_input), 1e-6)
 
 
 def test_anti_alias_downsample():

@@ -592,8 +592,10 @@ class PreprocessInput:
         if isinstance(rescale_mode, (list, tuple)):  # Specific mean and std
             mean, std = rescale_mode
         elif rescale_mode == "torch":
-            mean = np.array([0.485, 0.456, 0.406]) * 255.0
-            std = np.array([0.229, 0.224, 0.225]) * 255.0
+            mean = np.array([0.485, 0.456, 0.406]).astype("float32") * 255.0
+            std = np.array([0.229, 0.224, 0.225]).astype("float32") * 255.0
+            if backend.image_data_format() != "channels_last":
+                mean, std = mean[:, None, None], std[:, None, None]
         elif rescale_mode == "tf":  # [0, 255] -> [-1, 1]
             mean, std = 127.5, 127.5
             # mean, std = 127.5, 128.0
@@ -606,17 +608,16 @@ class PreprocessInput:
         self.mean, self.std, self.rescale_mode = mean, std, rescale_mode
 
     def __call__(self, image, resize_method="bilinear", resize_antialias=False, input_shape=None):
-        from PIL import Image
-
         if input_shape is not None:
             self.set_input_shape(input_shape)
-        images = np.array([image] if len(np.shape(image)) == 3 else image)
+        images = np.array([image] if len(np.shape(image)) == 3 else image).astype("float32")
         images = (images * 255) if images.max() < 2 else images
-        images = [np.array(Image.fromarray(image.astype('uint8')).resize(self.input_shape[::-1])) for image in images]
-        images = (np.stack(images) - self.mean) / self.std
 
         images = images if backend.image_data_format() == "channels_last" else images.transpose([0, 3, 1, 2])
-        return functional.convert_to_tensor(images)
+        images = functional.convert_to_tensor(images)
+        images = functional.resize(images, self.input_shape, method=resize_method, antialias=resize_antialias)
+        images = (images - self.mean) / self.std
+        return images
 
 
 def imagenet_decode_predictions(preds, top=5):
