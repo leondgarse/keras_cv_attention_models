@@ -16,27 +16,33 @@ def layer_norm(inputs, name=None):
 
 
 def spatial_gating_block(inputs, name=None):
-    uu, vv = functional.split(inputs, 2, axis=-1)
+    uu, vv = functional.split(inputs, 2, axis=-1 if backend.image_data_format() == "channels_last" else 1)
     # print(f">>>> {uu.shape = }, {vv.shape = }")
     vv = layer_norm(vv, name=name and name + "vv_ln")
-    vv = layers.Permute((2, 1), name=name and name + "permute_1")(vv)
+    vv = layers.Permute((2, 1), name=name and name + "permute_1")(vv) if backend.image_data_format() == "channels_last" else vv
     ww_init = initializers.truncated_normal(stddev=1e-6)
     vv = layers.Dense(vv.shape[-1], kernel_initializer=ww_init, bias_initializer="ones", name=name and name + "vv_dense")(vv)
-    vv = layers.Permute((2, 1), name=name and name + "permute_2")(vv)
+    vv = layers.Permute((2, 1), name=name and name + "permute_2")(vv) if backend.image_data_format() == "channels_last" else vv
     # print(f">>>> {uu.shape = }, {vv.shape = }")
     gated_out = layers.Multiply()([uu, vv])
     return gated_out
 
 
 def res_gated_mlp_block(inputs, channels_mlp_dim, drop_rate=0, activation="gelu", name=None):
+    input_channel = inputs.shape[-1] if backend.image_data_format() == "channels_last" else inputs.shape[1]
     nn = layer_norm(inputs, name=name + "pre_ln")
+    nn = nn if backend.image_data_format() == "channels_last" else layers.Permute((2, 1), name=name and name + "pre_dense_permute_1")(nn)
     nn = layers.Dense(channels_mlp_dim, name=name + "pre_dense")(nn)
+    nn = nn if backend.image_data_format() == "channels_last" else layers.Permute((2, 1), name=name and name + "pre_dense_permute_2")(nn)
     nn = activation_by_name(nn, activation, name=name and name + activation)
     # Drop
 
+    # print(f">>>> {inputs.shape = }, {nn.shape = }")
     # SpatialGatingUnit
-    gated_out = spatial_gating_block(nn, name=name)
-    nn = layers.Dense(inputs.shape[-1], name=name + "gated_dense")(gated_out)
+    nn = spatial_gating_block(nn, name=name)
+    nn = nn if backend.image_data_format() == "channels_last" else layers.Permute((2, 1), name=name and name + "gated_dense_permute_1")(nn)
+    nn = layers.Dense(input_channel, name=name + "gated_dense")(nn)
+    nn = nn if backend.image_data_format() == "channels_last" else layers.Permute((2, 1), name=name and name + "gated_dense_permute_2")(nn)
     # Drop
 
     # Drop path

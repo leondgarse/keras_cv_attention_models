@@ -1,13 +1,17 @@
 import torch
 
+
 def zeros():
     return torch.zeros
+
 
 def ones():
     return torch.ones
 
+
 def truncated_normal(stddev=1e-6):
     return torch.ones  # [TODO]
+
 
 class Initializer:
     @classmethod

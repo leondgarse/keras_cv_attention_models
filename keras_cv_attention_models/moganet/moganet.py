@@ -59,7 +59,7 @@ def moga_block(inputs, mlp_ratio=4, layer_scale=0, drop_rate=0, attn_activation=
 
     gate = conv2d_no_bias(nn, input_channel, use_bias=True, name=name + "attn_gate_")
     gate = activation_by_name(gate, activation=attn_activation, name=name + "attn_gate_")
-    value = multi_order_depthwise_conv2d(nn, name=name + "attn_value_") # MultiOrderDWConv
+    value = multi_order_depthwise_conv2d(nn, name=name + "attn_value_")  # MultiOrderDWConv
     value = activation_by_name(value, activation=attn_activation, name=name + "attn_value_")
     gate_value = keras.layers.Multiply(name=name + "attn_gate_value")([gate, value])
     gate_value = conv2d_no_bias(gate_value, input_channel, use_bias=True, name=name + "attn_gate_value_")  # proj_2
@@ -118,7 +118,7 @@ def MogaNet(
         for block_id in range(num_block):
             name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
-            nn = moga_block(nn,  mlp_ratio, layer_scale, block_drop_rate, attn_activation=attn_activation, activation=activation, name=name)
+            nn = moga_block(nn, mlp_ratio, layer_scale, block_drop_rate, attn_activation=attn_activation, activation=activation, name=name)
             global_block_id += 1
         nn = batchnorm_with_activation(nn, activation=None, name=stack_name + "output_")
 

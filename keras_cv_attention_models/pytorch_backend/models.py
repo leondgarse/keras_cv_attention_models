@@ -1,7 +1,11 @@
 import torch
+import h5py
 import numpy as np
 from torch import nn
+from keras_cv_attention_models import backend
 from keras_cv_attention_models.pytorch_backend import layers
+
+HDF5_OBJECT_HEADER_LIMIT = 64512
 
 
 class Model(nn.Module):
@@ -32,7 +36,9 @@ class Model(nn.Module):
 
     >>> mm.decode_predictions(mm(mm.preprocess_input(chelsea())))
     """
+
     num_instances = 0  # Count instances
+
     @classmethod
     def __count__(cls):
         cls.num_instances += 1
@@ -47,6 +53,7 @@ class Model(nn.Module):
         self.output_names = [ii.name for ii in self.outputs]
         self.input_shape = inputs.shape
         self.create_forward_pipeline()
+        self.eval()  # Set eval mode by default
 
     def create_forward_pipeline(self, **kwargs):
         forward_pipeline, layers, outputs = [], {}, []
@@ -81,28 +88,26 @@ class Model(nn.Module):
     def forward(self, inputs, **kwargs):
         # print(' -> '.join([ii.name for ii in self.forward_pipeline]))
         pre_node = self.inputs[0]
-        if isinstance(inputs, (list, tuple)):
+        if isinstance(inputs, (list, tuple)):  # Multi inputs in list or tuple format
             pre_output = inputs[0]
             branch_record = {kk.name: vv for kk, vv in zip(self.inputs, inputs)}
-        elif isinstance(inputs, dict):
+        elif isinstance(inputs, dict):  # Multi inputs in dict format
             pre_output = inputs[pre_node.name]
             branch_record = inputs
-        else:
+        else:  # Single input
             pre_output = inputs
             branch_record = {pre_node.name: inputs}
 
         outputs = {}
         for node in self.forward_pipeline:
             # print(f">>>> {node.name = }, {node.pre_node_names = }, {node.next_node_names = }")
-            if len(node.pre_nodes) > 1 and isinstance(node.layer, layers._Merge):
-                # Use module for _Merge layers, or will meet error: AttributeError: 'list' object has no attribute 'size'
-                output = node.module([branch_record[ii] for ii in node.pre_node_names])
-            elif len(node.pre_nodes) > 1:
-                output = node.layer([branch_record[ii] for ii in node.pre_node_names])
+            if len(node.pre_nodes) > 1:
+                output = node.callable([branch_record[ii] for ii in node.pre_node_names])
             elif node.pre_nodes[0].name != pre_node.name:
-                output = node.layer(branch_record[node.pre_node_names[0]])
+                output = node.callable(branch_record[node.pre_node_names[0]])
             else:
-                output = node.layer(pre_output)
+                output = node.callable(pre_output)
+            # print(f"     {output.shape = }")
 
             if node.name in self.branch_nodes:
                 branch_record[node.name] = output
@@ -119,52 +124,106 @@ class Model(nn.Module):
         return self.__layers__[layer_name]
 
     def load_weights(self, filepath, by_name=True, skip_mismatch=False):
-        import h5py
-
         ff = h5py.File(filepath, mode="r")
-        weights = ff["model_weights"] if "model_weights" in ff else ff  # full model or weights only
+        with h5py.File(filepath, "r") as h5_file:
+            load_weights_from_hdf5_group(h5_file, self, skip_mismatch=skip_mismatch)
 
-        for tt in self.layers:
-            if len(tt.weights) == 0:
-                continue
-            # print(">>>> Load layer weights:", tt.name, [ii.shape for ii in tt.weights])
-            ss = weights[tt.name]
-            # ss = {ww.decode().split("/")[-1] : tf.convert_to_tensor(ss[ww]) for ww in ss.attrs['weight_names']}
-            # ss = {ww.decode("utf8") if hasattr(ww, "decode") else ww: np.array(ss[ww]) for ww in ss.attrs["weight_names"]}
-            # ss = {kk.split("/")[-1]: vv for kk, vv in ss.items()}
-            ss = [np.array(ss[ww]) for ww in ss.attrs["weight_names"]]
-            # print("Before:", [ii.shape for ii in ss])
-            if skip_mismatch and np.prod(tt.weights[0].shape) != np.prod(ss[0].shape):
-                print("Warning: skip loading weights for layer: {}, required weights: {}, provided: {}".format(tt.name, tt.weights[0].shape, ss[0].shape))
-                continue
-
-            if isinstance(tt, layers.DepthwiseConv2D):
-                ss[0] = np.transpose(ss[0], (2, 3, 0, 1))
-            elif isinstance(tt, layers.Conv2D):
-                ss[0] = np.transpose(ss[0], (3, 2, 0, 1))
-            elif isinstance(tt, layers.PReLU):
-                ss[0] = np.squeeze(ss[0])
-            elif isinstance(tt, layers.Conv1D):
-                ss[0] = np.transpose(ss[0], (2, 1, 0))
-            elif isinstance(tt, layers.Dense):
-                ss[0] = ss[0].T
-            elif tt.weights[0].shape != ss[0].shape:
-                # ss[0] = ss[0].reshape(tt.weights[0].shape)
-                ss = [ii.reshape(jj.shape) for ii, jj in zip(ss, tt.weights)]
-            # print("After:", [ii.shape for ii in ss])
-            tt.set_weights(ss)
-        ff.close()
+    def save_weights(self, filepath=None):
+        with h5py.File(filepath if filepath else self.name + ".h5", "w") as h5_file:
+            save_weights_to_hdf5_group(h5_file, self)
 
     def summary(self):
         from torchsummary import summary
 
         summary(self, tuple(self.input_shape[1:]))
 
-    def export_onnx(self, *kwargs):
-        torch.onnx.export(self, torch.ones([1, *self.input_shape[1:]]), self.name + '.onnx', *kwargs)
-        print("Exported onnx:", self.name + '.onnx')
+    def export_onnx(self, filepath=None, *kwargs):
+        torch.onnx.export(self, torch.ones([1, *self.input_shape[1:]]), self.name + ".onnx", *kwargs)
+        print("Exported onnx:", filepath if filepath else self.name + ".onnx")
 
-    def export_pth(self, *kwargs):
+    def export_pth(self, filepath=None, *kwargs):
         traced_cell = torch.jit.trace(self, (torch.ones([1, *self.input_shape[1:]])))
-        torch.jit.save(traced_cell, self.name + '.pth', *kwargs)
-        print("Exported pth:", self.name + '.pth')
+        torch.jit.save(traced_cell, self.name + ".pth", *kwargs)
+        print("Exported pth:", filepath if filepath else self.name + ".pth")
+
+
+""" Save / load h5 weights from keras.saving.legacy.hdf5_format """
+
+
+def load_weights_from_hdf5_group(h5_file, model, skip_mismatch=False):
+    weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
+
+    for tt in model.layers:
+        if len(tt.weights) == 0:
+            continue
+        # print(">>>> Load layer weights:", tt.name, {ii.name: ii.shape for ii in tt.weights})
+        ss = weights[tt.name]
+        # ss = {ww.decode().split("/")[-1] : tf.convert_to_tensor(ss[ww]) for ww in ss.attrs['weight_names']}
+        # ss = {ww.decode("utf8") if hasattr(ww, "decode") else ww: np.array(ss[ww]) for ww in ss.attrs["weight_names"]}
+        # ss = {kk.split("/")[-1]: vv for kk, vv in ss.items()}
+        ss = [np.array(ss[ww]) for ww in ss.attrs["weight_names"]]
+        # print("Before:", [ii.shape for ii in ss])
+        if skip_mismatch and np.prod(tt.weights[0].shape) != np.prod(ss[0].shape):
+            print("Warning: skip loading weights for layer: {}, required weights: {}, provided: {}".format(tt.name, tt.weights[0].shape, ss[0].shape))
+            continue
+
+        if hasattr(tt, "set_weights_channels_last"):
+            tt.set_weights_channels_last(ss)
+        else:
+            tt.set_weights(ss)
+
+
+def save_subset_weights_to_hdf5_group(group, weight_names, weight_values):
+    """Save top-level weights of a model to a HDF5 group."""
+    save_attributes_to_hdf5_group(group, "weight_names", weight_names)
+    for name, val in zip(weight_names, weight_values):
+        param_dset = group.create_dataset(name, val.shape, dtype=val.dtype)
+        if not val.shape:
+            # scalar
+            param_dset[()] = val
+        else:
+            param_dset[:] = val
+
+
+def save_attributes_to_hdf5_group(group, name, data):
+    """Saves attributes (data) of the specified name into the HDF5 group.
+
+    This method deals with an inherent problem of HDF5 file which is not
+    able to store data larger than HDF5_OBJECT_HEADER_LIMIT bytes.
+    """
+    # Check that no item in `data` is larger than `HDF5_OBJECT_HEADER_LIMIT`
+    # because in that case even chunking the array would not make the saving possible.
+    bad_attributes = [x for x in data if len(x) > HDF5_OBJECT_HEADER_LIMIT]
+
+    # Expecting this to never be true.
+    if bad_attributes:
+        raise RuntimeError(
+            "The following attributes cannot be saved to HDF5 file because " f"they are larger than {HDF5_OBJECT_HEADER_LIMIT} " f"bytes: {bad_attributes}"
+        )
+
+    data_npy = np.asarray(data)
+
+    num_chunks = 1
+    chunked_data = np.array_split(data_npy, num_chunks)
+
+    # This will never loop forever thanks to the test above.
+    while any([x.nbytes > HDF5_OBJECT_HEADER_LIMIT for x in chunked_data]):
+        num_chunks += 1
+        chunked_data = np.array_split(data_npy, num_chunks)
+
+    if num_chunks > 1:
+        for chunk_id, chunk_data in enumerate(chunked_data):
+            group.attrs["%s%d" % (name, chunk_id)] = chunk_data
+    else:
+        group.attrs[name] = data
+
+
+def save_weights_to_hdf5_group(h5_file, model):
+    """Saves the weights of a list of layers to a HDF5 group."""
+    save_attributes_to_hdf5_group(h5_file, "layer_names", [layer.name.encode("utf8") for layer in model.layers])
+    h5_file.attrs["backend"] = backend.backend().encode("utf8")
+    for layer in sorted(model.layers, key=lambda x: x.name):
+        layer_group = h5_file.create_group(layer.name)
+        weight_names = [ww.name.encode("utf8") for ww in layer.weights]
+        weight_values = layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()
+        save_subset_weights_to_hdf5_group(layer_group, weight_names, weight_values)

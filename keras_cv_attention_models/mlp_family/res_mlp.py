@@ -1,3 +1,4 @@
+import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, initializers
 from keras_cv_attention_models.attention_layers import activation_by_name, add_pre_post_process
@@ -40,6 +41,19 @@ class ChannelAffine(layers.Layer):
 
     def compute_output_shape(self, input_shape):
         return input_shape
+
+    def get_weights_channels_last(self):
+        # channel_first -> channel_last
+        weights = self.get_weights()
+        if backend.image_data_format() != "channels_last" and self.axis == 1:
+            weights = [np.squeeze(ii) for ii in weights]
+        return weights
+
+    def set_weights_channels_last(self, weights):
+        # channel_last -> channel_first
+        if backend.image_data_format() != "channels_last" and self.axis == 1:
+            weights = [np.reshape(ii, self.ww.shape) for ii in weights]
+        return self.set_weights(weights)
 
     def get_config(self):
         config = super().get_config()

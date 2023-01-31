@@ -11,6 +11,7 @@
   - [COCO training and evaluating](#coco-training-and-evaluating)
   - [Visualizing](#visualizing)
   - [TFLite Conversion](#tflite-conversion)
+  - [Using PyTorch as backend](#using-pytorch-as-backend)
 - [Recognition Models](#recognition-models)
   - [AotNet](#aotnet)
   - [BEiT](#beit)
@@ -411,6 +412,40 @@
     """ Show result """
     from keras_cv_attention_models.coco import data
     data.show_image_with_bboxes(imm, bboxes, labels, confidences, num_classes=90)
+    ```
+## Using PyTorch as backend
+  - **Experimental** [Keras PyTorch Backend](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/pytorch_backend).
+  - Set os environment `export KECAM_BACKEND='torch'` to enable this PyTorch backend.
+  - Currently only supports models in [mlp_family](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family).
+  - **Basic model create and prediction**.
+    - Will load same `h5` weights as TF one if available.
+    - Note: need to specify channels first input shape `input_shape=(3, 224, 224)`.
+    - Note: model is defaultly set to `eval` mode.
+    ```py
+    from keras_cv_attention_models import res_mlp
+    mm = res_mlp.ResMLP12(input_shape=(3, 224, 224))
+    # >>>> Load pretrained from: ~/.keras/models/resmlp12_imagenet.h5
+
+    import torch
+    print(f"{isinstance(mm, torch.nn.Module) = }")
+    # isinstance(mm, torch.nn.Module) = True
+
+    # Run prediction
+    from skimage.data import chelsea # Chelsea the cat
+    print(mm.decode_predictions(mm(mm.preprocess_input(chelsea())))[0])
+    # [('n02124075', 'Egyptian_cat', 0.86188155), ('n02123159', 'tiger_cat', 0.05125639), ...]
+    ```
+  - **Export onnx / pth**.
+    ```py
+    mm.export_onnx()
+    # Exported onnx: resmlp12.onnx
+
+    mm.export_pth()
+    # Exported pth: resmlp12.pth
+    ```
+  - **Save weights as h5**
+    ```py
+    mm.save_weights("foo.h5")
     ```
 ***
 

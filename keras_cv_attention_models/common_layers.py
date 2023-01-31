@@ -95,7 +95,9 @@ class EvoNormalization(layers.Layer):
         super().__init__(**kwargs)
         self.data_format, self.nonlinearity, self.zero_gamma, self.num_groups = data_format, nonlinearity, zero_gamma, num_groups
         self.momentum, self.epsilon = momentum, epsilon
-        self.is_channels_first = True if data_format == "channels_first" or (data_format == "auto" and backend.image_data_format() == "channels_first") else False
+        self.is_channels_first = (
+            True if data_format == "channels_first" or (data_format == "auto" and backend.image_data_format() == "channels_first") else False
+        )
 
     def build(self, input_shape):
         all_axes = list(range(len(input_shape)))
@@ -623,9 +625,9 @@ class PreprocessInput:
 def imagenet_decode_predictions(preds, top=5):
     from keras_cv_attention_models.imagenet.eval_func import decode_predictions
 
-    if hasattr(preds, 'detach'):
+    if hasattr(preds, "detach"):
         preds = preds.detach()
-    if hasattr(preds, 'numpy'):
+    if hasattr(preds, "numpy"):
         preds = preds.numpy()
     # preds = preds.numpy() if isinstance(preds, tf.Tensor) else preds
     return decode_predictions(preds, top=top)
