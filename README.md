@@ -415,9 +415,9 @@
     ```
 ## Using PyTorch as backend
   - **Experimental** [Keras PyTorch Backend](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/pytorch_backend).
-  - Set os environment `export KECAM_BACKEND='torch'` to enable this PyTorch backend.
+  - **Set os environment `export KECAM_BACKEND='torch'` to enable this PyTorch backend.**
   - Currently only supports models in [mlp_family](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family).
-  - **Basic model create and prediction**.
+  - **Basic model build and prediction**.
     - Will load same `h5` weights as TF one if available.
     - Note: need to specify channels first input shape `input_shape=(3, 224, 224)`.
     - Note: model is defaultly set to `eval` mode.
@@ -435,7 +435,7 @@
     print(mm.decode_predictions(mm(mm.preprocess_input(chelsea())))[0])
     # [('n02124075', 'Egyptian_cat', 0.86188155), ('n02123159', 'tiger_cat', 0.05125639), ...]
     ```
-  - **Export onnx / pth**.
+  - **Export typical PyTorch onnx / pth**.
     ```py
     mm.export_onnx()
     # Exported onnx: resmlp12.onnx
@@ -443,7 +443,7 @@
     mm.export_pth()
     # Exported pth: resmlp12.pth
     ```
-  - **Save weights as h5**
+  - **Save weights as h5**. This `h5` can also be loaded in typical TF backend model. Currently it's only weights without model structure supported.
     ```py
     mm.save_weights("foo.h5")
     ```

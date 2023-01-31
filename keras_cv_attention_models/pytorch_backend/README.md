@@ -37,7 +37,7 @@
   mm.export_pth()
   # Exported pth: wavemlp_t.pth
   ```
-- `load_weights` / `save_weights` will load / save `h5` weights, which can be used for converting between TF and PyTorch.
+- `load_weights` / `save_weights` will load / save `h5` weights, which can be used for converting between TF and PyTorch. Currently it's only weights without model structure supported.
   ```py
   from keras_cv_attention_models import gated_mlp
   mm = gated_mlp.GMLPS16(input_shape=(3, 224, 224))
@@ -55,5 +55,27 @@
   from skimage.data import chelsea # Chelsea the cat
   mm.decode_predictions(mm(mm.preprocess_input(chelsea())))
   # [('n02124075', 'Egyptian_cat', 0.8495876), ('n02123159', 'tiger_cat', 0.029945023), ...]
+  ```
+- **Create custom PyTorch model using keras API**
+  ```py
+  from keras_cv_attention_models.pytorch_backend import layers, models
+  inputs = layers.Input([3, 224, 224])
+  pre = layers.Conv2D(32, kernel_size=3, padding="SAME", name="deep_pre_conv")(inputs)
+  deep_1 = layers.Conv2D(32, kernel_size=3, padding="SAME", name="deep_1_1_conv")(pre)
+  deep_1 = layers.Conv2D(32, kernel_size=3, padding="SAME", name="deep_1_2_conv")(deep_1)
+  deep_2 = layers.Conv2D(32, kernel_size=3, padding="SAME", name="deep_2_conv")(pre)
+  deep = layers.Add(name="deep_add")([deep_1, deep_2])
+  short = layers.Conv2D(32, kernel_size=3, padding="SAME", name="short_conv")(inputs)
+  outputs = layers.Add(name="outputs")([short, deep])
+  mm = models.Model(inputs, outputs)
+  mm.summary()
+
+  import torch
+  print(mm(torch.ones([1, 3, 224, 224])).shape)
+  # torch.Size([1, 32, 224, 224])
+
+  # Save load test
+  mm.save_weights("aa.h5")
+  mm.load_weights('aa.h5')
   ```
 ***

@@ -46,12 +46,16 @@ class Model(nn.Module):
     def __init__(self, inputs, outputs, name=None, **kwargs):
         super().__init__()
         self.name = "model_{}".format(self.num_instances) if name == None else name
-        self.input_node, self.output_node = inputs, outputs
+
         self.outputs = outputs if isinstance(outputs, (list, tuple)) else [outputs]
-        self.inputs = inputs if isinstance(inputs, (list, tuple)) else [inputs]
-        self.num_outputs = len(self.outputs)
+        self.output_shape = [ii.shape for ii in self.outputs] if isinstance(outputs, (list, tuple)) else outputs.shape
         self.output_names = [ii.name for ii in self.outputs]
-        self.input_shape = inputs.shape
+
+        self.inputs = inputs if isinstance(inputs, (list, tuple)) else [inputs]
+        self.input_shape = [ii.shape for ii in self.inputs] if isinstance(inputs, (list, tuple)) else inputs.shape
+        self.input_names = [ii.name for ii in self.inputs]
+
+        self.num_outputs = len(self.outputs)
         self.create_forward_pipeline()
         self.eval()  # Set eval mode by default
 

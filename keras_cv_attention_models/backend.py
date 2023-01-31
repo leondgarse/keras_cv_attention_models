@@ -43,8 +43,8 @@ def image_data_format():
         return "channels_first"
 
 
-def in_train_phase():
+def in_train_phase(x, alt, training=None):
     if is_tensorflow_backend:
-        return tf.keras.backend.in_train_phase()
+        return tf.keras.backend.in_train_phase(x, alt, training=training)
     else:
         return True  # [TODO]
