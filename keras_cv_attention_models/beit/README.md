@@ -126,7 +126,7 @@
   _ = torch_model.eval()
   torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2)).detach().numpy()
 
-  """ Keras BotNet26T """
+  """ Keras BeitBasePatch16 """
   from keras_cv_attention_models import beit
   mm = beit.BeitBasePatch16(classifier_activation=None)
   keras_out = mm(inputs).numpy()

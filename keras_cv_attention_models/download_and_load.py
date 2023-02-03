@@ -1,11 +1,13 @@
 import os
-import tensorflow as tf
-from tensorflow import keras
+import numpy as np
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 
 
 def reload_model_weights(
     model, pretrained_dict, sub_release, pretrained="imagenet", mismatch_class=None, force_reload_mismatch=False, request_resolution=-1, method=None
 ):
+    from tensorflow import keras
+
     if not isinstance(pretrained, str):
         return
     if pretrained.endswith(".h5"):
@@ -50,7 +52,10 @@ def reload_model_weights(
 
 def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_reload_mismatch=False, request_resolution=-1, method=None):
     model.load_weights(weight_file, by_name=True, skip_mismatch=True)
-    input_height, input_width = model.input_shape[1], model.input_shape[2]
+    if image_data_format() == "channels_first":
+        input_height, input_width = model.input_shape[2], model.input_shape[3]
+    else:
+        input_height, input_width = model.input_shape[1], model.input_shape[2]
 
     # if mismatch_class is not None:
     if mismatch_class is not None and (force_reload_mismatch or request_resolution != input_height or request_resolution != input_width):
@@ -58,31 +63,23 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_re
             import h5py
 
             print(">>>> Reload mismatched weights: {} -> {}".format(request_resolution, (input_height, input_width)))
-            ff = h5py.File(weight_file, mode="r")
-            weights = ff["model_weights"] if "model_weights" in ff else ff  # full model or weights only
+            with h5py.File(weight_file, mode="r") as h5_file:
+                weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
 
-            if isinstance(mismatch_class, (list, tuple)):
-                is_mismatch_class = lambda xx: any([isinstance(ii, mm) for mm in mismatch_class])
-            else:
-                is_mismatch_class = lambda xx: isinstance(ii, mismatch_class)
+                if isinstance(mismatch_class, (list, tuple)):
+                    is_mismatch_class = lambda xx: any([isinstance(ii, mm) for mm in mismatch_class])
+                else:
+                    is_mismatch_class = lambda xx: isinstance(ii, mismatch_class)
 
-            method_kwarg = {} if method is None else {"method": method}  # None for using class default one
-            for ii in model.layers:
-                if is_mismatch_class(ii) and ii.name in weights:
-                    print(">>>> Reload layer:", ii.name)
-                    ss = weights[ii.name]
-                    # ss = {ww.decode().split("/")[-1] : tf.convert_to_tensor(ss[ww]) for ww in ss.attrs['weight_names']}
-                    ss = {ww.decode("utf8") if hasattr(ww, "decode") else ww: tf.convert_to_tensor(ss[ww]) for ww in ss.attrs["weight_names"]}
-                    ss = {kk.split("/")[-1]: vv for kk, vv in ss.items()}
-                    model.get_layer(ii.name).load_resized_weights(ss, **method_kwarg)
-            ff.close()
-
-        # print(">>>> Reload mismatched PositionalEmbedding weights: {} -> {}".format(request_resolution, input_shape[0]))
-        # bb = keras.models.load_model(pretrained_model)
-        # for ii in model.layers:
-        #     if isinstance(ii, mismatch_class):
-        #         print(">>>> Reload layer:", ii.name)
-        #         model.get_layer(ii.name).load_resized_weights(bb.get_layer(ii.name))
+                method_kwarg = {} if method is None else {"method": method}  # None for using class default one
+                for ii in model.layers:
+                    if is_mismatch_class(ii) and ii.name in weights:
+                        print(">>>> Reload layer:", ii.name)
+                        ss = weights[ii.name]
+                        # ss = {ww.decode().split("/")[-1] : tf.convert_to_tensor(ss[ww]) for ww in ss.attrs['weight_names']}
+                        ss = {ww.decode("utf8") if hasattr(ww, "decode") else ww: np.array(ss[ww]) for ww in ss.attrs["weight_names"]}
+                        ss = {kk.split("/")[-1]: vv for kk, vv in ss.items()}
+                        model.get_layer(ii.name).load_resized_weights(ss, **method_kwarg)
         except Exception as error:
             print("[Error] something went wrong in load_weights_with_mismatch:", error)
             pass
@@ -177,17 +174,17 @@ def keras_reload_stacked_state_dict(model, stacked_state_dict, layer_names_match
         if verbose > 0:
             print("    Before: [{}] torch: {}, tf: {}".format(kk, [ii.shape for ii in torch_weight], [ii.shape for ii in tf_weights]))
 
-        if isinstance(tf_layer, keras.layers.DepthwiseConv2D):  # DepthwiseConv2D is instance of Conv2D, put it first
+        if isinstance(tf_layer, layers.DepthwiseConv2D):  # DepthwiseConv2D is instance of Conv2D, put it first
             torch_weight[0] = np.transpose(torch_weight[0], (2, 3, 0, 1))
-        elif isinstance(tf_layer, keras.layers.Conv2D):
+        elif isinstance(tf_layer, layers.Conv2D):
             torch_weight[0] = np.transpose(torch_weight[0], (2, 3, 1, 0))
             if len(torch_weight) > 2:  # gain
                 torch_weight[2] = np.squeeze(torch_weight[2])
-        elif isinstance(tf_layer, keras.layers.PReLU):
+        elif isinstance(tf_layer, layers.PReLU):
             torch_weight[0] = np.expand_dims(np.expand_dims(torch_weight[0], 0), 0)
-        elif isinstance(tf_layer, keras.layers.Conv1D):
+        elif isinstance(tf_layer, layers.Conv1D):
             torch_weight[0] = np.transpose(torch_weight[0], (2, 1, 0))
-        elif isinstance(tf_layer, keras.layers.Dense):
+        elif isinstance(tf_layer, layers.Dense):
             # [Note] if it's fc layer after flatten, weights need to reshape according to NCHW --> NHWC
             torch_weight[0] = torch_weight[0].T
 
@@ -257,6 +254,7 @@ def keras_reload_from_torch_model(
     import torch
     import numpy as np
     import tensorflow as tf
+    from tensorflow import keras
     from keras_cv_attention_models import test_images
 
     input_shape = input_shape[:2] if keras_model is None else keras_model.input_shape[1:-1]

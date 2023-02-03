@@ -1,5 +1,3 @@
-import tensorflow as tf
-from tensorflow import keras
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, initializers
@@ -116,9 +114,9 @@ class EvoNormalization(layers.Layer):
                 name="moving_variance",
                 shape=param_shape,
                 initializer="ones",
-                synchronization=tf.VariableSynchronization.ON_READ,
+                # synchronization=tf.VariableSynchronization.ON_READ,
                 trainable=False,
-                aggregation=tf.VariableAggregation.MEAN,
+                # aggregation=tf.VariableAggregation.MEAN,
             )
         if self.nonlinearity:
             self.vv = self.add_weight(name="vv", shape=param_shape, initializer="ones", trainable=True)
@@ -146,16 +144,16 @@ class EvoNormalization(layers.Layer):
 
     def __group_std__(self, inputs):
         # _group_std, https://github.com/tensorflow/tpu/blob/main/models/official/resnet/resnet_model.py#L171
-        grouped = tf.reshape(inputs, self.group_shape)
-        _, var = tf.nn.moments(grouped, self.group_reduction_axes, keepdims=True)
-        std = tf.sqrt(var + self.epsilon)
-        std = tf.repeat(std, self.groups_dim, axis=self.group_axes)
-        return tf.reshape(std, self.var_shape)
+        grouped = functional.reshape(inputs, self.group_shape)
+        _, var = functional.moments(grouped, self.group_reduction_axes, keepdims=True)
+        std = functional.sqrt(var + self.epsilon)
+        std = functional.repeat(std, self.groups_dim, axis=self.group_axes)
+        return functional.reshape(std, self.var_shape)
 
     def __batch_std__(self, inputs, training=None):
         # _batch_std, https://github.com/tensorflow/tpu/blob/main/models/official/resnet/resnet_model.py#L120
         def _call_train_():
-            _, var = tf.nn.moments(inputs, self.reduction_axes, keepdims=True)
+            _, var = functional.moments(inputs, self.reduction_axes, keepdims=True)
             # update_op = tf.assign_sub(moving_variance, (moving_variance - variance) * (1 - decay))
             delta = (self.moving_variance - var) * (1 - self.momentum)
             self.moving_variance.assign_sub(delta)
@@ -165,18 +163,18 @@ class EvoNormalization(layers.Layer):
             return self.moving_variance
 
         var = backend.in_train_phase(_call_train_, _call_test_, training=training)
-        return tf.sqrt(var + self.epsilon)
+        return functional.sqrt(var + self.epsilon)
 
     def __instance_std__(self, inputs):
         # _instance_std, https://github.com/tensorflow/tpu/blob/main/models/official/resnet/resnet_model.py#L111
         # axes = [1, 2] if data_format == 'channels_last' else [2, 3]
-        _, var = tf.nn.moments(inputs, self.reduction_axes[1:], keepdims=True)
-        return tf.sqrt(var + self.epsilon)
+        _, var = functional.moments(inputs, self.reduction_axes[1:], keepdims=True)
+        return functional.sqrt(var + self.epsilon)
 
     def call(self, inputs, training=None, **kwargs):
         if self.nonlinearity and self.num_groups > 0:  # EVONORM_S0
             den = self.__group_std__(inputs)
-            inputs = inputs * tf.nn.sigmoid(self.vv * inputs) / den
+            inputs = inputs * functional.sigmoid(self.vv * inputs) / den
         elif self.num_groups > 0:  # EVONORM_S0a
             # EvoNorm2dS0a https://github.com/rwightman/pytorch-image-models/blob/main/timm/models/layers/evo_norm.py#L239
             den = self.__group_std__(inputs)
@@ -184,7 +182,7 @@ class EvoNormalization(layers.Layer):
         elif self.nonlinearity:  # EVONORM_B0
             left = self.__batch_std__(inputs, training)
             right = self.vv * inputs + self.__instance_std__(inputs)
-            inputs = inputs / tf.maximum(left, right)
+            inputs = inputs / functional.maximum(left, right)
         return inputs * self.gamma + self.beta
 
     def get_config(self):
@@ -227,9 +225,9 @@ def batchnorm_with_activation(
     return nn
 
 
-def layer_norm(inputs, zero_gamma=False, epsilon=LAYER_NORM_EPSILON, center=True, name=None):
+def layer_norm(inputs, zero_gamma=False, epsilon=LAYER_NORM_EPSILON, center=True, axis="auto", name=None):
     """Typical LayerNormalization with epsilon=1e-5"""
-    norm_axis = -1 if backend.image_data_format() == "channels_last" else 1
+    norm_axis = (-1 if backend.image_data_format() == "channels_last" else 1) if axis == "auto" else axis
     gamma_init = initializers.zeros() if zero_gamma else initializers.ones()
     return layers.LayerNormalization(axis=norm_axis, epsilon=epsilon, gamma_initializer=gamma_init, center=center, name=name and name + "ln")(inputs)
 
@@ -367,12 +365,12 @@ def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
 
     filters = inputs.shape[channel_axis]
     beta, gamma = float(beta), float(gamma)
-    tt = int((tf.math.log(float(filters)) / tf.math.log(2.0) + beta) / gamma)
+    tt = int((functional.log(float(filters)) / functional.log(2.0) + beta) / gamma)
     kernel_size = max(tt if tt % 2 else tt + 1, 3)
     pad = kernel_size // 2
 
     nn = functional.reduce_mean(inputs, [h_axis, w_axis], keepdims=False)
-    nn = tf.pad(nn, [[0, 0], [pad, pad]])
+    nn = functional.pad(nn, [[0, 0], [pad, pad]])
     nn = functional.expand_dims(nn, channel_axis)
 
     nn = layers.Conv1D(1, kernel_size=kernel_size, strides=1, padding="VALID", use_bias=False, name=name and name + "conv1d")(nn)
@@ -383,7 +381,7 @@ def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
 
 def drop_connect_rates_split(num_blocks, start=0.0, end=0.0):
     """split drop connect rate in range `(start, end)` according to `num_blocks`"""
-    drop_connect_rates = tf.split(tf.linspace(start, end, sum(num_blocks)), num_blocks)
+    drop_connect_rates = functional.split(functional.linspace(start, end, sum(num_blocks)), num_blocks)
     return [ii.numpy().tolist() for ii in drop_connect_rates]
 
 
@@ -420,9 +418,9 @@ def __anti_alias_downsample_initializer__(weight_shape, dtype="float32"):
     import numpy as np
 
     kernel_size, channel = weight_shape[0], weight_shape[2]
-    ww = tf.cast(np.poly1d((0.5, 0.5)) ** (kernel_size - 1), dtype)
-    ww = tf.expand_dims(ww, 0) * tf.expand_dims(ww, 1)
-    ww = tf.repeat(ww[:, :, tf.newaxis, tf.newaxis], channel, axis=-2)
+    ww = functional.convert_to_tensor(np.poly1d((0.5, 0.5)) ** (kernel_size - 1), dtype)
+    ww = functional.expand_dims(ww, 0) * functional.expand_dims(ww, 1)
+    ww = functional.repeat(ww[:, :, None, None], channel, axis=-2)
     return ww
 
 
@@ -454,9 +452,9 @@ def make_divisible(vv, divisor=4, min_value=None, limit_round_down=0.9):
 def __unfold_filters_initializer__(weight_shape, dtype="float32"):
     kernel_size = weight_shape[0]
     kernel_out = kernel_size * kernel_size
-    ww = tf.reshape(tf.eye(kernel_out), [kernel_size, kernel_size, 1, kernel_out])
+    ww = functional.reshape(functional.eye(kernel_out), [kernel_size, kernel_size, 1, kernel_out])
     if len(weight_shape) == 5:  # Conv3D or Conv3DTranspose
-        ww = tf.expand_dims(ww, 2)
+        ww = functional.expand_dims(ww, 2)
     return ww
 
 
@@ -468,15 +466,15 @@ def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=
     if compressed:
         _, hh, ww, cc = patches.shape
         channel = cc // kernel_size // kernel_size
-        conv_rr = tf.reshape(patches, [-1, hh * ww, kernel_size * kernel_size, channel])
+        conv_rr = functional.reshape(patches, [-1, hh * ww, kernel_size * kernel_size, channel])
     else:
         _, hh, ww, _, _, channel = patches.shape
         # conv_rr = patches
-        conv_rr = tf.reshape(patches, [-1, hh * ww, kernel_size * kernel_size, channel])
-    conv_rr = tf.transpose(conv_rr, [0, 3, 1, 2])  # [batch, channnel, hh * ww, kernel * kernel]
-    conv_rr = tf.reshape(conv_rr, [-1, hh, ww, kernel_size * kernel_size])
+        conv_rr = functional.reshape(patches, [-1, hh * ww, kernel_size * kernel_size, channel])
+    conv_rr = functional.transpose(conv_rr, [0, 3, 1, 2])  # [batch, channnel, hh * ww, kernel * kernel]
+    conv_rr = functional.reshape(conv_rr, [-1, hh, ww, kernel_size * kernel_size])
 
-    convtrans_rr = keras.layers.Conv2DTranspose(
+    convtrans_rr = layers.Conv2DTranspose(
         filters=1,
         kernel_size=kernel_size,
         strides=strides,
@@ -489,8 +487,8 @@ def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=
         name=name and name + "fold_convtrans",
     )(conv_rr)
 
-    out = tf.reshape(convtrans_rr[..., 0], [-1, channel, convtrans_rr.shape[1], convtrans_rr.shape[2]])
-    out = tf.transpose(out, [0, 2, 3, 1])
+    out = functional.reshape(convtrans_rr[..., 0], [-1, channel, convtrans_rr.shape[1], convtrans_rr.shape[2]])
+    out = functional.transpose(out, [0, 2, 3, 1])
     if output_shape is None:
         output_shape = [-paded, -paded]
     else:
@@ -511,10 +509,15 @@ class CompatibleExtractPatches(layers.Layer):
         self.dilation_rate = rates[1] if isinstance(rates, (list, tuple)) else rates
         self.filters = self.kernel_size * self.kernel_size
 
-        if len(tf.config.experimental.list_logical_devices("TPU")) != 0 or self.force_conv:
-            self.use_conv = True
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            if len(tf.config.experimental.list_logical_devices("TPU")) != 0 or self.force_conv:
+                self.use_conv = True
+            else:
+                self.use_conv = False
         else:
-            self.use_conv = False
+            self.use_conv = force_conv
 
     def build(self, input_shape):
         _, self.height, self.width, self.channel = input_shape
@@ -540,28 +543,29 @@ class CompatibleExtractPatches(layers.Layer):
             self._sizes_ = [1, self.kernel_size, self.kernel_size, 1]
             self._strides_ = [1, self.strides, self.strides, 1]
             self._rates_ = [1, self.dilation_rate, self.dilation_rate, 1]
+        super().build(input_shape)
 
     def call(self, inputs):
         if self.padding.upper() == "SAME":
-            inputs = tf.pad(inputs, self.pad_value)
+            inputs = functional.pad(inputs, self.pad_value)
 
         if self.use_conv:
-            merge_channel = tf.transpose(inputs, [0, 3, 1, 2])
-            merge_channel = tf.reshape(merge_channel, [-1, self.height, self.width, 1])
+            merge_channel = functional.transpose(inputs, [0, 3, 1, 2])
+            merge_channel = functional.reshape(merge_channel, [-1, self.height, self.width, 1])
             conv_rr = self.conv(merge_channel)
 
             # TFLite not supporting `tf.transpose` with len(perm) > 4...
-            out = tf.reshape(conv_rr, [-1, self.channel, conv_rr.shape[1] * conv_rr.shape[2], self.filters])
-            out = tf.transpose(out, [0, 2, 3, 1])  # [batch, hh * ww, kernel * kernel, channnel]
+            out = functional.reshape(conv_rr, [-1, self.channel, conv_rr.shape[1] * conv_rr.shape[2], self.filters])
+            out = functional.transpose(out, [0, 2, 3, 1])  # [batch, hh * ww, kernel * kernel, channnel]
             if self.compressed:
-                out = tf.reshape(out, [-1, conv_rr.shape[1], conv_rr.shape[2], self.filters * self.channel])
+                out = functional.reshape(out, [-1, conv_rr.shape[1], conv_rr.shape[2], self.filters * self.channel])
             else:
-                out = tf.reshape(out, [-1, conv_rr.shape[1], conv_rr.shape[2], self.kernel_size, self.kernel_size, self.channel])
+                out = functional.reshape(out, [-1, conv_rr.shape[1], conv_rr.shape[2], self.kernel_size, self.kernel_size, self.channel])
         else:
-            out = tf.image.extract_patches(inputs, self._sizes_, self._strides_, self._rates_, "VALID")
+            out = functional.extract_patches(inputs, self._sizes_, self._strides_, self._rates_, "VALID")
             if not self.compressed:
                 # [batch, hh, ww, kernel, kernel, channnel]
-                out = tf.reshape(out, [-1, out.shape[1], out.shape[2], self.kernel_size, self.kernel_size, self.channel])
+                out = functional.reshape(out, [-1, out.shape[1], out.shape[2], self.kernel_size, self.kernel_size, self.channel])
         return out
 
     def get_config(self):

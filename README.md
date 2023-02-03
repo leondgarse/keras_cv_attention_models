@@ -416,7 +416,7 @@
 ## Using PyTorch as backend
   - **Experimental** [Keras PyTorch Backend](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/pytorch_backend).
   - **Set os environment `export KECAM_BACKEND='torch'` to enable this PyTorch backend.**
-  - Currently only supports models in [mlp_family](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family).
+  - Currently only supports models in [mlp_family](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family) and [beit](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit).
   - **Basic model build and prediction**.
     - Will load same `h5` weights as TF one if available.
     - Note: need to specify channels first input shape `input_shape=(3, 224, 224)`.

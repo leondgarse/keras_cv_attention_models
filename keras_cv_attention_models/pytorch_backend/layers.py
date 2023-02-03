@@ -4,6 +4,12 @@ from torch import nn
 from functools import partial
 
 
+# [TODO] Identity, ConvTranspose2d, Conv2D SAME padding, initializer, MultiHeadAttention
+
+
+""" Basic Layers """
+
+
 class Weight:
     def __init__(self, name, value):
         self.name, self.shape, self.__value__ = name, value.shape, value
@@ -45,8 +51,21 @@ class GraphNode:
         index_expr = index_expr if isinstance(index_expr, (int, slice)) else tuple(index_expr)
         return Lambda(lambda inputs: inputs[index_expr])(self)
 
+    def __add__(self, another):
+        return Add()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx + another)(self)
+
+    def __sub__(self, another):
+        return Subtract()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx - another)(self)
+
+    def __mul__(self, another):
+        return Multiply()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx * another)(self)
+
+    def __matmul__(self, another):
+        # return Matmul()([self, another])
+        return Lambda(lambda inputs: torch.matmul(inputs[0], inputs[1]))([self, another])
+
     def set_pre_nodes(self, pre_nodes):
-        pre_nodes = pre_nodes if isinstance(pre_nodes, (list, tuple)) else [pre_nodes]
+        pre_nodes = [ii for ii in pre_nodes if isinstance(ii, GraphNode)] if isinstance(pre_nodes, (list, tuple)) else [pre_nodes]
         self.pre_nodes += pre_nodes
         self.pre_node_names += [ii.name for ii in pre_nodes]
 
@@ -74,16 +93,21 @@ class Layer(nn.Module):
         super().__init__()
         self.name, self.kwargs = self.verify_name(name), kwargs
         self.built = False
-        self.module = lambda xx: xx
+        self.has_custom_parameters = False
+        if not hasattr(self, "module"):
+            self.module = lambda xx: xx
         self.__count__()
 
     def build(self, input_shape: torch.Size):
         self.input_shape = input_shape
         self.__output_shape__ = self.compute_output_shape(input_shape)
-        if hasattr(self, "call"):  # General keras layers with call function
-            # self.forward = self.call
-            self.module = self.call
+        # if hasattr(self, "call"):  # General keras layers with call function
+        #     self.forward = self.call
+        #     self.call = self.call
         self.built = True
+
+    def call(self, inputs, **kwargs):
+        return self.module(inputs, **kwargs)
 
     def forward(self, inputs, **kwargs):
         if not self.built:
@@ -92,7 +116,7 @@ class Layer(nn.Module):
             output_shape = self.compute_output_shape(self.input_shape)
             # if isinstance(output_shape[0], (list, tuple))
             cur_node = GraphNode(output_shape, name=self.name)
-            if hasattr(self, "call"):  # General keras layers with call function, mostly own weights
+            if self.has_custom_parameters:  # General keras layers with call function, mostly own weights
                 cur_node.callable = self
             else:
                 cur_node.callable = self.module if len(kwargs) == 0 else partial(self.module, **kwargs)
@@ -101,11 +125,12 @@ class Layer(nn.Module):
 
             inputs = inputs if isinstance(inputs, (list, tuple)) else [inputs]
             for ii in inputs:
-                ii.set_next_nodes(cur_node)
+                if isinstance(ii, GraphNode):
+                    ii.set_next_nodes(cur_node)
             self.output = self.node = cur_node
             return cur_node
         else:
-            return self.module(inputs, **kwargs)
+            return self.call(inputs, **kwargs)
 
     @property
     def weights(self):
@@ -120,6 +145,7 @@ class Layer(nn.Module):
         return []
 
     def add_weight(self, name=None, shape=None, dtype=None, initializer=None, regularizer=None, trainable=None):
+        self.has_custom_parameters = True
         if isinstance(initializer, str):
             initializer = torch.ones if initializer == "ones" else torch.zeros
         return nn.Parameter(initializer(shape), requires_grad=trainable)
@@ -162,47 +188,148 @@ class Lambda(Layer):
 
     def compute_output_shape(self, input_shape):
         # print(self.module, input_shape)
-        input_shape = [0 if ii is None or ii == -1 else ii for ii in input_shape]  # Regards 0 as dynamic shape
-        output_shape = list(self.module(torch.ones(input_shape)).shape)
+        input_shapes = [input_shape] if isinstance(input_shape[0], int) or input_shape[0] is None else input_shape
+        inputs = [torch.ones([0 if ii is None or ii == -1 else ii for ii in input_shape]) for input_shape in input_shapes]  # Regards 0 as dynamic shape
+        output_shape = list(self.module(inputs[0]).shape) if len(inputs) == 1 else list(self.module(inputs).shape)
         return [None if ii == 0 else ii for ii in output_shape]  # Regards 0 as dynamic shape
 
 
-class Dense(Layer):
-    def __init__(self, units, activation=None, use_bias=True, axis=-1, kernel_initializer="glorot_uniform", **kwargs):
-        self.units, self.activation, self.use_bias, self.axis, self.kernel_initializer = units, activation, use_bias, axis, kernel_initializer
+class Activation(Layer):
+    def __init__(self, activation=None, **kwargs):
+        self.activation = activation
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        module = nn.Linear(in_features=input_shape[self.axis], out_features=self.units, bias=self.use_bias)
-        if self.axis == -1 or self.axis == len(input_shape):
-            self.module = module if self.activation is None else nn.Sequential(module, Activation(self.activation))
+        if self.activation is None:
+            self.module = torch.nn.Identity()
+        elif isinstance(self.activation, str) and self.activation == "softmax":
+            self.module = partial(torch.softmax, dim=1)
+        elif isinstance(self.activation, str) and self.activation == "swish":
+            self.module = torch.nn.SiLU()
+        elif isinstance(self.activation, str):
+            self.module = getattr(torch.functional.F, self.activation)
         else:
-            ndims = len(input_shape)
-            perm = [id for id in range(ndims) if id != self.axis] + [self.axis]  # like axis=1 -> [0, 2, 3, 1]
-            revert_perm = list(range(0, self.axis)) + [ndims - 1] + list(range(self.axis, ndims - 1))  # like axis=1 -> [0, 3, 1, 2]
-            if self.activation is None:
-                self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
-            else:
-                self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]), Activation(self.activation))
+            self.module = self.activation
         super().build(input_shape)
-
-    def compute_output_shape(self, input_shape):
-        return input_shape[: self.axis] + [self.units] + ([] if self.axis == -1 else input_shape[self.axis + 1 :])
-
-    def get_weights_channels_last(self):
-        # channel_first -> channel_last
-        weights = self.get_weights()
-        weights[0] = np.transpose(weights[0])
-        return weights
-
-    def set_weights_channels_last(self, weights):
-        # channel_last -> channel_first
-        weights[0] = np.transpose(weights[0])
-        return self.set_weights(weights)
 
     def get_config(self):
         config = super().get_config()
-        config.update({"units": self.units, "activation": self.activation, "use_bias": self.use_bias, "axis": self.axis})
+        config.update({"activation": self.activation})
+        return config
+
+
+""" Merge Layers """
+
+
+class _Merge(Layer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.check_input(input_shape)
+        self.module = self.merge_function
+        super().build(input_shape)
+
+    def check_input(self, input_shape):
+        output_shape = self.compute_output_shape(input_shape)
+        if len(output_shape) == 0:
+            return
+
+        valid_input_shape = [ii for ii in input_shape if len(ii) != 0]  # exclude scalar values
+        max_dim = len(output_shape)
+        result = not any([any([ii[dim] != 1 and output_shape[dim] != ii[dim] for dim in range(1, max_dim)]) for ii in valid_input_shape])
+        assert result, "input_shapes not all equal: {}".format(input_shape)
+
+    def compute_output_shape(self, input_shape):
+        valid_input_shape = [ii[1:] for ii in input_shape if len(ii) != 0]  # exclude scalar values, also cut batch dimension
+        if len(valid_input_shape) == 0:  # Should not happen...
+            return ()
+
+        max_dim = max([len(ii) for ii in valid_input_shape])
+        valid_input_shape = np.array([[1] * (max_dim - len(ii)) + list(ii) for ii in valid_input_shape])  # expands 1 on the head
+        max_shape = valid_input_shape.max(0)
+        return [None, *max_shape]
+
+
+class Add(_Merge):
+    def merge_function(self, inputs):
+        output = torch.add(inputs[0], inputs[1])
+        for ii in inputs[2:]:
+            output = torch.add(output, ii)
+        return output
+
+
+class Subtract(_Merge):
+    def merge_function(self, inputs):
+        output = torch.subtract(inputs[0], inputs[1])
+        for ii in inputs[2:]:
+            output = torch.subtract(output, ii)
+        return output
+
+
+class Matmul(_Merge):
+    def merge_function(self, inputs):
+        output = torch.matmul(inputs[0], inputs[1])
+        for ii in inputs[2:]:
+            output = torch.matmul(output, ii)
+        return output
+
+    def check_input(self, input_shape):
+        base, dims = input_shape[0], len(input_shape[0])
+        result = not any([any([base[dim] != ii[dim] for dim in range(1, dims) if dim != self.axis]) for ii in input_shape[1:]])
+        assert result, "input_shapes excpets concat axis {} not all equal: {}".format(self.axis, input_shape)
+
+    def compute_output_shape(self, input_shape):
+        dims = len(input_shape[0])
+        return [sum([ii[dim] for ii in input_shape]) if dim == self.axis else input_shape[0][dim] for dim in range(dims)]
+
+
+class Multiply(_Merge):
+    def merge_function(self, inputs):
+        output = torch.multiply(inputs[0], inputs[1])
+        for ii in inputs[2:]:
+            output = torch.multiply(output, ii)
+        return output
+
+
+class Concatenate(_Merge):
+    def __init__(self, axis=1, **kwargs):
+        self.axis = axis
+        super().__init__(**kwargs)
+
+    def merge_function(self, inputs):
+        return torch.concat(inputs, dim=self.axis)
+
+    def check_input(self, input_shape):
+        base, dims = input_shape[0], len(input_shape[0])
+        result = not any([any([base[dim] != ii[dim] for dim in range(1, dims) if dim != self.axis]) for ii in input_shape[1:]])
+        assert result, "input_shapes excpets concat axis {} not all equal: {}".format(self.axis, input_shape)
+
+    def compute_output_shape(self, input_shape):
+        dims = len(input_shape[0])
+        return [sum([ii[dim] for ii in input_shape]) if dim == self.axis else input_shape[0][dim] for dim in range(dims)]
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"axis": self.axis})
+        return config
+
+
+""" Layers with weights """
+
+
+class BatchNormalization(Layer):
+    def __init__(self, axis=1, momentum=0.9, epsilon=1e-5, center=True, gamma_initializer="ones", **kwargs):
+        self.axis, self.momentum, self.epsilon, self.center, self.gamma_initializer = axis, momentum, epsilon, center, gamma_initializer
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.module = nn.BatchNorm2d(num_features=input_shape[self.axis], eps=self.epsilon, momentum=1 - self.momentum, affine=self.center)
+        super().build(input_shape)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"axis": self.axis, "momentum": self.momentum, "epsilon": self.epsilon, "center": self.center})
         return config
 
 
@@ -212,11 +339,8 @@ class Conv(Layer):
     ):
         self.filters, self.padding, self.use_bias, self.groups, self.kernel_initializer = filters, padding, use_bias, groups, kernel_initializer
         self.kernel_size, self.dilation_rate, self.strides = kernel_size, dilation_rate, strides
+        self.module_class = None  # Auto set by len(input_shape)
         super().__init__(**kwargs)
-
-    @property
-    def module_class(self):
-        return nn.Conv2d
 
     def build(self, input_shape):
         num_dims = len(input_shape) - 2  # Conv2D -> 2, Conv1D -> 1
@@ -229,6 +353,9 @@ class Conv(Layer):
             self._pad = [ii // 2 for ii in self.kernel_size] if self.padding.upper() == "SAME" else [0] * num_dims
         else:  # int or list or tuple with specific value
             self._pad = padding if isinstance(padding, (list, tuple)) else [padding] * num_dims
+
+        if self.module_class is None:
+            self.module_class = nn.Conv1d if len(input_shape) == 3 else (nn.Conv2d if len(input_shape) == 4 else nn.Conv3d)
 
         self.module = self.module_class(
             in_channels=input_shape[1],
@@ -266,11 +393,20 @@ class Conv(Layer):
         return config
 
 
-class Conv2D(Conv):
-    @property
-    def module_class(self):
-        return nn.Conv2d
+class Conv1D(Conv):
+    def get_weights_channels_last(self):
+        # channel_first -> channel_last
+        weights = self.get_weights()
+        weights[0] = np.transpose(weights[0], (2, 1, 0))
+        return weights
 
+    def set_weights_channels_last(self, weights):
+        # channel_last -> channel_first
+        weights[0] = np.transpose(weights[0], (2, 1, 0))
+        return self.set_weights(weights)
+
+
+class Conv2D(Conv):
     def get_weights_channels_last(self):
         # channel_first -> channel_last
         weights = self.get_weights()
@@ -289,10 +425,6 @@ class DepthwiseConv2D(Conv):
         self.dilation_rate, self.use_bias, self.kernel_initializer = dilation_rate, use_bias, kernel_initializer
         super().__init__(filters=-1, **kwargs)
 
-    @property
-    def module_class(self):
-        return nn.Conv2d
-
     def build(self, input_shape):
         self.groups = input_shape[1]
         super().build(input_shape)
@@ -309,57 +441,43 @@ class DepthwiseConv2D(Conv):
         return self.set_weights(weights)
 
 
-class Conv1D(Conv):
-    @property
-    def module_class(self):
-        return nn.Conv1d
-
-    def get_weights_channels_last(self):
-        # channel_first -> channel_last
-        weights = self.get_weights()
-        weights[0] = np.transpose(weights[0], (2, 1, 0))
-        return weights
-
-    def set_weights_channels_last(self, weights):
-        # channel_last -> channel_first
-        weights[0] = np.transpose(weights[0], (2, 1, 0))
-        return self.set_weights(weights)
-
-
-class BatchNormalization(Layer):
-    def __init__(self, axis=1, momentum=0.9, epsilon=1e-5, center=True, gamma_initializer="ones", **kwargs):
-        self.axis, self.momentum, self.epsilon, self.center, self.gamma_initializer = axis, momentum, epsilon, center, gamma_initializer
+class Dense(Layer):
+    def __init__(self, units, activation=None, use_bias=True, axis=-1, kernel_initializer="glorot_uniform", **kwargs):
+        self.units, self.activation, self.use_bias, self.axis, self.kernel_initializer = units, activation, use_bias, axis, kernel_initializer
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        self.module = nn.BatchNorm2d(num_features=input_shape[self.axis], eps=self.epsilon, momentum=1 - self.momentum, affine=self.center)
-        super().build(input_shape)
-
-    def get_config(self):
-        config = super().get_config()
-        config.update({"axis": self.axis, "momentum": self.momentum, "epsilon": self.epsilon, "center": self.center})
-        return config
-
-
-class LayerNormalization(Layer):
-    def __init__(self, axis=1, epsilon=1e-5, center=True, gamma_initializer="ones", **kwargs):
-        self.axis, self.epsilon, self.center, self.gamma_initializer = axis, epsilon, center, gamma_initializer
-        super().__init__(**kwargs)
-
-    def build(self, input_shape):
-        module = nn.LayerNorm(normalized_shape=input_shape[self.axis], eps=self.epsilon, elementwise_affine=self.center)
+        module = nn.Linear(in_features=input_shape[self.axis], out_features=self.units, bias=self.use_bias)
         if self.axis == -1 or self.axis == len(input_shape):
-            self.module = module
+            self.module = module if self.activation is None else nn.Sequential(module, Activation(self.activation))
         else:
             ndims = len(input_shape)
             perm = [id for id in range(ndims) if id != self.axis] + [self.axis]  # like axis=1 -> [0, 2, 3, 1]
             revert_perm = list(range(0, self.axis)) + [ndims - 1] + list(range(self.axis, ndims - 1))  # like axis=1 -> [0, 3, 1, 2]
-            self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
+            if self.activation is None:
+                self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
+            else:
+                self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]), Activation(self.activation))
         super().build(input_shape)
+
+    def compute_output_shape(self, input_shape):
+        input_shape = list(input_shape)
+        return input_shape[: self.axis] + [self.units] + ([] if self.axis == -1 else input_shape[self.axis + 1 :])
+
+    def get_weights_channels_last(self):
+        # channel_first -> channel_last
+        weights = self.get_weights()
+        weights[0] = np.transpose(weights[0])
+        return weights
+
+    def set_weights_channels_last(self, weights):
+        # channel_last -> channel_first
+        weights[0] = np.transpose(weights[0])
+        return self.set_weights(weights)
 
     def get_config(self):
         config = super().get_config()
-        config.update({"axis": self.axis, "epsilon": self.epsilon, "center": self.center})
+        config.update({"units": self.units, "activation": self.activation, "use_bias": self.use_bias, "axis": self.axis})
         return config
 
 
@@ -385,133 +503,25 @@ class GroupNormalization(Layer):
         return config
 
 
-class Pooling2D(Layer):
-    def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", reduce="mean", **kwargs):
-        self.pool_size, self.strides, self.padding, self.reduce = pool_size, strides, padding, reduce
-        self.pool_size = pool_size if isinstance(pool_size, (list, tuple)) else [pool_size, pool_size]
-        self.strides = strides if isinstance(strides, (list, tuple)) else [strides, strides]
+class LayerNormalization(Layer):
+    def __init__(self, axis=1, epsilon=1e-5, center=True, gamma_initializer="ones", **kwargs):
+        self.axis, self.epsilon, self.center, self.gamma_initializer = axis, epsilon, center, gamma_initializer
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        pool_size = self.pool_size
-        if isinstance(self.padding, str):
-            pad = (pool_size[0] // 2, pool_size[1] // 2) if self.padding.upper() == "SAME" else (0, 0)
-        else:  # int or list or tuple with specific value
-            pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
-        self._pad = pad
-
-        if reduce.lower() == "max":
-            self.module = nn.MaxPool2d(kernel_size=self.pool_size, stride=self.strides, padding=pad)
+        module = nn.LayerNorm(normalized_shape=input_shape[self.axis], eps=self.epsilon, elementwise_affine=self.center)
+        if self.axis == -1 or self.axis == len(input_shape):
+            self.module = module
         else:
-            self.module = nn.AvgPool2d(kernel_size=self.pool_size, stride=self.strides, padding=pad)
-        super().build(input_shape)
-
-    def compute_output_shape(self, input_shape):
-        batch, _, height, width = input_shape
-        height = (height + 2 * self._pad[0] - (self.pool_size[0] - self.strides[0])) // self.strides[0]  # Not considering dilation
-        width = (width + 2 * self._pad[1] - (self.pool_size[1] - self.strides[1])) // self.strides[1]  # Not considering dilation
-        return [batch, self.filters, height, width]
-
-    def get_config(self):
-        config = super().get_config()
-        config.update({"pool_size": self.pool_size, "strides": self.strides, "padding": self.padding, "reduce": self.reduce})
-        return config
-
-
-class AvgPool2D(Pooling2D):
-    def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", **kwargs):
-        super().__init__(reduce="mean", **kwargs)
-
-
-class MaxPool2D(Pooling2D):
-    def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", **kwargs):
-        super().__init__(reduce="max", **kwargs)
-
-
-class GlobalAveragePooling2D(Layer):
-    def __init__(self, keepdims=False, **kwargs):
-        self.keepdims = keepdims
-        super().__init__(**kwargs)
-
-    def build(self, input_shape):
-        self.module = torch.nn.AdaptiveAvgPool2d(1) if self.keepdims else torch.nn.Sequential(torch.nn.AdaptiveAvgPool2d(1), torch.nn.Flatten(1))
-        super().build(input_shape)
-
-    def compute_output_shape(self, input_shape):
-        return (input_shape[:2] + [1] * (len(input_shape) - 2)) if self.keepdims else input_shape[:2]
-
-    def get_config(self):
-        config = super().get_config()
-        config.update({"keepdims": self.keepdims})
-        return config
-
-
-class GlobalAveragePooling1D(Layer):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def build(self, input_shape):
-        self.module = torch.nn.Sequential(torch.nn.AdaptiveAvgPool1d(1), torch.nn.Flatten(1))
-        super().build(input_shape)
-
-    def compute_output_shape(self, input_shape):
-        return input_shape[:2]
-
-
-class ZeroPadding2D(Layer):
-    def __init__(self, padding=(1, 1), **kwargs):
-        assert len(padding) == 2 if isinstance(padding, (list, tuple)) else isinstance(padding, int), "padding should be 2 values or an int: {}".format(padding)
-        self.padding = list(padding) if isinstance(padding, (list, tuple)) else [padding, padding]
-        super().__init__(**kwargs)
-
-    def build(self, input_shape):
-        padding = [self.padding[1], self.padding[1], self.padding[0], self.padding[0]]  # [left, right, top, bottom]
-        self.module = torch.nn.ZeroPad2d(padding=padding)
-        super().build(input_shape)
-
-    def compute_output_shape(self, input_shape):
-        return [input_shape[0], input_shape[1], input_shape[2] + self.padding[0] * 2, input_shape[3] + self.padding[1] * 2]
-
-    def get_config(self):
-        config = super().get_config()
-        config.update({"padding": self.padding})
-        return config
-
-
-class Activation(Layer):
-    def __init__(self, activation=None, **kwargs):
-        self.activation = activation
-        super().__init__(**kwargs)
-
-    def build(self, input_shape):
-        if self.activation is None:
-            self.module = torch.nn.Identity()
-        elif isinstance(self.activation, str) and self.activation == "softmax":
-            self.module = partial(torch.softmax, dim=1)
-        elif isinstance(self.activation, str):
-            self.module = getattr(torch.functional.F, self.activation)
-        else:
-            self.module = self.activation
+            ndims = len(input_shape)
+            perm = [id for id in range(ndims) if id != self.axis] + [self.axis]  # like axis=1 -> [0, 2, 3, 1]
+            revert_perm = list(range(0, self.axis)) + [ndims - 1] + list(range(self.axis, ndims - 1))  # like axis=1 -> [0, 3, 1, 2]
+            self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
         super().build(input_shape)
 
     def get_config(self):
         config = super().get_config()
-        config.update({"activation": self.activation})
-        return config
-
-
-class Softmax(Layer):
-    def __init__(self, axis=1, **kwargs):
-        self.axis = axis
-        super().__init__(**kwargs)
-
-    def build(self, input_shape):
-        self.module = partial(torch.softmax, dim=self.axis)
-        super().build(input_shape)
-
-    def get_config(self):
-        config = super().get_config()
-        config.update({"axis": self.axis})
+        config.update({"axis": self.axis, "epsilon": self.epsilon, "center": self.center})
         return config
 
 
@@ -541,6 +551,9 @@ class PReLU(Layer):
         return self.set_weights(weights)
 
 
+""" Layers with no weights """
+
+
 class Dropout(Layer):
     def __init__(self, rate, noise_shape=None, **kwargs):
         self.rate, self.noise_shape = rate, noise_shape
@@ -563,74 +576,98 @@ class Dropout(Layer):
         return config
 
 
-class _Merge(Layer):
+class Pooling2D(Layer):
+    def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", reduce="mean", **kwargs):
+        self.pool_size, self.strides, self.padding, self.reduce = pool_size, strides, padding, reduce
+        self.pool_size = pool_size if isinstance(pool_size, (list, tuple)) else [pool_size, pool_size]
+        self.strides = strides if isinstance(strides, (list, tuple)) else [strides, strides]
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        pool_size = self.pool_size
+        if isinstance(self.padding, str):
+            pad = (pool_size[0] // 2, pool_size[1] // 2) if self.padding.upper() == "SAME" else (0, 0)
+        else:  # int or list or tuple with specific value
+            pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
+        self._pad = pad
+
+        if self.reduce.lower() == "max":
+            self.module = nn.MaxPool2d(kernel_size=self.pool_size, stride=self.strides, padding=pad)
+        else:
+            self.module = nn.AvgPool2d(kernel_size=self.pool_size, stride=self.strides, padding=pad)
+        super().build(input_shape)
+
+    def compute_output_shape(self, input_shape):
+        batch, channels, height, width = input_shape
+        height = (height + 2 * self._pad[0] - (self.pool_size[0] - self.strides[0])) // self.strides[0]  # Not considering dilation
+        width = (width + 2 * self._pad[1] - (self.pool_size[1] - self.strides[1])) // self.strides[1]  # Not considering dilation
+        return [batch, channels, height, width]
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"pool_size": self.pool_size, "strides": self.strides, "padding": self.padding, "reduce": self.reduce})
+        return config
+
+
+class AvgPool2D(Pooling2D):
+    def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", **kwargs):
+        super().__init__(reduce="mean", **kwargs)
+
+
+class MaxPool2D(Pooling2D):
+    def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", **kwargs):
+        super().__init__(reduce="max", **kwargs)
+
+
+class GlobalAveragePooling1D(Layer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        self.check_input(input_shape)
-        self.module = self.merge_function
+        self.module = torch.nn.Sequential(torch.nn.AdaptiveAvgPool1d(1), torch.nn.Flatten(1))
         super().build(input_shape)
 
-    def check_input(self, input_shape):
-        output_shape = self.compute_output_shape(input_shape)
-        if len(output_shape) == 0:
-            return
-
-        valid_input_shape = [ii for ii in input_shape if len(ii) != 0]  # exclude scalar values
-        max_dim = len(output_shape)
-        result = not any([any([ii[dim] != 1 and output_shape[dim] != ii[dim] for dim in range(1, max_dim)]) for ii in valid_input_shape])
-        assert result, "input_shapes not all equal: {}".format(input_shape)
-
     def compute_output_shape(self, input_shape):
-        valid_input_shape = [ii[1:] for ii in input_shape if len(ii) != 0]  # exclude scalar values, also cut batch dimension
-        if len(valid_input_shape) == 0:  # Should not happen...
-            return ()
-
-        max_dim = max([len(ii) for ii in valid_input_shape])
-        valid_input_shape = np.array([[1] * (max_dim - len(ii)) + list(ii) for ii in valid_input_shape])  # expands 1 on the head
-        max_shape = valid_input_shape.max(0)
-        return [None, *max_shape]
+        return input_shape[:2]
 
 
-class Add(_Merge):
-    def merge_function(self, inputs):
-        output = torch.add(inputs[0], inputs[1])
-        for ii in inputs[2:]:
-            # Using += will result error for cases like `torch.ones([1, 2]) + torch.ones([2, 1])`
-            # Using + will perform inplace operation, which overwrites inputs[0]
-            output = torch.add(output, ii)
-        return output
-
-
-class Multiply(_Merge):
-    def merge_function(self, inputs):
-        output = torch.multiply(inputs[0], inputs[1])
-        for ii in inputs[2:]:
-            output = torch.multiply(output, ii)
-        return output
-
-
-class Concatenate(_Merge):
-    def __init__(self, axis=1, **kwargs):
-        self.axis = axis
+class GlobalAveragePooling2D(Layer):
+    def __init__(self, keepdims=False, **kwargs):
+        self.keepdims = keepdims
         super().__init__(**kwargs)
 
-    def merge_function(self, inputs):
-        return torch.concat(inputs, dim=self.axis)
-
-    def check_input(self, input_shape):
-        base, dims = input_shape[0], len(input_shape[0])
-        result = not any([any([base[dim] != ii[dim] for dim in range(1, dims) if dim != self.axis]) for ii in input_shape[1:]])
-        assert result, "input_shapes excpets concat axis {} not all equal: {}".format(self.axis, input_shape)
+    def build(self, input_shape):
+        self.module = torch.nn.AdaptiveAvgPool2d(1) if self.keepdims else torch.nn.Sequential(torch.nn.AdaptiveAvgPool2d(1), torch.nn.Flatten(1))
+        super().build(input_shape)
 
     def compute_output_shape(self, input_shape):
-        dims = len(input_shape[0])
-        return [sum([ii[dim] for ii in input_shape]) if dim == self.axis else input_shape[0][dim] for dim in range(dims)]
+        return (input_shape[:2] + [1] * (len(input_shape) - 2)) if self.keepdims else input_shape[:2]
 
     def get_config(self):
         config = super().get_config()
-        config.update({"axis": self.axis})
+        config.update({"keepdims": self.keepdims})
+        return config
+
+
+class Permute(Layer):
+    def __init__(self, dims, **kwargs):
+        self.dims = dims
+        super().__init__(**kwargs)
+        assert sorted(dims) == list(range(1, len(dims) + 1)), "The set of indices in `dims` must be consecutive and start from 1. dims: {}".format(dims)
+
+    def build(self, input_shape):
+        self.module = partial(torch.permute, dims=[0, *self.dims])
+        super().build(input_shape)
+
+    def compute_output_shape(self, input_shape):
+        # output_shape = input_shape.copy()
+        # for i, dim in enumerate(self.dims):
+        #     output_shape[i + 1] = input_shape[dim]
+        return [input_shape[0]] + [input_shape[dim] for dim in self.dims]
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"dims": self.dims})
         return config
 
 
@@ -661,23 +698,36 @@ class Reshape(Layer):
         return config
 
 
-class Permute(Layer):
-    def __init__(self, dims, **kwargs):
-        self.dims = dims
+class Softmax(Layer):
+    def __init__(self, axis=1, **kwargs):
+        self.axis = axis
         super().__init__(**kwargs)
-        assert sorted(dims) == list(range(1, len(dims) + 1)), "The set of indices in `dims` must be consecutive and start from 1. dims: {}".format(dims)
 
     def build(self, input_shape):
-        self.module = partial(torch.permute, dims=[0, *self.dims])
+        self.module = partial(torch.softmax, dim=self.axis)
         super().build(input_shape)
-
-    def compute_output_shape(self, input_shape):
-        # output_shape = input_shape.copy()
-        # for i, dim in enumerate(self.dims):
-        #     output_shape[i + 1] = input_shape[dim]
-        return [input_shape[0]] + [input_shape[dim] for dim in self.dims]
 
     def get_config(self):
         config = super().get_config()
-        config.update({"dims": self.dims})
+        config.update({"axis": self.axis})
+        return config
+
+
+class ZeroPadding2D(Layer):
+    def __init__(self, padding=(1, 1), **kwargs):
+        assert len(padding) == 2 if isinstance(padding, (list, tuple)) else isinstance(padding, int), "padding should be 2 values or an int: {}".format(padding)
+        self.padding = list(padding) if isinstance(padding, (list, tuple)) else [padding, padding]
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        padding = [self.padding[1], self.padding[1], self.padding[0], self.padding[0]]  # [left, right, top, bottom]
+        self.module = torch.nn.ZeroPad2d(padding=padding)
+        super().build(input_shape)
+
+    def compute_output_shape(self, input_shape):
+        return [input_shape[0], input_shape[1], input_shape[2] + self.padding[0] * 2, input_shape[3] + self.padding[1] * 2]
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"padding": self.padding})
         return config

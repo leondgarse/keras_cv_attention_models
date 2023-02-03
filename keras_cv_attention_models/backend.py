@@ -6,24 +6,7 @@ if is_tensorflow_backend:
     import tensorflow as tf
     from tensorflow.keras import layers, models, initializers
     from tensorflow.keras.utils import register_keras_serializable
-    import tensorflow.nn as functional
-
-    def __set_functional_attr__(func, name=None):
-        setattr(functional, name if name else func.__name__, func)
-
-    __set_functional_attr__(tf.clip_by_value)
-    __set_functional_attr__(tf.reduce_mean)
-    __set_functional_attr__(tf.reduce_sum)
-    __set_functional_attr__(tf.reshape)
-    __set_functional_attr__(tf.unstack)
-    __set_functional_attr__(tf.split)
-    __set_functional_attr__(tf.cos)
-    __set_functional_attr__(tf.sin)
-    __set_functional_attr__(tf.norm, "norm")
-    __set_functional_attr__(tf.squeeze, "squeeze")
-    __set_functional_attr__(tf.image.resize, "resize")
-    __set_functional_attr__(tf.expand_dims, "expand_dims")
-    __set_functional_attr__(tf.convert_to_tensor, "convert_to_tensor")
+    from keras_cv_attention_models import tf_functional as functional
 else:
     from keras_cv_attention_models.pytorch_backend import layers, models, functional, initializers
     from keras_cv_attention_models.pytorch_backend.utils import register_keras_serializable
@@ -43,8 +26,34 @@ def image_data_format():
         return "channels_first"
 
 
-def in_train_phase(x, alt, training=None):
+def in_train_phase(train_phase, eval_phase, training=None):
     if is_tensorflow_backend:
-        return tf.keras.backend.in_train_phase(x, alt, training=training)
+        return tf.keras.backend.in_train_phase(train_phase, eval_phase, training=training)
     else:
-        return True  # [TODO]
+        return train_phase if training else eval_phase  # [TODO]
+
+
+def numpy_image_resize(inputs, target_shape, method="nearest", is_source_channels_last=True):
+    ndims = len(inputs.shape)
+    if ndims < 2 or ndims > 4:
+        raise ValueError("inputs with shape={}, ndims={} not supported, ndims must in [2, 4]".format(ipnuts.shape, ndims))
+
+    if is_source_channels_last:
+        inputs = inputs if ndims == 4 else (inputs[None] if ndims == 3 else inputs[None, :, :, None])
+        inputs = inputs if image_data_format() == "channels_last" else inputs.transpose([0, 3, 1, 2])
+
+        inputs = functional.resize(inputs, target_shape, method=method)
+        inputs = inputs.detach().numpy() if hasattr(inputs, "detach") else inputs.numpy()
+
+        inputs = inputs if image_data_format() == "channels_last" else inputs.transpose([0, 2, 3, 1])
+        inputs = inputs if ndims == 4 else (inputs[0] if ndims == 3 else inputs[0, :, :, 0])
+    else:
+        inputs = inputs if ndims == 4 else (inputs[None] if ndims == 3 else inputs[None, None, :, :])
+        inputs = inputs.transpose([0, 2, 3, 1]) if image_data_format() == "channels_last" else inputs
+
+        inputs = functional.resize(inputs, target_shape, method=method)
+        inputs = inputs.detach().numpy() if hasattr(inputs, "detach") else inputs.numpy()
+
+        inputs = inputs.transpose([0, 3, 1, 2]) if image_data_format() == "channels_last" else inputs
+        inputs = inputs if ndims == 4 else (inputs[0] if ndims == 3 else inputs[0, 0])
+    return inputs

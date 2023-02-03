@@ -58,6 +58,7 @@ class Model(nn.Module):
         self.num_outputs = len(self.outputs)
         self.create_forward_pipeline()
         self.eval()  # Set eval mode by default
+        self.debug = False
 
     def create_forward_pipeline(self, **kwargs):
         forward_pipeline, layers, outputs = [], {}, []
@@ -74,7 +75,7 @@ class Model(nn.Module):
             # print(cur_node.name)
 
             forward_pipeline.append(cur_node)
-            setattr(self, cur_node.name, cur_node.layer)
+            setattr(self, cur_node.name, cur_node.callable)
             layers[cur_node.name] = cur_node.layer
 
             if len(cur_node.next_nodes) > 1:
@@ -104,14 +105,22 @@ class Model(nn.Module):
 
         outputs = {}
         for node in self.forward_pipeline:
-            # print(f">>>> {node.name = }, {node.pre_node_names = }, {node.next_node_names = }")
+            if self.debug:
+                print(">>>> [{}], pre_node_names: {}, next_node_names: {}".format(node.name, node.pre_node_names, node.next_node_names))
+
             if len(node.pre_nodes) > 1:
-                output = node.callable([branch_record[ii] for ii in node.pre_node_names])
+                cur_inputs = [branch_record[ii] for ii in node.pre_node_names]
             elif node.pre_nodes[0].name != pre_node.name:
-                output = node.callable(branch_record[node.pre_node_names[0]])
+                cur_inputs = branch_record[node.pre_node_names[0]]
             else:
-                output = node.callable(pre_output)
-            # print(f"     {output.shape = }")
+                cur_inputs = pre_output
+
+            if self.debug:
+                print("     inputs.shape:", [ii.shape for ii in cur_inputs] if len(node.pre_nodes) > 1 else cur_inputs.shape)
+
+            output = node.callable(cur_inputs)
+            if self.debug:
+                print("     output.shape:", output.shape)
 
             if node.name in self.branch_nodes:
                 branch_record[node.name] = output
@@ -130,7 +139,7 @@ class Model(nn.Module):
     def load_weights(self, filepath, by_name=True, skip_mismatch=False):
         ff = h5py.File(filepath, mode="r")
         with h5py.File(filepath, "r") as h5_file:
-            load_weights_from_hdf5_group(h5_file, self, skip_mismatch=skip_mismatch)
+            load_weights_from_hdf5_group(h5_file, self, skip_mismatch=skip_mismatch, debug=self.debug)
 
     def save_weights(self, filepath=None):
         with h5py.File(filepath if filepath else self.name + ".h5", "w") as h5_file:
@@ -150,25 +159,30 @@ class Model(nn.Module):
         torch.jit.save(traced_cell, self.name + ".pth", *kwargs)
         print("Exported pth:", filepath if filepath else self.name + ".pth")
 
+    def set_debug(self, debug=True):
+        self.debug = debug
+        print(">>>> debug: {}".format(self.debug))
+
 
 """ Save / load h5 weights from keras.saving.legacy.hdf5_format """
 
 
-def load_weights_from_hdf5_group(h5_file, model, skip_mismatch=False):
+def load_weights_from_hdf5_group(h5_file, model, skip_mismatch=False, debug=False):
     weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
 
     for tt in model.layers:
         if len(tt.weights) == 0:
             continue
-        # print(">>>> Load layer weights:", tt.name, {ii.name: ii.shape for ii in tt.weights})
+        if debug:
+            print(">>>> Load layer weights:", tt.name, [ii.name for ii in tt.weights])
         ss = weights[tt.name]
-        # ss = {ww.decode().split("/")[-1] : tf.convert_to_tensor(ss[ww]) for ww in ss.attrs['weight_names']}
-        # ss = {ww.decode("utf8") if hasattr(ww, "decode") else ww: np.array(ss[ww]) for ww in ss.attrs["weight_names"]}
-        # ss = {kk.split("/")[-1]: vv for kk, vv in ss.items()}
         ss = [np.array(ss[ww]) for ww in ss.attrs["weight_names"]]
-        # print("Before:", [ii.shape for ii in ss])
-        if skip_mismatch and np.prod(tt.weights[0].shape) != np.prod(ss[0].shape):
-            print("Warning: skip loading weights for layer: {}, required weights: {}, provided: {}".format(tt.name, tt.weights[0].shape, ss[0].shape))
+        source_shape, target_shape = [ii.shape for ii in ss], [list(ii.shape) for ii in tt.weights]
+
+        if debug:
+            print("     [Before transpose] required weights: {}, provided: {}".format(target_shape, source_shape))
+        if skip_mismatch and (len(source_shape) != len(target_shape) or any([np.prod(ii) != np.prod(jj) for ii, jj in zip(source_shape, target_shape)])):
+            print("Warning: skip loading weights for layer: {}, required weights: {}, provided: {}".format(tt.name, target_shape, source_shape))
             continue
 
         if hasattr(tt, "set_weights_channels_last"):

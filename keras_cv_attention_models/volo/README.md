@@ -64,8 +64,9 @@
 ## Verification with Pytorch model
   ```py
   """ PyTorch volo """
-  import torch
+  sys.path.append('../pytorch-image-models/')
   sys.path.append('../volo')
+  import torch
   import models.volo as torch_volo
   from utils import load_pretrained_weights
 
@@ -85,8 +86,8 @@
   inputs = np.random.uniform(size=(1, input_shape, input_shape, 3)).astype("float32")
   torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2)).detach().numpy()
   keras_out = mm(inputs).numpy()
-  print(f"{np.allclose(torch_out, keras_out, atol=1e-6) = }")
-  # np.allclose(torch_out, keras_out, atol=1e-6) = True
+  print(f"{np.allclose(torch_out, keras_out, atol=1e-5) = }")
+  # np.allclose(torch_out, keras_out, atol=1e-5) = True
   ```
 ## Transfer learning on cifar10
   - [volo_cifar10.ipynb](https://colab.research.google.com/drive/1-uB8lbVLZi_NJARjm06QzVdPPbrCp0FM?usp=sharing)

@@ -9,8 +9,8 @@ def ones():
     return torch.ones
 
 
-def truncated_normal(stddev=1e-6):
-    return torch.ones  # [TODO]
+def truncated_normal(mean=0.0, stddev=1e-6, seed=None):
+    return TruncatedNormal(mean=mean, stddev=stddev, seed=seed)
 
 
 class Initializer:
@@ -28,7 +28,7 @@ class VarianceScaling(Initializer):
         return torch.zeros(shape)  # [TODO]
 
     def get_config(self):
-        return {"scale": self.scale, "mode": self.mode, "distribution": self.distribution, "seed": self.seed}
+        return {"scale": self.scale, "mode": self.mode, "distribution": self.distribution}
 
 
 class Constant(Initializer):
@@ -40,3 +40,14 @@ class Constant(Initializer):
 
     def get_config(self):
         return {"value": self.value}
+
+
+class TruncatedNormal(Initializer):
+    def __init__(self, mean=0.0, stddev=0.05, seed=None):
+        self.mean, self.stddev, self.seed = mean, stddev, seed
+
+    def __call__(self, shape, dtype=None, **kwargs):
+        return torch.zeros(shape)  # [TODO]
+
+    def get_config(self):
+        return {"mean": self.mean, "stddev": self.stddev}

@@ -2,7 +2,7 @@
 ***
 
 ## Summary
-  - Experimental implementation for using PyTorch as Keras backend. Currently only supports models in [mlp_family](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family).
+  - Experimental implementation for using PyTorch as Keras backend. Currently only supports models in [mlp_family](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family) and [beit](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit).
 ***
 
 ## Usage
