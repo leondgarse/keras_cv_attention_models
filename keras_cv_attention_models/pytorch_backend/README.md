@@ -2,19 +2,22 @@
 ***
 
 ## Summary
-  - Experimental implementation for using PyTorch as Keras backend. Currently only supports models in [mlp_family](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family) and [beit](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit).
+  - Experimental implementation for using PyTorch as Keras backend.
+  - Currently only supports models in [mlp_family](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family) / [beit](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) / caformer / convnext / levit / pvt / uniformer.
 ***
 
 ## Usage
 - **Set os environment `export KECAM_BACKEND='torch'` to enable this PyTorch backend**.
 - **Create model and run predict**.
   - Will load same `h5` weights as TF one if available.
-  - Note: need to specify channels first input shape `input_shape=(3, 224, 224)`.
+  - Note: `input_shape` will auto fit image data format. Given `input_shape=(224, 224, 3)`, will set to `(3, 224, 224)` if `channels_first`.
   - Note: model is defaultly set to `eval` mode.
   ```py
   from keras_cv_attention_models import res_mlp
-  mm = res_mlp.ResMLP12(input_shape=(3, 224, 224))
+  mm = res_mlp.ResMLP12()
   # >>>> Load pretrained from: ~/.keras/models/resmlp12_imagenet.h5
+  print(f"{mm.input_shape = }")
+  # mm.input_shape = [None, 3, 224, 224]
 
   import torch
   print(f"{isinstance(mm, torch.nn.Module) = }")

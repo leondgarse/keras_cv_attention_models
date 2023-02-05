@@ -73,7 +73,7 @@ class MultiHeadPositionalEmbedding(layers.Layer):
             source_bb = list(source_layer.values())[0]  # weights
         else:
             source_bb = source_layer.bb  # layer
-        source_tt = np.array(source_tt.detach() if hasattr(source_tt, "detach") else source_tt)
+        source_bb = np.array(source_bb.detach() if hasattr(source_bb, "detach") else source_bb)
         hh = ww = int(float(source_bb.shape[0]) ** 0.5)
         ss = source_bb.reshape((hh, ww, source_bb.shape[-1]))  # [hh, ww, num_heads]
         # target_hh = target_ww = int(float(self.bb.shape[0]) ** 0.5)
@@ -230,7 +230,7 @@ def LeViT(
     model_name="levit",
     kwargs=None,
 ):
-    # Regard input_shape as force using original shape if first element is None or -1,
+    # Regard input_shape as force using original shape if len(input_shape) == 4,
     # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
     input_shape = backend.valid_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)

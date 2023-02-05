@@ -1,3 +1,4 @@
+import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, initializers, image_data_format
 from keras_cv_attention_models.download_and_load import reload_model_weights
@@ -235,7 +236,7 @@ def NormFreeNet(
     else:
         act_gamma, conv_gamma = 1.0, NON_LINEAR_GAMMA.get(activation.split("/")[0], 1.0)
 
-    # Regard input_shape as force using original shape if first element is None or -1,
+    # Regard input_shape as force using original shape if len(input_shape) == 4,
     # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
     input_shape = backend.valid_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(shape=input_shape)

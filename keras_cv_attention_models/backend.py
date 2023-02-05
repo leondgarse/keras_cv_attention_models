@@ -27,28 +27,33 @@ def image_data_format():
 
 
 def valid_input_shape_by_image_data_format(input_shape):
-    """Regard input_shape as force using original shape if first element is None or -1,
-    else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    """Regard input_shape as force using original shape if len(input_shape) == 4,
+    else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format,
+    or if dynamic shape liek `(None, None, 3)`, will regard the known shape 3 as channel dimentsion.
 
     Examples:
-    >>> from keras_cv_attention_models import backend
     >>> os.environ['KECAM_BACKEND'] = "torch"
     >>> from keras_cv_attention_models import backend
     >>> print(f"{backend.image_data_format() = }")
     >>> # backend.image_data_format() = 'channels_first'
-    >>> print("backend.valid_input_shape_by_image_data_format([224, 224, 3])")
+    >>> print(backend.valid_input_shape_by_image_data_format([224, 224, 3]))
     >>> # [3, 224, 224]
-    >>> print("backend.valid_input_shape_by_image_data_format([3, 224, 224])")
+    >>> print(backend.valid_input_shape_by_image_data_format([3, 224, 224]))
     >>> # [3, 224, 224]
-    >>> print("backend.valid_input_shape_by_image_data_format([None, 224, 224, 3])")
+    >>> print(backend.valid_input_shape_by_image_data_format([None, None, 3]))
+    >>> # [3, None, None]
+    >>> print(backend.valid_input_shape_by_image_data_format([None, 224, 224, 3]))
     >>> # [224, 224, 3]
     """
     # channel_axis = if image_data_format() == "channels_last" else
-    if input_shape[0] is None or input_shape[0] == -1:  # Regard this as force using original shape
+    if len(input_shape) == 4:  # Regard this as force using original shape
         return input_shape[1:]
 
     # Assume channel dimention is the one with min value in input_shape
-    orign_channel_axis, channel_dim = min(enumerate(input_shape), key=lambda xx: xx[1])
+    if None in input_shape:
+        orign_channel_axis, channel_dim = min(enumerate(input_shape), key=lambda xx: xx[1] is None)
+    else:
+        orign_channel_axis, channel_dim = min(enumerate(input_shape), key=lambda xx: xx[1])
     orign_block_shape = [dim for axis, dim in enumerate(input_shape) if axis != orign_channel_axis]
     return [*orign_block_shape, channel_dim] if image_data_format() == "channels_last" else [channel_dim, *orign_block_shape]
 
