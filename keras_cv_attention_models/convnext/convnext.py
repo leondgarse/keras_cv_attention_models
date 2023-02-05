@@ -1,5 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     ChannelAffine,
@@ -57,30 +57,38 @@ PRETRAINED_DICT = {
 }
 
 
-def global_response_normalize(inputs, name=None):
-    nn = tf.norm(inputs, axis=(1, 2), keepdims=True)
-    nn = nn / (tf.reduce_mean(nn, axis=-1, keepdims=True) + 1e-6)
-    nn = ChannelAffine(use_bias=True, weight_init_value=0, name=name and name + "gamma")(inputs * nn)
+def global_response_normalize(inputs, axis="auto", name=None):
+    axis = (-1 if backend.image_data_format() == "channels_last" else 1) if axis == "auto" else axis
+    num_dims = len(inputs.shape)
+    axis = num_dims + axis if axis < 0 else axis
+    nn = functional.norm(inputs, axis=[ii for ii in range(1, num_dims) if ii != axis], keepdims=True)
+    nn = nn / (functional.reduce_mean(nn, axis=axis, keepdims=True) + 1e-6)
+    nn = ChannelAffine(use_bias=True, weight_init_value=0, axis=axis, name=name and name + "gamma")(inputs * nn)
     return nn + inputs
 
 
-def add_with_layer_scale_and_drop_block(short, deep, layer_scale=0, residual_scale=0, drop_rate=0, name=""):
+def add_with_layer_scale_and_drop_block(short, deep, layer_scale=0, residual_scale=0, drop_rate=0, axis="auto", name=""):
     """Just simplify calling, perform `out = short + drop_block(layer_scale(deep))`"""
-    short = ChannelAffine(use_bias=False, weight_init_value=residual_scale, name=name + "res_gamma")(short) if residual_scale > 0 else short
-    deep = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "gamma")(deep) if layer_scale > 0 else deep
+    axis = (-1 if backend.image_data_format() == "channels_last" else 1) if axis == "auto" else axis
+    short = ChannelAffine(use_bias=False, weight_init_value=residual_scale, axis=axis, name=name + "res_gamma")(short) if residual_scale > 0 else short
+    deep = ChannelAffine(use_bias=False, weight_init_value=layer_scale, axis=axis, name=name + "gamma")(deep) if layer_scale > 0 else deep
     deep = drop_block(deep, drop_rate=drop_rate, name=name)
     # print(f">>>> {short.shape = }, {deep.shape = }")
-    return keras.layers.Add(name=name + "output")([short, deep])
+    return layers.Add(name=name + "output")([short, deep])
 
 
 def block(inputs, output_channel, layer_scale_init_value=1e-6, use_grn=False, drop_rate=0, activation="gelu", name=""):
     nn = depthwise_conv2d_no_bias(inputs, kernel_size=7, padding="SAME", use_bias=True, name=name)
     nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name=name)
-    nn = keras.layers.Dense(4 * output_channel, name=name + "up_dense")(nn)
+
+    nn = nn if backend.image_data_format() == "channels_last" else layers.Permute((2, 3, 1), name=name + "permute_pre")(nn)
+    nn = layers.Dense(4 * output_channel, name=name + "up_dense")(nn)
     nn = activation_by_name(nn, activation, name=name)
     if use_grn:
-        nn = global_response_normalize(nn, name=name + "grn_")
-    nn = keras.layers.Dense(output_channel, name=name + "down_dense")(nn)
+        nn = global_response_normalize(nn, axis=-1, name=name + "grn_")  # also using axis=-1 for channels_first
+    nn = layers.Dense(output_channel, name=name + "down_dense")(nn)
+    nn = nn if backend.image_data_format() == "channels_last" else layers.Permute((3, 1, 2), name=name + "permute_post")(nn)
+
     return add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale_init_value, drop_rate=drop_rate, name=name)
 
 
@@ -101,7 +109,10 @@ def ConvNeXt(
     model_name="convnext",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.valid_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
 
     """ Stem """
     stem_width = stem_width if stem_width > 0 else out_channels[0]
@@ -124,16 +135,16 @@ def ConvNeXt(
 
     """  Output head """
     if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         if dropout > 0:
-            nn = keras.layers.Dropout(dropout, name="head_drop")(nn)
+            nn = layers.Dropout(dropout, name="head_drop")(nn)
         nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="head_")
         head_init = HeadInitializer(scale=head_init_scale)
-        nn = keras.layers.Dense(
+        nn = layers.Dense(
             num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=head_init, name="predictions"
         )(nn)
 
-    model = keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="convnext", pretrained=pretrained)
     return model

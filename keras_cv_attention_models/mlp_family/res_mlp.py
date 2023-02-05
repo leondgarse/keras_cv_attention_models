@@ -112,6 +112,9 @@ def ResMLP(
     model_name="resmlp",
     kwargs=None,
 ):
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.valid_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
     nn = layers.Conv2D(stem_width, kernel_size=patch_size, strides=patch_size, padding="valid", name="stem")(inputs)
     new_shape = [nn.shape[1] * nn.shape[2], stem_width] if backend.image_data_format() == "channels_last" else [stem_width, nn.shape[2] * nn.shape[3]]

@@ -1,5 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -52,21 +52,26 @@ PRETRAINED_DICT = {
 
 
 def meta_former_block(inputs, use_attn=False, head_dim=32, mlp_ratio=4, layer_scale=0, residual_scale=0, drop_rate=0, activation="star_relu", name=""):
+    # channnel_axis = -1 if image_data_format() == "channels_last" else 1
     input_channel = inputs.shape[-1]
 
     """ attention """
-    nn = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, center=False, name=name + "attn_")
+    nn = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, center=False, axis=-1, name=name + "attn_")
     # nn = conv_pool_attention_mixer(nn, num_heads, num_attn_low_heads=num_attn_low_heads, pool_size=pool_size, activation=activation, name=name + "attn_")
     if use_attn:
         nn = multi_head_self_attention(nn, num_heads=input_channel // head_dim, name=name + "mhsa_")
     else:
         nn = mlp_block_with_depthwise_conv(nn, input_channel * 2, kernel_size=7, use_bias=False, activation=(activation, None), name=name + "mlp_sep_")
-    attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, residual_scale=residual_scale, drop_rate=drop_rate, name=name + "attn_")
+    attn_out = add_with_layer_scale_and_drop_block(
+        inputs, nn, layer_scale=layer_scale, residual_scale=residual_scale, drop_rate=drop_rate, axis=-1, name=name + "attn_"
+    )
 
     """ MLP """
-    nn = layer_norm(attn_out, epsilon=LAYER_NORM_EPSILON, center=False, name=name + "mlp_")
+    nn = layer_norm(attn_out, epsilon=LAYER_NORM_EPSILON, center=False, axis=-1, name=name + "mlp_")
     nn = mlp_block(nn, input_channel * mlp_ratio, use_bias=False, activation=activation, name=name + "mlp_")
-    nn = add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, residual_scale=residual_scale, drop_rate=drop_rate, name=name + "mlp_")
+    nn = add_with_layer_scale_and_drop_block(
+        attn_out, nn, layer_scale=layer_scale, residual_scale=residual_scale, drop_rate=drop_rate, axis=-1, name=name + "mlp_"
+    )
     return nn
 
 
@@ -90,12 +95,16 @@ def CAFormer(
     model_name="caformer",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.valid_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
 
     """ Stem """
-    nn = keras.layers.ZeroPadding2D(padding=2, name="stem_")(inputs)  # padding=2
+    nn = layers.ZeroPadding2D(padding=2, name="stem_")(inputs)  # padding=2
     nn = conv2d_no_bias(nn, out_channels[0], kernel_size=7, strides=4, padding="valid", use_bias=True, name="stem_")
-    nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, center=False, name="stem_")
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1], name="stem_pre_permute")(nn)
+    nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, center=False, axis=-1, name="stem_")
 
     """ stacks """
     total_blocks = sum(num_blocks)
@@ -103,8 +112,10 @@ def CAFormer(
     for stack_id, (num_block, out_channel, block_type) in enumerate(zip(num_blocks, out_channels, block_types)):
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id > 0:
-            nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, center=False, name=stack_name + "downsample_")
+            nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, center=False, axis=-1, name=stack_name + "downsample_")
+            nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=name + "permute_pre")(nn)
             nn = conv2d_no_bias(nn, out_channel, 3, strides=2, padding="same", use_bias=True, name=stack_name + "downsample_")
+            nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1], name=name + "permute_pre")(nn)
 
         use_attn = True if block_type[0].lower() == "t" else False
         mlp_ratio = mlp_ratios[stack_id] if isinstance(mlp_ratios, (list, tuple)) else mlp_ratios
@@ -115,20 +126,21 @@ def CAFormer(
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             nn = meta_former_block(nn, use_attn, head_dim, mlp_ratio, layer_scale, residual_scale, block_drop_rate, activation=activation, name=name)
             global_block_id += 1
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=name + "permute_pre")(nn)
 
     if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="pre_output_")
         if head_filter > 0:
-            nn = keras.layers.Dense(head_filter, use_bias=True, name="feature_dense")(nn)
+            nn = layers.Dense(head_filter, use_bias=True, name="feature_dense")(nn)
             head_filter_activation = head_filter_activation if head_filter_activation is not None else activation
             nn = activation_by_name(nn, activation=head_filter_activation, name="feature_")
             nn = layer_norm(nn, name="feature_")  # epsilon=1e-5
         if dropout > 0:
-            nn = keras.layers.Dropout(dropout, name="head_drop")(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+            nn = layers.Dropout(dropout, name="head_drop")(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
-    model = tf.keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "caformer", pretrained)
     return model

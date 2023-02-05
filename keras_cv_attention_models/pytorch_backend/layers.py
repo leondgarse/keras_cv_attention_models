@@ -4,10 +4,19 @@ from torch import nn
 from functools import partial
 
 
-# [TODO] Identity, ConvTranspose2d, Conv2D SAME padding, initializer, MultiHeadAttention
+# [TODO] Identity, ConvTranspose2d, Conv2D SAME padding, initializer, MultiHeadAttention, Dropout
 
 
 """ Basic Layers """
+
+def get_perm(total_axis, from_axis, to_axis):
+    # total_axis, from_axis, to_axis = 4, 1, 3 -> [0, 2, 3, 1]
+    # total_axis, from_axis, to_axis = 4, 3, 1 -> [0, 3, 1, 2]
+    from_axis = (total_axis + from_axis) if from_axis < 0 else from_axis
+    to_axis = (total_axis + to_axis) if to_axis < 0 else to_axis
+    aa = [ii for ii in range(total_axis) if ii != from_axis]
+    aa.insert(to_axis, from_axis)
+    return aa
 
 
 class Weight:
@@ -60,6 +69,9 @@ class GraphNode:
     def __mul__(self, another):
         return Multiply()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx * another)(self)
 
+    def __truediv__(self, another):
+        return Divide()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx / another)(self)
+
     def __matmul__(self, another):
         # return Matmul()([self, another])
         return Lambda(lambda inputs: torch.matmul(inputs[0], inputs[1]))([self, another])
@@ -93,7 +105,7 @@ class Layer(nn.Module):
         super().__init__()
         self.name, self.kwargs = self.verify_name(name), kwargs
         self.built = False
-        self.has_custom_parameters = False
+        self.use_layer_as_module = False  # True if called add_weights, or typical keras layers with overwriting call function
         if not hasattr(self, "module"):
             self.module = lambda xx: xx
         self.__count__()
@@ -116,7 +128,7 @@ class Layer(nn.Module):
             output_shape = self.compute_output_shape(self.input_shape)
             # if isinstance(output_shape[0], (list, tuple))
             cur_node = GraphNode(output_shape, name=self.name)
-            if self.has_custom_parameters:  # General keras layers with call function, mostly own weights
+            if self.use_layer_as_module:  # General keras layers with call function, mostly own weights
                 cur_node.callable = self
             else:
                 cur_node.callable = self.module if len(kwargs) == 0 else partial(self.module, **kwargs)
@@ -145,7 +157,7 @@ class Layer(nn.Module):
         return []
 
     def add_weight(self, name=None, shape=None, dtype=None, initializer=None, regularizer=None, trainable=None):
-        self.has_custom_parameters = True
+        self.use_layer_as_module = True
         if isinstance(initializer, str):
             initializer = torch.ones if initializer == "ones" else torch.zeros
         return nn.Parameter(initializer(shape), requires_grad=trainable)
@@ -194,13 +206,25 @@ class Lambda(Layer):
         return [None if ii == 0 else ii for ii in output_shape]  # Regards 0 as dynamic shape
 
 
+class Shape(Layer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.module = lambda inputs: inputs.shape
+        super().build(input_shape)
+
+    def compute_output_shape(self, input_shape):
+        return (len(input_shape),)
+
+
 class Activation(Layer):
     def __init__(self, activation=None, **kwargs):
         self.activation = activation
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        if self.activation is None:
+        if self.activation is None or self.activation == "linear":
             self.module = torch.nn.Identity()
         elif isinstance(self.activation, str) and self.activation == "softmax":
             self.module = partial(torch.softmax, dim=1)
@@ -256,6 +280,14 @@ class Add(_Merge):
         output = torch.add(inputs[0], inputs[1])
         for ii in inputs[2:]:
             output = torch.add(output, ii)
+        return output
+
+
+class Divide(_Merge):
+    def merge_function(self, inputs):
+        output = torch.divide(inputs[0], inputs[1])
+        for ii in inputs[2:]:
+            output = torch.divide(output, ii)
         return output
 
 
@@ -324,7 +356,15 @@ class BatchNormalization(Layer):
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        self.module = nn.BatchNorm2d(num_features=input_shape[self.axis], eps=self.epsilon, momentum=1 - self.momentum, affine=self.center)
+        self.axis = len(input_shape) + self.axis if self.axis < 0 else self.axis
+        module = nn.BatchNorm2d(num_features=input_shape[self.axis], eps=self.epsilon, momentum=1 - self.momentum, affine=self.center)
+        if self.axis == 1:
+            self.module = module
+        else:
+            ndims = len(input_shape)
+            perm = get_perm(total_axis=ndims, from_axis=self.axis, to_axis=1)  # like axis=-1 -> [0, 3, 1, 2]
+            revert_perm = get_perm(total_axis=ndims, from_axis=1, to_axis=self.axis)  # like axis=-1 -> [0, 2, 3, 1]
+            self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
         super().build(input_shape)
 
     def get_config(self):
@@ -421,9 +461,8 @@ class Conv2D(Conv):
 
 class DepthwiseConv2D(Conv):
     def __init__(self, kernel_size=1, strides=1, padding="VALID", dilation_rate=(1, 1), use_bias=True, kernel_initializer="glorot_uniform", **kwargs):
-        self.kernel_size, self.strides, self.padding = kernel_size, strides, padding
-        self.dilation_rate, self.use_bias, self.kernel_initializer = dilation_rate, use_bias, kernel_initializer
-        super().__init__(filters=-1, **kwargs)
+        filters, groups = -1, -1
+        super().__init__(filters, kernel_size, strides, padding, dilation_rate, use_bias, groups, kernel_initializer, **kwargs)
 
     def build(self, input_shape):
         self.groups = input_shape[1]
@@ -447,13 +486,14 @@ class Dense(Layer):
         super().__init__(**kwargs)
 
     def build(self, input_shape):
+        self.axis = len(input_shape) + self.axis if self.axis < 0 else self.axis
         module = nn.Linear(in_features=input_shape[self.axis], out_features=self.units, bias=self.use_bias)
-        if self.axis == -1 or self.axis == len(input_shape):
+        if self.axis == len(input_shape) - 1:
             self.module = module if self.activation is None else nn.Sequential(module, Activation(self.activation))
         else:
             ndims = len(input_shape)
-            perm = [id for id in range(ndims) if id != self.axis] + [self.axis]  # like axis=1 -> [0, 2, 3, 1]
-            revert_perm = list(range(0, self.axis)) + [ndims - 1] + list(range(self.axis, ndims - 1))  # like axis=1 -> [0, 3, 1, 2]
+            perm = get_perm(total_axis=ndims, from_axis=self.axis, to_axis=-1)  # like axis=1 -> [0, 2, 3, 1]
+            revert_perm = get_perm(total_axis=ndims, from_axis=-1, to_axis=self.axis)  # like axis=1 -> [0, 3, 1, 2]
             if self.activation is None:
                 self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
             else:
@@ -462,7 +502,7 @@ class Dense(Layer):
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
-        return input_shape[: self.axis] + [self.units] + ([] if self.axis == -1 else input_shape[self.axis + 1 :])
+        return input_shape[: self.axis] + [self.units] + input_shape[self.axis + 1 :]
 
     def get_weights_channels_last(self):
         # channel_first -> channel_last
@@ -487,14 +527,16 @@ class GroupNormalization(Layer):
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        self.module = nn.GroupNorm(num_groups=self.groups, num_channels=input_shape[self.axis], eps=self.epsilon, affine=self.center)
-        # if self.axis == -1 or self.axis == len(input_shape):
-        #     self.module = module
-        # else:
-        #     ndims = len(input_shape)
-        #     perm = [id for id in range(ndims) if id != self.axis] + [self.axis]  # like axis=1 -> [0, 2, 3, 1]
-        #     revert_perm = list(range(0, self.axis)) + [ndims - 1] + list(range(self.axis, ndims - 1))  # like axis=1 -> [0, 3, 1, 2]
-        #     self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
+        self.axis = len(input_shape) + self.axis if self.axis < 0 else self.axis
+        module = nn.GroupNorm(num_groups=self.groups, num_channels=input_shape[self.axis], eps=self.epsilon, affine=self.center)
+        # Default nn.GroupNorm is apllied on first non-batch dimension
+        if self.axis == 1:
+            self.module = module
+        else:
+            ndims = len(input_shape)
+            perm = get_perm(total_axis=ndims, from_axis=self.axis, to_axis=1)  # like axis=-1 -> [0, 3, 1, 2]
+            revert_perm = get_perm(total_axis=ndims, from_axis=1, to_axis=self.axis)  # like axis=-1 -> [0, 2, 3, 1]
+            self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
         super().build(input_shape)
 
     def get_config(self):
@@ -503,20 +545,43 @@ class GroupNormalization(Layer):
         return config
 
 
+class LayerNormGeneral(nn.Module):
+    def __init__(self, normalized_shape, normalized_dim=(-1, ), scale=True, bias=True, eps=1e-5):
+        super().__init__()
+        self.normalized_dim, self.use_scale, self.use_bias, self.eps = normalized_dim, scale, bias, eps
+        self.weight = nn.Parameter(torch.ones(normalized_shape)) if scale else None
+        self.bias = nn.Parameter(torch.zeros(normalized_shape)) if bias else None
+
+    def forward(self, inputs):
+        center = inputs - inputs.mean(self.normalized_dim, keepdim=True)
+        scale = center.pow(2).mean(self.normalized_dim, keepdim=True)
+        inputs = center / torch.sqrt(scale + self.eps)
+        if self.use_scale:
+            inputs = inputs * self.weight
+        if self.use_bias:
+            inputs = inputs + self.bias
+        return inputs
+
+
 class LayerNormalization(Layer):
     def __init__(self, axis=1, epsilon=1e-5, center=True, gamma_initializer="ones", **kwargs):
         self.axis, self.epsilon, self.center, self.gamma_initializer = axis, epsilon, center, gamma_initializer
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        module = nn.LayerNorm(normalized_shape=input_shape[self.axis], eps=self.epsilon, elementwise_affine=self.center)
-        if self.axis == -1 or self.axis == len(input_shape):
-            self.module = module
+        self.axis = len(input_shape) + self.axis if self.axis < 0 else self.axis
+        if self.center:
+            module = nn.LayerNorm(normalized_shape=input_shape[self.axis], eps=self.epsilon)
+            # Default nn.LayerNorm is apllied on last dimension
+            if self.axis == len(input_shape) - 1:
+                self.module = module
+            else:
+                ndims = len(input_shape)
+                perm = get_perm(total_axis=ndims, from_axis=self.axis, to_axis=-1)  # like axis=1 -> [0, 2, 3, 1]
+                revert_perm = get_perm(total_axis=ndims, from_axis=-1, to_axis=self.axis)  # like axis=1 -> [0, 3, 1, 2]
+                self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
         else:
-            ndims = len(input_shape)
-            perm = [id for id in range(ndims) if id != self.axis] + [self.axis]  # like axis=1 -> [0, 2, 3, 1]
-            revert_perm = list(range(0, self.axis)) + [ndims - 1] + list(range(self.axis, ndims - 1))  # like axis=1 -> [0, 3, 1, 2]
-            self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
+            self.module = LayerNormGeneral(normalized_shape=input_shape[self.axis], normalized_dim=self.axis, eps=self.epsilon, bias=self.center)
         super().build(input_shape)
 
     def get_config(self):
@@ -554,26 +619,57 @@ class PReLU(Layer):
 """ Layers with no weights """
 
 
+class DropPath(nn.Module):
+    """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
+    from drop_path https://github.com/rwightman/pytorch-image-models/blob/main/timm/layers/drop.py#L137
+    """
+    def __init__(self, drop_prob: float = 0., scale_by_keep: bool = True):
+        self.drop_prob, self.scale_by_keep = drop_prob, scale_by_keep
+        super().__init__()
+
+    def forward(self, inputs):
+        if self.drop_prob == 0. or not self.training:
+            return inputs
+        keep_prob = 1 - self.drop_prob
+        shape = (inputs.shape[0],) + (1,) * (inputs.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
+        random_tensor = inputs.new_empty(shape).bernoulli_(keep_prob)
+        if keep_prob > 0.0 and self.scale_by_keep:
+            random_tensor.div_(keep_prob)
+        return inputs * random_tensor
+
+    def extra_repr(self):
+        return f'drop_prob={round(self.drop_prob,3):0.3f}'
+
+
 class Dropout(Layer):
     def __init__(self, rate, noise_shape=None, **kwargs):
         self.rate, self.noise_shape = rate, noise_shape
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        # if drop_prob == 0. or not training:
-        #     return x
-        # keep_prob = 1 - drop_prob
-        # shape = (x.shape[0],) + (1,) * (x.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
-        # random_tensor = x.new_empty(shape).bernoulli_(keep_prob)
-        # if keep_prob > 0.0 and scale_by_keep:
-        #     random_tensor.div_(keep_prob)
-        # return x * random_tensor
+        if self.noise_shape is None:
+            dims, rate = len(input_shape), self.rate
+            self.module = torch.nn.Dropout1d(p=rate) if dims == 3 else (torch.nn.Dropout2d(p=rate) if dims == 4 else torch.nn.Dropout3d(p=rate))
+        else:
+            self.module = DropPath(drop_prob=self.rate)
         super().build(input_shape)
 
     def get_config(self):
         config = super().get_config()
         config.update({"rate": self.rate, "noise_shape": self.noise_shape})
         return config
+
+
+class Flatten(Layer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.module = nn.Flatten()
+        super().build(input_shape)
+
+    def compute_output_shape(self, inptut_shape):
+        return [None, int(np.prod(inptut_shape[1:]))]
 
 
 class Pooling2D(Layer):

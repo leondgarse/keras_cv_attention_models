@@ -73,11 +73,12 @@ def activation_by_name(inputs, activation="relu", name=None):
     elif activation_lower == ("hard_sigmoid_torch"):
         return layers.Activation(activation=hard_sigmoid_torch, name=layer_name)(inputs)
     elif activation_lower == ("squaredrelu") or activation_lower == ("squared_relu"):
-        return functional.relu(inputs) ** 2  # Squared ReLU: https://arxiv.org/abs/2109.08668
+        return functional.pow(functional.relu(inputs), 2)  # Squared ReLU: https://arxiv.org/abs/2109.08668
     elif activation_lower == ("starrelu") or activation_lower == ("star_relu"):
         from keras_cv_attention_models.nfnets.nfnets import ZeroInitGain
 
-        return ZeroInitGain(use_bias=True, weight_init_value=1.0, name=layer_name)(functional.relu(inputs) ** 2)  # StarReLU: s * relu(x) ** 2 + b
+        # StarReLU: s * relu(x) ** 2 + b
+        return ZeroInitGain(use_bias=True, weight_init_value=1.0, name=layer_name)(functional.pow(functional.relu(inputs), 2))
     else:
         return layers.Activation(activation=activation, name=layer_name)(inputs)
 
@@ -201,7 +202,7 @@ class EvoNormalization(layers.Layer):
 
 
 def batchnorm_with_activation(
-    inputs, activation=None, zero_gamma=False, epsilon=1e-5, momentum=0.9, act_first=False, use_evo_norm=False, evo_norm_group_size=-1, name=None
+    inputs, activation=None, zero_gamma=False, epsilon=1e-5, momentum=0.9, axis="auto", act_first=False, use_evo_norm=False, evo_norm_group_size=-1, name=None
 ):
     """Performs a batch normalization followed by an activation."""
     if use_evo_norm:
@@ -209,7 +210,7 @@ def batchnorm_with_activation(
         num_groups = inputs.shape[-1] // evo_norm_group_size  # Currently using gorup_size as parameter only
         return EvoNormalization(nonlinearity, num_groups=num_groups, zero_gamma=zero_gamma, epsilon=epsilon, momentum=momentum, name=name + "evo_norm")(inputs)
 
-    bn_axis = -1 if backend.image_data_format() == "channels_last" else 1
+    bn_axis = (-1 if backend.image_data_format() == "channels_last" else 1) if axis == "auto" else axis
     gamma_initializer = initializers.zeros() if zero_gamma else initializers.ones()
     if act_first and activation:
         inputs = activation_by_name(inputs, activation=activation, name=name)
@@ -232,14 +233,14 @@ def layer_norm(inputs, zero_gamma=False, epsilon=LAYER_NORM_EPSILON, center=True
     return layers.LayerNormalization(axis=norm_axis, epsilon=epsilon, gamma_initializer=gamma_init, center=center, name=name and name + "ln")(inputs)
 
 
-def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, name=None):
+def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, axis="auto", name=None):
     """Typical GroupNormalization with epsilon=1e-5"""
     if hasattr(layers, "GroupNormalization"):
         GroupNormalization = layers.GroupNormalization  # GroupNormalization is added after TF 2.11.0
     else:
         from tensorflow_addons.layers import GroupNormalization
 
-    norm_axis = -1 if backend.image_data_format() == "channels_last" else 1
+    norm_axis = (-1 if backend.image_data_format() == "channels_last" else 1) if axis == "auto" else axis
     return GroupNormalization(groups=groups, axis=norm_axis, epsilon=epsilon, name=name and name + "group_norm")(inputs)
 
 

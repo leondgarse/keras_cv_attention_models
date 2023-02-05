@@ -1,7 +1,7 @@
 import torch
 import math
 import torch.nn.functional as F
-from keras_cv_attention_models.pytorch_backend.layers import Lambda, Concatenate, GraphNode
+from keras_cv_attention_models.pytorch_backend.layers import Lambda, Concatenate, GraphNode, Shape
 from functools import partial
 
 
@@ -34,6 +34,13 @@ def cos(inputs, name=None):
 
 def expand_dims(inputs, axis, name=None):
     return Lambda(partial(torch.unsqueeze, dim=axis), name=name)(inputs)
+
+
+def gather(inputs, indices, axis=None, batch_dims=0, name=None):
+    """Defaults axis=None means the first non-batch dimension"""
+    axis = batch_dims if axis is None else (len(inputs.shape) + axis if axis < 0 else axis)
+    indices = tuple([slice(None)] * axis + [indices])
+    return inputs[indices]
 
 
 def gelu(inputs, approximate=False, name=None):
@@ -78,12 +85,20 @@ def pad(inputs, paddings, mode="CONSTANT", constant_values=0, name=None):
     return Lambda(partial(F.pad, pad=pad, mode=mode.lower(), value=constant_values), name=name)(inputs)
 
 
+def pow(inputs, exponent, name=None):
+    return Lambda(partial(torch.pow, exponent=exponent), name=name)(inputs)
+
+
 def reduce_mean(inputs, axis=None, keepdims=False, name=None):
     return Lambda(partial(torch.mean, dim=axis, keepdim=keepdims), name=name)(inputs)
 
 
 def reduce_sum(inputs, axis=None, keepdims=False, name=None):
     return Lambda(partial(torch.sum, dim=axis, keepdim=keepdims), name=name)(inputs)
+
+
+def relu(inputs, name=None):
+    return Lambda(F.relu, name=name)(inputs)
 
 
 def relu6(inputs, name=None):
@@ -119,7 +134,7 @@ def resize(inputs, size, method="bilinear", preserve_aspect_ratio=False, antiali
 
 
 def shape(inputs):
-    return inputs.shape
+    return Shape()(inputs)
 
 
 def sigmoid(inputs, axis=None, name=None):
@@ -179,7 +194,7 @@ def transpose(inputs, perm=None, conjugate=False, name=None):
 
 
 def unstack(inputs, axis, name=None):
-    axis = len(inputs.shape) - 1 if axis == -1 else axis
+    axis = len(inputs.shape) + axis if axis < 0 else axis
     axis_shape = inputs.shape[axis]
     assert axis_shape is not None
 

@@ -87,10 +87,7 @@ class MultiHeadRelativePositionalEmbedding(layers.Layer):
         super().build(attn_shape)
 
     def call(self, attention_scores, **kwargs):
-        if backend.backend() == "pytorch":
-            pos_emb = self.relative_position_bias_table[:, self.relative_position_index]
-        else:
-            pos_emb = functional.gather(self.relative_position_bias_table, self.relative_position_index, axis=1)
+        pos_emb = functional.gather(self.relative_position_bias_table, self.relative_position_index, axis=1)
         # tf.print(pos_emb.shape, attention_scores.shape)
         return attention_scores + pos_emb
 
@@ -105,7 +102,7 @@ class MultiHeadRelativePositionalEmbedding(layers.Layer):
             # source_tt = source_layer["pos_emb:0"]  # weights
         else:
             source_tt = source_layer.get_weights()[0]  # layer
-        source_tt = np.array(source_tt)
+        source_tt = np.array(source_tt.detach() if hasattr(source_tt, "detach") else source_tt)
         # self.relative_position_bias_table.assign(tf.transpose(source_tt))
         hh = ww = int(float(source_tt.shape[1] - self.cls_token_pos_len) ** 0.5)  # assume source weights are all square shape
         num_heads = source_tt.shape[0]
@@ -144,13 +141,41 @@ class MultiHeadRelativePositionalEmbedding(layers.Layer):
         return fig
 
 
+def scaled_dot_product_attention(query, key, value, output_shape, pos_emb=None, out_weight=True, out_bias=False, dropout=0, activation=None, name=None):
+    output_dim = output_shape[-1]
+    blocks = output_shape[1:-1] if output_shape[0] is None or output_shape[0] < 1 else output_shape[:-1]
+    # query, value: [batch, num_heads, blocks, key_dim], key: [batch, num_heads, key_dim, blocks]
+    qk_scale = 1.0 / (float(query.shape[-1]) ** 0.5)
+    # print(f"{query.shape = }, {key.shape = }")
+    # attention_scores = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, q_blocks, k_blocks]
+    attention_scores = (query @ key) * qk_scale
+    # print(f"{attention_scores.shape = }")
+    if pos_emb is not None:
+        # attention_scores = MultiHeadPositionalEmbedding(query_height=height, name=name and name + "attn_pos")(attention_scores)
+        attention_scores = pos_emb(attention_scores)
+    attention_scores = layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
+    if dropout > 0:
+        attention_scores = layers.Dropout(dropout, name=name and name + "attn_drop")(attention_scores)
+
+    # output = functional.matmul(attention_scores, value)    # [batch, num_heads, q_blocks, key_dim * attn_ratio]
+    # output = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([attention_scores, value])
+    attention_output = attention_scores @ value
+    output = functional.transpose(attention_output, perm=[0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
+    output = functional.reshape(output, [-1, *blocks, output.shape[2] * output.shape[3]])  # [batch, q_blocks, channel * attn_ratio]
+    if activation:
+        output = activation_by_name(output, activation=activation, name=name)
+    if out_weight:
+        # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
+        output_dim = output_dim if output_dim > 0 else value.shape[-1]
+        output = layers.Dense(output_dim, use_bias=out_bias, name=name and name + "output")(output)
+    return output
+
+
 def attention_block(
     inputs, num_heads=4, key_dim=0, qv_bias=True, qkv_bias=False, out_weight=True, out_bias=False, use_pos_emb=False, attn_height=-1, attn_dropout=0, name=None
 ):
     _, bb, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
-    # qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
-    qk_scale = 1.0 / (float(key_dim) ** 0.5)
     emded_dim = num_heads * key_dim
     # print(f">>>> {bb = }, {cc = }, {emded_dim = }")
 
@@ -174,29 +199,9 @@ def attention_block(
     value = functional.reshape(value, [-1, value.shape[1], num_heads, key_dim])
     value = functional.transpose(value, [0, 2, 1, 3])
 
-    # query *= qk_scale
-    # [batch, num_heads, cls_token + hh * ww, cls_token + hh * ww]
-    # attention_scores = layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key])
-    attention_scores = (query @ key) * qk_scale
-    if use_pos_emb:
-        attention_scores = MultiHeadRelativePositionalEmbedding(attn_height=attn_height, name=name and name + "pos_emb")(attention_scores)
-    # attention_scores = tf.nn.softmax(attention_scores, axis=-1, name=name and name + "_attention_scores")
-    attention_scores = layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
-
-    if attn_dropout > 0:
-        attention_scores = layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
-    # value = [batch, num_heads, cls_token + hh * ww, key_dim]
-    # attention_output = tf.matmul(attention_scores, value)  # [batch, num_heads, cls_token + hh * ww, key_dim]
-    # attention_output = layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
-    attention_output = attention_scores @ value
-    attention_output = functional.transpose(attention_output, perm=[0, 2, 1, 3])
-    attention_output = functional.reshape(attention_output, [-1, bb, emded_dim])
-    # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
-
-    if out_weight:
-        # [batch, cls_token + hh * ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, cls_token + hh * ww, out]
-        attention_output = layers.Dense(emded_dim, use_bias=out_bias, name=name and name + "output")(attention_output)
-    return attention_output
+    pos_emb = MultiHeadRelativePositionalEmbedding(attn_height=attn_height, name=name and name + "pos_emb") if use_pos_emb else None
+    output_shape = [-1, bb, emded_dim]
+    return scaled_dot_product_attention(query, key, value, output_shape, pos_emb, out_weight, out_bias, dropout=attn_dropout, name=name)
 
 
 def attention_mlp_block(inputs, embed_dim, gamma_init_value=0.1, mlp_ratio=4, drop_rate=0, activation="gelu", attn_params={}, name=""):
@@ -210,7 +215,7 @@ def attention_mlp_block(inputs, embed_dim, gamma_init_value=0.1, mlp_ratio=4, dr
     """ MLP """
     nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "mlp_ln")(attn_out)  # "channels_first" also using axis=-1
     nn = layers.Dense(embed_dim * mlp_ratio, name=name + "mlp_dense_1")(nn)
-    nn = activation_by_name(nn, activation, name=name + "mlp_" + activation)
+    nn = activation_by_name(nn, activation, name=name + "mlp_")
     nn = layers.Dense(embed_dim, name=name + "mlp_dense_2")(nn)
     nn = ChannelAffine(use_bias=False, weight_init_value=gamma_init_value, name=name + "mlp_gamma")(nn) if gamma_init_value > 0 else nn
     nn = drop_block(nn, drop_rate)
@@ -301,6 +306,9 @@ def Beit(
     model_name="beit",
     kwargs=None,
 ):
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.valid_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
 
     """ forward_embeddings """

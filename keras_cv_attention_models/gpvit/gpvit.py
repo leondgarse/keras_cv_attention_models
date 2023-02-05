@@ -138,7 +138,8 @@ def full_ungroup_attention(inputs, group_token, num_heads=4, key_dim=0, qkv_bias
     key = tf.transpose(tf.reshape(key, [-1, key_value.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
     value = tf.transpose(tf.reshape(value, [-1, key_value.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, key_dim]
 
-    attn = scaled_dot_product_attention(query, key, value, output_shape=inputs.shape, out_weight=True, out_bias=True, dropout=dropout, name=name)
+    attn = scaled_dot_product_attention(query, key, value, output_shape=inputs.shape, out_weight=False, dropout=dropout, name=name)
+    attn = keras.layers.Dense(input_channel, use_bias=True, name=name and name + "out")(attn)
 
     attn_out = tf.concat([inputs, attn], axis=-1)
     attn_out = keras.layers.Dense(inputs.shape[-1], use_bias=True, name=name and name + "attn_out")(attn_out)

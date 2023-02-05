@@ -1,5 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -27,67 +27,78 @@ PRETRAINED_DICT = {
 
 
 def attention_block_with_conv_down(
-    inputs, num_heads=4, key_dim=0, sr_ratio=1, qkv_bias=True, out_weight=True, out_bias=True, use_linear=False, linear_activation="gelu", dropout=0, name=""
+    inputs, num_heads=4, key_dim=0, sr_ratio=1, qkv_bias=True, out_bias=True, use_linear=False, linear_activation="gelu", dropout=0, name=""
 ):
     _, hh, ww, input_channel = inputs.shape
     key_dim = key_dim if key_dim > 0 else input_channel // num_heads
     # out_shape = input_channel if out_shape is None or not out_weight else out_shape
     emb_dim = num_heads * key_dim
 
-    query = keras.layers.Dense(emb_dim, use_bias=qkv_bias, name=name and name + "query")(inputs)
+    query = layers.Dense(emb_dim, use_bias=qkv_bias, name=name and name + "query")(inputs)
     # print(f">>>> {inputs.shape = }, {query.shape = }, {sr_ratio = }")
-    query = tf.transpose(tf.reshape(query, [-1, inputs.shape[1] * inputs.shape[2], num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, key_dim]
+    # [batch, num_heads, hh * ww, key_dim]
+    query = functional.transpose(functional.reshape(query, [-1, inputs.shape[1] * inputs.shape[2], num_heads, key_dim]), [0, 2, 1, 3])
 
     if use_linear:
-        key_value = addaptive_pooling_2d(inputs, output_size=7, reduce="mean")
+        key_value = inputs if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=name + "permute_pre")(inputs)
+        key_value = addaptive_pooling_2d(key_value, output_size=7, reduce="mean")
         key_value = conv2d_no_bias(key_value, input_channel, kernel_size=1, use_bias=qkv_bias, name=name + "kv_sr_")
-        key_value = layer_norm(key_value, name=name + "kv_sr_")  # Using epsilon=1e-5
+        key_value = key_value if image_data_format() == "channels_last" else layers.Permute([2, 3, 1], name=name + "permute_post")(nn)
+        key_value = layer_norm(key_value, axis=-1, name=name + "kv_sr_")  # Using epsilon=1e-5
         key_value = activation_by_name(key_value, activation=linear_activation, name=name + "kv_sr_")
     elif sr_ratio > 1:
-        key_value = conv2d_no_bias(inputs, input_channel, kernel_size=sr_ratio, strides=sr_ratio, use_bias=qkv_bias, name=name + "kv_sr_")
-        key_value = layer_norm(key_value, name=name + "kv_sr_")  # Using epsilon=1e-5
-        # key_value = keras.layers.AvgPool2D(sr_ratio, strides=sr_ratio, name=name + "kv_sr_")(inputs)
+        key_value = inputs if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=name + "permute_pre")(inputs)
+        key_value = conv2d_no_bias(key_value, input_channel, kernel_size=sr_ratio, strides=sr_ratio, use_bias=qkv_bias, name=name + "kv_sr_")
+        key_value = key_value if image_data_format() == "channels_last" else layers.Permute([2, 3, 1], name=name + "permute_post")(key_value)
+        key_value = layer_norm(key_value, axis=-1, name=name + "kv_sr_")  # Using epsilon=1e-5
+        # key_value = layers.AvgPool2D(sr_ratio, strides=sr_ratio, name=name + "kv_sr_")(inputs)
     else:
         key_value = inputs
     _, kv_hh, kv_ww, _ = key_value.shape
     # key_value = [batch, num_heads, hh, ww, kv_kernel * kv_kernel, key_dim * 2]
-    key_value = keras.layers.Dense(emb_dim * 2, use_bias=qkv_bias, name=name and name + "key_value")(key_value)
-    key, value = tf.split(key_value, 2, axis=-1)
-    key = tf.transpose(tf.reshape(key, [-1, kv_hh * kv_ww, num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
-    value = tf.transpose(tf.reshape(value, [-1, kv_hh * kv_ww, num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, key_dim]
+    key_value = layers.Dense(emb_dim * 2, use_bias=qkv_bias, name=name and name + "key_value")(key_value)
+    key, value = functional.split(key_value, 2, axis=-1)
+    key = functional.transpose(functional.reshape(key, [-1, kv_hh * kv_ww, num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
+    value = functional.transpose(functional.reshape(value, [-1, kv_hh * kv_ww, num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, key_dim]
 
     output_shape = (hh, ww, input_channel)
-    return scaled_dot_product_attention(query, key, value, output_shape=output_shape, out_weight=out_weight, out_bias=out_bias, dropout=dropout, name=name)
+    output = scaled_dot_product_attention(query, key, value, output_shape=output_shape, out_weight=False, dropout=dropout, name=name)
+    return layers.Dense(input_channel, use_bias=out_bias, name=name and name + "out")(output)
 
 
 def mlp_block_with_depthwise_conv(inputs, hidden_dim, kernel_size=3, use_bias=True, drop_rate=0, activation="gelu", name=""):
     input_channel = inputs.shape[-1]
     first_activation, middle_activation = activation if isinstance(activation, (list, tuple)) else (activation, activation)
-    nn = keras.layers.Dense(hidden_dim, use_bias=use_bias, name=name and name + "1_dense")(inputs)
+    nn = layers.Dense(hidden_dim, use_bias=use_bias, name=name and name + "1_dense")(inputs)
     nn = activation_by_name(nn, first_activation, name=name)
 
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=name + "permute_pre")(nn)
     nn = depthwise_conv2d_no_bias(nn, use_bias=use_bias, kernel_size=kernel_size, strides=1, padding="same", name=name and name + "mid_")
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1], name=name + "permute_post")(nn)
     nn = activation_by_name(nn, middle_activation, name=name and name + "mid_")
-    nn = keras.layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
+    nn = layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
 
-    nn = keras.layers.Dense(input_channel, use_bias=use_bias, name=name and name + "2_dense")(nn)
-    nn = keras.layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
+    nn = layers.Dense(input_channel, use_bias=use_bias, name=name and name + "2_dense")(nn)
+    nn = layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
     return nn
 
 
 def attention_mlp_block(inputs, embed_dim, num_heads=8, sr_ratio=1, mlp_ratio=4, use_linear=False, layer_scale=0.1, drop_rate=0, activation="gelu", name=""):
-    input_channel = inputs.shape[-1]
+    channnel_axis = -1 if image_data_format() == "channels_last" else 1
+    input_channel = inputs.shape[channnel_axis]
 
     """ attention """
-    nn = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, name=name + "attn_")
+    pre = inputs if image_data_format() == "channels_last" else layers.Permute([2, 3, 1], name=name + "permute_pre")(inputs)
+    nn = layer_norm(pre, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "attn_")
     nn = attention_block_with_conv_down(nn, num_heads=num_heads, sr_ratio=sr_ratio, use_linear=use_linear, linear_activation=activation, name=name + "attn_")
-    attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "attn_")
+    attn_out = add_with_layer_scale_and_drop_block(pre, nn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "attn_")
 
     """ MLP """
-    nn = layer_norm(attn_out, epsilon=LAYER_NORM_EPSILON, name=name + "mlp_")
+    nn = layer_norm(attn_out, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "mlp_")
     mlp_activation = ("relu", activation) if use_linear else (None, activation)
     nn = mlp_block_with_depthwise_conv(nn, input_channel * mlp_ratio, activation=mlp_activation, name=name + "mlp_")
-    nn = add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "mlp_")
+    nn = add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "mlp_")
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=name + "permute_post")(nn)  # channels_first -> channels_last
     return nn
 
 
@@ -110,7 +121,10 @@ def PyramidVisionTransformerV2(
     model_name="pvt",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.valid_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
 
     """ Stem """
     nn = conv2d_no_bias(inputs, embed_dims[0], stem_patch_size, strides=4, padding="same", use_bias=True, name="stem_")
@@ -136,7 +150,7 @@ def PyramidVisionTransformerV2(
         nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name=name + "output_")
 
     nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
-    model = tf.keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "pvt", pretrained)
     return model

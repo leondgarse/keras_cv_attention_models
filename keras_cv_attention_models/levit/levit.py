@@ -1,8 +1,15 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
+import math
+import numpy as np
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers, register_keras_serializable
 from keras_cv_attention_models.download_and_load import reload_model_weights
-from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, activation_by_name, add_pre_post_process
+from keras_cv_attention_models.attention_layers import (
+    activation_by_name,
+    batchnorm_with_activation,
+    conv2d_no_bias,
+    scaled_dot_product_attention,
+    add_pre_post_process,
+)
 
 
 PRETRAINED_DICT = {
@@ -14,8 +21,8 @@ PRETRAINED_DICT = {
 }
 
 
-@tf.keras.utils.register_keras_serializable(package="levit")
-class MultiHeadPositionalEmbedding(keras.layers.Layer):
+@register_keras_serializable(package="levit")
+class MultiHeadPositionalEmbedding(layers.Layer):
     def __init__(self, query_height=-1, key_height=-1, **kwargs):
         super(MultiHeadPositionalEmbedding, self).__init__(**kwargs)
         self.query_height, self.key_height = query_height, key_height
@@ -25,11 +32,11 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
         self.bb = self.add_weight(name="positional_embedding", shape=(kk_blocks, num_heads), initializer="zeros", trainable=True)
 
         if self.query_height == -1:
-            q_blocks_h = q_blocks_w = int(tf.math.sqrt(float(qq_blocks)))  # hh == ww
+            q_blocks_h = q_blocks_w = int(float(qq_blocks) ** 0.5)  # hh == ww
         else:
             q_blocks_h, q_blocks_w = self.query_height, int(qq_blocks / self.query_height)
 
-        strides = int(tf.math.ceil(tf.math.sqrt(float(kk_blocks / qq_blocks))))
+        strides = int(math.ceil(float(kk_blocks / qq_blocks) ** 0.5))
         if self.key_height == -1:
             k_blocks_h = q_blocks_h * strides
             while kk_blocks % k_blocks_h != 0:
@@ -40,20 +47,20 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
         self.k_blocks_h, self.k_blocks_w = k_blocks_h, k_blocks_w
         # print(f"{q_blocks_h = }, {q_blocks_w = }, {k_blocks_h = }, {k_blocks_w = }, {strides = }")
 
-        x1, y1 = tf.meshgrid(range(q_blocks_h), range(q_blocks_w))
-        x2, y2 = tf.meshgrid(range(k_blocks_h), range(k_blocks_w))
-        aa = tf.concat([tf.reshape(x1, (-1, 1)), tf.reshape(y1, (-1, 1))], axis=-1)
-        bb = tf.concat([tf.reshape(x2, (-1, 1)), tf.reshape(y2, (-1, 1))], axis=-1)
+        x1, y1 = np.meshgrid(range(q_blocks_h), range(q_blocks_w))
+        x2, y2 = np.meshgrid(range(k_blocks_h), range(k_blocks_w))
+        aa = np.concatenate([np.reshape(x1, (-1, 1)), np.reshape(y1, (-1, 1))], axis=-1)
+        bb = np.concatenate([np.reshape(x2, (-1, 1)), np.reshape(y2, (-1, 1))], axis=-1)
         # print(f">>>> {aa.shape = }, {bb.shape = }") # aa.shape = (16, 2), bb.shape = (49, 2)
-        cc = [tf.math.abs(bb - ii * strides) for ii in aa]
-        self.bb_pos = tf.stack([ii[:, 0] + ii[:, 1] * k_blocks_h for ii in cc])
+        cc = [np.abs(bb - ii * strides) for ii in aa]
+        bb_pos = np.stack([ii[:, 0] + ii[:, 1] * k_blocks_h for ii in cc])
+        self.bb_pos = functional.convert_to_tensor(bb_pos, dtype="int64")
         # print(f">>>> {self.bb_pos.shape = }")    # self.bb_pos.shape = (16, 49)
 
         super(MultiHeadPositionalEmbedding, self).build(input_shape)
 
     def call(self, inputs, **kwargs):
-        pos_bias = tf.gather(self.bb, self.bb_pos)
-        pos_bias = tf.transpose(pos_bias, [2, 0, 1])
+        pos_bias = functional.transpose(functional.gather(self.bb, self.bb_pos), [2, 0, 1])
         return inputs + pos_bias
 
     def get_config(self):
@@ -63,22 +70,24 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
 
     def load_resized_weights(self, source_layer, method="nearest"):
         if isinstance(source_layer, dict):
-            source_bb = source_layer["positional_embedding:0"]  # weights
+            source_bb = list(source_layer.values())[0]  # weights
         else:
             source_bb = source_layer.bb  # layer
-        hh = ww = int(tf.math.sqrt(float(source_bb.shape[0])))
-        ss = tf.reshape(source_bb, (hh, ww, source_bb.shape[-1]))  # [hh, ww, num_heads]
-        # target_hh = target_ww = int(tf.math.sqrt(float(self.bb.shape[0])))
-        tt = tf.image.resize(ss, [self.k_blocks_h, self.k_blocks_w], method=method)  # [target_hh, target_ww, num_heads]
-        tt = tf.reshape(tt, (self.bb.shape))  # [target_hh * target_ww, num_heads]
-        self.bb.assign(tt)
+        source_tt = np.array(source_tt.detach() if hasattr(source_tt, "detach") else source_tt)
+        hh = ww = int(float(source_bb.shape[0]) ** 0.5)
+        ss = source_bb.reshape((hh, ww, source_bb.shape[-1]))  # [hh, ww, num_heads]
+        # target_hh = target_ww = int(float(self.bb.shape[0]) ** 0.5)
+        tt = backend.numpy_image_resize(ss, target_shape=[self.k_blocks_h, self.k_blocks_w], method=method)  # [target_hh, target_ww, num_heads]
+        tt = tt.reshape((self.bb.shape))  # [target_hh * target_ww, num_heads]
+        self.set_weights([tt])
 
     def show_pos_emb(self, rows=1, base_size=2):
         import matplotlib.pyplot as plt
 
-        hh = ww = int(tf.math.sqrt(float(self.bb.shape[0])))
-        ss = tf.reshape(self.bb, (hh, ww, -1)).numpy()
-        cols = int(tf.math.ceil(ss.shape[-1] / rows))
+        hh = ww = int(float(self.bb.shape[0]) ** 0.5)
+        ss = np.array(self.bb.detach() if hasattr(self.bb, "detach") else self.bb)
+        ss = ss.reshape((hh, ww, -1))
+        cols = int(math.ceil(ss.shape[-1] / rows))
         fig, axes = plt.subplots(rows, cols, figsize=(base_size * cols, base_size * rows))
         for id, ax in enumerate(axes.flatten()):
             ax.imshow(ss[:, :, id])
@@ -86,32 +95,6 @@ class MultiHeadPositionalEmbedding(keras.layers.Layer):
         fig.tight_layout()
         return fig
 
-
-def scaled_dot_product_attention(query, key, value, output_shape, pos_emb=None, out_weight=True, out_bias=False, dropout=0, activation=None, name=None):
-    output_dim = output_shape[-1]
-    blocks = output_shape[1:-1] if output_shape[0] is None or output_shape[0] < 1 else output_shape[:-1]
-    # query, value: [batch, num_heads, blocks, key_dim], key: [batch, num_heads, key_dim, blocks]
-    qk_scale = float(1.0 / tf.math.sqrt(tf.cast(query.shape[-1], "float32")))
-    # print(f"{query.shape = }, {key.shape = }")
-    attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, q_blocks, k_blocks]
-    # print(f"{attention_scores.shape = }")
-    if pos_emb is not None:
-        # attention_scores = MultiHeadPositionalEmbedding(query_height=height, name=name and name + "attn_pos")(attention_scores)
-        attention_scores = pos_emb(attention_scores)
-    attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
-    if dropout > 0:
-        attention_scores = keras.layers.Dropout(dropout, name=name and name + "attn_drop")(attention_scores)
-
-    # output = tf.matmul(attention_scores, value)    # [batch, num_heads, q_blocks, key_dim * attn_ratio]
-    output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
-    output = tf.transpose(output, perm=[0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
-    output = tf.reshape(output, [-1, *blocks, output.shape[2] * output.shape[3]])  # [batch, q_blocks, channel * attn_ratio]
-    if activation:
-        output = activation_by_name(output, activation=activation, name=name)
-    if out_weight:
-        # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
-        output = keras.layers.Dense(output_dim, use_bias=out_bias, name=name and name + "out")(output)
-    return output
 
 
 def mhsa_with_multi_head_position(
@@ -123,17 +106,21 @@ def mhsa_with_multi_head_position(
     embed_dim = key_dim * num_heads
 
     qkv_dim = (attn_ratio + 1 + 1) * embed_dim
-    qkv = keras.layers.Dense(qkv_dim, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
-    qkv = batchnorm_with_activation(qkv, activation=None, name=name and name + "qkv_") if use_bn else qkv
-    qkv = tf.reshape(qkv, (-1, qkv.shape[1] * qkv.shape[2], num_heads, qkv_dim // num_heads))
-    qq, kk, vv = tf.split(qkv, [key_dim, key_dim, key_dim * attn_ratio], axis=-1)
-    qq, kk, vv = tf.transpose(qq, [0, 2, 1, 3]), tf.transpose(kk, [0, 2, 3, 1]), tf.transpose(vv, [0, 2, 1, 3])
+    qkv = layers.Dense(qkv_dim, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
+    qkv = batchnorm_with_activation(qkv, activation=None, axis=-1, name=name and name + "qkv_") if use_bn else qkv
+    qkv = functional.reshape(qkv, (-1, qkv.shape[1] * qkv.shape[2], num_heads, qkv_dim // num_heads))
+    qq, kk, vv = functional.split(qkv, [key_dim, key_dim, key_dim * attn_ratio], axis=-1)
+    qq, kk, vv = functional.transpose(qq, [0, 2, 1, 3]), functional.transpose(kk, [0, 2, 3, 1]), functional.transpose(vv, [0, 2, 1, 3])
 
     output_shape = (height, width, output_dim)
     pos_emb = MultiHeadPositionalEmbedding(query_height=height, name=name and name + "attn_pos")
-    output = scaled_dot_product_attention(qq, kk, vv, output_shape, pos_emb=pos_emb, out_bias=out_bias, activation=activation, name=name)
+    # Set out_weight=False here, as layer name is previously set to "out", different  from `scaled_dot_product_attention` using "output".
+    output = scaled_dot_product_attention(qq, kk, vv, output_shape, pos_emb=pos_emb, out_weight=False, activation=activation, name=name)
+
+    # [batch, cls_token + hh * ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, cls_token + hh * ww, out]
+    output = layers.Dense(output_dim, use_bias=out_bias, name=name and name + "out")(output)
     if use_bn:
-        output = batchnorm_with_activation(output, activation=None, zero_gamma=True, name=name and name + "out_")
+        output = batchnorm_with_activation(output, activation=None, zero_gamma=True, axis=-1, name=name and name + "out_")
     return output
 
 
@@ -143,50 +130,52 @@ def mhsa_with_multi_head_position_and_strides(
     _, _, _, input_channels = inputs.shape
     key_dim = key_dim if key_dim > 0 else input_channels // num_heads
     output_dim = output_dim if output_dim > 0 else input_channels
-    emded_dim = num_heads * key_dim
-
-    embed_dim = key_dim * num_heads
+    embed_dim = num_heads * key_dim
 
     qq = inputs[:, ::strides, ::strides, :] if strides > 1 else inputs
     height, width = qq.shape[1], qq.shape[2]
     # print(f"{height = }, {width = }, {strides = }, {inputs.shape = }")
-    qq = keras.layers.Dense(embed_dim, use_bias=qkv_bias, name=name and name + "q")(qq)
-    qq = batchnorm_with_activation(qq, activation=None, name=name and name + "q_") if use_bn else qq
-    qq = tf.reshape(qq, [-1, qq.shape[1] * qq.shape[2], num_heads, key_dim])
-    qq = tf.transpose(qq, [0, 2, 1, 3])
+    qq = layers.Dense(embed_dim, use_bias=qkv_bias, name=name and name + "q")(qq)
+    qq = batchnorm_with_activation(qq, activation=None, axis=-1, name=name and name + "q_") if use_bn else qq
+    qq = functional.reshape(qq, [-1, qq.shape[1] * qq.shape[2], num_heads, key_dim])
+    qq = functional.transpose(qq, [0, 2, 1, 3])
 
     kv_dim = (attn_ratio + 1) * embed_dim
-    kv = keras.layers.Dense(kv_dim, use_bias=qkv_bias, name=name and name + "kv")(inputs)
-    kv = batchnorm_with_activation(kv, activation=None, name=name and name + "kv_") if use_bn else kv
-    kv = tf.reshape(kv, (-1, kv.shape[1] * kv.shape[2], num_heads, kv_dim // num_heads))
-    kk, vv = tf.split(kv, [key_dim, key_dim * attn_ratio], axis=-1)
-    kk, vv = tf.transpose(kk, [0, 2, 3, 1]), tf.transpose(vv, [0, 2, 1, 3])
+    kv = layers.Dense(kv_dim, use_bias=qkv_bias, name=name and name + "kv")(inputs)
+    kv = batchnorm_with_activation(kv, activation=None, axis=-1, name=name and name + "kv_") if use_bn else kv
+    kv = functional.reshape(kv, (-1, kv.shape[1] * kv.shape[2], num_heads, kv_dim // num_heads))
+    kk, vv = functional.split(kv, [key_dim, key_dim * attn_ratio], axis=-1)
+    kk, vv = functional.transpose(kk, [0, 2, 3, 1]), functional.transpose(vv, [0, 2, 1, 3])
 
     output_shape = (height, width, output_dim)
     # print(f"{qq.shape = }, {kk.shape = }, {vv.shape = }, {output_shape = }")
     pos_emb = MultiHeadPositionalEmbedding(query_height=height, name=name and name + "attn_pos")
-    output = scaled_dot_product_attention(qq, kk, vv, output_shape, pos_emb=pos_emb, out_bias=out_bias, activation=activation, name=name)
+    # Set out_weight=False here, as layer name is previously set to "out", different  from `scaled_dot_product_attention` using "output"
+    output = scaled_dot_product_attention(qq, kk, vv, output_shape, pos_emb=pos_emb, out_weight=False, activation=activation, name=name)
+
+    # [batch, cls_token + hh * ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, cls_token + hh * ww, out]
+    output = layers.Dense(output_dim, use_bias=out_bias, name=name and name + "out")(output)
     if use_bn:
-        output = batchnorm_with_activation(output, activation=None, zero_gamma=True, name=name and name + "out_")
+        output = batchnorm_with_activation(output, activation=None, zero_gamma=True, axis=-1, name=name and name + "out_")
     return output
 
 
 def res_mhsa_with_multi_head_position(inputs, embed_dim, num_heads, key_dim, attn_ratio, drop_rate=0, activation="hard_swish", name=""):
     nn = mhsa_with_multi_head_position(inputs, num_heads, key_dim, embed_dim, attn_ratio, activation=activation, name=name)
     if drop_rate > 0:
-        nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop")(nn)
-    return keras.layers.Add(name=name + "add")([inputs, nn])
+        nn = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop")(nn)
+    return layers.Add(name=name + "add")([inputs, nn])
 
 
 def res_mlp_block(inputs, mlp_ratio, drop_rate=0, use_bias=False, activation="hard_swish", name=""):
     in_channels = inputs.shape[-1]
-    nn = keras.layers.Dense(in_channels * mlp_ratio, use_bias=use_bias, name=name + "1_dense")(inputs)
-    nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
-    nn = keras.layers.Dense(in_channels, use_bias=use_bias, name=name + "2_dense")(nn)
-    nn = batchnorm_with_activation(nn, activation=None, name=name + "2_")
+    nn = layers.Dense(in_channels * mlp_ratio, use_bias=use_bias, name=name + "1_dense")(inputs)
+    nn = batchnorm_with_activation(nn, activation=activation, axis=-1, name=name + "1_")  # "channels_first" also using axis=-1
+    nn = layers.Dense(in_channels, use_bias=use_bias, name=name + "2_dense")(nn)
+    nn = batchnorm_with_activation(nn, activation=None, axis=-1, name=name + "2_")  # "channels_first" also using axis=-1
     if drop_rate > 0:
-        nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop")(nn)
-    return keras.layers.Add(name=name + "add")([inputs, nn])
+        nn = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop")(nn)
+    return layers.Add(name=name + "add")([inputs, nn])
 
 
 def attention_mlp_stack(inputs, out_channel, num_heads, depth, key_dim, attn_ratio, mlp_ratio, strides, stack_drop=0, activation="hard_swish", name=""):
@@ -206,7 +195,7 @@ def attention_mlp_stack(inputs, out_channel, num_heads, depth, key_dim, attn_rat
         nn = mhsa_with_multi_head_position_and_strides(nn, ds_num_heads, key_dim, out_channel, ds_attn_ratio, strides, activation=activation, name=block_name)
         if mlp_ratio > 0:
             nn = res_mlp_block(nn, mlp_ratio, drop_rate, activation=activation, name=block_name + "mlp_")
-    return keras.layers.Activation("linear", name=name + "output")(nn)  # Identity, Just need a name here
+    return layers.Activation("linear", name=name + "output")(nn)  # Identity, Just need a name here
 
 
 def patch_stem(inputs, stem_width, activation="hard_swish", name=""):
@@ -241,9 +230,12 @@ def LeViT(
     model_name="levit",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.valid_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
     nn = patch_stem(inputs, patch_channel, activation=activation, name="stem_")
-    # nn = tf.reshape(nn, [-1, nn.shape[1] * nn.shape[2], patch_channel])
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
 
     global_block_id = 0
     total_blocks = sum(depthes)
@@ -257,22 +249,25 @@ def LeViT(
         stack_drop = (stack_drop_s, stack_drop_e)
         nn = attention_mlp_stack(nn, out_channel, num_head, depth, key_dim, attn_ratio, mlp_ratio, stride, stack_drop, activation, name=name)
         global_block_id += depth
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_first -> channels_last
 
     if num_classes == 0:
         out = nn
     else:
-        nn = keras.layers.GlobalAveragePooling2D()(nn)  # tf.reduce_mean(nn, axis=1)
+        nn = layers.GlobalAveragePooling2D(keepdims=True)(nn)
         if dropout > 0 and dropout < 1:
-            nn = keras.layers.Dropout(dropout)(nn)
+            nn = layers.Dropout(dropout)(nn)
         out = batchnorm_with_activation(nn, activation=None, name="head_")
-        out = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="head")(out)
+        out = layers.Flatten()(out)
+        out = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="head")(out)
 
         if use_distillation:
             distill = batchnorm_with_activation(nn, activation=None, name="distill_head_")
-            distill = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="distill_head")(distill)
+            distill = layers.Flatten()(distill)
+            distill = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="distill_head")(distill)
             out = [out, distill]
 
-    model = keras.models.Model(inputs, out, name=model_name)
+    model = models.Model(inputs, out, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "levit", pretrained, MultiHeadPositionalEmbedding)
     return model

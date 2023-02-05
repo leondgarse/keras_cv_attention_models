@@ -1,6 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, initializers, image_data_format
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import activation_by_name, drop_block, eca_module, se_module, make_divisible, add_pre_post_process
 
@@ -18,7 +17,7 @@ PRETRAINED_DICT = {
     "eca_nfnetl2": {"imagenet": "ca7e0bba4f2d1945d881ffc6e36bed36"},
 }
 
-CONV_KERNEL_INITIALIZER = tf.keras.initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
+CONV_KERNEL_INITIALIZER = initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
 NON_LINEAR_GAMMA = dict(
     identity=1.0,
     celu=1.270926833152771,
@@ -38,8 +37,8 @@ NON_LINEAR_GAMMA = dict(
 )
 
 
-@tf.keras.utils.register_keras_serializable(package="nfnets")
-class ScaledStandardizedConv2D(tf.keras.layers.Conv2D):
+@backend.register_keras_serializable(package="nfnets")
+class ScaledStandardizedConv2D(layers.Conv2D):
     """
     Copied from https://github.com/google-research/big_transfer/blob/master/bit_tf2/models.py, Author: Lucas Beyer
     Modified reference: https://github.com/deepmind/deepmind-research/blob/master/nfnets/base.py#L121
@@ -56,17 +55,17 @@ class ScaledStandardizedConv2D(tf.keras.layers.Conv2D):
             default_conv_op = self._convolution_op  # TF < 2.7.0
         else:
             default_conv_op = self.convolution_op  # TF 2.7.0
-        self.gain = self.add_weight(name="gain", shape=(self.filters,), initializer="ones", trainable=True, dtype=self.dtype)
-        self.fan_in = tf.cast(tf.reduce_prod(self.kernel.shape[:-1]), self._compute_dtype)
-        self.__eps__ = tf.cast(self.eps, self._compute_dtype)
-        self.__gamma__ = tf.cast(self.gamma, self._compute_dtype)
+        self.gain = self.add_weight(name="gain", shape=(self.filters,), initializer="ones", trainable=True, dtype="float32")
+        self.fan_in = float(np.prod(self.kernel.shape[:-1]))
+        self.__eps__ = float(self.eps)
+        self.__gamma__ = float(self.gamma)
 
         def standardized_conv_op(inputs, kernel):
             # Kernel has shape HWIO, normalize over HWI
-            mean, var = tf.nn.moments(kernel, axes=[0, 1, 2], keepdims=True)
+            mean, var = functional.moments(kernel, axes=[0, 1, 2], keepdims=True)
             # Manually fused normalization, eq. to (w - mean) * gain / sqrt(N * var)
             # print(">>>>", mean.dtype, var.dtype, self.fan_in.dtype, self.__eps__.dtype, self.__gamma__.dtype, self.gain.dtype)
-            scale = tf.math.rsqrt(tf.math.maximum(var * self.fan_in, self.__eps__)) * (self.gain * self.__gamma__)
+            scale = functional.rsqrt(functional.maximum(var * self.fan_in, self.__eps__)) * (self.gain * self.__gamma__)
             return default_conv_op(inputs, (kernel - mean) * scale)
 
         if hasattr(self, "_convolution_op"):
@@ -81,18 +80,19 @@ class ScaledStandardizedConv2D(tf.keras.layers.Conv2D):
         return base_config
 
 
-@tf.keras.utils.register_keras_serializable(package="nfnets")
-class ZeroInitGain(tf.keras.layers.Layer):
+@backend.register_keras_serializable(package="nfnets")
+class ZeroInitGain(layers.Layer):
     def __init__(self, use_bias=False, weight_init_value=0, bias_init_value=0, **kwargs):
         super().__init__(**kwargs)
         self.use_bias = use_bias
-        self.ww_init = keras.initializers.Constant(weight_init_value) if weight_init_value != 0 else "zeros"
-        self.bb_init = keras.initializers.Constant(bias_init_value) if bias_init_value != 0 else "zeros"
+        self.ww_init = initializers.Constant(weight_init_value) if weight_init_value != 0 else "zeros"
+        self.bb_init = initializers.Constant(bias_init_value) if bias_init_value != 0 else "zeros"
 
     def build(self, input_shape):
-        self.gain = self.add_weight(name="gain", shape=(), initializer=self.ww_init, dtype=self.dtype, trainable=True)
+        self.gain = self.add_weight(name="gain", shape=(), initializer=self.ww_init, dtype="float32", trainable=True)
         if self.use_bias:
-            self.bias = self.add_weight(name="bias", shape=(), initializer=self.bb_init, dtype=self.dtype, trainable=True)
+            self.bias = self.add_weight(name="bias", shape=(), initializer=self.bb_init, dtype="float32", trainable=True)
+        super().build(input_shape)
 
     def call(self, inputs):
         return (inputs * self.gain + self.bias) if self.use_bias else (inputs * self.gain)
@@ -106,7 +106,7 @@ class ZeroInitGain(tf.keras.layers.Layer):
 def std_conv2d_with_init(inputs, filters, kernel_size, strides=1, padding="VALID", torch_padding=False, gamma=1.0, name=None, **kwargs):
     pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
     if torch_padding and padding.upper() == "SAME" and pad != 0:
-        inputs = keras.layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
+        inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
         padding = "VALID"
 
     return ScaledStandardizedConv2D(
@@ -151,7 +151,7 @@ def block(
 
     if strides > 1 or inputs.shape[-1] != filters:
         if strides > 1:
-            shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_down")(preact)
+            shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_down")(preact)
         else:
             shortcut = preact
         shortcut = std_conv2d_with_init(shortcut, filters, 1, strides=1, gamma=conv_gamma, name=name + "shortcut_")
@@ -178,7 +178,7 @@ def block(
     if use_zero_init_gain:
         deep = ZeroInitGain(name=name + "deep_gain")(deep)
     deep *= alpha
-    return keras.layers.Add(name=name + "output")([shortcut, deep])
+    return layers.Add(name=name + "output")([shortcut, deep])
 
 
 def stack(inputs, blocks, filters, betas=1.0, strides=2, stack_drop=0, block_params={}, name=""):
@@ -235,7 +235,10 @@ def NormFreeNet(
     else:
         act_gamma, conv_gamma = 1.0, NON_LINEAR_GAMMA.get(activation.split("/")[0], 1.0)
 
-    inputs = keras.layers.Input(shape=input_shape)
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.valid_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(shape=input_shape)
     stem_width = make_divisible(stem_width * width_factor, 8)
     nn = stem(inputs, stem_width, activation=activation, torch_padding=torch_padding, conv_gamma=conv_gamma, act_gamma=act_gamma, name="stem_")
 
@@ -252,7 +255,7 @@ def NormFreeNet(
         "activation": activation,
     }
 
-    drop_connect_rates = tf.split(tf.linspace(0.0, drop_connect_rate, sum(num_blocks)), num_blocks)
+    drop_connect_rates = functional.split(functional.linspace(0.0, drop_connect_rate, sum(num_blocks)), num_blocks)
     drop_connect_rates = [ii.numpy().tolist() for ii in drop_connect_rates]
     beta_list = [(1 + alpha**2 * ii) ** -0.5 for ii in range(max(num_blocks) + 1)]
     pre_beta = 1.0
@@ -270,12 +273,12 @@ def NormFreeNet(
     nn = activation_by_name_with_gamma(nn, activation, gamma=act_gamma, name="post_")
 
     if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         if dropout > 0:
-            nn = keras.layers.Dropout(dropout, name="head_drop")(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+            nn = layers.Dropout(dropout, name="head_drop")(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
-    model = keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="nfnets", pretrained=pretrained)
     return model
