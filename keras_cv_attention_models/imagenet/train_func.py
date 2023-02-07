@@ -1,7 +1,6 @@
 import os
 import time
 import keras_cv_attention_models
-import tensorflow as tf
 from tensorflow import keras
 from keras_cv_attention_models.imagenet import callbacks, losses
 from keras_cv_attention_models import model_surgery
@@ -10,6 +9,8 @@ GLOBAL_STRATEGY = None
 
 
 def init_global_strategy(enable_float16=True, seed=0, TPU=False):
+    import tensorflow as tf
+
     global GLOBAL_STRATEGY
     if GLOBAL_STRATEGY is not None:
         return GLOBAL_STRATEGY

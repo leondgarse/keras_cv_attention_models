@@ -1,34 +1,45 @@
 import torch
 
+
 def truncated_normal(mean=0.0, stddev=1e-6, seed=None):
     return TruncatedNormal(mean=mean, stddev=stddev, seed=seed)
+
 
 def random_normal(mean=0.0, stddev=1e-6, seed=None):
     return RandomNormal(mean=mean, stddev=stddev, seed=seed)
 
+
 def random_uniform(minval=-0.05, maxval=0.05, seed=None):
     return RandomUniform(minval=minval, maxval=maxval, seed=seed)
+
 
 def glorot_uniform():
     return GlorotUniform()
 
+
 def glorot_normal():
     return GlorotNormal()
+
 
 def he_normal():
     return HeNormal()
 
+
 def he_uniform():
     return HeUniform()
+
 
 def ones():
     return Ones()
 
+
 def zeros():
     return Zeros()
 
+
 def constant(value=0):
     return Constant(value=value)
+
 
 class Initializer:
     def __init__(self, seed=None):
@@ -55,6 +66,7 @@ class Constant(Initializer):
 class Ones(Initializer):
     def __call__(self, shape, dtype=None, **kwargs):
         return torch.nn.init.ones_(torch.empty(shape))
+
 
 class Zeros(Initializer):
     def __call__(self, shape, dtype=None, **kwargs):

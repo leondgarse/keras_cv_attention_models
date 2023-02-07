@@ -96,7 +96,6 @@ class MultiHeadPositionalEmbedding(layers.Layer):
         return fig
 
 
-
 def mhsa_with_multi_head_position(
     inputs, num_heads, key_dim=-1, output_dim=-1, attn_ratio=1, use_bn=False, qkv_bias=False, out_bias=False, activation=None, name=None
 ):

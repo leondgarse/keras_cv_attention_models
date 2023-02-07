@@ -28,7 +28,7 @@ def register_keras_serializable(package="Custom", name=None):
     return decorator
 
 
-def get_file(fname=None, origin=None, cache_subdir='datasets', file_hash=None):
+def get_file(fname=None, origin=None, cache_subdir="datasets", file_hash=None):
     # print(f">>>> {fname = }, {origin = }, {cache_subdir = }, {file_hash = }")
     save_dir = os.path.join(os.path.expanduser("~/.keras"), cache_subdir)
     if os.path.exists(save_dir):

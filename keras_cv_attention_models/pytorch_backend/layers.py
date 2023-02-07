@@ -10,6 +10,7 @@ from keras_cv_attention_models.pytorch_backend import initializers
 
 """ Basic Layers """
 
+
 def get_perm(total_axis, from_axis, to_axis):
     # total_axis, from_axis, to_axis = 4, 1, 3 -> [0, 2, 3, 1]
     # total_axis, from_axis, to_axis = 4, 3, 1 -> [0, 3, 1, 2]
@@ -574,7 +575,8 @@ class __LayerNormGeneral__(nn.Module):
     """LayerNorm supports `bias=False`, also applying on `axis=1` directly without permute.
     From LayerNormGeneral https://github.com/sail-sg/metaformer/blob/main/metaformer_baselines.py#L311
     """
-    def __init__(self, normalized_shape, normalized_dim=(-1, ), scale=True, bias=True, eps=1e-5):
+
+    def __init__(self, normalized_shape, normalized_dim=(-1,), scale=True, bias=True, eps=1e-5):
         super().__init__()
         self.normalized_dim, self.use_scale, self.use_bias, self.eps = normalized_dim, scale, bias, eps
         self.weight = nn.Parameter(torch.ones(normalized_shape)) if scale else None
@@ -671,12 +673,13 @@ class __DropPath__(nn.Module):
     """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
     from drop_path https://github.com/rwightman/pytorch-image-models/blob/main/timm/layers/drop.py#L137
     """
-    def __init__(self, drop_prob: float = 0., scale_by_keep: bool = True):
+
+    def __init__(self, drop_prob: float = 0.0, scale_by_keep: bool = True):
         self.drop_prob, self.scale_by_keep = drop_prob, scale_by_keep
         super().__init__()
 
     def forward(self, inputs):
-        if self.drop_prob == 0. or not self.training:
+        if self.drop_prob == 0.0 or not self.training:
             return inputs
         keep_prob = 1 - self.drop_prob
         shape = (inputs.shape[0],) + (1,) * (inputs.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
@@ -686,7 +689,7 @@ class __DropPath__(nn.Module):
         return inputs * random_tensor
 
     def extra_repr(self):
-        return f'drop_prob={round(self.drop_prob,3):0.3f}'
+        return f"drop_prob={round(self.drop_prob,3):0.3f}"
 
 
 class Dropout(Layer):

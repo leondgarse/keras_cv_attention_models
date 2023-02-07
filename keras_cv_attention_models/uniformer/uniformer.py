@@ -34,7 +34,7 @@ PRETRAINED_DICT = {
 
 
 def multi_head_self_attention(
-    inputs, num_heads=4, key_dim=0, out_shape=None, out_weight=True, qkv_bias=False, out_bias=False, attn_dropout=0, output_dropout=0, data_format=None, name=None
+    inputs, num_heads=4, key_dim=0, out_shape=None, out_weight=True, qkv_bias=False, out_bias=False, attn_dropout=0, output_dropout=0, name=None
 ):
     _, hh, ww, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads

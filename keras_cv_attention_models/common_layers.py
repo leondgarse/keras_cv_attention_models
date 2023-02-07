@@ -6,7 +6,7 @@ BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 TF_BATCH_NORM_EPSILON = 0.001
 LAYER_NORM_EPSILON = 1e-5
-CONV_KERNEL_INITIALIZER = 'glorot_uniform'
+CONV_KERNEL_INITIALIZER = "glorot_uniform"
 
 
 """ Wrapper for default parameters """

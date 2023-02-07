@@ -1,5 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, functional, models, image_data_format
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -36,7 +36,8 @@ def conv_mhsa_with_multi_head_position(
 ):
     input_channel = inputs.shape[-1]
     key_dim = key_dim if key_dim > 0 else input_channel // num_heads
-    qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
+    # qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
+    qk_scale = 1.0 / (float(key_dim) ** 0.5)
     out_shape = input_channel if out_shape is None else out_shape
     qk_out = num_heads * key_dim
     value_out = attn_ratio * qk_out
@@ -50,7 +51,7 @@ def conv_mhsa_with_multi_head_position(
     kv_blocks = inputs.shape[1] * inputs.shape[2]
 
     if use_local_global_query:
-        # pool_query = keras.layers.AvgPool2D(pool_size=1, strides=2)(inputs)
+        # pool_query = layers.AvgPool2D(pool_size=1, strides=2)(inputs)
         pool_query = inputs[:, ::2, ::2]  # nn.AvgPool2d(kernel_size=1, stride=2, padding=0)
         local_query = depthwise_conv2d_no_bias(inputs, use_bias=qkv_bias, kernel_size=3, strides=2, padding="same", name=name and name + "local_query_")
         pre_query = pool_query + local_query
@@ -70,35 +71,39 @@ def conv_mhsa_with_multi_head_position(
     value = batchnorm_with_activation(value, activation=None, name=name and name + "value_")
     vv_local = depthwise_conv2d_no_bias(value, use_bias=qkv_bias, kernel_size=3, strides=vv_local_strides, padding="same", name=name and name + "value_local_")
     vv_local = batchnorm_with_activation(vv_local, activation=None, name=name and name + "value_local_")
-    
-    query = tf.transpose(tf.reshape(query, [-1, query_height * query_width, num_heads, key_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, key_dim]
-    key = tf.transpose(tf.reshape(key, [-1, kv_blocks, num_heads, key_dim]), [0, 2, 3, 1])  #  [batch, num_heads, key_dim, hh * ww]
-    value = tf.transpose(tf.reshape(value, [-1, kv_blocks, num_heads, value_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, value_dim]
 
-    attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, hh * ww, hh * ww]
+    query = functional.transpose(
+        functional.reshape(query, [-1, query_height * query_width, num_heads, key_dim]), [0, 2, 1, 3]
+    )  #  [batch, num_heads, hh * ww, key_dim]
+    key = functional.transpose(functional.reshape(key, [-1, kv_blocks, num_heads, key_dim]), [0, 2, 3, 1])  #  [batch, num_heads, key_dim, hh * ww]
+    value = functional.transpose(functional.reshape(value, [-1, kv_blocks, num_heads, value_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, value_dim]
+
+    # attention_scores = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, hh * ww, hh * ww]
     # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {attention_scores.shape = }, {query_height = }")
+    attention_scores = (query @ key) * qk_scale
     attention_scores = MultiHeadPositionalEmbedding(query_height=query_height, name=name and name + "pos_emb")(attention_scores)
 
     if use_talking_head:
-        attention_scores = tf.transpose(attention_scores, [0, 2, 3, 1])  # [batch, hh * ww, hh * ww, num_heads]
+        attention_scores = functional.transpose(attention_scores, [0, 2, 3, 1])  # [batch, hh * ww, hh * ww, num_heads]
         attention_scores = conv2d_no_bias(attention_scores, num_heads, use_bias=True, name=name and name + "talking_head_1_")
-        attention_scores = keras.layers.Softmax(axis=2, name=name and name + "attention_scores")(attention_scores)  # On previous last dimension
+        attention_scores = layers.Softmax(axis=2, name=name and name + "attention_scores")(attention_scores)  # On previous last dimension
         attention_scores = conv2d_no_bias(attention_scores, num_heads, use_bias=True, name=name and name + "talking_head_2_")
-        # attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores) if attn_dropout > 0 else attention_scores
-        attention_scores = tf.transpose(attention_scores, [0, 3, 1, 2])  # [batch, num_heads, hh * ww, hh * ww]
+        # attention_scores = layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores) if attn_dropout > 0 else attention_scores
+        attention_scores = functional.transpose(attention_scores, [0, 3, 1, 2])  # [batch, num_heads, hh * ww, hh * ww]
     else:
-        attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
-        # attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores) if attn_dropout > 0 else attention_scores
+        attention_scores = layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
+        # attention_scores = layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores) if attn_dropout > 0 else attention_scores
 
     # value = [batch, num_heads, hh * ww, value_dim], attention_output = [batch, num_heads, hh * ww, value_dim]
-    attention_output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
-    attention_output = tf.transpose(attention_output, perm=[0, 2, 1, 3])
-    attention_output = tf.reshape(attention_output, [-1, query_height, query_width, num_heads * value_dim])
+    # attention_output = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([attention_scores, value])
+    attention_output = attention_scores @ value
+    attention_output = functional.transpose(attention_output, perm=[0, 2, 1, 3])
+    attention_output = functional.reshape(attention_output, [-1, query_height, query_width, num_heads * value_dim])
     attention_output += vv_local
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
     if strides > 1:
-        attention_output = keras.layers.UpSampling2D(size=(strides, strides), interpolation="bilinear")(attention_output)
+        attention_output = layers.UpSampling2D(size=(strides, strides), interpolation="bilinear")(attention_output)
         if should_cut_height > 0 or should_cut_width > 0:
             attention_output = attention_output[:, : attention_output.shape[1] - should_cut_height, : attention_output.shape[2] - should_cut_width]
 
@@ -120,7 +125,7 @@ def mlp_block_with_additional_depthwise_conv(inputs, hidden_dim, output_channel=
 
     nn = conv2d_no_bias(nn, output_channel, kernel_size=1, use_bias=True, name=name + "2_")
     nn = batchnorm_with_activation(nn, activation=None, name=name + "2_")
-    nn = keras.layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
+    nn = layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
     return nn
 
 
