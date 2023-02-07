@@ -1,13 +1,11 @@
 import os
 import numpy as np
-from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format, get_file
 
 
 def reload_model_weights(
     model, pretrained_dict, sub_release, pretrained="imagenet", mismatch_class=None, force_reload_mismatch=False, request_resolution=-1, method=None
 ):
-    from tensorflow import keras
-
     if not isinstance(pretrained, str):
         return
     if pretrained.endswith(".h5"):
@@ -39,7 +37,7 @@ def reload_model_weights(
     url = pre_url.format(sub_release, model.name, pretrained)
     file_name = os.path.basename(url)
     try:
-        pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models", file_hash=file_hash)
+        pretrained_model = get_file(file_name, url, cache_subdir="models", file_hash=file_hash)
     except:
         print("[Error] will not load weights, url not found or download failed:", url)
         return None

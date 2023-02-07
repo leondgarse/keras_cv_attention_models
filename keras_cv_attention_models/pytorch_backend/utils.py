@@ -1,4 +1,6 @@
+import os
 import inspect
+import torch
 
 _GLOBAL_CUSTOM_OBJECTS = {}
 _GLOBAL_CUSTOM_NAMES = {}
@@ -24,3 +26,16 @@ def register_keras_serializable(package="Custom", name=None):
         return arg
 
     return decorator
+
+
+def get_file(fname=None, origin=None, cache_subdir='datasets', file_hash=None):
+    # print(f">>>> {fname = }, {origin = }, {cache_subdir = }, {file_hash = }")
+    save_dir = os.path.join(os.path.expanduser("~/.keras"), cache_subdir)
+    if os.path.exists(save_dir):
+        os.makedirs(save_dir, exist_ok=True)
+    fname = os.path.basename(origin) if fname is None else fname
+    file_path = os.path.join(save_dir, fname)
+    if os.path.exists(file_path):
+        return file_path  # [TODO] check md5
+    torch.hub.download_url_to_file(origin, file_path)
+    return file_path

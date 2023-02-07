@@ -1,10 +1,9 @@
 import os
 import json
 import numpy as np
-import tensorflow as tf
-from keras_cv_attention_models.imagenet import data
-from keras_cv_attention_models.model_surgery import change_model_input_shape
 
+
+CLASS_INDEX_IMAGENET = None
 CLASS_INDEX_IMAGENET21K = None
 
 """ Imagenet evaluation """
@@ -29,6 +28,9 @@ class TorchModelInterf:
 
 class TFLiteModelInterf:
     def __init__(self, model_path):
+        import tensorflow as tf
+
+        self.tf = tf
         self.interpreter = tf.lite.Interpreter(model_path=model_path)
         self.name = os.path.splitext(os.path.basename(model_path))[0]
 
@@ -52,14 +54,14 @@ class TFLiteModelInterf:
         self.interpreter.allocate_tensors()
 
     def __float_interf__(self, img):
-        img = tf.cast(img, self.input_dtype)
-        self.interpreter.set_tensor(self.input_index, tf.expand_dims(img, 0))
+        img = self.tf.cast(img, self.input_dtype)
+        self.interpreter.set_tensor(self.input_index, self.tf.expand_dims(img, 0))
         self.interpreter.invoke()
         return self.interpreter.get_tensor(self.output_index).copy()
 
     def __uint8_interf__(self, img):
-        img = tf.cast(img / self.input_scale + self.input_zero_point, self.input_dtype)
-        self.interpreter.set_tensor(self.input_index, tf.expand_dims(img, 0))
+        img = self.tf.cast(img / self.input_scale + self.input_zero_point, self.input_dtype)
+        self.interpreter.set_tensor(self.input_index, self.tf.expand_dims(img, 0))
         self.interpreter.invoke()
         pred = self.interpreter.get_tensor(self.output_index).copy()
         return (pred.astype("float32") - self.output_zero_point) * self.output_scale
@@ -70,7 +72,7 @@ class TFLiteModelInterf:
         for img in imgs:
             pred = self.__interf__(img)
             preds.append(pred)
-        return tf.concat(preds, 0).numpy()
+        return self.tf.concat(preds, 0).numpy()
 
 
 class ONNXModelInterf:
@@ -105,8 +107,11 @@ def evaluation(
 ):
     import types
     from tqdm import tqdm
+    from keras_cv_attention_models.backend import models
+    from keras_cv_attention_models.model_surgery import change_model_input_shape
+    from keras_cv_attention_models.imagenet import data
 
-    if isinstance(model, tf.keras.models.Model):
+    if isinstance(model, models.Model):
         input_shape = model.input_shape[1:-1] if input_shape is None else input_shape[:2]
         model_interf = change_model_input_shape(model, input_shape)
         print(">>>> Using input_shape {} for Keras model.".format(input_shape))
@@ -140,7 +145,8 @@ def evaluation(
 
     y_true, y_pred_top_1, y_pred_top_5 = [], [], []
     for img_batch, true_labels in tqdm(test_dataset.as_numpy_iterator(), "Evaluating", total=len(test_dataset)):
-        predicts = np.array(model_interf(img_batch))
+        predicts = model_interf(img_batch)
+        predicts = np.array(predicts.detach() if hasattr(predicts, "detach") else predicts)
         pred_argsort = predicts.argsort(-1)
         y_pred_top_1.extend(pred_argsort[:, -1])
         y_pred_top_5.extend(pred_argsort[:, -5:])
@@ -156,35 +162,43 @@ def evaluation(
 
 
 def decode_predictions(preds, top=5):
-    preds = np.array(preds)
-    if preds.shape[-1] == 1000:
-        return tf.keras.applications.imagenet_utils.decode_predictions(preds, top=top)
-    elif preds.shape[-1] == 21843:
-        return decode_predictions_imagenet21k(preds, top=top)
-    else:
+    """Similar function from keras.applications.imagenet_utils.decode_predictions, just also supporting imagenet21k class index"""
+    from keras_cv_attention_models.backend import get_file
+
+    preds = np.array(preds.detach() if hasattr(preds, "detach") else preds)
+    if len(preds.shape) != 2 or (preds.shape[-1] != 1000 and preds.shape[-1] != 21843):
         print("[Error] not imagenet or imagenet21k prediction, not supported")
-
-
-def decode_predictions_imagenet21k(preds, top=5):
-    """Similar function from keras.applications.imagenet_utils.decode_predictions, just using imagenet21k class index"""
-    if len(preds.shape) != 2 or preds.shape[-1] != 21843:
-        print("[Error] not imagenet21k prediction")
         return
 
+    is_imagenet = preds.shape[-1] == 1000
+
+    global CLASS_INDEX_IMAGENET
     global CLASS_INDEX_IMAGENET21K
-    if CLASS_INDEX_IMAGENET21K is None:
-        url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/imagenet21k_class_index.json"
-        class_index_path = tf.keras.utils.get_file(origin=url)
+    if (is_imagenet and CLASS_INDEX_IMAGENET is None) or CLASS_INDEX_IMAGENET21K is None:
+        if is_imagenet:
+            url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/imagenet_class_index.json"
+        else:
+            url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/imagenet21k_class_index.json"
+
+        class_index_path = get_file(origin=url)
         with open(class_index_path) as ff:
-            CLASS_INDEX_IMAGENET21K = json.load(ff)
+            if is_imagenet:
+                CLASS_INDEX_IMAGENET = json.load(ff)
+            else:
+                CLASS_INDEX_IMAGENET21K = json.load(ff)
+    class_index = CLASS_INDEX_IMAGENET if is_imagenet else CLASS_INDEX_IMAGENET21K
 
     results = []
     for pred in preds:
         top_indices = pred.argsort()[-top:][::-1]
-        result = [tuple(CLASS_INDEX_IMAGENET21K[str(i)]) + (pred[i],) for i in top_indices]
+        result = [tuple(class_index[str(i)]) + (pred[i],) for i in top_indices]
         result.sort(key=lambda x: x[2], reverse=True)
         results.append(result)
     return results
+
+
+def decode_predictions_imagenet21k(preds, top=5):
+    return decode_predictions(preds, top=top)  # just keeping for compiling with ealier
 
 
 """ Plotting related """
@@ -262,7 +276,7 @@ def curve_fit(source, target_len=10, skip=5, use_recent=40):
 def plot_and_peak_scatter(ax, source_array, peak_method, label, skip_first=0, color=None, va="bottom", pred_curve=0, **kwargs):
     array = source_array[skip_first:]
     for id, ii in enumerate(array):
-        if tf.math.is_nan(ii):
+        if np.isnan(ii):
             array[id] = array[id - 1]
     ax.plot(range(skip_first, skip_first + len(array)), array, label=label, color=color, **kwargs)
     color = ax.lines[-1].get_color() if color is None else color
