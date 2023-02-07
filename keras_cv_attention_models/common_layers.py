@@ -6,8 +6,7 @@ BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 TF_BATCH_NORM_EPSILON = 0.001
 LAYER_NORM_EPSILON = 1e-5
-CONV_KERNEL_INITIALIZER = initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
-# CONV_KERNEL_INITIALIZER = 'glorot_uniform'
+CONV_KERNEL_INITIALIZER = 'glorot_uniform'
 
 
 """ Wrapper for default parameters """
@@ -418,11 +417,14 @@ def addaptive_pooling_2d(inputs, output_size, reduce="mean", name=None):
 def __anti_alias_downsample_initializer__(weight_shape, dtype="float32"):
     import numpy as np
 
-    kernel_size, channel = weight_shape[0], weight_shape[2]
-    ww = functional.convert_to_tensor(np.poly1d((0.5, 0.5)) ** (kernel_size - 1), dtype)
-    ww = functional.expand_dims(ww, 0) * functional.expand_dims(ww, 1)
-    ww = functional.repeat(ww[:, :, None, None], channel, axis=-2)
-    return ww
+    kernel_size, channel = (weight_shape[0], weight_shape[2]) if backend.image_data_format() == "channels_last" else (weight_shape[2], weight_shape[0])
+    ww = np.array(np.poly1d((0.5, 0.5)) ** (kernel_size - 1)).astype("float32")
+    ww = np.expand_dims(ww, 0) * np.expand_dims(ww, 1)
+    if backend.image_data_format() == "channels_last":
+        ww = np.repeat(ww[:, :, None, None], channel, axis=-2)
+    else:
+        ww = np.repeat(ww[None, None, :, :], channel, axis=0)
+    return functional.convert_to_tensor(ww, dtype=dtype)
 
 
 def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trainable=False, name=None):
@@ -520,6 +522,8 @@ class CompatibleExtractPatches(layers.Layer):
         else:
             self.use_conv = force_conv
 
+        self.use_layer_as_module = True  # For PyTorch backend
+
     def build(self, input_shape):
         _, self.height, self.width, self.channel = input_shape
         if self.padding.upper() == "SAME":
@@ -544,6 +548,8 @@ class CompatibleExtractPatches(layers.Layer):
             self._sizes_ = [1, self.kernel_size, self.kernel_size, 1]
             self._strides_ = [1, self.strides, self.strides, 1]
             self._rates_ = [1, self.dilation_rate, self.dilation_rate, 1]
+        # output_size = backend.compute_conv_output_size([self.height, self.width], self.kernel_size, self.strides, self.padding, self.dilation_rate)
+        # self.output_height, self.output_width = output_size
         super().build(input_shape)
 
     def call(self, inputs):
@@ -627,19 +633,10 @@ class PreprocessInput:
         return images
 
 
-def imagenet_decode_predictions(preds, top=5):
+def add_pre_post_process(model, rescale_mode="tf", input_shape=None, post_process=None):
     from keras_cv_attention_models.imagenet.eval_func import decode_predictions
 
-    if hasattr(preds, "detach"):
-        preds = preds.detach()
-    if hasattr(preds, "numpy"):
-        preds = preds.numpy()
-    # preds = preds.numpy() if isinstance(preds, tf.Tensor) else preds
-    return decode_predictions(preds, top=top)
-
-
-def add_pre_post_process(model, rescale_mode="tf", input_shape=None, post_process=None):
     input_shape = model.input_shape[1:] if input_shape is None else input_shape
     model.preprocess_input = PreprocessInput(input_shape, rescale_mode=rescale_mode)
-    model.decode_predictions = imagenet_decode_predictions if post_process is None else post_process
+    model.decode_predictions = decode_predictions if post_process is None else post_process
     model.rescale_mode = rescale_mode

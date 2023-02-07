@@ -175,6 +175,10 @@ def load_weights_from_hdf5_group(h5_file, model, skip_mismatch=False, debug=Fals
             continue
         if debug:
             print(">>>> Load layer weights:", tt.name, [ii.name for ii in tt.weights])
+        if tt.name not in weights:
+            print("Warning: {} not exists in provided h5 weights".format(tt.name))
+            continue
+
         ss = weights[tt.name]
         ss = [np.array(ss[ww]) for ww in ss.attrs["weight_names"]]
         source_shape, target_shape = [ii.shape for ii in ss], [list(ii.shape) for ii in tt.weights]

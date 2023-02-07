@@ -62,16 +62,17 @@ def conv_mhsa_with_multi_head_position(
 
     query = conv2d_no_bias(pre_query, qk_out, use_bias=qkv_bias, kernel_size=1, name=name and name + "query_")
     query = batchnorm_with_activation(query, activation=None, name=name and name + "query_")
-    query = tf.transpose(tf.reshape(query, [-1, query_height * query_width, num_heads, key_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, key_dim]
 
     key = conv2d_no_bias(inputs, qk_out, use_bias=qkv_bias, kernel_size=1, name=name and name + "key_")
     key = batchnorm_with_activation(key, activation=None, name=name and name + "key_")
-    key = tf.transpose(tf.reshape(key, [-1, kv_blocks, num_heads, key_dim]), [0, 2, 3, 1])  #  [batch, num_heads, key_dim, hh * ww]
 
     value = conv2d_no_bias(inputs, value_out, use_bias=qkv_bias, kernel_size=1, name=name and name + "value_")
     value = batchnorm_with_activation(value, activation=None, name=name and name + "value_")
     vv_local = depthwise_conv2d_no_bias(value, use_bias=qkv_bias, kernel_size=3, strides=vv_local_strides, padding="same", name=name and name + "value_local_")
     vv_local = batchnorm_with_activation(vv_local, activation=None, name=name and name + "value_local_")
+    
+    query = tf.transpose(tf.reshape(query, [-1, query_height * query_width, num_heads, key_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, key_dim]
+    key = tf.transpose(tf.reshape(key, [-1, kv_blocks, num_heads, key_dim]), [0, 2, 3, 1])  #  [batch, num_heads, key_dim, hh * ww]
     value = tf.transpose(tf.reshape(value, [-1, kv_blocks, num_heads, value_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, value_dim]
 
     attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, hh * ww, hh * ww]
@@ -154,7 +155,10 @@ def EfficientFormerV2(
     model_name="efficientformer_v2",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
     stem_width = stem_width if stem_width > 0 else out_channels[0]
     stem_activation = stem_activation if stem_activation is not None else activation
     nn = conv2d_no_bias(inputs, stem_width // 2, 3, strides=2, use_bias=True, padding="same", name="stem_1_")
@@ -188,18 +192,18 @@ def EfficientFormerV2(
     """ output """
     if num_classes > 0:
         nn = batchnorm_with_activation(nn, activation=None, name="pre_output_")
-        nn = keras.layers.GlobalAveragePooling2D()(nn)  # tf.reduce_mean(nn, axis=1)
+        nn = layers.GlobalAveragePooling2D()(nn)  # tf.reduce_mean(nn, axis=1)
         if dropout > 0 and dropout < 1:
-            nn = keras.layers.Dropout(dropout)(nn)
-        out = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="head")(nn)
+            nn = layers.Dropout(dropout)(nn)
+        out = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="head")(nn)
 
         if use_distillation:
-            distill = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="distill_head")(nn)
+            distill = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="distill_head")(nn)
             out = [out, distill]
     else:
         out = nn
 
-    model = keras.models.Model(inputs, out, name=model_name)
+    model = models.Model(inputs, out, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "efficientformer", pretrained, MultiHeadPositionalEmbedding)
     return model

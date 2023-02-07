@@ -1,13 +1,7 @@
-"""
-A Keras version of `botnet`.
-Original TensorFlow version: https://gist.github.com/aravindsrinivas/56359b79f0ce4449bcb04ab4b56a57a2
-"""
-
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, functional, initializers, image_data_format
 from keras_cv_attention_models.aotnet import AotNet
-from keras_cv_attention_models.attention_layers import conv2d_no_bias
+from keras_cv_attention_models.attention_layers import conv2d_no_bias, scaled_dot_product_attention, qkv_to_multi_head_channals_last_format
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 BATCH_NORM_DECAY = 0.9
@@ -21,10 +15,10 @@ PRETRAINED_DICT = {
 }
 
 
-@tf.keras.utils.register_keras_serializable(package="botnet")
-class RelativePositionalEmbedding(keras.layers.Layer):
+@backend.register_keras_serializable(package="botnet")
+class RelativePositionalEmbedding(layers.Layer):
     def __init__(self, position_height=0, position_width=0, use_absolute_pos=False, dynamic_shape=False, **kwargs):
-        super(RelativePositionalEmbedding, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.position_height = position_height
         self.position_width = position_width if position_width > 0 else position_height
         self.use_absolute_pos = use_absolute_pos
@@ -44,10 +38,11 @@ class RelativePositionalEmbedding(keras.layers.Layer):
             hh_shape = (key_dim, 2 * self.position_height - 1)
             ww_shape = (key_dim, 2 * self.position_width - 1)
 
-        initializer = tf.random_normal_initializer(stddev=stddev)
+        initializer = initializers.random_normal(stddev=stddev)
         self.pos_emb_h = self.add_weight(name="r_height", shape=hh_shape, initializer=initializer, trainable=True)
         self.pos_emb_w = self.add_weight(name="r_width", shape=ww_shape, initializer=initializer, trainable=True)
         self.input_height, self.input_width = height, width
+        super().build(input_shape)
 
     def get_config(self):
         base_config = super(RelativePositionalEmbedding, self).get_config()
@@ -75,31 +70,31 @@ class RelativePositionalEmbedding(keras.layers.Layer):
             return rel_pos[:, :, :, -pos_dim:]
         full_rank_gap = pos_dim - ww
         # [bs+heads, height, width * (2 * pos_dim - 1)] --> [bs+heads, height, width * (2 * pos_dim - 1) - width]
-        flat_x = tf.reshape(rel_pos, [-1, hh, ww * dim])[:, :, ww - 1 : -1]
+        flat_x = functional.reshape(rel_pos, [-1, hh, ww * dim])[:, :, ww - 1 : -1]
         # [bs+heads, height, width, 2 * (pos_dim - 1)] --> [bs+heads, height, width, pos_dim]
         # print(f">>>> {full_rank_gap = }, {flat_x.shape = }")
-        return tf.reshape(flat_x, [-1, hh, ww, 2 * (pos_dim - 1)])[:, :, :, full_rank_gap : pos_dim + full_rank_gap]
+        return functional.reshape(flat_x, [-1, hh, ww, 2 * (pos_dim - 1)])[:, :, :, full_rank_gap : pos_dim + full_rank_gap]
 
     def relative_logits(self, inputs):
         bs, heads, hh, ww, cc = inputs.shape  # e.g.: [1, 4, 14, 16, 128]
-        inputs = tf.reshape(inputs, [-1, hh, ww, cc])  # Merge bs and heads, for supporting TFLite conversion
-        rel_logits_w = tf.matmul(inputs, self.pos_emb_w)  # [4, 14, 16, 31], 2 * 16 - 1 == 31
+        inputs = functional.reshape(inputs, [-1, hh, ww, cc])  # Merge bs and heads, for supporting TFLite conversion
+        rel_logits_w = functional.matmul(inputs, self.pos_emb_w)  # [4, 14, 16, 31], 2 * 16 - 1 == 31
         rel_logits_w = self.rel_to_abs(rel_logits_w)  # [4, 14, 16, 16]
 
-        query_h = tf.transpose(inputs, [0, 2, 1, 3])  # [4, 16, 14, 128], [bs+heads, ww, hh, dims], Exchange `ww` and `hh`
-        rel_logits_h = tf.matmul(query_h, self.pos_emb_h)  # [4, 16, 14, 27], 2 * 14 - 1 == 27
+        query_h = functional.transpose(inputs, [0, 2, 1, 3])  # [4, 16, 14, 128], [bs+heads, ww, hh, dims], Exchange `ww` and `hh`
+        rel_logits_h = functional.matmul(query_h, self.pos_emb_h)  # [4, 16, 14, 27], 2 * 14 - 1 == 27
         rel_logits_h = self.rel_to_abs(rel_logits_h)  # [4, 16, 14, 14]
-        rel_logits_h = tf.transpose(rel_logits_h, [0, 2, 1, 3])  # [4, 14, 16, 14], transpose back
+        rel_logits_h = functional.transpose(rel_logits_h, [0, 2, 1, 3])  # [4, 14, 16, 14], transpose back
 
-        logits = tf.expand_dims(rel_logits_w, axis=-2) + tf.expand_dims(rel_logits_h, axis=-1)  # [4, 14, 16, 14, 16]
-        return tf.reshape(logits, [-1, heads, hh, ww, self.position_height, self.position_width])  # [1, 4, 14, 16, 14, 16]
+        logits = functional.expand_dims(rel_logits_w, axis=-2) + functional.expand_dims(rel_logits_h, axis=-1)  # [4, 14, 16, 14, 16]
+        return functional.reshape(logits, [-1, heads, hh, ww, self.position_height, self.position_width])  # [1, 4, 14, 16, 14, 16]
 
     def absolute_logits(self, inputs):
         # pos_emb = tf.expand_dims(self.pos_emb_w, -2) + tf.expand_dims(self.pos_emb_h, -1)
         # return tf.einsum("bxyhd,dpq->bhxypq", inputs, pos_emb)
-        rel_logits_w = tf.matmul(inputs, self.pos_emb_w)
-        rel_logits_h = tf.matmul(inputs, self.pos_emb_h)
-        return tf.expand_dims(rel_logits_w, axis=-2) + tf.expand_dims(rel_logits_h, axis=-1)
+        rel_logits_w = functional.matmul(inputs, self.pos_emb_w)
+        rel_logits_h = functional.matmul(inputs, self.pos_emb_h)
+        return functional.expand_dims(rel_logits_w, axis=-2) + functional.expand_dims(rel_logits_h, axis=-1)
 
     def call(self, inputs):
         pos_emb = self.absolute_logits(inputs) if self.use_absolute_pos else self.relative_logits(inputs)
@@ -112,28 +107,34 @@ class RelativePositionalEmbedding(keras.layers.Layer):
     def load_resized_weights(self, source_layer, method="nearest"):
         # For input 224 --> [128, 27], convert to 480 --> [128, 30]
         if isinstance(source_layer, dict):
-            source_pos_emb_h = source_layer["r_height:0"]  # weights
-            source_pos_emb_w = source_layer["r_width:0"]  # weights
+            source_pos_emb_h, source_pos_emb_w = list(source_layer.values())
         else:
-            source_pos_emb_h = source_layer.pos_emb_h  # layer
-            source_pos_emb_w = source_layer.pos_emb_w  # layer
-        image_like_w = tf.expand_dims(tf.transpose(source_pos_emb_w, [1, 0]), 0)
-        resize_w = tf.image.resize(image_like_w, (1, self.pos_emb_w.shape[1]), method=method)[0]
-        self.pos_emb_w.assign(tf.transpose(resize_w, [1, 0]))
+            source_pos_emb_h, source_pos_emb_w = source_layer.pos_emb_h, source_layer.pos_emb_w  # layer
+        source_pos_emb_h = np.array(source_pos_emb_h.detach() if hasattr(source_pos_emb_h, "detach") else source_pos_emb_h)
+        source_pos_emb_w = np.array(source_pos_emb_w.detach() if hasattr(source_pos_emb_w, "detach") else source_pos_emb_w)
 
-        image_like_h = tf.expand_dims(tf.transpose(source_pos_emb_h, [1, 0]), 0)
-        resize_h = tf.image.resize(image_like_h, (1, self.pos_emb_h.shape[1]), method=method)[0]
-        self.pos_emb_h.assign(tf.transpose(resize_h, [1, 0]))
+        image_like_h = np.expand_dims(np.transpose(source_pos_emb_h, [1, 0]), 0)
+        resize_h = backend.numpy_image_resize(image_like_h, target_shape=(1, self.pos_emb_h.shape[1]), method=method)[0]
+        resize_h = np.transpose(resize_h, [1, 0])
+
+        image_like_w = np.expand_dims(np.transpose(source_pos_emb_w, [1, 0]), 0)
+        resize_w = backend.numpy_image_resize(image_like_w, target_shape=(1, self.pos_emb_w.shape[1]), method=method)[0]
+        resize_w = np.transpose(resize_w, [1, 0])
+
+        self.set_weights([resize_h, resize_w])
 
     def show_pos_emb(self, base_size=4):
         import matplotlib.pyplot as plt
 
+        pos_emb_h = self.pos_emb_h.detach().numpy() if hasattr(self.pos_emb_h, "detach") else self.pos_emb_h.numpy()
+        pos_emb_w = self.pos_emb_w.detach().numpy() if hasattr(self.pos_emb_w, "detach") else self.pos_emb_w.numpy()
+
         fig, axes = plt.subplots(1, 3, figsize=(base_size * 3, base_size * 1))
-        axes[0].imshow(self.pos_emb_h)
-        axes[1].imshow(self.pos_emb_w)
-        hh_sum = tf.ones([1, self.pos_emb_h.shape[0]]) @ self.pos_emb_h
-        ww_sum = tf.ones([1, self.pos_emb_w.shape[0]]) @ self.pos_emb_w
-        axes[2].imshow(tf.transpose(hh_sum) + ww_sum)
+        axes[0].imshow(pos_emb_h)
+        axes[1].imshow(pos_emb_w)
+        hh_sum = np.ones([1, pos_emb_h.shape[0]]) @ pos_emb_h
+        ww_sum = np.ones([1, pos_emb_w.shape[0]]) @ pos_emb_w
+        axes[2].imshow(np.transpose(hh_sum) + ww_sum)
         titles = ["pos_emb_h", "pos_emb_w", "sum"]
         for ax, title in zip(axes.flatten(), titles):
             ax.set_title(title)
@@ -143,50 +144,54 @@ class RelativePositionalEmbedding(keras.layers.Layer):
 
 
 def mhsa_with_relative_position_embedding(
-    inputs, num_heads=4, key_dim=0, relative=True, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
+    inputs, num_heads=4, key_dim=0, relative=True, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, data_format=None, name=None
 ):
-    _, hh, ww, cc = inputs.shape
-    key_dim = key_dim if key_dim > 0 else cc // num_heads
-    qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
-    out_shape = cc if out_shape is None or not out_weight else out_shape
+    data_format = image_data_format() if data_format is None else data_format
+    channel_axis = -1 if data_format == "channels_last" else 1
+    input_channels = inputs.shape[channel_axis]
+    hh, ww = inputs.shape[1:-1] if data_format == "channels_last" else inputs.shape[2:]
+
+    key_dim = key_dim if key_dim > 0 else input_channels // num_heads
+    out_shape = input_channels if out_shape is None or not out_weight else out_shape
     qk_out = num_heads * key_dim
     vv_dim = out_shape // num_heads
 
-    # qkv = keras.layers.Dense(emb_dim * 3, use_bias=False, name=name and name + "qkv")(inputs)
+    # qkv = layers.Dense(qk_out * 2 + out_shape, use_bias=False, name=name and name + "qkv")(inputs)
     qkv = conv2d_no_bias(inputs, qk_out * 2 + out_shape, kernel_size=1, name=name and name + "qkv_")
-    qkv = tf.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
-    query, key, value = tf.split(qkv, [qk_out, qk_out, out_shape], axis=-1)
-    # query = [batch, num_heads, hh * ww, key_dim]
-    query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])
-    # key = [batch, num_heads, key_dim, hh * ww]
-    key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])
-    # value = [batch, num_heads, hh * ww, vv_dim]
-    value = tf.transpose(tf.reshape(value, [-1, value.shape[1], num_heads, vv_dim]), [0, 2, 1, 3])
+    # qkv = functional.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
+    query, key, value = functional.split(qkv, [qk_out, qk_out, out_shape], axis=channel_axis)
+    query, key, value = qkv_to_multi_head_channals_last_format(query, key, value, num_heads, data_format=data_format)
+
+    # pos_query = [batch, num_heads, hh, ww, key_dim]
+    pos_query = functional.reshape(query, [-1, num_heads, hh, ww, key_dim])
+    pos_emb = RelativePositionalEmbedding(use_absolute_pos=not relative, name=name and name + "pos_emb")(pos_query)
+
+    output_shape = [hh, ww, out_shape]
+    pos_emb_func = lambda attention_scores: attention_scores + functional.reshape(pos_emb, [-1, *attention_scores.shape[1:]])
+    out = scaled_dot_product_attention(query, key, value, output_shape, pos_emb_func, out_weight, out_bias, dropout=attn_dropout, name=name)
+    return out if data_format == "channels_last" else layers.Permute([3, 1, 2])(out)
 
     # query *= qk_scale
     # [batch, num_heads, hh * ww, hh * ww]
-    attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale
-    # pos_query = [batch, num_heads, hh, ww, key_dim]
-    pos_query = tf.reshape(query, [-1, num_heads, inputs.shape[1], inputs.shape[2], key_dim])
-    pos_emb = RelativePositionalEmbedding(use_absolute_pos=not relative, name=name and name + "pos_emb")(pos_query)
-    pos_emb = tf.reshape(pos_emb, [-1, *attention_scores.shape[1:]])
-    attention_scores = keras.layers.Add()([attention_scores, pos_emb])
-    # attention_scores = tf.nn.softmax(attention_scores, axis=-1)
-    attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
-
-    if attn_dropout > 0:
-        attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
-    # value = [batch, num_heads, hh * ww, vv_dim]
-    # attention_output = tf.matmul(attention_scores, value)  # [batch, num_heads, hh * ww, vv_dim]
-    attention_output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
-    attention_output = tf.transpose(attention_output, perm=[0, 2, 1, 3])
-    attention_output = tf.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * vv_dim])
-    # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
-
-    if out_weight:
-        # [batch, hh, ww, num_heads * vv_dim] * [num_heads * vv_dim, out] --> [batch, hh, ww, out]
-        attention_output = keras.layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
-    return attention_output
+    # attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale
+    # pos_emb = functional.reshape(pos_emb, [-1, *attention_scores.shape[1:]])
+    # attention_scores = keras.layers.Add()([attention_scores, pos_emb])
+    # # attention_scores = tf.nn.softmax(attention_scores, axis=-1)
+    # attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
+    #
+    # if attn_dropout > 0:
+    #     attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
+    # # value = [batch, num_heads, hh * ww, vv_dim]
+    # # attention_output = tf.matmul(attention_scores, value)  # [batch, num_heads, hh * ww, vv_dim]
+    # attention_output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
+    # attention_output = tf.transpose(attention_output, perm=[0, 2, 1, 3])
+    # attention_output = tf.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * vv_dim])
+    # # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
+    #
+    # if out_weight:
+    #     # [batch, hh, ww, num_heads * vv_dim] * [num_heads * vv_dim, out] --> [batch, hh, ww, out]
+    #     attention_output = keras.layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
+    # return attention_output
 
 
 def BotNet(input_shape=(224, 224, 3), strides=1, pretrained="imagenet", **kwargs):

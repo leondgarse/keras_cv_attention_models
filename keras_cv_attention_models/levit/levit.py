@@ -98,7 +98,7 @@ class MultiHeadPositionalEmbedding(layers.Layer):
 
 
 def mhsa_with_multi_head_position(
-    inputs, num_heads, key_dim=-1, output_dim=-1, attn_ratio=1, use_bn=True, qkv_bias=False, out_bias=False, activation=None, name=None
+    inputs, num_heads, key_dim=-1, output_dim=-1, attn_ratio=1, use_bn=False, qkv_bias=False, out_bias=False, activation=None, name=None
 ):
     _, height, width, input_channels = inputs.shape
     key_dim = key_dim if key_dim > 0 else input_channels // num_heads
@@ -114,9 +114,10 @@ def mhsa_with_multi_head_position(
 
     output_shape = (height, width, output_dim)
     pos_emb = MultiHeadPositionalEmbedding(query_height=height, name=name and name + "attn_pos")
-    # Set out_weight=False here, as layer name is previously set to "out", different  from `scaled_dot_product_attention` using "output".
-    output = scaled_dot_product_attention(qq, kk, vv, output_shape, pos_emb=pos_emb, out_weight=False, activation=activation, name=name)
+    output = scaled_dot_product_attention(qq, kk, vv, output_shape, pos_emb=pos_emb, out_weight=False, name=name)
 
+    if activation:
+        output = activation_by_name(output, activation=activation, name=name)
     # [batch, cls_token + hh * ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, cls_token + hh * ww, out]
     output = layers.Dense(output_dim, use_bias=out_bias, name=name and name + "out")(output)
     if use_bn:
@@ -150,9 +151,10 @@ def mhsa_with_multi_head_position_and_strides(
     output_shape = (height, width, output_dim)
     # print(f"{qq.shape = }, {kk.shape = }, {vv.shape = }, {output_shape = }")
     pos_emb = MultiHeadPositionalEmbedding(query_height=height, name=name and name + "attn_pos")
-    # Set out_weight=False here, as layer name is previously set to "out", different  from `scaled_dot_product_attention` using "output"
-    output = scaled_dot_product_attention(qq, kk, vv, output_shape, pos_emb=pos_emb, out_weight=False, activation=activation, name=name)
+    output = scaled_dot_product_attention(qq, kk, vv, output_shape, pos_emb=pos_emb, out_weight=False, name=name)
 
+    if activation:
+        output = activation_by_name(output, activation=activation, name=name)
     # [batch, cls_token + hh * ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, cls_token + hh * ww, out]
     output = layers.Dense(output_dim, use_bias=out_bias, name=name and name + "out")(output)
     if use_bn:
@@ -161,7 +163,7 @@ def mhsa_with_multi_head_position_and_strides(
 
 
 def res_mhsa_with_multi_head_position(inputs, embed_dim, num_heads, key_dim, attn_ratio, drop_rate=0, activation="hard_swish", name=""):
-    nn = mhsa_with_multi_head_position(inputs, num_heads, key_dim, embed_dim, attn_ratio, activation=activation, name=name)
+    nn = mhsa_with_multi_head_position(inputs, num_heads, key_dim, embed_dim, attn_ratio, use_bn=True, activation=activation, name=name)
     if drop_rate > 0:
         nn = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop")(nn)
     return layers.Add(name=name + "add")([inputs, nn])
@@ -232,7 +234,7 @@ def LeViT(
 ):
     # Regard input_shape as force using original shape if len(input_shape) == 4,
     # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
-    input_shape = backend.valid_input_shape_by_image_data_format(input_shape)
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
     nn = patch_stem(inputs, patch_channel, activation=activation, name="stem_")
     nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last

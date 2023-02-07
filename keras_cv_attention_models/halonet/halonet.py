@@ -1,8 +1,13 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, functional, initializers
 from keras_cv_attention_models.aotnet import AotNet
-from keras_cv_attention_models.attention_layers import RelativePositionalEmbedding, conv2d_no_bias, CompatibleExtractPatches, make_divisible
+from keras_cv_attention_models.attention_layers import (
+    RelativePositionalEmbedding,
+    conv2d_no_bias,
+    CompatibleExtractPatches,
+    make_divisible,
+    scaled_dot_product_attention,
+)
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
@@ -25,7 +30,8 @@ def halo_attention(
         key_dim = make_divisible(cc * key_dim, divisor=8) // num_heads  # regard as key_dim_ratio
     else:
         key_dim = cc // num_heads  # Default value
-    qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
+    # qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
+    qk_scale = 1.0 / (float(key_dim) ** 0.5)
     out_shape = cc if out_shape is None else out_shape
     emb_dim = num_heads * key_dim
     kv_kernel = block_size + halo_size * 2
@@ -42,16 +48,16 @@ def halo_attention(
     # attn_query = rearrange(query, "B (h hb) (w wb) (hd c) -> B hd h w (hb wb) c", hb=query_block, wb=query_block, hd=num_heads)
     # pos_query = rearrange(attn_query, "B hd h w (hb wb) c -> B (hd h w) hb wb c", hb=query_block, wb=query_block)
     hh_qq, ww_qq, cc_qq = hh // query_block, ww // query_block, cc // num_heads
-    query = tf.reshape(query, [-1, hh_qq, query_block, ww_qq, query_block, num_heads, cc_qq])
-    query = tf.transpose(query, [0, 5, 1, 3, 2, 4, 6])  # [batch, num_heads, hh, ww, query_block, query_block, key_dim]
+    query = functional.reshape(query, [-1, hh_qq, query_block, ww_qq, query_block, num_heads, cc_qq])
+    query = functional.transpose(query, [0, 5, 1, 3, 2, 4, 6])  # [batch, num_heads, hh, ww, query_block, query_block, key_dim]
     # attn_query = [batch, num_heads, hh, ww, query_block * query_block, key_dim]
-    attn_query = tf.reshape(query, [-1, num_heads, hh_qq, ww_qq, query_block * query_block, cc_qq]) * qk_scale  # [???] qk_scale NOT multiplied with pos_query
+    attn_query = functional.reshape(query, [-1, num_heads, hh_qq, ww_qq, query_block * query_block, cc_qq]) * qk_scale  # qk_scale NOT multiplied with pos_query
     # pos_query = [batch, num_heads * hh * ww, query_block, query_block, key_dim]
-    pos_query = tf.reshape(query, [-1, num_heads * hh_qq * ww_qq, query_block, query_block, cc_qq])
+    pos_query = functional.reshape(query, [-1, num_heads * hh_qq * ww_qq, query_block, query_block, cc_qq])
 
     # key_value = [batch, height, width, key_dim + out_shape]
     key_value = conv2d_no_bias(inputs, emb_dim + out_shape, kernel_size=1, use_bias=False, name=name and name + "key_value_")
-    kv_padded = tf.pad(key_value, [[0, 0], [halo_size, halo_size], [halo_size, halo_size], [0, 0]])
+    kv_padded = functional.pad(key_value, [[0, 0], [halo_size, halo_size], [halo_size, halo_size], [0, 0]])
     sizes, strides = [1, kv_kernel, kv_kernel, 1], [1, block_size, block_size, 1]
     # kv_inp = [batch, hh, ww, kv_kernel * kv_kernel * (key_dim + out_shape)]
     # kv_inp = tf.image.extract_patches(kv_padded, sizes=sizes, strides=strides, rates=[1, 1, 1, 1], padding="VALID")
@@ -59,43 +65,45 @@ def halo_attention(
     # kv_inp = rearrange(kv_inp, "B h w (hb wb hd c) -> B hd h w (hb wb) c", hb=kv_kernel, wb=kv_kernel, hd=num_heads)
     _, hh_kk, ww_kk, cc = kv_inp.shape
     cc_kk = cc // num_heads // kv_kernel // kv_kernel
-    kv_inp = tf.reshape(kv_inp, [-1, hh_kk, ww_kk, kv_kernel, kv_kernel, num_heads, cc_kk])
-    kv_inp = tf.transpose(kv_inp, [0, 5, 1, 2, 3, 4, 6])
-    kv_inp = tf.reshape(kv_inp, [-1, num_heads, hh_kk, ww_kk, kv_kernel * kv_kernel, cc_kk])
+    kv_inp = functional.reshape(kv_inp, [-1, hh_kk, ww_kk, kv_kernel, kv_kernel, num_heads, cc_kk])
+    kv_inp = functional.transpose(kv_inp, [0, 5, 1, 2, 3, 4, 6])
+    kv_inp = functional.reshape(kv_inp, [-1, num_heads, hh_kk, ww_kk, kv_kernel * kv_kernel, cc_kk])
 
     # key = [batch, num_heads, hh, ww, kv_kernel * kv_kernel, key_dim]
     # value = [batch, num_heads, hh, ww, kv_kernel * kv_kernel, out_dim]
-    key, value = tf.split(kv_inp, [emb_dim // num_heads, out_shape // num_heads], axis=-1)
+    key, value = functional.split(kv_inp, [emb_dim // num_heads, out_shape // num_heads], axis=-1)
 
     # scaled_dot_product_attention
     # print(f">>>> {attn_query.shape = }, {key.shape = }, {value.shape = }, {kv_inp.shape = }, {pos_query.shape = }, {num_heads = }")
     # attention_scores = [batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]
-    attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1], transpose_b=True))([attn_query, key])
+    # attention_scores = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1], transpose_b=True))([attn_query, key])
+    attention_scores = attn_query @ functional.transpose(key, [0, 1, 2, 3, 5, 4])
     # pos = [batch, num_heads * hh * ww, query_block, query_block, kv_kernel, kv_kernel]
     pos = RelativePositionalEmbedding(position_height=kv_kernel, name=name and name + "pos_emb")(pos_query)
     # print(f">>>> {pos.shape = }, {attention_scores.shape = }")
-    pos = tf.reshape(pos, [-1, *attention_scores.shape[1:]])
-    attention_scores = keras.layers.Add()([attention_scores, pos])
+    pos = functional.reshape(pos, [-1, *attention_scores.shape[1:]])
+    attention_scores = layers.Add()([attention_scores, pos])
     # attention_scores = tf.nn.softmax(attention_scores, axis=-1)
-    attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
+    attention_scores = layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
 
     if attn_dropout > 0:
-        attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
+        attention_scores = layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
 
     # attention_output = [batch, num_heads, hh, ww, query_block * query_block, out_dim]
-    attention_output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
+    # attention_output = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([attention_scores, value])
+    attention_output = attention_scores @ value
     # attention_output = rearrange(attention_output, "B hd h w (hb wb) c -> B (h hb) (w wb) (hd c)", hb=query_block, wb=query_block)
     _, heads, hh_aa, ww_aa, patch, cc_aa = attention_output.shape
-    attention_output = tf.reshape(attention_output, [-1, heads, hh_aa, ww_aa, query_block, query_block, cc_aa])
-    attention_output = tf.transpose(attention_output, [0, 2, 4, 3, 5, 1, 6])
-    attention_output = tf.reshape(attention_output, [-1, hh_aa * query_block, ww_aa * query_block, heads * cc_aa])
+    attention_output = functional.reshape(attention_output, [-1, heads, hh_aa, ww_aa, query_block, query_block, cc_aa])
+    attention_output = functional.transpose(attention_output, [0, 2, 4, 3, 5, 1, 6])
+    attention_output = functional.reshape(attention_output, [-1, hh_aa * query_block, ww_aa * query_block, heads * cc_aa])
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
     if avg_pool_down:
-        attention_output = keras.layers.AvgPool2D(2, strides=2, name=name and name + "avg_pool")(attention_output)
+        attention_output = layers.AvgPool2D(2, strides=2, name=name and name + "avg_pool")(attention_output)
     if out_weight:
         # [batch, hh, ww, num_heads * out_dim] * [out, out] --> [batch, hh, ww, out]
-        attention_output = keras.layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
+        attention_output = layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
     return attention_output
 
 

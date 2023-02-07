@@ -1,7 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
-import os
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     anti_alias_downsample,
@@ -82,8 +80,8 @@ def attn_block(
 
     # if strides != 1 and (nn.shape[1] == inputs.shape[1] or nn.shape[2] == inputs.shape[2]):  # Downsample
     if strides != 1 and need_downsaple:  # Downsample
-        # nn = keras.layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
-        nn = keras.layers.AveragePooling2D(pool_size=2, strides=strides, name=name + "pool")(nn)
+        # nn = layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
+        nn = layers.AvgPool2D(pool_size=2, strides=strides, name=name + "pool")(nn)
 
     if bn_after_attn:
         bn_params = {"use_evo_norm": use_evo_norm, "evo_norm_group_size": evo_norm_group_size, "epsilon": epsilon}
@@ -102,7 +100,7 @@ def conv_shortcut_branch(inputs, filters, preact=False, strides=1, shortcut_type
         return None
 
     if strides > 1 and shortcut_type == "avg":
-        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_down")(inputs)
+        shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_down")(inputs)
         strides = 1
     elif strides > 1 and shortcut_type == "anti_alias":
         shortcut = anti_alias_downsample(inputs, kernel_size=3, strides=2, name=name + "shortcut_down")
@@ -161,7 +159,7 @@ def aot_block(
             pad_head_h, pad_tail_h = gap_h // 2, gap_h - gap_h // 2
             pad_head_w, pad_tail_w = gap_w // 2, gap_w - gap_w // 2
             # print(f">>>> Halo pad: {inputs.shape = }, {pad_head_h = }, {pad_tail_h = }, {pad_head_w = }, {pad_tail_w = }")
-            inputs = keras.layers.ZeroPadding2D(padding=((pad_head_h, pad_tail_h), (pad_head_w, pad_tail_w)), name=name + "gap_pad")(inputs)
+            inputs = layers.ZeroPadding2D(padding=((pad_head_h, pad_tail_h), (pad_head_w, pad_tail_w)), name=name + "gap_pad")(inputs)
 
     bn_params = {"use_evo_norm": use_evo_norm, "evo_norm_group_size": evo_norm_group_size, "epsilon": epsilon}
     bn_act_params = {"activation": activation, "use_evo_norm": use_evo_norm, "evo_norm_group_size": evo_norm_group_size, "epsilon": epsilon}
@@ -174,22 +172,22 @@ def aot_block(
         # short_act = activation if attn_block_params["attn_type"] == "bot" else None
         shortcut = conv_shortcut_branch(pre_inputs, filters, preact, strides, shortcut_type, bn_params, name=name)  # activation=None
     else:
-        shortcut = keras.layers.MaxPooling2D(strides, strides=strides, padding="SAME")(inputs) if strides > 1 else inputs
+        shortcut = layers.MaxPool2D(strides, strides=strides, padding="SAME")(inputs) if strides > 1 else inputs
 
     deep = deep_branch(pre_inputs, filters, strides, hidden_channel_ratio, use_3x3_kernel, bn_after_attn, bn_act_params, attn_block_params, name=name)
 
     # print(f">>>> {inputs.shape = }, {shortcut if shortcut is None else shortcut.shape = }, {deep.shape = }, {filters = }, {strides = }")
     if preact:  # ResNetV2
         deep = drop_block(deep, drop_rate)
-        return keras.layers.Add(name=name + "output")([shortcut, deep]) if shortcut is not None else deep  # if no shortcut
+        return layers.Add(name=name + "output")([shortcut, deep]) if shortcut is not None else deep  # if no shortcut
     else:
         if not (use_3x3_kernel and bn_after_attn):
             deep = batchnorm_with_activation(deep, activation=None, zero_gamma=True, **bn_params, name=name + "3_")
         deep = drop_block(deep, drop_rate)
-        out = keras.layers.Add(name=name + "add")([shortcut, deep]) if shortcut is not None else deep  # if no shortcut
+        out = layers.Add(name=name + "add")([shortcut, deep]) if shortcut is not None else deep  # if no shortcut
         if use_block_output_activation:
             out = activation_by_name(out, activation, name=name + "out_")
-        return keras.layers.Activation("linear", name=name + "output")(out)  # Identity, Just need a name here
+        return layers.Activation("linear", name=name + "output")(out)  # Identity, Just need a name here
 
 
 def aot_stack(
@@ -318,15 +316,18 @@ def AotNet(
     kwargs=None,
 ):
     """Stem"""
-    inputs = keras.layers.Input(shape=input_shape)
+    # Regard input_shape as force using original shape if len(input_shape) == 4,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(shape=input_shape)
     bn_params = {"use_evo_norm": use_evo_norm, "evo_norm_group_size": evo_norm_group_size, "epsilon": bn_epsilon}
     nn = aot_stem(inputs, stem_width, stem_type, activation, quad_stem_act, last_strides=stem_last_strides, bn_params=bn_params, name="stem_")
 
     if not preact:
         nn = batchnorm_with_activation(nn, activation=activation, **bn_params, name="stem_")
     if stem_downsample:
-        nn = keras.layers.ZeroPadding2D(padding=1, name="stem_pool_pad")(nn)
-        nn = keras.layers.MaxPooling2D(pool_size=3, strides=2, name="stem_pool")(nn)
+        nn = layers.ZeroPadding2D(padding=1, name="stem_pool_pad")(nn)
+        nn = layers.MaxPool2D(pool_size=3, strides=2, name="stem_pool")(nn)
 
     """ Stacks """
     block_params = {  # params same for all blocks
@@ -365,12 +366,12 @@ def AotNet(
         nn = batchnorm_with_activation(nn, activation=activation, **bn_params, name="features_")
 
     if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         if dropout > 0:
-            nn = keras.layers.Dropout(dropout, name="head_drop")(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+            nn = layers.Dropout(dropout, name="head_drop")(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
-    model = keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     # reload_model_weights(model, pretrained_dict={}, sub_release="aotnet", input_shape=input_shape, pretrained=pretrained)
     return model

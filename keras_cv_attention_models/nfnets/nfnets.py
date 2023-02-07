@@ -18,7 +18,7 @@ PRETRAINED_DICT = {
     "eca_nfnetl2": {"imagenet": "ca7e0bba4f2d1945d881ffc6e36bed36"},
 }
 
-CONV_KERNEL_INITIALIZER = initializers.VarianceScaling(scale=2.0, mode="fan_out", distribution="truncated_normal")
+
 NON_LINEAR_GAMMA = dict(
     identity=1.0,
     celu=1.270926833152771,
@@ -116,7 +116,6 @@ def std_conv2d_with_init(inputs, filters, kernel_size, strides=1, padding="VALID
         strides=strides,
         padding=padding,
         gamma=gamma,
-        kernel_initializer=CONV_KERNEL_INITIALIZER,
         name=name and name + "conv",
         **kwargs,
     )(inputs)
@@ -238,7 +237,7 @@ def NormFreeNet(
 
     # Regard input_shape as force using original shape if len(input_shape) == 4,
     # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
-    input_shape = backend.valid_input_shape_by_image_data_format(input_shape)
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(shape=input_shape)
     stem_width = make_divisible(stem_width * width_factor, 8)
     nn = stem(inputs, stem_width, activation=activation, torch_padding=torch_padding, conv_gamma=conv_gamma, act_gamma=act_gamma, name="stem_")

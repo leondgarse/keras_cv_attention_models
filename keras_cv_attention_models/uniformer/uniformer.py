@@ -34,7 +34,7 @@ PRETRAINED_DICT = {
 
 
 def multi_head_self_attention(
-    inputs, num_heads=4, key_dim=0, out_shape=None, out_weight=True, qkv_bias=False, out_bias=False, attn_dropout=0, output_dropout=0, name=None
+    inputs, num_heads=4, key_dim=0, out_shape=None, out_weight=True, qkv_bias=False, out_bias=False, attn_dropout=0, output_dropout=0, data_format=None, name=None
 ):
     _, hh, ww, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
@@ -128,7 +128,7 @@ def Uniformer(
 ):
     # Regard input_shape as force using original shape if len(input_shape) == 4,
     # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
-    input_shape = backend.valid_input_shape_by_image_data_format(input_shape)
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
 
     """ stem """

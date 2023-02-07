@@ -36,6 +36,31 @@ def expand_dims(inputs, axis, name=None):
     return Lambda(partial(torch.unsqueeze, dim=axis), name=name)(inputs)
 
 
+def extract_patches(inputs, sizes, strides=1, rates=1, padding=0, name=None):
+    """
+    >>> import torch
+    >>> from torch import nn
+
+    >>> image = np.zeros([256, 256, 3])
+    >>> image[:, :, 1] += 128 # G
+    >>> image[:, :, 2] += 256 # B
+
+    >>> aa = np.expand_dims(image.astype("float32"), 0)
+    >>> tf_out = tf.image.extract_patches(aa, sizes=[1, 3, 3, 1], strides=[1, 2, 2, 1], rates=[1, 1, 1, 1], padding='VALID')
+
+    >>> kernel_size = 3
+    >>> # cc = nn.Unfold(kernel_size=kernel_size, padding=0, stride=2)(torch.from_numpy(aa).permute(0, 3, 1, 2))
+    >>> cc = torch.functional.F.unfold(torch.from_numpy(aa).permute(0, 3, 1, 2), kernel_size=kernel_size, padding=0, stride=2)
+    >>> patch_shape = list(torch.functional.F.conv2d(torch.zeros([0, 3, 256, 256]), torch.zeros([3, 3, 3, 3]), stride=2).shape[2:])
+    >>> cc = cc.reshape([-1, aa.shape[-1], kernel_size * kernel_size, cc.shape[-1]]).permute([0, 3, 2, 1])
+    >>> torch_out = cc.reshape([-1, *patch_shape, kernel_size * kernel_size * aa.shape[-1]])
+    >>> print(f"{np.allclose(tf_out, torch_out.detach()) = }")
+    >>> # np.allclose(tf_out, torch_out.detach()) = True
+    """
+    unfold = F.unfold(inputs, kernel_size=sizes, dilation=rates, padding=padding, stride=strides)
+    unfold = unfold.reshape([-1, inputs.shape[1], kernel_size * kernel_size, unfold.shape[-1]]).permute([0, 3, 2, 1])
+
+
 def gather(inputs, indices, axis=None, batch_dims=0, name=None):
     """Defaults axis=None means the first non-batch dimension"""
     axis = batch_dims if axis is None else (len(inputs.shape) + axis if axis < 0 else axis)

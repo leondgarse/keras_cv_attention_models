@@ -1,6 +1,7 @@
-import tensorflow as tf
-from tensorflow import keras
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 from keras_cv_attention_models.attention_layers import (
+    add_with_layer_scale_and_drop_block,
     ChannelAffine,
     MultiHeadPositionalEmbedding,
     batchnorm_with_activation,
@@ -20,30 +21,30 @@ PRETRAINED_DICT = {
 }
 
 
-def meta_block(inputs, is_attn_block=False, num_heads=8, key_dim=32, attn_ratio=4, mlp_ratio=4, layer_scale=0, drop_rate=0, activation="gelu", name=""):
-    input_channel = inputs.shape[-1]
+def attn_block(inputs, num_heads=8, key_dim=32, attn_ratio=4, mlp_ratio=4, layer_scale=0, drop_rate=0, activation="gelu", name=""):
+    input_channel = inputs.shape[-1]  # also using -1 for channels_first
 
-    if is_attn_block:
-        nn = layer_norm(inputs, name=name + "attn_")
-        nn = mhsa_with_multi_head_position(nn, num_heads, key_dim=key_dim, attn_ratio=attn_ratio, use_bn=False, qkv_bias=True, out_bias=True, name=name)
-    else:
-        nn = keras.layers.AvgPool2D(pool_size=3, strides=1, padding="SAME")(inputs)  # count_include_pad=False [ ??? ]
-        nn = nn - inputs
-    nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "attn_gamma")(nn) if layer_scale >= 0 else nn
-    nn = drop_block(nn, drop_rate=drop_rate, name=name + "attn_")
-    attn_out = keras.layers.Add(name=name + "attn_out")([inputs, nn])
+    nn = layer_norm(inputs, axis=-1, name=name + "attn_")
+    nn = mhsa_with_multi_head_position(nn, num_heads, key_dim=key_dim, attn_ratio=attn_ratio, qkv_bias=True, out_bias=True, name=name)
+    attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "attn_")
 
-    if is_attn_block:
-        nn = layer_norm(attn_out, name=name + "mlp_")
-        nn = mlp_block(nn, input_channel * mlp_ratio, activation=activation, name=name)
-    else:
-        nn = conv2d_no_bias(attn_out, input_channel * mlp_ratio, 1, strides=1, use_bias=True, name=name + "mlp_1_")
-        nn = batchnorm_with_activation(nn, activation=activation, name=name + "mlp_1_")
-        nn = conv2d_no_bias(nn, input_channel, 1, strides=1, use_bias=True, name=name + "mlp_2_")
-        nn = batchnorm_with_activation(nn, activation=None, name=name + "mlp_2_")
-    nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "mlp_gamma")(nn) if layer_scale >= 0 else nn
-    nn = drop_block(nn, drop_rate=drop_rate, name=name + "mlp_")
-    return keras.layers.Add(name=name + "output")([attn_out, nn])
+    nn = layer_norm(attn_out, axis=-1, name=name + "mlp_")
+    nn = mlp_block(nn, input_channel * mlp_ratio, activation=activation, name=name)
+    return add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "mlp_")
+
+
+def conv_block(inputs, mlp_ratio=4, layer_scale=0, drop_rate=0, activation="gelu", name=""):
+    input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
+
+    nn = layers.AvgPool2D(pool_size=3, strides=1, padding="SAME")(inputs)  # count_include_pad=False [ ??? ]
+    nn = nn - inputs
+    attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "attn_")
+
+    nn = conv2d_no_bias(attn_out, input_channel * mlp_ratio, 1, strides=1, use_bias=True, name=name + "mlp_1_")
+    nn = batchnorm_with_activation(nn, activation=activation, name=name + "mlp_1_")
+    nn = conv2d_no_bias(nn, input_channel, 1, strides=1, use_bias=True, name=name + "mlp_2_")
+    nn = batchnorm_with_activation(nn, activation=None, name=name + "mlp_2_")
+    return add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "mlp_")
 
 
 def EfficientFormer(
@@ -65,7 +66,10 @@ def EfficientFormer(
     model_name="efficientformer",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
     stem_width = stem_width if stem_width > 0 else out_channels[0]
     stem_activation = stem_activation if stem_activation is not None else activation
     nn = conv2d_no_bias(inputs, stem_width // 2, 3, strides=2, use_bias=True, padding="same", name="stem_1_")
@@ -83,31 +87,37 @@ def EfficientFormer(
             nn = conv2d_no_bias(nn, out_channel, kernel_size=3, strides=2, use_bias=True, padding="SAME", name=ds_name)
             nn = batchnorm_with_activation(nn, activation=None, name=ds_name)
 
-        cur_num_attn_blocks = num_attn_blocks_each_stack[stack_id] if isinstance(num_attn_blocks_each_stack, (list, tuple)) else num_attn_blocks_each_stack
         cur_mlp_ratios = mlp_ratios[stack_id] if isinstance(mlp_ratios, (list, tuple)) else mlp_ratios
+        cur_num_attn_blocks = num_attn_blocks_each_stack[stack_id] if isinstance(num_attn_blocks_each_stack, (list, tuple)) else num_attn_blocks_each_stack
+        attn_block_start_id = num_block - cur_num_attn_blocks
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             mlp_ratio = cur_mlp_ratios[block_id] if isinstance(cur_mlp_ratios, (list, tuple)) else cur_mlp_ratios
-            is_attn_block = True if block_id > num_block - cur_num_attn_blocks - 1 else False
-            nn = meta_block(nn, is_attn_block, mlp_ratio=mlp_ratio, layer_scale=layer_scale, drop_rate=block_drop_rate, activation=activation, name=block_name)
+            if block_id >= attn_block_start_id:
+                nn = layers.Permute([2, 3, 1])(nn) if block_id == attn_block_start_id and image_data_format() == "channels_first" else nn
+                nn = attn_block(nn, mlp_ratio=mlp_ratio, layer_scale=layer_scale, drop_rate=block_drop_rate, activation=activation, name=block_name)
+                nn = layers.Permute([3, 1, 2])(nn) if block_id == num_block - 1 and image_data_format() == "channels_first" else nn
+            else:
+                nn = conv_block(nn, mlp_ratio=mlp_ratio, layer_scale=layer_scale, drop_rate=block_drop_rate, activation=activation, name=block_name)
+
             global_block_id += 1
 
     """ output """
     if num_classes > 0:
         nn = layer_norm(nn, name="pre_output_")
-        nn = keras.layers.GlobalAveragePooling2D()(nn)  # tf.reduce_mean(nn, axis=1)
+        nn = layers.GlobalAveragePooling2D()(nn)  # tf.reduce_mean(nn, axis=1)
         if dropout > 0 and dropout < 1:
-            nn = keras.layers.Dropout(dropout)(nn)
-        out = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="head")(nn)
+            nn = layers.Dropout(dropout)(nn)
+        out = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="head")(nn)
 
         if use_distillation:
-            distill = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="distill_head")(nn)
+            distill = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="distill_head")(nn)
             out = [out, distill]
     else:
         out = nn
 
-    model = keras.models.Model(inputs, out, name=model_name)
+    model = models.Model(inputs, out, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "efficientformer", pretrained, MultiHeadPositionalEmbedding)
     return model
