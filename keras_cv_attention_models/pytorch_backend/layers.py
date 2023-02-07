@@ -2,9 +2,10 @@ import torch
 import numpy as np
 from torch import nn
 from functools import partial
+from keras_cv_attention_models.pytorch_backend import initializers
 
 
-# [TODO] Identity, ConvTranspose2d, Conv2D SAME padding, initializer, MultiHeadAttention, Dropout
+# [TODO] Identity, ConvTranspose2d, Conv2D SAME padding, MultiHeadAttention, UpSampling2D
 
 
 """ Basic Layers """
@@ -17,6 +18,18 @@ def get_perm(total_axis, from_axis, to_axis):
     aa = [ii for ii in range(total_axis) if ii != from_axis]
     aa.insert(to_axis, from_axis)
     return aa
+
+
+def compute_conv_output_size(input_shape, kernel_size, strides=1, padding="valid", dilation_rate=1):
+    size = input_shape if len(input_shape) == 2 else input_shape[2:]
+    kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else [kernel_size] * len(size)
+    dilation_rate = dilation_rate if isinstance(dilation_rate, (list, tuple)) else [dilation_rate] * len(size)
+    strides = strides if isinstance(strides, (list, tuple)) else [strides] * len(size)
+    dilated_filter_size = [kk + (kk - 1) * (dd - 1) for kk, dd in zip(kernel_size, dilation_rate)]
+    if padding.upper() == "VALID":
+        size = [ii - jj + 1 for ii, jj in zip(size, dilated_filter_size)]
+    size = [(ii + jj - 1) // jj for ii, jj in zip(size, strides)]
+    return size
 
 
 class Weight:
@@ -72,9 +85,16 @@ class GraphNode:
     def __truediv__(self, another):
         return Divide()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx / another)(self)
 
+    # def __floordiv__(self, another):
+    #     return Lambda(lambda xx: xx // another)(self)
+
     def __matmul__(self, another):
         # return Matmul()([self, another])
         return Lambda(lambda inputs: torch.matmul(inputs[0], inputs[1]))([self, another])
+
+    def __pow__(self, exponent):
+        # return Lambda(lambda inputs: torch.pow(inputs, exponent))(self)
+        return Lambda(partial(torch.pow, exponent=exponent))(self)
 
     def set_pre_nodes(self, pre_nodes):
         pre_nodes = [ii for ii in pre_nodes if isinstance(ii, GraphNode)] if isinstance(pre_nodes, (list, tuple)) else [pre_nodes]
@@ -156,11 +176,11 @@ class Layer(nn.Module):
     def non_trainable_weights(self):
         return []
 
-    def add_weight(self, name=None, shape=None, dtype=None, initializer=None, regularizer=None, trainable=None):
+    def add_weight(self, name=None, shape=None, dtype="float32", initializer="zeros", regularizer=None, trainable=True):
         self.use_layer_as_module = True
-        if isinstance(initializer, str):
-            initializer = torch.ones if initializer == "ones" else torch.zeros
-        return nn.Parameter(initializer(shape), requires_grad=trainable)
+        initializer = getattr(initializers, initializer)() if isinstance(initializer, str) else initializer
+        param = nn.Parameter(initializer(shape, dtype=dtype), requires_grad=trainable)
+        return param
 
     def get_weights(self):
         return [ii.value().detach().cpu().numpy() for ii in self.weights]
@@ -358,6 +378,9 @@ class BatchNormalization(Layer):
     def build(self, input_shape):
         self.axis = len(input_shape) + self.axis if self.axis < 0 else self.axis
         module = nn.BatchNorm2d(num_features=input_shape[self.axis], eps=self.epsilon, momentum=1 - self.momentum, affine=self.center)
+        gamma_initializer = getattr(initializers, self.gamma_initializer)() if isinstance(self.gamma_initializer, str) else self.gamma_initializer
+        module.weight.data = gamma_initializer(list(module.weight.shape))  # not using gamma_initializer(module.weight) for compiling with TF
+
         if self.axis == 1:
             self.module = module
         else:
@@ -407,15 +430,13 @@ class Conv(Layer):
             groups=self.groups,
             bias=self.use_bias,
         )
+        kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
+        self.module.weight.data = kernel_initializer(list(self.module.weight.shape))  # not using kernel_initializer(self.module.weight) for compiling with TF
         super().build(input_shape)
 
     def compute_output_shape(self, input_shape):
-        size = input_shape[2:]
-        dilated_filter_size = [kk + (kk - 1) * (dd - 1) for kk, dd in zip(self.kernel_size, self.dilation_rate)]
-        if self.padding.upper() == "VALID":
-            size = [ii - jj + 1 for ii, jj in zip(size, dilated_filter_size)]
-        size = [(ii + jj - 1) // jj for ii, jj in zip(size, self.strides)]
-        return [None, self.filters, *size]
+        output_size = compute_conv_output_size(input_shape, self.kernel_size, self.strides, self.padding, dilation_rate=self.dilation_rate)
+        return [None, self.filters, *output_size]
 
     def get_config(self):
         config = super().get_config()
@@ -460,9 +481,9 @@ class Conv2D(Conv):
 
 
 class DepthwiseConv2D(Conv):
-    def __init__(self, kernel_size=1, strides=1, padding="VALID", dilation_rate=(1, 1), use_bias=True, kernel_initializer="glorot_uniform", **kwargs):
+    def __init__(self, kernel_size=1, strides=1, padding="VALID", dilation_rate=(1, 1), use_bias=True, depthwise_initializer="glorot_uniform", **kwargs):
         filters, groups = -1, -1
-        super().__init__(filters, kernel_size, strides, padding, dilation_rate, use_bias, groups, kernel_initializer, **kwargs)
+        super().__init__(filters, kernel_size, strides, padding, dilation_rate, use_bias, groups, depthwise_initializer, **kwargs)
 
     def build(self, input_shape):
         self.groups = input_shape[1]
@@ -488,6 +509,8 @@ class Dense(Layer):
     def build(self, input_shape):
         self.axis = len(input_shape) + self.axis if self.axis < 0 else self.axis
         module = nn.Linear(in_features=input_shape[self.axis], out_features=self.units, bias=self.use_bias)
+        kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
+        module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
         if self.axis == len(input_shape) - 1:
             self.module = module if self.activation is None else nn.Sequential(module, Activation(self.activation))
         else:
@@ -529,6 +552,8 @@ class GroupNormalization(Layer):
     def build(self, input_shape):
         self.axis = len(input_shape) + self.axis if self.axis < 0 else self.axis
         module = nn.GroupNorm(num_groups=self.groups, num_channels=input_shape[self.axis], eps=self.epsilon, affine=self.center)
+        gamma_initializer = getattr(initializers, self.gamma_initializer)() if isinstance(self.gamma_initializer, str) else self.gamma_initializer
+        module.weight.data = gamma_initializer(list(module.weight.shape))  # not using gamma_initializer(module.weight) for compiling with TF
         # Default nn.GroupNorm is apllied on first non-batch dimension
         if self.axis == 1:
             self.module = module
@@ -545,7 +570,10 @@ class GroupNormalization(Layer):
         return config
 
 
-class LayerNormGeneral(nn.Module):
+class __LayerNormGeneral__(nn.Module):
+    """LayerNorm supports `bias=False`, also applying on `axis=1` directly without permute.
+    From LayerNormGeneral https://github.com/sail-sg/metaformer/blob/main/metaformer_baselines.py#L311
+    """
     def __init__(self, normalized_shape, normalized_dim=(-1, ), scale=True, bias=True, eps=1e-5):
         super().__init__()
         self.normalized_dim, self.use_scale, self.use_bias, self.eps = normalized_dim, scale, bias, eps
@@ -570,18 +598,25 @@ class LayerNormalization(Layer):
 
     def build(self, input_shape):
         self.axis = len(input_shape) + self.axis if self.axis < 0 else self.axis
-        if self.center:
-            module = nn.LayerNorm(normalized_shape=input_shape[self.axis], eps=self.epsilon)
+        if self.axis == len(input_shape) - 1 and self.center:
+            self.module = nn.LayerNorm(normalized_shape=input_shape[self.axis], eps=self.epsilon)
+            gamma_initializer = getattr(initializers, self.gamma_initializer)() if isinstance(self.gamma_initializer, str) else self.gamma_initializer
+            self.module.weight.data = gamma_initializer(list(self.module.weight.shape))  # not using gamma_initializer(module.weight) for compiling with TF
             # Default nn.LayerNorm is apllied on last dimension
-            if self.axis == len(input_shape) - 1:
-                self.module = module
-            else:
-                ndims = len(input_shape)
-                perm = get_perm(total_axis=ndims, from_axis=self.axis, to_axis=-1)  # like axis=1 -> [0, 2, 3, 1]
-                revert_perm = get_perm(total_axis=ndims, from_axis=-1, to_axis=self.axis)  # like axis=1 -> [0, 3, 1, 2]
-                self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
+            # if self.axis == len(input_shape) - 1:
+            #     self.module = module
+            # else:
+            #     ndims = len(input_shape)
+            #     perm = get_perm(total_axis=ndims, from_axis=self.axis, to_axis=-1)  # like axis=1 -> [0, 2, 3, 1]
+            #     revert_perm = get_perm(total_axis=ndims, from_axis=-1, to_axis=self.axis)  # like axis=1 -> [0, 3, 1, 2]
+            #     self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
         else:
-            self.module = LayerNormGeneral(normalized_shape=input_shape[self.axis], normalized_dim=self.axis, eps=self.epsilon, bias=self.center)
+            normalized_shape = input_shape[self.axis]
+            if self.axis != len(input_shape) - 1:
+                normalized_shape = [normalized_shape] + [1] * (len(input_shape) - self.axis - 1)
+            self.module = __LayerNormGeneral__(normalized_shape=normalized_shape, normalized_dim=self.axis, eps=self.epsilon, bias=self.center)
+            gamma_initializer = getattr(initializers, self.gamma_initializer)() if isinstance(self.gamma_initializer, str) else self.gamma_initializer
+            self.module.weight.data = gamma_initializer(list(self.module.weight.shape))  # not using gamma_initializer(self.module.weight) for compiling with TF
         super().build(input_shape)
 
     def get_config(self):
@@ -589,14 +624,27 @@ class LayerNormalization(Layer):
         config.update({"axis": self.axis, "epsilon": self.epsilon, "center": self.center})
         return config
 
+    def get_weights_channels_last(self):
+        # channel_first -> channel_last
+        weights = self.get_weights()
+        weights = [np.squeeze(ww) for ww in weights]
+        return weights
+
+    def set_weights_channels_last(self, weights):
+        # channel_last -> channel_first
+        weights = [np.reshape(ss, tt.shape) for ss, tt in zip(weights, self.weights)]
+        return self.set_weights(weights)
+
 
 class PReLU(Layer):
     def __init__(self, alpha_initializer="zeros", alpha_regularizer=None, alpha_constraint=None, shared_axes=None, **kwargs):
-        self.shared_axes = shared_axes
+        self.alpha_initializer, self.shared_axes = alpha_initializer, shared_axes
         super().__init__(**kwargs)
 
     def build(self, input_shape):
         self.module = nn.PReLU(num_parameters=input_shape[1], init=0.25)
+        alpha_initializer = getattr(initializers, self.alpha_initializer)() if isinstance(self.alpha_initializer, str) else self.alpha_initializer
+        self.module.weight.data = alpha_initializer(list(self.module.weight.shape))  # not using alpha_initializer(self.module.weight) for compiling with TF
         super().build(input_shape)
 
     def get_config(self):
@@ -619,7 +667,7 @@ class PReLU(Layer):
 """ Layers with no weights """
 
 
-class DropPath(nn.Module):
+class __DropPath__(nn.Module):
     """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
     from drop_path https://github.com/rwightman/pytorch-image-models/blob/main/timm/layers/drop.py#L137
     """
@@ -651,7 +699,7 @@ class Dropout(Layer):
             dims, rate = len(input_shape), self.rate
             self.module = torch.nn.Dropout1d(p=rate) if dims == 3 else (torch.nn.Dropout2d(p=rate) if dims == 4 else torch.nn.Dropout3d(p=rate))
         else:
-            self.module = DropPath(drop_prob=self.rate)
+            self.module = __DropPath__(drop_prob=self.rate)
         super().build(input_shape)
 
     def get_config(self):
@@ -690,14 +738,12 @@ class Pooling2D(Layer):
         if self.reduce.lower() == "max":
             self.module = nn.MaxPool2d(kernel_size=self.pool_size, stride=self.strides, padding=pad)
         else:
-            self.module = nn.AvgPool2d(kernel_size=self.pool_size, stride=self.strides, padding=pad)
+            self.module = nn.AvgPool2d(kernel_size=self.pool_size, stride=self.strides, padding=pad, count_include_pad=False)
         super().build(input_shape)
 
     def compute_output_shape(self, input_shape):
-        batch, channels, height, width = input_shape
-        height = (height + 2 * self._pad[0] - (self.pool_size[0] - self.strides[0])) // self.strides[0]  # Not considering dilation
-        width = (width + 2 * self._pad[1] - (self.pool_size[1] - self.strides[1])) // self.strides[1]  # Not considering dilation
-        return [batch, channels, height, width]
+        output_size = compute_conv_output_size(input_shape, self.pool_size, self.strides, self.padding, dilation_rate=1)
+        return [None, input_shape[1], *output_size]
 
     def get_config(self):
         config = super().get_config()
@@ -707,12 +753,12 @@ class Pooling2D(Layer):
 
 class AvgPool2D(Pooling2D):
     def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", **kwargs):
-        super().__init__(reduce="mean", **kwargs)
+        super().__init__(pool_size=pool_size, strides=strides, padding=padding, reduce=kwargs.pop("reduce", "mean"), **kwargs)
 
 
 class MaxPool2D(Pooling2D):
     def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", **kwargs):
-        super().__init__(reduce="max", **kwargs)
+        super().__init__(pool_size=pool_size, strides=strides, padding=padding, reduce=kwargs.pop("reduce", "max"), **kwargs)
 
 
 class GlobalAveragePooling1D(Layer):
@@ -766,6 +812,9 @@ class Permute(Layer):
         config.update({"dims": self.dims})
         return config
 
+    def extra_repr(self):
+        return f"dims={self.dims}"
+
 
 class Reshape(Layer):
     def __init__(self, target_shape, **kwargs):
@@ -792,6 +841,9 @@ class Reshape(Layer):
         config = super().get_config()
         config.update({"target_shape": self.target_shape})
         return config
+
+    def extra_repr(self):
+        return f"target_shape={self.target_shape}"
 
 
 class Softmax(Layer):
