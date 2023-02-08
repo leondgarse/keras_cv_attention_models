@@ -1,6 +1,6 @@
 import numpy as np
 from keras_cv_attention_models import backend
-from keras_cv_attention_models.backend import layers, models, functional, initializers
+from keras_cv_attention_models.backend import layers, models, functional, initializers, image_data_format
 
 BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
@@ -245,8 +245,9 @@ def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, axis="auto", name=
 
 def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", use_bias=False, groups=1, use_torch_padding=True, name=None, **kwargs):
     """Typical Conv2D with `use_bias` default as `False` and fixed padding"""
+    kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else [kernel_size, kernel_size]
     if isinstance(padding, str):
-        pad = (kernel_size[0] // 2, kernel_size[1] // 2) if isinstance(kernel_size, (list, tuple)) else (kernel_size // 2, kernel_size // 2)
+        pad = (kernel_size[0] // 2, kernel_size[1] // 2)
     else:  # int or list or tuple with specific value
         pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
         padding = "SAME" if max(pad) > 0 else "VALID"
@@ -280,12 +281,13 @@ def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", us
     if use_torch_padding and padding.upper() == "SAME" and max(pad) != 0:
         inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "dw_pad")(inputs)
         padding = "VALID"
+
     return layers.DepthwiseConv2D(
         kernel_size,
         strides=strides,
         padding=padding,
         use_bias=use_bias,
-        kernel_initializer=CONV_KERNEL_INITIALIZER,
+        depthwise_initializer=CONV_KERNEL_INITIALIZER,
         name=name and name + "dw_conv",
         **kwargs,
     )(inputs)
@@ -311,7 +313,10 @@ def output_block(inputs, filters=0, activation="relu", num_classes=1000, drop_ra
 
 def global_context_module(inputs, use_attn=True, ratio=0.25, divisor=1, activation="relu", use_bias=True, name=None):
     """Global Context Attention Block, arxiv: https://arxiv.org/pdf/1904.11492.pdf"""
-    height, width, filters = inputs.shape[1], inputs.shape[2], inputs.shape[-1]
+    is_channels_last = image_data_format() == "channels_last"
+    filters = inputs.shape[-1 if is_channels_last else 1]
+    height_axis, width_axis = (1, 2) if is_channels_last else (2, 3)
+    height, width = inputs.shape[height_axis], inputs.shape[width_axis]
 
     # activation could be ("relu", "hard_sigmoid")
     hidden_activation, output_activation = activation if isinstance(activation, (list, tuple)) else (activation, "sigmoid")
@@ -319,12 +324,14 @@ def global_context_module(inputs, use_attn=True, ratio=0.25, divisor=1, activati
 
     if use_attn:
         attn = layers.Conv2D(1, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "attn_conv")(inputs)
-        attn = functional.reshape(attn, [-1, 1, 1, height * width])  # [batch, height, width, 1] -> [batch, 1, 1, height * width]
+        attn = functional.reshape(attn, [-1, 1, height * width])  # [batch, height, width, 1] or [batch, 1, height, width] -> [batch, 1, height * width]
         attn = functional.softmax(attn, axis=-1)
-        context = functional.reshape(inputs, [-1, 1, height * width, filters])
-        context = attn @ context  # [batch, 1, 1, filters]
+        context = inputs if is_channels_last else functional.transpose(inputs, [0, 2, 3, 1])
+        context = functional.reshape(context, [-1, height * width, filters])
+        context = attn @ context  # [batch, 1, filters]
+        context = functional.reshape(context, [-1, 1, 1, filters]) if is_channels_last else functional.reshape(context, [-1, filters, 1, 1])
     else:
-        context = functional.reduce_mean(inputs, [1, 2], keepdims=True)
+        context = functional.reduce_mean(inputs, [height_axis, width_axis], keepdims=True)
 
     mlp = layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, name=name and name + "mlp_1_conv")(context)
     mlp = layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, name=name and name + "ln")(mlp)
@@ -336,15 +343,15 @@ def global_context_module(inputs, use_attn=True, ratio=0.25, divisor=1, activati
 
 def se_module(inputs, se_ratio=0.25, divisor=8, limit_round_down=0.9, activation="relu", use_bias=True, use_conv=True, name=None):
     """Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf"""
-    channel_axis = 1 if backend.image_data_format() == "channels_first" else -1
-    h_axis, w_axis = [2, 3] if backend.image_data_format() == "channels_first" else [1, 2]
+    channel_axis = -1 if image_data_format() == "channels_last" else (1 if use_conv else -1)
+    h_axis, w_axis = [1, 2] if image_data_format() == "channels_last" else [2, 3]
 
     # activation could be ("relu", "hard_sigmoid") for mobilenetv3
     hidden_activation, output_activation = activation if isinstance(activation, (list, tuple)) else (activation, "sigmoid")
     filters = inputs.shape[channel_axis]
     reduction = make_divisible(filters * se_ratio, divisor, limit_round_down=limit_round_down)
     # print(f"{filters = }, {se_ratio = }, {divisor = }, {reduction = }")
-    se = functional.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)
+    se = functional.reduce_mean(inputs, [h_axis, w_axis], keepdims=True if use_conv else False)
     if use_conv:
         se = layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_conv")(se)
     else:
@@ -355,13 +362,14 @@ def se_module(inputs, se_ratio=0.25, divisor=8, limit_round_down=0.9, activation
     else:
         se = layers.Dense(filters, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "2_dense")(se)
     se = activation_by_name(se, activation=output_activation, name=name)
+    se = se if use_conv else functional.reshape(se, [-1, 1, 1, filters] if image_data_format() == "channels_last" else [-1, filters, 1, 1])
     return layers.Multiply(name=name and name + "out")([inputs, se])
 
 
 def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
     """Efficient Channel Attention block, arxiv: https://arxiv.org/pdf/1910.03151.pdf"""
-    channel_axis = 1 if backend.image_data_format() == "channels_first" else -1
-    h_axis, w_axis = [2, 3] if backend.image_data_format() == "channels_first" else [1, 2]
+    channel_axis = -1 if image_data_format() == "channels_last" else (1 if use_conv else -1)
+    h_axis, w_axis = [1, 2] if image_data_format() == "channels_last" else [2, 3]
 
     filters = inputs.shape[channel_axis]
     beta, gamma = float(beta), float(gamma)

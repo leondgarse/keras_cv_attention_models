@@ -5,7 +5,7 @@ from functools import partial
 from keras_cv_attention_models.pytorch_backend import initializers
 
 
-# [TODO] Identity, ConvTranspose2d, Conv2D SAME padding, MultiHeadAttention, UpSampling2D
+# [TODO] Identity, ConvTranspose2d, Conv2D SAME padding, MultiHeadAttention, Normalization, Rescaling
 
 
 """ Basic Layers """
@@ -19,6 +19,10 @@ def get_perm(total_axis, from_axis, to_axis):
     aa = [ii for ii in range(total_axis) if ii != from_axis]
     aa.insert(to_axis, from_axis)
     return aa
+
+
+def tf_same_pad(size, kernel_size, stride, dilation_rate=1):
+    return max((np.math.ceil(size / stride) - 1) * stride + (kernel_size - 1) * dilation_rate + 1 - size, 0)
 
 
 def compute_conv_output_size(input_shape, kernel_size, strides=1, padding="valid", dilation_rate=1):
@@ -126,6 +130,7 @@ class Layer(nn.Module):
         super().__init__()
         self.name, self.kwargs = self.verify_name(name), kwargs
         self.built = False
+        self.is_graph_node_input = False
         self.use_layer_as_module = False  # True if called add_weights, or typical keras layers with overwriting call function
         if not hasattr(self, "module"):
             self.module = lambda xx: xx
@@ -133,7 +138,9 @@ class Layer(nn.Module):
 
     def build(self, input_shape: torch.Size):
         self.input_shape = input_shape
-        self.__output_shape__ = self.compute_output_shape(input_shape)
+        if self.is_graph_node_input:
+            # When exporting onnx/pth, model will be built again, and may throws error in compute_output_shape with 0 input_shape
+            self.__output_shape__ = self.compute_output_shape(input_shape)
         # if hasattr(self, "call"):  # General keras layers with call function
         #     self.forward = self.call
         #     self.call = self.call
@@ -143,9 +150,10 @@ class Layer(nn.Module):
         return self.module(inputs, **kwargs)
 
     def forward(self, inputs, **kwargs):
+        self.is_graph_node_input = isinstance(inputs, GraphNode) or (isinstance(inputs, (list, tuple)) and any([isinstance(ii, GraphNode) for ii in inputs]))
         if not self.built:
             self.build([() if isinstance(ii, (int, float)) else ii.shape for ii in inputs] if isinstance(inputs, (list, tuple)) else inputs.shape)
-        if isinstance(inputs, GraphNode) or (isinstance(inputs, (list, tuple)) and any([isinstance(ii, GraphNode) for ii in inputs])):
+        if self.is_graph_node_input:
             output_shape = self.compute_output_shape(self.input_shape)
             # if isinstance(output_shape[0], (list, tuple))
             cur_node = GraphNode(output_shape, name=self.name)
@@ -214,6 +222,10 @@ class Lambda(Layer):
         super().__init__(**kwargs)
         self.module = func
 
+    def build(self, input_shape: torch.Size):
+        super().build(input_shape)
+        # self.forward = self.module
+
     def get_config(self):
         config = super().get_config()
         config.update({"func": self.module})
@@ -260,6 +272,30 @@ class Activation(Layer):
     def get_config(self):
         config = super().get_config()
         config.update({"activation": self.activation})
+        return config
+
+
+class ZeroPadding(Layer):
+    def __init__(self, padding, **kwargs):
+        self.padding = padding
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        assert len(input_shape) == len(self.padding), "padding shoule be same length with input, including batch dimension, padding: {}".format(self.padding)
+        padding = []
+        for pad in self.padding[::-1]:
+            assert len(pad) == 2, "each element in padding should be exactly 2 values, padding: {}".format(self.padding)
+            padding += pad
+
+        self.module = partial(torch.functional.F.pad, pad=padding)
+        super().build(input_shape)
+
+    def compute_output_shape(self, input_shape):
+        return [None if ii is None else ii + pp[0] + pp[1] for ii, pp in zip(input_shape, self.padding)]
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"padding": self.padding})
         return config
 
 
@@ -414,14 +450,14 @@ class Conv(Layer):
         self.filters = self.filters if self.filters > 0 else input_shape[1]  # In case DepthwiseConv2D
 
         if isinstance(self.padding, str):
-            self._pad = [ii // 2 for ii in self.kernel_size] if self.padding.upper() == "SAME" else [0] * num_dims
+            self._pad = [0] * num_dims  # Both set to 0 for "SAME" and "VALID", "SAME" will apply TF like same padding.
         else:  # int or list or tuple with specific value
             self._pad = padding if isinstance(padding, (list, tuple)) else [padding] * num_dims
 
         if self.module_class is None:
             self.module_class = nn.Conv1d if len(input_shape) == 3 else (nn.Conv2d if len(input_shape) == 4 else nn.Conv3d)
 
-        self.module = self.module_class(
+        module = self.module_class(
             in_channels=input_shape[1],
             out_channels=self.filters,
             kernel_size=self.kernel_size,
@@ -432,7 +468,16 @@ class Conv(Layer):
             bias=self.use_bias,
         )
         kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
-        self.module.weight.data = kernel_initializer(list(self.module.weight.shape))  # not using kernel_initializer(self.module.weight) for compiling with TF
+        module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
+        if self.padding.upper() == "SAME":
+            # TF like same padding
+            pad_hh = tf_same_pad(input_shape[2], self.kernel_size[0], self.strides[0], self.dilation_rate[0])
+            pad_ww = tf_same_pad(input_shape[3], self.kernel_size[1], self.strides[1], self.dilation_rate[1])
+            pad = [tf_same_pad(ii, kk, ss, dd) for ii, kk, ss, dd in zip(input_shape[2:], self.kernel_size, self.strides, self.dilation_rate)]
+            self._pad = [[0, 0], [0, 0]] + [[pp // 2, pp - pp // 2] for pp in pad]
+            self.module = nn.Sequential(ZeroPadding(padding=self._pad), module)
+        else:
+            self.module = module
         super().build(input_shape)
 
     def compute_output_shape(self, input_shape):
@@ -862,6 +907,25 @@ class Softmax(Layer):
         config = super().get_config()
         config.update({"axis": self.axis})
         return config
+
+
+class UpSampling2D(Layer):
+    def __init__(self, size=(2, 2), data_format=None, interpolation="nearest", **kwargs):
+        self.data_format, self.interpolation = data_format, interpolation
+        self.size = size if isinstance(size, (list, tuple)) else [size, size]
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.module = nn.Upsample(scale_factor=self.size, mode=self.interpolation)
+        super().build(input_shape)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"size": self.size, "data_format": self.data_format, "interpolation": self.interpolation})
+        return config
+
+    def compute_output_shape(self, input_shape):
+        return [None, input_shape[1], input_shape[2] * self.size[0], input_shape[3] * self.size[1]]
 
 
 class ZeroPadding2D(Layer):

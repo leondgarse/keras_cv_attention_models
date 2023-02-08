@@ -2,10 +2,8 @@
 Creates a EfficientNetV2 Model as defined in: Mingxing Tan, Quoc V. Le. (2021). arXiv preprint arXiv:2104.00298.
 EfficientNetV2: Smaller Models and Faster Training.
 """
-import os
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, functional, models, is_channels_last
 from keras_cv_attention_models.attention_layers import (
     batchnorm_with_activation,
     conv2d_no_bias,
@@ -63,8 +61,7 @@ def inverted_residual_block(
     activation="swish",
     name=None,
 ):
-    channel_axis = 1 if K.image_data_format() == "channels_first" else -1
-    input_channel = inputs.shape[channel_axis]
+    input_channel = inputs.shape[-1 if is_channels_last() else 1]
     bn_eps = TORCH_BATCH_NORM_EPSILON if is_torch_mode else TF_BATCH_NORM_EPSILON
     hidden_channel = make_divisible(input_channel * expand, 8)
 
@@ -79,11 +76,13 @@ def inverted_residual_block(
 
     if not is_fused:
         if is_torch_mode and kernel_size // 2 > 0:
-            nn = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "pad")(nn)
+            nn = layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "pad")(nn)
             padding = "VALID"
-        else:
-            padding = "SAME"
-        nn = keras.layers.DepthwiseConv2D(kernel_size, padding=padding, strides=stride, use_bias=False, name=name and name + "MB_dw_")(nn)
+        elif kernel_size // 2 > 0:
+            pp = [1, 1] if stride == 1 else [0, 1]
+            nn = functional.pad(nn, [[0, 0], [0, 0], pp, pp])
+            padding = "VALID"
+        nn = layers.DepthwiseConv2D(kernel_size, padding=padding, strides=stride, use_bias=False, name=name and name + "MB_dw_")(nn)
         nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name=name and name + "MB_dw_")
 
     if se_ratio > 0:
@@ -104,9 +103,9 @@ def inverted_residual_block(
 
     if shortcut:
         nn = drop_block(nn, drop_rate, name=name and name + "drop")
-        return keras.layers.Add(name=name and name + "output")([inputs, nn])
+        return layers.Add(name=name and name + "output")([inputs, nn])
     else:
-        return keras.layers.Activation("linear", name=name and name + "output")(nn)  # Identity, Just need a name here
+        return layers.Activation("linear", name=name and name + "output")(nn)  # Identity, Just need a name here
 
 
 def EfficientNetV2(
@@ -138,17 +137,20 @@ def EfficientNetV2(
     # for V2 models, "21k" pretrained are all "tf", "imagenet" pretrained "bx" models are all "torch", ["s", "m", "l", "xl"] are "tf"
     rescale_mode = "tf" if pretrained is not None and pretrained.startswith("imagenet21k") else rescale_mode
 
-    inputs = keras.layers.Input(shape=input_shape)
+    # Regard input_shape as force using original shape if len(input_shape) == 4,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(shape=input_shape)
     bn_eps = TORCH_BATCH_NORM_EPSILON if is_torch_mode else TF_BATCH_NORM_EPSILON
 
     if include_preprocessing and rescale_mode == "torch":
         channel_axis = 1 if K.image_data_format() == "channels_first" else -1
-        Normalization = keras.layers.Normalization if hasattr(keras.layers, "Normalization") else keras.layers.experimental.preprocessing.Normalization
-        mean = tf.constant([0.485, 0.456, 0.406]) * 255.0
-        std = (tf.constant([0.229, 0.224, 0.225]) * 255.0) ** 2
+        Normalization = layers.Normalization if hasattr(layers, "Normalization") else layers.experimental.preprocessing.Normalization
+        mean = np.array([0.485, 0.456, 0.406], dtype="float32") * 255.0
+        std = (np.array([0.229, 0.224, 0.225], dtype="float32") * 255.0) ** 2
         nn = Normalization(mean=mean, variance=std, axis=channel_axis)(inputs)
     elif include_preprocessing and rescale_mode == "tf":
-        Rescaling = keras.layers.Rescaling if hasattr(keras.layers, "Rescaling") else keras.layers.experimental.preprocessing.Rescaling
+        Rescaling = layers.Rescaling if hasattr(layers, "Rescaling") else layers.experimental.preprocessing.Rescaling
         nn = Rescaling(scale=1.0 / 128.0, offset=-1)(inputs)
     else:
         nn = inputs
@@ -188,13 +190,15 @@ def EfficientNetV2(
         nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name="post_")
     nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
 
-    model = keras.models.Model(inputs=inputs, outputs=nn, name=model_name)
+    model = models.Model(inputs=inputs, outputs=nn, name=model_name)
     add_pre_post_process(model, rescale_mode="raw" if include_preprocessing else rescale_mode)
     reload_model_weights(model, pretrained)
     return model
 
 
 def reload_model_weights(model, pretrained="imagenet"):
+    import os
+
     if pretrained is None:
         return
     if isinstance(pretrained, str) and pretrained.endswith(".h5"):
@@ -221,7 +225,7 @@ def reload_model_weights(model, pretrained="imagenet"):
     file_hash = FILE_HASH_DICT[model_type][pre_tt]
 
     try:
-        pretrained_model = keras.utils.get_file(file_name, url, cache_subdir="models/efficientnetv2", file_hash=file_hash)
+        pretrained_model = backend.get_file(file_name, url, cache_subdir="models/efficientnetv2", file_hash=file_hash)
     except:
         print("[Error] will not load weights, url not found or download failed:", url)
         return

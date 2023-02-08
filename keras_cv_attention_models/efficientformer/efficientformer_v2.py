@@ -1,5 +1,5 @@
 from keras_cv_attention_models import backend
-from keras_cv_attention_models.backend import layers, functional, models, image_data_format
+from keras_cv_attention_models.backend import layers, functional, models, is_channels_last
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -9,6 +9,7 @@ from keras_cv_attention_models.attention_layers import (
     depthwise_conv2d_no_bias,
     drop_block,
     MultiHeadPositionalEmbedding,
+    qkv_to_multi_head_channals_last_format,
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
@@ -34,7 +35,8 @@ def conv_mhsa_with_multi_head_position(
     activation="gelu",
     name=None,
 ):
-    input_channel = inputs.shape[-1]
+    input_channel = inputs.shape[-1 if is_channels_last() else 1]
+    height, width = inputs.shape[1:-1] if is_channels_last() else inputs.shape[2:]
     key_dim = key_dim if key_dim > 0 else input_channel // num_heads
     # qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
     qk_scale = 1.0 / (float(key_dim) ** 0.5)
@@ -44,22 +46,23 @@ def conv_mhsa_with_multi_head_position(
     value_dim = attn_ratio * key_dim
 
     if strides > 1:
-        should_cut_height, should_cut_width = inputs.shape[1] % 2, inputs.shape[2] % 2  # keep shape same with inputs after later UpSampling2D
+        should_cut_height, should_cut_width = height % 2, width % 2  # keep shape same with inputs after later UpSampling2D
         inputs = depthwise_conv2d_no_bias(inputs, use_bias=True, kernel_size=3, strides=strides, padding="same", name=name and name + "down_sample_")
         inputs = batchnorm_with_activation(inputs, activation=None, name=name and name + "down_sample_")
 
-    kv_blocks = inputs.shape[1] * inputs.shape[2]
+    kv_blocks = height * width
 
     if use_local_global_query:
         # pool_query = layers.AvgPool2D(pool_size=1, strides=2)(inputs)
-        pool_query = inputs[:, ::2, ::2]  # nn.AvgPool2d(kernel_size=1, stride=2, padding=0)
+        # pool_query = inputs[:, ::2, ::2] if is_channels_last() else inputs[:, :, ::2, ::2] # nn.AvgPool2d(kernel_size=1, stride=2, padding=0)
+        pool_query = layers.AvgPool2D(pool_size=1, strides=2)(inputs)
         local_query = depthwise_conv2d_no_bias(inputs, use_bias=qkv_bias, kernel_size=3, strides=2, padding="same", name=name and name + "local_query_")
         pre_query = pool_query + local_query
         vv_local_strides = 2
     else:
         pre_query = inputs
         vv_local_strides = 1
-    _, query_height, query_width, _ = pre_query.shape
+    query_height, query_width = pre_query.shape[1:-1] if is_channels_last() else pre_query.shape[2:]
 
     query = conv2d_no_bias(pre_query, qk_out, use_bias=qkv_bias, kernel_size=1, name=name and name + "query_")
     query = batchnorm_with_activation(query, activation=None, name=name and name + "query_")
@@ -72,11 +75,12 @@ def conv_mhsa_with_multi_head_position(
     vv_local = depthwise_conv2d_no_bias(value, use_bias=qkv_bias, kernel_size=3, strides=vv_local_strides, padding="same", name=name and name + "value_local_")
     vv_local = batchnorm_with_activation(vv_local, activation=None, name=name and name + "value_local_")
 
-    query = functional.transpose(
-        functional.reshape(query, [-1, query_height * query_width, num_heads, key_dim]), [0, 2, 1, 3]
-    )  #  [batch, num_heads, hh * ww, key_dim]
-    key = functional.transpose(functional.reshape(key, [-1, kv_blocks, num_heads, key_dim]), [0, 2, 3, 1])  #  [batch, num_heads, key_dim, hh * ww]
-    value = functional.transpose(functional.reshape(value, [-1, kv_blocks, num_heads, value_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, value_dim]
+    # query = functional.transpose(
+    #     functional.reshape(query, [-1, query_height * query_width, num_heads, key_dim]), [0, 2, 1, 3]
+    # )  #  [batch, num_heads, hh * ww, key_dim]
+    # key = functional.transpose(functional.reshape(key, [-1, kv_blocks, num_heads, key_dim]), [0, 2, 3, 1])  #  [batch, num_heads, key_dim, hh * ww]
+    # value = functional.transpose(functional.reshape(value, [-1, kv_blocks, num_heads, value_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, value_dim]
+    query, key, value = qkv_to_multi_head_channals_last_format(query, key, value, num_heads=num_heads)
 
     # attention_scores = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, hh * ww, hh * ww]
     # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {attention_scores.shape = }, {query_height = }")
@@ -84,12 +88,14 @@ def conv_mhsa_with_multi_head_position(
     attention_scores = MultiHeadPositionalEmbedding(query_height=query_height, name=name and name + "pos_emb")(attention_scores)
 
     if use_talking_head:
-        attention_scores = functional.transpose(attention_scores, [0, 2, 3, 1])  # [batch, hh * ww, hh * ww, num_heads]
+        # if channels_last, attention_scores [batch, num_heads, hh * ww, hh * ww] -> [batch, hh * ww, hh * ww, num_heads]
+        attention_scores = functional.transpose(attention_scores, [0, 2, 3, 1]) if is_channels_last() else attention_scores
         attention_scores = conv2d_no_bias(attention_scores, num_heads, use_bias=True, name=name and name + "talking_head_1_")
-        attention_scores = layers.Softmax(axis=2, name=name and name + "attention_scores")(attention_scores)  # On previous last dimension
+        # On previous last dimension
+        attention_scores = layers.Softmax(axis=2 if is_channels_last() else -1, name=name and name + "attention_scores")(attention_scores)
         attention_scores = conv2d_no_bias(attention_scores, num_heads, use_bias=True, name=name and name + "talking_head_2_")
-        # attention_scores = layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores) if attn_dropout > 0 else attention_scores
-        attention_scores = functional.transpose(attention_scores, [0, 3, 1, 2])  # [batch, num_heads, hh * ww, hh * ww]
+        # if channels_last, attention_scores [batch, hh * ww, hh * ww, num_heads] -> [batch, num_heads, hh * ww, hh * ww]
+        attention_scores = functional.transpose(attention_scores, [0, 3, 1, 2]) if is_channels_last() else attention_scores
     else:
         attention_scores = layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
         # attention_scores = layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores) if attn_dropout > 0 else attention_scores
@@ -97,15 +103,20 @@ def conv_mhsa_with_multi_head_position(
     # value = [batch, num_heads, hh * ww, value_dim], attention_output = [batch, num_heads, hh * ww, value_dim]
     # attention_output = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([attention_scores, value])
     attention_output = attention_scores @ value
-    attention_output = functional.transpose(attention_output, perm=[0, 2, 1, 3])
-    attention_output = functional.reshape(attention_output, [-1, query_height, query_width, num_heads * value_dim])
+    if is_channels_last():
+        attention_output = functional.transpose(attention_output, perm=[0, 2, 1, 3])
+        attention_output = functional.reshape(attention_output, [-1, query_height, query_width, num_heads * value_dim])
+    else:
+        attention_output = functional.transpose(attention_output, perm=[0, 1, 3, 2])
+        attention_output = functional.reshape(attention_output, [-1, num_heads * value_dim, query_height, query_width])
     attention_output += vv_local
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
     if strides > 1:
         attention_output = layers.UpSampling2D(size=(strides, strides), interpolation="bilinear")(attention_output)
         if should_cut_height > 0 or should_cut_width > 0:
-            attention_output = attention_output[:, : attention_output.shape[1] - should_cut_height, : attention_output.shape[2] - should_cut_width]
+            keep_height, keep_width = attention_output.shape[1] - should_cut_height, attention_output.shape[2] - should_cut_width
+            attention_output = attention_output[:, :keep_height, :keep_width] if is_channels_last() else attention_output[:, :, :keep_height, :keep_width]
 
     # [batch, hh, ww, num_heads * value_dim] * [num_heads * value_dim, out] --> [batch, hh, ww, out]
     attention_output = activation_by_name(attention_output, activation=activation, name=name)
@@ -116,7 +127,7 @@ def conv_mhsa_with_multi_head_position(
 
 
 def mlp_block_with_additional_depthwise_conv(inputs, hidden_dim, output_channel=-1, drop_rate=0, activation="gelu", name=""):
-    output_channel = output_channel if output_channel > 0 else inputs.shape[-1]
+    output_channel = output_channel if output_channel > 0 else inputs.shape[-1 if is_channels_last() else 1]
     nn = conv2d_no_bias(inputs, hidden_dim, kernel_size=1, use_bias=True, name=name + "1_")
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
 
@@ -190,7 +201,7 @@ def EfficientFormerV2(
                 strides = 2 if stack_id == 2 else 1
                 attn_out = conv_mhsa_with_multi_head_position(nn, num_heads=8, key_dim=32, strides=strides, activation=activation, name=block_name + "attn_")
                 nn = add_with_layer_scale_and_drop_block(nn, attn_out, layer_scale=layer_scale, drop_rate=block_drop_rate, name=block_name + "attn_")
-            mlp_out = mlp_block_with_additional_depthwise_conv(nn, nn.shape[-1] * cur_mlp_ratio, activation=activation, name=block_name + "mlp_")
+            mlp_out = mlp_block_with_additional_depthwise_conv(nn, out_channel * cur_mlp_ratio, activation=activation, name=block_name + "mlp_")
             nn = add_with_layer_scale_and_drop_block(nn, mlp_out, layer_scale=layer_scale, drop_rate=block_drop_rate, name=block_name + "mlp_")
             global_block_id += 1
 

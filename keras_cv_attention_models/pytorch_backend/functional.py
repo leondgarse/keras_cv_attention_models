@@ -1,11 +1,11 @@
 import torch
 import math
 import torch.nn.functional as F
-from keras_cv_attention_models.pytorch_backend.layers import Lambda, Concatenate, GraphNode, Shape
+from keras_cv_attention_models.pytorch_backend.layers import Lambda, Concatenate, GraphNode, Shape, ZeroPadding
 from functools import partial
 
 
-# eye, math.log, tf.image.extract_patches, reduce_max, shape, tile, stack
+# eye, tf.image.extract_patches, reduce_max, shape, tile, stack
 
 
 def assign(parameter, data):
@@ -30,6 +30,10 @@ def convert_to_tensor(inputs, dtype="float32"):
 
 def cos(inputs, name=None):
     return Lambda(torch.cos, name=name)(inputs)
+
+
+def exp(inputs, name=None):
+    return Lambda(torch.exp, name=name)(inputs)
 
 
 def expand_dims(inputs, axis, name=None):
@@ -72,6 +76,10 @@ def gelu(inputs, approximate=False, name=None):
     return Lambda(partial(F.gelu, approximate="tanh" if approximate else "none"), name=name)(inputs)
 
 
+def l2_normalize(inputs, axis=None, epsilon=1e-12, name=None):
+    return Lambda(partial(F.normalize, p=2.0, dim=axis, eps=epsilon), name=name)(inputs)
+
+
 def linspace(start, stop, num, name=None, axis=0):
     # return Lambda(partial(torch.linspace, start=start, end=stop, steps=num), name=name)(inputs)
     return torch.linspace(start=start, end=stop, steps=num)
@@ -93,6 +101,10 @@ def maximum(xx, yy, name=None):
     return Lambda(lambda inputs: torch.maximum(inputs[0], inputs[1]), name=name)([xx, yy])
 
 
+def minimum(xx, yy, name=None):
+    return Lambda(lambda inputs: torch.minimum(inputs[0], inputs[1]), name=name)([xx, yy])
+
+
 def norm(inputs, ord="euclidean", axis=1, keepdims=False, name=None):
     return Lambda(partial(torch.norm, p=2, dim=axis, keepdim=keepdims), name=name)(inputs)
 
@@ -104,14 +116,20 @@ def pad(inputs, paddings, mode="CONSTANT", constant_values=0, name=None):
     >>> bb = torch.functional.F.pad(torch.tensor([[[1, 2, 3], [4, 5, 6]]]), [3, 4, 1, 2, 0, 0])
     >>> np.allclose(aa, bb.detach())
     """
-    pad = []
-    for pp in paddings[::-1]:
-        pad += pp
-    return Lambda(partial(F.pad, pad=pad, mode=mode.lower(), value=constant_values), name=name)(inputs)
+    # F.pad doesn't support 0 shape inputs, throws error while compute_output_shape
+    # pad = []
+    # for pp in paddings[::-1]:
+    #     pad += pp
+    # return Lambda(partial(F.pad, pad=pad, mode=mode.lower(), value=constant_values), name=name)(inputs)
+    return ZeroPadding(padding=paddings)(inputs)
 
 
 def pow(inputs, exponent, name=None):
     return Lambda(partial(torch.pow, exponent=exponent), name=name)(inputs)
+
+
+def reduce_max(inputs, axis=None, keepdims=False, name=None):
+    return Lambda(partial(torch.max, dim=axis, keepdim=keepdims), name=name)(inputs)
 
 
 def reduce_mean(inputs, axis=None, keepdims=False, name=None):
@@ -151,7 +169,7 @@ def resize(inputs, size, method="bilinear", preserve_aspect_ratio=False, antiali
     if isinstance(inputs, GraphNode):
         return Lambda(partial(F.interpolate, size=size, mode=method, antialias=antialias), name=name)(inputs)  # [TODO] align_corners
     else:  # called directly
-        inputs = torch.tensor(inputs)
+        inputs = inputs if isinstance(inputs, torch.Tensor) else torch.tensor(inputs)
         if len(inputs.shape) == 3:
             return F.interpolate(inputs[None], size=size, mode=method, antialias=antialias)[0]
         else:

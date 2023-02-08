@@ -28,6 +28,13 @@ def image_data_format():
         return "channels_first"
 
 
+__is_channels_last__ = image_data_format() == "channels_last"
+
+
+def is_channels_last():
+    return __is_channels_last__
+
+
 def align_input_shape_by_image_data_format(input_shape):
     """Regard input_shape as force using original shape if len(input_shape) == 4,
     else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format,
