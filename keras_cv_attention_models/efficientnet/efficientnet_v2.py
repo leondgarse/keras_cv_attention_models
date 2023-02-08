@@ -78,10 +78,8 @@ def inverted_residual_block(
         if is_torch_mode and kernel_size // 2 > 0:
             nn = layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "pad")(nn)
             padding = "VALID"
-        elif kernel_size // 2 > 0:
-            pp = [1, 1] if stride == 1 else [0, 1]
-            nn = functional.pad(nn, [[0, 0], [0, 0], pp, pp])
-            padding = "VALID"
+        else:
+            padding = "SAME"
         nn = layers.DepthwiseConv2D(kernel_size, padding=padding, strides=stride, use_bias=False, name=name and name + "MB_dw_")(nn)
         nn = batchnorm_with_activation(nn, activation=activation, epsilon=bn_eps, name=name and name + "MB_dw_")
 
@@ -144,7 +142,7 @@ def EfficientNetV2(
     bn_eps = TORCH_BATCH_NORM_EPSILON if is_torch_mode else TF_BATCH_NORM_EPSILON
 
     if include_preprocessing and rescale_mode == "torch":
-        channel_axis = 1 if K.image_data_format() == "channels_first" else -1
+        channel_axis = 1 if backend.image_data_format() == "channels_first" else -1
         Normalization = layers.Normalization if hasattr(layers, "Normalization") else layers.experimental.preprocessing.Normalization
         mean = np.array([0.485, 0.456, 0.406], dtype="float32") * 255.0
         std = (np.array([0.229, 0.224, 0.225], dtype="float32") * 255.0) ** 2
