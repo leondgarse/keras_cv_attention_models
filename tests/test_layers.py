@@ -278,10 +278,11 @@ def test_PairWiseRelativePositionalEmbedding():
     window_patch, window_height, window_width, channel = 9, 5, 3, 23
     input_shape = [window_patch, window_height, window_width, channel]
     coords_shape = [(2 * window_height - 1) * (2 * window_width - 1), 2]
-    index_shape = [window_height * window_width, window_height * window_width]
-    relative_log_coords, relative_position_index = aa(tf.ones(input_shape))
+    pos_emb_shape = [window_height * window_width, window_height * window_width, 2]
+    relative_log_coords = aa(tf.ones(input_shape))
+    relative_position_bias = attention_layers.PairWiseRelativePositionalEmbeddingGather(window_height=window_height)(relative_log_coords)
     assert relative_log_coords.shape == coords_shape
-    assert relative_position_index.shape == index_shape
+    assert relative_position_bias.shape == index_shape
 
 
 def test_phase_aware_token_mixing():
