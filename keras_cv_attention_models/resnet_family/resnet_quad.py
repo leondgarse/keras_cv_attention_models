@@ -1,3 +1,4 @@
+from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, drop_block, quad_stem, add_pre_post_process

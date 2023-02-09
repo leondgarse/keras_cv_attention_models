@@ -3,7 +3,7 @@
 
 ## Summary
   - Experimental implementation for using PyTorch as Keras backend.
-  - Currently supports models in [mlp_family](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family) / [beit](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) / botnet / caformer / convnext / davit / efficientnet / efficientformer / levit / pvt / swin / uniformer.
+  - Currently supports models in [mlp_family](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family) / [beit](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) / botnet / caformer / convnext / davit / efficientnet / efficientformer / levit / [mobilenetv3_family](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family) / pvt / [resnet_family](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnet_family) / swin / uniformer.
 ***
 
 ## Usage
