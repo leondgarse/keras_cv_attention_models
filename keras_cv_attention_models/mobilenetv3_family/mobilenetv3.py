@@ -1,6 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -39,14 +38,14 @@ PRETRAINED_DICT = {
 
 
 def avg_pool_conv_output(inputs, output_num_features=1280, use_output_feature_bias=True, activation="hard_swish"):
-    # nn = keras.layers.AveragePooling2D(pool_size=inputs.shape[1:3], name="avg_pool")(inputs)
-    # nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(inputs)[:, None, None, :]
-    h_axis, w_axis = [2, 3] if K.image_data_format() == "channels_first" else [1, 2]
-    nn = tf.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)  # using AveragePooling2D cannot set dynamic input_shape
+    # nn = layers.AveragePooling2D(pool_size=inputs.shape[1:3], name="avg_pool")(inputs)
+    # nn = layers.GlobalAveragePooling2D(name="avg_pool")(inputs)[:, None, None, :]
+    h_axis, w_axis = [1, 2] if image_data_format() == "channels_last" else [2, 3]
+    nn = functional.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)  # using AveragePooling2D cannot set dynamic input_shape
     if output_num_features > 0:
         nn = conv2d_no_bias(nn, make_divisible(output_num_features, 8), use_bias=use_output_feature_bias, name="features_")
         nn = activation_by_name(nn, activation, name="features_")
-    nn = keras.layers.Flatten()(nn)
+    nn = layers.Flatten()(nn)
     return nn
 
 
@@ -55,7 +54,7 @@ def conv_avg_pool_output(inputs, output_num_features=1280, use_output_feature_bi
     if output_num_features > 0:
         nn = conv2d_no_bias(nn, make_divisible(output_num_features, 8), use_bias=use_output_feature_bias, name="features_")
         nn = batchnorm_with_activation(nn, activation=activation, name="features_")
-    nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+    nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
     return nn
 
 
@@ -90,7 +89,10 @@ def MobileNetV3(
     model_name="mobilenetv3",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if len(input_shape) == 4,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
     stem_width = stem_width if fix_stem else make_divisible(stem_width * width_ratio, 8)
     nn = conv2d_no_bias(inputs, stem_width, kernel_size=3, strides=2, padding="same", name="stem_")
     nn = batchnorm_with_activation(nn, activation=stem_feature_activation, name="stem_")
@@ -139,9 +141,9 @@ def MobileNetV3(
             nn = conv_avg_pool_output(nn, output_num_features, use_output_feature_bias, stem_feature_activation)
 
         if dropout > 0:
-            nn = keras.layers.Dropout(dropout, name="head_drop")(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
-    model = keras.models.Model(inputs, nn, name=model_name)
+            nn = layers.Dropout(dropout, name="head_drop")(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "mobilenetv3_family", pretrained)
     return model

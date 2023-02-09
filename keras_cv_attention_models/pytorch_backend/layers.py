@@ -22,7 +22,10 @@ def get_perm(total_axis, from_axis, to_axis):
 
 
 def tf_same_pad(size, kernel_size, stride, dilation_rate=1):
-    return max((np.math.ceil(size / stride) - 1) * stride + (kernel_size - 1) * dilation_rate + 1 - size, 0)
+    if size is None:
+        return kernel_size - stride  # Regarding as size % stride == 0
+    else:
+        return max((np.math.ceil(size / stride) - 1) * stride + (kernel_size - 1) * dilation_rate + 1 - size, 0)
 
 
 def compute_conv_output_size(input_shape, kernel_size, strides=1, padding="valid", dilation_rate=1):
@@ -32,8 +35,8 @@ def compute_conv_output_size(input_shape, kernel_size, strides=1, padding="valid
     strides = strides if isinstance(strides, (list, tuple)) else [strides] * len(size)
     dilated_filter_size = [kk + (kk - 1) * (dd - 1) for kk, dd in zip(kernel_size, dilation_rate)]
     if padding.upper() == "VALID":
-        size = [ii - jj + 1 for ii, jj in zip(size, dilated_filter_size)]
-    size = [(ii + jj - 1) // jj for ii, jj in zip(size, strides)]
+        size = [None if ii is None else (ii - jj + 1) for ii, jj in zip(size, dilated_filter_size)]
+    size = [None if ii is None else ((ii + jj - 1) // jj) for ii, jj in zip(size, strides)]
     return size
 
 
@@ -138,9 +141,8 @@ class Layer(nn.Module):
 
     def build(self, input_shape: torch.Size):
         self.input_shape = input_shape
-        if self.is_graph_node_input:
-            # When exporting onnx/pth, model will be built again, and may throws error in compute_output_shape with 0 input_shape
-            self.__output_shape__ = self.compute_output_shape(input_shape)
+        # if self.is_graph_node_input:  # When exporting onnx/pth, model will be built again, and may throws error in compute_output_shape with 0 input_shape
+        self.__output_shape__ = self.compute_output_shape(input_shape)
         # if hasattr(self, "call"):  # General keras layers with call function
         #     self.forward = self.call
         #     self.call = self.call
@@ -216,6 +218,11 @@ class Layer(nn.Module):
     def from_config(cls, config):
         return cls(**config)
 
+    def extra_repr(self):
+        config = self.get_config()
+        config.pop("name")
+        return ", ".join(["{}={}".format(kk, vv) for kk, vv in config.items()])
+
 
 class Lambda(Layer):
     def __init__(self, func, **kwargs):
@@ -234,6 +241,7 @@ class Lambda(Layer):
     def compute_output_shape(self, input_shape):
         # print(self.module, input_shape)
         input_shapes = [input_shape] if isinstance(input_shape[0], int) or input_shape[0] is None else input_shape
+        # print(input_shapes)
         inputs = [torch.ones([0 if ii is None or ii == -1 else ii for ii in input_shape]) for input_shape in input_shapes]  # Regards 0 as dynamic shape
         output_shape = list(self.module(inputs[0]).shape) if len(inputs) == 1 else list(self.module(inputs).shape)
         return [None if ii == 0 else ii for ii in output_shape]  # Regards 0 as dynamic shape
@@ -273,6 +281,24 @@ class Activation(Layer):
         config = super().get_config()
         config.update({"activation": self.activation})
         return config
+
+
+class SamePadding(nn.Module):
+    """Perform SAME padding like TF"""
+    def __init__(self, kernel_size, strides, dilation_rate=1, ndims=2):
+        super().__init__()
+        self.kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else [kernel_size] * ndims
+        self.strides = strides if isinstance(strides, (list, tuple)) else [strides] * ndims
+        self.dilation_rate = dilation_rate if isinstance(dilation_rate, (list, tuple)) else [dilation_rate] * ndims
+        self.ndims = len(self.kernel_size)
+
+    def forward(self, inputs):
+        pad = [tf_same_pad(ii, kk, ss, dd) for ii, kk, ss, dd in zip(inputs.shape[2:], self.kernel_size, self.strides, self.dilation_rate)]
+        padding = []
+        for pp in pad[::-1]:
+            padding += [pp // 2, pp - pp // 2]
+        padding += [0, 0, 0, 0]
+        return torch.functional.F.pad(inputs, pad=padding)
 
 
 class ZeroPadding(Layer):
@@ -318,7 +344,8 @@ class _Merge(Layer):
 
         valid_input_shape = [ii for ii in input_shape if len(ii) != 0]  # exclude scalar values
         max_dim = len(output_shape)
-        result = not any([any([ii[dim] != 1 and output_shape[dim] != ii[dim] for dim in range(1, max_dim)]) for ii in valid_input_shape])
+        check_single_func = lambda ii: any([ii[dim] is not None and ii[dim] != 1 and output_shape[dim] != ii[dim] for dim in range(1, max_dim)])
+        result = not any([check_single_func(ii) for ii in valid_input_shape])
         assert result, "input_shapes not all equal: {}".format(input_shape)
 
     def compute_output_shape(self, input_shape):
@@ -327,8 +354,10 @@ class _Merge(Layer):
             return ()
 
         max_dim = max([len(ii) for ii in valid_input_shape])
+        valid_input_shape = [[np.inf if jj is None else jj for jj in ii] for ii in valid_input_shape]  # Regard None as 0
         valid_input_shape = np.array([[1] * (max_dim - len(ii)) + list(ii) for ii in valid_input_shape])  # expands 1 on the head
         max_shape = valid_input_shape.max(0)
+        max_shape = [None if np.isinf(ii) else int(ii) for ii in max_shape]  # Regard 0 as None
         return [None, *max_shape]
 
 
@@ -469,13 +498,14 @@ class Conv(Layer):
         )
         kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
         module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
-        if self.padding.upper() == "SAME":
+        if isinstance(self.padding, str) and self.padding.upper() == "SAME":
             # TF like same padding
-            pad_hh = tf_same_pad(input_shape[2], self.kernel_size[0], self.strides[0], self.dilation_rate[0])
-            pad_ww = tf_same_pad(input_shape[3], self.kernel_size[1], self.strides[1], self.dilation_rate[1])
-            pad = [tf_same_pad(ii, kk, ss, dd) for ii, kk, ss, dd in zip(input_shape[2:], self.kernel_size, self.strides, self.dilation_rate)]
-            self._pad = [[0, 0], [0, 0]] + [[pp // 2, pp - pp // 2] for pp in pad]
-            self.module = nn.Sequential(ZeroPadding(padding=self._pad), module)
+            # pad_hh = tf_same_pad(input_shape[2], self.kernel_size[0], self.strides[0], self.dilation_rate[0])
+            # pad_ww = tf_same_pad(input_shape[3], self.kernel_size[1], self.strides[1], self.dilation_rate[1])
+            # pad = [tf_same_pad(ii, kk, ss, dd) for ii, kk, ss, dd in zip(input_shape[2:], self.kernel_size, self.strides, self.dilation_rate)]
+            # self._pad = [[0, 0], [0, 0]] + [[pp // 2, pp - pp // 2] for pp in pad]
+            same_padding = SamePadding(kernel_size=self.kernel_size, strides=self.strides, dilation_rate=self.dilation_rate, ndims=num_dims)
+            self.module = nn.Sequential(same_padding, module)
         else:
             self.module = module
         super().build(input_shape)
@@ -776,17 +806,23 @@ class Pooling2D(Layer):
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        pool_size = self.pool_size
         if isinstance(self.padding, str):
-            pad = (pool_size[0] // 2, pool_size[1] // 2) if self.padding.upper() == "SAME" else (0, 0)
+            pad_hh = tf_same_pad(input_shape[2], self.pool_size[0], self.strides[0])
+            pad_ww = tf_same_pad(input_shape[3], self.pool_size[1], self.strides[1])
+            pad = (0, 0)  # Both set to 0 for "SAME" and "VALID", "SAME" will apply TF like same padding.
         else:  # int or list or tuple with specific value
             pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
         self._pad = pad
 
         if self.reduce.lower() == "max":
-            self.module = nn.MaxPool2d(kernel_size=self.pool_size, stride=self.strides, padding=pad)
+            module = nn.MaxPool2d(kernel_size=self.pool_size, stride=self.strides, padding=pad)
         else:
-            self.module = nn.AvgPool2d(kernel_size=self.pool_size, stride=self.strides, padding=pad, count_include_pad=False)
+            module = nn.AvgPool2d(kernel_size=self.pool_size, stride=self.strides, padding=pad, count_include_pad=False)
+
+        if isinstance(self.padding, str) and self.padding.upper() == "SAME":
+            self.module = nn.Sequential(SamePadding(kernel_size=self.pool_size, strides=self.strides, ndims=2), module)
+        else:
+            self.module = module
         super().build(input_shape)
 
     def compute_output_shape(self, input_shape):
@@ -940,7 +976,9 @@ class ZeroPadding2D(Layer):
         super().build(input_shape)
 
     def compute_output_shape(self, input_shape):
-        return [input_shape[0], input_shape[1], input_shape[2] + self.padding[0] * 2, input_shape[3] + self.padding[1] * 2]
+        hh = None if input_shape[2] is None else (input_shape[2] + self.padding[0] * 2)
+        ww = None if input_shape[3] is None else (input_shape[3] + self.padding[1] * 2)
+        return [input_shape[0], input_shape[1], hh, ww]
 
     def get_config(self):
         config = super().get_config()

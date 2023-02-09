@@ -145,18 +145,20 @@ class Model(nn.Module):
         with h5py.File(filepath if filepath else self.name + ".h5", "w") as h5_file:
             save_weights_to_hdf5_group(h5_file, self)
 
-    def summary(self):
+    def summary(self, input_shape=None):
         from torchsummary import summary
+        input_shape = self.input_shape[1:] if input_shape is None else input_shape[-3:]
+        summary(self, tuple(input_shape))
 
-        summary(self, tuple(self.input_shape[1:]))
-
-    def export_onnx(self, filepath=None, *kwargs):
-        torch.onnx.export(self, torch.ones([1, *self.input_shape[1:]]), self.name + ".onnx", *kwargs)
+    def export_onnx(self, filepath=None, input_shape=None, **kwargs):
+        input_shape = self.input_shape[1:] if input_shape is None else input_shape[-3:]
+        torch.onnx.export(self, torch.ones([1, *input_shape]), self.name + ".onnx", **kwargs)
         print("Exported onnx:", filepath if filepath else self.name + ".onnx")
 
-    def export_pth(self, filepath=None, *kwargs):
-        traced_cell = torch.jit.trace(self, (torch.ones([1, *self.input_shape[1:]])))
-        torch.jit.save(traced_cell, self.name + ".pth", *kwargs)
+    def export_pth(self, filepath=None, input_shape=None, **kwargs):
+        input_shape = self.input_shape[1:] if input_shape is None else input_shape[-3:]
+        traced_cell = torch.jit.trace(self, (torch.ones([1, *input_shape])))
+        torch.jit.save(traced_cell, self.name + ".pth", **kwargs)
         print("Exported pth:", filepath if filepath else self.name + ".pth")
 
     def set_debug(self, debug=True):

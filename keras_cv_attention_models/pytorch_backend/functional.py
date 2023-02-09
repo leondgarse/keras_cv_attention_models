@@ -1,11 +1,14 @@
 import torch
 import math
 import torch.nn.functional as F
-from keras_cv_attention_models.pytorch_backend.layers import Lambda, Concatenate, GraphNode, Shape, ZeroPadding
+from keras_cv_attention_models.pytorch_backend.layers import Lambda, Concatenate, GraphNode, Shape, ZeroPadding, Add
 from functools import partial
 
 
-# eye, tf.image.extract_patches, reduce_max, shape, tile, stack
+# eye, tf.image.extract_patches, shape, tile, stack
+
+def wrapper(func, inputs, name=None):
+    return Lambda(func, name=name)(inputs) if isinstance(inputs, GraphNode) or (isinstance(inputs, list) and isinstance(inputs[0], GraphNode)) else func(inputs)
 
 
 def assign(parameter, data):
@@ -17,7 +20,7 @@ def cast(inputs, dtype="float32"):
 
 
 def clip_by_value(inputs, clip_value_min, clip_value_max, name=None):
-    return Lambda(partial(torch.clip, min=clip_value_min, max=clip_value_max), name=name)(inputs)
+    return wrapper(partial(torch.clip, min=clip_value_min, max=clip_value_max), inputs, name=name)
 
 
 def concat(inputs, axis, name=None):
@@ -29,15 +32,15 @@ def convert_to_tensor(inputs, dtype="float32"):
 
 
 def cos(inputs, name=None):
-    return Lambda(torch.cos, name=name)(inputs)
+    return wrapper(torch.cos, inputs, name=name)
 
 
 def exp(inputs, name=None):
-    return Lambda(torch.exp, name=name)(inputs)
+    return wrapper(torch.exp, inputs, name=name)
 
 
 def expand_dims(inputs, axis, name=None):
-    return Lambda(partial(torch.unsqueeze, dim=axis), name=name)(inputs)
+    return wrapper(partial(torch.unsqueeze, dim=axis), inputs, name=name)
 
 
 def extract_patches(inputs, sizes, strides=1, rates=1, padding=0, name=None):
@@ -73,11 +76,11 @@ def gather(inputs, indices, axis=None, batch_dims=0, name=None):
 
 
 def gelu(inputs, approximate=False, name=None):
-    return Lambda(partial(F.gelu, approximate="tanh" if approximate else "none"), name=name)(inputs)
+    return wrapper(partial(F.gelu, approximate="tanh" if approximate else "none"), inputs, name=name)
 
 
 def l2_normalize(inputs, axis=None, epsilon=1e-12, name=None):
-    return Lambda(partial(F.normalize, p=2.0, dim=axis, eps=epsilon), name=name)(inputs)
+    return wrapper(partial(F.normalize, p=2.0, dim=axis, eps=epsilon), inputs, name=name)
 
 
 def linspace(start, stop, num, name=None, axis=0):
@@ -86,27 +89,34 @@ def linspace(start, stop, num, name=None, axis=0):
 
 
 def log(log, name=None):
-    return Lambda(partial(torch.log), name=name)(inputs)
+    return wrapper(partial(torch.log), inputs, name=name)
 
 
 def matmul(xx, yy, name=None):
-    return Lambda(lambda inputs: torch.matmul(inputs[0], inputs[1]), name=name)([xx, yy])
+    return wrapper(lambda inputs: torch.matmul(inputs[0], inputs[1]), [xx, yy], name=name)
 
 
 def moments(inputs, axes, shift=None, keepdims=False, name=None):
-    return Lambda(partial(torch.var_mean, dim=axes, keepdim=keepdims), name=name)(inputs)
+    return wrapper(partial(torch.var_mean, dim=axes, keepdim=keepdims), inputs, name=name)
 
 
 def maximum(xx, yy, name=None):
-    return Lambda(lambda inputs: torch.maximum(inputs[0], inputs[1]), name=name)([xx, yy])
+    if isinstance(yy, torch.Tensor):
+        func = lambda inputs: torch.maximum(inputs[0], inputs[1])
+    else:  # maximum doesn't support scalar value
+        func = lambda inputs: torch.where(inputs[0] > inputs[1], inputs[0], inputs[1])
+    return wrapper(func, [xx, yy], name=name)
 
 
 def minimum(xx, yy, name=None):
-    return Lambda(lambda inputs: torch.minimum(inputs[0], inputs[1]), name=name)([xx, yy])
-
+    if isinstance(yy, torch.Tensor):
+        func = lambda inputs: torch.minimum(inputs[0], inputs[1])
+    else:  # maximum doesn't support scalar value
+        func = lambda inputs: torch.where(inputs[0] > inputs[1], inputs[1], inputs[0])
+    return wrapper(func, [xx, yy], name=name)
 
 def norm(inputs, ord="euclidean", axis=1, keepdims=False, name=None):
-    return Lambda(partial(torch.norm, p=2, dim=axis, keepdim=keepdims), name=name)(inputs)
+    return wrapper(partial(torch.norm, p=2, dim=axis, keepdim=keepdims), inputs, name=name)
 
 
 def pad(inputs, paddings, mode="CONSTANT", constant_values=0, name=None):
@@ -125,27 +135,30 @@ def pad(inputs, paddings, mode="CONSTANT", constant_values=0, name=None):
 
 
 def pow(inputs, exponent, name=None):
-    return Lambda(partial(torch.pow, exponent=exponent), name=name)(inputs)
+    return wrapper(partial(torch.pow, exponent=exponent), inputs, name=name)
 
 
 def reduce_max(inputs, axis=None, keepdims=False, name=None):
-    return Lambda(partial(torch.max, dim=axis, keepdim=keepdims), name=name)(inputs)
+    return wrapper(partial(torch.max, dim=axis, keepdim=keepdims), inputs, name=name)
 
 
 def reduce_mean(inputs, axis=None, keepdims=False, name=None):
-    return Lambda(partial(torch.mean, dim=axis, keepdim=keepdims), name=name)(inputs)
+    return wrapper(partial(torch.mean, dim=axis, keepdim=keepdims), inputs, name=name)
 
 
 def reduce_sum(inputs, axis=None, keepdims=False, name=None):
-    return Lambda(partial(torch.sum, dim=axis, keepdim=keepdims), name=name)(inputs)
+    if isinstance(inputs, (list, tuple)) and axis == 0:
+        return Add(name=name)(inputs)
+    else:
+        return wrapper(partial(torch.sum, dim=axis, keepdim=keepdims), inputs, name=name)
 
 
 def relu(inputs, name=None):
-    return Lambda(F.relu, name=name)(inputs)
+    return wrapper(F.relu, inputs, name=name)
 
 
 def relu6(inputs, name=None):
-    return Lambda(F.relu6, name=name)(inputs)
+    return wrapper(F.relu6, inputs, name=name)
 
 
 def repeat(inputs, repeats, axis, name=None):
@@ -158,11 +171,11 @@ def repeat(inputs, repeats, axis, name=None):
     expand_shape = list(inputs.shape)
     expand_shape.insert(axis + 1, repeats)
     out_shape = [ii * repeats if dim == axis else ii for dim, ii in enumerate(inputs.shape)]
-    return Lambda(lambda inputs: torch.reshape(torch.expand_copy(torch.unsqueeze(inputs, axis + 1), expand_shape), out_shape), name=name)(inputs)
+    return wrapper(lambda inputs: torch.reshape(torch.expand_copy(torch.unsqueeze(inputs, axis + 1), expand_shape), out_shape), inputs, name=name)
 
 
 def reshape(inputs, shape, name=None):
-    return Lambda(partial(torch.reshape, shape=shape), name=name)(inputs)
+    return wrapper(partial(torch.reshape, shape=shape), inputs, name=name)
 
 
 def resize(inputs, size, method="bilinear", preserve_aspect_ratio=False, antialias=False, name=None):
@@ -181,19 +194,19 @@ def shape(inputs):
 
 
 def sigmoid(inputs, axis=None, name=None):
-    return Lambda(F.sigmoid, name=name)(inputs)
+    return wrapper(torch.sigmoid, inputs, name=name)
 
 
 def sin(inputs, name=None):
-    return Lambda(torch.sin, name=name)(inputs)
+    return wrapper(torch.sin, inputs, name=name)
 
 
 def softmax(inputs, axis=None, name=None):
-    return Lambda(partial(F.softmax, dim=axis), name=name)(inputs)
+    return wrapper(partial(torch.softmax, dim=axis), inputs, name=name)
 
 
 def softplus(inputs, name=None):
-    return Lambda(F.softplus, name=name)(inputs)
+    return wrapper(F.softplus, inputs, name=name)
 
 
 def split(inputs, num_or_size_splits, axis=0, num=None, name=None):
@@ -221,19 +234,19 @@ def split(inputs, num_or_size_splits, axis=0, num=None, name=None):
 
 
 def sqrt(inputs, name=None):
-    return Lambda(torch.sqrt, name=name)(inputs)
+    return wrapper(torch.sqrt, inputs, name=name)
 
 
 def squeeze(inputs, axis, name=None):
-    return Lambda(partial(torch.squeeze, dim=axis), name=name)(inputs)
+    return wrapper(partial(torch.squeeze, dim=axis), inputs, name=name)
 
 
 def tanh(inputs, name=None):
-    return Lambda(F.tanh, name=name)(inputs)
+    return wrapper(F.tanh, inputs, name=name)
 
 
 def transpose(inputs, perm=None, conjugate=False, name=None):
-    return Lambda(partial(torch.permute, dims=perm), name=name)(inputs)
+    return wrapper(partial(torch.permute, dims=perm), inputs, name=name)
 
 
 def unstack(inputs, axis, name=None):

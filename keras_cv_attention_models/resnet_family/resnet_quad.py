@@ -1,6 +1,4 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
+from keras_cv_attention_models.backend import layers, models
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, drop_block, quad_stem, add_pre_post_process
 
@@ -37,8 +35,8 @@ def quad_block(inputs, filters, groups_div=32, strides=1, conv_shortcut=False, e
 
     # print(">>>> shortcut:", shortcut.shape, "nn:", nn.shape)
     nn = drop_block(nn, drop_rate)
-    nn = keras.layers.Add(name=name + "add")([shortcut, nn])
-    return keras.layers.Activation(activation, name=name + "output")(nn)
+    nn = layers.Add(name=name + "add")([shortcut, nn])
+    return layers.Activation(activation, name=name + "output")(nn)
 
 
 def quad_stack(inputs, blocks, filters, groups_div, strides=2, expansion=4, extra_conv=False, stack_drop=0, activation="swish", name=""):
@@ -73,12 +71,15 @@ def ResNetQ(
     model_name="resnetq",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(shape=input_shape)
+    # Regard input_shape as force using original shape if len(input_shape) == 4,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(shape=input_shape)
     nn = quad_stem(inputs, stem_width, activation=activation, stem_act=stem_act, name="stem_")
     nn = batchnorm_with_activation(nn, activation=activation, name="stem_")
     if stem_downsample:
-        nn = keras.layers.ZeroPadding2D(padding=1, name="stem_pool_pad")(nn)
-        nn = keras.layers.MaxPooling2D(pool_size=3, strides=2, name="stem_pool")(nn)
+        nn = layers.ZeroPadding2D(padding=1, name="stem_pool_pad")(nn)
+        nn = layers.MaxPooling2D(pool_size=3, strides=2, name="stem_pool")(nn)
 
     total_blocks = sum(num_blocks)
     global_block_id = 0
@@ -100,10 +101,10 @@ def ResNetQ(
         nn = batchnorm_with_activation(nn, activation=activation, name="features_")
 
     if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
-    model = keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnet_family", pretrained=pretrained)
     return model
