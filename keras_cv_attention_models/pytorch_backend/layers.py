@@ -272,7 +272,7 @@ class Activation(Layer):
         elif isinstance(self.activation, str) and self.activation == "swish":
             self.module = torch.nn.SiLU()
         elif isinstance(self.activation, str):
-            self.module = getattr(torch.functional.F, self.activation)
+            self.module = getattr(torch, self.activation, getattr(torch.functional.F, self.activation))
         else:
             self.module = self.activation
         super().build(input_shape)
@@ -775,7 +775,8 @@ class Dropout(Layer):
     def build(self, input_shape):
         if self.noise_shape is None:
             dims, rate = len(input_shape), self.rate
-            self.module = torch.nn.Dropout1d(p=rate) if dims == 3 else (torch.nn.Dropout2d(p=rate) if dims == 4 else torch.nn.Dropout3d(p=rate))
+            # self.module = torch.nn.Dropout1d(p=rate) if dims == 3 else (torch.nn.Dropout2d(p=rate) if dims == 4 else torch.nn.Dropout3d(p=rate))
+            self.module = torch.nn.Dropout(p=rate)
         else:
             self.module = __DropPath__(drop_prob=self.rate)
         super().build(input_shape)
