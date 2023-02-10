@@ -148,7 +148,7 @@ def scaled_dot_product_attention(query, key, value, output_shape, pos_emb=None, 
     qk_scale = qk_scale if qk_scale > 0 else (1.0 / (float(query.shape[-1]) ** 0.5))
     # print(f"{query.shape = }, {key.shape = }")
     # attention_scores = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, q_blocks, k_blocks]
-    attention_scores = (query @ key)
+    attention_scores = query @ key
     if qk_scale != 1:
         attention_scores = attention_scores * qk_scale
     # print(f"{attention_scores.shape = }")

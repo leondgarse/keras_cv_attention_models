@@ -290,6 +290,7 @@ class Activation(Layer):
 
 class _SamePadding(nn.Module):
     """Perform SAME padding like TF"""
+
     def __init__(self, kernel_size, strides, dilation_rate=1, ndims=2):
         super().__init__()
         self.kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else [kernel_size] * ndims
@@ -506,7 +507,7 @@ class _BaseConvPool(Layer):
 
     def get_config(self):
         config = super().get_config()
-        config.update({ "kernel_size": self.kernel_size, "strides": self.strides, "padding": self.padding, "dilation_rate": self.dilation_rate})
+        config.update({"kernel_size": self.kernel_size, "strides": self.strides, "padding": self.padding, "dilation_rate": self.dilation_rate})
         return config
 
 

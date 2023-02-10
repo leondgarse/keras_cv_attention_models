@@ -275,10 +275,11 @@ def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", us
     """Typical DepthwiseConv2D with `use_bias` default as `False` and fixed padding"""
     kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else (kernel_size, kernel_size)
     if isinstance(padding, str):
-        pad = (kernel_size[0] // 2, kernel_size[1] // 2) if use_torch_padding and padding.upper() == "SAME" else (0, 0)
+        padding = padding.upper()
+        pad = (kernel_size[0] // 2, kernel_size[1] // 2) if use_torch_padding and padding == "SAME" else (0, 0)
     else:  # int or list or tuple with specific value
         pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
-    padding = "SAME" if max(pad) > 0 else "VALID"
+        padding = "SAME" if max(pad) > 0 else "VALID"
 
     if use_torch_padding and backend.is_tensorflow_backend and padding == "SAME":
         inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)

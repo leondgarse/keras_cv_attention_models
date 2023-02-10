@@ -147,6 +147,7 @@ class Model(nn.Module):
 
     def summary(self, input_shape=None):
         from torchsummary import summary
+
         input_shape = self.input_shape[1:] if input_shape is None else input_shape[-3:]
         summary(self, tuple(input_shape))
 

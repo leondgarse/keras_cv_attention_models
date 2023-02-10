@@ -7,6 +7,7 @@ from functools import partial
 
 # eye, tf.image.extract_patches, shape, tile, stack
 
+
 def wrapper(func, inputs, name=None):
     return Lambda(func, name=name)(inputs) if isinstance(inputs, GraphNode) or (isinstance(inputs, list) and isinstance(inputs[0], GraphNode)) else func(inputs)
 
@@ -114,6 +115,7 @@ def minimum(xx, yy, name=None):
     else:  # maximum doesn't support scalar value
         func = lambda inputs: torch.where(inputs[0] > inputs[1], inputs[1], inputs[0])
     return wrapper(func, [xx, yy], name=name)
+
 
 def norm(inputs, ord="euclidean", axis=1, keepdims=False, name=None):
     return wrapper(partial(torch.norm, p=2, dim=axis, keepdim=keepdims), inputs, name=name)
