@@ -1,7 +1,7 @@
 import torch
 import math
 import torch.nn.functional as F
-from keras_cv_attention_models.pytorch_backend.layers import Lambda, Concatenate, GraphNode, Shape, ZeroPadding, Add
+from keras_cv_attention_models.pytorch_backend.layers import Lambda, Concatenate, GraphNode, Shape, _ZeroPadding, Add
 from functools import partial
 
 
@@ -72,7 +72,7 @@ def gather(inputs, indices, axis=None, batch_dims=0, name=None):
     """Defaults axis=None means the first non-batch dimension"""
     axis = batch_dims if axis is None else (len(inputs.shape) + axis if axis < 0 else axis)
     indices = tuple([slice(None)] * axis + [indices])
-    return inputs[indices]
+    return inputs[indices]  # .contiguous()
 
 
 def gelu(inputs, approximate=False, name=None):
@@ -131,7 +131,7 @@ def pad(inputs, paddings, mode="CONSTANT", constant_values=0, name=None):
     # for pp in paddings[::-1]:
     #     pad += pp
     # return Lambda(partial(F.pad, pad=pad, mode=mode.lower(), value=constant_values), name=name)(inputs)
-    return ZeroPadding(padding=paddings)(inputs)
+    return _ZeroPadding(padding=paddings)(inputs)
 
 
 def pow(inputs, exponent, name=None):
@@ -171,11 +171,13 @@ def repeat(inputs, repeats, axis, name=None):
     expand_shape = list(inputs.shape)
     expand_shape.insert(axis + 1, repeats)
     out_shape = [ii * repeats if dim == axis else ii for dim, ii in enumerate(inputs.shape)]
-    return wrapper(lambda inputs: torch.reshape(torch.expand_copy(torch.unsqueeze(inputs, axis + 1), expand_shape), out_shape), inputs, name=name)
+    # return wrapper(lambda inputs: torch.reshape(torch.expand_copy(torch.unsqueeze(inputs, axis + 1), expand_shape), out_shape), inputs, name=name)
+    return wrapper(lambda inputs: torch.expand_copy(torch.unsqueeze(inputs, axis + 1), expand_shape).contiguous().view(out_shape), inputs, name=name)
 
 
 def reshape(inputs, shape, name=None):
-    return wrapper(partial(torch.reshape, shape=shape), inputs, name=name)
+    # return wrapper(partial(torch.reshape, shape=shape), inputs, name=name)
+    return wrapper(lambda inputs: inputs.contiguous().view(shape), inputs, name=name)
 
 
 def resize(inputs, size, method="bilinear", preserve_aspect_ratio=False, antialias=False, name=None):

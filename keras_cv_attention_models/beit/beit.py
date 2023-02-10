@@ -1,6 +1,6 @@
 import numpy as np
 from keras_cv_attention_models import backend
-from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers, register_keras_serializable
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     BiasLayer,
@@ -33,7 +33,7 @@ PRETRAINED_DICT = {
 }
 
 
-@register_keras_serializable(package="beit")
+@backend.register_keras_serializable(package="beit")
 class MultiHeadRelativePositionalEmbedding(layers.Layer):
     def __init__(self, with_cls_token=True, attn_height=-1, num_heads=-1, **kwargs):
         super().__init__(**kwargs)
@@ -141,14 +141,16 @@ class MultiHeadRelativePositionalEmbedding(layers.Layer):
         return fig
 
 
-def scaled_dot_product_attention(query, key, value, output_shape, pos_emb=None, out_weight=True, out_bias=False, dropout=0, name=None):
+def scaled_dot_product_attention(query, key, value, output_shape, pos_emb=None, out_weight=True, out_bias=False, qk_scale=-1, dropout=0, name=None):
     output_dim = output_shape[-1]
     blocks = output_shape[1:-1] if output_shape[0] is None or output_shape[0] < 1 else output_shape[:-1]
     # query, value: [batch, num_heads, blocks, key_dim], key: [batch, num_heads, key_dim, blocks]
-    qk_scale = 1.0 / (float(query.shape[-1]) ** 0.5)
+    qk_scale = qk_scale if qk_scale > 0 else (1.0 / (float(query.shape[-1]) ** 0.5))
     # print(f"{query.shape = }, {key.shape = }")
     # attention_scores = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, q_blocks, k_blocks]
-    attention_scores = (query @ key) * qk_scale
+    attention_scores = (query @ key)
+    if qk_scale != 1:
+        attention_scores = attention_scores * qk_scale
     # print(f"{attention_scores.shape = }")
     if pos_emb is not None:
         # attention_scores = MultiHeadPositionalEmbedding(query_height=height, name=name and name + "attn_pos")(attention_scores)
@@ -170,28 +172,34 @@ def scaled_dot_product_attention(query, key, value, output_shape, pos_emb=None, 
     return output
 
 
-def qkv_to_multi_head_channals_last_format(query, key, value, num_heads, data_format=None):
+def qkv_to_multi_head_channels_last_format(query, key, value, num_heads, data_format=None):
     data_format = image_data_format() if data_format is None else data_format
     # print(f">>>> {query.shape = }, {key.shape = }, {value.shape = }, {num_heads = }, {data_format = }")
     if data_format == "channels_last":
-        # query [batch, hh, ww, channel] -> [batch, num_heads, hh * ww, key_dim]
-        query = functional.reshape(query, [-1, np.prod(query.shape[1:-1]), num_heads, query.shape[-1] // num_heads])
-        query = functional.transpose(query, [0, 2, 1, 3])
-        # key [batch, hh, ww, channel] -> [batch, num_heads, key_dim, hh * ww]
-        key = functional.reshape(key, [-1, np.prod(key.shape[1:-1]), num_heads, key.shape[-1] // num_heads])
-        key = functional.transpose(key, [0, 2, 3, 1])
-        # value [batch, hh, ww, channel] -> [batch, num_heads, hh * ww, vv_dim]
-        value = functional.reshape(value, [-1, np.prod(value.shape[1:-1]), num_heads, value.shape[-1] // num_heads])
-        value = functional.transpose(value, [0, 2, 1, 3])
+        if query is not None:
+            # query [batch, hh, ww, channel] -> [batch, num_heads, hh * ww, key_dim]
+            query = functional.reshape(query, [-1, np.prod(query.shape[1:-1]), num_heads, query.shape[-1] // num_heads])
+            query = functional.transpose(query, [0, 2, 1, 3])
+        if key is not None:
+            # key [batch, hh, ww, channel] -> [batch, num_heads, key_dim, hh * ww]
+            key = functional.reshape(key, [-1, np.prod(key.shape[1:-1]), num_heads, key.shape[-1] // num_heads])
+            key = functional.transpose(key, [0, 2, 3, 1])
+        if value is not None:
+            # value [batch, hh, ww, channel] -> [batch, num_heads, hh * ww, vv_dim]
+            value = functional.reshape(value, [-1, np.prod(value.shape[1:-1]), num_heads, value.shape[-1] // num_heads])
+            value = functional.transpose(value, [0, 2, 1, 3])
     else:
-        # query [batch, channel, hh, ww] -> [batch, num_heads, hh * ww, key_dim]
-        query = functional.reshape(query, [-1, num_heads, query.shape[1] // num_heads, np.prod(query.shape[2:])])
-        query = functional.transpose(query, [0, 1, 3, 2])
-        # key [batch, channel, hh, ww] -> [batch, num_heads, key_dim, hh * ww]
-        key = functional.reshape(key, [-1, num_heads, key.shape[1] // num_heads, np.prod(key.shape[2:])])
-        # value [batch, channel, hh, ww] -> [batch, num_heads, hh * ww, vv_dim]
-        value = functional.reshape(value, [-1, num_heads, value.shape[1] // num_heads, np.prod(value.shape[2:])])
-        value = functional.transpose(value, [0, 1, 3, 2])
+        if query is not None:
+            # query [batch, channel, hh, ww] -> [batch, num_heads, hh * ww, key_dim]
+            query = functional.reshape(query, [-1, num_heads, query.shape[1] // num_heads, np.prod(query.shape[2:])])
+            query = functional.transpose(query, [0, 1, 3, 2])
+        if key is not None:
+            # key [batch, channel, hh, ww] -> [batch, num_heads, key_dim, hh * ww]
+            key = functional.reshape(key, [-1, num_heads, key.shape[1] // num_heads, np.prod(key.shape[2:])])
+        if value is not None:
+            # value [batch, channel, hh, ww] -> [batch, num_heads, hh * ww, vv_dim]
+            value = functional.reshape(value, [-1, num_heads, value.shape[1] // num_heads, np.prod(value.shape[2:])])
+            value = functional.transpose(value, [0, 1, 3, 2])
     # print(f">>>> {query.shape = }, {key.shape = }, {value.shape = }, {num_heads = }, {data_format = }")
     return query, key, value
 
@@ -216,7 +224,7 @@ def attention_block(
         query = BiasLayer(name=name + "query_bias")(query)
     if qv_bias:
         value = BiasLayer(name=name + "value_bias")(value)
-    query, key, value = qkv_to_multi_head_channals_last_format(query, key, value, num_heads, data_format="channels_last")
+    query, key, value = qkv_to_multi_head_channels_last_format(query, key, value, num_heads, data_format="channels_last")
 
     pos_emb = MultiHeadRelativePositionalEmbedding(attn_height=attn_height, name=name and name + "pos_emb") if use_pos_emb else None
     output_shape = [-1, bb, emded_dim]
@@ -242,7 +250,7 @@ def attention_mlp_block(inputs, embed_dim, gamma_init_value=0.1, mlp_ratio=4, dr
     return nn
 
 
-@register_keras_serializable(package="beit")
+@backend.register_keras_serializable(package="beit")
 class HeadInitializer(initializers.Initializer):
     def __init__(self, stddev=0.02, scale=0.001, **kwargs):
         super().__init__(**kwargs)
@@ -257,7 +265,7 @@ class HeadInitializer(initializers.Initializer):
         return base_config
 
 
-@register_keras_serializable(package="beit")
+@backend.register_keras_serializable(package="beit")
 class PatchConv2DWithResampleWeights(layers.Conv2D):
     def load_resized_weights(self, source_layer, method="bilinear"):
         import numpy as np

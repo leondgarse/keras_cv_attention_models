@@ -22,7 +22,7 @@ def reload_model_weights(
     if isinstance(file_hash, dict):
         # file_hash is a dict like {224: "aa", 384: "bb", 480: "cc"}
         if request_resolution == -1:
-            input_height = model.input_shape[1]
+            input_height = model.input_shape[2]  # Either channels_last or channels_first, 2 aixs has to be a shape one
             if input_height is None:  # input_shape is (None, None, 3)
                 request_resolution = max(file_hash.keys())
             else:

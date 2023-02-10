@@ -1,5 +1,6 @@
-import tensorflow as tf
-from tensorflow import keras
+import numpy as np
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
 from keras_cv_attention_models.attention_layers import (
     ChannelAffine,
     activation_by_name,
@@ -10,45 +11,50 @@ from keras_cv_attention_models.attention_layers import (
     mlp_block,
     multi_head_self_attention,
     output_block,
+    qkv_to_multi_head_channels_last_format,
+    scaled_dot_product_attention,
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
-    "edgenext_small": {
-        "imagenet": {256: "0234641a703283de1cb0d935bb0325e4"},
-        "usi": {256: "c237761b5bd5c32041d6b758186a0716"},
-    },
+    "edgenext_small": {"imagenet": {256: "0234641a703283de1cb0d935bb0325e4"}, "usi": {256: "c237761b5bd5c32041d6b758186a0716"}},
     "edgenext_x_small": {"imagenet": {256: "472df7659422c7feffbec8012a0f6fa4"}},
     "edgenext_xx_small": {"imagenet": {256: "4190ba28c7caa2fe73215448f8abebd6"}},
 }
 LAYER_NORM_EPSILON = 1e-6
 
 
-@tf.keras.utils.register_keras_serializable(package="kecam/edgenext")
-class PositionalEncodingFourier(keras.layers.Layer):
+@backend.register_keras_serializable(package="kecam/edgenext")
+class PositionalEncodingFourier(layers.Layer):
     def __init__(self, filters=32, temperature=1e4, **kwargs):
         super().__init__(**kwargs)
         self.filters, self.temperature = filters, float(temperature)
         self.epsilon = 1e-6
-        self.scale = 2 * tf.acos(-1.0)  # 2 * pi
+        self.scale = 2 * np.math.acos(-1.0)  # 2 * pi
 
     def build(self, input_shape):
         _, height, width, channels = input_shape  # ex: height, width, filters = 12, 27, 32
-        hh, ww = tf.range(height, dtype="float32"), tf.range(width, dtype="float32")
-        hh = (hh + 1) / (tf.cast(height, "float32") + self.epsilon) * self.scale
-        ww = (ww + 1) / (tf.cast(width, "float32") + self.epsilon) * self.scale
+        hh, ww = np.arange(height, dtype="float32"), np.arange(width, dtype="float32")
+        hh = (hh + 1) / (float(height) + self.epsilon) * self.scale
+        ww = (ww + 1) / (float(width) + self.epsilon) * self.scale
 
-        dim_t = self.temperature ** (2 * (tf.range(self.filters, dtype="float32") // 2) / self.filters)  # (filters,)
-        pos_hh, pos_ww = tf.expand_dims(hh, -1) / dim_t, tf.expand_dims(ww, -1) / dim_t  # pos_hh [12, 32], pos_ww [27, 32]
-        pos_hh = tf.stack([tf.sin(pos_hh[:, 0::2]), tf.cos(pos_hh[:, 1::2])], axis=-1)  # pos_hh [12, 16, 2]
-        pos_ww = tf.stack([tf.sin(pos_ww[:, 0::2]), tf.cos(pos_ww[:, 1::2])], axis=-1)  # pos_ww [27, 16, 2]
-        pos_hh = tf.repeat(tf.reshape(pos_hh, [height, 1, -1]), width, axis=1)  # [12, 27, 32]
-        pos_ww = tf.repeat(tf.reshape(pos_ww, [1, width, -1]), height, axis=0)  # [12, 27, 32]
-        self.positional_embedding = tf.concat([pos_hh, pos_ww], axis=-1)  # [12, 27, 64]
+        dim_t = self.temperature ** (2 * (np.arange(self.filters, dtype="float32") // 2) / self.filters)  # (filters,)
+        pos_hh, pos_ww = np.expand_dims(hh, -1) / dim_t, np.expand_dims(ww, -1) / dim_t  # pos_hh [12, 32], pos_ww [27, 32]
+        pos_hh = np.stack([np.sin(pos_hh[:, 0::2]), np.cos(pos_hh[:, 1::2])], axis=-1)  # pos_hh [12, 16, 2]
+        pos_ww = np.stack([np.sin(pos_ww[:, 0::2]), np.cos(pos_ww[:, 1::2])], axis=-1)  # pos_ww [27, 16, 2]
+        pos_hh = np.repeat(np.reshape(pos_hh, [height, 1, -1]), width, axis=1)  # [12, 27, 32]
+        pos_ww = np.repeat(np.reshape(pos_ww, [1, width, -1]), height, axis=0)  # [12, 27, 32]
+        positional_embedding = np.concatenate([pos_hh, pos_ww], axis=-1)  # [12, 27, 64]
 
-        self.token_projection_ww = self.add_weight(name="ww", shape=(self.filters * 2, channels), trainable=True, dtype=self.dtype)
-        self.token_projection_bb = self.add_weight(name="bb", shape=(channels,), trainable=True, dtype=self.dtype)
+        if hasattr(self, "register_buffer"):  # PyTorch
+            self.register_buffer("positional_embedding", functional.convert_to_tensor(positional_embedding, dtype="float32"), persistent=False)
+        else:
+            self.positional_embedding = functional.convert_to_tensor(positional_embedding, dtype="float32")
+
+        self.token_projection_ww = self.add_weight(name="ww", shape=(self.filters * 2, channels), trainable=True, dtype="float32")
+        self.token_projection_bb = self.add_weight(name="bb", shape=(channels,), trainable=True, dtype="float32")
+        super().build(input_shape)
 
     def call(self, inputs, **kwargs):
         pos_emb = self.positional_embedding @ self.token_projection_ww + self.token_projection_bb
@@ -62,81 +68,88 @@ class PositionalEncodingFourier(keras.layers.Layer):
 
 
 def norm_inverted_bottleneck(inputs, mlp_ratio=4, layer_scale=1e-6, drop_rate=0, activation="gelu", name=""):
-    input_channel = inputs.shape[-1]
-    nn = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, name=name)
+    input_channel = inputs.shape[-1]  # channels_last only, it should be permuted before entering this
+    nn = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name)
     nn = mlp_block(nn, input_channel * mlp_ratio, activation=activation, name=name)
-    nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "gamma")(nn) if layer_scale >= 0 else nn
+    nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, axis=-1, name=name + "gamma")(nn) if layer_scale >= 0 else nn
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
     return nn
 
 
 def cross_covariance_attention(inputs, num_heads=4, key_dim=0, qkv_bias=True, out_bias=True, attn_dropout=0, out_dropout=0, name=None):
-    input_channel = inputs.shape[-1]
+    input_channel = inputs.shape[-1]  # channels_last only, it should be permuted before entering this
     key_dim = key_dim if key_dim > 0 else input_channel // num_heads
     qk_out = key_dim * num_heads
 
-    qkv = keras.layers.Dense(qk_out * 3, use_bias=True, name=name and name + "qkv")(inputs)
-    qkv = tf.reshape(qkv, [-1, qkv.shape[1] * qkv.shape[2], qkv.shape[-1]])
-    query, key, value = tf.split(qkv, 3, axis=-1)
-    query = tf.transpose(tf.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  #  [batch, num_heads, key_dim, hh * ww]
-    key = tf.transpose(tf.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, key_dim]
-    value = tf.transpose(tf.reshape(value, [-1, value.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
+    qkv = layers.Dense(qk_out * 3, use_bias=True, name=name and name + "qkv")(inputs)
+    qkv = functional.reshape(qkv, [-1, qkv.shape[1] * qkv.shape[2], qkv.shape[-1]])
+    query, key, value = functional.split(qkv, 3, axis=-1)
+    query = functional.transpose(functional.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  #  [batch, num_heads, key_dim, hh * ww]
+    key = functional.transpose(functional.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, key_dim]
+    value = functional.transpose(functional.reshape(value, [-1, value.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
 
-    norm_query, norm_key = tf.nn.l2_normalize(query, axis=-1, epsilon=1e-6), tf.nn.l2_normalize(key, axis=-2, epsilon=1e-6)
-    attn = tf.matmul(norm_query, norm_key)  # [batch, num_heads, key_dim, key_dim]
+    norm_query, norm_key = functional.l2_normalize(query, axis=-1, epsilon=1e-6), functional.l2_normalize(key, axis=-2, epsilon=1e-6)
+    attn = functional.matmul(norm_query, norm_key)  # [batch, num_heads, key_dim, key_dim]
     attn = ChannelAffine(axis=1, use_bias=False, name=name and name + "temperature/no_weight_decay")(attn)  # axis=1 means on head dimension
-    attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attn)
+    attention_scores = layers.Softmax(axis=-1, name=name and name + "attention_scores")(attn)
 
     if attn_dropout > 0:
-        attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
+        attention_scores = layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
     # [batch, num_heads, key_dim, key_dim] * [batch, num_heads, key_dim, hh * ww] -> [batch, num_heads, key_dim, hh * ww]
-    attention_output = tf.matmul(attention_scores, value)
-    attention_output = tf.transpose(attention_output, perm=[0, 3, 1, 2])  # [batch, hh * ww, num_heads, key_dim]
-    attention_output = tf.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * key_dim])  # [batch, hh, ww, num_heads * key_dim]
+    attention_output = functional.matmul(attention_scores, value)
+    attention_output = functional.transpose(attention_output, perm=[0, 3, 1, 2])  # [batch, hh * ww, num_heads, key_dim]
+    attention_output = functional.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * key_dim])  # [batch, hh, ww, num_heads * key_dim]
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
     # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
-    attention_output = keras.layers.Dense(qk_out, use_bias=out_bias, name=name and name + "output")(attention_output)
-    attention_output = keras.layers.Dropout(out_dropout, name=name and name + "out_drop")(attention_output) if out_dropout > 0 else attention_output
+    attention_output = layers.Dense(qk_out, use_bias=out_bias, name=name and name + "output")(attention_output)
+    attention_output = layers.Dropout(out_dropout, name=name and name + "out_drop")(attention_output) if out_dropout > 0 else attention_output
     return attention_output
 
 
 def split_depthwise_transpose_attention(
     inputs, split=1, num_heads=4, mlp_ratio=4, use_pos_emb=False, layer_scale=1e-6, drop_rate=0, activation="gelu", name=""
 ):
-    input_channel = inputs.shape[-1]
-    sub_channels = int(tf.math.ceil(input_channel / split))
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    input_channel = inputs.shape[channel_axis]
+    sub_channels = int(np.math.ceil(input_channel / split))
 
-    spx, remainder = inputs[:, :, :, : (split - 1) * sub_channels], inputs[:, :, :, (split - 1) * sub_channels :]
-    spx = tf.split(spx, split - 1, axis=-1)
+    if image_data_format() == "channels_last":
+        spx, remainder = inputs[:, :, :, : (split - 1) * sub_channels], inputs[:, :, :, (split - 1) * sub_channels :]
+    else:
+        spx, remainder = inputs[:, : (split - 1) * sub_channels], inputs[:, (split - 1) * sub_channels :]
+    spx = functional.split(spx, split - 1, axis=channel_axis)
     gathered_result = []
     for id, ii in enumerate(spx):
         sp = ii if id == 0 else (sp + ii)
         sp = depthwise_conv2d_no_bias(sp, kernel_size=3, padding="SAME", use_bias=True, name=name + "spx_{}_".format(id + 1))
         gathered_result.append(sp)
     gathered_result.append(remainder)
-    attn = tf.concat(gathered_result, axis=-1)
+    attn = functional.concat(gathered_result, axis=channel_axis)
     # print(f"{inputs.shape = }, {attn.shape = }")
 
     # XCA
+    attn = attn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(attn)  # channels_first -> channels_last
     attn = PositionalEncodingFourier(name=name + "pos")(attn) if use_pos_emb else attn
-    nn = layer_norm(attn, epsilon=LAYER_NORM_EPSILON, name=name + "xca_")
+    nn = layer_norm(attn, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "xca_")
     nn = cross_covariance_attention(nn, num_heads, name=name + "xca_")
-    nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "xca_gamma")(nn) if layer_scale >= 0 else nn
+    nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, axis=-1, name=name + "xca_gamma")(nn) if layer_scale >= 0 else nn
     nn = drop_block(nn, drop_rate=drop_rate, name=name + "xca_")
-    nn = keras.layers.Add(name=name + "xca")([attn, nn])
+    nn = layers.Add(name=name + "xca")([attn, nn])
 
     # Inverted Bottleneck
     nn = norm_inverted_bottleneck(nn, mlp_ratio, layer_scale, drop_rate, activation=activation, name=name + "ir_")
-    return keras.layers.Add(name=name + "output")([inputs, nn])
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last -> channels_first
+    return layers.Add(name=name + "output")([inputs, nn])
 
 
 def conv_encoder(inputs, mlp_ratio=4, kernel_size=7, layer_scale=1e-6, drop_rate=0, activation="gelu", name=""):
-    input_channel = inputs.shape[-1]
     nn = depthwise_conv2d_no_bias(inputs, kernel_size, use_bias=True, padding="SAME", name=name)
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
     nn = norm_inverted_bottleneck(nn, mlp_ratio, layer_scale, drop_rate, activation=activation, name=name)
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last -> channels_first
     # print(f"{nn.shape = }, {inputs.shape = }")
-    return keras.layers.Add(name=name + "output")([inputs, nn])
+    return layers.Add(name=name + "output")([inputs, nn])
 
 
 def EdgeNeXt(
@@ -161,7 +174,10 @@ def EdgeNeXt(
     model_name="edgenext",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
     stem_width = stem_width if stem_width > 0 else out_channels[0]
     nn = conv2d_no_bias(inputs, stem_width, kernel_size=stem_patch_size, strides=stem_patch_size, use_bias=True, padding="VALID", name="stem_")
     nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="stem_")
@@ -193,13 +209,13 @@ def EdgeNeXt(
 
     """ output """
     if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="pre_output_")
         if dropout > 0:
-            nn = keras.layers.Dropout(dropout, name="head_drop")(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+            nn = layers.Dropout(dropout, name="head_drop")(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
-    model = keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "edgenext", pretrained)
     return model

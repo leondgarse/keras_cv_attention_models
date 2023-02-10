@@ -54,7 +54,11 @@ class MultiHeadPositionalEmbedding(layers.Layer):
         # print(f">>>> {aa.shape = }, {bb.shape = }") # aa.shape = (16, 2), bb.shape = (49, 2)
         cc = [np.abs(bb - ii * strides) for ii in aa]
         bb_pos = np.stack([ii[:, 0] + ii[:, 1] * k_blocks_h for ii in cc])
-        self.bb_pos = functional.convert_to_tensor(bb_pos, dtype="int64")
+
+        if hasattr(self, "register_buffer"):  # PyTorch
+            self.register_buffer("bb_pos", functional.convert_to_tensor(bb_pos, dtype="int64"), persistent=False)
+        else:
+            self.bb_pos = functional.convert_to_tensor(bb_pos, dtype="int64")
         # print(f">>>> {self.bb_pos.shape = }")    # self.bb_pos.shape = (16, 49)
 
         super(MultiHeadPositionalEmbedding, self).build(input_shape)

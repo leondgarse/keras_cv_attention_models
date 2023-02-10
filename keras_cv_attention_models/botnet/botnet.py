@@ -1,7 +1,7 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, initializers, image_data_format
 from keras_cv_attention_models.aotnet import AotNet
-from keras_cv_attention_models.attention_layers import conv2d_no_bias, scaled_dot_product_attention, qkv_to_multi_head_channals_last_format
+from keras_cv_attention_models.attention_layers import conv2d_no_bias, scaled_dot_product_attention, qkv_to_multi_head_channels_last_format
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 BATCH_NORM_DECAY = 0.9
@@ -160,7 +160,7 @@ def mhsa_with_relative_position_embedding(
     qkv = conv2d_no_bias(inputs, qk_out * 2 + out_shape, kernel_size=1, name=name and name + "qkv_")
     # qkv = functional.reshape(qkv, [-1, inputs.shape[1] * inputs.shape[2], qkv.shape[-1]])
     query, key, value = functional.split(qkv, [qk_out, qk_out, out_shape], axis=channel_axis)
-    query, key, value = qkv_to_multi_head_channals_last_format(query, key, value, num_heads, data_format=data_format)
+    query, key, value = qkv_to_multi_head_channels_last_format(query, key, value, num_heads, data_format=data_format)
 
     # pos_query = [batch, num_heads, hh, ww, key_dim]
     pos_query = functional.reshape(query, [-1, num_heads, hh, ww, key_dim])

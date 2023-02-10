@@ -9,7 +9,7 @@ from keras_cv_attention_models.attention_layers import (
     depthwise_conv2d_no_bias,
     drop_block,
     MultiHeadPositionalEmbedding,
-    qkv_to_multi_head_channals_last_format,
+    qkv_to_multi_head_channels_last_format,
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
@@ -35,8 +35,8 @@ def conv_mhsa_with_multi_head_position(
     activation="gelu",
     name=None,
 ):
-    input_channel = inputs.shape[-1 if is_channels_last() else 1]
-    height, width = inputs.shape[1:-1] if is_channels_last() else inputs.shape[2:]
+    height_axis, width_axis, channel_aixs = (1, 2, 3) if is_channels_last() else (2, 3, 1)
+    height, width, input_channel = inputs.shape[height_axis], inputs.shape[width_axis], inputs.shape[channel_aixs]
     key_dim = key_dim if key_dim > 0 else input_channel // num_heads
     # qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
     qk_scale = 1.0 / (float(key_dim) ** 0.5)
@@ -80,7 +80,7 @@ def conv_mhsa_with_multi_head_position(
     # )  #  [batch, num_heads, hh * ww, key_dim]
     # key = functional.transpose(functional.reshape(key, [-1, kv_blocks, num_heads, key_dim]), [0, 2, 3, 1])  #  [batch, num_heads, key_dim, hh * ww]
     # value = functional.transpose(functional.reshape(value, [-1, kv_blocks, num_heads, value_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, value_dim]
-    query, key, value = qkv_to_multi_head_channals_last_format(query, key, value, num_heads=num_heads)
+    query, key, value = qkv_to_multi_head_channels_last_format(query, key, value, num_heads=num_heads)
 
     # attention_scores = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, hh * ww, hh * ww]
     # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {attention_scores.shape = }, {query_height = }")
@@ -115,7 +115,7 @@ def conv_mhsa_with_multi_head_position(
     if strides > 1:
         attention_output = layers.UpSampling2D(size=(strides, strides), interpolation="bilinear")(attention_output)
         if should_cut_height > 0 or should_cut_width > 0:
-            keep_height, keep_width = attention_output.shape[1] - should_cut_height, attention_output.shape[2] - should_cut_width
+            keep_height, keep_width = attention_output.shape[height_axis] - should_cut_height, attention_output.shape[width_axis] - should_cut_width
             attention_output = attention_output[:, :keep_height, :keep_width] if is_channels_last() else attention_output[:, :, :keep_height, :keep_width]
 
     # [batch, hh, ww, num_heads * value_dim] * [num_heads * value_dim, out] --> [batch, hh, ww, out]

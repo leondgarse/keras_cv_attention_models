@@ -245,14 +245,15 @@ def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, axis="auto", name=
 
 def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", use_bias=False, groups=1, use_torch_padding=True, name=None, **kwargs):
     """Typical Conv2D with `use_bias` default as `False` and fixed padding"""
-    kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else [kernel_size, kernel_size]
+    kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else (kernel_size, kernel_size)
     if isinstance(padding, str):
-        pad = (kernel_size[0] // 2, kernel_size[1] // 2)
+        padding = padding.upper()
+        pad = (kernel_size[0] // 2, kernel_size[1] // 2) if use_torch_padding and padding == "SAME" else (0, 0)
     else:  # int or list or tuple with specific value
         pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
         padding = "SAME" if max(pad) > 0 else "VALID"
 
-    if use_torch_padding and padding.upper() == "SAME" and max(pad) != 0:
+    if use_torch_padding and backend.is_tensorflow_backend and padding == "SAME":
         inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
         padding = "VALID"
 
@@ -261,7 +262,7 @@ def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", u
         filters,
         kernel_size,
         strides=strides,
-        padding=padding,
+        padding="VALID" if padding == "VALID" else (pad if use_torch_padding else "SAME"),
         use_bias=use_bias,
         groups=groups,
         kernel_initializer=CONV_KERNEL_INITIALIZER,
@@ -272,20 +273,21 @@ def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", u
 
 def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", use_bias=False, use_torch_padding=True, name=None, **kwargs):
     """Typical DepthwiseConv2D with `use_bias` default as `False` and fixed padding"""
+    kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else (kernel_size, kernel_size)
     if isinstance(padding, str):
-        pad = (kernel_size[0] // 2, kernel_size[1] // 2) if isinstance(kernel_size, (list, tuple)) else (kernel_size // 2, kernel_size // 2)
+        pad = (kernel_size[0] // 2, kernel_size[1] // 2) if use_torch_padding and padding.upper() == "SAME" else (0, 0)
     else:  # int or list or tuple with specific value
         pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
-        padding = "SAME"
+    padding = "SAME" if max(pad) > 0 else "VALID"
 
-    if use_torch_padding and padding.upper() == "SAME" and max(pad) != 0:
-        inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "dw_pad")(inputs)
+    if use_torch_padding and backend.is_tensorflow_backend and padding == "SAME":
+        inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
         padding = "VALID"
 
     return layers.DepthwiseConv2D(
         kernel_size,
         strides=strides,
-        padding=padding,
+        padding="VALID" if padding == "VALID" else (pad if use_torch_padding else "SAME"),
         use_bias=use_bias,
         depthwise_initializer=CONV_KERNEL_INITIALIZER,
         name=name and name + "dw_conv",

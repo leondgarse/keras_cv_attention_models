@@ -38,7 +38,7 @@ def compute_conv_output_size(input_shape, kernel_size, strides=1, padding="valid
     dilation_rate = dilation_rate if isinstance(dilation_rate, (list, tuple)) else [dilation_rate] * len(size)
     strides = strides if isinstance(strides, (list, tuple)) else [strides] * len(size)
     dilated_filter_size = [kk + (kk - 1) * (dd - 1) for kk, dd in zip(kernel_size, dilation_rate)]
-    if padding.upper() == "VALID":
+    if (isinstance(padding, str) and padding.upper() == "VALID") or (isinstance(padding, (list, tuple)) and max(padding) == 0) or padding == 0:
         size = [None if ii is None else (ii - jj + 1) for ii, jj in zip(size, dilated_filter_size)]
     size = [None if ii is None else ((ii + jj - 1) // jj) for ii, jj in zip(size, strides)]
     return size
@@ -145,6 +145,7 @@ class Layer(nn.Module):
 
     def build(self, input_shape: torch.Size):
         self.input_shape = input_shape
+        # self.dtype = self.module.weight.dtype if hasattr(self.module, "weight") else "float32"
         # if self.is_graph_node_input:  # When exporting onnx/pth, model will be built again, and may throws error in compute_output_shape with 0 input_shape
         self.__output_shape__ = self.compute_output_shape(input_shape)
         # if hasattr(self, "call"):  # General keras layers with call function
@@ -287,7 +288,7 @@ class Activation(Layer):
         return config
 
 
-class SamePadding(nn.Module):
+class _SamePadding(nn.Module):
     """Perform SAME padding like TF"""
     def __init__(self, kernel_size, strides, dilation_rate=1, ndims=2):
         super().__init__()
@@ -305,7 +306,7 @@ class SamePadding(nn.Module):
         return torch.functional.F.pad(inputs, pad=padding)
 
 
-class ZeroPadding(Layer):
+class _ZeroPadding(Layer):
     def __init__(self, padding, **kwargs):
         self.padding = padding
         super().__init__(**kwargs)
@@ -466,27 +467,59 @@ class BatchNormalization(Layer):
         return config
 
 
-class Conv(Layer):
-    def __init__(
-        self, filters, kernel_size=1, strides=1, padding="VALID", dilation_rate=1, use_bias=True, groups=1, kernel_initializer="glorot_uniform", **kwargs
-    ):
-        self.filters, self.padding, self.use_bias, self.groups, self.kernel_initializer = filters, padding, use_bias, groups, kernel_initializer
-        self.kernel_size, self.dilation_rate, self.strides = kernel_size, dilation_rate, strides
-        self.module_class = None  # Auto set by len(input_shape)
+class _BaseConvPool(Layer):
+    def __init__(self, kernel_size=1, strides=1, padding="VALID", dilation_rate=1, **kwargs):
+        self.kernel_size, self.dilation_rate, self.strides, self.padding = kernel_size, dilation_rate, strides, padding
         super().__init__(**kwargs)
+
+    def build_module(self, input_shape):
+        raise NotImplementedError()
 
     def build(self, input_shape):
         num_dims = len(input_shape) - 2  # Conv2D -> 2, Conv1D -> 1
         self.kernel_size = to_tuple(self.kernel_size, num_dims=num_dims)
         self.dilation_rate = to_tuple(self.dilation_rate, num_dims=num_dims)
         self.strides = to_tuple(self.strides, num_dims=num_dims)
-        self.filters = self.filters if self.filters > 0 else input_shape[1]  # In case DepthwiseConv2D
 
+        # if input_shape[-1] is not None and isinstance(self.padding, str) and self.padding.upper() == "SAME":
+        #     pad = [tf_same_pad(*args) for args in zip(input_shape[2:], self.kernel_size, self.strides, self.dilation_rate)]
+        #     # self._pad = [[0, 0], [0, 0]] + [[pp // 2, pp - pp // 2] for pp in pad]
+        #     self._pad = [pp // 2 for pp in pad]
+        # elif isinstance(self.padding, str):
         if isinstance(self.padding, str):
-            self._pad = [0] * num_dims  # Both set to 0 for "SAME" and "VALID", "SAME" will apply TF like same padding.
+            self._pad = [0] * num_dims  # Alo set to 0 for "SAME" if input_shape[-1] is None, will apply TF like same padding later.
         else:  # int or list or tuple with specific value
-            self._pad = padding if isinstance(padding, (list, tuple)) else [padding] * num_dims
+            self._pad = self.padding if isinstance(self.padding, (list, tuple)) else [self.padding] * num_dims
 
+        module = self.build_module(input_shape)
+        if max(self.kernel_size) > 0 and isinstance(self.padding, str) and self.padding.upper() == "SAME":
+            # TF like same padding
+            same_padding = _SamePadding(kernel_size=self.kernel_size, strides=self.strides, dilation_rate=self.dilation_rate, ndims=num_dims)
+            self.module = nn.Sequential(same_padding, module)
+        else:
+            self.module = module
+        super().build(input_shape)
+
+    def compute_output_shape(self, input_shape):
+        output_size = compute_conv_output_size(input_shape, self.kernel_size, self.strides, self.padding, dilation_rate=self.dilation_rate)
+        return [None, input_shape[1], *output_size]
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({ "kernel_size": self.kernel_size, "strides": self.strides, "padding": self.padding, "dilation_rate": self.dilation_rate})
+        return config
+
+
+class Conv(_BaseConvPool):
+    def __init__(
+        self, filters, kernel_size=1, strides=1, padding="VALID", dilation_rate=1, use_bias=True, groups=1, kernel_initializer="glorot_uniform", **kwargs
+    ):
+        super().__init__(kernel_size=kernel_size, strides=strides, padding=padding, dilation_rate=dilation_rate, **kwargs)
+        self.filters, self.use_bias, self.groups, self.kernel_initializer = filters, use_bias, groups, kernel_initializer
+        self.module_class = None  # Auto set by len(input_shape)
+
+    def build_module(self, input_shape):
+        self.filters = self.filters if self.filters > 0 else input_shape[1]  # In case DepthwiseConv2D
         if self.module_class is None:
             self.module_class = nn.Conv1d if len(input_shape) == 3 else (nn.Conv2d if len(input_shape) == 4 else nn.Conv3d)
 
@@ -502,17 +535,7 @@ class Conv(Layer):
         )
         kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
         module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
-        if isinstance(self.padding, str) and self.padding.upper() == "SAME":
-            # TF like same padding
-            # pad_hh = tf_same_pad(input_shape[2], self.kernel_size[0], self.strides[0], self.dilation_rate[0])
-            # pad_ww = tf_same_pad(input_shape[3], self.kernel_size[1], self.strides[1], self.dilation_rate[1])
-            # pad = [tf_same_pad(ii, kk, ss, dd) for ii, kk, ss, dd in zip(input_shape[2:], self.kernel_size, self.strides, self.dilation_rate)]
-            # self._pad = [[0, 0], [0, 0]] + [[pp // 2, pp - pp // 2] for pp in pad]
-            same_padding = SamePadding(kernel_size=self.kernel_size, strides=self.strides, dilation_rate=self.dilation_rate, ndims=num_dims)
-            self.module = nn.Sequential(same_padding, module)
-        else:
-            self.module = module
-        super().build(input_shape)
+        return module
 
     def compute_output_shape(self, input_shape):
         output_size = compute_conv_output_size(input_shape, self.kernel_size, self.strides, self.padding, dilation_rate=self.dilation_rate)
@@ -520,17 +543,7 @@ class Conv(Layer):
 
     def get_config(self):
         config = super().get_config()
-        config.update(
-            {
-                "filters": self.filters,
-                "kernel_size": self.kernel_size,
-                "strides": self.strides,
-                "padding": self.padding,
-                "dilation_rate": self.dilation_rate,
-                "use_bias": self.use_bias,
-                "groups": self.groups,
-            }
-        )
+        config.update({"filters": self.filters, "use_bias": self.use_bias, "groups": self.groups})
         return config
 
 
@@ -560,31 +573,34 @@ class Conv2D(Conv):
         return self.set_weights(weights)
 
 
-class Conv2DTranspose(Layer):
+class Conv3D(Conv):
+    def get_weights_channels_last(self):
+        # channel_first -> channel_last
+        weights = self.get_weights()
+        weights[0] = np.transpose(weights[0], (2, 3, 4, 1, 0))
+        return weights
+
+    def set_weights_channels_last(self, weights):
+        # channel_last -> channel_first
+        weights[0] = np.transpose(weights[0], (4, 3, 0, 1, 2))
+        return self.set_weights(weights)
+
+
+class ConvTranspose(_BaseConvPool):
     def __init__(
-        self, filters, kernel_size=1, strides=1, padding="VALID", output_padding=None, dilation_rate=1, use_bias=True, kernel_initializer="glorot_uniform", **kwargs
+        self, filters, kernel_size=1, strides=1, padding=0, output_padding=None, dilation_rate=1, use_bias=True, kernel_initializer="glorot_uniform", **kwargs
     ):
-        self.filters, self.padding, self.use_bias, self.output_padding, self.kernel_initializer = filters, padding, use_bias, output_padding, kernel_initializer
-        self.kernel_size, self.dilation_rate, self.strides = kernel_size, dilation_rate, strides
+        super().__init__(kernel_size=kernel_size, strides=strides, padding=padding, dilation_rate=dilation_rate, **kwargs)
+        self.filters, self.use_bias, self.output_padding, self.kernel_initializer = filters, use_bias, output_padding, kernel_initializer
+        self.output_padding = to_tuple(output_padding, num_dims=2)
         self.module_class = None
         super().__init__(**kwargs)
 
-    def build(self, input_shape):
-        num_dims = len(input_shape) - 2  # Conv2D -> 2
-        self.kernel_size = to_tuple(self.kernel_size, num_dims=num_dims)
-        self.dilation_rate = to_tuple(self.dilation_rate, num_dims=num_dims)
-        self.strides = to_tuple(self.strides, num_dims=num_dims)
-        self.output_padding = to_tuple(self.output_padding, num_dims=num_dims)
-
-        if isinstance(self.padding, str):
-            self._pad = [0] * num_dims  # Both set to 0 for "SAME" and "VALID", "SAME" will apply TF like same padding.
-        else:  # int or list or tuple with specific value
-            self._pad = padding if isinstance(padding, (list, tuple)) else [padding] * num_dims
-
+    def build_module(self, input_shape):
         if self.module_class is None:
-            self.module_class = nn.ConvTranspose2d
+            self.module_class = nn.ConvTranspose1d if len(input_shape) == 3 else (nn.ConvTranspose2d if len(input_shape) == 4 else nn.ConvTranspose3d)
 
-        self.module = self.module_class(
+        module = self.module_class(
             in_channels=input_shape[1],
             out_channels=self.filters,
             kernel_size=self.kernel_size,
@@ -595,8 +611,8 @@ class Conv2DTranspose(Layer):
             bias=self.use_bias,
         )
         kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
-        self.module.weight.data = kernel_initializer(list(self.module.weight.shape))
-        super().build(input_shape)
+        module.weight.data = kernel_initializer(list(module.weight.shape))
+        return module
 
     def deconv_output_length(self, size, kernel_size, strides=1, pad=0, output_padding=None, dilation=1):
         # keras.utils.conv_utils.deconv_output_length
@@ -631,6 +647,50 @@ class Conv2DTranspose(Layer):
     def set_weights_channels_last(self, weights):
         # channel_last -> channel_first
         weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
+        return self.set_weights(weights)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"filters": self.filters, "use_bias": self.use_bias, "output_padding": self.output_padding})
+        return config
+
+
+class Conv1DTranspose(ConvTranspose):
+    def get_weights_channels_last(self):
+        # channel_first -> channel_last
+        weights = self.get_weights()
+        weights[0] = np.transpose(weights[0], (2, 1, 0))
+        return weights
+
+    def set_weights_channels_last(self, weights):
+        # channel_last -> channel_first
+        weights[0] = np.transpose(weights[0], (2, 1, 0))
+        return self.set_weights(weights)
+
+
+class Conv2DTranspose(ConvTranspose):
+    def get_weights_channels_last(self):
+        # channel_first -> channel_last
+        weights = self.get_weights()
+        weights[0] = np.transpose(weights[0], (2, 3, 1, 0))
+        return weights
+
+    def set_weights_channels_last(self, weights):
+        # channel_last -> channel_first
+        weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
+        return self.set_weights(weights)
+
+
+class Conv3DTranspose(ConvTranspose):
+    def get_weights_channels_last(self):
+        # channel_first -> channel_last
+        weights = self.get_weights()
+        weights[0] = np.transpose(weights[0], (2, 3, 4, 1, 0))
+        return weights
+
+    def set_weights_channels_last(self, weights):
+        # channel_last -> channel_first
+        weights[0] = np.transpose(weights[0], (4, 3, 0, 1, 2))
         return self.set_weights(weights)
 
 
@@ -724,7 +784,7 @@ class GroupNormalization(Layer):
         return config
 
 
-class __LayerNormGeneral__(nn.Module):
+class _LayerNormGeneral(nn.Module):
     """LayerNorm supports `bias=False`, also applying on `axis=1` directly without permute.
     From LayerNormGeneral https://github.com/sail-sg/metaformer/blob/main/metaformer_baselines.py#L311
     """
@@ -769,7 +829,7 @@ class LayerNormalization(Layer):
             normalized_shape = input_shape[self.axis]
             if self.axis != len(input_shape) - 1:
                 normalized_shape = [normalized_shape] + [1] * (len(input_shape) - self.axis - 1)
-            self.module = __LayerNormGeneral__(normalized_shape=normalized_shape, normalized_dim=self.axis, eps=self.epsilon, bias=self.center)
+            self.module = _LayerNormGeneral(normalized_shape=normalized_shape, normalized_dim=self.axis, eps=self.epsilon, bias=self.center)
             gamma_initializer = getattr(initializers, self.gamma_initializer)() if isinstance(self.gamma_initializer, str) else self.gamma_initializer
             self.module.weight.data = gamma_initializer(list(self.module.weight.shape))  # not using gamma_initializer(self.module.weight) for compiling with TF
         super().build(input_shape)
@@ -822,7 +882,7 @@ class PReLU(Layer):
 """ Layers with no weights """
 
 
-class __DropPath__(nn.Module):
+class _DropPath(nn.Module):
     """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
     from drop_path https://github.com/rwightman/pytorch-image-models/blob/main/timm/layers/drop.py#L137
     """
@@ -856,7 +916,7 @@ class Dropout(Layer):
             # self.module = torch.nn.Dropout1d(p=rate) if dims == 3 else (torch.nn.Dropout2d(p=rate) if dims == 4 else torch.nn.Dropout3d(p=rate))
             self.module = torch.nn.Dropout(p=rate)
         else:
-            self.module = __DropPath__(drop_prob=self.rate)
+            self.module = _DropPath(drop_prob=self.rate)
         super().build(input_shape)
 
     def get_config(self):
@@ -877,32 +937,18 @@ class Flatten(Layer):
         return [None, int(np.prod(inptut_shape[1:]))]
 
 
-class Pooling2D(Layer):
+class _Pooling2D(_BaseConvPool):
     def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", reduce="mean", **kwargs):
-        self.pool_size, self.strides, self.padding, self.reduce = pool_size, strides, padding, reduce
+        super().__init__(kernel_size=pool_size, strides=strides, padding=padding, dilation_rate=(1, 1), **kwargs)
         self.pool_size = pool_size if isinstance(pool_size, (list, tuple)) else [pool_size, pool_size]
-        self.strides = strides if isinstance(strides, (list, tuple)) else [strides, strides]
-        super().__init__(**kwargs)
+        self.reduce = reduce
 
-    def build(self, input_shape):
-        if isinstance(self.padding, str):
-            pad_hh = tf_same_pad(input_shape[2], self.pool_size[0], self.strides[0])
-            pad_ww = tf_same_pad(input_shape[3], self.pool_size[1], self.strides[1])
-            pad = (0, 0)  # Both set to 0 for "SAME" and "VALID", "SAME" will apply TF like same padding.
-        else:  # int or list or tuple with specific value
-            pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
-        self._pad = pad
-
+    def build_module(self, input_shape):
         if self.reduce.lower() == "max":
-            module = nn.MaxPool2d(kernel_size=self.pool_size, stride=self.strides, padding=pad)
+            module = nn.MaxPool2d(kernel_size=self.pool_size, stride=self.strides, padding=self._pad)
         else:
-            module = nn.AvgPool2d(kernel_size=self.pool_size, stride=self.strides, padding=pad, count_include_pad=False)
-
-        if isinstance(self.padding, str) and self.padding.upper() == "SAME":
-            self.module = nn.Sequential(SamePadding(kernel_size=self.pool_size, strides=self.strides, ndims=2), module)
-        else:
-            self.module = module
-        super().build(input_shape)
+            module = nn.AvgPool2d(kernel_size=self.pool_size, stride=self.strides, padding=self._pad, count_include_pad=False)
+        return module
 
     def compute_output_shape(self, input_shape):
         output_size = compute_conv_output_size(input_shape, self.pool_size, self.strides, self.padding, dilation_rate=1)
@@ -910,16 +956,18 @@ class Pooling2D(Layer):
 
     def get_config(self):
         config = super().get_config()
-        config.update({"pool_size": self.pool_size, "strides": self.strides, "padding": self.padding, "reduce": self.reduce})
+        config.pop("kernel_size")  # From super
+        config.pop("dilation_rate")  # From super
+        config.update({"pool_size": self.pool_size, "strides": self.strides, "padding": self.padding})  # Not saving reduce
         return config
 
 
-class AvgPool2D(Pooling2D):
+class AvgPool2D(_Pooling2D):
     def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", **kwargs):
         super().__init__(pool_size=pool_size, strides=strides, padding=padding, reduce=kwargs.pop("reduce", "mean"), **kwargs)
 
 
-class MaxPool2D(Pooling2D):
+class MaxPool2D(_Pooling2D):
     def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", **kwargs):
         super().__init__(pool_size=pool_size, strides=strides, padding=padding, reduce=kwargs.pop("reduce", "max"), **kwargs)
 
@@ -994,7 +1042,8 @@ class Reshape(Layer):
             self.target_shape = [unknown_dim if ii == -1 else ii for ii in self.target_shape]
         assert total_size == np.prod(self.target_shape), "Total size of new array must be unchanged, {} -> {}".format(input_shape, self.target_shape)
 
-        self.module = partial(torch.reshape, shape=[-1, *self.target_shape])
+        # self.module = partial(torch.reshape, shape=[-1, *self.target_shape])
+        self.module = partial(lambda inputs: inputs.contiguous().view([-1, *self.target_shape]))
         super().build(input_shape)
 
     def compute_output_shape(self, input_shape):

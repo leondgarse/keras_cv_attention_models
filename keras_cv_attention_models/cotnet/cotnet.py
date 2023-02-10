@@ -1,6 +1,6 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
+import numpy as np
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 from keras_cv_attention_models.aotnet import AotNet
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, CompatibleExtractPatches, group_norm
@@ -17,24 +17,25 @@ PRETRAINED_DICT = {
 
 def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activation="relu", name=None):
     if downsample_first and strides > 1:
-        inputs = keras.layers.ZeroPadding2D(padding=1, name=name and name + "pool_pad")(inputs)
-        inputs = keras.layers.AveragePooling2D(3, strides=2, name=name and name + "pool")(inputs)
+        inputs = layers.ZeroPadding2D(padding=1, name=name and name + "pool_pad")(inputs)
+        inputs = layers.AvgPool2D(3, strides=2, name=name and name + "pool")(inputs)
 
     # inputs, kernel_size, strides, activation, name = tf.ones([1, 7, 7, 512]), 3, 1, "relu", ""
-    filters = inputs.shape[-1]
+    height_axis, width_axis, channel_axis = (1, 2, 3) if image_data_format() == "channels_last" else (2, 3, 1)
+    filters = inputs.shape[channel_axis]
     randix = 2
 
     # key_embed
     if kernel_size // 2 != 0:
-        key_input = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "conv_pad")(inputs)
+        key_input = layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "conv_pad")(inputs)
     else:
         key_input = inputs
     key = conv2d_no_bias(key_input, filters, kernel_size, groups=4, name=name and name + "key_")
     key = batchnorm_with_activation(key, activation=activation, zero_gamma=False, name=name and name + "key_")
 
     # query key
-    qk = keras.layers.Concatenate(axis=-1)([inputs, key])
-    _, height, width, _ = qk.shape
+    qk = layers.Concatenate(axis=channel_axis)([inputs, key])
+    height, width = qk.shape[height_axis], qk.shape[width_axis]
 
     # embed weights from query and key, ignore `num_heads`, as it's set as `1`
     reduction = 8
@@ -43,8 +44,6 @@ def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activ
     embed_filters = kernel_size * kernel_size * filters // reduction
     embed_ww = conv2d_no_bias(embed_ww, embed_filters, 1, use_bias=True, name=name and name + "embed_ww_2_")
     embed_ww = group_norm(embed_ww, groups=filters // reduction, epsilon=BATCH_NORM_EPSILON, name=name and name + "embed_ww_")
-    embed_ww = tf.reshape(embed_ww, (-1, height, width, filters // reduction, kernel_size * kernel_size))
-    embed_ww = tf.expand_dims(tf.transpose(embed_ww, [0, 1, 2, 4, 3]), axis=-2)  # expand dim on `reduction` axis
 
     # matmul, local_conv
     embed = conv2d_no_bias(inputs, filters, 1, name=name and name + "embed_1_")
@@ -54,38 +53,49 @@ def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activ
     # x2 = unfold_j(bb).view(-1, reduction, filters // reduction, kernel_size * kernel_size, height, width)
     # y2 = (ww.unsqueeze(2) * x2.unsqueeze(1)).sum(-3).view(-1, filters, height, width)
     # sizes, patch_strides = [1, kernel_size, kernel_size, 1], [1, 1, 1, 1]
-    # embed = keras.layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "embed_pad")(embed)
-    # embed = tf.image.extract_patches(embed, sizes=sizes, strides=patch_strides, rates=(1, 1, 1, 1), padding="VALID")
+    # embed = layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "embed_pad")(embed)
+    # embed = functional.extract_patches(embed, sizes=sizes, strides=patch_strides, rates=(1, 1, 1, 1), padding="VALID")
     embed = CompatibleExtractPatches(sizes=kernel_size, strides=1, name=name and name + "patchs_")(embed)
-    embed = tf.reshape(embed, [-1, height, width, kernel_size * kernel_size, reduction, filters // reduction])
 
-    embed_out = keras.layers.Multiply(name=name and name + "local_conv_mul")([embed, embed_ww])
-    embed_out = tf.reduce_sum(embed_out, axis=-3)  # reduce on `kernel_size * kernel_size` axis
-    embed_out = tf.reshape(embed_out, [-1, height, width, filters])
+    if image_data_format() == "channels_last":
+        embed_ww = functional.reshape(embed_ww, (-1, height, width, filters // reduction, kernel_size * kernel_size))
+        reduction_axis, kernel_axis = -2, -3
+        embed_ww = functional.expand_dims(functional.transpose(embed_ww, [0, 1, 2, 4, 3]), axis=reduction_axis)  # expand dim on `reduction` axis
+        embed = functional.reshape(embed, [-1, height, width, kernel_size * kernel_size, reduction, filters // reduction])
+    else:
+        embed_ww = functional.reshape(embed_ww, (-1, filters // reduction, kernel_size * kernel_size, height, width))
+        reduction_axis, kernel_axis = 2, 1
+        embed_ww = functional.expand_dims(functional.transpose(embed_ww, [0, 2, 1, 3, 4]), axis=reduction_axis)  # expand dim on `reduction` axis
+        embed = functional.reshape(embed, [-1, kernel_size * kernel_size, reduction, filters // reduction, height, width])
+
+    embed_out = layers.Multiply(name=name and name + "local_conv_mul")([embed, embed_ww])
+    embed_out = functional.reduce_sum(embed_out, axis=kernel_axis)  # reduce on `kernel_size * kernel_size` axis
+    embed_out = functional.reshape(embed_out, [-1, height, width, filters] if image_data_format() == "channels_last" else [-1, filters, height, width])
     embed_out = batchnorm_with_activation(embed_out, activation="swish", zero_gamma=False, name=name and name + "embed_2_")
 
     # attention
-    attn = keras.layers.Add()([embed_out, key])
-    attn = tf.reduce_mean(attn, axis=[1, 2], keepdims=True)
+    attn = layers.Add()([embed_out, key])
+    attn = functional.reduce_mean(attn, axis=[height_axis, width_axis], keepdims=True)
     # attn se module
     attn_se_filters = max(filters * randix // 4, 32)
-    # attn = keras.layers.Dense(attn_se_filters, use_bias=True, name=name and name + "attn_se_dense_1")(attn)
+    # attn = layers.Dense(attn_se_filters, use_bias=True, name=name and name + "attn_se_dense_1")(attn)
     attn = conv2d_no_bias(attn, attn_se_filters, 1, use_bias=True, name=name and name + "attn_se_1_")
     attn = batchnorm_with_activation(attn, activation=activation, zero_gamma=False, name=name and name + "attn_se_")
-    # attn = keras.layers.Dense(filters * randix, use_bias=True, name=name and name + "attn_se_dense_2")(attn)
+    # attn = layers.Dense(filters * randix, use_bias=True, name=name and name + "attn_se_dense_2")(attn)
     attn = conv2d_no_bias(attn, filters * randix, 1, use_bias=True, name=name and name + "attn_se_2_")
-    attn = tf.reshape(attn, [-1, 1, 1, filters, randix])
-    # attn = tf.nn.softmax(attn, axis=-1)
-    attn = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attn)
+    attn = functional.reshape(attn, [-1, 1, 1, filters, randix] if image_data_format() == "channels_last" else [-1, filters, randix, 1, 1])
+    # attn = functional.nn.softmax(attn, axis=-1)
+    randix_axis = -1 if image_data_format() == "channels_last" else 2
+    attn = layers.Softmax(axis=randix_axis, name=name and name + "attention_scores")(attn)
 
     # value and output
-    value = keras.layers.Concatenate(axis=-1)([tf.expand_dims(embed_out, -1), tf.expand_dims(key, -1)])
-    output = keras.layers.Multiply()([value, attn])
-    output = tf.reduce_sum(output, axis=-1, name=name and name + "out")
+    value = layers.Concatenate(axis=randix_axis)([functional.expand_dims(embed_out, randix_axis), functional.expand_dims(key, randix_axis)])
+    output = layers.Multiply()([value, attn])
+    output = functional.reduce_sum(output, axis=randix_axis, name=name and name + "out")
 
     if not downsample_first and strides > 1:
-        output = keras.layers.ZeroPadding2D(padding=1, name=name and name + "pool_pad")(output)
-        output = keras.layers.AveragePooling2D(3, strides=2, name=name and name + "pool")(output)
+        output = layers.ZeroPadding2D(padding=1, name=name and name + "pool_pad")(output)
+        output = layers.AvgPool2D(3, strides=2, name=name and name + "pool")(output)
     return output
 
 

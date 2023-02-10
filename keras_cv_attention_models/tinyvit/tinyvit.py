@@ -1,6 +1,6 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
+import math
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -30,21 +30,25 @@ PRETRAINED_DICT = {
 
 
 def tiny_vit_block(inputs, window_size=7, num_heads=4, mlp_ratio=4, layer_scale=0, drop_rate=0, activation="gelu", name=""):
-    input_channel = inputs.shape[-1]
+    input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
 
     """ attention """
-    nn = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, name=name + "attn_")
+    nn = inputs if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(inputs)  # channels_first -> channels_last
+    nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "attn_")
     nn = window_attention(
         nn, window_size, num_heads=num_heads, attention_block=mhsa_with_multi_head_position, use_bn=False, qkv_bias=True, out_bias=True, name=name + "attn_"
     )
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last, channels_first
     attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "attn_")
 
     pre_mlp = depthwise_conv2d_no_bias(attn_out, kernel_size=3, strides=1, padding="SAME", name=name + "pre_mlp_")
     pre_mlp = batchnorm_with_activation(pre_mlp, activation=None, name=name + "pre_mlp_")
 
     """ MLP """
-    nn = layer_norm(pre_mlp, epsilon=LAYER_NORM_EPSILON, name=name + "mlp_")
+    nn = pre_mlp if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(pre_mlp)  # channels_first -> channels_last
+    nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "mlp_")
     nn = mlp_block(nn, input_channel * mlp_ratio, activation=activation, name=name + "mlp_")
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last, channels_first
     nn = add_with_layer_scale_and_drop_block(pre_mlp, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "mlp_")
     return nn
 
@@ -68,7 +72,10 @@ def TinyViT(
     model_name="tiny_vit",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
 
     """ Stem """
     nn = conv2d_no_bias(inputs, out_channels[0] // 2, kernel_size=3, strides=2, padding="SAME", name="stem_1_")
@@ -92,14 +99,15 @@ def TinyViT(
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id > 0:
             name = stack_name + "downsample_"
-            expand = out_channel / nn.shape[-1]
+            expand = out_channel / nn.shape[-1 if image_data_format() == "channels_last" else 1]
             nn = inverted_residual_block(nn, out_channel, stride=2, expand=expand, shortcut=False, is_torch_mode=True, activation=activation, name=name)
 
         is_conv_block = True if block_type[0].lower() == "c" else False
         num_head = num_heads[stack_id] if isinstance(num_heads, (list, tuple)) else num_heads
         # window_size = window_sizes[stack_id] if isinstance(window_sizes, (list, tuple)) else window_sizes
         window_ratio = window_ratios[stack_id] if isinstance(window_ratios, (list, tuple)) else window_ratios
-        window_size = [int(tf.math.ceil(nn.shape[1] / window_ratio)), int(tf.math.ceil(nn.shape[2] / window_ratio))]
+        height, width = nn.shape[1:-1] if image_data_format() == "channels_last" else nn.shape[2:]
+        window_size = [int(math.ceil(height / window_ratio)), int(math.ceil(width / window_ratio))]
         # print(f">>>> {window_size = }")
         for block_id in range(num_block):
             name = stack_name + "block{}_".format(block_id + 1)
@@ -112,13 +120,13 @@ def TinyViT(
             global_block_id += 1
 
     if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="pre_output_")
         if dropout > 0:
-            nn = keras.layers.Dropout(dropout, name="head_drop")(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+            nn = layers.Dropout(dropout, name="head_drop")(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
-    model = tf.keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "tinyvit", pretrained, MultiHeadPositionalEmbedding)
     return model
