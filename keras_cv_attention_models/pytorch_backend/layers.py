@@ -11,6 +11,10 @@ from keras_cv_attention_models.pytorch_backend import initializers
 """ Basic Layers """
 
 
+def to_tuple(param, num_dims=2):
+    return tuple(param if isinstance(param, (list, tuple)) else [param] * num_dims)
+
+
 def get_perm(total_axis, from_axis, to_axis):
     # total_axis, from_axis, to_axis = 4, 1, 3 -> [0, 2, 3, 1]
     # total_axis, from_axis, to_axis = 4, 3, 1 -> [0, 3, 1, 2]
@@ -473,9 +477,9 @@ class Conv(Layer):
 
     def build(self, input_shape):
         num_dims = len(input_shape) - 2  # Conv2D -> 2, Conv1D -> 1
-        self.kernel_size = self.kernel_size if isinstance(self.kernel_size, (list, tuple)) else [self.kernel_size] * num_dims
-        self.dilation_rate = self.dilation_rate if isinstance(self.dilation_rate, (list, tuple)) else [self.dilation_rate] * num_dims
-        self.strides = self.strides if isinstance(self.strides, (list, tuple)) else [self.strides] * num_dims
+        self.kernel_size = to_tuple(self.kernel_size, num_dims=num_dims)
+        self.dilation_rate = to_tuple(self.dilation_rate, num_dims=num_dims)
+        self.strides = to_tuple(self.strides, num_dims=num_dims)
         self.filters = self.filters if self.filters > 0 else input_shape[1]  # In case DepthwiseConv2D
 
         if isinstance(self.padding, str):
@@ -544,6 +548,80 @@ class Conv1D(Conv):
 
 
 class Conv2D(Conv):
+    def get_weights_channels_last(self):
+        # channel_first -> channel_last
+        weights = self.get_weights()
+        weights[0] = np.transpose(weights[0], (2, 3, 1, 0))
+        return weights
+
+    def set_weights_channels_last(self, weights):
+        # channel_last -> channel_first
+        weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
+        return self.set_weights(weights)
+
+
+class Conv2DTranspose(Layer):
+    def __init__(
+        self, filters, kernel_size=1, strides=1, padding="VALID", output_padding=None, dilation_rate=1, use_bias=True, kernel_initializer="glorot_uniform", **kwargs
+    ):
+        self.filters, self.padding, self.use_bias, self.output_padding, self.kernel_initializer = filters, padding, use_bias, output_padding, kernel_initializer
+        self.kernel_size, self.dilation_rate, self.strides = kernel_size, dilation_rate, strides
+        self.module_class = None
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        num_dims = len(input_shape) - 2  # Conv2D -> 2
+        self.kernel_size = to_tuple(self.kernel_size, num_dims=num_dims)
+        self.dilation_rate = to_tuple(self.dilation_rate, num_dims=num_dims)
+        self.strides = to_tuple(self.strides, num_dims=num_dims)
+        self.output_padding = to_tuple(self.output_padding, num_dims=num_dims)
+
+        if isinstance(self.padding, str):
+            self._pad = [0] * num_dims  # Both set to 0 for "SAME" and "VALID", "SAME" will apply TF like same padding.
+        else:  # int or list or tuple with specific value
+            self._pad = padding if isinstance(padding, (list, tuple)) else [padding] * num_dims
+
+        if self.module_class is None:
+            self.module_class = nn.ConvTranspose2d
+
+        self.module = self.module_class(
+            in_channels=input_shape[1],
+            out_channels=self.filters,
+            kernel_size=self.kernel_size,
+            stride=self.strides,
+            padding=self._pad,
+            output_padding=0 if self.output_padding[0] is None else self.output_padding,
+            dilation=self.dilation_rate,
+            bias=self.use_bias,
+        )
+        kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
+        self.module.weight.data = kernel_initializer(list(self.module.weight.shape))
+        super().build(input_shape)
+
+    def deconv_output_length(self, size, kernel_size, strides=1, pad=0, output_padding=None, dilation=1):
+        # keras.utils.conv_utils.deconv_output_length
+        if size is None:
+            return None
+
+        # Get the dilated kernel size
+        kernel_size = kernel_size + (kernel_size - 1) * (dilation - 1)
+
+        # Infer length if output padding is None, else compute the exact length
+        if output_padding is None:
+            length = size * strides
+            if pad == 0:  # "valid"
+                length += max(kernel_size - strides, 0)
+        else:
+            length = (size - 1) * strides + kernel_size
+            if padding > 0:
+                length += kernel_size // 2 * 2 + output_padding
+        return length
+
+    def compute_output_shape(self, input_shape):
+        input_size = input_shape[2:]
+        out = [self.deconv_output_length(*args) for args in zip(input_size, self.kernel_size, self.strides, self._pad, self.output_padding, self.dilation_rate)]
+        return [None, self.filters, *out]
+
     def get_weights_channels_last(self):
         # channel_first -> channel_last
         weights = self.get_weights()
