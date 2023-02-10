@@ -194,7 +194,8 @@ def resize(inputs, size, method="bilinear", preserve_aspect_ratio=False, antiali
 
 
 def shape(inputs):
-    return Shape()(inputs)
+    # return Shape()(inputs)
+    return inputs.shape
 
 
 def sigmoid(inputs, axis=None, name=None):

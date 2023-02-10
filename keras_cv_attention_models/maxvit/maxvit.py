@@ -1,5 +1,6 @@
-import tensorflow as tf
-from tensorflow import keras
+import math
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -44,7 +45,7 @@ def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion
         use_torch_padding, epsilon, momentum = False, 0.001, 0.99
 
     if strides > 1:
-        shortcut = keras.layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs)
+        shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs)
         shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, use_bias=True, name=name + "shortcut_") if conv_short_cut else shortcut
     else:
         shortcut = inputs
@@ -60,29 +61,29 @@ def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion
     nn = conv2d_no_bias(nn, output_channel, 1, strides=1, use_bias=True, padding="same", name=name + "MB_pw_")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
     # print(f"{shortcut.shape = }, {nn.shape = }, {strides = }")
-    return keras.layers.Add(name=name + "output")([shortcut, nn])
+    return layers.Add(name=name + "output")([shortcut, nn])
 
 
 def res_attn_ffn(inputs, output_channel, head_dimension=32, window_size=7, expansion=4, is_grid=False, drop_rate=0, layer_scale=0, activation="gelu", name=""):
-    input_channel = inputs.shape[-1]
-    attn = layer_norm(inputs, name=name + "attn_preact_")
+    input_channel = inputs.shape[-1]  # Channels_last only
+    attn = layer_norm(inputs, axis=-1, name=name + "attn_preact_")
     num_heads = attn.shape[-1] // head_dimension
     attention_block = lambda inputs, num_heads, name: mhsa_with_multi_head_relative_position_embedding(
         inputs, num_heads=num_heads, qkv_bias=True, out_bias=True, name=name
     )
     attn = window_attention(attn, window_size=window_size, num_heads=num_heads, is_grid=is_grid, attention_block=attention_block, name=name + "window_mhsa/")
-    attn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "1_gamma")(attn) if layer_scale >= 0 else attn
+    attn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, axis=-1, name=name + "1_gamma")(attn) if layer_scale >= 0 else attn
     attn = drop_block(attn, drop_rate=drop_rate, name=name + "attn_")
     # print(f"{name = }, {inputs.shape = }, {shortcut.shape = }, {attn.shape = }")
-    attn = keras.layers.Add(name=name + "attn_output")([inputs, attn])
+    attn = layers.Add(name=name + "attn_output")([inputs, attn])
 
-    ffn = layer_norm(attn, name=name + "ffn_preact_")
-    ffn = keras.layers.Dense(input_channel * expansion, name=name + "ffn/1_dense")(ffn)
+    ffn = layer_norm(attn, axis=-1, name=name + "ffn_preact_")
+    ffn = layers.Dense(input_channel * expansion, name=name + "ffn/1_dense")(ffn)
     ffn = activation_by_name(ffn, activation=activation, name=name)
-    ffn = keras.layers.Dense(input_channel, name=name + "ffn/2_dense")(ffn)
-    ffn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "2_gamma")(ffn) if layer_scale >= 0 else ffn
+    ffn = layers.Dense(input_channel, name=name + "ffn/2_dense")(ffn)
+    ffn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, axis=-1, name=name + "2_gamma")(ffn) if layer_scale >= 0 else ffn
     ffn = drop_block(ffn, drop_rate=drop_rate, name=name + "ffn_")
-    return keras.layers.Add(name=name + "ffn_output")([attn, ffn])
+    return layers.Add(name=name + "ffn_output")([attn, ffn])
 
 
 def MaxViT(
@@ -107,7 +108,10 @@ def MaxViT(
     model_name="maxvit",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
     if use_torch_mode:
         use_torch_padding, epsilon, momentum = True, 1e-5, 0.9
     else:
@@ -117,7 +121,7 @@ def MaxViT(
     nn = conv2d_no_bias(inputs, stem_width, 3, strides=2, use_bias=True, padding="same", use_torch_padding=use_torch_padding, name="stem_1_")
     nn = batchnorm_with_activation(nn, activation=activation, epsilon=epsilon, momentum=momentum, name="stem_1_")
     nn = conv2d_no_bias(nn, stem_width, 3, strides=1, use_bias=True, padding="same", use_torch_padding=use_torch_padding, name="stem_2_")
-    window_size = [int(tf.math.ceil(input_shape[0] / window_ratio)), int(tf.math.ceil(input_shape[1] / window_ratio))]
+    window_size = [int(math.ceil(input_shape[0] / window_ratio)), int(math.ceil(input_shape[1] / window_ratio))]
 
     attn_ffn_common_kwargs = {
         "head_dimension": head_dimension,
@@ -143,21 +147,23 @@ def MaxViT(
             nn = res_MBConv(
                 nn, out_channel, conv_short_cut, stride, expansion, block_se_ratio, use_torch_mode, block_drop_rate, activation, name=name + "mbconv/"
             )
+            nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
             nn = res_attn_ffn(nn, out_channel, is_grid=False, drop_rate=block_drop_rate, name=name + "block_", **attn_ffn_common_kwargs)
             nn = res_attn_ffn(nn, out_channel, is_grid=True, drop_rate=block_drop_rate, name=name + "grid_", **attn_ffn_common_kwargs)
+            nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last -> channels_first
 
     if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         nn = layer_norm(nn, name="post_")
         output_filter = out_channels[-1] if output_filter == -1 else output_filter
         if output_filter > 0:
-            nn = keras.layers.Dense(output_filter, name="features")(nn)
+            nn = layers.Dense(output_filter, name="features")(nn)
             nn = activation_by_name(nn, "tanh", name="features_")
         if dropout > 0:
-            nn = keras.layers.Dropout(dropout, name="head_drop")(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+            nn = layers.Dropout(dropout, name="head_drop")(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
-    model = keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     rescale_mode = "tf" if pretrained is not None and pretrained.startswith("imagenet21k") else "torch"  # For testing only
     add_pre_post_process(model, rescale_mode=rescale_mode)
     reload_model_weights(model, PRETRAINED_DICT, "maxvit", pretrained, MultiHeadRelativePositionalEmbedding)

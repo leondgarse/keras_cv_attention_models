@@ -31,7 +31,7 @@ def decoupled_fully_connected_attention_block(inputs, out_channel, name=""):
     nn = batchnorm_with_activation(nn, activation=None, name=name + "3_")
     nn = activation_by_name(nn, "sigmoid", name=name)
     # print(f"{nn.shape = }, {nn.shape = }")
-    size = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
+    size = functional.shape(inputs)[1:-1] if image_data_format() == "channels_last" else functional.shape(inputs)[2:]  # For dynamic shape
     nn = functional.resize(nn, size, antialias=False, method="bilinear")
     # nn = layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(nn)
     # if int(nn.shape[1] - nn.shape[1]) > 0 or int(nn.shape[2] - nn.shape[2]) > 0:
