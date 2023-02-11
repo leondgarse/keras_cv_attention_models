@@ -38,12 +38,12 @@ def multi_order_depthwise_conv2d(inputs, dilations=[1, 2, 3], channel_split=[1, 
     channel_split = [-1] + [int(input_channel * ii / sum(channel_split)) for ii in channel_split[1:]]
     paddings = [(1 + 4 * dilations[0]) // 2, (1 + 4 * dilations[1]) // 2, (1 + 6 * dilations[2]) // 2]
 
-    print(f"{inputs.shape = }, {input_channel = }, {channel_split = }")
+    # print(f"{inputs.shape = }, {input_channel = }, {channel_split = }")
     first = depthwise_conv2d_no_bias(inputs, kernel_size=5, padding=paddings[0], use_bias=True, dilation_rate=dilations[0], name=name + "first_")
     first, second, third = functional.split(first, channel_split, axis=channel_axis)
     second = depthwise_conv2d_no_bias(second, kernel_size=5, padding=paddings[1], use_bias=True, dilation_rate=dilations[1], name=name + "second_")
     third = depthwise_conv2d_no_bias(third, kernel_size=7, padding=paddings[2], use_bias=True, dilation_rate=dilations[2], name=name + "third_")
-    print(f"{first.shape = }, {second.shape = }, {third.shape = }")
+    # print(f"{first.shape = }, {second.shape = }, {third.shape = }")
 
     out = functional.concat([first, second, third], axis=channel_axis)
     out = conv2d_no_bias(out, input_channel, use_bias=True, name=name + "out_")
