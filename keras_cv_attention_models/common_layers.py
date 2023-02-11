@@ -346,7 +346,7 @@ def global_context_module(inputs, use_attn=True, ratio=0.25, divisor=1, activati
 
 def se_module(inputs, se_ratio=0.25, divisor=8, limit_round_down=0.9, activation="relu", use_bias=True, use_conv=True, name=None):
     """Squeeze-and-Excitation block, arxiv: https://arxiv.org/pdf/1709.01507.pdf"""
-    channel_axis = -1 if image_data_format() == "channels_last" else (1 if use_conv else -1)
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
     h_axis, w_axis = [1, 2] if image_data_format() == "channels_last" else [2, 3]
 
     # activation could be ("relu", "hard_sigmoid") for mobilenetv3

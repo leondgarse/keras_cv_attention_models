@@ -151,6 +151,13 @@ class Model(nn.Module):
         input_shape = self.input_shape[1:] if input_shape is None else input_shape[-3:]
         summary(self, tuple(input_shape))
 
+    def count_params(self):
+        total_params = sum([np.prod(ii.shape) for ii in self.state_dict().values() if len(ii.shape) != 0])
+        trainable_params = sum([np.prod(list(ii.shape)) for ii in self.parameters()])
+        non_trainable_params = total_params - trainable_params
+        print("Total params: {:,} | Trainable params: {:,} | Non-trainable params:{:,}".format(total_params, trainable_params, non_trainable_params))
+        return total_params
+
     def export_onnx(self, filepath=None, input_shape=None, **kwargs):
         input_shape = self.input_shape[1:] if input_shape is None else input_shape[-3:]
         torch.onnx.export(self, torch.ones([1, *input_shape]), self.name + ".onnx", **kwargs)

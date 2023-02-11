@@ -1,6 +1,6 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
+import numpy as np
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
 from keras_cv_attention_models.attention_layers import (
     batchnorm_with_activation,
     conv2d_no_bias,
@@ -8,21 +8,23 @@ from keras_cv_attention_models.attention_layers import (
     drop_block,
     layer_norm,
     MultiHeadRelativePositionalEmbedding,
+    qkv_to_multi_head_channels_last_format,
+    scaled_dot_product_attention,
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
-    "cmt_tiny": {"imagenet": {160: "cb269248643e9d50d8bea051563e20a6", 224: "d0f2f0cf649a7aea48a1a4e3a476606c"}},
-    "cmt_tiny_torch": {"imagenet": {160: "d800c892ef5581d73cbdef5ba61bc443"}},
-    "cmt_xs_torch": {"imagenet": {192: "cb8250ce61d3bcd0d24ace6c4a803f8b"}},
-    "cmt_small_torch": {"imagenet": {224: "2efa6fafb040dc617f6eb8f3cbfd051a"}},
-    "cmt_base_torch": {"imagenet": {256: "7cb17018b0bc73d33892e1fb3c57f82b"}},
+    "cmt_tiny": {"imagenet": {160: "e2f84138c3b994a5722c4b742ad5c62e", 224: "8c1778fe8f9db8e12c58f744a585d747"}},
+    "cmt_tiny_torch": {"imagenet": {160: "7105c2dcbdc08f2074b1ecabfdeaa166"}},
+    "cmt_xs_torch": {"imagenet": {192: "62bab26382b36c4a811bcfc8ba1bc699"}},
+    "cmt_small_torch": {"imagenet": {224: "2afbdf0f3b18d589ffe87cf8f1817c0c"}},
+    "cmt_base_torch": {"imagenet": {256: "2663258907b68c20c7ad0a51f8aed7c4"}},
 }
 
 
-@tf.keras.utils.register_keras_serializable(package="kecam/cmt")
-class BiasPositionalEmbedding(keras.layers.Layer):
+@backend.register_keras_serializable(package="kecam/cmt")
+class BiasPositionalEmbedding(layers.Layer):
     def __init__(self, axis=[1, 2, 3], attn_height=-1, initializer="zeros", **kwargs):
         super().__init__(**kwargs)
         self.axis, self.initializer, self.attn_height = axis, initializer, attn_height
@@ -38,9 +40,9 @@ class BiasPositionalEmbedding(keras.layers.Layer):
             bb_shape = bb_shape[1:]  # exclude batch dimension
         self.bb = self.add_weight(name="positional_embedding", shape=bb_shape, initializer=self.initializer, trainable=True)
 
-        self.query_hh = int(tf.math.sqrt(float(input_shape[2]))) if self.attn_height == -1 else self.attn_height
+        self.query_hh = int(float(input_shape[2]) ** 0.5) if self.attn_height == -1 else self.attn_height
         self.query_ww = int(float(input_shape[2]) / self.query_hh)
-        sr_ratio = int(tf.math.sqrt(float(input_shape[2]) / float(input_shape[3])))
+        sr_ratio = int((float(input_shape[2]) / float(input_shape[3])) ** 0.5)
         self.kv_hh = self.query_hh // sr_ratio
         self.kv_ww = int(float(input_shape[3]) / self.kv_hh)
 
@@ -56,92 +58,73 @@ class BiasPositionalEmbedding(keras.layers.Layer):
 
     def load_resized_weights(self, source_layer, method="nearest"):
         if isinstance(source_layer, dict):
-            source_tt = source_layer["positional_embedding:0"]  # weights
+            source_tt = list(source_layer.values())[0]  # weights
             # source_tt = source_layer["pos_emb:0"]  # weights
         else:
             source_tt = source_layer.bb  # layer
-        num_heads = source_tt.shape[0]
-        source_query_hh = source_query_ww = int(tf.math.sqrt(float(source_tt.shape[1])))  # assume source weights are all square shape
-        source_kv_hh = source_kv_ww = int(tf.math.sqrt(float(source_tt.shape[2])))  # assume source weights are all square shape
+        source_tt = np.array(source_tt.detach() if hasattr(source_tt, "detach") else source_tt)
 
-        tt = tf.reshape(source_tt, [num_heads, source_query_hh, source_query_ww, source_kv_hh * source_kv_ww])  # resize on query dimension first
-        tt = tf.image.resize(tt, [self.query_hh, self.query_ww], method=method)  # [num_heads, self.query_hh, self.query_ww, source_kv_hh * source_kv_ww]
-        tt = tf.reshape(tt, [num_heads, self.query_hh * self.query_ww, source_kv_hh, source_kv_ww])  # resize on key_value dimension
-        tt = tf.transpose(tt, [0, 2, 3, 1])  # [num_heads, source_kv_hh, source_kv_ww, self.query_hh * self.query_ww]
-        tt = tf.image.resize(tt, [self.kv_hh, self.kv_ww], method=method)  # [num_heads, self.kv_hh, self.kv_ww, self.query_hh * self.query_ww]
-        tt = tf.reshape(tt, [num_heads, self.kv_hh * self.kv_ww, self.query_hh * self.query_ww])
-        tt = tf.transpose(tt, [0, 2, 1])  # [num_heads, self.query_hh * self.query_ww, self.kv_hh * self.kv_ww]
-        self.bb.assign(tt)
+        num_heads = source_tt.shape[0]
+        source_query_hh = source_query_ww = int(float(source_tt.shape[1]) ** 0.5)  # assume source weights are all square shape
+        source_kv_hh = source_kv_ww = int(float(source_tt.shape[2]) ** 0.5)  # assume source weights are all square shape
+
+        tt = np.reshape(source_tt, [num_heads, source_query_hh, source_query_ww, source_kv_hh * source_kv_ww])  # resize on query dimension first
+        tt = backend.numpy_image_resize(tt, [self.query_hh, self.query_ww], method=method)  # [num_heads, query_hh, query_ww, source_kv_hh * source_kv_ww]
+        tt = np.reshape(tt, [num_heads, self.query_hh * self.query_ww, source_kv_hh, source_kv_ww])  # resize on key_value dimension
+        tt = np.transpose(tt, [0, 2, 3, 1])  # [num_heads, source_kv_hh, source_kv_ww, query_hh * query_ww]
+
+        tt = backend.numpy_image_resize(tt, [self.kv_hh, self.kv_ww], method=method)  # [num_heads, self.kv_hh, self.kv_ww, self.query_hh * self.query_ww]
+        tt = np.reshape(tt, [num_heads, self.kv_hh * self.kv_ww, self.query_hh * self.query_ww])
+        tt = np.transpose(tt, [0, 2, 1])  # [num_heads, self.query_hh * self.query_ww, self.kv_hh * self.kv_ww]
+        self.set_weights([tt])
 
 
 def light_mhsa_with_multi_head_relative_position_embedding(
     inputs, num_heads=4, key_dim=0, sr_ratio=1, qkv_bias=False, pos_emb=None, use_bn=False, out_shape=None, out_weight=True, out_bias=False, dropout=0, name=""
 ):
-    _, hh, ww, cc = inputs.shape
-    key_dim = key_dim if key_dim > 0 else cc // num_heads
-    qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
-    out_shape = cc if out_shape is None or not out_weight else out_shape
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    input_channel = inputs.shape[channel_axis]
+    height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
+    key_dim = key_dim if key_dim > 0 else input_channel // num_heads
+    out_shape = input_channel if out_shape is None or not out_weight else out_shape
     emb_dim = num_heads * key_dim
 
-    query = keras.layers.Dense(emb_dim, use_bias=qkv_bias, name=name and name + "query")(inputs) * qk_scale
+    # query = layers.Dense(emb_dim, use_bias=qkv_bias, name=name and name + "query")(inputs)
+    query = conv2d_no_bias(inputs, emb_dim, use_bias=qkv_bias, name=name and name + "query_")
     # print(f">>>> {inputs.shape = }, {query.shape = }, {sr_ratio = }")
     # query = [batch, num_heads, hh * ww, key_dim]
-    query = tf.transpose(tf.reshape(query, [-1, inputs.shape[1] * inputs.shape[2], num_heads, key_dim]), [0, 2, 1, 3])
 
     if sr_ratio > 1:
         key_value = depthwise_conv2d_no_bias(inputs, kernel_size=sr_ratio, strides=sr_ratio, use_bias=qkv_bias, name=name + "kv_sr_")
         key_value = batchnorm_with_activation(key_value, activation=None, name=name + "kv_sr_") if use_bn else layer_norm(key_value, name=name + "kv_sr_")
-        # key_value = keras.layers.AvgPool2D(sr_ratio, strides=sr_ratio, name=name + "kv_sr_")(inputs)
+        # key_value = layers.AvgPool2D(sr_ratio, strides=sr_ratio, name=name + "kv_sr_")(inputs)
     else:
         key_value = inputs
     _, kv_hh, kv_ww, _ = key_value.shape
     # key_value = [batch, num_heads, hh, ww, kv_kernel * kv_kernel, key_dim * 2]
-    key_value = keras.layers.Dense(emb_dim * 2, use_bias=qkv_bias, name=name and name + "key_value")(key_value)
-    # key = keras.layers.Dense(emb_dim, use_bias=qkv_bias, name=name and name + "key")(key_value)
-    # value = keras.layers.Dense(emb_dim, use_bias=qkv_bias, name=name and name + "value")(key_value)
-    # key_value = conv2d_no_bias(inputs, emb_dim * 2, kernel_size=sr_ratio, strides=sr_ratio, use_bias=False, name=name + "key_value")
+    # key = layers.Dense(emb_dim, use_bias=qkv_bias, name=name and name + "key")(key_value)
+    # value = layers.Dense(emb_dim, use_bias=qkv_bias, name=name and name + "value")(key_value)
+    key_value = conv2d_no_bias(key_value, emb_dim * 2, use_bias=qkv_bias, name=name and name + "key_value_")
     # print(f">>>> {key_value.shape = }")
 
-    # dim, head, kv
-    key_value = tf.reshape(key_value, [-1, kv_hh * kv_ww, key_dim, num_heads, 2])
-    key = tf.transpose(key_value[:, :, :, :, 0], [0, 3, 2, 1])  # [batch, num_heads, key_dim, hh * ww]
-    value = tf.transpose(key_value[:, :, :, :, 1], [0, 3, 1, 2])  # [batch, num_heads, hh * ww, key_dim]
-    # kv, head, dim
-    # key, value = tf.split(key_value, 2, axis=-1)
-    # key = tf.transpose(tf.reshape(key, [-1, kv_hh * kv_ww, num_heads, key_dim]), [0, 2, 3, 1]) # [batch, num_heads, key_dim, hh * ww]
-    # value = tf.transpose(tf.reshape(value, [-1, kv_hh * kv_ww, num_heads, key_dim]), [0, 2, 1, 3]) # [batch, num_heads, hh * ww, key_dim]
+    key, value = functional.split(key_value, 2, axis=channel_axis)
+    query, key, value = qkv_to_multi_head_channels_last_format(query, key, value, num_heads=num_heads)
 
-    # print(f">>>> {attn_query.shape = }, {key.shape = }, {value.shape = }, {kv_inp.shape = }, {pos_query.shape = }")
-    # attention_scores = [batch, num_heads, hh * ww, kv_hh * kv_ww]
-    attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key])
     if pos_emb is None:
-        attention_scores = MultiHeadRelativePositionalEmbedding(with_cls_token=False, attn_height=hh, name=name and name + "pos_emb")(attention_scores)
-    else:
-        attention_scores = pos_emb(attention_scores)
-    attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
-
-    if dropout > 0:
-        attention_scores = keras.layers.Dropout(dropout, name=name and name + "attn_drop")(attention_scores)
-    # value = [batch, num_heads, key_hh * key_ww, key_dim]
-    attention_output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
-    attention_output = tf.transpose(attention_output, perm=[0, 2, 1, 3])
-    attention_output = tf.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * key_dim])
-    # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
-
-    if out_weight:
-        # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
-        attention_output = keras.layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
-    return attention_output
+        pos_emb = MultiHeadRelativePositionalEmbedding(with_cls_token=False, attn_height=height, name=name and name + "pos_emb")
+    output_shape = (height, width, out_shape)
+    out = scaled_dot_product_attention(query, key, value, output_shape, pos_emb=pos_emb, out_weight=out_weight, out_bias=out_bias, dropout=dropout, name=name)
+    return out if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=name and name + "output_perm")(out)
 
 
 def inverted_residual_feed_forward(inputs, expansion=4, activation="gelu", name=""):
     """IRFFN(X) = Conv(F(Conv(X))), F(X) = DWConv(X) + X"""
-    in_channel = inputs.shape[-1]
+    in_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
     expanded = conv2d_no_bias(inputs, int(in_channel * expansion), kernel_size=1, use_bias=True, name=name + "1_")
     expanded = batchnorm_with_activation(expanded, activation=activation, act_first=True, name=name + "1_")
 
     dw = depthwise_conv2d_no_bias(expanded, kernel_size=3, padding="SAME", use_bias=True, name=name)
-    dw = keras.layers.Add(name=name + "dw_add")([expanded, dw])
+    dw = layers.Add(name=name + "dw_add")([expanded, dw])
     dw = batchnorm_with_activation(dw, activation=activation, act_first=True, name=name + "2_")
 
     pw = conv2d_no_bias(dw, in_channel, kernel_size=1, use_bias=True, name=name + "3_")
@@ -156,7 +139,7 @@ def cmt_block(
     """ Local Perception Unit, LPU(X) = DWConv(X) + X """
     lpu = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="SAME", use_bias=True, name=name)
     # lpu = batchnorm_with_activation(lpu, activation=activation, name=name + "lpu_", act_first=True)
-    lpu_out = keras.layers.Add(name=name + "lpu_out")([inputs, lpu])
+    lpu_out = layers.Add(name=name + "lpu_out")([inputs, lpu])
 
     """ light multi head self attention """
     attn = layer_norm(lpu_out, name=name + "attn_")
@@ -164,13 +147,13 @@ def cmt_block(
         attn, num_heads=num_heads, sr_ratio=sr_ratio, qkv_bias=qkv_bias, pos_emb=pos_emb, use_bn=attn_use_bn, out_bias=attn_out_bias, name=name + "light_mhsa_"
     )
     attn = drop_block(attn, drop_rate=drop_rate)
-    attn_out = keras.layers.Add(name=name + "attn_out")([lpu_out, attn])
+    attn_out = layers.Add(name=name + "attn_out")([lpu_out, attn])
 
     """ inverted residual feed forward """
     ffn = layer_norm(attn_out, name=name + "ffn_")
     ffn = inverted_residual_feed_forward(ffn, expansion=expansion, activation=activation, name=name + "ffn_")
     ffn = drop_block(ffn, drop_rate=drop_rate)
-    ffn_out = keras.layers.Add(name=name + "ffn_output")([attn_out, ffn])
+    ffn_out = layers.Add(name=name + "ffn_output")([attn_out, ffn])
 
     return ffn_out
 
@@ -209,7 +192,10 @@ def CMT(
     model_name="cmt",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if len(input_shape) == 4,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
     nn = cmt_stem(inputs, stem_width=stem_width, activation=activation, name="stem_")
 
     """ stage [1, 2, 3, 4] """
@@ -221,8 +207,9 @@ def CMT(
         nn = layer_norm(nn, name=stage_name)
 
         if use_block_pos_emb:
-            block_pos_emb = BiasPositionalEmbedding(axis=[1, 2, 3], attn_height=nn.shape[1], name=stage_name + "pos_emb")
-            block_pos_emb.build([None, num_head, nn.shape[1] * nn.shape[2], (nn.shape[1] // sr_ratio) * (nn.shape[2] // sr_ratio)])
+            height, width = nn.shape[1:-1] if image_data_format() == "channels_last" else nn.shape[2:]
+            block_pos_emb = BiasPositionalEmbedding(axis=[1, 2, 3], attn_height=height, name=stage_name + "pos_emb")
+            block_pos_emb.build([None, num_head, height * width, (height // sr_ratio) * (width // sr_ratio)])
         else:
             block_pos_emb = None
 
@@ -240,12 +227,12 @@ def CMT(
         nn = batchnorm_with_activation(nn, activation=feature_activation, act_first=feature_act_first, name="features_")
 
     if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         if dropout > 0:
-            nn = keras.layers.Dropout(dropout, name="head_drop")(nn)
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+            nn = layers.Dropout(dropout, name="head_drop")(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
-    model = keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     mismatch_class = BiasPositionalEmbedding if use_block_pos_emb else MultiHeadRelativePositionalEmbedding
     reload_model_weights(model, PRETRAINED_DICT, "cmt", pretrained, mismatch_class)

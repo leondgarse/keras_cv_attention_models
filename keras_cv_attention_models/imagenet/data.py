@@ -510,6 +510,7 @@ def init_dataset(
 
 def show_batch_sample(dataset, rescale_mode="tf", rows=-1, base_size=3):
     from keras_cv_attention_models import visualizing
+    from keras_cv_attention_models.imagenet.eval_func import decode_predictions
 
     if isinstance(dataset, (list, tuple)):
         images, labels = dataset
@@ -522,7 +523,7 @@ def show_batch_sample(dataset, rescale_mode="tf", rows=-1, base_size=3):
     images = (images * std + mean) / 255
 
     if tf.shape(labels)[-1] == 1000:
-        labels = [ii[0][1] for ii in keras.applications.imagenet_utils.decode_predictions(labels, top=1)]
+        labels = [ii[0][1] for ii in decode_predictions(labels, top=1)]
     elif tf.rank(labels[0]) == 1:
         labels = tf.argmax(labels, axis=-1).numpy()  # If 2 dimension
     ax, _ = visualizing.stack_and_plot_images(images, texts=labels, rows=rows, ax=None, base_size=base_size)

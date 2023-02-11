@@ -153,9 +153,10 @@ def aot_block(
 ):
     if attn_block_params.get("attn_type", None) == "halo":  # HaloAttention
         halo_block_size = attn_block_params.get("attn_params", {}).get("block_size", DEFAULT_PARAMS["halo"]["block_size"])
-        if inputs.shape[1] % halo_block_size != 0 or inputs.shape[2] % halo_block_size != 0:
-            gap_h = halo_block_size - inputs.shape[1] % halo_block_size
-            gap_w = halo_block_size - inputs.shape[2] % halo_block_size
+        height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
+        if height % halo_block_size != 0 or width % halo_block_size != 0:
+            gap_h = halo_block_size - height % halo_block_size
+            gap_w = halo_block_size - width % halo_block_size
             pad_head_h, pad_tail_h = gap_h // 2, gap_h - gap_h // 2
             pad_head_w, pad_tail_w = gap_w // 2, gap_w - gap_w // 2
             # print(f">>>> Halo pad: {inputs.shape = }, {pad_head_h = }, {pad_tail_h = }, {pad_head_w = }, {pad_tail_w = }")
@@ -210,8 +211,9 @@ def aot_stack(
     nn = inputs
     # print(">>>> attn_types:", attn_types)
     strides_block_id = 0 if strides_first else blocks - 1
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
     for id in range(blocks):
-        conv_shortcut = True if id == 0 and (strides != 1 or inputs.shape[-1] != filters) else False
+        conv_shortcut = True if id == 0 and (strides != 1 or inputs.shape[channel_axis] != filters) else False
         cur_strides = strides if id == strides_block_id else 1
         block_name = name + "block{}_".format(id + 1)
         block_drop_rate = stack_drop[id] if isinstance(stack_drop, (list, tuple)) else stack_drop

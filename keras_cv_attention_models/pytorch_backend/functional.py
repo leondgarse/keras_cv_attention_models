@@ -170,11 +170,17 @@ def repeat(inputs, repeats, axis, name=None):
     >>> tf_out = tf.repeat(aa, repeats=2, axis=0)
     >>> np.allclose(torch_out.detach(), tf_out)
     """
-    expand_shape = list(inputs.shape)
-    expand_shape.insert(axis + 1, repeats)
-    out_shape = [ii * repeats if dim == axis else ii for dim, ii in enumerate(inputs.shape)]
+    if inputs.shape[axis] is None:
+        expand_shape = [-1] * len(inputs.shape)
+        expand_shape.insert(axis + 1, repeats)
+        out_shape = [(-1 if ii is None or ii == -1 else ii * repeats) if dim == axis else ii for dim, ii in enumerate(inputs.shape)]
+        return wrapper(lambda inputs: torch.expand_copy(torch.unsqueeze(inputs, axis + 1), expand_shape).contiguous().view(out_shape), inputs, name=name)
+    else:
+        return wrapper(partial(torch.repeat_interleave, repeats=repeats, dim=axis), inputs, name=name)
+    # expand_shape.insert(axis + 1, repeats)
+    # expand_shape = tuple(expand_shape)
+    # out_shape = [(-1 if ii is None or ii == -1 else ii * repeats) if dim == axis else ii for dim, ii in enumerate(inputs.shape)]
     # return wrapper(lambda inputs: torch.reshape(torch.expand_copy(torch.unsqueeze(inputs, axis + 1), expand_shape), out_shape), inputs, name=name)
-    return wrapper(lambda inputs: torch.expand_copy(torch.unsqueeze(inputs, axis + 1), expand_shape).contiguous().view(out_shape), inputs, name=name)
 
 
 def reshape(inputs, shape, name=None):
@@ -226,7 +232,7 @@ def split(inputs, num_or_size_splits, axis=0, num=None, name=None):
     else:
         size_splits = num_or_size_splits
         size_splits = [0 if ii is None or ii == -1 else ii for ii in size_splits]
-        num_unknown_dim = sum([ii == 0 for ii in num_or_size_splits])
+        num_unknown_dim = sum([ii == 0 for ii in size_splits])
         assert num_unknown_dim < 2, "At most one unknown dimension in num_or_size_splits: {}".format(num_or_size_splits)
 
         if num_unknown_dim == 1:

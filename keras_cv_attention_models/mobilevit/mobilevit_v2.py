@@ -7,13 +7,11 @@ def MobileViT_V2(
     attn_channels=0.5,  # Can be a list matching out_channels, or a float number for expansion ratio of out_channels
     expand_ratio=2,
     stem_width=32,
-    patches_to_batch=False,  # True for V1, False for V2
     resize_first=True,  # False for V1, True for V2
     use_depthwise=True,  # False for V1, True for V2
     use_fusion=False,  # True for V1, False for V2
     num_norm_groups=1,  # -1 or 0 for V1 using layer_norm, or 1 for V2 using group_norm
     use_linear_attention=True,  # False for V1, True for V2
-    use_conv_mlp=True,  # False for V1, True for V2
     output_num_features=0,
     model_name="mobilevit_v2",
     **kwargs,

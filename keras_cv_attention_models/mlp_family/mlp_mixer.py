@@ -16,9 +16,9 @@ PRETRAINED_DICT = {
 }
 
 
-def layer_norm(inputs, name=None):
+def layer_norm(inputs, axis="auto", name=None):
     """Typical LayerNormalization with epsilon=1e-5"""
-    norm_axis = -1 if backend.image_data_format() == "channels_last" else 1
+    norm_axis = (-1 if backend.image_data_format() == "channels_last" else 1) if axis == "auto" else axis
     return layers.LayerNormalization(axis=norm_axis, epsilon=BATCH_NORM_EPSILON, name=name)(inputs)
 
 
@@ -39,19 +39,22 @@ def mlp_block(inputs, hidden_dim, output_channel=-1, drop_rate=0, use_conv=False
     return nn
 
 
-def mlp_mixer_block(inputs, tokens_mlp_dim, channels_mlp_dim, use_bias=True, drop_rate=0, activation="gelu", name=None):
-    nn = layer_norm(inputs, name=name and name + "LayerNorm_0")
-    nn = layers.Permute((2, 1), name=name and name + "permute_0")(nn) if backend.image_data_format() == "channels_last" else nn
+def mlp_mixer_block(inputs, tokens_mlp_dim, channels_mlp_dim, use_bias=True, drop_rate=0, activation="gelu", data_format=None, name=None):
+    data_format = backend.image_data_format() if data_format is None else data_format
+    norm_axis = -1 if data_format == "channels_last" else 1
+
+    nn = layer_norm(inputs, axis=norm_axis, name=name and name + "LayerNorm_0")
+    nn = layers.Permute((2, 1), name=name and name + "permute_0")(nn) if data_format == "channels_last" else nn
     nn = mlp_block(nn, tokens_mlp_dim, use_bias=use_bias, activation=activation, name=name and name + "token_mixing/")
-    nn = layers.Permute((2, 1), name=name and name + "permute_1")(nn) if backend.image_data_format() == "channels_last" else nn
+    nn = layers.Permute((2, 1), name=name and name + "permute_1")(nn) if data_format == "channels_last" else nn
     if drop_rate > 0:
         nn = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name and name + "token_drop")(nn)
     token_out = layers.Add(name=name and name + "add_0")([nn, inputs])
 
-    nn = layer_norm(token_out, name=name and name + "LayerNorm_1")
-    nn = nn if backend.image_data_format() == "channels_last" else layers.Permute((2, 1), name=name and name + "permute_2")(nn)
+    nn = layer_norm(token_out, axis=norm_axis, name=name and name + "LayerNorm_1")
+    nn = nn if data_format == "channels_last" else layers.Permute((2, 1), name=name and name + "permute_2")(nn)
     nn = mlp_block(nn, channels_mlp_dim, use_bias=use_bias, activation=activation, name=name and name + "channel_mixing/")
-    channel_out = nn if backend.image_data_format() == "channels_last" else layers.Permute((2, 1), name=name and name + "permute_3")(nn)
+    channel_out = nn if data_format == "channels_last" else layers.Permute((2, 1), name=name and name + "permute_3")(nn)
     if drop_rate > 0:
         channel_out = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name and name + "channel_drop")(channel_out)
     return layers.Add(name=name and name + "output")([channel_out, token_out])

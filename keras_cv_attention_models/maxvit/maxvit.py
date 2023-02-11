@@ -68,13 +68,14 @@ def res_attn_ffn(inputs, output_channel, head_dimension=32, window_size=7, expan
     input_channel = inputs.shape[-1]  # Channels_last only
     attn = layer_norm(inputs, axis=-1, name=name + "attn_preact_")
     num_heads = attn.shape[-1] // head_dimension
+    # print(f"{inputs.shape = }, {num_heads = }, {window_size = }, {is_grid = }")
     attention_block = lambda inputs, num_heads, name: mhsa_with_multi_head_relative_position_embedding(
-        inputs, num_heads=num_heads, qkv_bias=True, out_bias=True, name=name
+        inputs, num_heads=num_heads, qkv_bias=True, out_bias=True, data_format="channels_last", name=name
     )
     attn = window_attention(attn, window_size=window_size, num_heads=num_heads, is_grid=is_grid, attention_block=attention_block, name=name + "window_mhsa/")
     attn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, axis=-1, name=name + "1_gamma")(attn) if layer_scale >= 0 else attn
     attn = drop_block(attn, drop_rate=drop_rate, name=name + "attn_")
-    # print(f"{name = }, {inputs.shape = }, {shortcut.shape = }, {attn.shape = }")
+    # print(f"{name = }, {inputs.shape = }, {inputs.shape = }, {attn.shape = }")
     attn = layers.Add(name=name + "attn_output")([inputs, attn])
 
     ffn = layer_norm(attn, axis=-1, name=name + "ffn_preact_")
@@ -112,6 +113,8 @@ def MaxViT(
     # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
     input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
     if use_torch_mode:
         use_torch_padding, epsilon, momentum = True, 1e-5, 0.9
     else:
@@ -121,7 +124,8 @@ def MaxViT(
     nn = conv2d_no_bias(inputs, stem_width, 3, strides=2, use_bias=True, padding="same", use_torch_padding=use_torch_padding, name="stem_1_")
     nn = batchnorm_with_activation(nn, activation=activation, epsilon=epsilon, momentum=momentum, name="stem_1_")
     nn = conv2d_no_bias(nn, stem_width, 3, strides=1, use_bias=True, padding="same", use_torch_padding=use_torch_padding, name="stem_2_")
-    window_size = [int(math.ceil(input_shape[0] / window_ratio)), int(math.ceil(input_shape[1] / window_ratio))]
+    window_size = [int(math.ceil(height / window_ratio)), int(math.ceil(width / window_ratio))]
+    # print(f"{window_size = }")
 
     attn_ffn_common_kwargs = {
         "head_dimension": head_dimension,
@@ -140,7 +144,7 @@ def MaxViT(
         for block_id in range(num_block):
             name = "stack_{}_block_{}/".format(stack_id + 1, block_id + 1)
             stride = stack_strides if block_id == 0 else 1
-            conv_short_cut = True if block_id == 0 and nn.shape[-1] != out_channel else False
+            conv_short_cut = True if block_id == 0 and nn.shape[channel_axis] != out_channel else False
             block_se_ratio = stack_se_ratio[block_id] if isinstance(stack_se_ratio, (list, tuple)) else stack_se_ratio
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             global_block_id += 1

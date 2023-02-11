@@ -1,6 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.python.keras import backend as K
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import layer_norm, conv2d_no_bias, activation_by_name, add_pre_post_process
 
@@ -15,14 +14,14 @@ PRETRAINED_DICT = {
 
 
 def mlp_block(inputs, hidden_dim, activation="gelu", name=None):
-    nn = keras.layers.Dense(hidden_dim, name=name + "dense_0")(inputs)
+    nn = layers.Dense(hidden_dim, name=name + "dense_0")(inputs)
     nn = activation_by_name(nn, activation, name=name and name + activation)
-    nn = keras.layers.Dense(inputs.shape[-1], name=name + "dense_1")(nn)
+    nn = layers.Dense(inputs.shape[-1], name=name + "dense_1")(nn)
     return nn
 
 
-@keras.utils.register_keras_serializable(package="coat")
-class ConvPositionalEncoding(keras.layers.Layer):
+@backend.register_keras_serializable(package="coat")
+class ConvPositionalEncoding(layers.Layer):
     def __init__(self, kernel_size=3, input_height=-1, **kwargs):
         super(ConvPositionalEncoding, self).__init__(**kwargs)
         self.kernel_size, self.input_height = kernel_size, input_height
@@ -30,12 +29,12 @@ class ConvPositionalEncoding(keras.layers.Layer):
         self.supports_masking = False
 
     def build(self, input_shape):
-        self.height = self.input_height if self.input_height > 0 else int(tf.math.sqrt(float(input_shape[1] - 1)))
+        self.height = self.input_height if self.input_height > 0 else int(float(input_shape[1] - 1) ** 0.5)
         self.width = (input_shape[1] - 1) // self.height
 
         self.channel = input_shape[-1]
         # Conv2D with goups=self.channel
-        self.dconv = keras.layers.DepthwiseConv2D(
+        self.dconv = layers.DepthwiseConv2D(
             self.kernel_size,
             strides=1,
             padding="VALID",
@@ -46,10 +45,10 @@ class ConvPositionalEncoding(keras.layers.Layer):
 
     def call(self, inputs, **kwargs):
         cls_token, img_token = inputs[:, :1], inputs[:, 1:]
-        img_token = tf.reshape(img_token, [-1, self.height, self.width, self.channel])
-        nn = self.dconv(tf.pad(img_token, self.pad)) + img_token
-        nn = tf.reshape(nn, [-1, self.height * self.width, self.channel])
-        return tf.concat([cls_token, nn], axis=1)
+        img_token = functional.reshape(img_token, [-1, self.height, self.width, self.channel])
+        nn = self.dconv(functional.pad(img_token, self.pad)) + img_token
+        nn = functional.reshape(nn, [-1, self.height * self.width, self.channel])
+        return functional.concat([cls_token, nn], axis=1)
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -60,16 +59,18 @@ class ConvPositionalEncoding(keras.layers.Layer):
         return base_config
 
 
-@keras.utils.register_keras_serializable(package="coat")
-class ConvRelativePositionalEncoding(keras.layers.Layer):
+@backend.register_keras_serializable(package="coat")
+class ConvRelativePositionalEncoding(layers.Layer):
     def __init__(self, head_splits=[2, 3, 3], head_kernel_size=[3, 5, 7], input_height=-1, **kwargs):
         super(ConvRelativePositionalEncoding, self).__init__(**kwargs)
         self.head_splits, self.head_kernel_size, self.input_height = head_splits, head_kernel_size, input_height
         self.supports_masking = False
 
     def build(self, query_shape):
+        import tensorflow as tf
+
         # print(query_shape)
-        self.height = self.input_height if self.input_height > 0 else int(tf.math.sqrt(float(query_shape[2] - 1)))
+        self.height = self.input_height if self.input_height > 0 else int(float(query_shape[2] - 1) ** 0.5)
         self.width = (query_shape[2] - 1) // self.height
         self.num_heads, self.query_dim = query_shape[1], query_shape[-1]
         self.channel_splits = [ii * self.query_dim for ii in self.head_splits]
@@ -79,7 +80,7 @@ class ConvRelativePositionalEncoding(keras.layers.Layer):
         for id, (head_split, kernel_size) in enumerate(zip(self.head_splits, self.head_kernel_size)):
             name_scope = "depth_conv_" + str(id + 1)
             with tf.name_scope(name_scope) as scope:
-                dconv = keras.layers.DepthwiseConv2D(
+                dconv = layers.DepthwiseConv2D(
                     kernel_size,
                     strides=1,
                     padding="VALID",
@@ -94,16 +95,16 @@ class ConvRelativePositionalEncoding(keras.layers.Layer):
     def call(self, query, value, **kwargs):
         img_token_q, img_token_v = query[:, :, 1:, :], value[:, :, 1:, :]
 
-        img_token_v = tf.transpose(img_token_v, [0, 2, 1, 3])  # [batch, blocks, num_heads, query_dim]
-        img_token_v = tf.reshape(img_token_v, [-1, self.height, self.width, self.num_heads * self.query_dim])
-        split_values = tf.split(img_token_v, self.channel_splits, axis=-1)
-        nn = [dconv(tf.pad(split_value, pad)) for split_value, dconv, pad in zip(split_values, self.dconvs, self.pads)]
-        nn = tf.concat(nn, axis=-1)
-        conv_v_img = tf.reshape(nn, [-1, self.height * self.width, self.num_heads, self.query_dim])
-        conv_v_img = tf.transpose(conv_v_img, [0, 2, 1, 3])
+        img_token_v = functional.transpose(img_token_v, [0, 2, 1, 3])  # [batch, blocks, num_heads, query_dim]
+        img_token_v = functional.reshape(img_token_v, [-1, self.height, self.width, self.num_heads * self.query_dim])
+        split_values = functional.split(img_token_v, self.channel_splits, axis=-1)
+        nn = [dconv(functional.pad(split_value, pad)) for split_value, dconv, pad in zip(split_values, self.dconvs, self.pads)]
+        nn = functional.concat(nn, axis=-1)
+        conv_v_img = functional.reshape(nn, [-1, self.height * self.width, self.num_heads, self.query_dim])
+        conv_v_img = functional.transpose(conv_v_img, [0, 2, 1, 3])
 
         EV_hat_img = img_token_q * conv_v_img
-        return tf.pad(EV_hat_img, [[0, 0], [0, 0], [1, 0], [0, 0]])
+        return functional.pad(EV_hat_img, [[0, 0], [0, 0], [1, 0], [0, 0]])
 
     def get_config(self):
         base_config = super(ConvRelativePositionalEncoding, self).get_config()
@@ -111,11 +112,11 @@ class ConvRelativePositionalEncoding(keras.layers.Layer):
         return base_config
 
 
-@keras.utils.register_keras_serializable(package="coat")
-class ClassToken(keras.layers.Layer):
+@backend.register_keras_serializable(package="coat")
+class ClassToken(layers.Layer):
     def __init__(self, **kwargs):
         super(ClassToken, self).__init__(**kwargs)
-        self.token_init = tf.initializers.TruncatedNormal(stddev=0.2)
+        self.token_init = initializers.TruncatedNormal(stddev=0.2)
         self.supports_masking = False
 
     def build(self, input_shape):
@@ -123,8 +124,8 @@ class ClassToken(keras.layers.Layer):
         super(ClassToken, self).build(input_shape)
 
     def call(self, inputs, **kwargs):
-        class_tokens = tf.tile(self.class_tokens, [tf.shape(inputs)[0], 1, 1])
-        return tf.concat([class_tokens, inputs], axis=1)
+        class_tokens = functional.tile(self.class_tokens, [functional.shape(inputs)[0], 1, 1])
+        return functional.concat([class_tokens, inputs], axis=1)
 
     def compute_output_shape(self, input_shape):
         return (input_shape[0], input_shape[1] + 1, input_shape[2])
@@ -133,31 +134,31 @@ class ClassToken(keras.layers.Layer):
 def factor_attention_conv_relative_positional_encoding(inputs, shared_crpe=None, num_heads=8, qkv_bias=True, name=""):
     blocks, dim = inputs.shape[1], inputs.shape[-1]
     key_dim = dim // num_heads
-    qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
+    qk_scale = 1.0 / (float(key_dim) ** 0.5)
 
-    qkv = keras.layers.Dense(dim * 3, use_bias=qkv_bias, name=name + "qkv")(inputs)
-    qkv = keras.layers.Reshape([blocks, 3, num_heads, key_dim])(qkv)
-    qq, kk, vv = tf.transpose(qkv, [2, 0, 3, 1, 4])  # [qkv, batch, num_heads, blocks, key_dim]
+    qkv = layers.Dense(dim * 3, use_bias=qkv_bias, name=name + "qkv")(inputs)
+    qkv = layers.Reshape([blocks, 3, num_heads, key_dim])(qkv)
+    qq, kk, vv = functional.transpose(qkv, [2, 0, 3, 1, 4])  # [qkv, batch, num_heads, blocks, key_dim]
     # print(f">>>> {qkv.shape = }, {qq.shape = }, {kk.shape = }, {vv.shape = }")
 
     # Factorized attention.
     # kk = tf.nn.softmax(kk, axis=2)  # On `blocks` dimension
-    kk = keras.layers.Softmax(axis=2, name=name and name + "attention_scores")(kk)  # On `blocks` dimension
+    kk = layers.Softmax(axis=2, name=name and name + "attention_scores")(kk)  # On `blocks` dimension
     # attn = tf.matmul(kk, vv, transpose_a=True)  # 'b h n k, b h n v -> b h k v', [batch, num_heads, key_dim, key_dim]
     # factor_att = tf.matmul(qq, attn)    # 'b h n k, b h k v -> b h n v', [batch, num_heads, blocks, key_dim]
-    attn = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1], transpose_a=True))([kk, vv])
-    factor_att = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([qq, attn])
+    attn = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1], transpose_a=True))([kk, vv])
+    factor_att = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([qq, attn])
 
     # Convolutional relative position encoding.
     crpe_out = shared_crpe(qq, vv) if shared_crpe is not None else ConvRelativePositionalEncoding(name=name + "crpe")(qq, vv)
 
     # Merge and reshape.
-    nn = keras.layers.Add()([factor_att * qk_scale, crpe_out])
-    nn = keras.layers.Permute([2, 1, 3])(nn)
-    nn = keras.layers.Reshape([blocks, dim])(nn)
+    nn = layers.Add()([factor_att * qk_scale, crpe_out])
+    nn = layers.Permute([2, 1, 3])(nn)
+    nn = layers.Reshape([blocks, dim])(nn)
 
     # Output projection.
-    nn = keras.layers.Dense(dim, name=name + "out")(nn)
+    nn = layers.Dense(dim, name=name + "out")(nn)
     # Drop
     return nn
 
@@ -171,15 +172,15 @@ def __cpe_norm_crpe__(inputs, shared_cpe=None, shared_crpe=None, num_heads=8, na
 
 def __res_mlp_block__(cpe_out, crpe_out, mlp_ratio=4, drop_rate=0, activation="gelu", name=""):
     if drop_rate > 0:
-        crpe_out = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop_1")(crpe_out)
-    cpe_crpe = keras.layers.Add()([cpe_out, crpe_out])
+        crpe_out = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop_1")(crpe_out)
+    cpe_crpe = layers.Add()([cpe_out, crpe_out])
 
     # MLP
     nn = layer_norm(cpe_crpe, name=name + "norm2")
     nn = mlp_block(nn, nn.shape[-1] * mlp_ratio, activation=activation, name=name + "mlp_")
     if drop_rate > 0:
-        nn = keras.layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop_2")(nn)
-    return keras.layers.Add(name=name + "output")([cpe_crpe, nn])
+        nn = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop_2")(nn)
+    return layers.Add(name=name + "output")([cpe_crpe, nn])
 
 
 def serial_block(inputs, embed_dim, shared_cpe=None, shared_crpe=None, num_heads=8, mlp_ratio=4, drop_rate=0, activation="gelu", name=""):
@@ -189,11 +190,11 @@ def serial_block(inputs, embed_dim, shared_cpe=None, shared_crpe=None, num_heads
 
 
 def resample(image, target_shape, class_token=None):
-    out_image = tf.cast(tf.image.resize(image, target_shape, method="bilinear"), image.dtype)
+    out_image = functional.cast(functional.resize(image, target_shape, method="bilinear"), image.dtype)
 
     if class_token is not None:
-        out_image = tf.reshape(out_image, [-1, out_image.shape[1] * out_image.shape[2], out_image.shape[-1]])
-        return tf.concat([class_token, out_image], axis=1)
+        out_image = functional.reshape(out_image, [-1, out_image.shape[1] * out_image.shape[2], out_image.shape[-1]])
+        return functional.concat([class_token, out_image], axis=1)
     else:
         return out_image
 
@@ -208,9 +209,9 @@ def parallel_block(inputs, shared_cpes=None, shared_crpes=None, block_heights=[]
         cpe_out, crpe_out = __cpe_norm_crpe__(xx, shared_cpe, shared_crpe, num_heads, name=cur_name)
         cpe_outs.append(cpe_out)
         crpe_outs.append(crpe_out)
-        height = block_heights[id] if len(block_heights) > id else int(tf.math.sqrt(float(crpe_out.shape[1] - 1)))
+        height = block_heights[id] if len(block_heights) > id else int(float(crpe_out.shape[1] - 1) ** 0.5)
         width = (crpe_out.shape[1] - 1) // height
-        crpe_images.append(tf.reshape(crpe_out[:, 1:, :], [-1, height, width, crpe_out.shape[-1]]))
+        crpe_images.append(functional.reshape(crpe_out[:, 1:, :], [-1, height, width, crpe_out.shape[-1]]))
         resample_shapes.append([height, width])
         # print(f">>>> {crpe_out.shape = }, {crpe_images[-1].shape = }")
     crpe_stack = [  # [[None, 28, 28, 152], [None, 14, 14, 152], [None, 7, 7, 152]]
@@ -230,12 +231,12 @@ def parallel_block(inputs, shared_cpes=None, shared_crpes=None, block_heights=[]
 
 def patch_embed(inputs, embed_dim, patch_size=2, input_height=-1, name=""):
     if len(inputs.shape) == 3:
-        input_height = input_height if input_height > 0 else int(tf.math.sqrt(float(inputs.shape[1])))
+        input_height = input_height if input_height > 0 else int(float(inputs.shape[1]) ** 0.5)
         input_width = inputs.shape[1] // input_height
-        inputs = keras.layers.Reshape([input_height, input_width, inputs.shape[-1]])(inputs)
+        inputs = layers.Reshape([input_height, input_width, inputs.shape[-1]])(inputs)
     nn = conv2d_no_bias(inputs, embed_dim, kernel_size=patch_size, strides=patch_size, use_bias=True, name=name)
     block_height = nn.shape[1]
-    nn = keras.layers.Reshape([nn.shape[1] * nn.shape[2], nn.shape[-1]])(nn)  # flatten(2)
+    nn = layers.Reshape([nn.shape[1] * nn.shape[2], nn.shape[-1]])(nn)  # flatten(2)
     nn = layer_norm(nn, name=name)
     return nn, block_height
 
@@ -261,7 +262,10 @@ def CoaT(
     model_name="coat",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if len(input_shape) == 4,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
 
     # serial blocks
     nn = inputs
@@ -299,14 +303,14 @@ def CoaT(
         nn = layer_norm(classfier_outs[-1], name="out_")[:, 0]
     else:
         nn = [layer_norm(xx, name="out_{}_".format(id + 1))[:, :1, :] for id, xx in enumerate(classfier_outs[1:])]
-        nn = keras.layers.Concatenate(axis=1)(nn)
-        nn = keras.layers.Permute([2, 1])(nn)
-        nn = keras.layers.Conv1D(1, 1, name="aggregate")(nn)[:, :, 0]
+        nn = layers.Concatenate(axis=1)(nn)
+        nn = layers.Permute([2, 1])(nn)
+        nn = layers.Conv1D(1, 1, name="aggregate")(nn)[:, :, 0]
 
     if out_features is None and num_classes > 0:
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
-    model = keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="coat", pretrained=pretrained)
     return model

@@ -1,10 +1,9 @@
-import tensorflow as tf
 from keras_cv_attention_models.mobilenetv3_family.mobilenetv3 import MobileNetV3
 
 
 def get_expanded_width_depth(width, depth):
     out_channels = [ii * width for ii in [16, 24, 40, 80, 112, 192, 320]]
-    num_blocks = [int(tf.math.round(ii * depth)) for ii in [1, 2, 2, 3, 3, 4, 1]]
+    num_blocks = [int(round(ii * depth)) for ii in [1, 2, 2, 3, 3, 4, 1]]
     return out_channels, num_blocks
 
 

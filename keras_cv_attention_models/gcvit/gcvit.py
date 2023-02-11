@@ -1,5 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 from keras_cv_attention_models.attention_layers import (
     ChannelAffine,
     MultiHeadRelativePositionalEmbedding,
@@ -28,25 +28,25 @@ PRETRAINED_DICT = {
 
 def gcvit_block(inputs, window_size, num_heads=4, global_query=None, mlp_ratio=4, layer_scale=0, drop_rate=0, activation="gelu", name=""):
     # print(global_query)
-    input_channel = inputs.shape[-1]
-    attn = layer_norm(inputs, name=name + "attn_")
+    input_channel = inputs.shape[-1]  # Channels_last only
+    attn = layer_norm(inputs, axis=-1, name=name + "attn_")
     attention_block = lambda inputs, num_heads, name: mhsa_with_multi_head_relative_position_embedding(
-        inputs, num_heads=num_heads, global_query=global_query, qkv_bias=True, out_bias=True, name=name
+        inputs, num_heads=num_heads, global_query=global_query, qkv_bias=True, out_bias=True, data_format="channels_last", name=name
     )
     attn = window_attention(attn, window_size=window_size, num_heads=num_heads, attention_block=attention_block, name=name + "window_mhsa_")
-    attn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "1_gamma")(attn) if layer_scale >= 0 else attn
+    attn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, axis=-1, name=name + "1_gamma")(attn) if layer_scale >= 0 else attn
     attn = drop_block(attn, drop_rate=drop_rate, name=name + "attn_")
-    attn_out = keras.layers.Add(name=name + "attn_out")([inputs, attn])
+    attn_out = layers.Add(name=name + "attn_out")([inputs, attn])
 
-    mlp = layer_norm(attn_out, name=name + "mlp_")
+    mlp = layer_norm(attn_out, axis=-1, name=name + "mlp_")
     mlp = mlp_block(mlp, int(input_channel * mlp_ratio), use_conv=False, activation=activation, name=name + "mlp_")
-    mlp = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "2_gamma")(mlp) if layer_scale >= 0 else mlp
+    mlp = ChannelAffine(use_bias=False, weight_init_value=layer_scale, axis=-1, name=name + "2_gamma")(mlp) if layer_scale >= 0 else mlp
     mlp = drop_block(mlp, drop_rate=drop_rate, name=name + "mlp_")
-    return keras.layers.Add(name=name + "output")([attn_out, mlp])
+    return layers.Add(name=name + "output")([attn_out, mlp])
 
 
 def to_global_query(inputs, window_ratio, num_heads=4, activation="gelu", name=""):
-    input_channel = inputs.shape[-1]
+    input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
     query = inputs
     num_window = 1
     if window_ratio == 1:
@@ -57,15 +57,19 @@ def to_global_query(inputs, window_ratio, num_heads=4, activation="gelu", name="
             query = extract_feature(query, strides=2, activation=activation, name=name + "down{}_".format(num_window))
 
     # print(f"{inputs.shape = }, {query.shape = }, {num_window = }, {window_ratio = }")
-    query = tf.reshape(query, [-1, query.shape[1] * query.shape[2], num_heads, input_channel // num_heads])
-    query = tf.transpose(query, [0, 2, 1, 3])
-    query = tf.repeat(query, num_window * num_window, axis=0)
+    if image_data_format() == "channels_last":
+        query = functional.reshape(query, [-1, query.shape[1] * query.shape[2], num_heads, input_channel // num_heads])
+        query = functional.transpose(query, [0, 2, 1, 3])  # [batch, num_heads, hh * ww, key_dims]
+    else:
+        query = functional.reshape(query, [-1, num_heads, input_channel // num_heads, query.shape[2] * query.shape[3]])
+        query = functional.transpose(query, [0, 1, 3, 2])  # also [batch, num_heads, hh * ww, key_dims]
+    query = functional.repeat(query, num_window * num_window, axis=0)
     # print(f"{query.shape = }")
     return query
 
 
 def down_sample(inputs, out_channels=-1, activation="gelu", name=""):
-    out_channels = out_channels if out_channels > 0 else inputs.shape[-1]
+    out_channels = out_channels if out_channels > 0 else inputs.shape[-1 if image_data_format() == "channels_last" else 1]
     nn = layer_norm(inputs, name=name + "down_1_")
     nn = extract_feature(nn, strides=1, activation=activation, name=name + "down_")
     nn = conv2d_no_bias(nn, out_channels, kernel_size=3, strides=2, padding="same", name=name + "down_")
@@ -74,16 +78,16 @@ def down_sample(inputs, out_channels=-1, activation="gelu", name=""):
 
 
 def extract_feature(inputs, strides=2, activation="gelu", name=""):
-    input_channel = inputs.shape[-1]
+    input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
     nn = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="same", name=name + "extract_")
     nn = activation_by_name(nn, activation=activation, name=name + "extract_")
     nn = se_module(nn, divisor=1, use_bias=False, activation=activation, use_conv=False, name=name + "extract_se_")
     nn = conv2d_no_bias(nn, input_channel, kernel_size=1, name=name + "extract_")
     nn = inputs + nn
-    return keras.layers.MaxPool2D(pool_size=3, strides=strides, padding="SAME", name=name + "extract_maxpool")(nn) if strides > 1 else nn
+    return layers.MaxPool2D(pool_size=3, strides=strides, padding="SAME", name=name + "extract_maxpool")(nn) if strides > 1 else nn
     # if strides > 1:
     #     nn = tf.pad(nn, [[0, 0], [1, 1], [1, 1], [0, 0]])
-    #     nn = keras.layers.MaxPool2D(pool_size=3, strides=strides, padding="VALID", name=name + "extract_maxpool")(nn)
+    #     nn = layers.MaxPool2D(pool_size=3, strides=strides, padding="VALID", name=name + "extract_maxpool")(nn)
     # return nn
 
 
@@ -106,9 +110,13 @@ def GCViT(
     kwargs=None,
 ):
     """Patch stem"""
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
     nn = conv2d_no_bias(inputs, embed_dim, kernel_size=3, strides=2, use_bias=True, padding="SAME", name="stem_conv")
     nn = down_sample(nn, name="stem_")
+    height_axis, width_axis = (1, 2) if image_data_format() == "channels_last" else (2, 3)
 
     """ stages """
     total_blocks = sum(num_blocks)
@@ -117,32 +125,34 @@ def GCViT(
     for stack_id, (num_block, num_head, window_ratio) in enumerate(zip(num_blocks, num_heads, window_ratios)):
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id > 0:
-            nn = down_sample(nn, out_channels=nn.shape[-1] * 2, name=stack_name)
+            nn = down_sample(nn, out_channels=nn.shape[-1 if image_data_format() == "channels_last" else 1] * 2, name=stack_name)
 
-        window_size = (nn.shape[1] // window_ratio, nn.shape[2] // window_ratio)
-        # window_size = (int(tf.math.ceil(nn.shape[1] / window_ratio), int(tf.math.ceil(nn.shape[2] / window_ratio))
+        window_size = (nn.shape[height_axis] // window_ratio, nn.shape[width_axis] // window_ratio)
+        # window_size = (int(tf.math.ceil(nn.shape[height_axis] / window_ratio), int(tf.math.ceil(nn.shape[width_axis] / window_ratio))
         global_query = to_global_query(nn, window_ratio, num_head, activation=activation, name=stack_name + "q_global_")
 
+        nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             cur_global_query = None if block_id % 2 == 0 else global_query
             nn = gcvit_block(nn, window_size, num_head, cur_global_query, mlp_ratio, layer_scale, block_drop_rate, activation=activation, name=block_name)
             global_block_id += 1
+        nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last -> channels_first
     nn = layer_norm(nn, name="pre_output_")
 
     nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
-    model = keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "gcvit", pretrained, MultiHeadRelativePositionalEmbedding)
     return model
 
 
-def GCViT_XXTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def GCViT_XXTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return GCViT(**locals(), model_name="gcvit_xx_tiny", **kwargs)
 
 
-def GCViT_XTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def GCViT_XTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 5]
     return GCViT(**locals(), model_name="gcvit_x_tiny", **kwargs)
 

@@ -165,7 +165,12 @@ class WindowAttentionMask(layers.Layer):
         # attn_mask = tf.cast(np.where(attn_mask != 0, -100, 0), self._compute_dtype)
         attn_mask = np.where(attn_mask != 0, -100, 0)
         attn_mask = np.expand_dims(np.expand_dims(attn_mask, 1), 0)  # expand dims on batch and num_heads
-        self.attn_mask = functional.convert_to_tensor(attn_mask, dtype="float32")
+        # attn_mask = functional.convert_to_tensor(attn_mask, dtype="float32")
+
+        if hasattr(self, "register_buffer"):  # PyTorch
+            self.register_buffer("attn_mask", functional.convert_to_tensor(attn_mask, dtype="float32"), persistent=False)
+        else:
+            self.attn_mask = functional.convert_to_tensor(attn_mask, dtype="float32")
 
         self.num_heads, self.query_blocks = input_shape[1], input_shape[2]
         super().build(input_shape)

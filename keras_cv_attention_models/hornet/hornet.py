@@ -1,5 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
 from keras_cv_attention_models.attention_layers import (
     ChannelAffine,
     conv2d_no_bias,
@@ -23,8 +23,8 @@ PRETRAINED_DICT = {
 }
 
 
-@tf.keras.utils.register_keras_serializable(package="kecam/hornet")
-class ComplexDense(keras.layers.Layer):
+@backend.register_keras_serializable(package="kecam/hornet")
+class ComplexDense(layers.Layer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -32,13 +32,13 @@ class ComplexDense(keras.layers.Layer):
         _, input_height, input_width, channel = input_shape
 
         param_shape = (2, input_height, input_width, channel)  # 2 means `real, img` for converting to complex
-        initializer = tf.initializers.RandomNormal(stddev=0.02)
+        initializer = initializers.RandomNormal(stddev=0.02)
         self.complex_weight = self.add_weight(name="complex_weight", shape=param_shape, initializer=initializer, trainable=True)
         self.input_height, self.input_width = input_height, input_width
 
     def call(self, inputs):
-        complex_weight = tf.complex(self.complex_weight[0], self.complex_weight[1])
-        complex_weight = tf.cast(complex_weight, inputs.dtype)
+        complex_weight = functional.complex(self.complex_weight[0], self.complex_weight[1])
+        complex_weight = functional.cast(complex_weight, inputs.dtype)
         return inputs * complex_weight
 
     def load_resized_weights(self, source_layer, method="bilinear"):
@@ -46,37 +46,37 @@ class ComplexDense(keras.layers.Layer):
             source_tt = source_layer["complex_weight:0"]  # weights
         else:
             source_tt = source_layer.complex_weight  # layer
-        tt = tf.image.resize(source_tt, (self.input_height, self.input_width), method=method, antialias=True)
+        tt = functional.resize(source_tt, (self.input_height, self.input_width), method=method, antialias=True)
         self.complex_weight.assign(tt)
 
 
 def global_local_filter(inputs, name=None):
     _, height, width, channel = inputs.shape
     nn = layer_norm(inputs, name=name and name + "pre_")
-    dw, fft = tf.split(nn, 2, axis=-1)
+    dw, fft = functional.split(nn, 2, axis=-1)
     dw = depthwise_conv2d_no_bias(dw, 3, padding="SAME", use_bias=False, name=name)
 
     # fft = tf.py_function(lambda xx: np.fft.rfft2(xx, axes=(1, 2), norm='ortho'), [fft], Tout=tf.complex128)
     # np.fft.rfft2(aa, axes=[1, 2]) ==> tf.transpose(tf.signal.rfft2d(tf.transpose(aa, [0, 3, 1, 2])), [0, 2, 3, 1])
     # ortho_norm = float(tf.sqrt(float(height * width)))
-    fft = tf.transpose(fft, [0, 3, 1, 2])
-    fft = keras.layers.Lambda(tf.signal.rfft2d)(fft)
-    fft = tf.transpose(fft, [0, 2, 3, 1])
+    fft = functional.transpose(fft, [0, 3, 1, 2])
+    fft = layers.Lambda(functional.rfft2d)(fft)
+    fft = functional.transpose(fft, [0, 2, 3, 1])
     # fft /= ortho_norm  # Means `norm='ortho'`, but will multiply back for `irfft2d` anyway, not affecting results.
     # fft.set_shape([None, height, (width + 2) // 2, channel // 2])
     # print(f">>>> {inputs.shape = }, {fft.shape = }, {fft.dtype = }")
     fft = ComplexDense(name=name and name + "complex_dense")(fft)
     # fft = tf.py_function(lambda xx: np.fft.irfft2(xx, s=[height, width], axes=(1, 2), norm='ortho'), [fft], Tout=inputs.dtype)
     # np.fft.irfft2(bb, s=[13, 14], axes=(1, 2)) ==> tf.transpose(tf.signal.irfft2d(tf.transpose(bb, [0, 3, 1, 2]), fft_length=[13, 14]), [0, 2, 3, 1])
-    fft = tf.transpose(fft, [0, 3, 1, 2])
-    fft = keras.layers.Lambda(lambda xx: tf.signal.irfft2d(xx, fft_length=[height, width]))(fft)
-    fft = tf.transpose(fft, [0, 2, 3, 1])
+    fft = functional.transpose(fft, [0, 3, 1, 2])
+    fft = layers.Lambda(lambda xx: functional.irfft2d(xx, fft_length=[height, width]))(fft)
+    fft = functional.transpose(fft, [0, 2, 3, 1])
     # fft *= ortho_norm
     # fft = tf.cast(fft, inputs.dtype)
     # fft.set_shape([None, height, width, channel // 2])
 
-    out = tf.concat([tf.expand_dims(dw, -1), tf.expand_dims(fft, -1)], axis=-1)
-    out = tf.reshape(out, [-1, height, width, channel])
+    out = functional.concat([functional.expand_dims(dw, -1), functional.expand_dims(fft, -1)], axis=-1)
+    out = functional.reshape(out, [-1, height, width, channel])
     out = layer_norm(out, name=name and name + "post_")
     return out
 
@@ -86,7 +86,7 @@ def gnconv(inputs, use_global_local_filter=False, dw_kernel_size=7, gn_split=3, 
     nn = conv2d_no_bias(inputs, input_channel * 2, kernel_size=1, use_bias=True, name=name and name + "pre_")
     split_dims = [input_channel // (2**ii) for ii in range(gn_split)][::-1]
     # print(f">>>> {nn.shape = }, {split_dims = }")
-    pw_first, dw_list = tf.split(nn, [split_dims[0], sum(split_dims)], axis=-1)
+    pw_first, dw_list = functional.split(nn, [split_dims[0], sum(split_dims)], axis=-1)
 
     if use_global_local_filter:
         dw_list = global_local_filter(dw_list, name=name and name + "gf_")
@@ -94,7 +94,7 @@ def gnconv(inputs, use_global_local_filter=False, dw_kernel_size=7, gn_split=3, 
         dw_list = depthwise_conv2d_no_bias(dw_list, kernel_size=dw_kernel_size, padding="SAME", use_bias=True, name=name and name + "list_")
     dw_list *= scale
 
-    dw_list = tf.split(dw_list, split_dims, axis=-1)
+    dw_list = functional.split(dw_list, split_dims, axis=-1)
     nn = pw_first * dw_list[0]
     for id, dw in enumerate(dw_list[1:], start=1):
         pw = conv2d_no_bias(nn, dw.shape[-1], kernel_size=1, use_bias=True, name=name and name + "pw{}_".format(id))
@@ -111,13 +111,13 @@ def block(inputs, mlp_ratio=4, use_global_local_filter=False, gn_split=3, scale=
     attn = gnconv(attn, use_global_local_filter, gn_split=gn_split, scale=scale, name=name + "gnconv_")
     attn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "1_gamma")(attn) if layer_scale >= 0 else attn
     attn = drop_block(attn, drop_rate=drop_rate, name=name + "attn_")
-    attn_out = keras.layers.Add(name=name + "attn_out")([inputs, attn])
+    attn_out = layers.Add(name=name + "attn_out")([inputs, attn])
 
     mlp = layer_norm(attn_out, name=name + "mlp_")
     mlp = mlp_block(mlp, int(input_channel * mlp_ratio), use_conv=False, activation=activation, name=name + "mlp_")
     mlp = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "2_gamma")(mlp) if layer_scale >= 0 else mlp
     mlp = drop_block(mlp, drop_rate=drop_rate, name=name + "mlp_")
-    return keras.layers.Add(name=name + "output")([attn_out, mlp])
+    return layers.Add(name=name + "output")([attn_out, mlp])
 
 
 def HorNet(
@@ -139,7 +139,10 @@ def HorNet(
     kwargs=None,
 ):
     """Patch stem"""
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if len(input_shape) == 4,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
     nn = conv2d_no_bias(inputs, embed_dim, kernel_size=4, strides=4, use_bias=True, name="stem_")
     nn = layer_norm(nn, name="stem_")
 
@@ -163,13 +166,13 @@ def HorNet(
             global_block_id += 1
 
     if num_classes > 0:
-        nn = keras.layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         if dropout > 0:
-            nn = keras.layers.Dropout(dropout, name="head_drop")(nn)
+            nn = layers.Dropout(dropout, name="head_drop")(nn)
         nn = layer_norm(nn, name="pre_output_")
-        nn = keras.layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
-    model = keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "hornet", pretrained, mismatch_class=ComplexDense)
     return model

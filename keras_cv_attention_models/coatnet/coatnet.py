@@ -20,11 +20,21 @@ PRETRAINED_DICT = {"coatnet0": {"imagenet": {160: "bc4375d2f03b99ac4252770331f0d
 
 
 def mhsa_with_multi_head_relative_position_embedding(
-    inputs, num_heads=4, key_dim=0, global_query=None, out_shape=None, out_weight=True, qkv_bias=False, out_bias=False, attn_dropout=0, name=None
+    inputs,
+    num_heads=4,
+    key_dim=0,
+    global_query=None,
+    out_shape=None,
+    out_weight=True,
+    qkv_bias=False,
+    out_bias=False,
+    attn_dropout=0,
+    data_format=None,
+    name=None,
 ):
-    channel_axis = -1 if image_data_format() == "channels_last" else 1
-    input_channel = inputs.shape[channel_axis]
-    height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
+    data_format = image_data_format() if data_format is None else data_format
+    input_channel = inputs.shape[-1 if data_format == "channels_last" else 1]
+    height, width = inputs.shape[1:-1] if data_format == "channels_last" else inputs.shape[2:]
 
     key_dim = key_dim if key_dim > 0 else input_channel // num_heads
     out_shape = input_channel if out_shape is None or not out_weight else out_shape
@@ -33,13 +43,20 @@ def mhsa_with_multi_head_relative_position_embedding(
     vv_dim = key_dim
     blocks = height * width
 
+    # Permute for conv if given data_format not matching actual image_data_format
+    if image_data_format() == "channels_last" and data_format == "channels_first":
+        inputs = layers.Permute([2, 3, 1])(inputs)
+    elif image_data_format() == "channels_first" and data_format == "channels_last":
+        inputs = layers.Permute([3, 1, 2])(inputs)
+    conv_channel_axis = -1 if image_data_format() == "channels_last" else 1
+
     if global_query is not None:
         # kv = layers.Dense(qk_out * 2, use_bias=qkv_bias, name=name and name + "kv")(inputs)  # For GCViT weights
         kv = conv2d_no_bias(inputs, qk_out * 2, kernel_size=1, use_bias=qkv_bias, name=name and name + "kv_")
-        kv = functional.reshape(kv, [-1, blocks, kv.shape[-1]])
-        key, value = functional.split(kv, [qk_out, out_shape], axis=-1)
+        kv = functional.reshape(kv, [-1, blocks, kv.shape[-1]] if image_data_format() == "channels_last" else [-1, kv.shape[1], blocks])
+        key, value = functional.split(kv, [qk_out, out_shape], axis=conv_channel_axis)
         query = global_query
-        _, key, value = qkv_to_multi_head_channels_last_format(None, key, value, num_heads=num_heads)
+        _, key, value = qkv_to_multi_head_channels_last_format(None, key, value, num_heads=num_heads, data_format=None)
     else:
         # qkv = conv2d_no_bias(inputs, qk_out * 2 + out_shape, use_bias=qkv_bias, kernel_size=1, name=name and name + "qkv_")
         # qkv = layers.Dense(qk_out * 3, use_bias=qkv_bias, name=name and name + "qkv")(inputs)  # For GCViT weights
@@ -47,14 +64,14 @@ def mhsa_with_multi_head_relative_position_embedding(
         # key = layers.Dense(qk_out, use_bias=qkv_bias, name=name and name + "key")(inputs)  # For MaxViT weights
         # value = layers.Dense(qk_out, use_bias=qkv_bias, name=name and name + "value")(inputs)  # For MaxViT weights
         qkv = conv2d_no_bias(inputs, qk_out * 3, kernel_size=1, use_bias=qkv_bias, name=name and name + "qkv_")
-        query, key, value = functional.split(qkv, [qk_out, qk_out, qk_out], axis=channel_axis)
-        # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {num_heads = }, {key_dim = }, {vv_dim = }")
-        query, key, value = qkv_to_multi_head_channels_last_format(query, key, value, num_heads=num_heads)
+        query, key, value = functional.split(qkv, [qk_out, qk_out, qk_out], axis=conv_channel_axis)
+        query, key, value = qkv_to_multi_head_channels_last_format(query, key, value, num_heads=num_heads, data_format=None)
+    # print(f"{query.shape = }, {key.shape = }, {value.shape = }, {num_heads = }, {key_dim = }, {vv_dim = }")
 
     pos_emb = MultiHeadRelativePositionalEmbedding(with_cls_token=False, attn_height=height, name=name and name + "pos_emb")
     output_shape = (height, width, out_shape)
     out = scaled_dot_product_attention(query, key, value, output_shape, pos_emb, out_weight=out_weight, out_bias=out_bias, dropout=attn_dropout, name=name)
-    return out if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=name and name + "output_perm")(out)
+    return out if data_format == "channels_last" else layers.Permute([3, 1, 2], name=name and name + "output_perm")(out)
 
 
 def res_MBConv(

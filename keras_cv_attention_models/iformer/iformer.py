@@ -1,5 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -25,67 +25,77 @@ PRETRAINED_DICT = {
 
 
 def attention_low_frequency_mixer(inputs, num_heads=4, pool_size=1, dropout=0, name=""):
+    height_axis, width_axis, channel_axis = (1, 2, 3) if image_data_format() == "channels_last" else (2, 3, 1)
+    # print(f"{inputs.shape = }, {pool_size = }")
     if pool_size > 1:
-        orign_height, orign_width = inputs.shape[1], inputs.shape[2]
-        inputs = keras.layers.AvgPool2D(pool_size, strides=pool_size, padding="same", name=name + "avg_down")(inputs)
-    nn = multi_head_self_attention(inputs, num_heads=num_heads, qkv_bias=True, out_weight=False, attn_dropout=dropout, name=name + "attn_")
+        orign_height, orign_width = inputs.shape[height_axis], inputs.shape[width_axis]
+        inputs = layers.AvgPool2D(pool_size, strides=pool_size, padding="same", name=name + "avg_down")(inputs)
+    nn = inputs if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(inputs)  # channels_first -> channels_last
+    nn = multi_head_self_attention(nn, num_heads=num_heads, qkv_bias=True, out_weight=False, attn_dropout=dropout, name=name + "attn_")
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last -> channels_first
+
     if pool_size > 1:
-        nn = keras.layers.UpSampling2D(size=pool_size, name=name + "up")(nn)
-        if nn.shape[1] != orign_height or nn.shape[2] != orign_width:
-            nn = nn[:, :orign_height, :orign_width]
+        nn = layers.UpSampling2D(size=pool_size, name=name + "up")(nn)
+        if nn.shape[height_axis] != orign_height or nn.shape[width_axis] != orign_width:
+            nn = nn[:, :orign_height, :orign_width] if image_data_format() == "channels_last" else nn[:, :, :orign_height, :orign_width]
     return nn
 
 
 def conv_high_frequency_mixer(inputs, activation="gelu", name=""):
-    nn = conv2d_no_bias(inputs, inputs.shape[-1] * 2, kernel_size=1, name=name)
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    nn = conv2d_no_bias(inputs, inputs.shape[channel_axis] * 2, kernel_size=1, name=name)
     nn = depthwise_conv2d_no_bias(nn, kernel_size=3, padding="same", name=name)
     nn = activation_by_name(nn, activation=activation, name=name)
     return nn
 
 
 def pool_high_frequency_mixer(inputs, activation="gelu", name=""):
-    nn = keras.layers.MaxPooling2D(3, strides=1, padding="SAME", name=name + "max")(inputs)
-    nn = conv2d_no_bias(nn, inputs.shape[-1] * 2, kernel_size=1, use_bias=True, name=name)
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    nn = layers.MaxPool2D(3, strides=1, padding="SAME", name=name + "max")(inputs)
+    nn = conv2d_no_bias(nn, inputs.shape[channel_axis] * 2, kernel_size=1, use_bias=True, name=name)
     nn = activation_by_name(nn, activation=activation, name=name)
     return nn
 
 
 def conv_pool_attention_mixer(inputs, num_heads=4, key_dim=0, num_attn_low_heads=1, pool_size=1, dropout=0, activation="gelu", name=""):
-    input_channel = inputs.shape[-1]
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    input_channel = inputs.shape[channel_axis]
     key_dim = key_dim if key_dim > 0 else input_channel // num_heads
     attention_channels = num_attn_low_heads * key_dim
     conv_channels = (input_channel - attention_channels) // 2
     pool_channels = input_channel - attention_channels - conv_channels
-    conv_branch, pool_branch, attention_branch = tf.split(inputs, [conv_channels, pool_channels, attention_channels], axis=-1)
+    conv_branch, pool_branch, attention_branch = functional.split(inputs, [conv_channels, pool_channels, attention_channels], axis=channel_axis)
     # print(f"{key_dim = }, {num_heads = }, {num_attn_low_heads = }, {attention_channels = }")
 
     conv_branch = conv_high_frequency_mixer(conv_branch, activation=activation, name=name + "high_conv_branch_")
     pool_branch = pool_high_frequency_mixer(pool_branch, activation=activation, name=name + "high_pool_branch_")
     attention_branch = attention_low_frequency_mixer(attention_branch, num_heads=num_attn_low_heads, pool_size=pool_size, dropout=dropout, name=name + "low_")
-    high_low = tf.concat([conv_branch, pool_branch, attention_branch], axis=-1)
+    high_low = functional.concat([conv_branch, pool_branch, attention_branch], axis=channel_axis)
     # print(f"{conv_branch.shape = }, {pool_branch.shape = }, {attention_branch.shape = }, {high_low.shape = }")
 
     high_low_fused = depthwise_conv2d_no_bias(high_low, kernel_size=3, padding="same", name=name + "fuse_")
-    high_low_out = keras.layers.Add()([high_low, high_low_fused])
+    high_low_out = layers.Add()([high_low, high_low_fused])
 
     out = conv2d_no_bias(high_low_out, input_channel, kernel_size=1, use_bias=True, name=name + "output_")
     if dropout > 0:
-        out = keras.layers.Dropout(dropout)(out)
+        out = layers.Dropout(dropout)(out)
     return out
 
 
 def attention_mlp_block(inputs, num_heads=8, num_attn_low_heads=1, pool_size=1, mlp_ratio=4, layer_scale=0.1, drop_rate=0, activation="gelu", name=""):
-    input_channel = inputs.shape[-1]
+    input_channel = inputs.shape[-1]  # Channels_last only
 
     """ attention """
-    nn = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, name=name + "attn_")
+    nn = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "attn_")
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last -> channels_first
     nn = conv_pool_attention_mixer(nn, num_heads, num_attn_low_heads=num_attn_low_heads, pool_size=pool_size, activation=activation, name=name + "attn_")
-    attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "attn_")
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
+    attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "attn_")
 
     """ MLP """
-    nn = layer_norm(attn_out, epsilon=LAYER_NORM_EPSILON, name=name + "mlp_")
+    nn = layer_norm(attn_out, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "mlp_")
     nn = mlp_block(nn, input_channel * mlp_ratio, activation=activation, name=name + "mlp_")
-    nn = add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "mlp_")
+    nn = add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "mlp_")
     return nn
 
 
@@ -107,7 +117,10 @@ def InceptionTransformer(
     model_name="iformer",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
 
     """ Stem """
     nn = conv2d_no_bias(inputs, embed_dims[0] // 2, kernel_size=3, strides=2, padding="same", use_bias=True, name="stem_1_")
@@ -123,6 +136,7 @@ def InceptionTransformer(
         if stack_id > 0:
             nn = conv2d_no_bias(nn, embed_dim, 3, strides=2, padding="same", use_bias=True, name=stack_name + "downsample_")
             nn = batchnorm_with_activation(nn, activation=None, name=stack_name + "downsample_")  # Using epsilon=1e-5
+        nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
         nn = PositionalEmbedding(name=stack_name + "positional_embedding")(nn)
 
         stack_num_attn_low_head = num_attn_low_heads[stack_id] if isinstance(num_attn_low_heads, (list, tuple)) else num_attn_low_heads
@@ -136,10 +150,11 @@ def InceptionTransformer(
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             nn = attention_mlp_block(nn, num_head, num_attn_low_head, pool_size, mlp_ratio, layer_scale, block_drop_rate, activation=activation, name=name)
             global_block_id += 1
+        nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last -> channels_first
     nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="pre_output_")
 
     nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
-    model = tf.keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "iformer", pretrained, PositionalEmbedding)
     return model

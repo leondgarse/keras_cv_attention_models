@@ -225,7 +225,7 @@ class Layer(nn.Module):
 
     def extra_repr(self):
         config = self.get_config()
-        config.pop("name")
+        # config.pop("name")
         return ", ".join(["{}={}".format(kk, vv) for kk, vv in config.items()])
 
 
@@ -431,7 +431,8 @@ class Concatenate(_Merge):
 
     def compute_output_shape(self, input_shape):
         dims = len(input_shape[0])
-        return [sum([ii[dim] for ii in input_shape]) if dim == self.axis else input_shape[0][dim] for dim in range(dims)]
+        axis = (dims + self.axis) if self.axis < 0 else self.axis
+        return [sum([ii[dim] for ii in input_shape]) if dim == axis else input_shape[0][dim] for dim in range(dims)]
 
     def get_config(self):
         config = super().get_config()
@@ -1077,7 +1078,7 @@ class Softmax(Layer):
 class UpSampling2D(Layer):
     def __init__(self, size=(2, 2), data_format=None, interpolation="nearest", **kwargs):
         self.data_format, self.interpolation = data_format, interpolation
-        self.size = size if isinstance(size, (list, tuple)) else [size, size]
+        self.size = tuple(size if isinstance(size, (list, tuple)) else [size, size])
         super().__init__(**kwargs)
 
     def build(self, input_shape):

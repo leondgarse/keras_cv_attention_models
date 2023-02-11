@@ -2,13 +2,13 @@
 Creates a EfficientNetV1 Model as defined in: EfficientNetV1: Self-training with Noisy Student improves ImageNet classification.
 arXiv preprint arXiv:1911.04252.
 """
-import tensorflow as tf
+import math
 from keras_cv_attention_models.efficientnet.efficientnet_v2 import EfficientNetV2
 
 
 def get_expanded_width_depth(width, depth, fix_head_stem=False):
     out_channels = [ii * width for ii in [16, 24, 40, 80, 112, 192, 320]]
-    depthes = [int(tf.math.ceil(ii * depth)) for ii in [1, 2, 2, 3, 3, 4, 1]]
+    depthes = [int(math.ceil(ii * depth)) for ii in [1, 2, 2, 3, 3, 4, 1]]
     if fix_head_stem:
         depthes[0], depthes[-1] = 1, 1
         first_conv_filter, output_conv_filter = 32, 1280

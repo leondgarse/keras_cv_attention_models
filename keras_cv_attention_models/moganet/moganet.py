@@ -1,5 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -22,34 +22,36 @@ PRETRAINED_DICT = {
 
 
 def feature_decompose(inputs, use_pool=False, activation="gelu", name=""):
+    channel_axis = -1 if backend.image_data_format() == "channels_last" else 1
     if use_pool:
-        decomposed = keras.layers.GlobalAveragePooling2D(keepdims=True, name=name + "pool")(inputs)
+        decomposed = layers.GlobalAveragePooling2D(keepdims=True, name=name + "pool")(inputs)
     else:
         decomposed = conv2d_no_bias(inputs, 1, use_bias=True, name=name)
     decomposed = activation_by_name(decomposed, activation=activation, name=name)
-    decomposed = ChannelAffine(use_bias=False, weight_init_value=1e-5, name=name + "affine")(inputs - decomposed)
+    decomposed = ChannelAffine(use_bias=False, weight_init_value=1e-5, axis=channel_axis, name=name + "affine")(inputs - decomposed)
     return inputs + decomposed
 
 
 def multi_order_depthwise_conv2d(inputs, dilations=[1, 2, 3], channel_split=[1, 3, 4], name=""):
-    input_channel = inputs.shape[-1]
+    channel_axis = -1 if backend.image_data_format() == "channels_last" else 1
+    input_channel = inputs.shape[channel_axis]
     channel_split = [-1] + [int(input_channel * ii / sum(channel_split)) for ii in channel_split[1:]]
     paddings = [(1 + 4 * dilations[0]) // 2, (1 + 4 * dilations[1]) // 2, (1 + 6 * dilations[2]) // 2]
 
-    # print(f"{input_channel = }, {channel_split = }")
+    print(f"{inputs.shape = }, {input_channel = }, {channel_split = }")
     first = depthwise_conv2d_no_bias(inputs, kernel_size=5, padding=paddings[0], use_bias=True, dilation_rate=dilations[0], name=name + "first_")
-    first, second, third = tf.split(first, channel_split, axis=-1)
+    first, second, third = functional.split(first, channel_split, axis=channel_axis)
     second = depthwise_conv2d_no_bias(second, kernel_size=5, padding=paddings[1], use_bias=True, dilation_rate=dilations[1], name=name + "second_")
     third = depthwise_conv2d_no_bias(third, kernel_size=7, padding=paddings[2], use_bias=True, dilation_rate=dilations[2], name=name + "third_")
-    # print(f"{first.shape = }, {second.shape = }, {third.shape = }")
+    print(f"{first.shape = }, {second.shape = }, {third.shape = }")
 
-    out = tf.concat([first, second, third], axis=-1)
+    out = functional.concat([first, second, third], axis=channel_axis)
     out = conv2d_no_bias(out, input_channel, use_bias=True, name=name + "out_")
     return out
 
 
 def moga_block(inputs, mlp_ratio=4, layer_scale=0, drop_rate=0, attn_activation="swish", activation="gelu", name=""):
-    input_channel = inputs.shape[-1]
+    input_channel = inputs.shape[-1 if backend.image_data_format() == "channels_last" else 1]
 
     """ attention swish """
     pre_norm = batchnorm_with_activation(inputs, activation=None, name=name + "pre_attn_")
@@ -61,9 +63,9 @@ def moga_block(inputs, mlp_ratio=4, layer_scale=0, drop_rate=0, attn_activation=
     gate = activation_by_name(gate, activation=attn_activation, name=name + "attn_gate_")
     value = multi_order_depthwise_conv2d(nn, name=name + "attn_value_")  # MultiOrderDWConv
     value = activation_by_name(value, activation=attn_activation, name=name + "attn_value_")
-    gate_value = keras.layers.Multiply(name=name + "attn_gate_value")([gate, value])
+    gate_value = layers.Multiply(name=name + "attn_gate_value")([gate, value])
     gate_value = conv2d_no_bias(gate_value, input_channel, use_bias=True, name=name + "attn_gate_value_")  # proj_2
-    nn = keras.layers.Add(name=name + "attn_out")([pre_norm, gate_value])
+    nn = layers.Add(name=name + "attn_out")([pre_norm, gate_value])
 
     attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "attn_")
 
@@ -97,7 +99,10 @@ def MogaNet(
     model_name="moganet",
     kwargs=None,
 ):
-    inputs = keras.layers.Input(input_shape)
+    # Regard input_shape as force using original shape if len(input_shape) == 4,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    inputs = layers.Input(input_shape)
 
     """ Stem """
     nn = conv2d_no_bias(inputs, out_channels[0] // 2, kernel_size=3, strides=2, padding="SAME", use_bias=True, name="stem_1_")
@@ -123,7 +128,7 @@ def MogaNet(
         nn = batchnorm_with_activation(nn, activation=None, name=stack_name + "output_")
 
     nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
-    model = tf.keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "moganet", pretrained)
     return model

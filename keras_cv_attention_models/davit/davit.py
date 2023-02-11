@@ -99,7 +99,6 @@ def __grid_window_reverse__(inputs, patch_height, patch_width, window_height, wi
 
 
 def window_attention(inputs, window_size, num_heads=4, is_grid=False, attention_block=None, name=None, **kwargs):
-    input_channel = inputs.shape[-1]
     window_size = window_size if isinstance(window_size, (list, tuple)) else [window_size, window_size]
     window_height = window_size[0] if window_size[0] < inputs.shape[1] else inputs.shape[1]
     window_width = window_size[1] if window_size[1] < inputs.shape[2] else inputs.shape[2]
