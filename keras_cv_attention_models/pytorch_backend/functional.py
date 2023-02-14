@@ -12,12 +12,16 @@ def wrapper(func, inputs, name=None):
     return Lambda(func, name=name)(inputs) if isinstance(inputs, GraphNode) or (isinstance(inputs, list) and isinstance(inputs[0], GraphNode)) else func(inputs)
 
 
+def argmax(inputs, axis=None, output_type="int64", name=None):
+    return wrapper(partial(torch.argmax, dim=axis), inputs, name=name)
+
+
 def assign(parameter, data):
     parameter.data = torch.tensor(data, dtype=parameter.dtype)
 
 
 def cast(inputs, dtype="float32"):
-    return convert_to_tensor(inptus, dtype)
+    return convert_to_tensor(inputs, dtype)
 
 
 def clip_by_value(inputs, clip_value_min, clip_value_max, name=None):
@@ -76,6 +80,13 @@ def gather(inputs, indices, axis=None, batch_dims=0, name=None):
     return inputs[indices]  # .contiguous()
 
 
+def gather_nd(inputs, indices, batch_dims=0, name=None):
+    # """Defaults axis=None means the first non-batch dimension"""
+    # return inputs[indices.tolist()]  # .contiguous()
+    # print(indices.shape[0])
+    return inputs[indices.T.tolist()] if indices.shape[0] > 1 else inputs[tuple(indices[0].tolist())]  # .contiguous()
+
+
 def gelu(inputs, approximate=False, name=None):
     return wrapper(partial(F.gelu, approximate="tanh" if approximate else "none"), inputs, name=name)
 
@@ -103,18 +114,32 @@ def moments(inputs, axes, shift=None, keepdims=False, name=None):
 
 def maximum(xx, yy, name=None):
     if isinstance(yy, torch.Tensor):
-        func = lambda inputs: torch.maximum(inputs[0], inputs[1])
+        return wrapper(lambda inputs: torch.maximum(inputs[0], inputs[1]), [xx, yy], name=name)
     else:  # maximum doesn't support scalar value
-        func = lambda inputs: torch.where(inputs[0] > inputs[1], inputs[0], inputs[1])
-    return wrapper(func, [xx, yy], name=name)
+        return wrapper(lambda inputs: torch.clip(xx, min=yy), [xx, yy], name=name)
 
 
 def minimum(xx, yy, name=None):
     if isinstance(yy, torch.Tensor):
-        func = lambda inputs: torch.minimum(inputs[0], inputs[1])
+        return wrapper(lambda inputs: torch.minimum(inputs[0], inputs[1]), [xx, yy], name=name)
     else:  # maximum doesn't support scalar value
-        func = lambda inputs: torch.where(inputs[0] > inputs[1], inputs[1], inputs[0])
-    return wrapper(func, [xx, yy], name=name)
+        return wrapper(lambda inputs: torch.clip(xx, max=yy), [xx, yy], name=name)
+
+
+def non_max_suppression_with_scores(boxes, scores, max_output_size, iou_threshold=0.5, score_threshold=-math.inf, soft_nms_sigma=0.0, name=None):
+    # from torchvision.ops import nms, batched_nms
+    #
+    # return nms(boxes=boxes, scores=scores, iou_threshold=iou_threshold)
+    # batched_nms(boxes=boxes, scores=scores, iou_threshold=iou_threshold)
+    # batched_nms(boxes: torch.Tensor, scores: torch.Tensor, idxs: torch.Tensor, iou_threshold: float)
+    from tensorflow import image
+
+    if hasattr(boxes, "detach"):
+        boxes = boxes.detach().numpy()
+    if hasattr(scores, "detach"):
+        scores = scores.detach().numpy()
+    rr, nms_scores = image.non_max_suppression_with_scores(boxes, scores, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
+    return convert_to_tensor(rr.numpy(), dtype="int64"), convert_to_tensor(nms_scores.numpy())
 
 
 def norm(inputs, ord="euclidean", axis=1, keepdims=False, name=None):
@@ -140,8 +165,15 @@ def pow(inputs, exponent, name=None):
     return wrapper(partial(torch.pow, exponent=exponent), inputs, name=name)
 
 
+def range(start, limit=None, delta=1, dtype=None, name='range'):
+    if limit is None:
+        start, limit = 0, start
+    return torch.arange(start=start, end=limit, step=delta, dtype=dtype and getattr(torch, dtype))
+
+
 def reduce_max(inputs, axis=None, keepdims=False, name=None):
-    return wrapper(partial(torch.max, dim=axis, keepdim=keepdims), inputs, name=name)
+    # return wrapper(partial(torch.max, dim=axis, keepdim=keepdims), inputs, name=name)
+    return wrapper(lambda inputs: torch.max(inputs, dim=axis, keepdim=keepdims)[0], inputs, name=name)
 
 
 def reduce_mean(inputs, axis=None, keepdims=False, name=None):
@@ -149,6 +181,7 @@ def reduce_mean(inputs, axis=None, keepdims=False, name=None):
 
 
 def reduce_sum(inputs, axis=None, keepdims=False, name=None):
+    axis = () if axis is None else axis
     if isinstance(inputs, (list, tuple)) and axis == 0:
         return Add(name=name)(inputs)
     else:
@@ -254,6 +287,10 @@ def squeeze(inputs, axis, name=None):
 
 def tanh(inputs, name=None):
     return wrapper(F.tanh, inputs, name=name)
+
+
+def top_k(inputs, k=1, sorted=True, name=None):
+    return wrapper(partial(torch.topk, k=k, sorted=sorted), inputs, name=name)
 
 
 def transpose(inputs, perm=None, conjugate=False, name=None):

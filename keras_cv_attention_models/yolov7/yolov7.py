@@ -1,5 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, functional, models, image_data_format
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -27,11 +27,13 @@ BATCH_NORM_MOMENTUM = 0.97
 
 
 def conv_bn(inputs, output_channel, kernel_size=1, strides=1, activation="swish", name=""):
+    # print(f">>>> {inputs.shape = }, {output_channel = }, {kernel_size = }, {strides = }")
     nn = conv2d_no_bias(inputs, output_channel, kernel_size, strides, padding="SAME", name=name)
     return batchnorm_with_activation(nn, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name)
 
 
 def __concat_stack__(inputs, filters, concats=[-1, -3, -5, -6], depth=6, mid_ratio=1.0, out_channels=-1, activation="swish", name=""):
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
     first = conv_bn(inputs, filters, kernel_size=1, strides=1, activation=activation, name=name + "1_")
     second = conv_bn(inputs, filters, kernel_size=1, strides=1, activation=activation, name=name + "2_")
 
@@ -40,8 +42,8 @@ def __concat_stack__(inputs, filters, concats=[-1, -3, -5, -6], depth=6, mid_rat
     for id in range(depth - 2):
         nn = conv_bn(gathered[-1], mid_filters, kernel_size=3, strides=1, activation=activation, name=name + "{}_".format(id + 3))
         gathered.append(nn)
-    nn = tf.concat([gathered[ii] for ii in concats], axis=-1)
-    out_channels = out_channels if out_channels > 0 else nn.shape[-1]
+    nn = functional.concat([gathered[ii] for ii in concats], axis=channel_axis)
+    out_channels = out_channels if out_channels > 0 else nn.shape[channel_axis]
     nn = conv_bn(nn, out_channels, kernel_size=1, strides=1, activation=activation, name=name + "out_")
     return nn
 
@@ -52,15 +54,16 @@ def concat_stack(inputs, filters, concats=None, depth=6, mid_ratio=1.0, out_chan
     if use_additional_stack:
         cur_name = name + "another_"
         parallel = __concat_stack__(inputs, filters, concats, depth=depth, mid_ratio=mid_ratio, out_channels=out_channels, activation=activation, name=cur_name)
-        nn = keras.layers.Add()([nn, parallel])
+        nn = layers.Add()([nn, parallel])
     return nn
 
 
 def csp_downsample(inputs, ratio=0.5, activation="swish", name=""):
-    input_channel = inputs.shape[-1]
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    input_channel = inputs.shape[channel_axis]
     hidden_ratio, out_ratio = ratio if isinstance(ratio, (list, tuple)) else (ratio, ratio)
     hidden_channel, out_channel = int(input_channel * hidden_ratio), int(input_channel * out_ratio)
-    pool_branch = keras.layers.MaxPool2D(pool_size=2, strides=2, padding="SAME", name=name + "pool")(inputs)
+    pool_branch = layers.MaxPool2D(pool_size=2, strides=2, padding="SAME", name=name + "pool")(inputs)
     if out_channel == 0:
         nn = pool_branch  # Maxpool only
     else:
@@ -68,13 +71,14 @@ def csp_downsample(inputs, ratio=0.5, activation="swish", name=""):
         conv_branch = conv_bn(inputs, hidden_channel, kernel_size=1, strides=1, activation=activation, name=name + "conv_1_")
         conv_branch = conv_bn(conv_branch, out_channel, kernel_size=3, strides=2, activation=activation, name=name + "conv_2_")
 
-        nn = tf.concat([conv_branch, pool_branch], axis=-1)
+        nn = functional.concat([conv_branch, pool_branch], axis=channel_axis)
     return nn
 
 
 # Almost same with yolor, just supporting YOLOV7_Tiny with depth=1
 def res_spatial_pyramid_pooling(inputs, depth=2, expansion=0.5, pool_sizes=(5, 9, 13), activation="swish", name=""):
-    input_channels = inputs.shape[-1]
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    input_channels = inputs.shape[channel_axis]
     hidden_channels = int(input_channels * expansion)
     short = conv_bn(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "short_")
 
@@ -82,8 +86,8 @@ def res_spatial_pyramid_pooling(inputs, depth=2, expansion=0.5, pool_sizes=(5, 9
     if depth > 1:  # depth = 1 for yolov7_tiny
         deep = conv_bn(deep, hidden_channels, kernel_size=3, activation=activation, name=name + "pre_2_")
         deep = conv_bn(deep, hidden_channels, kernel_size=1, activation=activation, name=name + "pre_3_")
-    pp = [keras.layers.MaxPooling2D(pool_size=ii, strides=1, padding="SAME")(deep) for ii in pool_sizes]
-    deep = tf.concat([deep, *pp], axis=-1)  # yolov7 SPPCSPC concat, different from yolor
+    pp = [layers.MaxPool2D(pool_size=ii, strides=1, padding="SAME")(deep) for ii in pool_sizes]
+    deep = functional.concat([deep, *pp], axis=channel_axis)  # yolov7 SPPCSPC concat, different from yolor
     for id in range(depth - 1):  # First one is `pre`
         deep = conv_bn(deep, hidden_channels, kernel_size=1, activation=activation, name=name + "post_{}_".format(id * 2 + 1))
         deep = conv_bn(deep, hidden_channels, kernel_size=3, activation=activation, name=name + "post_{}_".format(id * 2 + 2))
@@ -91,25 +95,27 @@ def res_spatial_pyramid_pooling(inputs, depth=2, expansion=0.5, pool_sizes=(5, 9
     if depth == 1:  # For yolov7_tiny
         deep = conv_bn(deep, hidden_channels, kernel_size=1, activation=activation, name=name + "post_1_")
 
-    out = tf.concat([deep, short], axis=-1)
+    out = functional.concat([deep, short], axis=channel_axis)
     out = conv_bn(out, hidden_channels, kernel_size=1, activation=activation, name=name + "output_")
     return out
 
 
 # Same with yolor
 def focus_stem(inputs, filters, kernel_size=3, strides=1, padding="valid", activation="swish", name=""):
+    is_channels_last = image_data_format() == "channels_last"
+    channel_axis = -1 if is_channels_last else 1
     if padding.lower() == "same":  # Handling odd input_shape
-        inputs = tf.pad(inputs, [[0, 0], [0, 1], [0, 1], [0, 0]])
-        patch_top_left = inputs[:, :-1:2, :-1:2]
-        patch_top_right = inputs[:, :-1:2, 1::2]
-        patch_bottom_left = inputs[:, 1::2, :-1:2]
-        patch_bottom_right = inputs[:, 1::2, 1::2]
+        inputs = functional.pad(inputs, [[0, 0], [0, 1], [0, 1], [0, 0]] if is_channels_last else [[0, 0], [0, 0], [0, 1], [0, 1]])
+        patch_top_left = inputs[:, :-1:2, :-1:2] if is_channels_last else inputs[:, :, :-1:2, :-1:2]
+        patch_top_right = inputs[:, :-1:2, 1::2] if is_channels_last else inputs[:, :, :-1:2, 1::2]
+        patch_bottom_left = inputs[:, 1::2, :-1:2] if image_data_format() == "channels_last" else inputs[:, :, 1::2, :-1:2]
+        patch_bottom_right = inputs[:, 1::2, 1::2] if image_data_format() == "channels_last" else inputs[:, :, 1::2, 1::2]
     else:
-        patch_top_left = inputs[:, ::2, ::2]
-        patch_top_right = inputs[:, ::2, 1::2]
-        patch_bottom_left = inputs[:, 1::2, ::2]
-        patch_bottom_right = inputs[:, 1::2, 1::2]
-    nn = tf.concat([patch_top_left, patch_bottom_left, patch_top_right, patch_bottom_right], axis=-1)
+        patch_top_left = inputs[:, ::2, ::2] if is_channels_last else inputs[:, :, ::2, ::2]
+        patch_top_right = inputs[:, ::2, 1::2] if is_channels_last else inputs[:, :, ::2, 1::2]
+        patch_bottom_left = inputs[:, 1::2, ::2] if is_channels_last else inputs[:, :, 1::2, ::2]
+        patch_bottom_right = inputs[:, 1::2, 1::2] if is_channels_last else inputs[:, :, 1::2, 1::2]
+    nn = functional.concat([patch_top_left, patch_bottom_left, patch_top_right, patch_bottom_right], axis=channel_axis)
     nn = conv_bn(nn, filters, kernel_size=kernel_size, strides=strides, activation=activation, name=name)
     return nn
 
@@ -129,7 +135,8 @@ def YOLOV7Backbone(
     activation="swish",
     model_name="yolov7_backbone",
 ):
-    inputs = keras.layers.Input(input_shape)
+    inputs = layers.Input(backend.align_input_shape_by_image_data_format(input_shape))
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
 
     """ Stem """
     stem_width = stem_width if stem_width > 0 else channels[0]
@@ -157,8 +164,8 @@ def YOLOV7Backbone(
         if isinstance(csp_downsample_ratio, (list, tuple)) or 0 < csp_downsample_ratio <= 1:
             nn = csp_downsample(nn, ratio=csp_downsample_ratio, activation=activation, name=stack_name + "downsample_")
         else:
-            # nn = conv_bn(nn, nn.shape[-1] * 2, kernel_size=3, strides=2, activation=activation, name=stack_name + "downsample_")
-            ds_channels = nn.shape[-1] * 2 if csp_downsample_ratio <= 0 else csp_downsample_ratio
+            # nn = conv_bn(nn, nn.shape[channel_axis] * 2, kernel_size=3, strides=2, activation=activation, name=stack_name + "downsample_")
+            ds_channels = nn.shape[channel_axis] * 2 if csp_downsample_ratio <= 0 else csp_downsample_ratio
             nn = conv_bn(nn, ds_channels, kernel_size=3, strides=2, activation=activation, name=stack_name + "downsample_")
         out_channels = -1 if stack_out_ratio == 1 else int(channel * len(stack_concats) * stack_out_ratio)
         nn = concat_stack(nn, channel, **common_kwargs, out_channels=out_channels, name=stack_name)
@@ -169,7 +176,7 @@ def YOLOV7Backbone(
         features.append(nn)
 
     nn = [features[ii] for ii in out_features]
-    model = keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     return model
 
 
@@ -178,13 +185,15 @@ def YOLOV7Backbone(
 
 def upsample_merge(inputs, hidden_channels, mid_ratio=0.5, concats=None, depth=6, use_additional_stack=False, activation="swish", name=""):
     # print(f">>>> upsample_merge inputs: {[ii.shape for ii in inputs] = }")
-    upsample = conv_bn(inputs[-1], inputs[0].shape[-1], activation=activation, name=name + "up_")
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    upsample = conv_bn(inputs[-1], inputs[0].shape[channel_axis], activation=activation, name=name + "up_")
 
-    # inputs[0] = keras.layers.UpSampling2D(size=(2, 2), interpolation="nearest", name=name + "up")(fpn_out)
-    inputs[-1] = tf.image.resize(upsample, tf.shape(inputs[0])[1:-1], method="nearest")
-    nn = tf.concat(inputs, axis=-1)
-    out_channels = nn.shape[-1] // 2
-    hidden_channels = hidden_channels if hidden_channels > 0 else nn.shape[-1] // 2
+    # inputs[0] = layers.UpSampling2D(size=(2, 2), interpolation="nearest", name=name + "up")(fpn_out)
+    size = functional.shape(inputs[0])[1:-1] if image_data_format() == "channels_last" else functional.shape(inputs[0])[2:]
+    inputs[-1] = functional.resize(upsample, size, method="nearest")
+    nn = functional.concat(inputs, axis=channel_axis)
+    out_channels = nn.shape[channel_axis] // 2
+    hidden_channels = hidden_channels if hidden_channels > 0 else nn.shape[channel_axis] // 2
     nn = concat_stack(nn, hidden_channels, concats, depth, mid_ratio, out_channels, use_additional_stack, activation=activation, name=name)
     return nn
 
@@ -193,14 +202,15 @@ def downsample_merge(
     inputs, hidden_channels, mid_ratio=0.5, concats=None, depth=6, csp_downsample_ratio=1, use_additional_stack=False, activation="swish", name=""
 ):
     # print(f">>>> downsample_merge inputs: {[ii.shape for ii in inputs] = }")
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
     if isinstance(csp_downsample_ratio, (list, tuple)) or csp_downsample_ratio > 0:
         inputs[0] = csp_downsample(inputs[0], ratio=csp_downsample_ratio, activation=activation, name=name)
     else:
-        inputs[0] = conv_bn(inputs[0], inputs[-1].shape[-1], kernel_size=3, strides=2, activation=activation, name=name)
+        inputs[0] = conv_bn(inputs[0], inputs[-1].shape[channel_axis], kernel_size=3, strides=2, activation=activation, name=name)
 
-    nn = tf.concat(inputs, axis=-1)
-    out_channels = nn.shape[-1] // 2
-    hidden_channels = hidden_channels if hidden_channels > 0 else nn.shape[-1] // 2
+    nn = functional.concat(inputs, axis=channel_axis)
+    out_channels = nn.shape[channel_axis] // 2
+    hidden_channels = hidden_channels if hidden_channels > 0 else nn.shape[channel_axis] // 2
     nn = concat_stack(nn, hidden_channels, concats, depth, mid_ratio, out_channels, use_additional_stack, activation=activation, name=name)
     return nn
 
@@ -217,13 +227,14 @@ def path_aggregation_fpn(
     #                                                               #               ↓ [up 128 -> concat]  ↑[down 256 -> concat]
     #                                                               # 19: p2 256 --- 83: p2p3p4p5 128 -----┴-> 83: out 128
     # features: [p3, p4, p5]
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
     hidden_channels = hidden.copy() if isinstance(hidden, list) else hidden
     upsamples = [features[-1]]
     p_name = "p{}_".format(len(features) + 2)
     # upsamples: [p5], features[:-1][::-1]: [p4, p3] -> [p5, p4p5, p3p4p5]
     for id, ii in enumerate(features[:-1][::-1]):
         cur_p_name = "p{}".format(len(features) + 1 - id)
-        nn = conv_bn(ii, (ii.shape[-1] * channel_ratio), kernel_size=1, activation=activation, name=name + cur_p_name + "_down_")
+        nn = conv_bn(ii, int(ii.shape[channel_axis] * channel_ratio), kernel_size=1, activation=activation, name=name + cur_p_name + "_down_")
         hidden_channel = hidden_channels.pop(0) if isinstance(hidden_channels, list) else hidden_channels
         p_name = cur_p_name + p_name
         nn = upsample_merge([nn, upsamples[-1]], hidden_channel, mid_ratio, concats, depth, use_additional_stack, activation=activation, name=name + p_name)
@@ -250,15 +261,16 @@ def yolov7_head_single(inputs, filters, use_reparam_conv_head=True, num_classes=
         # OREPA_3x3_RepConv
         rep_conv_3 = conv_bn(inputs, filters, 3, activation=None, name=name + "3x3_")
         rep_conv_1 = conv_bn(inputs, filters, 1, activation=None, name=name + "1x1_")
-        nn = keras.layers.Add()([rep_conv_3, rep_conv_1])
+        nn = layers.Add()([rep_conv_3, rep_conv_1])
         nn = activation_by_name(nn, activation=activation, name=name)
     else:
         nn = conv_bn(inputs, filters, 3, activation=activation, name=name + "1_")
 
     ouput_classes = num_classes + (5 if use_object_scores else 4)  # num_anchors = 3, num_anchors * (80 + 5) = 255
-    nn = keras.layers.Conv2D(ouput_classes * num_anchors, kernel_size=1, name=name + "2_conv")(nn)
+    nn = layers.Conv2D(ouput_classes * num_anchors, kernel_size=1, name=name + "2_conv")(nn)
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)
     # return nn
-    return keras.layers.Reshape([-1, ouput_classes], name=name + "output_reshape")(nn)
+    return layers.Reshape([-1, ouput_classes], name=name + "output_reshape")(nn)
 
 
 def yolov7_head(
@@ -271,7 +283,7 @@ def yolov7_head(
         out = yolov7_head_single(input, filters, use_reparam_conv_head, num_classes, num_anchors, use_object_scores, activation=activation, name=cur_name)
         outputs.append(out)
     # return outputs
-    outputs = tf.concat(outputs, axis=1)
+    outputs = functional.concat(outputs, axis=1)
     return activation_by_name(outputs, classifier_activation, name="classifier_")
 
 
@@ -312,6 +324,10 @@ def YOLOV7(
     rescale_mode="raw01",  # For decode predictions, raw01 means input value in range [0, 1].
     kwargs=None,  # Not using, recieving parameter
 ):
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+
     if backbone is None:
         # Save line width...
         csp_kwargs = {"out_features": features_pick, "spp_depth": spp_depth, "input_shape": input_shape, "activation": activation, "model_name": "backbone"}
@@ -325,8 +341,8 @@ def YOLOV7(
         else:
             features = model_surgery.get_pyramide_feature_layers(backbone)
             features = [features[id] for id in features_pick]
-        print(">>>> features:", {ii.name: ii.output_shape for ii in features})
-        features = [ii.output for ii in features]
+        feature_names, features = model_surgery.align_pyramide_feature_output_by_image_data_format(features)
+        print(">>>> features:", {ii: jj.shape for ii, jj in zip(feature_names, features)})
 
     backbone.trainable = False if freeze_backbone else True
     use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, num_anchors, anchor_scale)
@@ -338,8 +354,8 @@ def YOLOV7(
     fpn_features = path_aggregation_fpn(features, fpn_hidden_channels, fpn_mid_ratio, fpn_channel_ratio, fpn_stack_concats, fpn_stack_depth, **fpn_kwargs)
 
     outputs = yolov7_head(fpn_features, use_reparam_conv_head, num_classes, num_anchors, use_object_scores, activation, classifier_activation, name="head_")
-    outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
-    model = keras.models.Model(inputs, outputs, name=model_name)
+    outputs = layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
+    model = models.Model(inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "yolov7", pretrained)
 
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]

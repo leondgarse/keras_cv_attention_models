@@ -1,5 +1,6 @@
-import tensorflow as tf
-from tensorflow import keras
+import math
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, functional, models, initializers, image_data_format
 from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models import efficientnet
 from keras_cv_attention_models.attention_layers import activation_by_name, add_pre_post_process
@@ -26,21 +27,22 @@ PRETRAINED_DICT = {
 }
 
 
-@tf.keras.utils.register_keras_serializable(package="efficientdet")
-class ReluWeightedSum(keras.layers.Layer):
+@backend.register_keras_serializable(package="efficientdet")
+class ReluWeightedSum(layers.Layer):
     def __init__(self, initializer="ones", epsilon=1e-4, **kwargs):
         super().__init__(**kwargs)
         self.initializer, self.epsilon = initializer, epsilon
 
     def build(self, input_shape):
         self.total = len(input_shape)
-        self.gain = self.add_weight(name="gain", shape=(self.total,), initializer=self.initializer, dtype=self.dtype, trainable=True)
-        self.__epsilon__ = tf.cast(self.epsilon, self._compute_dtype)
+        self.gain = self.add_weight(name="gain", shape=(self.total,), initializer=self.initializer, dtype="float32", trainable=True)
+        self.__epsilon__ = float(self.epsilon)
+        super().build(input_shape)
 
     def call(self, inputs):
-        gain = tf.nn.relu(self.gain)
-        gain = gain / (tf.reduce_sum(gain) + self.__epsilon__)
-        return tf.reduce_sum([inputs[id] * gain[id] for id in range(self.total)], axis=0)
+        gain = functional.relu(self.gain)
+        gain = gain / (functional.reduce_sum(gain) + self.__epsilon__)
+        return functional.reduce_sum([inputs[id] * gain[id] for id in range(self.total)], axis=0)
 
     def compute_output_shape(self, input_shape):
         return input_shape[0]
@@ -53,10 +55,11 @@ class ReluWeightedSum(keras.layers.Layer):
 
 def align_feature_channel(inputs, output_channel, name=""):
     # print(f">>>> align_feature_channel: {name = }, {inputs.shape = }, {output_channel = }")
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
     nn = inputs
-    if inputs.shape[-1] != output_channel:
-        nn = keras.layers.Conv2D(output_channel, kernel_size=1, name=name + "channel_conv")(nn)
-        nn = keras.layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "channel_bn")(nn)
+    if inputs.shape[channel_axis] != output_channel:
+        nn = layers.Conv2D(output_channel, kernel_size=1, name=name + "channel_conv")(nn)
+        nn = layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "channel_bn")(nn)
     return nn
 
 
@@ -66,13 +69,13 @@ def resample_fuse(inputs, output_channel, use_weighted_sum=True, interpolation="
     if use_weighted_sum:
         nn = ReluWeightedSum(name=name + "wsm")(inputs)
     else:
-        nn = keras.layers.Add(name=name + "sum")(inputs)
+        nn = layers.Add(name=name + "sum")(inputs)
     nn = activation_by_name(nn, activation, name=name)
     if use_sep_conv:
-        nn = keras.layers.SeparableConv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=name + "sepconv")(nn)
+        nn = layers.SeparableConv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=name + "sepconv")(nn)
     else:
-        nn = keras.layers.Conv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=name + "conv")(nn)
-    nn = keras.layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "bn")(nn)
+        nn = layers.Conv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=name + "conv")(nn)
+    nn = layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "bn")(nn)
     return nn
 
 
@@ -82,32 +85,36 @@ def bi_fpn(features, output_channel, use_weighted_sum=True, use_sep_conv=True, i
     up_features = [features[-1]]
     for id, feature in enumerate(features[:-1][::-1]):
         cur_name = name + "p{}_up_".format(len(features) - id + 1)
-        # up_feature = keras.layers.UpSampling2D(size=(2, 2), interpolation=interpolation, name=cur_name + "up")(up_features[-1])
-        up_feature = tf.image.resize(up_features[-1], tf.shape(feature)[1:-1], method=interpolation)
+        # up_feature = layers.UpSampling2D(size=(2, 2), interpolation=interpolation, name=cur_name + "up")(up_features[-1])
+        size = functional.shape(feature)[1:-1] if image_data_format() == "channels_last" else functional.shape(feature)[2:]
+        up_feature = functional.resize(up_features[-1], size, method=interpolation)
         up_feature = resample_fuse([feature, up_feature], output_channel, use_weighted_sum, use_sep_conv=use_sep_conv, activation=activation, name=cur_name)
         up_features.append(up_feature)
+    # print(f">>>> bi_fpn: {[ii.shape for ii in up_features] = }")
 
     # up_features: [p7, p6_up, p5_up, p4_up, p3_up]
     out_features = [up_features[-1]]  # [p3_up]
     up_features = up_features[1:-1][::-1]  # [p4_up, p5_up, p6_up]
     for id, feature in enumerate(features[1:]):
         cur_name = name + "p{}_out_".format(len(features) - 1 + id)
-        down_feature = keras.layers.MaxPooling2D(pool_size=3, strides=2, padding="SAME", name=cur_name + "max_down")(out_features[-1])
+        down_feature = layers.MaxPool2D(pool_size=3, strides=2, padding="SAME", name=cur_name + "max_down")(out_features[-1])
         fusion_feature = [feature, down_feature] if id == len(up_features) else [feature, up_features[id], down_feature]
         out_feature = resample_fuse(fusion_feature, output_channel, use_weighted_sum, use_sep_conv=use_sep_conv, activation=activation, name=cur_name)
         out_features.append(out_feature)
-
     # out_features: [p3_up, p4_out, p5_out, p6_out, p7_out]
     return out_features
 
 
 def det_header_pre(features, filters, depth, use_sep_conv=True, activation="swish", name=""):
+    # print(f">>>> det_header_pre: {[ii.shape for ii in features] = }")
     if use_sep_conv:
         names = [name + "{}_sepconv".format(id + 1) for id in range(depth)]
-        convs = [keras.layers.SeparableConv2D(filters, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(depth)]
+        convs = [layers.SeparableConv2D(filters, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(depth)]
     else:
         names = [name + "{}_conv".format(id + 1) for id in range(depth)]
-        convs = [keras.layers.Conv2D(filters, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(depth)]
+        convs = [layers.Conv2D(filters, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(depth)]
+    for conv in convs:
+        conv.build([None, None, None, filters] if image_data_format() == "channels_last" else [None, filters, None, None])
 
     outputs = []
     for feature_id, feature in enumerate(features):
@@ -115,20 +122,31 @@ def det_header_pre(features, filters, depth, use_sep_conv=True, activation="swis
         for id in range(depth):
             nn = convs[id](nn)
             cur_name = name + "{}_{}_bn".format(id + 1, feature_id + 1)
-            nn = keras.layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=cur_name)(nn)
+            nn = layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=cur_name)(nn)
             nn = activation_by_name(nn, activation, name=cur_name + "{}_".format(id + 1))
+            nn.set_shape([None, *feature.shape[1:-1], filters] if image_data_format() == "channels_last" else [None, filters, *feature.shape[2:]])
         outputs.append(nn)
     return outputs
 
 
 def det_header_post(inputs, classes=80, anchors=9, bias_init="zeros", use_sep_conv=True, head_activation="sigmoid", name=""):
     if use_sep_conv:
-        header_conv = keras.layers.SeparableConv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "head")
+        header_conv = layers.SeparableConv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "head")
     else:
-        header_conv = keras.layers.Conv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "conv_head")
-    outputs = [header_conv(ii) for ii in inputs]
-    outputs = [keras.layers.Reshape([-1, classes])(ii) for ii in outputs]
-    outputs = tf.concat(outputs, axis=1)
+        header_conv = layers.Conv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "conv_head")
+    filters = inputs[0].shape[-1 if image_data_format() == "channels_last" else 1]
+    header_conv.build([None, None, None, filters] if image_data_format() == "channels_last" else [None, filters, None, None])
+
+    # print(f">>>> det_header_post: {[ii.shape for ii in inputs] = }")
+    outputs = []
+    for ii in inputs:
+        output = header_conv(ii)
+        output.set_shape([None, *ii.shape[1:-1], classes * anchors] if image_data_format() == "channels_last" else [None, classes * anchors, *ii.shape[2:]])
+        outputs.append(output)
+
+    outputs = outputs if image_data_format() == "channels_last" else [layers.Permute([2, 3, 1])(ii) for ii in outputs]
+    outputs = [layers.Reshape([-1, classes])(ii) for ii in outputs]
+    outputs = functional.concat(outputs, axis=1)
     outputs = activation_by_name(outputs, head_activation, name=name + "output_")
     return outputs
 
@@ -157,6 +175,10 @@ def EfficientDet(
     input_shape=None,  # Not using, recieving parameter
     kwargs=None,  # Not using, recieving parameter
 ):
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
     backbone.trainable = False if freeze_backbone else True
     use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, num_anchors, anchor_scale)
 
@@ -165,15 +187,15 @@ def EfficientDet(
     else:
         features = model_surgery.get_pyramide_feature_layers(backbone)
         fpn_features = [features[id] for id in features_pick]
-    print(">>>> features:", {ii.name: ii.output_shape for ii in fpn_features})
+    feature_names, fpn_features = model_surgery.align_pyramide_feature_output_by_image_data_format(fpn_features)
+    print(">>>> features:", {ii: jj.shape for ii, jj in zip(feature_names, fpn_features)})
     print(">>>> num_anchors:", num_anchors)
-    fpn_features = [ii.output for ii in fpn_features]
 
     # Build additional input features that are not from backbone.
     for id in range(additional_features):
         cur_name = "p{}_p{}_".format(id + 5, id + 6)
         additional_feature = align_feature_channel(fpn_features[-1], num_channels, name=cur_name)
-        additional_feature = keras.layers.MaxPooling2D(pool_size=3, strides=2, padding="SAME", name=cur_name + "max_down")(additional_feature)
+        additional_feature = layers.MaxPool2D(pool_size=3, strides=2, padding="SAME", name=cur_name + "max_down")(additional_feature)
         fpn_features.append(additional_feature)
 
     # Bi-FPN
@@ -184,20 +206,23 @@ def EfficientDet(
     bboxes_features = det_header_pre(fpn_features, num_channels, head_depth, use_sep_conv, activation=activation, name="regressor_")
     bboxes_out = det_header_post(bboxes_features, 4, num_anchors, bias_init="zeros", use_sep_conv=use_sep_conv, head_activation=None, name="regressor_")
     if use_object_scores:
-        bias_init = tf.constant_initializer(-tf.math.log((1 - 0.01) / 0.01).numpy())
+        bias_init = initializers.constant(-math.log((1 - 0.01) / 0.01))
         object_out = det_header_post(bboxes_features, 1, num_anchors, bias_init, use_sep_conv, head_activation=classifier_activation, name="object_")
 
     if num_classes > 0:
-        bias_init = tf.constant_initializer(-tf.math.log((1 - 0.01) / 0.01).numpy())
+        bias_init = initializers.constant(-math.log((1 - 0.01) / 0.01))
         class_features = det_header_pre(fpn_features, num_channels, head_depth, use_sep_conv, activation=activation, name="classifier_")
         class_out = det_header_post(class_features, num_classes, num_anchors, bias_init, use_sep_conv, classifier_activation, name="classifier_")
-        outputs = tf.concat([bboxes_out, class_out, object_out], axis=-1) if use_object_scores else tf.concat([bboxes_out, class_out], axis=-1)
+        if use_object_scores:
+            outputs = functional.concat([bboxes_out, class_out, object_out], axis=-1)
+        else:
+            outputs = functional.concat([bboxes_out, class_out], axis=-1)
     else:
-        outputs = tf.concat([bboxes_out, object_out], axis=-1) if use_object_scores else bboxes_out
-    outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
+        outputs = functional.concat([bboxes_out, object_out], axis=-1) if use_object_scores else bboxes_out
+    outputs = layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
 
     model_name = model_name or backbone.name + "_det"
-    model = keras.models.Model(inputs=backbone.inputs[0], outputs=outputs, name=model_name)
+    model = models.Model(inputs=backbone.inputs[0], outputs=outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "efficientdet", pretrained)
 
     # For prediction

@@ -2,6 +2,7 @@ from keras_cv_attention_models.model_surgery.model_surgery import (
     SAMModel,
     DropConnect,
     add_l2_regularizer_2_model,
+    align_pyramide_feature_output_by_image_data_format,
     change_model_input_shape,
     convert_gelu_and_extract_patches_for_tflite,
     convert_groups_conv2d_2_split_conv2d,

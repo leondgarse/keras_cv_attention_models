@@ -1,11 +1,12 @@
 import os
-import tensorflow as tf
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional, callbacks
 from keras_cv_attention_models.coco import anchors_func, data
 from tqdm import tqdm
 
 
-@tf.keras.utils.register_keras_serializable(package="kecam/coco")
-class DecodePredictions(tf.keras.layers.Layer):
+@backend.register_keras_serializable(package="kecam/coco")
+class DecodePredictions(layers.Layer):
     """
     The most simple version decoding prediction and NMS:
 
@@ -66,7 +67,11 @@ class DecodePredictions(tf.keras.layers.Layer):
         super().build(input_shape)
 
     def __init_anchor__(self, input_shape):
-        input_shape = input_shape[:2] if isinstance(input_shape, (list, tuple)) else (input_shape, input_shape)
+        if isinstance(input_shape, (list, tuple)):
+            input_shape = input_shape[:2] if backend.image_data_format() == "channels_last" else input_shape[-2:]
+        else:
+            input_shape = (input_shape, input_shape)
+
         if self.anchors_mode == anchors_func.ANCHOR_FREE_MODE:
             self.anchors = anchors_func.get_anchor_free_anchors(input_shape, self.pyramid_levels)
         elif self.anchors_mode == anchors_func.YOLOR_MODE:
@@ -81,14 +86,14 @@ class DecodePredictions(tf.keras.layers.Layer):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L82
         bbox_outputs, class_outputs = pred[:, :4], pred[:, 4:]
         num_classes = class_outputs.shape[-1]
-        class_outputs_flatten = tf.reshape(class_outputs, -1)
+        class_outputs_flatten = functional.reshape(class_outputs, -1)
         topk = class_outputs_flatten.shape[0] if topk == -1 else topk  # select all if -1
-        _, class_topk_indices = tf.nn.top_k(class_outputs_flatten, k=topk, sorted=False)
+        _, class_topk_indices = functional.top_k(class_outputs_flatten, k=topk, sorted=False)
         # get original indices for class_outputs, original_indices_hh -> picking indices, original_indices_ww -> picked labels
         original_indices_hh, original_indices_ww = class_topk_indices // num_classes, class_topk_indices % num_classes
-        class_indices = tf.stack([original_indices_hh, original_indices_ww], axis=-1)
-        scores_topk = tf.gather_nd(class_outputs, class_indices)
-        bboxes_topk = tf.gather(bbox_outputs, original_indices_hh)
+        class_indices = functional.stack([original_indices_hh, original_indices_ww], axis=-1)
+        scores_topk = functional.gather_nd(class_outputs, class_indices)
+        bboxes_topk = functional.gather(bbox_outputs, original_indices_hh)
         return bboxes_topk, scores_topk, original_indices_ww, original_indices_hh
 
     # def __nms_per_class__(self, bbs, ccs, labels, score_threshold=0.3, iou_threshold=0.5, soft_nms_sigma=0.5, max_output_size=100):
@@ -112,28 +117,28 @@ class DecodePredictions(tf.keras.layers.Layer):
         # From torchvision.ops.batched_nms strategy: in order to perform NMS independently per class. we add an offset to all the boxes.
         # The offset is dependent only on the class idx, and is large enough so that boxes from different classes do not overlap
         # Same result with per_class method: https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L409
-        cls_offset = tf.cast(labels, bbs.dtype) * (tf.reduce_max(bbs) + 1)
-        bbs_per_class = bbs + tf.expand_dims(cls_offset, -1)
-        rr, nms_scores = tf.image.non_max_suppression_with_scores(bbs_per_class, ccs, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
-        return tf.gather(bbs, rr), tf.gather(labels, rr), nms_scores
+        cls_offset = functional.cast(labels, bbs.dtype) * (functional.reduce_max(bbs) + 1)
+        bbs_per_class = bbs + functional.expand_dims(cls_offset, -1)
+        rr, nms_scores = functional.non_max_suppression_with_scores(bbs_per_class, ccs, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
+        return functional.gather(bbs, rr), functional.gather(labels, rr), nms_scores
 
     def __nms_global__(self, bbs, ccs, labels, score_threshold=0.3, iou_threshold=0.5, soft_nms_sigma=0.5, max_output_size=100):
-        rr, nms_scores = tf.image.non_max_suppression_with_scores(bbs, ccs, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
-        return tf.gather(bbs, rr), tf.gather(labels, rr), nms_scores
+        rr, nms_scores = functional.non_max_suppression_with_scores(bbs, ccs, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
+        return functional.gather(bbs, rr), functional.gather(labels, rr), nms_scores
 
     def __object_score_split__(self, pred):
         return pred[:, :-1], pred[:, -1]  # May overwrite
 
     def __to_static__(self, bboxs, lables, confidences, max_output_size=100):
-        indices = tf.expand_dims(tf.range(tf.shape(bboxs)[0]), -1)
-        lables = tf.cast(lables, bboxs.dtype)
-        concated = tf.concat([bboxs, tf.expand_dims(lables, -1), tf.expand_dims(confidences, -1)], axis=-1)
-        concated = tf.tensor_scatter_nd_update(tf.zeros([max_output_size, concated.shape[-1]], dtype=bboxs.dtype), indices, concated)
+        indices = functional.expand_dims(functional.range(functional.shape(bboxs)[0]), -1)
+        lables = functional.cast(lables, bboxs.dtype)
+        concated = functional.concat([bboxs, functional.expand_dims(lables, -1), functional.expand_dims(confidences, -1)], axis=-1)
+        concated = functional.tensor_scatter_nd_update(functional.zeros([max_output_size, concated.shape[-1]], dtype=bboxs.dtype), indices, concated)
         return concated
 
     def __decode_single__(self, pred, score_threshold=0.3, iou_or_sigma=0.5, max_output_size=100, method="hard", mode="global", topk=0, input_shape=None):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L159
-        pred = tf.cast(pred, tf.float32)
+        pred = functional.cast(pred.detach() if hasattr(pred, "detach") else pred, "float32")
         if input_shape is not None:
             self.__init_anchor__(input_shape)
 
@@ -142,15 +147,16 @@ class DecodePredictions(tf.keras.layers.Layer):
 
         if topk != 0:
             bbs, ccs, labels, picking_indices = self.__topk_class_boxes_single__(pred, topk)
-            anchors = tf.gather(self.anchors, picking_indices)
+            anchors = functional.gather(self.anchors, picking_indices)
             if self.use_object_scores:
-                ccs *= tf.gather(object_scores, picking_indices)
+                ccs = ccs * functional.gather(object_scores, picking_indices)
         else:
-            bbs, ccs, labels = pred[:, :4], tf.reduce_max(pred[:, 4:], axis=-1), tf.argmax(pred[:, 4:], axis=-1)
+            bbs, ccs, labels = pred[:, :4], functional.reduce_max(pred[:, 4:], axis=-1), functional.argmax(pred[:, 4:], axis=-1)
             anchors = self.anchors
             if self.use_object_scores:
-                ccs *= object_scores
+                ccs = ccs * object_scores
 
+        # print(f"{bbs.shape = }, {anchors.shape = }")
         bbs_decoded = anchors_func.decode_bboxes(bbs, anchors)
         iou_threshold, soft_nms_sigma = (1.0, iou_or_sigma / 2) if method.lower() == "gaussian" else (iou_or_sigma, 0.0)
 
@@ -177,7 +183,7 @@ class DecodePredictions(tf.keras.layers.Layer):
         """
         self.nms_kwargs.update(nms_kwargs)
         if self.use_static_output:
-            return tf.map_fn(lambda xx: self.__decode_single__(xx, **nms_kwargs), preds)
+            return functional.map_fn(lambda xx: self.__decode_single__(xx, **nms_kwargs), preds)
         elif len(preds.shape) == 3:
             return [self.__decode_single__(pred, **self.nms_kwargs, input_shape=input_shape) for pred in preds]
         else:
@@ -207,17 +213,17 @@ def scale_bboxes_back_single(bboxes, image_shape, scale, pad_top, pad_left, targ
     bboxes *= [target_shape[0], target_shape[1], target_shape[0], target_shape[1]]
     bboxes -= [pad_top, pad_left, pad_top, pad_left]
     bboxes /= scale
-    bboxes = tf.clip_by_value(bboxes, 0, clip_value_max=[image_shape[0], image_shape[1], image_shape[0], image_shape[1]])
+    bboxes = functional.clip_by_value(bboxes, 0, clip_value_max=[image_shape[0], image_shape[1], image_shape[0], image_shape[1]])
     # [top, left, bottom, right] -> [left, top, width, height]
-    bboxes = tf.stack([bboxes[:, 1], bboxes[:, 0], bboxes[:, 3] - bboxes[:, 1], bboxes[:, 2] - bboxes[:, 0]], axis=-1)
+    bboxes = functional.stack([bboxes[:, 1], bboxes[:, 0], bboxes[:, 3] - bboxes[:, 1], bboxes[:, 2] - bboxes[:, 0]], axis=-1)
     return bboxes
 
 
 def image_process(image, target_shape, mean, std, resize_method="bilinear", resize_antialias=False, use_bgr_input=False, letterbox_pad=-1):
     if len(image.shape) < 2:
         image = data.tf_imread(image)  # it's image path
-    original_image_shape = tf.shape(image)[:2]
-    image = tf.cast(image, "float32")
+    original_image_shape = functional.shape(image)[:2]
+    image = functional.cast(image, "float32")
     image = (image - mean) / std  # automl behavior: rescale -> resize
     image, scale, pad_top, pad_left = data.aspect_aware_resize_and_crop_image(
         image, target_shape, letterbox_pad=letterbox_pad, method=resize_method, antialias=resize_antialias
@@ -263,7 +269,7 @@ def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={},
     results = []
     for images, scales, pad_tops, pad_lefts, original_image_shapes, image_ids in tqdm(eval_dataset):
         preds = model(images)
-        preds = tf.cast(preds, tf.float32)
+        preds = functional.cast(preds, "float32")
         # decoded_preds: [[bboxes, labels, scores], [bboxes, labels, scores], ...]
         decoded_preds = pred_decoder(preds, **nms_kwargs)
 
@@ -275,7 +281,7 @@ def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={},
                 image_id = image_id_map[image_id.decode() if isinstance(image_id, bytes) else image_id]
             bboxes = scale_bboxes_back_single(bboxes, image_shape, scale, pad_top, pad_left, target_shape).numpy()
             results.extend([to_coco_eval_single(image_id, bb, cc, ss) for bb, cc, ss in zip(bboxes, labels, scores)])  # Loop on prediction results
-    return tf.convert_to_tensor(results).numpy()
+    return functional.convert_to_tensor(results).numpy()
 
 
 class COCOEvaluation:
@@ -284,7 +290,7 @@ class COCOEvaluation:
 
         if annotations is None:
             url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/coco_annotations_instances_val2017.json"
-            annotations = tf.keras.utils.get_file(origin=url)
+            annotations = backend.get_file(origin=url)
 
         if isinstance(annotations, dict):  # json already loaded as dict
             coco_gt = COCO()
@@ -350,7 +356,7 @@ def to_coco_annotation(json_path):
 
 
 # Wrapper a callback for using in training
-class COCOEvalCallback(tf.keras.callbacks.Callback):
+class COCOEvalCallback(callbacks.Callback):
     """
     Basic test:
     >>> from keras_cv_attention_models import efficientdet, coco
@@ -451,6 +457,11 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
         self.built = True
 
     def on_epoch_end(self, epoch=0, logs=None):
+        if backend.is_tensorflow_backend:
+            from tensorflow.io.gfile import glob
+        else:
+            from glob2 import glob
+
         if not self.built:
             if self.dataset_kwargs["rescale_mode"] == "auto":
                 self.dataset_kwargs["rescale_mode"] = getattr(self.model, "rescale_mode", "torch")
@@ -481,12 +492,12 @@ class COCOEvalCallback(tf.keras.callbacks.Callback):
         cur_ap = coco_eval.stats[0] if coco_eval is not None else 0
         if self.model_basic_save_name is not None and self.is_better(cur_ap, self.pre_best):
             self.pre_best = cur_ap
-            pre_monitor_saves = tf.io.gfile.glob(self.monitor_save_re)
+            pre_monitor_saves = glob(self.monitor_save_re)
             # tf.print(">>>> pre_monitor_saves:", pre_monitor_saves)
             if len(pre_monitor_saves) != 0:
                 os.remove(pre_monitor_saves[0])
             monitor_save = self.monitor_save.format(epoch + 1, "{:.4f}".format(cur_ap))
-            tf.print("\n>>>> Save best to:", monitor_save)
+            print("\n>>>> Save best to:", monitor_save)
             if self.model is not None:
                 self.model.save(monitor_save)
 

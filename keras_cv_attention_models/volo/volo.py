@@ -143,6 +143,19 @@ class BiasLayer(layers.Layer):
         config.update({"axis": self.axis})  # Not saving initializer in config
         return config
 
+    def get_weights_channels_last(self):
+        # channel_first -> channel_last
+        weights = self.get_weights()
+        if backend.image_data_format() != "channels_last" and self.axis == 1:
+            weights = [np.squeeze(ii) for ii in weights]
+        return weights
+
+    def set_weights_channels_last(self, weights):
+        # channel_last -> channel_first
+        if backend.image_data_format() != "channels_last" and self.axis == 1:
+            weights = [np.reshape(ii, self.bb.shape) for ii in weights]
+        return self.set_weights(weights)
+
 
 def attention_mlp_block(inputs, embed_dim, num_heads=1, mlp_ratio=3, attention_type=None, drop_rate=0, mlp_activation="gelu", dropout=0, name=""):
     # print(f">>>> {drop_rate = }")

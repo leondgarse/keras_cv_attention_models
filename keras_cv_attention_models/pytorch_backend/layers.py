@@ -5,7 +5,7 @@ from functools import partial
 from keras_cv_attention_models.pytorch_backend import initializers
 
 
-# [TODO] Identity, ConvTranspose2d, Conv2D SAME padding, MultiHeadAttention, Normalization, Rescaling
+# [TODO] Identity, Normalization, Rescaling, SeparableConv2D
 
 
 """ Basic Layers """
@@ -107,6 +107,9 @@ class GraphNode:
     def __pow__(self, exponent):
         # return Lambda(lambda inputs: torch.pow(inputs, exponent))(self)
         return Lambda(partial(torch.pow, exponent=exponent))(self)
+
+    def set_shape(self, shape):
+        self.shape = shape
 
     def set_pre_nodes(self, pre_nodes):
         pre_nodes = [ii for ii in pre_nodes if isinstance(ii, GraphNode)] if isinstance(pre_nodes, (list, tuple)) else [pre_nodes]
@@ -426,7 +429,8 @@ class Concatenate(_Merge):
 
     def check_input(self, input_shape):
         base, dims = input_shape[0], len(input_shape[0])
-        result = not any([any([base[dim] != ii[dim] for dim in range(1, dims) if dim != self.axis]) for ii in input_shape[1:]])
+        axis = (dims + self.axis) if self.axis < 0 else self.axis
+        result = not any([any([base[dim] != ii[dim] for dim in range(1, dims) if dim != axis]) for ii in input_shape[1:]])
         assert result, "input_shapes excpets concat axis {} not all equal: {}".format(self.axis, input_shape)
 
     def compute_output_shape(self, input_shape):
@@ -521,7 +525,7 @@ class Conv(_BaseConvPool):
         self.module_class = None  # Auto set by len(input_shape)
 
     def build_module(self, input_shape):
-        self.filters = self.filters if self.filters > 0 else input_shape[1]  # In case DepthwiseConv2D
+        self.filters = int(self.filters if self.filters > 0 else input_shape[1])  # In case DepthwiseConv2D
         if self.module_class is None:
             self.module_class = nn.Conv1d if len(input_shape) == 3 else (nn.Conv2d if len(input_shape) == 4 else nn.Conv3d)
 
@@ -572,6 +576,54 @@ class Conv2D(Conv):
     def set_weights_channels_last(self, weights):
         # channel_last -> channel_first
         weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
+        return self.set_weights(weights)
+
+
+class SeparableConv2D(Conv):
+    def __init__(
+        self, filters, kernel_size=1, strides=1, padding="VALID", dilation_rate=1, use_bias=True, pointwise_initializer="glorot_uniform", **kwargs
+    ):
+        groups = 1
+        super().__init__(filters, kernel_size, strides, padding, dilation_rate, use_bias, groups, pointwise_initializer, **kwargs)
+
+    def build_module(self, input_shape):
+        depthwise = nn.Conv2d(
+            in_channels=input_shape[1],
+            out_channels=input_shape[1],
+            kernel_size=self.kernel_size,
+            stride=self.strides,
+            padding=self._pad,
+            dilation=self.dilation_rate,
+            groups=input_shape[1],
+            bias=False,
+        )
+        pointwise = nn.Conv2d(
+            in_channels=input_shape[1],
+            out_channels=self.filters,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            dilation=1,
+            groups=1,
+            bias=self.use_bias,
+        )
+
+        kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
+        depthwise.weight.data = kernel_initializer(list(depthwise.weight.shape))
+        pointwise.weight.data = kernel_initializer(list(pointwise.weight.shape))
+        return nn.Sequential(depthwise, pointwise)
+
+    def get_weights_channels_last(self):
+        # channel_first -> channel_last
+        weights = self.get_weights()
+        weights[0] = np.transpose(weights[0], (2, 3, 0, 1))
+        weights[1] = np.transpose(weights[1], (2, 3, 1, 0))
+        return weights
+
+    def set_weights_channels_last(self, weights):
+        # channel_last -> channel_first
+        weights[0] = np.transpose(weights[0], (2, 3, 0, 1))
+        weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
         return self.set_weights(weights)
 
 
@@ -757,6 +809,28 @@ class Dense(Layer):
     def get_config(self):
         config = super().get_config()
         config.update({"units": self.units, "activation": self.activation, "use_bias": self.use_bias, "axis": self.axis})
+        return config
+
+
+class Embedding(Layer):
+    def __init__(self, input_dim, output_dim, embeddings_initializer='uniform', mask_zero=False, input_length=None, **kwargs):
+        self.input_dim, self.output_dim, self.mask_zero, self.input_length = input_dim, output_dim, mask_zero, input_length
+        self.embeddings_initializer = embeddings_initializer
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.module = torch.nn.Embedding(num_embeddings=self.input_dim, embedding_dim=self.output_dim, padding_idx=None, max_norm=None)
+        initializer = getattr(initializers, self.embeddings_initializer)() if isinstance(self.embeddings_initializer, str) else self.embeddings_initializer
+        self.module.weight.data = initializer(list(self.module.weight.shape))
+        super().build(input_sahpe)
+
+    def compute_output_shape(self, input_shape):
+        input_shape = list(input_shape)
+        return input_shape + [self.output_dim]
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"input_dim": self.input_dim, "output_dim": self.output_dim, "mask_zero": self.mask_zero, "input_length": self.input_length})
         return config
 
 
@@ -1001,6 +1075,21 @@ class GlobalAveragePooling2D(Layer):
     def get_config(self):
         config = super().get_config()
         config.update({"keepdims": self.keepdims})
+        return config
+
+
+class LeakyReLU(Layer):
+    def __init__(self, alpha=0.3, **kwargs):
+        self.alpha = alpha
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.module = nn.LeakyReLU(negative_slope=self.alpha)
+        super().build(input_shape)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"alpha": self.alpha})
         return config
 
 

@@ -325,15 +325,41 @@ def get_pyramide_feature_layers(model, match_reg="^stack_?(\\d+).*output.*$"):
     import re
 
     dd = {}
+    pre_stack, pre_output_shape = 0, model.input_shape[1:]
     for ii in model.layers:
-        matched = re.match(match_reg, ii.name)
+        cur_name = ii.name
+        if cur_name.startswith("pre_output") and ii.output_shape[1:] == pre_output_shape:
+            cur_name = "stack_{}".format(pre_stack) + cur_name  # For Swin
+
+        matched = re.match(match_reg, cur_name)
         if matched is not None:
             cur_stack = "stack_" + matched[1] + "_output"
+            pre_stack, pre_output_shape = matched[1], ii.output_shape[1:]
             dd.update({cur_stack: ii})
 
     """ Filter those have same downsample rate """
-    ee = {str(vv.output_shape[1]): vv for kk, vv in dd.items()}
+    ee = {str(vv.output_shape[2]): vv for kk, vv in dd.items()}
     return list(ee.values())
+
+
+def align_pyramide_feature_output_by_image_data_format(pyramide_feature_layers):
+    aa = [ii.output_shape for ii in pyramide_feature_layers]
+    bb = [ii[1] for ii in aa]
+    if all([jj <= bb[id - 1] for id, jj in enumerate(bb[1:], start=1)]):
+        features_data_format = "channels_last"
+    else:
+        features_data_format = "channels_first"
+
+    if features_data_format == backend.image_data_format():
+        output_names = [ii.name for ii in pyramide_feature_layers]
+        outputs = [ii.output for ii in pyramide_feature_layers]
+    elif features_data_format == "channels_last":  # backend.image_data_format is "channels_first"
+        output_names = [ii.name + "_perm" for ii in pyramide_feature_layers]
+        outputs = [layers.Permute([3, 1, 2], name=ii.name + "_perm")(ii.output) for ii in pyramide_feature_layers]
+    else:  # features_data_format is "channels_first" and backend.image_data_format is "channels_last". Should not happen
+        output_names = [ii.name + "_perm" for ii in pyramide_feature_layers]
+        outputs = [layers.Permute([2, 3, 1], name=ii.name + "_perm")(ii.output) for ii in pyramide_feature_layers]
+    return output_names, outputs
 
 
 def get_global_avg_pool_layer_id(model):

@@ -1,5 +1,6 @@
-import tensorflow as tf
-from tensorflow import keras
+import math
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, functional, models, initializers, image_data_format
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -38,16 +39,17 @@ def conv_dw_pw_block(inputs, filters, kernel_size=1, strides=1, use_depthwise_co
 
 
 def csp_block(inputs, expansion=0.5, use_shortcut=True, use_depthwise_conv=False, activation="swish", name=""):
-    input_channels = inputs.shape[-1]
+    input_channels = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
     nn = conv_dw_pw_block(inputs, int(input_channels * expansion), activation=activation, name=name + "1_")
     nn = conv_dw_pw_block(nn, input_channels, kernel_size=3, strides=1, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "2_")
     if use_shortcut:
-        nn = keras.layers.Add()([inputs, nn])
+        nn = layers.Add()([inputs, nn])
     return nn
 
 
 def csp_stack(inputs, depth, out_channels=-1, expansion=0.5, use_shortcut=True, use_depthwise_conv=False, activation="swish", name=""):
-    out_channels = inputs.shape[-1] if out_channels == -1 else out_channels
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    out_channels = inputs.shape[channel_axis] if out_channels == -1 else out_channels
     hidden_channels = int(out_channels * expansion)
     short = conv_dw_pw_block(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "short_")
 
@@ -56,40 +58,43 @@ def csp_stack(inputs, depth, out_channels=-1, expansion=0.5, use_shortcut=True, 
         block_name = name + "block{}_".format(id + 1)
         deep = csp_block(deep, 1, use_shortcut=use_shortcut, use_depthwise_conv=use_depthwise_conv, activation=activation, name=block_name)
 
-    out = tf.concat([deep, short], axis=-1)
+    out = functional.concat([deep, short], axis=channel_axis)
     out = conv_dw_pw_block(out, out_channels, kernel_size=1, activation=activation, name=name + "output_")
     return out
 
 
 def spatial_pyramid_pooling(inputs, pool_sizes=(5, 9, 13), activation="swish", name=""):
-    input_channels = inputs.shape[-1]
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    input_channels = inputs.shape[channel_axis]
     nn = conv_dw_pw_block(inputs, input_channels // 2, kernel_size=1, activation=activation, name=name + "1_")
-    pp = [keras.layers.MaxPooling2D(pool_size=ii, strides=1, padding="SAME")(nn) for ii in pool_sizes]
-    nn = tf.concat([nn, *pp], axis=-1)
+    pp = [layers.MaxPool2D(pool_size=ii, strides=1, padding="SAME")(nn) for ii in pool_sizes]
+    nn = functional.concat([nn, *pp], axis=channel_axis)
     nn = conv_dw_pw_block(nn, input_channels, kernel_size=1, activation=activation, name=name + "2_")
     return nn
 
 
 def focus_stem(inputs, filters, kernel_size=3, strides=1, padding="valid", activation="swish", name=""):
+    is_channels_last = image_data_format() == "channels_last"
+    channel_axis = -1 if is_channels_last else 1
     if padding.lower() == "same":  # Handling odd input_shape
-        inputs = tf.pad(inputs, [[0, 0], [0, 1], [0, 1], [0, 0]])
-        patch_top_left = inputs[:, :-1:2, :-1:2]
-        patch_top_right = inputs[:, :-1:2, 1::2]
-        patch_bottom_left = inputs[:, 1::2, :-1:2]
-        patch_bottom_right = inputs[:, 1::2, 1::2]
+        inputs = functional.pad(inputs, [[0, 0], [0, 1], [0, 1], [0, 0]] if is_channels_last else [[0, 0], [0, 0], [0, 1], [0, 1]])
+        patch_top_left = inputs[:, :-1:2, :-1:2] if is_channels_last else inputs[:, :, :-1:2, :-1:2]
+        patch_top_right = inputs[:, :-1:2, 1::2] if is_channels_last else inputs[:, :, :-1:2, 1::2]
+        patch_bottom_left = inputs[:, 1::2, :-1:2] if image_data_format() == "channels_last" else inputs[:, :, 1::2, :-1:2]
+        patch_bottom_right = inputs[:, 1::2, 1::2] if image_data_format() == "channels_last" else inputs[:, :, 1::2, 1::2]
     else:
-        patch_top_left = inputs[:, ::2, ::2]
-        patch_top_right = inputs[:, ::2, 1::2]
-        patch_bottom_left = inputs[:, 1::2, ::2]
-        patch_bottom_right = inputs[:, 1::2, 1::2]
-    nn = tf.concat([patch_top_left, patch_bottom_left, patch_top_right, patch_bottom_right], axis=-1)
+        patch_top_left = inputs[:, ::2, ::2] if is_channels_last else inputs[:, :, ::2, ::2]
+        patch_top_right = inputs[:, ::2, 1::2] if is_channels_last else inputs[:, :, ::2, 1::2]
+        patch_bottom_left = inputs[:, 1::2, ::2] if is_channels_last else inputs[:, :, 1::2, ::2]
+        patch_bottom_right = inputs[:, 1::2, 1::2] if is_channels_last else inputs[:, :, 1::2, 1::2]
+    nn = functional.concat([patch_top_left, patch_bottom_left, patch_top_right, patch_bottom_right], axis=channel_axis)
     nn = conv_dw_pw_block(nn, filters, kernel_size=kernel_size, strides=strides, activation=activation, name=name)
     return nn
 
 
 def CSPDarknet(width_mul=1, depth_mul=1, out_features=[-3, -2, -1], use_depthwise_conv=False, input_shape=(512, 512, 3), activation="swish", model_name=""):
     base_channels, base_depth = int(width_mul * 64), max(round(depth_mul * 3), 1)
-    inputs = keras.layers.Input(input_shape)
+    inputs = layers.Input(backend.align_input_shape_by_image_data_format(input_shape))
 
     """ Stem """
     nn = focus_stem(inputs, base_channels, activation=activation, name="stem_")
@@ -110,7 +115,7 @@ def CSPDarknet(width_mul=1, depth_mul=1, out_features=[-3, -2, -1], use_depthwis
         features.append(nn)
 
     nn = [features[ii] for ii in out_features]
-    model = keras.models.Model(inputs, nn, name=model_name)
+    model = models.Model(inputs, nn, name=model_name)
     return model
 
 
@@ -119,21 +124,24 @@ def CSPDarknet(width_mul=1, depth_mul=1, out_features=[-3, -2, -1], use_depthwis
 
 def upsample_merge(inputs, csp_depth, use_depthwise_conv=False, activation="swish", name=""):
     # print(f">>>> upsample_merge inputs: {[ii.shape for ii in inputs] = }")
-    target_channel = inputs[-1].shape[-1]
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    target_channel = inputs[-1].shape[channel_axis]
     fpn_out = conv_dw_pw_block(inputs[0], target_channel, activation=activation, name=name + "fpn_")
 
-    # inputs[0] = keras.layers.UpSampling2D(size=(2, 2), interpolation="nearest", name=name + "up")(fpn_out)
-    inputs[0] = tf.image.resize(fpn_out, tf.shape(inputs[-1])[1:-1], method="nearest")
-    nn = tf.concat(inputs, axis=-1)
+    # inputs[0] = layers.UpSampling2D(size=(2, 2), interpolation="nearest", name=name + "up")(fpn_out)
+    size = functional.shape(inputs[-1])[1:-1] if image_data_format() == "channels_last" else functional.shape(inputs[-1])[2:]
+    inputs[0] = functional.resize(fpn_out, size, method="nearest")
+    nn = functional.concat(inputs, axis=channel_axis)
     nn = csp_stack(nn, csp_depth, target_channel, 0.5, False, use_depthwise_conv, activation=activation, name=name)
     return fpn_out, nn
 
 
 def downsample_merge(inputs, csp_depth, use_depthwise_conv=False, activation="swish", name=""):
     # print(f">>>> downsample_merge inputs: {[ii.shape for ii in inputs] = }")
-    inputs[0] = conv_dw_pw_block(inputs[0], inputs[-1].shape[-1], 3, 2, use_depthwise_conv, activation=activation, name=name + "down_")
-    nn = tf.concat(inputs, axis=-1)
-    nn = csp_stack(nn, csp_depth, nn.shape[-1], 0.5, False, use_depthwise_conv, activation=activation, name=name)
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    inputs[0] = conv_dw_pw_block(inputs[0], inputs[-1].shape[channel_axis], 3, 2, use_depthwise_conv, activation=activation, name=name + "down_")
+    nn = functional.concat(inputs, axis=channel_axis)
+    nn = csp_stack(nn, csp_depth, nn.shape[channel_axis], 0.5, False, use_depthwise_conv, activation=activation, name=name)
     return nn
 
 
@@ -160,7 +168,7 @@ def path_aggregation_fpn(features, depth_mul=1, use_depthwise_conv=False, activa
 
 
 def yolox_head_single(inputs, out_channels, num_classes=80, num_anchors=1, use_depthwise_conv=False, use_object_scores=True, activation="swish", name=""):
-    bias_init = tf.constant_initializer(-tf.math.log((1 - 0.01) / 0.01).numpy())
+    bias_init = initializers.constant(-math.log((1 - 0.01) / 0.01))
 
     # stem
     stem = conv_dw_pw_block(inputs, out_channels, activation=activation, name=name + "stem_")
@@ -168,24 +176,27 @@ def yolox_head_single(inputs, out_channels, num_classes=80, num_anchors=1, use_d
     # cls_convs, cls_preds
     cls_nn = conv_dw_pw_block(stem, out_channels, kernel_size=3, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "cls_1_")
     cls_nn = conv_dw_pw_block(cls_nn, out_channels, kernel_size=3, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "cls_2_")
-    cls_out = keras.layers.Conv2D(num_classes * num_anchors, kernel_size=1, bias_initializer=bias_init, name=name + "class_out")(cls_nn)
+    cls_out = layers.Conv2D(num_classes * num_anchors, kernel_size=1, bias_initializer=bias_init, name=name + "class_out")(cls_nn)
     cls_out = activation_by_name(cls_out, "sigmoid", name=name + "class_out_")
-    cls_out = keras.layers.Reshape([-1, num_classes], name=name + "class_out_reshape")(cls_out)
+    cls_out = cls_out if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(cls_out)
+    cls_out = layers.Reshape([-1, num_classes], name=name + "class_out_reshape")(cls_out)
 
     # reg_convs, reg_preds
     reg_nn = conv_dw_pw_block(stem, out_channels, kernel_size=3, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "reg_1_")
     reg_nn = conv_dw_pw_block(reg_nn, out_channels, kernel_size=3, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "reg_2_")
-    reg_out = keras.layers.Conv2D(4 * num_anchors, kernel_size=1, name=name + "regression_out")(reg_nn)
-    reg_out = keras.layers.Reshape([-1, 4], name=name + "regression_out_reshape")(reg_out)
+    reg_out = layers.Conv2D(4 * num_anchors, kernel_size=1, name=name + "regression_out")(reg_nn)
+    reg_out = reg_out if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(reg_out)
+    reg_out = layers.Reshape([-1, 4], name=name + "regression_out_reshape")(reg_out)
 
     # obj_preds
     if use_object_scores:
-        obj_out = keras.layers.Conv2D(1 * num_anchors, kernel_size=1, bias_initializer=bias_init, name=name + "object_out")(reg_nn)
+        obj_out = layers.Conv2D(1 * num_anchors, kernel_size=1, bias_initializer=bias_init, name=name + "object_out")(reg_nn)
         obj_out = activation_by_name(obj_out, "sigmoid", name=name + "object_out_")
-        obj_out = keras.layers.Reshape([-1, 1], name=name + "object_out_reshape")(obj_out)
-        return tf.concat([reg_out, cls_out, obj_out], axis=-1)
+        obj_out = obj_out if image_data_format() == "channels_last" or num_anchors == 1 else layers.Permute([2, 3, 1])(obj_out)
+        obj_out = layers.Reshape([-1, 1], name=name + "object_out_reshape")(obj_out)
+        return functional.concat([reg_out, cls_out, obj_out], axis=-1)
     else:
-        return tf.concat([reg_out, cls_out], axis=-1)
+        return functional.concat([reg_out, cls_out], axis=-1)
 
 
 def yolox_head(inputs, width_mul=1.0, num_classes=80, num_anchors=1, use_depthwise_conv=False, use_object_scores=True, activation="swish", name=""):
@@ -195,8 +206,8 @@ def yolox_head(inputs, width_mul=1.0, num_classes=80, num_anchors=1, use_depthwi
         cur_name = name + "{}_".format(id + 1)
         out = yolox_head_single(input, out_channel, num_classes, num_anchors, use_depthwise_conv, use_object_scores, activation=activation, name=cur_name)
         outputs.append(out)
-    # outputs = tf.concat([keras.layers.Reshape([-1, ii.shape[-1]])(ii) for ii in outputs], axis=1)
-    outputs = tf.concat(outputs, axis=1)
+    # outputs = functional.concat([layers.Reshape([-1, ii.shape[-1]])(ii) for ii in outputs], axis=1)
+    outputs = functional.concat(outputs, axis=1)
     return outputs
 
 
@@ -223,6 +234,10 @@ def YOLOX(
     rescale_mode="raw",  # For decode predictions, raw means input value in range [0, 255].
     kwargs=None,  # Not using, recieving parameter
 ):
+    # Regard input_shape as force using original shape if first element is None or -1,
+    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+
     if backbone is None:
         width_mul = width_mul if width_mul > 0 else 1
         backbone = CSPDarknet(width_mul, depth_mul, features_pick, use_depthwise_conv, input_shape, activation=activation, model_name="darknet")
@@ -233,8 +248,9 @@ def YOLOX(
         else:
             features = model_surgery.get_pyramide_feature_layers(backbone)
             features = [features[id] for id in features_pick]
-        print(">>>> features:", {ii.name: ii.output_shape for ii in features})
-        features = [ii.output for ii in features]
+
+        feature_names, features = model_surgery.align_pyramide_feature_output_by_image_data_format(features)
+        print(">>>> features:", {ii: jj.shape for ii, jj in zip(feature_names, features)})
         width_mul = width_mul if width_mul > 0 else min([ii.shape[-1] for ii in features]) / 256
         print(">>>> width_mul:", width_mul)
 
@@ -244,8 +260,8 @@ def YOLOX(
 
     fpn_features = path_aggregation_fpn(features, depth_mul=depth_mul, use_depthwise_conv=use_depthwise_conv, activation=activation, name="pafpn_")
     outputs = yolox_head(fpn_features, width_mul, num_classes, num_anchors, use_depthwise_conv, use_object_scores, activation=activation, name="head_")
-    outputs = keras.layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
-    model = keras.models.Model(inputs, outputs, name=model_name)
+    outputs = layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
+    model = models.Model(inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "yolox", pretrained)
 
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]

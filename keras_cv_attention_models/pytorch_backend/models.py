@@ -63,13 +63,13 @@ class Model(nn.Module):
     def create_forward_pipeline(self, **kwargs):
         forward_pipeline, layers, outputs = [], {}, []
         dfs_queue = []
+        nodes_need_record = {}  # node names with multi outputs, or before node with multi inputs
         for ii in self.inputs:
             dfs_queue.extend(ii.next_nodes)
-        branch_nodes = set()  # node names with multi outputs, or before node with multi inputs
+            nodes_need_record[ii.name] = len(ii.next_nodes)
         while len(dfs_queue) > 0:
             cur_node = dfs_queue.pop(-1)
-            # print(f">>>> {cur_node.name = }, {cur_node.pre_node_names = }, {cur_node.next_node_names = }")
-            if len(cur_node.pre_nodes) > 1 and not all([ii.name in branch_nodes for ii in cur_node.pre_nodes]):
+            if len(cur_node.pre_nodes) > 1 and not all([ii.name in nodes_need_record for ii in cur_node.pre_nodes]):
                 continue
             dfs_queue.extend(cur_node.next_nodes)
             # print(cur_node.name)
@@ -79,39 +79,44 @@ class Model(nn.Module):
             layers[cur_node.name] = cur_node.layer
 
             if len(cur_node.next_nodes) > 1:
-                branch_nodes.add(cur_node.name)
-
-            if any([len(ii.pre_nodes) > 1 for ii in cur_node.next_nodes]):
-                branch_nodes.add(cur_node.name)
+                nodes_need_record[cur_node.name] = len(cur_node.next_nodes) - 1
+            elif any([len(ii.pre_nodes) > 1 and any(jj.name not in nodes_need_record for jj in ii.pre_nodes) for ii in cur_node.next_nodes]):
+                # If any cur note's next note has more than one input, and not all being recorded
+                nodes_need_record[cur_node.name] = len(cur_node.next_nodes)
 
             if cur_node.name in self.output_names:
-                outputs.append(cur_node.name)
-            if all([ii in outputs for ii in self.output_names]):
+                # outputs.append(cur_node.name)
+                nodes_need_record[cur_node.name] = nodes_need_record.get(cur_node.name, 0) + 1
+            if all([ii in nodes_need_record for ii in self.output_names]):
                 break
-        self.forward_pipeline, self.branch_nodes, self.__layers__ = forward_pipeline, branch_nodes, layers
+        self.forward_pipeline, self.nodes_need_record, self.__layers__ = forward_pipeline, nodes_need_record, layers
 
     def forward(self, inputs, **kwargs):
         # print(' -> '.join([ii.name for ii in self.forward_pipeline]))
-        pre_node = self.inputs[0]
+        # pre_node = self.inputs[0]
+        pre_node_name, pre_output = None, None
         if isinstance(inputs, (list, tuple)):  # Multi inputs in list or tuple format
-            pre_output = inputs[0]
-            branch_record = {kk.name: vv for kk, vv in zip(self.inputs, inputs)}
+            # pre_output = inputs[0]
+            # nodes_recorded = {kk.name: vv for kk, vv in zip(self.inputs, inputs)}
+            nodes_recorded = {kk: [vv] * self.nodes_need_record[kk] for kk, vv in zip(self.input_names, inputs)}
         elif isinstance(inputs, dict):  # Multi inputs in dict format
-            pre_output = inputs[pre_node.name]
-            branch_record = inputs
+            # pre_output = inputs[pre_node.name]
+            # nodes_recorded = inputs
+            nodes_recorded = {kk: [vv] * self.nodes_need_record[kk] for kk, vv in inputs.items()}
         else:  # Single input
-            pre_output = inputs
-            branch_record = {pre_node.name: inputs}
+            # pre_output = inputs
+            nodes_recorded = {self.input_names[0]: [inputs] * self.nodes_need_record[self.input_names[0]]}
 
-        outputs = {}
+        # outputs = {}
         for node in self.forward_pipeline:
             if self.debug:
                 print(">>>> [{}], pre_node_names: {}, next_node_names: {}".format(node.name, node.pre_node_names, node.next_node_names))
+                print("     nodes_recorded:", {kk: len(vv) for kk, vv in nodes_recorded.items() if len(vv) > 0})
 
             if len(node.pre_nodes) > 1:
-                cur_inputs = [branch_record[ii] for ii in node.pre_node_names]
-            elif node.pre_nodes[0].name != pre_node.name:
-                cur_inputs = branch_record[node.pre_node_names[0]]
+                cur_inputs = [nodes_recorded[ii].pop() for ii in node.pre_node_names]
+            elif node.pre_nodes[0].name != pre_node_name:
+                cur_inputs = nodes_recorded[node.pre_node_names[0]].pop()
             else:
                 cur_inputs = pre_output
 
@@ -122,12 +127,15 @@ class Model(nn.Module):
             if self.debug:
                 print("     output.shape:", output.shape)
 
-            if node.name in self.branch_nodes:
-                branch_record[node.name] = output
-            if node.name in self.output_names:
-                outputs[node.name] = output
-            pre_node, pre_output = node, output
-        return [outputs[ii] for ii in self.output_names] if self.num_outputs != 1 else outputs[self.output_names[0]]
+            if node.name in self.nodes_need_record:
+                nodes_recorded[node.name] = [output] * self.nodes_need_record[node.name]
+            # if node.name in self.output_names:
+            #     outputs[node.name] = output
+            pre_node_name, pre_output = node.name, output
+        if self.debug:
+            print(">>>> [Output] nodes_recorded:", {kk: len(vv) for kk, vv in nodes_recorded.items() if len(vv) > 0})
+        # return [outputs[ii] for ii in self.output_names] if self.num_outputs != 1 else outputs[self.output_names[0]]
+        return [nodes_recorded[ii][0] for ii in self.output_names] if self.num_outputs != 1 else nodes_recorded[self.output_names[0]][0]
 
     @property
     def layers(self):

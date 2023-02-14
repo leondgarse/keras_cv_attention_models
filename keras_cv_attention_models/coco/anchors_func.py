@@ -1,5 +1,9 @@
-import tensorflow as tf
-from tensorflow.keras import backend as K
+import numpy as np
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, models, functional
+if backend.is_tensorflow_backend:
+    import tensorflow as tf  # Needed for all assigning achors functions
+
 
 EFFICIENTDET_MODE = "efficientdet"
 ANCHOR_FREE_MODE = "anchor_free"
@@ -43,18 +47,18 @@ def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=
     """
     # base anchors
     scales = [2 ** (ii / num_scales) * anchor_scale for ii in range(num_scales)]
-    aspect_ratios_tensor = tf.convert_to_tensor(aspect_ratios, dtype="float32")
+    aspect_ratios_tensor = np.array(aspect_ratios, dtype="float32")
     if len(aspect_ratios_tensor.shape) == 1:
         # aspect_ratios = [0.5, 1, 2]
-        sqrt_ratios = tf.sqrt(aspect_ratios_tensor)
+        sqrt_ratios = np.sqrt(aspect_ratios_tensor)
         ww_ratios, hh_ratios = sqrt_ratios, 1 / sqrt_ratios
     else:
         # aspect_ratios = [(1, 1), (1.4, 0.7), (0.7, 1.4)]
         ww_ratios, hh_ratios = aspect_ratios_tensor[:, 0], aspect_ratios_tensor[:, 1]
-    base_anchors_hh = tf.reshape(tf.expand_dims(scales, 1) * tf.expand_dims(hh_ratios, 0), [-1])
-    base_anchors_ww = tf.reshape(tf.expand_dims(scales, 1) * tf.expand_dims(ww_ratios, 0), [-1])
+    base_anchors_hh = np.reshape(np.expand_dims(scales, 1) * np.expand_dims(hh_ratios, 0), [-1])
+    base_anchors_ww = np.reshape(np.expand_dims(scales, 1) * np.expand_dims(ww_ratios, 0), [-1])
     base_anchors_hh_half, base_anchors_ww_half = base_anchors_hh / 2, base_anchors_ww / 2
-    base_anchors = tf.stack([base_anchors_hh_half * -1, base_anchors_ww_half * -1, base_anchors_hh_half, base_anchors_ww_half], axis=1)
+    base_anchors = np.stack([base_anchors_hh_half * -1, base_anchors_ww_half * -1, base_anchors_hh_half, base_anchors_ww_half], axis=1)
     # base_anchors = tf.gather(base_anchors, [3, 6, 0, 4, 7, 1, 5, 8, 2])  # re-order according to official generated anchors
 
     # make grid
@@ -65,18 +69,18 @@ def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=
     for level in pyramid_levels:
         stride_hh, stride_ww = feature_sizes[0][0] / feature_sizes[level][0], feature_sizes[0][1] / feature_sizes[level][1]
         top, left = (0, 0) if grid_zero_start else (stride_hh / 2, stride_ww / 2)
-        hh_centers = tf.range(top, input_shape[0], stride_hh)
-        ww_centers = tf.range(left, input_shape[1], stride_ww)
-        ww_grid, hh_grid = tf.meshgrid(ww_centers, hh_centers)
-        grid = tf.reshape(tf.stack([hh_grid, ww_grid, hh_grid, ww_grid], 2), [-1, 1, 4])
-        anchors = tf.expand_dims(base_anchors * [stride_hh, stride_ww, stride_hh, stride_ww], 0) + tf.cast(grid, base_anchors.dtype)
-        anchors = tf.reshape(anchors, [-1, 4])
+        hh_centers = np.arange(top, input_shape[0], stride_hh)
+        ww_centers = np.arange(left, input_shape[1], stride_ww)
+        ww_grid, hh_grid = np.meshgrid(ww_centers, hh_centers)
+        grid = np.reshape(np.stack([hh_grid, ww_grid, hh_grid, ww_grid], 2), [-1, 1, 4])
+        anchors = np.expand_dims(base_anchors * [stride_hh, stride_ww, stride_hh, stride_ww], 0) + grid.astype(base_anchors.dtype)
+        anchors = np.reshape(anchors, [-1, 4])
         all_anchors.append(anchors)
-    all_anchors = tf.concat(all_anchors, axis=0) / [input_shape[0], input_shape[1], input_shape[0], input_shape[1]]
+    all_anchors = np.concatenate(all_anchors, axis=0) / [input_shape[0], input_shape[1], input_shape[0], input_shape[1]]
     # if width_first:
     #      all_anchors = tf.gather(all_anchors, [1, 0, 3, 2], axis=-1)
 
-    return all_anchors
+    return functional.convert_to_tensor(all_anchors.astype("float32"))
 
 
 def get_anchor_free_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 5], grid_zero_start=True):
@@ -87,14 +91,14 @@ def get_yolor_anchors(input_shape=(512, 512), pyramid_levels=[3, 5], offset=0.5,
     assert max(pyramid_levels) - min(pyramid_levels) < 5
     # Original yolor using width first, height first here
     if max(pyramid_levels) - min(pyramid_levels) < 3:  # [3, 5], YOLOR_CSP / YOLOR_CSPX
-        anchor_ratios = tf.convert_to_tensor([[[16.0, 12], [36, 19], [28, 40]], [[75, 36], [55, 76], [146, 72]], [[110, 142], [243, 192], [401, 459]]])
+        anchor_ratios = np.array([[[16.0, 12], [36, 19], [28, 40]], [[75, 36], [55, 76], [146, 72]], [[110, 142], [243, 192], [401, 459]]])
         # anchor_ratios = tf.convert_to_tensor([[[13.0, 10], [30, 16], [23, 33]], [[61, 30], [45, 62], [119, 59]], [[90, 116], [198, 156], [326, 373]]])
     elif max(pyramid_levels) - min(pyramid_levels) < 4:  # [3, 6], YOLOR_*6
-        anchor_ratios = tf.convert_to_tensor(
+        anchor_ratios = np.array(
             [[[27.0, 19], [40, 44], [94, 38]], [[68, 96], [152, 86], [137, 180]], [[301, 140], [264, 303], [542, 238]], [[615, 436], [380, 739], [792, 925]]]
         )
     else:  # [3, 7] from YOLOV4_P7, using first 3 for each level
-        anchor_ratios = tf.convert_to_tensor(
+        anchor_ratios = np.array(
             [
                 [[17.0, 13], [25, 22], [66, 27]],
                 [[88, 57], [69, 112], [177, 69]],
@@ -110,39 +114,39 @@ def get_yolor_anchors(input_shape=(512, 512), pyramid_levels=[3, 5], offset=0.5,
     if is_for_training:
         # YOLOLayer https://github.com/WongKinYiu/yolor/blob/main/models/models.py#L351
         anchor_ratios = anchor_ratios[: len(pyramid_levels)] / [[[2**ii]] for ii in pyramid_levels]
-        feature_sizes = tf.convert_to_tensor(feature_sizes[min(pyramid_levels) : max(pyramid_levels) + 1], tf.float32)
+        feature_sizes = np.array(feature_sizes[min(pyramid_levels) : max(pyramid_levels) + 1], "float32")
         return anchor_ratios, feature_sizes
 
     all_anchors = []
     for level, anchor_ratio in zip(pyramid_levels, anchor_ratios):
         stride_hh, stride_ww = feature_sizes[0][0] / feature_sizes[level][0], feature_sizes[0][1] / feature_sizes[level][1]
         # hh_grid, ww_grid = tf.meshgrid(tf.range(feature_sizes[level][0]), tf.range(feature_sizes[level][1]))
-        ww_grid, hh_grid = tf.meshgrid(tf.range(feature_sizes[level][1]), tf.range(feature_sizes[level][0]))
-        grid = tf.cast(tf.stack([hh_grid, ww_grid], 2), "float32") - offset
-        grid = tf.reshape(grid, [-1, 1, 2])  # [1, level_feature_sizes, 2]
-        cur_base_anchors = anchor_ratio[tf.newaxis, :, :]  # [num_anchors, 1, 2]
+        ww_grid, hh_grid = np.meshgrid(np.arange(feature_sizes[level][1]), np.arange(feature_sizes[level][0]))
+        grid = np.stack([hh_grid, ww_grid], 2).astype("float32") - offset
+        grid = np.reshape(grid, [-1, 1, 2])  # [1, level_feature_sizes, 2]
+        cur_base_anchors = anchor_ratio[np.newaxis, :, :]  # [num_anchors, 1, 2]
 
-        grid_nd = tf.repeat(grid, cur_base_anchors.shape[1], axis=1) * [stride_hh, stride_ww]
-        cur_base_anchors_nd = tf.repeat(cur_base_anchors, grid.shape[0], axis=0)
-        stride_nd = tf.zeros_like(grid_nd) + [stride_hh, stride_ww]
+        grid_nd = np.repeat(grid, cur_base_anchors.shape[1], axis=1) * [stride_hh, stride_ww]
+        cur_base_anchors_nd = np.repeat(cur_base_anchors, grid.shape[0], axis=0)
+        stride_nd = np.zeros_like(grid_nd) + [stride_hh, stride_ww]
         # yield grid_nd, cur_base_anchors_nd, stride_nd
-        anchors = tf.concat([grid_nd, cur_base_anchors_nd, stride_nd], axis=-1)
-        all_anchors.append(tf.reshape(anchors, [-1, 6]))
-    all_anchors = tf.concat(all_anchors, axis=0) / ([input_shape[0], input_shape[1]] * 3)
-    return all_anchors  # [center_h, center_w, anchor_h, anchor_w, stride_h, stride_w]
+        anchors = np.concatenate([grid_nd, cur_base_anchors_nd, stride_nd], axis=-1)
+        all_anchors.append(np.reshape(anchors, [-1, 6]))
+    all_anchors = np.concatenate(all_anchors, axis=0) / ([input_shape[0], input_shape[1]] * 3)
+    return functional.convert_to_tensor(all_anchors.astype("float32"))  # [center_h, center_w, anchor_h, anchor_w, stride_h, stride_w]
 
 
 def get_anchors_mode_by_anchors(input_shape, total_anchors, num_anchors="auto", pyramid_levels_min=3, num_anchors_at_each_level_cumsum=None):
     if num_anchors_at_each_level_cumsum is None:
         feature_sizes = get_feature_sizes(input_shape, [pyramid_levels_min, pyramid_levels_min + 10])[pyramid_levels_min:]
-        feature_sizes = tf.convert_to_tensor(feature_sizes, dtype="int32")
-        num_anchors_at_each_level_cumsum = tf.cumsum(tf.reduce_prod(feature_sizes, axis=-1))
+        feature_sizes = np.array(feature_sizes, dtype="int32")
+        num_anchors_at_each_level_cumsum = np.cumsum(np.prod(feature_sizes, axis=-1))
 
     if num_anchors == "auto":
         # Pick from [1, 3, 9], 1 for anchor_free, 3 for yolor, 9 for efficientdet
-        picks = tf.convert_to_tensor([1, 3, 9], dtype=tf.int32)
+        picks = np.array([1, 3, 9], dtype="int32")
         max_anchors = num_anchors_at_each_level_cumsum[-1] * picks
-        num_anchors = tf.math.ceil(total_anchors / max_anchors[0]) if total_anchors > max_anchors[-1] else picks[tf.argmax(total_anchors < max_anchors)]
+        num_anchors = np.ceil(total_anchors / max_anchors[0]) if total_anchors > max_anchors[-1] else picks[np.argmax(total_anchors < max_anchors)]
         num_anchors = int(num_anchors)
     dd = {1: ANCHOR_FREE_MODE, 3: YOLOR_MODE, 9: EFFICIENTDET_MODE}
     return dd.get(num_anchors, EFFICIENTDET_MODE), num_anchors
@@ -150,30 +154,30 @@ def get_anchors_mode_by_anchors(input_shape, total_anchors, num_anchors="auto", 
 
 def get_pyramid_levels_by_anchors(input_shape, total_anchors, num_anchors="auto", pyramid_levels_min=3):
     feature_sizes = get_feature_sizes(input_shape, [pyramid_levels_min, pyramid_levels_min + 10])[pyramid_levels_min:]
-    feature_sizes = tf.convert_to_tensor(feature_sizes, dtype="int32")
-    num_anchors_at_each_level_cumsum = tf.cumsum(tf.reduce_prod(feature_sizes, axis=-1))
+    feature_sizes = np.array(feature_sizes, dtype="int32")
+    num_anchors_at_each_level_cumsum = np.cumsum(np.prod(feature_sizes, axis=-1))
     if num_anchors == "auto":
         _, num_anchors = get_anchors_mode_by_anchors(input_shape, total_anchors, num_anchors, pyramid_levels_min, num_anchors_at_each_level_cumsum)
 
     total_anchors = total_anchors // num_anchors
-    pyramid_levels_max = pyramid_levels_min + tf.argmax(num_anchors_at_each_level_cumsum > total_anchors) - 1
+    pyramid_levels_max = pyramid_levels_min + np.argmax(num_anchors_at_each_level_cumsum > total_anchors) - 1
     return [pyramid_levels_min, int(pyramid_levels_max)]
 
 
-""" Assign achors """
+""" Bbox functions """
 
 
 def iou_nd(bboxes, anchors):
     # bboxes: [[top, left, bottom, right]], anchors: [[top, left, bottom, right]]
-    anchors_nd, bboxes_nd = tf.expand_dims(anchors, 0), tf.expand_dims(bboxes, 1)
-    inter_top_left = tf.maximum(anchors_nd[:, :, :2], bboxes_nd[:, :, :2])
-    inter_bottom_right = tf.minimum(anchors_nd[:, :, 2:], bboxes_nd[:, :, 2:])
-    inter_hw = tf.maximum(inter_bottom_right - inter_top_left, 0)
+    anchors_nd, bboxes_nd = functional.expand_dims(anchors, 0), functional.expand_dims(bboxes, 1)
+    inter_top_left = functional.maximum(anchors_nd[:, :, :2], bboxes_nd[:, :, :2])
+    inter_bottom_right = functional.minimum(anchors_nd[:, :, 2:], bboxes_nd[:, :, 2:])
+    inter_hw = functional.maximum(inter_bottom_right - inter_top_left, 0)
     inter_area = inter_hw[:, :, 0] * inter_hw[:, :, 1]
 
     bboxes_area = (bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1])
     anchors_area = (anchors[:, 2] - anchors[:, 0]) * (anchors[:, 3] - anchors[:, 1])
-    union_area = (tf.expand_dims(bboxes_area, 1) + tf.expand_dims(anchors_area, 0)) - inter_area
+    union_area = (functional.expand_dims(bboxes_area, 1) + functional.expand_dims(anchors_area, 0)) - inter_area
     return inter_area / union_area
 
 
@@ -186,11 +190,11 @@ def center_yxhw_to_corners_nd(ss):
     """input: [center_h, center_w, height, width], output: [top, left, bottom, right]"""
     top_left = ss[:, :2] - ss[:, 2:] * 0.5
     bottom_right = top_left + ss[:, 2:]
-    return tf.concat([top_left, bottom_right], axis=-1)
+    return functional.concat([top_left, bottom_right], axis=-1)
 
 
 def decode_bboxes(preds, anchors, return_centers=False):
-    preds_center, preds_hw, preds_others = tf.split(preds, [2, 2, -1], axis=-1)
+    preds_center, preds_hw, preds_others = functional.split(preds, [2, 2, -1], axis=-1)
     if anchors.shape[-1] == 6:  # Currently, it's yolor anchors
         # anchors: [grid_y, grid_x, base_anchor_y, base_anchor_x, stride_y, stride_x]
         bboxes_center = preds_center * 2 * anchors[:, 4:] + anchors[:, :2]
@@ -200,17 +204,22 @@ def decode_bboxes(preds, anchors, return_centers=False):
         anchors_center = (anchors[:, :2] + anchors[:, 2:]) * 0.5
 
         bboxes_center = preds_center * anchors_hw + anchors_center
-        bboxes_hw = tf.math.exp(preds_hw) * anchors_hw
+        bboxes_hw = functional.exp(preds_hw) * anchors_hw
 
     if return_centers:
-        return tf.concat([bboxes_center, bboxes_hw, preds_others], axis=-1)
+        return functional.concat([bboxes_center, bboxes_hw, preds_others], axis=-1)
     else:
         preds_top_left = bboxes_center - 0.5 * bboxes_hw
         pred_bottom_right = preds_top_left + bboxes_hw
-        return tf.concat([preds_top_left, pred_bottom_right, preds_others], axis=-1)
+        return functional.concat([preds_top_left, pred_bottom_right, preds_others], axis=-1)
+
+
+""" Assign achors """
 
 
 def assign_anchor_classes_by_iou_with_bboxes(bbox_labels, anchors, ignore_threshold=0.4, overlap_threshold=0.5):
+    import tensorflow as tf
+
     num_anchors = anchors.shape[0]
     bbox_labels = tf.gather_nd(bbox_labels, tf.where(bbox_labels[:, -1] > 0))
     bboxes, labels = bbox_labels[:, :4], bbox_labels[:, 4]
@@ -270,6 +279,8 @@ def yolor_assign_anchors(bbox_labels, anchor_ratios, feature_sizes, anchor_aspec
     >>> decoded_corner = anchors_func.center_yxhw_to_corners_nd(tf.concat([decoded_centers, decoded_hw], axis=-1))
     >>> data.show_image_with_bboxes(test_images.dog_cat(), decoded_corner, assigned[:, -1:])
     """
+    import tensorflow as tf
+
     bbox_labels = tf.gather_nd(bbox_labels, tf.where(bbox_labels[:, -1] > 0))
     bboxes, labels = bbox_labels[:, :4], bbox_labels[:, 4:]
     num_anchors, num_bboxes_true, num_output_channels = anchor_ratios.shape[1], tf.shape(bboxes)[0], bbox_labels.shape[-1]
@@ -453,6 +464,8 @@ class AnchorFreeAssignMatching:
         )
 
     def __call__(self, bbox_labels_true, bbox_labels_pred):
+        from tensorflow.keras import backend as K
+
         # get_assignments https://github.com/Megvii-BaseDetection/YOLOX/tree/master/yolox/models/yolo_head.py#425
         bbox_labels_true = tf.gather_nd(bbox_labels_true, tf.where(bbox_labels_true[:, -1] > 0))
 
