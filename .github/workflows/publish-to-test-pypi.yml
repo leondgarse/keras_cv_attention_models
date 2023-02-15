@@ -16,7 +16,7 @@ jobs:
       run: >-
         python -m
         pip install
-        build pytest pytest-timeout scikit-image tensorflow tensorflow-addons tensorflow-datasets
+        build pytest pytest-timeout scikit-image tensorflow tensorflow-addons tensorflow-datasets torch
         --user
     - name: Build a binary wheel and a source tarball
       run: >-
@@ -29,6 +29,9 @@ jobs:
     - name: Run tests
       run: >-
         CUDA_VISIBLE_DEVICES='-1' pytest -vv --durations=0 ./tests
+    - name: Run PyTorch backend tests
+      run: >-
+        CUDA_VISIBLE_DEVICES='-1' KECAM_BACKEND='torch' pytest -vv --durations=0 ./tests/test_models.py
     - name: Publish distribution 📦 to Test PyPI
       if: startsWith(github.ref, 'refs/tags')
       uses: pypa/gh-action-pypi-publish@master
