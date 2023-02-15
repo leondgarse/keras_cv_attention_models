@@ -434,9 +434,13 @@ class Concatenate(_Merge):
         assert result, "input_shapes excpets concat axis {} not all equal: {}".format(self.axis, input_shape)
 
     def compute_output_shape(self, input_shape):
-        dims = len(input_shape[0])
-        axis = (dims + self.axis) if self.axis < 0 else self.axis
-        return [sum([ii[dim] for ii in input_shape]) if dim == axis else input_shape[0][dim] for dim in range(dims)]
+        output_shape = input_shape[0].copy()
+        combine_dims = [ii[self.axis] for ii in input_shape]
+        output_shape[self.axis] = None if any([ii is None for ii in combine_dims]) else sum(combine_dims)
+        return output_shape
+        # dims = len(input_shape[0])
+        # axis = (dims + self.axis) if self.axis < 0 else self.axis
+        # return [sum([ii[dim] for ii in input_shape]) if dim == axis else input_shape[0][dim] for dim in range(dims)]
 
     def get_config(self):
         config = super().get_config()
@@ -576,54 +580,6 @@ class Conv2D(Conv):
     def set_weights_channels_last(self, weights):
         # channel_last -> channel_first
         weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
-        return self.set_weights(weights)
-
-
-class SeparableConv2D(Conv):
-    def __init__(
-        self, filters, kernel_size=1, strides=1, padding="VALID", dilation_rate=1, use_bias=True, pointwise_initializer="glorot_uniform", **kwargs
-    ):
-        groups = 1
-        super().__init__(filters, kernel_size, strides, padding, dilation_rate, use_bias, groups, pointwise_initializer, **kwargs)
-
-    def build_module(self, input_shape):
-        depthwise = nn.Conv2d(
-            in_channels=input_shape[1],
-            out_channels=input_shape[1],
-            kernel_size=self.kernel_size,
-            stride=self.strides,
-            padding=self._pad,
-            dilation=self.dilation_rate,
-            groups=input_shape[1],
-            bias=False,
-        )
-        pointwise = nn.Conv2d(
-            in_channels=input_shape[1],
-            out_channels=self.filters,
-            kernel_size=1,
-            stride=1,
-            padding=0,
-            dilation=1,
-            groups=1,
-            bias=self.use_bias,
-        )
-
-        kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
-        depthwise.weight.data = kernel_initializer(list(depthwise.weight.shape))
-        pointwise.weight.data = kernel_initializer(list(pointwise.weight.shape))
-        return nn.Sequential(depthwise, pointwise)
-
-    def get_weights_channels_last(self):
-        # channel_first -> channel_last
-        weights = self.get_weights()
-        weights[0] = np.transpose(weights[0], (2, 3, 0, 1))
-        weights[1] = np.transpose(weights[1], (2, 3, 1, 0))
-        return weights
-
-    def set_weights_channels_last(self, weights):
-        # channel_last -> channel_first
-        weights[0] = np.transpose(weights[0], (2, 3, 0, 1))
-        weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
         return self.set_weights(weights)
 
 
@@ -813,7 +769,7 @@ class Dense(Layer):
 
 
 class Embedding(Layer):
-    def __init__(self, input_dim, output_dim, embeddings_initializer='uniform', mask_zero=False, input_length=None, **kwargs):
+    def __init__(self, input_dim, output_dim, embeddings_initializer="uniform", mask_zero=False, input_length=None, **kwargs):
         self.input_dim, self.output_dim, self.mask_zero, self.input_length = input_dim, output_dim, mask_zero, input_length
         self.embeddings_initializer = embeddings_initializer
         super().__init__(**kwargs)
@@ -952,6 +908,52 @@ class PReLU(Layer):
     def set_weights_channels_last(self, weights):
         # channel_last -> channel_first
         weights[0] = np.squeeze(weights[0])
+        return self.set_weights(weights)
+
+
+class SeparableConv2D(Conv):
+    def __init__(self, filters, kernel_size=1, strides=1, padding="VALID", dilation_rate=1, use_bias=True, pointwise_initializer="glorot_uniform", **kwargs):
+        groups = 1
+        super().__init__(filters, kernel_size, strides, padding, dilation_rate, use_bias, groups, pointwise_initializer, **kwargs)
+
+    def build_module(self, input_shape):
+        depthwise = nn.Conv2d(
+            in_channels=input_shape[1],
+            out_channels=input_shape[1],
+            kernel_size=self.kernel_size,
+            stride=self.strides,
+            padding=self._pad,
+            dilation=self.dilation_rate,
+            groups=input_shape[1],
+            bias=False,
+        )
+        pointwise = nn.Conv2d(
+            in_channels=input_shape[1],
+            out_channels=self.filters,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            dilation=1,
+            groups=1,
+            bias=self.use_bias,
+        )
+
+        kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
+        depthwise.weight.data = kernel_initializer(list(depthwise.weight.shape))
+        pointwise.weight.data = kernel_initializer(list(pointwise.weight.shape))
+        return nn.Sequential(depthwise, pointwise)
+
+    def get_weights_channels_last(self):
+        # channel_first -> channel_last
+        weights = self.get_weights()
+        weights[0] = np.transpose(weights[0], (2, 3, 0, 1))
+        weights[1] = np.transpose(weights[1], (2, 3, 1, 0))
+        return weights
+
+    def set_weights_channels_last(self, weights):
+        # channel_last -> channel_first
+        weights[0] = np.transpose(weights[0], (2, 3, 0, 1))
+        weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
         return self.set_weights(weights)
 
 
@@ -1127,18 +1129,21 @@ class Reshape(Layer):
         num_unknown_dim = sum([ii == -1 for ii in self.target_shape])
         assert num_unknown_dim < 2, "At most one unknown dimension in output_shape: {}".format(self.target_shape)
 
-        total_size = np.prod(input_shape[1:])
-        if num_unknown_dim == 1:
-            unknown_dim = total_size // (-1 * np.prod(self.target_shape))
-            self.target_shape = [unknown_dim if ii == -1 else ii for ii in self.target_shape]
-        assert total_size == np.prod(self.target_shape), "Total size of new array must be unchanged, {} -> {}".format(input_shape, self.target_shape)
+        if input_shape[2] is None:  # Dynamic input_shape
+            self.module = partial(lambda inputs: inputs.contiguous().view([inputs.shape[0], *self.target_shape]))
+        else:
+            total_size = np.prod(input_shape[1:])
+            if num_unknown_dim == 1:
+                unknown_dim = total_size // (-1 * np.prod(self.target_shape))
+                self.target_shape = [unknown_dim if ii == -1 else ii for ii in self.target_shape]
+            assert total_size == np.prod(self.target_shape), "Total size of new array must be unchanged, {} -> {}".format(input_shape, self.target_shape)
+            self.module = partial(lambda inputs: inputs.contiguous().view([-1, *self.target_shape]))
 
         # self.module = partial(torch.reshape, shape=[-1, *self.target_shape])
-        self.module = partial(lambda inputs: inputs.contiguous().view([-1, *self.target_shape]))
         super().build(input_shape)
 
     def compute_output_shape(self, input_shape):
-        return [input_shape[0], *self.target_shape]
+        return [input_shape[0]] + [None if ii == -1 else ii for ii in self.target_shape]
 
     def get_config(self):
         config = super().get_config()

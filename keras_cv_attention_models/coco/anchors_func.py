@@ -1,6 +1,7 @@
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional
+
 if backend.is_tensorflow_backend:
     import tensorflow as tf  # Needed for all assigning achors functions
 

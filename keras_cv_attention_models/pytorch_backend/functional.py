@@ -165,7 +165,7 @@ def pow(inputs, exponent, name=None):
     return wrapper(partial(torch.pow, exponent=exponent), inputs, name=name)
 
 
-def range(start, limit=None, delta=1, dtype=None, name='range'):
+def range(start, limit=None, delta=1, dtype=None, name="range"):
     if limit is None:
         start, limit = 0, start
     return torch.arange(start=start, end=limit, step=delta, dtype=dtype and getattr(torch, dtype))

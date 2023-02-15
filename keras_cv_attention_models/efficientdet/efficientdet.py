@@ -175,9 +175,6 @@ def EfficientDet(
     input_shape=None,  # Not using, recieving parameter
     kwargs=None,  # Not using, recieving parameter
 ):
-    # Regard input_shape as force using original shape if first element is None or -1,
-    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
-    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     channel_axis = -1 if image_data_format() == "channels_last" else 1
     backbone.trainable = False if freeze_backbone else True
     use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, num_anchors, anchor_scale)

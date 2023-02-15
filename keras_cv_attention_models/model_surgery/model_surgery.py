@@ -345,7 +345,7 @@ def get_pyramide_feature_layers(model, match_reg="^stack_?(\\d+).*output.*$"):
 def align_pyramide_feature_output_by_image_data_format(pyramide_feature_layers):
     aa = [ii.output_shape for ii in pyramide_feature_layers]
     bb = [ii[1] for ii in aa]
-    if all([jj <= bb[id - 1] for id, jj in enumerate(bb[1:], start=1)]):
+    if all([ii is None or bb[id - 1] is None or ii <= bb[id - 1] for id, ii in enumerate(bb[1:], start=1)]):
         features_data_format = "channels_last"
     else:
         features_data_format = "channels_first"
