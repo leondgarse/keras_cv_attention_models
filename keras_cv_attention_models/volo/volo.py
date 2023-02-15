@@ -228,14 +228,14 @@ class PositionalEmbedding(layers.Layer):
         base_config.update({"input_height": self.input_height})
         return base_config
 
-    def load_resized_weights(self, source_layer, method="nearest"):
+    def load_resized_weights(self, source_layer, method="bilinear"):
         # For input 224 --> [1, 14, 14, 384], convert to 384 --> [1, 24, 24, 384]
         if isinstance(source_layer, dict):
             source_pp = list(source_layer.values())[0]  # weights
         else:
             source_pp = source_layer.pp  # layer
 
-        source_pp = np.array(source_pp)
+        source_pp = np.array(source_pp).astype("float32")
         if self.is_fused_height_width:
             hh = ww = int(float(source_pp.shape[1]) ** 0.5)  # assume source weights are all square shape
             ss = source_pp[:, -hh * ww :]  # If has cls_token

@@ -48,9 +48,8 @@
 
   # Run prediction
   from skimage.data import chelsea
-  imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
-  pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
-  print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
+  pred = mm([mm.preprocess_input(chelsea())])
+  print(mm.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 0.7306834),
   #  ('n02123159', 'tiger_cat', 0.045104492),
   #  ('n02123045', 'tabby', 0.030001672),
@@ -68,9 +67,8 @@
 
   # Run prediction on Chelsea with (256, 160) resolution
   from skimage.data import chelsea
-  imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
-  pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
-  print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
+  pred = mm([mm.preprocess_input(chelsea())])
+  print(mm.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 0.7318501), ('n02123045', 'tabby', 0.021020193), ...]
   ```
 ## FlexiViT / EVA models with new patch size

@@ -346,28 +346,29 @@ class _Merge(Layer):
         self.module = self.merge_function
         super().build(input_shape)
 
-    def check_input(self, input_shape):
-        output_shape = self.compute_output_shape(input_shape)
-        if len(output_shape) == 0:
-            return
+    def preprocess_input_shape(self, input_shape):
+        valid_input_shape = [ii for ii in input_shape if len(ii) != 0]  # exclude scalar values, also cut batch dimension
+        if len(valid_input_shape) == 0:  # Should not happen...
+            return (), ()
 
-        valid_input_shape = [ii for ii in input_shape if len(ii) != 0]  # exclude scalar values
-        max_dim = len(output_shape)
-        check_single_func = lambda ii: any([ii[dim] is not None and ii[dim] != 1 and output_shape[dim] != ii[dim] for dim in range(1, max_dim)])
-        result = not any([check_single_func(ii) for ii in valid_input_shape])
-        assert result, "input_shapes not all equal: {}".format(input_shape)
+        max_dim = max([len(ii) for ii in valid_input_shape]) - 1
+        valid_input_shape = [ii if len(ii) == 1 else ii[1:] for ii in valid_input_shape]  # Regard None as 0
+        valid_input_shape = [[1] * (max_dim - len(ii)) + list(ii) for ii in valid_input_shape]  # expands 1 on the head
+        valid_input_shape = np.array([[np.inf if jj is None else jj for jj in ii] for ii in valid_input_shape])  # Regard None as inf
+        max_shape = valid_input_shape.max(0)
+        max_shape = [None if np.isinf(ii) else int(ii) for ii in max_shape]  # Regard inf as None
+        return valid_input_shape, max_shape
+
+    def check_input(self, input_shape):
+        valid_input_shape, max_shape = self.preprocess_input_shape(input_shape)
+        if len(valid_input_shape) == 0:
+            return
+        check_single_func = lambda ii: all([ss is None or tt is None or ss == 1 or ss == tt for ss, tt in zip(ii, max_shape)])
+        assert all([check_single_func(ii) for ii in valid_input_shape]), "input_shapes not all equal: {}".format(input_shape)
 
     def compute_output_shape(self, input_shape):
-        valid_input_shape = [ii[1:] for ii in input_shape if len(ii) != 0]  # exclude scalar values, also cut batch dimension
-        if len(valid_input_shape) == 0:  # Should not happen...
-            return ()
-
-        max_dim = max([len(ii) for ii in valid_input_shape])
-        valid_input_shape = [[np.inf if jj is None else jj for jj in ii] for ii in valid_input_shape]  # Regard None as 0
-        valid_input_shape = np.array([[1] * (max_dim - len(ii)) + list(ii) for ii in valid_input_shape])  # expands 1 on the head
-        max_shape = valid_input_shape.max(0)
-        max_shape = [None if np.isinf(ii) else int(ii) for ii in max_shape]  # Regard 0 as None
-        return [None, *max_shape]
+        valid_input_shape, max_shape = self.preprocess_input_shape(input_shape)
+        return () if len(valid_input_shape) == 0 else [None, *max_shape]
 
 
 class Add(_Merge):
@@ -434,7 +435,7 @@ class Concatenate(_Merge):
         assert result, "input_shapes excpets concat axis {} not all equal: {}".format(self.axis, input_shape)
 
     def compute_output_shape(self, input_shape):
-        output_shape = input_shape[0].copy()
+        output_shape = list(input_shape[0]).copy()
         combine_dims = [ii[self.axis] for ii in input_shape]
         output_shape[self.axis] = None if any([ii is None for ii in combine_dims]) else sum(combine_dims)
         return output_shape
@@ -601,7 +602,7 @@ class ConvTranspose(_BaseConvPool):
         self, filters, kernel_size=1, strides=1, padding=0, output_padding=None, dilation_rate=1, use_bias=True, kernel_initializer="glorot_uniform", **kwargs
     ):
         super().__init__(kernel_size=kernel_size, strides=strides, padding=padding, dilation_rate=dilation_rate, **kwargs)
-        self.filters, self.use_bias, self.output_padding, self.kernel_initializer = filters, use_bias, output_padding, kernel_initializer
+        self.filters, self.use_bias, self.output_padding, self.kernel_initializer = int(filters), use_bias, output_padding, kernel_initializer
         self.output_padding = to_tuple(output_padding, num_dims=2)
         self.module_class = None
         super().__init__(**kwargs)
@@ -727,7 +728,7 @@ class DepthwiseConv2D(Conv):
 
 class Dense(Layer):
     def __init__(self, units, activation=None, use_bias=True, axis=-1, kernel_initializer="glorot_uniform", **kwargs):
-        self.units, self.activation, self.use_bias, self.axis, self.kernel_initializer = units, activation, use_bias, axis, kernel_initializer
+        self.units, self.activation, self.use_bias, self.axis, self.kernel_initializer = int(units), activation, use_bias, axis, kernel_initializer
         super().__init__(**kwargs)
 
     def build(self, input_shape):
@@ -848,15 +849,13 @@ class LayerNormalization(Layer):
         if self.axis == len(input_shape) - 1 and self.center:
             self.module = nn.LayerNorm(normalized_shape=input_shape[self.axis], eps=self.epsilon)
             gamma_initializer = getattr(initializers, self.gamma_initializer)() if isinstance(self.gamma_initializer, str) else self.gamma_initializer
-            self.module.weight.data = gamma_initializer(list(self.module.weight.shape))  # not using gamma_initializer(module.weight) for compiling with TF
+            self.module.weight.data = gamma_initializer(list(self.module.weight.shape))
             # Default nn.LayerNorm is apllied on last dimension
-            # if self.axis == len(input_shape) - 1:
-            #     self.module = module
-            # else:
+            # if self.axis != len(input_shape) - 1:
             #     ndims = len(input_shape)
             #     perm = get_perm(total_axis=ndims, from_axis=self.axis, to_axis=-1)  # like axis=1 -> [0, 2, 3, 1]
             #     revert_perm = get_perm(total_axis=ndims, from_axis=-1, to_axis=self.axis)  # like axis=1 -> [0, 3, 1, 2]
-            #     self.module = nn.Sequential(Permute(perm[1:]), module, Permute(revert_perm[1:]))
+            #     self.module = nn.Sequential(Permute(perm[1:]), self.module, Permute(revert_perm[1:]))
         else:
             normalized_shape = input_shape[self.axis]
             if self.axis != len(input_shape) - 1:

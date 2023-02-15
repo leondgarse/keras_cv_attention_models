@@ -47,6 +47,11 @@ from keras_cv_attention_models import download_and_load
 from keras_cv_attention_models import imagenet
 from keras_cv_attention_models import test_images
 from keras_cv_attention_models import model_surgery
+from keras_cv_attention_models import efficientdet
+from keras_cv_attention_models import yolox
+from keras_cv_attention_models import yolor
+from keras_cv_attention_models import yolov7
+from keras_cv_attention_models import coco
 
 if backend.is_tensorflow_backend:
     from keras_cv_attention_models import coat
@@ -55,9 +60,4 @@ if backend.is_tensorflow_backend:
     from keras_cv_attention_models import nat
     from keras_cv_attention_models import nfnets
     from keras_cv_attention_models import volo
-    from keras_cv_attention_models import efficientdet
-    from keras_cv_attention_models import yolox
-    from keras_cv_attention_models import yolor
-    from keras_cv_attention_models import yolov7
     from keras_cv_attention_models import visualizing
-    from keras_cv_attention_models import coco

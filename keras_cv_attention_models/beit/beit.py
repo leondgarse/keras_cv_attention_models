@@ -96,13 +96,13 @@ class MultiHeadRelativePositionalEmbedding(layers.Layer):
         base_config.update({"with_cls_token": self.with_cls_token, "attn_height": self.attn_height, "num_heads": self.num_heads})
         return base_config
 
-    def load_resized_weights(self, source_layer, method="nearest"):
+    def load_resized_weights(self, source_layer, method="bilinear"):
         if isinstance(source_layer, dict):
             source_tt = list(source_layer.values())[0]  # weights
             # source_tt = source_layer["pos_emb:0"]  # weights
         else:
             source_tt = source_layer.get_weights()[0]  # layer
-        source_tt = np.array(source_tt.detach() if hasattr(source_tt, "detach") else source_tt)
+        source_tt = np.array(source_tt.detach() if hasattr(source_tt, "detach") else source_tt).astype("float32")
         # self.relative_position_bias_table.assign(tf.transpose(source_tt))
         hh = ww = int(float(source_tt.shape[1] - self.cls_token_pos_len) ** 0.5)  # assume source weights are all square shape
         num_heads = source_tt.shape[0]
@@ -232,7 +232,7 @@ def attention_block(
 
 
 def attention_mlp_block(inputs, embed_dim, gamma_init_value=0.1, mlp_ratio=4, drop_rate=0, activation="gelu", attn_params={}, name=""):
-    # print(f">>>> {drop_rate = }")
+    # print(f">>>> {inputs.shape = }, {drop_rate = }")
     nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "attn_ln")(inputs)  # "channels_first" also using axis=-1
     nn = attention_block(nn, **attn_params, name=name + "attn_")
     nn = ChannelAffine(use_bias=False, weight_init_value=gamma_init_value, name=name + "attn_gamma")(nn) if gamma_init_value > 0 else nn
@@ -246,6 +246,7 @@ def attention_mlp_block(inputs, embed_dim, gamma_init_value=0.1, mlp_ratio=4, dr
     nn = layers.Dense(embed_dim, name=name + "mlp_dense_2")(nn)
     nn = ChannelAffine(use_bias=False, weight_init_value=gamma_init_value, name=name + "mlp_gamma")(nn) if gamma_init_value > 0 else nn
     nn = drop_block(nn, drop_rate)
+    # print(f">>>> {attn_out.shape = }, {nn.shape = }")
     nn = layers.Add(name=name + "mlp_output")([attn_out, nn])
     return nn
 
@@ -281,7 +282,7 @@ class PatchConv2DWithResampleWeights(layers.Conv2D):
 
         # channels_last source_kernel shape `[patch_size, patch_size, in_channel, out_channel]`
         # channels_first source_kernel shape `[out_channel, in_channel, patch_size, patch_size]`
-        source_kernel = np.array(source_kernel)
+        source_kernel, source_bias = np.array(source_kernel).astype("float32"), np.array(source_bias).astype("float32")
         source_shape, target_shape = source_kernel.shape[:2], self.kernel_size  # source_kernel is from h5, must be channels_last format
         # print(f"{source_shape = }, {target_shape = }")
 
@@ -290,7 +291,7 @@ class PatchConv2DWithResampleWeights(layers.Conv2D):
         # the data preprocessing pipeline.
         mat = []
         for idx in range(source_shape[0] * source_shape[1]):
-            basis_vec = np.zeros(source_shape)
+            basis_vec = np.zeros(source_shape).astype("float32")
             basis_vec[np.unravel_index(idx, source_shape)] = 1.0
             vec = np.expand_dims(basis_vec, -1 if image_data_format() == "channels_last" else 0)
             vec = functional.resize(vec, target_shape, method=method)

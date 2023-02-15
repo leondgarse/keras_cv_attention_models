@@ -108,6 +108,8 @@ def GhostNetV2(
     # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
     input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+
     stem_width = make_divisible(stem_width * width_mul, divisor=4)
     nn = conv2d_no_bias(inputs, stem_width, 3, strides=stem_strides, padding="same", name="stem_")
     nn = batchnorm_with_activation(nn, activation=activation, name="stem_")
@@ -117,7 +119,7 @@ def GhostNetV2(
         stack_name = "stack{}_".format(stack_id + 1)
         out_channel = make_divisible(out_channel * width_mul, 4)
         first_ghost_channel = make_divisible(first_ghost * width_mul, 4)
-        shortcut = False if out_channel == nn.shape[-1] and stride == 1 else True
+        shortcut = False if out_channel == nn.shape[channel_axis] and stride == 1 else True
         use_dfc_block = True if num_ghost_module_v1_stacks >= 0 and stack_id >= num_ghost_module_v1_stacks else False
         nn = ghost_bottleneck(nn, out_channel, first_ghost_channel, kernel, stride, se_ratio, shortcut, use_dfc_block, activation=activation, name=stack_name)
 

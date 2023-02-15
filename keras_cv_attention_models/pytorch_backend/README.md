@@ -3,7 +3,7 @@
 
 ## Summary
   - Experimental implementation for using PyTorch as Keras backend.
-  - Currently supports most recognition models except coat / halonet / hornet / nat / nfnets / volo.
+  - Currently supports most recognition and detection models except coat / halonet / hornet / nat / nfnets / volo.
 ***
 
 ## Usage

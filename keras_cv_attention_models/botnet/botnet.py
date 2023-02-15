@@ -1,3 +1,4 @@
+import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, initializers, image_data_format
 from keras_cv_attention_models.aotnet import AotNet
@@ -104,14 +105,14 @@ class RelativePositionalEmbedding(layers.Layer):
                 pos_emb = pos_emb[:, :, :, :, :hh, :ww]
         return pos_emb
 
-    def load_resized_weights(self, source_layer, method="nearest"):
+    def load_resized_weights(self, source_layer, method="bilinear"):
         # For input 224 --> [128, 27], convert to 480 --> [128, 30]
         if isinstance(source_layer, dict):
             source_pos_emb_h, source_pos_emb_w = list(source_layer.values())
         else:
             source_pos_emb_h, source_pos_emb_w = source_layer.pos_emb_h, source_layer.pos_emb_w  # layer
-        source_pos_emb_h = np.array(source_pos_emb_h.detach() if hasattr(source_pos_emb_h, "detach") else source_pos_emb_h)
-        source_pos_emb_w = np.array(source_pos_emb_w.detach() if hasattr(source_pos_emb_w, "detach") else source_pos_emb_w)
+        source_pos_emb_h = np.array(source_pos_emb_h.detach() if hasattr(source_pos_emb_h, "detach") else source_pos_emb_h).astype("float32")
+        source_pos_emb_w = np.array(source_pos_emb_w.detach() if hasattr(source_pos_emb_w, "detach") else source_pos_emb_w).astype("float32")
 
         image_like_h = np.expand_dims(np.transpose(source_pos_emb_h, [1, 0]), 0)
         resize_h = backend.numpy_image_resize(image_like_h, target_shape=(1, self.pos_emb_h.shape[1]), method=method)[0]

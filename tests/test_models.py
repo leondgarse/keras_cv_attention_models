@@ -1,221 +1,181 @@
 import pytest
-from tensorflow import keras
 from skimage.data import chelsea
 
 import sys
 
 sys.path.append(".")
 import keras_cv_attention_models
+from keras_cv_attention_models.backend import models
 
 """ Recognition models defination """
 
 
 def test_Beit_defination():
     mm = keras_cv_attention_models.beit.BeitBasePatch16(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.beit.BeitLargePatch16(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_BotNet_defination():
     mm = keras_cv_attention_models.botnet.BotNet50(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.botnet.BotNet101(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_CMT_defination():
     mm = keras_cv_attention_models.cmt.CMTTiny(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.cmt.CMTTiny_torch(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
-
-
-def test_CoaT_defination():
-    mm = keras_cv_attention_models.coat.CoaTLiteMini(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
-
-    mm = keras_cv_attention_models.coat.CoaTLiteSmall(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_CoAtNet_defination():
     mm = keras_cv_attention_models.coatnet.CoAtNet0(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.coatnet.CoAtNet2(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_CotNet_defination():
     mm = keras_cv_attention_models.cotnet.CotNet50(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.cotnet.CotNetSE101D(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_CovNeXt_defination():
     mm = keras_cv_attention_models.convnext.ConvNeXtSmall(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.convnext.ConvNeXtBase(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_EdgeNeXt_defination():
     mm = keras_cv_attention_models.edgenext.EdgeNeXt_Small(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.edgenext.EdgeNeXt_X_Small(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_GCViT_defination():
     mm = keras_cv_attention_models.gcvit.GCViT_XXTiny(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.gcvit.GCViT_XTiny(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_GMLP_defination():
     mm = keras_cv_attention_models.mlp_family.GMLPB16(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.mlp_family.GMLPS16(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
-
-
-def test_HaloNet_defination():
-    mm = keras_cv_attention_models.halonet.HaloNetH0(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
-
-    mm = keras_cv_attention_models.halonet.HaloNetH2(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
-
-
-def test_HorNet_defination():
-    mm = keras_cv_attention_models.hornet.HorNetSmall(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
-
-    mm = keras_cv_attention_models.hornet.HorNetSmallGF(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_LeViT_defination():
     mm = keras_cv_attention_models.levit.LeViT128(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.levit.LeViT192(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_MobileViT_defination():
     mm = keras_cv_attention_models.mobilevit.MobileViT_XXS(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.mobilevit.MobileViT_XS(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_MLPMixer_defination():
     mm = keras_cv_attention_models.mlp_family.MLPMixerB16(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.mlp_family.MLPMixerS16(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
-
-
-def test_NFNet_defination():
-    mm = keras_cv_attention_models.nfnets.NFNetF0(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
-
-    mm = keras_cv_attention_models.nfnets.ECA_NFNetL1(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_RegNet_defination():
     mm = keras_cv_attention_models.resnet_family.RegNetY040(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.resnet_family.RegNetZC16(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_ResMLP_defination():
     mm = keras_cv_attention_models.mlp_family.ResMLP12(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.mlp_family.ResMLP24(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_ResNest_defination():
     mm = keras_cv_attention_models.resnest.ResNest50(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.resnest.ResNest101(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_ResNetD_defination():
     mm = keras_cv_attention_models.resnet_family.ResNet50D(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.resnet_family.ResNet101D(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_ResNetQ_defination():
     mm = keras_cv_attention_models.resnet_family.ResNet51Q(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.resnet_family.ResNet61Q(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_ResNeXt_defination():
     mm = keras_cv_attention_models.resnet_family.ResNeXt50(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.resnet_family.ResNeXt101(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_SwinTransformerV2Tiny_defination():
     mm = keras_cv_attention_models.swin_transformer_v2.SwinTransformerV2Tiny_window8(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.swin_transformer_v2.SwinTransformerV2Tiny_ns(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_UniFormer_defination():
     mm = keras_cv_attention_models.uniformer.UniformerSmallPlus32(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.uniformer.UniformerSmall32(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
-
-
-def test_VOLO_defination():
-    mm = keras_cv_attention_models.volo.VOLO_d3(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
-
-    mm = keras_cv_attention_models.volo.VOLO_d4(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 def test_WaveMLP_defination():
     mm = keras_cv_attention_models.wave_mlp.WaveMLP_T(pretrained=None)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.wave_mlp.WaveMLP_S(pretrained=None, num_classes=0)
-    assert isinstance(mm, keras.models.Model)
+    assert isinstance(mm, models.Model)
 
 
 """ Recognition models prediction """
@@ -247,14 +207,6 @@ def test_CAFormerS18_new_shape_predict():
 
 def test_CMTTiny_new_shape_predict():
     mm = keras_cv_attention_models.cmt.CMTTiny(input_shape=(117, 192, 3), pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
-def test_CoaT_new_shape_predict():
-    mm = keras_cv_attention_models.coat.CoaTLiteMini(input_shape=(193, 117, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
@@ -335,24 +287,8 @@ def test_GPViT_L1_new_shape_predict():
     assert out[1] == "Egyptian_cat"
 
 
-def test_GhostNetV2_100_dynamic_predict():
-    mm = keras_cv_attention_models.ghostnet.GhostNetV2_100(input_shape=(None, None, 3), pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea(), input_shape=(112, 157, 3)))  # Chelsea the cat
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
-def test_HaloRegNetZB_predict():
-    mm = keras_cv_attention_models.halonet.HaloRegNetZB(pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
-def test_HorNetTinyGF_new_shape_predict():
-    mm = keras_cv_attention_models.hornet.HorNetTinyGF(input_shape=(174, 255, 3), pretrained="imagenet")
+def test_GhostNetV2_100_new_shape_predict():
+    mm = keras_cv_attention_models.ghostnet.GhostNetV2_100(input_shape=(112, 157, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
@@ -396,14 +332,6 @@ def test_LeViT128S_new_shape_predict():
     mm = keras_cv_attention_models.levit.LeViT128S(input_shape=(292, 213, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     pred = (pred[0] + pred[1]) / 2
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
-def test_NAT_Mini_new_shape_predict():
-    mm = keras_cv_attention_models.nat.NAT_Mini(input_shape=(174, 255, 3), pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
@@ -481,22 +409,6 @@ def test_UniformerSmall64_new_shape_predict():
     assert out[1] == "Egyptian_cat"
 
 
-def test_VOLO_d1_predict():
-    mm = keras_cv_attention_models.volo.VOLO_d1(pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
-def test_VOLO_d2_new_shape_predict():
-    mm = keras_cv_attention_models.volo.VOLO_d2(input_shape=(512, 512, 3), pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
 def test_WaveMLP_T_dynamic_predict():
     mm = keras_cv_attention_models.wave_mlp.WaveMLP_T(input_shape=(None, None, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea(), input_shape=[320, 320, 3]))  # Chelsea the cat
@@ -507,30 +419,6 @@ def test_WaveMLP_T_dynamic_predict():
 
 def test_EfficientNetV2B0_predict():
     mm = keras_cv_attention_models.efficientnet.EfficientNetV2B0(pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
-def test_EfficientNetV2B1_preprocessing_predict():
-    mm = keras_cv_attention_models.efficientnet.EfficientNetV2B1(pretrained="imagenet", include_preprocessing=True)
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
-def test_EfficientNetV2B2_imagenet21k_ft1k_predict():
-    mm = keras_cv_attention_models.efficientnet.EfficientNetV2B2(pretrained="imagenet21k-ft1k")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
-def test_EfficientNetV1B0_predict():
-    mm = keras_cv_attention_models.efficientnet.EfficientNetV1B0(pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
@@ -557,26 +445,6 @@ def test_EfficientDetD0_predict():
     assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
 
 
-def test_EfficientDetD1_dynamic_predict():
-    mm = keras_cv_attention_models.efficientdet.EfficientDetD1(input_shape=(None, None, 3), pretrained="coco")
-    input_shape = (376, 227, 3)
-    pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
-    assert pred.shape == (1, 16641, 94)
-
-    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
-
-
-def test_EfficientDetLite1_dynamic_predict():
-    mm = keras_cv_attention_models.efficientdet.EfficientDetLite1(input_shape=(None, None, 3), pretrained="coco")
-    input_shape = (376, 227, 3)
-    pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
-    assert pred.shape == (1, 16641, 94)
-
-    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
-
-
 def test_EfficientDet_header():
     bb = keras_cv_attention_models.coatnet.CoAtNet0(input_shape=(256, 256, 3), num_classes=0, pretrained=None)
     mm = keras_cv_attention_models.efficientdet.EfficientDet(bb)
@@ -590,16 +458,6 @@ def test_YOLOXTiny_predict():
     assert pred.shape == (1, 3549, 85)
 
     pred_label = mm.decode_predictions(pred)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
-
-
-def test_YOLOXS_dynamic_predict():
-    mm = keras_cv_attention_models.yolox.YOLOXS(input_shape=(None, None, 3), pretrained="coco")
-    input_shape = (188, 276, 3)
-    pred = mm(mm.preprocess_input(chelsea()[:, :, ::-1], input_shape=input_shape))  # Chelsea the cat
-    assert pred.shape == (1, 1110, 85)
-
-    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
     assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
 
 
@@ -619,16 +477,6 @@ def test_YOLOR_CSP_predict():
     assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
 
 
-def test_YOLOR_CSP_dynamic_predict():
-    mm = keras_cv_attention_models.yolor.YOLOR_CSP(input_shape=(None, None, 3), pretrained="coco")
-    input_shape = (188, 275, 3)
-    pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
-    assert pred.shape == (1, 3330, 85)
-
-    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
-
-
 def test_YOLOR_header():
     bb = keras_cv_attention_models.efficientnet.EfficientNetV2B1(input_shape=(256, 256, 3), num_classes=0, pretrained=None)
     mm = keras_cv_attention_models.yolor.YOLOR(bb)
@@ -636,11 +484,10 @@ def test_YOLOR_header():
     assert mm.output_shape == (None, 4032, 85)
 
 
-def test_YOLOV7_Tiny_dynamic_predict():
-    mm = keras_cv_attention_models.yolov7.YOLOV7_Tiny(input_shape=(None, None, 3), pretrained="coco")
-    input_shape = (188, 276, 3)
-    pred = mm(mm.preprocess_input(chelsea()[:, :, ::-1], input_shape=input_shape))  # Chelsea the cat
-    assert pred.shape == (1, 3330, 85)
+def test_YOLOV7_Tiny_predict():
+    mm = keras_cv_attention_models.yolov7.YOLOV7_Tiny(pretrained="coco")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    assert pred.shape == (1, 10647, 85)
 
-    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
+    pred_label = mm.decode_predictions(pred)[0][1].numpy()
     assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"

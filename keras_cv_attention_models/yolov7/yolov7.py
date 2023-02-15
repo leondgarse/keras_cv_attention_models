@@ -276,10 +276,11 @@ def yolov7_head_single(inputs, filters, use_reparam_conv_head=True, num_classes=
 def yolov7_head(
     inputs, use_reparam_conv_head=True, num_classes=80, num_anchors=3, use_object_scores=True, activation="swish", classifier_activation="sigmoid", name=""
 ):
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
     outputs = []
     for id, input in enumerate(inputs):
         cur_name = name + "{}_".format(id + 1)
-        filters = int(input.shape[-1] * 2)
+        filters = int(input.shape[channel_axis] * 2)
         out = yolov7_head_single(input, filters, use_reparam_conv_head, num_classes, num_anchors, use_object_scores, activation=activation, name=cur_name)
         outputs.append(out)
     # return outputs

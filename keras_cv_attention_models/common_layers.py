@@ -371,12 +371,12 @@ def se_module(inputs, se_ratio=0.25, divisor=8, limit_round_down=0.9, activation
 
 def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
     """Efficient Channel Attention block, arxiv: https://arxiv.org/pdf/1910.03151.pdf"""
-    channel_axis = -1 if image_data_format() == "channels_last" else (1 if use_conv else -1)
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
     h_axis, w_axis = [1, 2] if image_data_format() == "channels_last" else [2, 3]
 
     filters = inputs.shape[channel_axis]
     beta, gamma = float(beta), float(gamma)
-    tt = int((functional.log(float(filters)) / functional.log(2.0) + beta) / gamma)
+    tt = int((np.log(float(filters)) / np.log(2.0) + beta) / gamma)
     kernel_size = max(tt if tt % 2 else tt + 1, 3)
     pad = kernel_size // 2
 
@@ -387,6 +387,8 @@ def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
     nn = layers.Conv1D(1, kernel_size=kernel_size, strides=1, padding="VALID", use_bias=False, name=name and name + "conv1d")(nn)
     nn = functional.squeeze(nn, axis=channel_axis)
     nn = activation_by_name(nn, activation="sigmoid", name=name)
+    nn = nn[:, None, None] if image_data_format() == "channels_last" else nn[:, :, None, None]
+    # print(f"{inputs.shape = }, {nn.shape = }")
     return layers.Multiply(name=name and name + "out")([inputs, nn])
 
 
@@ -610,7 +612,11 @@ class PreprocessInput:
 
     def set_input_shape(self, input_shape):
         input_shape = input_shape[1:] if len(input_shape) == 4 else input_shape
-        self.input_shape = input_shape[:-1] if backend.image_data_format() == "channels_last" else input_shape[1:]
+        if None in input_shape:
+            self.input_shape = (None, None)  # Dynamic input_shape
+        else:
+            channel_axis, channel_dim = min(enumerate(input_shape), key=lambda xx: xx[1])  # Assume the smallest value is the channel dimension
+            self.input_shape = [dim for axis, dim in enumerate(input_shape) if axis != channel_axis]
 
     def set_rescale_mode(self, rescale_mode):
         if isinstance(rescale_mode, (list, tuple)):  # Specific mean and std

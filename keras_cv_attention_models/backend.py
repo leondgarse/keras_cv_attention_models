@@ -77,7 +77,7 @@ def in_train_phase(train_phase, eval_phase, training=None):
         return train_phase if training else eval_phase  # [TODO]
 
 
-def numpy_image_resize(inputs, target_shape, method="nearest", is_source_channels_last=True):
+def numpy_image_resize(inputs, target_shape, method="bilinear", is_source_channels_last=True):
     ndims = len(inputs.shape)
     if ndims < 2 or ndims > 4:
         raise ValueError("inputs with shape={}, ndims={} not supported, ndims must in [2, 4]".format(ipnuts.shape, ndims))

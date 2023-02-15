@@ -100,7 +100,7 @@ def linspace(start, stop, num, name=None, axis=0):
     return torch.linspace(start=start, end=stop, steps=num)
 
 
-def log(log, name=None):
+def log(inputs, name=None):
     return wrapper(partial(torch.log), inputs, name=name)
 
 

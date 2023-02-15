@@ -41,7 +41,7 @@ def avg_pool_conv_output(inputs, output_num_features=1280, use_output_feature_bi
     # nn = layers.AveragePooling2D(pool_size=inputs.shape[1:3], name="avg_pool")(inputs)
     # nn = layers.GlobalAveragePooling2D(name="avg_pool")(inputs)[:, None, None, :]
     h_axis, w_axis = [1, 2] if image_data_format() == "channels_last" else [2, 3]
-    nn = functional.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)  # using AveragePooling2D cannot set dynamic input_shape
+    nn = functional.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)  # using AvgPool2D cannot set dynamic input_shape
     if output_num_features > 0:
         nn = conv2d_no_bias(nn, make_divisible(output_num_features, 8), use_bias=use_output_feature_bias, name="features_")
         nn = activation_by_name(nn, activation, name="features_")

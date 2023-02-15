@@ -56,13 +56,13 @@ class BiasPositionalEmbedding(layers.Layer):
         config.update({"axis": self.axis, "attn_height": self.attn_height})  # Not saving initializer in config
         return config
 
-    def load_resized_weights(self, source_layer, method="nearest"):
+    def load_resized_weights(self, source_layer, method="bilinear"):
         if isinstance(source_layer, dict):
             source_tt = list(source_layer.values())[0]  # weights
             # source_tt = source_layer["pos_emb:0"]  # weights
         else:
             source_tt = source_layer.bb  # layer
-        source_tt = np.array(source_tt.detach() if hasattr(source_tt, "detach") else source_tt)
+        source_tt = np.array(source_tt.detach() if hasattr(source_tt, "detach") else source_tt).astype("float32")
 
         num_heads = source_tt.shape[0]
         source_query_hh = source_query_ww = int(float(source_tt.shape[1]) ** 0.5)  # assume source weights are all square shape

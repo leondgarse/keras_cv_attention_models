@@ -72,12 +72,12 @@ class MultiHeadPositionalEmbedding(layers.Layer):
         base_config.update({"query_height": self.query_height, "key_height": self.key_height})
         return base_config
 
-    def load_resized_weights(self, source_layer, method="nearest"):
+    def load_resized_weights(self, source_layer, method="bilinear"):
         if isinstance(source_layer, dict):
             source_bb = list(source_layer.values())[0]  # weights
         else:
             source_bb = source_layer.bb  # layer
-        source_bb = np.array(source_bb.detach() if hasattr(source_bb, "detach") else source_bb)
+        source_bb = np.array(source_bb.detach() if hasattr(source_bb, "detach") else source_bb).astype("float32")
         hh = ww = int(float(source_bb.shape[0]) ** 0.5)
         ss = source_bb.reshape((hh, ww, source_bb.shape[-1]))  # [hh, ww, num_heads]
         # target_hh = target_ww = int(float(self.bb.shape[0]) ** 0.5)
