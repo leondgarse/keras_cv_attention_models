@@ -58,6 +58,68 @@ class Weight:
         return self.__value__.detach().cpu().numpy()
 
 
+class Shape:
+    """
+    >>> from keras_cv_attention_models.pytorch_backend import layers, functional
+    >>> aa = layers.Input([4, 4, 32])
+    >>> bb = functional.shape(aa)
+    >>> print(bb)
+    >>> # [-1, 4, 4, 32]
+    >>> aa.set_shape([None, 3, 4, 5])
+    >>> print(bb)
+    >>> # [-1, 3, 4, 5]
+    """
+
+    num_instances = 0  # Count instances
+
+    @classmethod
+    def __count__(cls):
+        cls.num_instances += 1
+
+    def __init__(self, input_node, index_expr=slice(None), name=None):
+        self.name = "shape_{}".format(self.num_instances) if name is None else name
+        self.input_node, self.index_expr = input_node, index_expr
+        self.is_slice = not isinstance(self.index_expr, int)
+        self.shape = (self.__len__(),) if self.is_slice else ()
+        self.build()
+        self.__count__()
+
+    def build(self):
+        if self.is_slice:
+            self.callable = lambda inputs: [-1 if ii is None else ii for ii in inputs.shape[self.index_expr]]
+        else:
+            self.callable = lambda inputs: inputs.shape[self.index_expr]
+        self.layer = self
+        self.pre_nodes = [self.input_node]
+        self.pre_node_names = [self.input_node.name]
+        self.input_node.set_next_nodes(self)
+        self.weights = []
+        self.next_nodes, self.next_node_names = [], []
+
+    def set_next_nodes(self, next_nodes):
+        next_nodes = next_nodes if isinstance(next_nodes, (list, tuple)) else [next_nodes]
+        self.next_nodes += next_nodes
+        self.next_node_names += [ii.name for ii in next_nodes]
+
+    def __getitem__(self, index_expr):
+        return Shape(self.input_node, index_expr)
+
+    def __value__(self):
+        return [-1 if ii is None else ii for ii in self.input_node.shape[self.index_expr]] if self.is_slice else self.input_node.shape[self.index_expr]
+
+    def __len__(self):
+        return len(self.__value__()) if self.is_slice else 1
+
+    def __int__(self):
+        return int(self.__value__())
+
+    def __iter__(self):
+        return (ii for ii in self.__value__())
+
+    def __repr__(self):
+        return str(self.__value__())
+
+
 class GraphNode:
     num_instances = 0  # Count instances
 
@@ -112,7 +174,7 @@ class GraphNode:
         self.shape = shape
 
     def set_pre_nodes(self, pre_nodes):
-        pre_nodes = [ii for ii in pre_nodes if isinstance(ii, GraphNode)] if isinstance(pre_nodes, (list, tuple)) else [pre_nodes]
+        pre_nodes = [ii for ii in pre_nodes if isinstance(ii, GraphNode) or isinstance(ii, Shape)] if isinstance(pre_nodes, (list, tuple)) else [pre_nodes]
         self.pre_nodes += pre_nodes
         self.pre_node_names += [ii.name for ii in pre_nodes]
 
@@ -140,33 +202,39 @@ class Layer(nn.Module):
         super().__init__()
         self.name, self.kwargs = self.verify_name(name), kwargs
         self.built = False
-        self.is_graph_node_input = False
+        # self.is_graph_node_input = False
         self.use_layer_as_module = False  # True if called add_weights, or typical keras layers with overwriting call function
         if not hasattr(self, "module"):
             self.module = lambda xx: xx
         self.__count__()
 
     def build(self, input_shape: torch.Size):
-        self.input_shape = input_shape
+        pass
+        # self.input_shape = input_shape
         # self.dtype = self.module.weight.dtype if hasattr(self.module, "weight") else "float32"
         # if self.is_graph_node_input:  # When exporting onnx/pth, model will be built again, and may throws error in compute_output_shape with 0 input_shape
-        self.__output_shape__ = self.compute_output_shape(input_shape)
+        # self.__output_shape__ = self.compute_output_shape(input_shape)
         # if hasattr(self, "call"):  # General keras layers with call function
         #     self.forward = self.call
         #     self.call = self.call
-        self.built = True
+        # self.built = True
 
     def call(self, inputs, **kwargs):
         return self.module(inputs, **kwargs)
 
     def forward(self, inputs, **kwargs):
-        self.is_graph_node_input = isinstance(inputs, GraphNode) or (isinstance(inputs, (list, tuple)) and any([isinstance(ii, GraphNode) for ii in inputs]))
+        # self.is_graph_node_input = isinstance(inputs, GraphNode) or (isinstance(inputs, (list, tuple)) and any([isinstance(ii, GraphNode) for ii in inputs]))
         if not self.built:
             self.build([() if isinstance(ii, (int, float)) else ii.shape for ii in inputs] if isinstance(inputs, (list, tuple)) else inputs.shape)
-        if self.is_graph_node_input:
-            output_shape = self.compute_output_shape(self.input_shape)
-            # if isinstance(output_shape[0], (list, tuple))
-            cur_node = GraphNode(output_shape, name=self.name)
+            self.built = True
+
+        if isinstance(inputs, GraphNode) or (isinstance(inputs, (list, tuple)) and any([isinstance(ii, GraphNode) for ii in inputs])):
+            self.input_shape = [() if isinstance(ii, (int, float)) else ii.shape for ii in inputs] if isinstance(inputs, (list, tuple)) else inputs.shape
+            self.__output_shape__ = self.compute_output_shape(self.input_shape)
+
+            # output_shape = self.compute_output_shape(input_shape)
+            # if isinstance(self.__output_shape__[0], (list, tuple))
+            cur_node = GraphNode(self.__output_shape__, name=self.name)
             if self.use_layer_as_module:  # General keras layers with call function, mostly own weights
                 cur_node.callable = self
             else:
@@ -176,7 +244,7 @@ class Layer(nn.Module):
 
             inputs = inputs if isinstance(inputs, (list, tuple)) else [inputs]
             for ii in inputs:
-                if isinstance(ii, GraphNode):
+                if isinstance(ii, GraphNode) or isinstance(ii, Shape):
                     ii.set_next_nodes(cur_node)
             self.output = self.node = cur_node
             return cur_node
@@ -234,8 +302,20 @@ class Layer(nn.Module):
 
 class Lambda(Layer):
     def __init__(self, func, **kwargs):
-        super().__init__(**kwargs)
         self.module = func
+        super().__init__(**kwargs)
+
+    def verify_name(self, name):
+        if name is not None:
+            return name
+
+        if isinstance(self.module, partial):
+            func = self.module.func
+            func_name = func.__qualname__.split(".")[-1] if hasattr(func, "__qualname__") else func.__str__().split()[:3][-1]
+        else:
+            func = self.module
+            func_name = func.__qualname__.split(".")[0] if hasattr(func, "__qualname__") else func.__str__().split(".")[0].split()[-1]
+        return "{}_{}".format(func_name if len(func_name) > 0 else "lambda", self.num_instances)
 
     def build(self, input_shape: torch.Size):
         super().build(input_shape)
@@ -253,18 +333,6 @@ class Lambda(Layer):
         inputs = [torch.ones([0 if ii is None or ii == -1 else ii for ii in input_shape]) for input_shape in input_shapes]  # Regards 0 as dynamic shape
         output_shape = list(self.module(inputs[0]).shape) if len(inputs) == 1 else list(self.module(inputs).shape)
         return [None if ii == 0 else ii for ii in output_shape]  # Regards 0 as dynamic shape
-
-
-class Shape(Layer):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def build(self, input_shape):
-        self.module = lambda inputs: inputs.shape
-        super().build(input_shape)
-
-    def compute_output_shape(self, input_shape):
-        return (len(input_shape),)
 
 
 class Activation(Layer):
@@ -288,49 +356,6 @@ class Activation(Layer):
     def get_config(self):
         config = super().get_config()
         config.update({"activation": self.activation})
-        return config
-
-
-class _SamePadding(nn.Module):
-    """Perform SAME padding like TF"""
-
-    def __init__(self, kernel_size, strides, dilation_rate=1, ndims=2):
-        super().__init__()
-        self.kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else [kernel_size] * ndims
-        self.strides = strides if isinstance(strides, (list, tuple)) else [strides] * ndims
-        self.dilation_rate = dilation_rate if isinstance(dilation_rate, (list, tuple)) else [dilation_rate] * ndims
-        self.ndims = len(self.kernel_size)
-
-    def forward(self, inputs):
-        pad = [tf_same_pad(ii, kk, ss, dd) for ii, kk, ss, dd in zip(inputs.shape[2:], self.kernel_size, self.strides, self.dilation_rate)]
-        padding = []
-        for pp in pad[::-1]:
-            padding += [pp // 2, pp - pp // 2]
-        padding += [0, 0, 0, 0]
-        return torch.functional.F.pad(inputs, pad=padding)
-
-
-class _ZeroPadding(Layer):
-    def __init__(self, padding, **kwargs):
-        self.padding = padding
-        super().__init__(**kwargs)
-
-    def build(self, input_shape):
-        assert len(input_shape) == len(self.padding), "padding shoule be same length with input, including batch dimension, padding: {}".format(self.padding)
-        padding = []
-        for pad in self.padding[::-1]:
-            assert len(pad) == 2, "each element in padding should be exactly 2 values, padding: {}".format(self.padding)
-            padding += pad
-
-        self.module = partial(torch.functional.F.pad, pad=padding)
-        super().build(input_shape)
-
-    def compute_output_shape(self, input_shape):
-        return [None if ii is None else ii + pp[0] + pp[1] for ii, pp in zip(input_shape, self.padding)]
-
-    def get_config(self):
-        config = super().get_config()
-        config.update({"padding": self.padding})
         return config
 
 
@@ -475,6 +500,49 @@ class BatchNormalization(Layer):
     def get_config(self):
         config = super().get_config()
         config.update({"axis": self.axis, "momentum": self.momentum, "epsilon": self.epsilon, "center": self.center})
+        return config
+
+
+class _SamePadding(nn.Module):
+    """Perform SAME padding like TF"""
+
+    def __init__(self, kernel_size, strides, dilation_rate=1, ndims=2):
+        super().__init__()
+        self.kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else [kernel_size] * ndims
+        self.strides = strides if isinstance(strides, (list, tuple)) else [strides] * ndims
+        self.dilation_rate = dilation_rate if isinstance(dilation_rate, (list, tuple)) else [dilation_rate] * ndims
+        self.ndims = len(self.kernel_size)
+
+    def forward(self, inputs):
+        pad = [tf_same_pad(ii, kk, ss, dd) for ii, kk, ss, dd in zip(inputs.shape[2:], self.kernel_size, self.strides, self.dilation_rate)]
+        padding = []
+        for pp in pad[::-1]:
+            padding += [pp // 2, pp - pp // 2]
+        padding += [0, 0, 0, 0]
+        return torch.functional.F.pad(inputs, pad=padding)
+
+
+class _ZeroPadding(Layer):
+    def __init__(self, padding, **kwargs):
+        self.padding = padding
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        assert len(input_shape) == len(self.padding), "padding shoule be same length with input, including batch dimension, padding: {}".format(self.padding)
+        padding = []
+        for pad in self.padding[::-1]:
+            assert len(pad) == 2, "each element in padding should be exactly 2 values, padding: {}".format(self.padding)
+            padding += pad
+
+        self.module = partial(torch.functional.F.pad, pad=padding)
+        super().build(input_shape)
+
+    def compute_output_shape(self, input_shape):
+        return [None if ii is None else ii + pp[0] + pp[1] for ii, pp in zip(input_shape, self.padding)]
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"padding": self.padding})
         return config
 
 
@@ -779,7 +847,7 @@ class Embedding(Layer):
         self.module = torch.nn.Embedding(num_embeddings=self.input_dim, embedding_dim=self.output_dim, padding_idx=None, max_norm=None)
         initializer = getattr(initializers, self.embeddings_initializer)() if isinstance(self.embeddings_initializer, str) else self.embeddings_initializer
         self.module.weight.data = initializer(list(self.module.weight.shape))
-        super().build(input_sahpe)
+        super().build(input_shape)
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
@@ -1151,6 +1219,48 @@ class Reshape(Layer):
 
     def extra_repr(self):
         return f"target_shape={self.target_shape}"
+
+
+class _ResizeDynamic(Layer):
+    """
+    Resize supporting dynamic size.
+    >>> import torch
+    >>> from keras_cv_attention_models.pytorch_backend import layers
+    >>> inputs = layers.Input([3, 16, 16])
+    >>> size = layers.Shape(inputs)[2:]
+    >>> aa = layers._ResizeDynamic()
+    >>> print(f"{aa([torch.ones([1, 3, 24, 24]), size]).shape = }")
+    >>> # aa(torch.ones([1, 3, 24, 24])).shape = torch.Size([1, 3, 16, 16])
+    >>> inputs.set_shape([None, 1, 32, 32])
+    >>> print(f"{aa([torch.ones([1, 3, 24, 24]), size]).shape = }")
+    >>> # aa(torch.ones([1, 3, 24, 24])).shape = torch.Size([1, 3, 32, 32])
+    """
+
+    def __init__(self, method="bilinear", preserve_aspect_ratio=False, antialias=False, **kwargs):
+        self.method, self.preserve_aspect_ratio, self.antialias = method, preserve_aspect_ratio, antialias
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        assert len(input_shape) == 2, "Input should be in format [inputs, size]"
+        input_shape, size_shape = input_shape[0], input_shape[1]
+
+        size_len = size_shape[0] if isinstance(size_shape, (list, tuple)) else 1
+        assert len(input_shape) - 2 == size_len, f"Provided input_shape={input_shape} length should be larger than size_shape={size_shape} by 2"
+        if self.antialias:
+            assert len(input_shape) == 4, "Anti-alias option is only supported for 2D resize"
+            assert self.method in ["bilinear", "bicubic"], "Anti-alias option is only supported for bilinear and bicubic modes"
+
+        self.module = lambda inputs: torch.functional.F.interpolate(inputs[0], size=list(inputs[1]), mode=self.method, antialias=self.antialias)
+        super().build(input_shape)
+
+    def compute_output_shape(self, input_shape):
+        # input_shape = list(input_shape[0])
+        return list(input_shape[0][:2]) + [None] * (len(input_shape[0]) - 2)  # Dynamic shape
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"method": self.method, "preserve_aspect_ratio": self.preserve_aspect_ratio, "antialias": self.antialias})
+        return config
 
 
 class Softmax(Layer):

@@ -43,7 +43,7 @@ def attention_block_with_conv_down(
         key_value = inputs if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=name + "permute_pre")(inputs)
         key_value = addaptive_pooling_2d(key_value, output_size=7, reduce="mean")
         key_value = conv2d_no_bias(key_value, input_channel, kernel_size=1, use_bias=qkv_bias, name=name + "kv_sr_")
-        key_value = key_value if image_data_format() == "channels_last" else layers.Permute([2, 3, 1], name=name + "permute_post")(nn)
+        key_value = key_value if image_data_format() == "channels_last" else layers.Permute([2, 3, 1], name=name + "permute_post")(key_value)
         key_value = layer_norm(key_value, axis=-1, name=name + "kv_sr_")  # Using epsilon=1e-5
         key_value = activation_by_name(key_value, activation=linear_activation, name=name + "kv_sr_")
     elif sr_ratio > 1:

@@ -407,19 +407,21 @@ def drop_block(inputs, drop_rate=0, name=None):
         return inputs
 
 
-def addaptive_pooling_2d(inputs, output_size, reduce="mean", name=None):
+def addaptive_pooling_2d(inputs, output_size, reduce="mean", data_format="auto", name=None):
     """Auto set `pool_size` and `strides` for `MaxPool2D` or `AvgPool2D` fitting `output_size`.
     (in_height - (pool_size - strides)) / strides == out_height
     condition: pool_size >= strides, pool_size != 0, strides != 0
     strides being as large as possible: strides == in_height // out_height
     ==> pool_size = in_height - (out_height - 1) * strides, not in_height % strides, in case in_height == strides  will be 0
     """
+    data_format = image_data_format() if data_format == "auto" else data_format
+    height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
     h_bins, w_bins = output_size[:2] if isinstance(output_size, (list, tuple)) else (output_size, output_size)
     reduce_function = layers.MaxPool2D if reduce.lower() == "max" else layers.AvgPool2D
 
-    h_strides, w_strides = inputs.shape[1] // h_bins, inputs.shape[2] // w_bins
-    h_pool_size, w_pool_size = inputs.shape[1] - (h_bins - 1) * h_strides, inputs.shape[2] - (w_bins - 1) * w_strides
-    # print(f"{h_pool_size = }, {w_pool_size = }, {h_strides = }, {w_strides = }")
+    h_strides, w_strides = height // h_bins, width // w_bins
+    h_pool_size, w_pool_size = height - (h_bins - 1) * h_strides, width - (w_bins - 1) * w_strides
+    # print(f"{inputs.shape = }, {h_pool_size = }, {w_pool_size = }, {h_strides = }, {w_strides = }")
     return reduce_function(pool_size=(h_pool_size, w_pool_size), strides=(h_strides, w_strides), name=name and name + "pool")(inputs)
 
 

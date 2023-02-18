@@ -32,7 +32,7 @@
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 0.6658455), ('n02123159', 'tiger_cat', 0.08825972), ...]
   ```
-  **Change input resolution**.
+  **Change input resolution**. Note: for `PVT_V2B2_linear` using `addaptive_pooling_2d` with `output_size=7`, input shape should be lager than `193`.
   ```py
   from keras_cv_attention_models import pvt
   mm = pvt.PVT_V2B1(input_shape=(128, 192, 3), pretrained="imagenet")

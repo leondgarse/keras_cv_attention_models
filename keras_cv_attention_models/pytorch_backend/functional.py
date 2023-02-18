@@ -1,7 +1,7 @@
 import torch
 import math
 import torch.nn.functional as F
-from keras_cv_attention_models.pytorch_backend.layers import Lambda, Concatenate, GraphNode, Shape, _ZeroPadding, Add
+from keras_cv_attention_models.pytorch_backend.layers import Lambda, Concatenate, GraphNode, Shape, _ZeroPadding, Add, _ResizeDynamic
 from functools import partial
 
 
@@ -21,7 +21,12 @@ def assign(parameter, data):
 
 
 def cast(inputs, dtype="float32"):
-    return convert_to_tensor(inputs, dtype)
+    if isinstance(inputs, torch.Tensor) and str(inputs.dtype).endswith(dtype):
+        return inputs
+    if dtype == "float32":
+        return inputs.float()
+    else:
+        return convert_to_tensor(inputs, dtype)
 
 
 def clip_by_value(inputs, clip_value_min, clip_value_max, name=None):
@@ -139,7 +144,7 @@ def non_max_suppression_with_scores(boxes, scores, max_output_size, iou_threshol
     if hasattr(scores, "detach"):
         scores = scores.detach().numpy()
     rr, nms_scores = image.non_max_suppression_with_scores(boxes, scores, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
-    return convert_to_tensor(rr.numpy(), dtype="int64"), convert_to_tensor(nms_scores.numpy())
+    return torch.from_numpy(rr.numpy().astype("int64")), torch.from_numpy(nms_scores.numpy().astype("float32"))
 
 
 def norm(inputs, ord="euclidean", axis=1, keepdims=False, name=None):
@@ -222,19 +227,22 @@ def reshape(inputs, shape, name=None):
 
 
 def resize(inputs, size, method="bilinear", preserve_aspect_ratio=False, antialias=False, name=None):
-    if isinstance(inputs, GraphNode):
-        return Lambda(partial(F.interpolate, size=size, mode=method, antialias=antialias), name=name)(inputs)  # [TODO] align_corners
+    if isinstance(inputs, GraphNode) and (isinstance(size, Shape) and (None in size or -1 in size)):  # If dynamic
+        return _ResizeDynamic(mode=method, preserve_aspect_ratio=preserve_aspect_ratio, antialias=antialias, name=name)([inputs, size])
+    elif isinstance(inputs, GraphNode):
+        return Lambda(partial(F.interpolate, size=list(size), mode=method, antialias=antialias), name=name)(inputs)  # [TODO] align_corners
+        # return Resize(size=size, mode=method, preserve_aspect_ratio=preserve_aspect_ratio, antialias=antialias, name=name)(inputs)  # [TODO] align_corners
     else:  # called directly
         inputs = inputs if isinstance(inputs, torch.Tensor) else torch.tensor(inputs)
         if len(inputs.shape) == 3:
-            return F.interpolate(inputs[None], size=size, mode=method, antialias=antialias)[0]
+            return F.interpolate(inputs[None], size=list(size), mode=method, antialias=antialias)[0]
         else:
-            return F.interpolate(inputs, size=size, mode=method, antialias=antialias)
+            return F.interpolate(inputs, size=list(size), mode=method, antialias=antialias)
 
 
 def shape(inputs):
-    # return Shape()(inputs)
-    return inputs.shape
+    return Shape(inputs)
+    # return inputs.shape
 
 
 def sigmoid(inputs, axis=None, name=None):

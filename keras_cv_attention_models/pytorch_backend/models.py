@@ -105,11 +105,11 @@ class Model(nn.Module):
                 cur_inputs = intra_nodes[node.pre_node_names[0]].pop()
 
             if self.debug:
-                print("     inputs.shape:", [ii.shape for ii in cur_inputs] if len(node.pre_nodes) > 1 else cur_inputs.shape)
+                print("     inputs.shape:", [np.shape(ii) for ii in cur_inputs] if len(node.pre_nodes) > 1 else np.shape(cur_inputs))
 
             output = node.callable(cur_inputs)
             if self.debug:
-                print("     output.shape:", output.shape)
+                print("     output.shape:", np.shape(output))
 
             intra_nodes[node.name] = [output] * self.intra_nodes_ref[node.name]
         if self.debug:

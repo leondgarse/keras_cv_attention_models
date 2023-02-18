@@ -67,7 +67,21 @@ def split_attention_conv2d(inputs, filters, kernel_size=3, strides=1, downsample
     return out
 
 
-def ResNest(input_shape=(224, 224, 3), stem_type="deep", attn_types="sa", bn_after_attn=False, shortcut_type="avg", pretrained="imagenet", **kwargs):
+def ResNest(
+    num_blocks=[3, 4, 6, 3],
+    stem_width=64,
+    stem_type="deep",
+    attn_types="sa",
+    bn_after_attn=False,
+    shortcut_type="avg",
+    input_shape=(224, 224, 3),
+    num_classes=1000,
+    activation="relu",
+    classifier_activation="softmax",
+    pretrained="imagenet",
+    model_name="",
+    **kwargs
+):
     kwargs.pop("kwargs", None)
     model = AotNet(**locals(), **kwargs)
     reload_model_weights(model, pretrained_dict=PRETRAINED_DICT, sub_release="resnest", pretrained=pretrained)

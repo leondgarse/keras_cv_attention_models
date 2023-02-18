@@ -113,8 +113,6 @@ def det_header_pre(features, filters, depth, use_sep_conv=True, activation="swis
     else:
         names = [name + "{}_conv".format(id + 1) for id in range(depth)]
         convs = [layers.Conv2D(filters, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(depth)]
-    for conv in convs:
-        conv.build([None, None, None, filters] if image_data_format() == "channels_last" else [None, filters, None, None])
 
     outputs = []
     for feature_id, feature in enumerate(features):
@@ -124,7 +122,6 @@ def det_header_pre(features, filters, depth, use_sep_conv=True, activation="swis
             cur_name = name + "{}_{}_bn".format(id + 1, feature_id + 1)
             nn = layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=cur_name)(nn)
             nn = activation_by_name(nn, activation, name=cur_name + "{}_".format(id + 1))
-            nn.set_shape([None, *feature.shape[1:-1], filters] if image_data_format() == "channels_last" else [None, filters, *feature.shape[2:]])
         outputs.append(nn)
     return outputs
 
@@ -134,16 +131,7 @@ def det_header_post(inputs, classes=80, anchors=9, bias_init="zeros", use_sep_co
         header_conv = layers.SeparableConv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "head")
     else:
         header_conv = layers.Conv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "conv_head")
-    filters = inputs[0].shape[-1 if image_data_format() == "channels_last" else 1]
-    header_conv.build([None, None, None, filters] if image_data_format() == "channels_last" else [None, filters, None, None])
-
-    # print(f">>>> det_header_post: {[ii.shape for ii in inputs] = }")
-    outputs = []
-    for ii in inputs:
-        output = header_conv(ii)
-        output.set_shape([None, *ii.shape[1:-1], classes * anchors] if image_data_format() == "channels_last" else [None, classes * anchors, *ii.shape[2:]])
-        outputs.append(output)
-
+    outputs = [header_conv(ii) for ii in inputs]
     outputs = outputs if image_data_format() == "channels_last" else [layers.Permute([2, 3, 1])(ii) for ii in outputs]
     outputs = [layers.Reshape([-1, classes])(ii) for ii in outputs]
     outputs = functional.concat(outputs, axis=1)

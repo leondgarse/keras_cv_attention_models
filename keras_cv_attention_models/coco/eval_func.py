@@ -50,7 +50,7 @@ class DecodePredictions(layers.Layer):
         use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, "auto", anchor_scale)
         self.aspect_ratios, self.num_scales = aspect_ratios, num_scales
         self.anchors_mode, self.use_object_scores, self.anchor_scale = anchors_mode, use_object_scores, anchor_scale  # num_anchors not using
-        if input_shape is not None and (isinstance(input_shape, (list, tuple)) and input_shape[0] is not None):
+        if input_shape is not None and (isinstance(input_shape, (list, tuple)) and input_shape[1] is not None):
             self.__init_anchor__(input_shape)
         else:
             self.anchors = None
@@ -68,7 +68,9 @@ class DecodePredictions(layers.Layer):
 
     def __init_anchor__(self, input_shape):
         if isinstance(input_shape, (list, tuple)):
-            input_shape = input_shape[:2] if backend.image_data_format() == "channels_last" else input_shape[-2:]
+            # input_shape = input_shape[:2] if backend.image_data_format() == "channels_last" else input_shape[-2:]
+            channel_axis, channel_dim = min(enumerate(input_shape), key=lambda xx: xx[1])  # Assume the smallest value is the channel dimension
+            input_shape = [dim for axis, dim in enumerate(input_shape) if axis != channel_axis]
         else:
             input_shape = (input_shape, input_shape)
 

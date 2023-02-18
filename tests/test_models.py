@@ -42,14 +42,6 @@ def test_CoAtNet_defination():
     assert isinstance(mm, models.Model)
 
 
-def test_CotNet_defination():
-    mm = keras_cv_attention_models.cotnet.CotNet50(pretrained=None)
-    assert isinstance(mm, models.Model)
-
-    mm = keras_cv_attention_models.cotnet.CotNetSE101D(pretrained=None, num_classes=0)
-    assert isinstance(mm, models.Model)
-
-
 def test_CovNeXt_defination():
     mm = keras_cv_attention_models.convnext.ConvNeXtSmall(pretrained=None)
     assert isinstance(mm, models.Model)
@@ -271,6 +263,22 @@ def test_EfficientFormerV2S0_new_shape_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_EfficientNetV1B1_noisy_student_predict():
+    mm = keras_cv_attention_models.efficientnet.EfficientNetV1B1(pretrained="noisy_student")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_EfficientNetV2B0_predict():
+    mm = keras_cv_attention_models.efficientnet.EfficientNetV2B0(pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_FBNetV3B_dynamic_predict():
     mm = keras_cv_attention_models.fbnetv3.FBNetV3B(input_shape=(None, None, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea(), input_shape=(160, 256, 3)))  # Chelsea the cat
@@ -279,16 +287,24 @@ def test_FBNetV3B_dynamic_predict():
     assert out[1] == "Egyptian_cat"
 
 
-def test_GPViT_L1_new_shape_predict():
-    mm = keras_cv_attention_models.gpvit.GPViT_L1(input_shape=(112, 157, 3), pretrained="imagenet")
+def test_GCViT_XXTiny_new_shape_predict():
+    mm = keras_cv_attention_models.gcvit.GCViT_XXTiny(input_shape=(128, 192, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_GhostNetV2_100_dynamic_predict():
+    mm = keras_cv_attention_models.ghostnet.GhostNetV2_100(input_shape=(None, None, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea(), input_shape=(112, 157, 3)))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
 
 
-def test_GhostNetV2_100_new_shape_predict():
-    mm = keras_cv_attention_models.ghostnet.GhostNetV2_100(input_shape=(112, 157, 3), pretrained="imagenet")
+def test_GPViT_L1_new_shape_predict():
+    mm = keras_cv_attention_models.gpvit.GPViT_L1(input_shape=(112, 157, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
@@ -297,14 +313,6 @@ def test_GhostNetV2_100_new_shape_predict():
 
 def test_IFormerSmall_new_shape_predict():
     mm = keras_cv_attention_models.iformer.IFormerSmall(input_shape=(174, 255, 3), pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
-def test_RegNetZB16_predict():
-    mm = keras_cv_attention_models.resnet_family.RegNetZB16(pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
@@ -332,14 +340,6 @@ def test_LeViT128S_new_shape_predict():
     mm = keras_cv_attention_models.levit.LeViT128S(input_shape=(292, 213, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     pred = (pred[0] + pred[1]) / 2
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
-def test_PVT_V2B0_new_shape_predict():
-    mm = keras_cv_attention_models.pvt.PVT_V2B0(input_shape=(174, 255, 3), pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
@@ -385,6 +385,46 @@ def test_MogaNetXtiny_dynamic_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_PVT_V2B0_new_shape_predict():
+    mm = keras_cv_attention_models.pvt.PVT_V2B0(input_shape=(174, 255, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_PVT_V2B2_linear_new_shape_predict():
+    mm = keras_cv_attention_models.pvt.PVT_V2B2_linear(input_shape=(193, 255, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_RegNetZB16_predict():
+    mm = keras_cv_attention_models.resnet_family.RegNetZB16(pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_ResNest50_dynamic_predict():
+    mm = keras_cv_attention_models.resnest.ResNest50(input_shape=(None, None, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=(160, 192, 3)))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_TinyViT_5M_new_shape_predict():
+    mm = keras_cv_attention_models.tinyvit.TinyViT_5M(input_shape=(160, 160, 3))
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_TinyNetD_dynamic_predict():
     mm = keras_cv_attention_models.tinynet.TinyNetD(input_shape=(None, None, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea(), input_shape=(160, 256, 3)))  # Chelsea the cat
@@ -393,8 +433,8 @@ def test_TinyNetD_dynamic_predict():
     assert out[1] == "Egyptian_cat"
 
 
-def test_TinyViT_5M_new_shape_predict():
-    mm = keras_cv_attention_models.tinyvit.TinyViT_5M(input_shape=(160, 160, 3))
+def test_SwinTransformerV2Tiny_window8_new_shape_predict():
+    mm = keras_cv_attention_models.swin_transformer_v2.SwinTransformerV2Tiny_window8(input_shape=(160, 160, 3))
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
@@ -412,22 +452,6 @@ def test_UniformerSmall64_new_shape_predict():
 def test_WaveMLP_T_dynamic_predict():
     mm = keras_cv_attention_models.wave_mlp.WaveMLP_T(input_shape=(None, None, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea(), input_shape=[320, 320, 3]))  # Chelsea the cat
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
-def test_EfficientNetV2B0_predict():
-    mm = keras_cv_attention_models.efficientnet.EfficientNetV2B0(pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
-def test_EfficientNetV1B1_noisy_student_predict():
-    mm = keras_cv_attention_models.efficientnet.EfficientNetV1B1(pretrained="noisy_student")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
@@ -452,20 +476,24 @@ def test_EfficientDet_header():
     assert mm.output_shape == (None, 12276, 94)
 
 
-def test_YOLOXTiny_predict():
-    mm = keras_cv_attention_models.yolox.YOLOXTiny(pretrained="coco")
-    pred = mm(mm.preprocess_input(chelsea()[:, :, ::-1]))  # Chelsea the cat
-    assert pred.shape == (1, 3549, 85)
+def test_EfficientDetD1_dynamic_predict():
+    mm = keras_cv_attention_models.efficientdet.EfficientDetD1(input_shape=(None, None, 3), pretrained="coco")
+    input_shape = (376, 227, 3)
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
+    assert pred.shape == (1, 16641, 94)
 
-    pred_label = mm.decode_predictions(pred)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
+    assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
 
 
-def test_YOLOX_header():
-    bb = keras_cv_attention_models.efficientnet.EfficientNetV2B1(input_shape=(256, 256, 3), num_classes=0, pretrained=None)
-    mm = keras_cv_attention_models.yolox.YOLOX(bb)
+def test_EfficientDetLite1_dynamic_predict():
+    mm = keras_cv_attention_models.efficientdet.EfficientDetLite1(input_shape=(None, None, 3), pretrained="coco")
+    input_shape = (376, 227, 3)
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
+    assert pred.shape == (1, 16641, 94)
 
-    assert mm.output_shape == (None, 1344, 85)
+    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
+    assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
 
 
 def test_YOLOR_CSP_predict():
@@ -484,10 +512,56 @@ def test_YOLOR_header():
     assert mm.output_shape == (None, 4032, 85)
 
 
+def test_YOLOR_CSP_dynamic_predict():
+    mm = keras_cv_attention_models.yolor.YOLOR_CSP(input_shape=(None, None, 3), pretrained="coco")
+    input_shape = (188, 275, 3)
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
+    assert pred.shape == (1, 3330, 85)
+
+    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
+    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+
+
+def test_YOLOXTiny_predict():
+    mm = keras_cv_attention_models.yolox.YOLOXTiny(pretrained="coco")
+    pred = mm(mm.preprocess_input(chelsea()[:, :, ::-1]))  # Chelsea the cat
+    assert pred.shape == (1, 3549, 85)
+
+    pred_label = mm.decode_predictions(pred)[0][1].numpy()
+    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+
+
+def test_YOLOX_header():
+    bb = keras_cv_attention_models.efficientnet.EfficientNetV2B1(input_shape=(256, 256, 3), num_classes=0, pretrained=None)
+    mm = keras_cv_attention_models.yolox.YOLOX(bb)
+
+    assert mm.output_shape == (None, 1344, 85)
+
+
+def test_YOLOXS_dynamic_predict():
+    mm = keras_cv_attention_models.yolox.YOLOXS(input_shape=(None, None, 3), pretrained="coco")
+    input_shape = (188, 276, 3)
+    pred = mm(mm.preprocess_input(chelsea()[:, :, ::-1], input_shape=input_shape))  # Chelsea the cat
+    assert pred.shape == (1, 1110, 85)
+
+    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
+    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+
+
 def test_YOLOV7_Tiny_predict():
     mm = keras_cv_attention_models.yolov7.YOLOV7_Tiny(pretrained="coco")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     assert pred.shape == (1, 10647, 85)
 
     pred_label = mm.decode_predictions(pred)[0][1].numpy()
+    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+
+
+def test_YOLOV7_Tiny_dynamic_predict():
+    mm = keras_cv_attention_models.yolov7.YOLOV7_Tiny(input_shape=(None, None, 3), pretrained="coco")
+    input_shape = (188, 276, 3)
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
+    assert pred.shape == (1, 3330, 85)
+
+    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
     assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
