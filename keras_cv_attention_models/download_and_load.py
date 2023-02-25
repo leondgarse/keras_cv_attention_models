@@ -83,6 +83,15 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_re
             pass
 
 
+def read_h5_weights(filepath):
+    import h5py
+    import numpy as np
+
+    with h5py.File(filepath, "r") as h5_file:
+        weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
+        return {kk: [np.array(vv[ww]) for ww in vv.attrs["weight_names"]] for kk, vv in weights.items() if len(vv) > 0}
+
+
 """ Convert PyTorch weights """
 
 

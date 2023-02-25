@@ -1,3 +1,4 @@
+import inspect
 import torch
 import numpy as np
 from torch import nn
@@ -58,7 +59,84 @@ class Weight:
         return self.__value__.detach().cpu().numpy()
 
 
-class Shape:
+class GraphNode:
+    num_instances = 0  # Count instances
+
+    @classmethod
+    def __count__(cls):
+        cls.num_instances += 1
+
+    def __init__(self, shape, name=None):
+        self.shape = shape
+        self.name = "graphnode_{}".format(self.num_instances) if name is None else name
+        self.pre_nodes, self.pre_node_names, self.next_nodes, self.next_node_names = [], [], [], []
+        self.module = lambda xx: xx
+        self.__count__()
+
+    def __repr__(self):
+        # return ",".join(for kk, vv in zip())
+        rr = "{}:\n  nodes in: {}".format(self.name, {ii.name: ii.shape for ii in self.pre_nodes})
+        rr = "{}:\n  nodes out: {}".format(self.name, {ii.name: ii.shape for ii in self.next_nodes})
+        if hasattr(self, "layer") and hasattr(self.layer, "output_shape"):
+            rr += "\n  out: {}".format(self.layer.output_shape)
+        return rr
+
+    def __getitem__(self, index_expr):
+        # print(index_expr)
+        # return Slice(index_expr)(self)
+        index_expr = index_expr if isinstance(index_expr, (int, slice)) else tuple(index_expr)
+        return Lambda(lambda inputs: inputs[index_expr])(self)
+
+    def __add__(self, another):
+        return Add()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx + another)(self)
+
+    def __radd__(self, another):
+        return self.__add__(another)
+
+    def __sub__(self, another):
+        return Subtract()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx - another)(self)
+
+    def __rsub__(self, another):
+        return self.__sub__(another)
+
+    def __mul__(self, another):
+        return Multiply()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx * another)(self)
+
+    def __rmul__(self, another):
+        return self.__mul__(another)
+
+    def __truediv__(self, another):
+        return Divide()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx / another)(self)
+
+    def __rtruediv__(self, another):
+        return self.__truediv__(another)
+
+    # def __floordiv__(self, another):
+    #     return Lambda(lambda xx: xx // another)(self)
+
+    def __matmul__(self, another):
+        # return Matmul()([self, another])
+        return Lambda(lambda inputs: torch.matmul(inputs[0], inputs[1]))([self, another])
+
+    def __pow__(self, exponent):
+        # return Lambda(lambda inputs: torch.pow(inputs, exponent))(self)
+        return Lambda(partial(torch.pow, exponent=exponent))(self)
+
+    def set_shape(self, shape):
+        self.shape = shape
+
+    def set_pre_nodes(self, pre_nodes):
+        pre_nodes = [ii for ii in pre_nodes if isinstance(ii, GraphNode)] if isinstance(pre_nodes, (list, tuple)) else [pre_nodes]
+        self.pre_nodes += pre_nodes
+        self.pre_node_names += [ii.name for ii in pre_nodes]
+
+    def set_next_nodes(self, next_nodes):
+        next_nodes = next_nodes if isinstance(next_nodes, (list, tuple)) else [next_nodes]
+        self.next_nodes += next_nodes
+        self.next_node_names += [ii.name for ii in next_nodes]
+
+
+class Shape(GraphNode):
     """
     >>> from keras_cv_attention_models.pytorch_backend import layers, functional
     >>> aa = layers.Input([4, 4, 32])
@@ -120,70 +198,6 @@ class Shape:
         return str(self.__value__())
 
 
-class GraphNode:
-    num_instances = 0  # Count instances
-
-    @classmethod
-    def __count__(cls):
-        cls.num_instances += 1
-
-    def __init__(self, shape, name=None):
-        self.shape = shape
-        self.name = "graphnode_{}".format(self.num_instances) if name is None else name
-        self.pre_nodes, self.pre_node_names, self.next_nodes, self.next_node_names = [], [], [], []
-        self.module = lambda xx: xx
-        self.__count__()
-
-    def __repr__(self):
-        # return ",".join(for kk, vv in zip())
-        rr = "{}:\n  in: {}".format(self.name, {ii.name: ii.shape for ii in self.pre_nodes})
-        if hasattr(self, "layer") and hasattr(self.layer, "output_shape"):
-            rr += "\n  out: {}".format(self.layer.output_shape)
-        return rr
-
-    def __getitem__(self, index_expr):
-        # print(index_expr)
-        # return Slice(index_expr)(self)
-        index_expr = index_expr if isinstance(index_expr, (int, slice)) else tuple(index_expr)
-        return Lambda(lambda inputs: inputs[index_expr])(self)
-
-    def __add__(self, another):
-        return Add()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx + another)(self)
-
-    def __sub__(self, another):
-        return Subtract()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx - another)(self)
-
-    def __mul__(self, another):
-        return Multiply()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx * another)(self)
-
-    def __truediv__(self, another):
-        return Divide()([self, another]) if isinstance(another, GraphNode) else Lambda(lambda xx: xx / another)(self)
-
-    # def __floordiv__(self, another):
-    #     return Lambda(lambda xx: xx // another)(self)
-
-    def __matmul__(self, another):
-        # return Matmul()([self, another])
-        return Lambda(lambda inputs: torch.matmul(inputs[0], inputs[1]))([self, another])
-
-    def __pow__(self, exponent):
-        # return Lambda(lambda inputs: torch.pow(inputs, exponent))(self)
-        return Lambda(partial(torch.pow, exponent=exponent))(self)
-
-    def set_shape(self, shape):
-        self.shape = shape
-
-    def set_pre_nodes(self, pre_nodes):
-        pre_nodes = [ii for ii in pre_nodes if isinstance(ii, GraphNode) or isinstance(ii, Shape)] if isinstance(pre_nodes, (list, tuple)) else [pre_nodes]
-        self.pre_nodes += pre_nodes
-        self.pre_node_names += [ii.name for ii in pre_nodes]
-
-    def set_next_nodes(self, next_nodes):
-        next_nodes = next_nodes if isinstance(next_nodes, (list, tuple)) else [next_nodes]
-        self.next_nodes += next_nodes
-        self.next_node_names += [ii.name for ii in next_nodes]
-
-
 class Input(GraphNode):
     def __init__(self, shape, name=None):
         shape = [None, *shape]
@@ -207,6 +221,7 @@ class Layer(nn.Module):
         if not hasattr(self, "module"):
             self.module = lambda xx: xx
         self.__count__()
+        self.outputs = self.nodes = None
 
     def build(self, input_shape: torch.Size):
         pass
@@ -234,7 +249,7 @@ class Layer(nn.Module):
 
             # output_shape = self.compute_output_shape(input_shape)
             # if isinstance(self.__output_shape__[0], (list, tuple))
-            cur_node = GraphNode(self.__output_shape__, name=self.name)
+            cur_node = GraphNode(self.__output_shape__, name=self.name if self.nodes is None else (self.name + "_{}".format(len(self.nodes))))
             if self.use_layer_as_module:  # General keras layers with call function, mostly own weights
                 cur_node.callable = self
             else:
@@ -244,9 +259,15 @@ class Layer(nn.Module):
 
             inputs = inputs if isinstance(inputs, (list, tuple)) else [inputs]
             for ii in inputs:
-                if isinstance(ii, GraphNode) or isinstance(ii, Shape):
+                if isinstance(ii, GraphNode):
                     ii.set_next_nodes(cur_node)
-            self.output = self.node = cur_node
+
+            if self.nodes is None:
+                self.outputs = self.nodes = [cur_node]
+                self.output = self.node = cur_node
+            else:
+                self.nodes.append(cur_node)
+                self.outputs.append(cur_node)
             return cur_node
         else:
             return self.call(inputs, **kwargs)
@@ -305,18 +326,6 @@ class Lambda(Layer):
         self.module = func
         super().__init__(**kwargs)
 
-    def verify_name(self, name):
-        if name is not None:
-            return name
-
-        if isinstance(self.module, partial):
-            func = self.module.func
-            func_name = func.__qualname__.split(".")[-1] if hasattr(func, "__qualname__") else func.__str__().split()[:3][-1]
-        else:
-            func = self.module
-            func_name = func.__qualname__.split(".")[0] if hasattr(func, "__qualname__") else func.__str__().split(".")[0].split()[-1]
-        return "{}_{}".format(func_name if len(func_name) > 0 else "lambda", self.num_instances)
-
     def build(self, input_shape: torch.Size):
         super().build(input_shape)
         # self.forward = self.module
@@ -333,6 +342,17 @@ class Lambda(Layer):
         inputs = [torch.ones([0 if ii is None or ii == -1 else ii for ii in input_shape]) for input_shape in input_shapes]  # Regards 0 as dynamic shape
         output_shape = list(self.module(inputs[0]).shape) if len(inputs) == 1 else list(self.module(inputs).shape)
         return [None if ii == 0 else ii for ii in output_shape]  # Regards 0 as dynamic shape
+
+    def extra_repr(self):
+        from types import LambdaType
+
+        if isinstance(self.module, partial) and isinstance(self.module.func, LambdaType):
+            func_str = "{}, {}".format(inspect.getsource(self.module.func), self.module.keywords)
+        if isinstance(self.module, partial):
+            func_str = "{}, {}".format(self.module.func.__name__, self.module.keywords)
+        else:
+            func_str = inspect.getsource(self.module)
+        return "name: " + self.name + ", " + func_str.strip()
 
 
 class Activation(Layer):
@@ -1229,10 +1249,10 @@ class _ResizeDynamic(Layer):
     >>> inputs = layers.Input([3, 16, 16])
     >>> size = layers.Shape(inputs)[2:]
     >>> aa = layers._ResizeDynamic()
-    >>> print(f"{aa([torch.ones([1, 3, 24, 24]), size]).shape = }")
+    >>> print(f"{aa([torch.ones([1, 3, 24, 24]), np.array(size)]).shape = }")
     >>> # aa(torch.ones([1, 3, 24, 24])).shape = torch.Size([1, 3, 16, 16])
     >>> inputs.set_shape([None, 1, 32, 32])
-    >>> print(f"{aa([torch.ones([1, 3, 24, 24]), size]).shape = }")
+    >>> print(f"{aa([torch.ones([1, 3, 24, 24]), np.array(size)]).shape = }")
     >>> # aa(torch.ones([1, 3, 24, 24])).shape = torch.Size([1, 3, 32, 32])
     """
 

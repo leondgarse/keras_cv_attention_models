@@ -149,6 +149,7 @@ def build_onnx_engine_one_input(model_file, engine_path=None, int8_calibrator=No
 
 class EngineInferenceOneInOneOut:
     """
+    >>> !pip install tensorrt pycuda
     >>> import torch
     >>> from keras_cv_attention_models.imagenet import tensorrt_engine
     >>> aa = tensorrt_engine.ImageCalibrator('calibration_imagenet/', 'foo.cache')

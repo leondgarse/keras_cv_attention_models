@@ -71,13 +71,17 @@ class Model(nn.Module):
             cur_node = dfs_queue.pop(-1)
             if len(cur_node.pre_nodes) > 1 and not all([ii.name in intra_nodes_ref for ii in cur_node.pre_nodes]):
                 continue
+            if cur_node.name in intra_nodes_ref:
+                raise ValueError("All nodes name should be unique: cur_node: {}, intra_nodes_ref: {}".format(cur_node.name, list(intra_nodes_ref.keys())))
+
             dfs_queue.extend(cur_node.next_nodes)
             # print(cur_node.name)
 
             forward_pipeline.append(cur_node)
             setattr(self, cur_node.name, cur_node.callable)
-            layers[cur_node.name] = cur_node.layer
+            layers[cur_node.layer.name] = cur_node.layer
 
+            # print(f"{cur_node.name = }, {len(cur_node.next_nodes) = }")
             intra_nodes_ref[cur_node.name] = len(cur_node.next_nodes)
             if cur_node.name in self.output_names:
                 intra_nodes_ref[cur_node.name] = intra_nodes_ref.get(cur_node.name, 0) + 1
@@ -108,12 +112,10 @@ class Model(nn.Module):
                 print("     inputs.shape:", [np.shape(ii) for ii in cur_inputs] if len(node.pre_nodes) > 1 else np.shape(cur_inputs))
 
             output = node.callable(cur_inputs)
+            intra_nodes[node.name] = [output] * self.intra_nodes_ref[node.name]
             if self.debug:
                 print("     output.shape:", np.shape(output))
-
-            intra_nodes[node.name] = [output] * self.intra_nodes_ref[node.name]
-        if self.debug:
-            print(">>>> [Output] intra_nodes:", {kk: len(vv) for kk, vv in intra_nodes.items() if len(vv) > 0})
+                print("     intra_nodes:", {kk: len(vv) for kk, vv in intra_nodes.items() if len(vv) > 0})
         return [intra_nodes[ii][0] for ii in self.output_names] if self.num_outputs != 1 else intra_nodes[self.output_names[0]][0]
 
     @property

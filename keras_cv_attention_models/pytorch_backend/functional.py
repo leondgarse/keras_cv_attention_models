@@ -137,7 +137,7 @@ def non_max_suppression_with_scores(boxes, scores, max_output_size, iou_threshol
     # return nms(boxes=boxes, scores=scores, iou_threshold=iou_threshold)
     # batched_nms(boxes=boxes, scores=scores, iou_threshold=iou_threshold)
     # batched_nms(boxes: torch.Tensor, scores: torch.Tensor, idxs: torch.Tensor, iou_threshold: float)
-    from tensorflow import image
+    from tensorflow import image  # [TODO] use torch / torchvision one
 
     if hasattr(boxes, "detach"):
         boxes = boxes.detach().numpy()

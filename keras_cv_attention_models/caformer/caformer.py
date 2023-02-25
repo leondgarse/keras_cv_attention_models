@@ -113,9 +113,9 @@ def CAFormer(
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id > 0:
             nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, center=False, axis=-1, name=stack_name + "downsample_")
-            nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=name + "permute_pre")(nn)
+            nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=stack_name + "permute_pre")(nn)
             nn = conv2d_no_bias(nn, out_channel, 3, strides=2, padding="same", use_bias=True, name=stack_name + "downsample_")
-            nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1], name=name + "permute_pre")(nn)
+            nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1], name=stack_name + "permute_post")(nn)
 
         use_attn = True if block_type[0].lower() == "t" else False
         mlp_ratio = mlp_ratios[stack_id] if isinstance(mlp_ratios, (list, tuple)) else mlp_ratios
@@ -126,7 +126,7 @@ def CAFormer(
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             nn = meta_former_block(nn, use_attn, head_dim, mlp_ratio, layer_scale, residual_scale, block_drop_rate, activation=activation, name=name)
             global_block_id += 1
-    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=name + "permute_pre")(nn)
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name="pre_output_permute")(nn)
 
     if num_classes > 0:
         nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
