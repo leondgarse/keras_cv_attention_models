@@ -79,7 +79,7 @@ def inverted_residual_block(
         if is_torch_mode and backend.is_tensorflow_backend and kernel_size // 2 > 0:
             nn = layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "pad")(nn)
             padding = "VALID"
-        if is_torch_mode and kernel_size // 2 > 0:
+        elif is_torch_mode and kernel_size // 2 > 0:
             padding = kernel_size // 2
         else:
             padding = "SAME"
