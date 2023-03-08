@@ -45,21 +45,18 @@ Model architectures:
   | CoaTMini      | 10M    | 6.78G | 224   | 81.0     |
 """
 
-__default_doc__ = __head_doc__ + """
-[{model_name} architecture] serial_depths: {serial_depths}, embed_dims: {embed_dims}, mlp_ratios: {mlp_ratios},
-                            parallel_depth: {parallel_depth}, patch_size: {patch_size}, num_heads: {num_heads}.
+CoaTLiteTiny.__doc__ = __head_doc__ + """
 Args:
 """ + __tail_doc__
-
-CoaTLiteTiny.__doc__ = __default_doc__.format(model_name="CoaTLiteTiny", **coat.BLOCK_CONFIGS["lite_tiny"])
-CoaTLiteMini.__doc__ = __default_doc__.format(model_name="CoaTLiteMini", **coat.BLOCK_CONFIGS["lite_mini"])
-CoaTLiteSmall.__doc__ = __default_doc__.format(model_name="CoaTLiteSmall", **coat.BLOCK_CONFIGS["lite_small"])
-CoaTTiny.__doc__ = __default_doc__.format(model_name="CoaTTiny", **coat.BLOCK_CONFIGS["tiny"])
-CoaTMini.__doc__ = __default_doc__.format(model_name="CoaTMini", **coat.BLOCK_CONFIGS["mini"])
+CoaTLiteMini.__doc__ = CoaTLiteTiny.__doc__
+CoaTLiteSmall.__doc__ = CoaTLiteTiny.__doc__
+CoaTTiny.__doc__ = CoaTLiteTiny.__doc__
+CoaTMini.__doc__ = CoaTLiteTiny.__doc__
 
 ConvPositionalEncoding.__doc__ = __head_doc__ + """
 Convolutional Position Encoding. Note: This module is similar to the conditional position encoding in CPVT.
 Applies a `DepthwiseConv2D` layer with input, then adds with input.
+Not a layer, just wappered a class for reusable.
 
 input: `[batch, class_token + height * width, channel]`.
 output: `[batch, class_token + height * width, channel]`.
@@ -71,15 +68,13 @@ Examples:
 >>> from keras_cv_attention_models import attention_layers
 >>> aa = attention_layers.ConvPositionalEncoding()
 >>> print(f"{aa(tf.ones([1, 1 + 14 * 14, 256])).shape = }")
-aa(tf.ones([1, 1 + 14 * 14, 256])).shape = TensorShape([1, 197, 256])
-
->>> print({ii.name:ii.numpy().shape for ii in aa.weights})
-{'conv_positional_encoding/depthwise_kernel:0': (3, 3, 256, 1), 'conv_positional_encoding/bias:0': (256,)}
+# aa(tf.ones([1, 1 + 14 * 14, 256])).shape = TensorShape([1, 197, 256])
 """
 
 ConvRelativePositionalEncoding.__doc__ = __head_doc__ + """
 Convolutional with Relative Position Encoding.
 Applies multi `DepthwiseConv2D` layers with split input, then adds with input.
+Not a layer, just wappered a class for reusable.
 
 input:
     query: `[batch, num_heads, class_token + height * width, channel // num_heads]`.
@@ -94,13 +89,5 @@ Examples:
 >>> from keras_cv_attention_models import attention_layers
 >>> aa = attention_layers.ConvRelativePositionalEncoding()
 >>> print(f"{aa(tf.ones([1, 8, 1 + 14 * 14, 6]), tf.ones([1, 8, 1 + 14 * 14, 6])).shape = }")
-aa(tf.ones([1, 8, 1 + 14 * 14, 6]), tf.ones([1, 8, 1 + 14 * 14, 6])).shape = TensorShape([1, 8, 197, 6])
-
->>> print({ii.name:ii.numpy().shape for ii in aa.weights})
-{'conv_relative_positional_encoding/depth_conv_1/depthwise_kernel:0': (3, 3, 12, 1),
- 'conv_relative_positional_encoding/depth_conv_1/bias:0': (12,),
- 'conv_relative_positional_encoding/depth_conv_2/depthwise_kernel:0': (5, 5, 18, 1),
- 'conv_relative_positional_encoding/depth_conv_2/bias:0': (18,),
- 'conv_relative_positional_encoding/depth_conv_3/depthwise_kernel:0': (7, 7, 18, 1),
- 'conv_relative_positional_encoding/depth_conv_3/bias:0': (18,)}
+# aa(tf.ones([1, 8, 1 + 14 * 14, 6]), tf.ones([1, 8, 1 + 14 * 14, 6])).shape = TensorShape([1, 8, 197, 6])
 """

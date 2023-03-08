@@ -12,7 +12,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
 
 exec(open("keras_cv_attention_models/version.py").read())
 setup(
-    name="keras-cv-attention-models",
+    name="kecam",
     version=__version__,
     description="Tensorflow keras computer vision attention models. Alias kecam. https://github.com/leondgarse/keras_cv_attention_models",
     long_description=long_description,

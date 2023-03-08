@@ -6,6 +6,7 @@ import sys
 sys.path.append(".")
 import keras_cv_attention_models
 from keras_cv_attention_models.backend import models
+from keras_cv_attention_models.coco.data import COCO_80_LABEL_DICT, COCO_90_LABEL_DICT
 
 """ Recognition models defination """
 
@@ -31,6 +32,14 @@ def test_CMT_defination():
     assert isinstance(mm, models.Model)
 
     mm = keras_cv_attention_models.cmt.CMTTiny_torch(pretrained=None, num_classes=0)
+    assert isinstance(mm, models.Model)
+
+
+def test_CoaT_defination():
+    mm = keras_cv_attention_models.coat.CoaTLiteMini(pretrained=None)
+    assert isinstance(mm, models.Model)
+
+    mm = keras_cv_attention_models.coat.CoaTLiteSmall(pretrained=None, num_classes=0)
     assert isinstance(mm, models.Model)
 
 
@@ -199,6 +208,14 @@ def test_CAFormerS18_new_shape_predict():
 
 def test_CMTTiny_new_shape_predict():
     mm = keras_cv_attention_models.cmt.CMTTiny(input_shape=(117, 192, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_CoaT_new_shape_predict():
+    mm = keras_cv_attention_models.coat.CoaTLiteMini(input_shape=(193, 117, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
     out = mm.decode_predictions(pred)[0][0]
 
@@ -466,7 +483,7 @@ def test_EfficientDetD0_predict():
     assert pred.shape == (1, 49104, 94)
 
     pred_label = mm.decode_predictions(pred)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
+    assert COCO_90_LABEL_DICT[pred_label[0]] == "cat"
 
 
 def test_EfficientDet_header():
@@ -483,7 +500,7 @@ def test_EfficientDetD1_dynamic_predict():
     assert pred.shape == (1, 16641, 94)
 
     pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
+    assert COCO_90_LABEL_DICT[pred_label[0]] == "cat"
 
 
 def test_EfficientDetLite1_dynamic_predict():
@@ -493,7 +510,7 @@ def test_EfficientDetLite1_dynamic_predict():
     assert pred.shape == (1, 16641, 94)
 
     pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_90_LABEL_DICT[pred_label[0]] == "cat"
+    assert COCO_90_LABEL_DICT[pred_label[0]] == "cat"
 
 
 def test_YOLOR_CSP_predict():
@@ -502,7 +519,7 @@ def test_YOLOR_CSP_predict():
     assert pred.shape == (1, 25200, 85)
 
     pred_label = mm.decode_predictions(pred)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+    assert COCO_80_LABEL_DICT[pred_label[0]] == "cat"
 
 
 def test_YOLOR_header():
@@ -519,7 +536,7 @@ def test_YOLOR_CSP_dynamic_predict():
     assert pred.shape == (1, 3330, 85)
 
     pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+    assert COCO_80_LABEL_DICT[pred_label[0]] == "cat"
 
 
 def test_YOLOXTiny_predict():
@@ -528,7 +545,7 @@ def test_YOLOXTiny_predict():
     assert pred.shape == (1, 3549, 85)
 
     pred_label = mm.decode_predictions(pred)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+    assert COCO_80_LABEL_DICT[pred_label[0]] == "cat"
 
 
 def test_YOLOX_header():
@@ -545,7 +562,7 @@ def test_YOLOXS_dynamic_predict():
     assert pred.shape == (1, 1110, 85)
 
     pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+    assert COCO_80_LABEL_DICT[pred_label[0]] == "cat"
 
 
 def test_YOLOV7_Tiny_predict():
@@ -554,7 +571,7 @@ def test_YOLOV7_Tiny_predict():
     assert pred.shape == (1, 10647, 85)
 
     pred_label = mm.decode_predictions(pred)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+    assert COCO_80_LABEL_DICT[pred_label[0]] == "cat"
 
 
 def test_YOLOV7_Tiny_dynamic_predict():
@@ -564,4 +581,4 @@ def test_YOLOV7_Tiny_dynamic_predict():
     assert pred.shape == (1, 3330, 85)
 
     pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
-    assert keras_cv_attention_models.coco.data.COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+    assert COCO_80_LABEL_DICT[pred_label[0]] == "cat"

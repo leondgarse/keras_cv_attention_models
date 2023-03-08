@@ -1,74 +1,58 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
 from keras_cv_attention_models.download_and_load import reload_model_weights
-from keras_cv_attention_models.attention_layers import layer_norm, conv2d_no_bias, activation_by_name, add_pre_post_process
+from keras_cv_attention_models.attention_layers import ClassToken, layer_norm, conv2d_no_bias, activation_by_name, add_pre_post_process
 
 
 PRETRAINED_DICT = {
-    "coat_lite_tiny": {"imagenet": "7738d1efb345d17f7569929330a2cf7d"},
-    "coat_lite_mini": {"imagenet": "9ad2fa037addee382e70c6fac1941a68"},
-    "coat_lite_small": {"imagenet": "0c8012cfba5b1d1b97305770587730ff"},
-    "coat_tiny": {"imagenet": "0b20a82b7f82a3d73cca9fb5b66db8fb"},
-    "coat_mini": {"imagenet": "883a0c3083b82f19f1245572ef068311"},
+    "coat_lite_tiny": {"imagenet": "e45487e7bfb44faac97b1af51f8bbd01"},
+    "coat_lite_mini": {"imagenet": "e5e3f5e4b86765ee75f8bf03973d70a0"},
+    "coat_lite_small": {"imagenet": "eddffc46a64eb0a21b7ecc057f231756"},
+    "coat_tiny": {"imagenet": "6418d9580ad9ea0a6755c77d8d7bad49"},
+    "coat_mini": {"imagenet": "dc284967f6bd32df8e1e03074b2d773d"},
 }
 
 
-def mlp_block(inputs, hidden_dim, activation="gelu", name=None):
-    nn = layers.Dense(hidden_dim, name=name + "dense_0")(inputs)
-    nn = activation_by_name(nn, activation, name=name and name + activation)
-    nn = layers.Dense(inputs.shape[-1], name=name + "dense_1")(nn)
-    return nn
-
-
-@backend.register_keras_serializable(package="coat")
-class ConvPositionalEncoding(layers.Layer):
-    def __init__(self, kernel_size=3, input_height=-1, **kwargs):
-        super(ConvPositionalEncoding, self).__init__(**kwargs)
-        self.kernel_size, self.input_height = kernel_size, input_height
-        self.pad = [[0, 0], [kernel_size // 2, kernel_size // 2], [kernel_size // 2, kernel_size // 2], [0, 0]]
-        self.supports_masking = False
+# Not a layer, just for reusable
+class ConvPositionalEncoding:
+    def __init__(self, kernel_size=3, input_height=-1, name=None):
+        self.kernel_size, self.input_height, self.name = kernel_size, input_height, name
+        if image_data_format() == "channels_last":
+            self.pad = [[0, 0], [kernel_size // 2, kernel_size // 2], [kernel_size // 2, kernel_size // 2], [0, 0]]
+        else:
+            self.pad = [[0, 0], [0, 0], [kernel_size // 2, kernel_size // 2], [kernel_size // 2, kernel_size // 2]]
+        self.built = False
 
     def build(self, input_shape):
         self.height = self.input_height if self.input_height > 0 else int(float(input_shape[1] - 1) ** 0.5)
         self.width = (input_shape[1] - 1) // self.height
 
         self.channel = input_shape[-1]
-        # Conv2D with goups=self.channel
-        self.dconv = layers.DepthwiseConv2D(
-            self.kernel_size,
-            strides=1,
-            padding="VALID",
-            name=self.name and self.name + "depth_conv",
-        )
-        self.dconv.build([None, self.height, self.width, self.channel])
-        super(ConvPositionalEncoding, self).build(input_shape)
+        self.dconv = layers.DepthwiseConv2D(self.kernel_size, strides=1, padding="VALID", name=self.name and self.name + "depth_conv")
 
-    def call(self, inputs, **kwargs):
+    def __call__(self, inputs, **kwargs):
+        if not self.built:
+            self.build(inputs.shape)
+            self.built = True
+
         cls_token, img_token = inputs[:, :1], inputs[:, 1:]
         img_token = functional.reshape(img_token, [-1, self.height, self.width, self.channel])
-        nn = self.dconv(functional.pad(img_token, self.pad)) + img_token
+        nn = img_token if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(img_token)
+        # print(f"{nn.shape = }")
+        nn = self.dconv(functional.pad(nn, self.pad))
+        nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)
+        nn = layers.Add()([nn, img_token])
         nn = functional.reshape(nn, [-1, self.height * self.width, self.channel])
         return functional.concat([cls_token, nn], axis=1)
 
-    def compute_output_shape(self, input_shape):
-        return input_shape
 
-    def get_config(self):
-        base_config = super(ConvPositionalEncoding, self).get_config()
-        base_config.update({"kernel_size": self.kernel_size, "input_height": self.input_height})
-        return base_config
-
-
-@backend.register_keras_serializable(package="coat")
-class ConvRelativePositionalEncoding(layers.Layer):
-    def __init__(self, head_splits=[2, 3, 3], head_kernel_size=[3, 5, 7], input_height=-1, **kwargs):
-        super(ConvRelativePositionalEncoding, self).__init__(**kwargs)
-        self.head_splits, self.head_kernel_size, self.input_height = head_splits, head_kernel_size, input_height
-        self.supports_masking = False
+# Not a layer, just for reusable
+class ConvRelativePositionalEncoding:
+    def __init__(self, head_splits=[2, 3, 3], head_kernel_size=[3, 5, 7], input_height=-1, name=None):
+        self.head_splits, self.head_kernel_size, self.input_height, self.name = head_splits, head_kernel_size, input_height, name
+        self.built = False
 
     def build(self, query_shape):
-        import tensorflow as tf
-
         # print(query_shape)
         self.height = self.input_height if self.input_height > 0 else int(float(query_shape[2] - 1) ** 0.5)
         self.width = (query_shape[2] - 1) // self.height
@@ -78,57 +62,42 @@ class ConvRelativePositionalEncoding(layers.Layer):
         self.dconvs = []
         self.pads = []
         for id, (head_split, kernel_size) in enumerate(zip(self.head_splits, self.head_kernel_size)):
-            name_scope = "depth_conv_" + str(id + 1)
-            with tf.name_scope(name_scope) as scope:
-                dconv = layers.DepthwiseConv2D(
-                    kernel_size,
-                    strides=1,
-                    padding="VALID",
-                    name=name_scope if self.name is None else self.name + name_scope,
-                )
-                # print(query_shape, [None, self.height, self.width, int(head_split * self.query_dim)])
-                dconv.build([None, self.height, self.width, int(head_split * self.query_dim)])
-            pad = [[0, 0], [kernel_size // 2, kernel_size // 2], [kernel_size // 2, kernel_size // 2], [0, 0]]
+            name = self.name and self.name + "depth_conv_" + str(id + 1)
+            dconv = layers.DepthwiseConv2D(kernel_size, strides=1, padding="VALID", name=name)
+            if image_data_format() == "channels_last":
+                pad = [[0, 0], [kernel_size // 2, kernel_size // 2], [kernel_size // 2, kernel_size // 2], [0, 0]]
+            else:
+                pad = [[0, 0], [0, 0], [kernel_size // 2, kernel_size // 2], [kernel_size // 2, kernel_size // 2]]
             self.dconvs.append(dconv)
             self.pads.append(pad)
 
-    def call(self, query, value, **kwargs):
+    def __call__(self, query, value, **kwargs):
+        if not self.built:
+            self.build(query.shape)
+            self.built = True
         img_token_q, img_token_v = query[:, :, 1:, :], value[:, :, 1:, :]
 
-        img_token_v = functional.transpose(img_token_v, [0, 2, 1, 3])  # [batch, blocks, num_heads, query_dim]
-        img_token_v = functional.reshape(img_token_v, [-1, self.height, self.width, self.num_heads * self.query_dim])
-        split_values = functional.split(img_token_v, self.channel_splits, axis=-1)
+        if image_data_format() == "channels_last":
+            img_token_v = functional.transpose(img_token_v, [0, 2, 1, 3])  # [batch, blocks, num_heads, query_dim]
+            img_token_v = functional.reshape(img_token_v, [-1, self.height, self.width, self.num_heads * self.query_dim])
+            split_values = functional.split(img_token_v, self.channel_splits, axis=-1)
+        else:
+            img_token_v = functional.transpose(img_token_v, [0, 1, 3, 2])  # [batch, num_heads, query_dim, blocks]
+            img_token_v = functional.reshape(img_token_v, [-1, self.num_heads * self.query_dim, self.height, self.width])
+            split_values = functional.split(img_token_v, self.channel_splits, axis=1)
         nn = [dconv(functional.pad(split_value, pad)) for split_value, dconv, pad in zip(split_values, self.dconvs, self.pads)]
-        nn = functional.concat(nn, axis=-1)
-        conv_v_img = functional.reshape(nn, [-1, self.height * self.width, self.num_heads, self.query_dim])
-        conv_v_img = functional.transpose(conv_v_img, [0, 2, 1, 3])
+
+        if image_data_format() == "channels_last":
+            nn = functional.concat(nn, axis=-1)
+            conv_v_img = functional.reshape(nn, [-1, self.height * self.width, self.num_heads, self.query_dim])
+            conv_v_img = functional.transpose(conv_v_img, [0, 2, 1, 3])
+        else:
+            nn = functional.concat(nn, axis=1)
+            conv_v_img = functional.reshape(nn, [-1, self.num_heads, self.query_dim, self.height * self.width])
+            conv_v_img = functional.transpose(conv_v_img, [0, 1, 3, 2])
 
         EV_hat_img = img_token_q * conv_v_img
         return functional.pad(EV_hat_img, [[0, 0], [0, 0], [1, 0], [0, 0]])
-
-    def get_config(self):
-        base_config = super(ConvRelativePositionalEncoding, self).get_config()
-        base_config.update({"head_splits": self.head_splits, "head_kernel_size": self.head_kernel_size, "input_height": self.input_height})
-        return base_config
-
-
-@backend.register_keras_serializable(package="coat")
-class ClassToken(layers.Layer):
-    def __init__(self, **kwargs):
-        super(ClassToken, self).__init__(**kwargs)
-        self.token_init = initializers.TruncatedNormal(stddev=0.2)
-        self.supports_masking = False
-
-    def build(self, input_shape):
-        self.class_tokens = self.add_weight(name="tokens", shape=(1, 1, input_shape[-1]), initializer=self.token_init, trainable=True)
-        super(ClassToken, self).build(input_shape)
-
-    def call(self, inputs, **kwargs):
-        class_tokens = functional.tile(self.class_tokens, [functional.shape(inputs)[0], 1, 1])
-        return functional.concat([class_tokens, inputs], axis=1)
-
-    def compute_output_shape(self, input_shape):
-        return (input_shape[0], input_shape[1] + 1, input_shape[2])
 
 
 def factor_attention_conv_relative_positional_encoding(inputs, shared_crpe=None, num_heads=8, qkv_bias=True, name=""):
@@ -144,53 +113,55 @@ def factor_attention_conv_relative_positional_encoding(inputs, shared_crpe=None,
     # Factorized attention.
     # kk = tf.nn.softmax(kk, axis=2)  # On `blocks` dimension
     kk = layers.Softmax(axis=2, name=name and name + "attention_scores")(kk)  # On `blocks` dimension
-    # attn = tf.matmul(kk, vv, transpose_a=True)  # 'b h n k, b h n v -> b h k v', [batch, num_heads, key_dim, key_dim]
-    # factor_att = tf.matmul(qq, attn)    # 'b h n k, b h k v -> b h n v', [batch, num_heads, blocks, key_dim]
-    attn = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1], transpose_a=True))([kk, vv])
-    factor_att = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([qq, attn])
+    kk = functional.transpose(kk, [0, 1, 3, 2])
+    factor_att = qq @ (kk @ vv)
 
     # Convolutional relative position encoding.
-    crpe_out = shared_crpe(qq, vv) if shared_crpe is not None else ConvRelativePositionalEncoding(name=name + "crpe")(qq, vv)
+    crpe_out = shared_crpe(qq, vv) if shared_crpe is not None else ConvRelativePositionalEncoding(name=name + "crpe_")(qq, vv)
 
     # Merge and reshape.
     nn = layers.Add()([factor_att * qk_scale, crpe_out])
     nn = layers.Permute([2, 1, 3])(nn)
     nn = layers.Reshape([blocks, dim])(nn)
-
-    # Output projection.
     nn = layers.Dense(dim, name=name + "out")(nn)
-    # Drop
     return nn
 
 
-def __cpe_norm_crpe__(inputs, shared_cpe=None, shared_crpe=None, num_heads=8, name=""):
-    cpe_out = shared_cpe(inputs) if shared_cpe is not None else ConvPositionalEncoding(name=name + "cpe")(inputs)  # shared
-    nn = layer_norm(cpe_out, name=name + "norm1")
+def cpe_norm_crpe(inputs, shared_cpe=None, shared_crpe=None, num_heads=8, name=""):
+    cpe_out = shared_cpe(inputs) if shared_cpe is not None else ConvPositionalEncoding(name=name + "cpe_")(inputs)  # shared
+    nn = layer_norm(cpe_out, axis=-1, name=name + "norm1")
     crpe_out = factor_attention_conv_relative_positional_encoding(nn, shared_crpe=shared_crpe, num_heads=num_heads, name=name + "factoratt_crpe_")
     return cpe_out, crpe_out
 
 
-def __res_mlp_block__(cpe_out, crpe_out, mlp_ratio=4, drop_rate=0, activation="gelu", name=""):
+def res_mlp_block(cpe_out, crpe_out, mlp_ratio=4, drop_rate=0, activation="gelu", name=""):
     if drop_rate > 0:
         crpe_out = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop_1")(crpe_out)
     cpe_crpe = layers.Add()([cpe_out, crpe_out])
 
     # MLP
-    nn = layer_norm(cpe_crpe, name=name + "norm2")
-    nn = mlp_block(nn, nn.shape[-1] * mlp_ratio, activation=activation, name=name + "mlp_")
+    pre_mlp = layer_norm(cpe_crpe, axis=-1, name=name + "norm2")
+    nn = layers.Dense(pre_mlp.shape[-1] * mlp_ratio, name=name + "mlp_dense_0")(pre_mlp)
+    nn = activation_by_name(nn, activation, name=name + "mlp_")
+    nn = layers.Dense(pre_mlp.shape[-1], name=name + "mlp_dense_1")(nn)
+
     if drop_rate > 0:
         nn = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop_2")(nn)
     return layers.Add(name=name + "output")([cpe_crpe, nn])
 
 
 def serial_block(inputs, embed_dim, shared_cpe=None, shared_crpe=None, num_heads=8, mlp_ratio=4, drop_rate=0, activation="gelu", name=""):
-    cpe_out, crpe_out = __cpe_norm_crpe__(inputs, shared_cpe, shared_crpe, num_heads, name=name)
-    out = __res_mlp_block__(cpe_out, crpe_out, mlp_ratio, drop_rate, activation=activation, name=name)
+    cpe_out, crpe_out = cpe_norm_crpe(inputs, shared_cpe, shared_crpe, num_heads, name=name)
+    out = res_mlp_block(cpe_out, crpe_out, mlp_ratio, drop_rate, activation=activation, name=name)
     return out
 
 
 def resample(image, target_shape, class_token=None):
-    out_image = functional.cast(functional.resize(image, target_shape, method="bilinear"), image.dtype)
+    # print(f"{image.shape = }, {target_shape = }")
+    image = image if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(image)
+    # out_image = functional.cast(functional.resize(image, target_shape, method="bilinear"), image.dtype)
+    out_image = functional.resize(image, target_shape, method="bilinear")
+    out_image = out_image if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(out_image)
 
     if class_token is not None:
         out_image = functional.reshape(out_image, [-1, out_image.shape[1] * out_image.shape[2], out_image.shape[-1]])
@@ -206,7 +177,7 @@ def parallel_block(inputs, shared_cpes=None, shared_crpes=None, block_heights=[]
     block_heights = block_heights[1:]
     for id, (xx, shared_cpe, shared_crpe) in enumerate(zip(inputs[1:], shared_cpes[1:], shared_crpes[1:])):
         cur_name = name + "{}_".format(id + 2)
-        cpe_out, crpe_out = __cpe_norm_crpe__(xx, shared_cpe, shared_crpe, num_heads, name=cur_name)
+        cpe_out, crpe_out = cpe_norm_crpe(xx, shared_cpe, shared_crpe, num_heads, name=cur_name)
         cpe_outs.append(cpe_out)
         crpe_outs.append(crpe_out)
         height = block_heights[id] if len(block_heights) > id else int(float(crpe_out.shape[1] - 1) ** 0.5)
@@ -224,7 +195,7 @@ def parallel_block(inputs, shared_cpes=None, shared_crpes=None, block_heights=[]
     outs = []
     for id, (cpe_out, crpe_out, mlp_ratio) in enumerate(zip(cpe_outs, crpe_stack, mlp_ratios[1:])):
         cur_name = name + "{}_".format(id + 2)
-        out = __res_mlp_block__(cpe_out, crpe_out, mlp_ratio, drop_rate, activation=activation, name=cur_name)
+        out = res_mlp_block(cpe_out, crpe_out, mlp_ratio, drop_rate, activation=activation, name=cur_name)
         outs.append(out)
     return inputs[:1] + outs  # inputs[0] directly out
 
@@ -234,17 +205,19 @@ def patch_embed(inputs, embed_dim, patch_size=2, input_height=-1, name=""):
         input_height = input_height if input_height > 0 else int(float(inputs.shape[1]) ** 0.5)
         input_width = inputs.shape[1] // input_height
         inputs = layers.Reshape([input_height, input_width, inputs.shape[-1]])(inputs)
+        inputs = inputs if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(inputs)
     nn = conv2d_no_bias(inputs, embed_dim, kernel_size=patch_size, strides=patch_size, use_bias=True, name=name)
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)
     block_height = nn.shape[1]
-    nn = layers.Reshape([nn.shape[1] * nn.shape[2], nn.shape[-1]])(nn)  # flatten(2)
-    nn = layer_norm(nn, name=name)
+    nn = layers.Reshape([nn.shape[1] * nn.shape[2], nn.shape[3]])(nn)  # flatten(2)
+    nn = layer_norm(nn, axis=-1, name=name)
     return nn, block_height
 
 
 def CoaT(
-    serial_depths,
-    embed_dims,
-    mlp_ratios,
+    serial_depths=[2, 2, 2, 2],
+    embed_dims=[64, 128, 256, 320],
+    mlp_ratios=[8, 8, 4, 4],
     parallel_depth=0,
     patch_size=4,
     num_heads=8,
@@ -282,8 +255,8 @@ def CoaT(
         block_heights.append(block_height)
         # print(f">>>> {nn.shape = }, {block_height = }")
         nn = ClassToken(name=name + "class_token")(nn)
-        shared_cpe = ConvPositionalEncoding(kernel_size=3, input_height=block_height, name="cpe_" + str(sid + 1)) if use_shared_cpe else None
-        shared_crpe = ConvRelativePositionalEncoding(head_splits, head_kernel_size, block_height, name="crpe_" + str(sid + 1)) if use_shared_crpe else None
+        shared_cpe = ConvPositionalEncoding(kernel_size=3, input_height=block_height, name="cpe{}_".format(sid + 1)) if use_shared_cpe else None
+        shared_crpe = ConvRelativePositionalEncoding(head_splits, head_kernel_size, block_height, name="crpe{}_".format(sid + 1)) if use_shared_crpe else None
         for bid in range(depth):
             block_name = name + "block{}_".format(bid + 1)
             nn = serial_block(nn, embed_dim, shared_cpe, shared_crpe, num_heads, mlp_ratio, activation=activation, name=block_name)
@@ -300,13 +273,13 @@ def CoaT(
     if out_features is not None:  # Return intermediate features (for down-stream tasks).
         nn = [classfier_outs[id][:, 1:, :] for id in out_features]
     elif parallel_depth == 0:  # Lite model, only serial blocks, Early return.
-        nn = layer_norm(classfier_outs[-1], name="out_")[:, 0]
+        nn = layer_norm(classfier_outs[-1], axis=-1, name="out_")[:, 0]
     else:
-        nn = [layer_norm(xx, name="out_{}_".format(id + 1))[:, :1, :] for id, xx in enumerate(classfier_outs[1:])]
+        nn = [layer_norm(xx, axis=-1, name="out_{}_".format(id + 1))[:, :1, :] for id, xx in enumerate(classfier_outs[1:])]
         nn = layers.Concatenate(axis=1)(nn)
-        nn = layers.Permute([2, 1])(nn)
-        nn = layers.Conv1D(1, 1, name="aggregate")(nn)[:, :, 0]
-
+        nn = layers.Permute([2, 1])(nn) if image_data_format() == "channels_last" else nn
+        nn = layers.Conv1D(1, 1, name="aggregate")(nn)
+        nn = nn[:, :, 0] if image_data_format() == "channels_last" else nn[:, 0]
     if out_features is None and num_classes > 0:
         nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
 
@@ -316,65 +289,30 @@ def CoaT(
     return model
 
 
-BLOCK_CONFIGS = {
-    "lite_tiny": {
-        "serial_depths": [2, 2, 2, 2],
-        "embed_dims": [64, 128, 256, 320],
-        "mlp_ratios": [8, 8, 4, 4],
-        "parallel_depth": 0,
-        "patch_size": 4,
-        "num_heads": 8,
-    },
-    "lite_mini": {
-        "serial_depths": [2, 2, 2, 2],
-        "embed_dims": [64, 128, 320, 512],
-        "mlp_ratios": [8, 8, 4, 4],
-        "parallel_depth": 0,
-        "patch_size": 4,
-        "num_heads": 8,
-    },
-    "lite_small": {
-        "serial_depths": [3, 4, 6, 3],
-        "embed_dims": [64, 128, 320, 512],
-        "mlp_ratios": [8, 8, 4, 4],
-        "parallel_depth": 0,
-        "patch_size": 4,
-        "num_heads": 8,
-    },
-    "tiny": {
-        "serial_depths": [2, 2, 2, 2],
-        "embed_dims": [152, 152, 152, 152],
-        "mlp_ratios": [4, 4, 4, 4],
-        "parallel_depth": 6,
-        "patch_size": 4,
-        "num_heads": 8,
-    },
-    "mini": {
-        "serial_depths": [2, 2, 2, 2],
-        "embed_dims": [152, 216, 216, 216],
-        "mlp_ratios": [4, 4, 4, 4],
-        "parallel_depth": 6,
-        "patch_size": 4,
-        "num_heads": 8,
-    },
-}
-
-
 def CoaTLiteTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return CoaT(**BLOCK_CONFIGS["lite_tiny"], **locals(), model_name="coat_lite_tiny", **kwargs)
+    return CoaT(**locals(), model_name="coat_lite_tiny", **kwargs)
 
 
 def CoaTLiteMini(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return CoaT(**BLOCK_CONFIGS["lite_mini"], **locals(), model_name="coat_lite_mini", **kwargs)
+    embed_dims = [64, 128, 320, 512]
+    return CoaT(**locals(), model_name="coat_lite_mini", **kwargs)
 
 
 def CoaTLiteSmall(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return CoaT(**BLOCK_CONFIGS["lite_small"], **locals(), model_name="coat_lite_small", **kwargs)
+    serial_depths = [3, 4, 6, 3]
+    embed_dims = [64, 128, 320, 512]
+    return CoaT(**locals(), model_name="coat_lite_small", **kwargs)
 
 
 def CoaTTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return CoaT(**BLOCK_CONFIGS["tiny"], **locals(), model_name="coat_tiny", **kwargs)
+    embed_dims = [152, 152, 152, 152]
+    mlp_ratios = [4, 4, 4, 4]
+    parallel_depth = 6
+    return CoaT(**locals(), model_name="coat_tiny", **kwargs)
 
 
 def CoaTMini(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return CoaT(**BLOCK_CONFIGS["mini"], **locals(), model_name="coat_mini", **kwargs)
+    embed_dims = [152, 216, 216, 216]
+    mlp_ratios = [4, 4, 4, 4]
+    parallel_depth = 6
+    return CoaT(**locals(), model_name="coat_mini", **kwargs)

@@ -76,9 +76,11 @@ def inverted_residual_block(
         nn = inputs
 
     if not is_fused:
-        if is_torch_mode and kernel_size // 2 > 0:
+        if is_torch_mode and backend.is_tensorflow_backend and kernel_size // 2 > 0:
             nn = layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "pad")(nn)
             padding = "VALID"
+        if is_torch_mode and kernel_size // 2 > 0:
+            padding = kernel_size // 2
         else:
             padding = "SAME"
         nn = layers.DepthwiseConv2D(kernel_size, padding=padding, strides=stride, use_bias=False, name=name and name + "MB_dw_")(nn)

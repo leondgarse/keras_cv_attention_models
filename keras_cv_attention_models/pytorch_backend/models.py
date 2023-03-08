@@ -147,16 +147,18 @@ class Model(nn.Module):
         print("Total params: {:,} | Trainable params: {:,} | Non-trainable params:{:,}".format(total_params, trainable_params, non_trainable_params))
         return total_params
 
-    def export_onnx(self, filepath=None, input_shape=None, **kwargs):
+    def export_onnx(self, filepath=None, input_shape=None, batch_size=1, **kwargs):
         input_shape = self.input_shape[1:] if input_shape is None else input_shape[-3:]
-        torch.onnx.export(self, torch.ones([1, *input_shape]), self.name + ".onnx", **kwargs)
-        print("Exported onnx:", filepath if filepath else self.name + ".onnx")
+        filepath = (self.name + ".onnx") if filepath is None else (filepath if filepath.endswith(".onnx") else (filepath + ".onnx"))
+        torch.onnx.export(self, torch.ones([batch_size, *input_shape]), filepath, **kwargs)
+        print("Exported onnx:", filepath)
 
-    def export_pth(self, filepath=None, input_shape=None, **kwargs):
+    def export_pth(self, filepath=None, input_shape=None, batch_size=1, **kwargs):
         input_shape = self.input_shape[1:] if input_shape is None else input_shape[-3:]
-        traced_cell = torch.jit.trace(self, (torch.ones([1, *input_shape])))
-        torch.jit.save(traced_cell, self.name + ".pth", **kwargs)
-        print("Exported pth:", filepath if filepath else self.name + ".pth")
+        traced_cell = torch.jit.trace(self, (torch.ones([batch_size, *input_shape])))
+        filepath = (self.name + ".pth") if filepath is None else (filepath if filepath.endswith(".pth") else (filepath + ".pth"))
+        torch.jit.save(traced_cell, filepath, **kwargs)
+        print("Exported pth:", filepath)
 
     def set_debug(self, debug=True):
         self.debug = debug

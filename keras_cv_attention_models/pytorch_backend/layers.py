@@ -30,7 +30,7 @@ def tf_same_pad(size, kernel_size, stride, dilation_rate=1):
     if size is None:
         return kernel_size - stride  # Regarding as size % stride == 0
     else:
-        return max((np.math.ceil(size / stride) - 1) * stride + (kernel_size - 1) * dilation_rate + 1 - size, 0)
+        return max((torch.math.ceil(size / stride) - 1) * stride + (kernel_size - 1) * dilation_rate + 1 - size, 0)
 
 
 def compute_conv_output_size(input_shape, kernel_size, strides=1, padding="valid", dilation_rate=1):
@@ -532,13 +532,18 @@ class _SamePadding(nn.Module):
         self.strides = strides if isinstance(strides, (list, tuple)) else [strides] * ndims
         self.dilation_rate = dilation_rate if isinstance(dilation_rate, (list, tuple)) else [dilation_rate] * ndims
         self.ndims = len(self.kernel_size)
+        self.fixed_padding = None
 
-    def forward(self, inputs):
-        pad = [tf_same_pad(ii, kk, ss, dd) for ii, kk, ss, dd in zip(inputs.shape[2:], self.kernel_size, self.strides, self.dilation_rate)]
+    def build_pad(self, input_shape):
+        pad = [tf_same_pad(ii, kk, ss, dd) for ii, kk, ss, dd in zip(input_shape[2:], self.kernel_size, self.strides, self.dilation_rate)]
         padding = []
         for pp in pad[::-1]:
             padding += [pp // 2, pp - pp // 2]
         padding += [0, 0, 0, 0]
+        return padding
+
+    def forward(self, inputs):
+        padding = self.build_pad(inputs.shape) if self.fixed_padding is None else self.fixed_padding
         return torch.functional.F.pad(inputs, pad=padding)
 
 
@@ -580,20 +585,27 @@ class _BaseConvPool(Layer):
         self.dilation_rate = to_tuple(self.dilation_rate, num_dims=num_dims)
         self.strides = to_tuple(self.strides, num_dims=num_dims)
 
-        # if input_shape[-1] is not None and isinstance(self.padding, str) and self.padding.upper() == "SAME":
-        #     pad = [tf_same_pad(*args) for args in zip(input_shape[2:], self.kernel_size, self.strides, self.dilation_rate)]
-        #     # self._pad = [[0, 0], [0, 0]] + [[pp // 2, pp - pp // 2] for pp in pad]
-        #     self._pad = [pp // 2 for pp in pad]
         # elif isinstance(self.padding, str):
         if isinstance(self.padding, str):
             self._pad = [0] * num_dims  # Alo set to 0 for "SAME" if input_shape[-1] is None, will apply TF like same padding later.
+            padding = self.padding.upper()
         else:  # int or list or tuple with specific value
             self._pad = self.padding if isinstance(self.padding, (list, tuple)) else [self.padding] * num_dims
+            padding = self.padding
+
+        if None not in input_shape[2:] and padding == "SAME":
+            pad = [tf_same_pad(*args) for args in zip(input_shape[2:], self.kernel_size, self.strides, self.dilation_rate)]
+            half_pad = [pp // 2 for pp in pad]
+            if all([ii == 2 * jj for ii, jj in zip(pad, half_pad)]):
+                self._pad = half_pad  # Using module pad directly, avoid applying additional `_SamePadding` layer
+                padding = "VALID"
 
         module = self.build_module(input_shape)
-        if max(self.kernel_size) > 0 and isinstance(self.padding, str) and self.padding.upper() == "SAME":
+        if max(self.kernel_size) > 0 and padding == "SAME":
             # TF like same padding
             same_padding = _SamePadding(kernel_size=self.kernel_size, strides=self.strides, dilation_rate=self.dilation_rate, ndims=num_dims)
+            if None not in input_shape[1:]:
+                same_padding.fixed_padding = same_padding.build_pad(input_shape)  # Set fixed padding
             self.module = nn.Sequential(same_padding, module)
         else:
             self.module = module

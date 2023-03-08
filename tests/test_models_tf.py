@@ -7,15 +7,7 @@ sys.path.append(".")
 import keras_cv_attention_models
 from keras_cv_attention_models.backend import models
 
-""" Recognition models Coat / CotNet / HaloNet / HorNet / NFNet / VOLO defination """
-
-
-def test_CoaT_defination():
-    mm = keras_cv_attention_models.coat.CoaTLiteMini(pretrained=None)
-    assert isinstance(mm, models.Model)
-
-    mm = keras_cv_attention_models.coat.CoaTLiteSmall(pretrained=None, num_classes=0)
-    assert isinstance(mm, models.Model)
+""" Recognition models CotNet / HaloNet / HorNet / NFNet / VOLO defination """
 
 
 def test_CotNet_defination():
@@ -58,15 +50,7 @@ def test_VOLO_defination():
     assert isinstance(mm, models.Model)
 
 
-""" Recognition models Coat / EfficientNetV2B1_preprocessing / HaloNet / HorNet / NAT / VOLO prediction """
-
-
-def test_CoaT_new_shape_predict():
-    mm = keras_cv_attention_models.coat.CoaTLiteMini(input_shape=(193, 117, 3), pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
+""" Recognition models EfficientNetV2B1_preprocessing / HaloNet / HorNet / NAT / VOLO prediction """
 
 
 def test_EfficientNetV2B1_preprocessing_predict():

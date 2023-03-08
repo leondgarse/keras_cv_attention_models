@@ -12,6 +12,10 @@ def wrapper(func, inputs, name=None):
     return Lambda(func, name=name)(inputs) if isinstance(inputs, GraphNode) or (isinstance(inputs, list) and isinstance(inputs[0], GraphNode)) else func(inputs)
 
 
+def abs(inputs, name=None):
+    return wrapper(torch.abs, inputs, name=name)
+
+
 def argmax(inputs, axis=None, output_type="int64", name=None):
     return wrapper(partial(torch.argmax, dim=axis), inputs, name=name)
 
@@ -247,6 +251,10 @@ def shape(inputs):
 
 def sigmoid(inputs, axis=None, name=None):
     return wrapper(torch.sigmoid, inputs, name=name)
+
+
+def sign(inputs, name=None):
+    return wrapper(torch.sign, inputs, name=name)
 
 
 def sin(inputs, name=None):

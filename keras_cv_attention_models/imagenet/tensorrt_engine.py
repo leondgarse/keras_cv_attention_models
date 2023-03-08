@@ -128,7 +128,7 @@ def build_onnx_engine_one_input(model_file, engine_path=None, int8_calibrator=No
         if data_format == "auto":
             data_format = "channels_last" if input_shape[-1] < input_shape[1] else "channels_first"
         data_input_shape = input_shape[1:-1] if data_format == "channels_last" else input_shape[2:]
-        print(f"{data_format = }, {data_input_shape = }")
+        print("data_format = {}, data_input_shape = {}".format(data_format, data_input_shape))
         int8_calibrator.build(data_input_shape, batch_size, data_format=data_format)
         config.int8_calibrator = int8_calibrator
 
@@ -224,5 +224,5 @@ if __name__ == "__main__":
     torch.onnx.export(mm, torch.ones([1, 3, 224, 224]), 'aaa.onnx')
     aa = ImageCalibrator('calibration_imagenet/', 'foo.cache')
     ee = build_onnx_engine_one_input('aaa.onnx', int8_calibrator=aa)
-    cc = EngineInference(ee)
+    cc = EngineInferenceOneInOneOut(ee)
     print(cc(np.ones([1, 3, 224, 224])).shape)

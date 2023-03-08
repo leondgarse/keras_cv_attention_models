@@ -44,6 +44,25 @@ def phish(inputs):
     return inputs * functional.tanh(functional.gelu(inputs))
 
 
+def gelu_linear(inputs):
+    """
+    >>> from keras_cv_attention_models.common_layers import gelu_linear
+    >>> xx = np.arange(-4, 4, 0.01)
+    >>> plt.plot(xx, tf.nn.gelu(xx), label='gelu')
+    >>> plt.plot(xx, tf.nn.gelu(xx, approximate=True), label='gelu, approximate')
+    >>> plt.plot(xx, gelu_linear(xx), label='gelu_linear')
+    >>> plt.legend()
+    >>> plt.grid(True)
+    """
+    inputs_abs = functional.abs(inputs)
+    inputs_sign = functional.sign(inputs)
+
+    erf = inputs_abs * -0.7071
+    erf = functional.relu(erf + 1.769)
+    erf = erf ** 2 * -0.1444 + 0.5
+    return inputs * (erf * inputs_sign + 0.5)
+
+
 def activation_by_name(inputs, activation="relu", name=None):
     """Typical Activation layer added hard_swish and prelu."""
     if activation is None:
@@ -65,6 +84,8 @@ def activation_by_name(inputs, activation="relu", name=None):
     elif activation_lower.startswith("gelu/app"):
         # gelu/approximate
         return functional.gelu(inputs, approximate=True, name=layer_name)
+    elif activation_lower.startswith("gelu/linear"):
+        return gelu_linear(inputs)
     elif activation_lower.startswith("leaky_relu/"):
         # leaky_relu with alpha parameter
         alpha = float(activation_lower.split("/")[-1])

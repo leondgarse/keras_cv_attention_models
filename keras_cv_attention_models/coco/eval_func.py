@@ -1,7 +1,7 @@
 import os
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, callbacks
-from keras_cv_attention_models.coco import anchors_func, data
+from keras_cv_attention_models.coco import anchors_func
 from tqdm import tqdm
 
 
@@ -222,6 +222,8 @@ def scale_bboxes_back_single(bboxes, image_shape, scale, pad_top, pad_left, targ
 
 
 def image_process(image, target_shape, mean, std, resize_method="bilinear", resize_antialias=False, use_bgr_input=False, letterbox_pad=-1):
+    from keras_cv_attention_models.coco import data
+
     if len(image.shape) < 2:
         image = data.tf_imread(image)  # it's image path
     original_image_shape = functional.shape(image)[:2]
@@ -246,6 +248,7 @@ def init_eval_dataset(
     use_bgr_input=False,
 ):
     import tensorflow_datasets as tfds
+    from keras_cv_attention_models.coco import data
 
     dataset = data.detection_dataset_from_custom_json(data_name) if data_name.endswith(".json") else tfds.load(data_name)
     ds = dataset.get("validation", dataset.get("test", None))
@@ -259,6 +262,8 @@ def init_eval_dataset(
 
 
 def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={}, is_coco=True, image_id_map=None):
+    from keras_cv_attention_models.coco import data
+
     target_shape = (eval_dataset.element_spec[0].shape[1], eval_dataset.element_spec[0].shape[2])
     num_classes = model.output_shape[-1] - 4
     if is_coco:

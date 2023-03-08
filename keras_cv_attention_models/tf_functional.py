@@ -2,6 +2,7 @@ from tensorflow.nn import *
 from tensorflow.math import *
 
 from tensorflow import (
+    abs,
     cast,
     clip_by_value,
     complex,
@@ -20,6 +21,7 @@ from tensorflow import (
     repeat,
     reshape,
     shape,
+    sign,
     split,
     squeeze,
     stack,
