@@ -40,7 +40,7 @@ setup(
     ],
     # Note that this is a string of words separated by whitespace, not a list.
     keywords="tensorflow keras cv attention pretrained models kecam",
-    packages=find_packages(exclude=["tests"]),
+    packages=find_packages(exclude=["tests"]) + ["keras_cv_attention_models.pytorch_backend"],
     include_package_data=True,
     install_requires=[
         # "tensorflow-macos;platform_system=='Darwin'",  # [???]

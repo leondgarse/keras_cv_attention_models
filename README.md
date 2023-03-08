@@ -91,9 +91,11 @@
     import matplotlib.pyplot as plt
     from tensorflow import keras
     ```
-  - Install as pip package:
+  - Install as pip package. `kecam` is a short alias name of this package.
     ```sh
     pip install -U keras-cv-attention-models
+    # Or
+    pip install -U kecam
     # Or
     pip install -U git+https://github.com/leondgarse/keras_cv_attention_models
     ```
@@ -439,6 +441,10 @@
     ```
   - **Export typical PyTorch onnx / pth**.
     ```py
+    import torch
+    torch.onnx.export(mm, torch.randn(1, 3, *mm.input_shape[2:]), mm.name + ".onnx")
+
+    # Or by export_onnx
     mm.export_onnx()
     # Exported onnx: resmlp12.onnx
 
