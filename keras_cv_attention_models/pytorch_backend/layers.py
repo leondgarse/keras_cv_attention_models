@@ -30,7 +30,7 @@ def tf_same_pad(size, kernel_size, stride, dilation_rate=1):
     if size is None:
         return kernel_size - stride  # Regarding as size % stride == 0
     else:
-        return max((torch.math.ceil(size / stride) - 1) * stride + (kernel_size - 1) * dilation_rate + 1 - size, 0)
+        return max((np.math.ceil(size / stride) - 1) * stride + (kernel_size - 1) * dilation_rate + 1 - size, 0)
 
 
 def compute_conv_output_size(input_shape, kernel_size, strides=1, padding="valid", dilation_rate=1):
