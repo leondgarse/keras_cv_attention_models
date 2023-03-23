@@ -13,24 +13,12 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 
 LAYER_NORM_EPSILON = 1e-6
 PRETRAINED_DICT = {
-    "fasternet_l": {
-        "imagenet": "",
-    },
-    "fasternet_m": {
-        "imagenet": "2de1a10a5aa1092f82cd6f0104b29c6d",
-    },
-    "fasternet_s": {
-        "imagenet": "",
-    },
-    "fasternet_t0": {
-        "imagenet": "c330a6fa902f17993eba5d734c822551",
-    },
-    "fasternet_t1": {
-        "imagenet": "1eb9cb6c77542f5f485efc65c75fa780",
-    },
-    "fasternet_t2": {
-        "imagenet": "b4edf4df9e261766fb2e17f0bb50651b",
-    },
+    "fasternet_l": {"imagenet": "42de42d7d4405716e575e25aa58e7445"},
+    "fasternet_m": {"imagenet": "2de1a10a5aa1092f82cd6f0104b29c6d"},
+    "fasternet_s": {"imagenet": "58f97e2986da1b6793ee4466b4421a16"},
+    "fasternet_t0": {"imagenet": "c330a6fa902f17993eba5d734c822551"},
+    "fasternet_t1": {"imagenet": "1eb9cb6c77542f5f485efc65c75fa780"},
+    "fasternet_t2": {"imagenet": "b4edf4df9e261766fb2e17f0bb50651b"},
 }
 
 

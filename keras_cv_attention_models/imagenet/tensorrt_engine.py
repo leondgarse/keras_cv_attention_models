@@ -2,6 +2,7 @@ import os
 import numpy as np
 import tensorrt as trt
 import pycuda.driver as cuda
+
 try:
     # Use autoprimaryctx if available (pycuda >= 2021.1) to prevent issues with other modules that rely on the primary device context.
     import pycuda.autoprimaryctx
@@ -74,7 +75,7 @@ class ImageCalibrator(trt.IInt8EntropyCalibrator2):
         if current_batch % 10 == 0:
             print(">>>> Calibrating batch {:}, containing {:} images".format(current_batch, self.batch_size))
 
-        batch = self.built_data[self.current_index:self.current_index + self.batch_size].ravel()
+        batch = self.built_data[self.current_index : self.current_index + self.batch_size].ravel()
         cuda.memcpy_htod(self.device_input, batch)
         self.current_index += self.batch_size
         return [self.device_input]
@@ -99,11 +100,11 @@ def build_onnx_engine_one_input(model_file, engine_path=None, int8_calibrator=No
     config = builder.create_builder_config()
     max_workspace_size = max_workspace_size if max_workspace_size > 0 else 8
     # config.max_workspace_size = max_workspace_size * (2 ** 30)  # 8 GB
-    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, pool_size=max_workspace_size * (2 ** 30))
+    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, pool_size=max_workspace_size * (2**30))
 
     network = builder.create_network(EXPLICIT_BATCH)
     parser = trt.OnnxParser(network, TRT_LOGGER)
-    with open(model_file, 'rb') as model:
+    with open(model_file, "rb") as model:
         parser.parse(model.read())
     assert parser.num_errors == 0
 
@@ -147,6 +148,7 @@ def build_onnx_engine_one_input(model_file, engine_path=None, int8_calibrator=No
         ff.write(engine)
     return engine
 
+
 class EngineInferenceOneInOneOut:
     """
     >>> !pip install tensorrt pycuda
@@ -160,6 +162,7 @@ class EngineInferenceOneInOneOut:
     >>> print(cc(np.ones([4, 3, 224, 224])).shape)
     >>> # (4, 1000)
     """
+
     def __init__(self, engine, max_batch_size=1):
         if isinstance(engine, str):
             with open(engine_path, "rb") as ff:
@@ -190,7 +193,7 @@ class EngineInferenceOneInOneOut:
         self.cuda_output = cuda.mem_alloc(self.host_output.nbytes)
 
         self.output_dim = self.output_shape[1:]
-        self.output_ravel_dim= self.host_output.shape[0] // max_batch_size
+        self.output_ravel_dim = self.host_output.shape[0] // max_batch_size
         self.allocations = [int(self.cuda_input), int(self.cuda_output)]
         self.max_batch_size = max_batch_size
 
@@ -203,26 +206,28 @@ class EngineInferenceOneInOneOut:
         if batch_size > self.max_batch_size:
             print(f"Warning: provided input with batch_size={batch_size} exceeds max_batch_size={self.max_batch_size}")
             batch_size = self.max_batch_size
-            imgs = imgs[:self.max_batch_size]
+            imgs = imgs[: self.max_batch_size]
 
         inputs = imgs.ravel()
         # self.context.set_binding_shape(0, imgs.shape)
-        np.copyto(self.host_input[:inputs.shape[0]], imgs.ravel())
-        cuda.memcpy_htod_async(self.cuda_input, self.host_input[:inputs.shape[0]], self.stream)
+        np.copyto(self.host_input[: inputs.shape[0]], imgs.ravel())
+        cuda.memcpy_htod_async(self.cuda_input, self.host_input[: inputs.shape[0]], self.stream)
         # Run inference asynchronously, same function in cpp is `IExecutionContext::enqueueV2`
         self.context.execute_async_v2(bindings=self.allocations, stream_handle=self.stream.handle)
         # Transfer predictions back from the GPU.
-        cuda.memcpy_dtoh_async(self.host_output[:batch_size * self.output_ravel_dim], self.cuda_output, self.stream)
+        cuda.memcpy_dtoh_async(self.host_output[: batch_size * self.output_ravel_dim], self.cuda_output, self.stream)
         # Synchronize the stream
         self.stream.synchronize()
-        return self.host_output[:batch_size * self.output_ravel_dim].reshape([batch_size, *self.output_dim]).copy()
+        return self.host_output[: batch_size * self.output_ravel_dim].reshape([batch_size, *self.output_dim]).copy()
+
 
 if __name__ == "__main__":
     import torch
     import torchvision
+
     mm = torchvision.models.resnet50(pretrained=True)
-    torch.onnx.export(mm, torch.ones([1, 3, 224, 224]), 'aaa.onnx')
-    aa = ImageCalibrator('calibration_imagenet/', 'foo.cache')
-    ee = build_onnx_engine_one_input('aaa.onnx', int8_calibrator=aa)
+    torch.onnx.export(mm, torch.ones([1, 3, 224, 224]), "aaa.onnx")
+    aa = ImageCalibrator("calibration_imagenet/", "foo.cache")
+    ee = build_onnx_engine_one_input("aaa.onnx", int8_calibrator=aa)
     cc = EngineInferenceOneInOneOut(ee)
     print(cc(np.ones([1, 3, 224, 224])).shape)

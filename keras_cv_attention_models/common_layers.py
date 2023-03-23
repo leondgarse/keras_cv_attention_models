@@ -59,7 +59,7 @@ def gelu_linear(inputs):
 
     erf = inputs_abs * -0.7071
     erf = functional.relu(erf + 1.769)
-    erf = erf ** 2 * -0.1444 + 0.5
+    erf = erf**2 * -0.1444 + 0.5
     return inputs * (erf * inputs_sign + 0.5)
 
 
