@@ -15,8 +15,7 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
     "swin_transformer_v2_base_window12": {"imagenet21k": {192: "b68add0f06aeede5d4dd10cd26855f36"}},
-    "swin_transformer_v2_base_window16": {"imagenet22k": {256: "1caba96ed702d467e650465503033c85"}},
-    "swin_transformer_v2_base_window16": {"imagenet": {256: "a7bfb9ae0733807baa702d05eb8feab8"}},
+    "swin_transformer_v2_base_window16": {"imagenet": {256: "a7bfb9ae0733807baa702d05eb8feab8"}, "imagenet22k": {256: "1caba96ed702d467e650465503033c85"}},
     "swin_transformer_v2_base_window24": {"imagenet22k": {384: "acd467e1d8555e15542c8254bdae1b72"}},
     "swin_transformer_v2_base_window8": {"imagenet": {256: "15454d9f6ba2ccca940f9c45b6935af6"}},
     "swin_transformer_v2_large_window12": {"imagenet21k": {192: "ace20b0d634eb92989ece52e300440d5"}},

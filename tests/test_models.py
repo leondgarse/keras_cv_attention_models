@@ -296,6 +296,14 @@ def test_EfficientNetV2B0_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_FasterNetT2_dynamic_predict():
+    mm = keras_cv_attention_models.fasternet.FasterNetT2(input_shape=(None, None, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=(160, 256, 3)))  # Chelsea the cat
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_FBNetV3B_dynamic_predict():
     mm = keras_cv_attention_models.fbnetv3.FBNetV3B(input_shape=(None, None, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(chelsea(), input_shape=(160, 256, 3)))  # Chelsea the cat

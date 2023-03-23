@@ -31,6 +31,7 @@
   - [EfficientNet](#efficientnet)
   - [EfficientNetV2](#efficientnetv2)
   - [EVA](#eva)
+  - [FasterNet](#fasternet)
   - [FBNetV3](#fbnetv3)
   - [FlexiViT](#flexivit)
   - [GCViT](#gcvit)
@@ -740,6 +741,17 @@
   | EvaGiantPatch14, clip | 1012.6M | 267.40G  | 224   | 89.10    | [eva_giant_patch14_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_224_imagenet21k-ft1k.h5) |
   | - m30m                | 1013.0M | 621.45G  | 336   | 89.57    | [eva_giant_patch14_336.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_336_imagenet21k-ft1k.h5) |
   | - m30m                | 1014.4M | 1911.61G | 560   | 89.80    | [eva_giant_patch14_560.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_560_imagenet21k-ft1k.h5) |
+## FasterNet
+  - [Keras FasterNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/fasternet) includes implementation of [PDF 2303.03667 Run, Don’t Walk: Chasing Higher FLOPS for Faster Neural Networks ](https://arxiv.org/pdf/2303.03667.pdf).
+
+  | Model       | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ----------- | ------ | ------ | ----- | -------- | -------- |
+  | FasterNetT0 | 3.9M   | 0.34G  | 224   | 71.9     | [fasternet_t0_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fasternet/fasternet_t0_imagenet.h5) |
+  | FasterNetT1 | 7.6M   | 0.85G  | 224   | 76.2     | [fasternet_t1_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fasternet/fasternet_t1_imagenet.h5) |
+  | FasterNetT2 | 15.0M  | 1.90G  | 224   | 78.9     | [fasternet_t2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fasternet/fasternet_t2_imagenet.h5) |
+  | FasterNetS  | 31.1M  | 4.55G  | 224   | 81.3     | [fasternet_s_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fasternet/fasternet_s_imagenet.h5)   |
+  | FasterNetM  | 53.5M  | 8.72G  | 224   | 83.0     | [fasternet_m_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fasternet/fasternet_m_imagenet.h5)   |
+  | FasterNetL  | 93.4M  | 15.49G | 224   | 83.5     | [fasternet_l_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fasternet/fasternet_l_imagenet.h5)   |
 ## FBNetV3
   - [Keras FBNetV3](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#fbnetv3) includes implementation of [PDF 2006.02049 FBNetV3: Joint Architecture-Recipe Search using Predictor Pretraining](https://arxiv.org/pdf/2006.02049.pdf).
 
