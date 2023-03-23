@@ -42,12 +42,7 @@ setup(
     keywords="tensorflow keras cv attention pretrained models kecam",
     packages=find_packages(exclude=["tests"]) + ["keras_cv_attention_models.pytorch_backend"],
     include_package_data=True,
-    install_requires=[
-        # "tensorflow-macos;platform_system=='Darwin'",  # [???]
-        "tensorflow;platform_system!='Darwin'",
-        "tensorflow-addons;platform_machine!='aarch64' and platform_machine!='aarch32'",
-        "tensorflow-datasets;platform_machine!='aarch64' and platform_machine!='aarch32'"  # >4.7.0 needs dm-tree, failed on arm, just skip
-    ],
+    install_requires=[],
     python_requires=">=3.6",
     license="Apache 2.0",
 )

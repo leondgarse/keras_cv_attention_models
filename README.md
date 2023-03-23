@@ -92,7 +92,7 @@
     import matplotlib.pyplot as plt
     from tensorflow import keras
     ```
-  - Install as pip package. `kecam` is a short alias name of this package.
+  - Install as pip package. `kecam` is a short alias name of this package. **Note**: the pip package `kecam` doesn't set any requirement, make sure either Tensorflow or PyTorch installed before hand.
     ```sh
     pip install -U keras-cv-attention-models
     # Or
