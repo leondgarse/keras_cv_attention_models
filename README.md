@@ -1,6 +1,5 @@
 # Keras_cv_attention_models
 - **coco_train_script.py is under testing. Still struggling for this...**
-- **`keras_cv_attention_models.ghostnetv2` is renamed as `keras_cv_attention_models.ghostnet`, and `keras_cv_attention_models.ghostnetv2` will be removed.**
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [General Usage](#general-usage)
@@ -83,9 +82,10 @@
 # General Usage
 ## Basic
   - **Currently recommended TF version is `tensorflow==2.10.0`. Expecially for training or TFLite conversion**.
-  - **Default import**
+  - **Default import** will not specific these while using them in READMEs.
     ```py
     import os
+    import sys
     import tensorflow as tf
     import numpy as np
     import pandas as pd
@@ -419,10 +419,10 @@
 ## Using PyTorch as backend
   - **Experimental** [Keras PyTorch Backend](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/pytorch_backend).
   - **Set os environment `export KECAM_BACKEND='torch'` to enable this PyTorch backend.**
-  - Currently supports most recognition and detection models except coat / cotnet / halonet / hornet / nat / nfnets / volo.
+  - Currently supports most recognition and detection models except cotnet / halonet / hornet / nat / nfnets / volo. For detection models, still using `tf.image.non_max_suppression_with_scores` while running prediction.
   - **Basic model build and prediction**.
     - Will load same `h5` weights as TF one if available.
-    - Note: `input_shape` will auto fit image data format. Given `input_shape=(224, 224, 3)`, will set to `(3, 224, 224)` if `channels_first`.
+    - Note: `input_shape` will auto fit image data format. Given `input_shape=(224, 224, 3)` or `input_shape=(3, 224, 224)`, will both set to `(3, 224, 224)` if `channels_first`.
     - Note: model is default set to `eval` mode.
     ```py
     from keras_cv_attention_models import res_mlp

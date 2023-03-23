@@ -4,6 +4,8 @@
 ## Summary
   - Keras implementation of [Github JierunChen/FasterNet](https://github.com/JierunChen/FasterNet). Paper [PDF 2303.03667 Run, Don’t Walk: Chasing Higher FLOPS for Faster Neural Networks ](https://arxiv.org/pdf/2303.03667.pdf).
   - Model weights ported from official publication.
+
+  ![fasternet](https://user-images.githubusercontent.com/5744524/227238562-5ee980ba-84c7-44d0-969d-c472f6e719a4.jpg)
 ***
 
 ## Models

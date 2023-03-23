@@ -3,14 +3,14 @@
 
 ## Summary
   - Experimental implementation for using PyTorch as Keras backend.
-  - Currently supports most recognition and detection models except coat / cotnet / halonet / hornet / nat / nfnets / volo.
+  - Currently supports most recognition and detection models except cotnet / halonet / hornet / nat / nfnets / volo. For detection models, still using `tf.image.non_max_suppression_with_scores` while running prediction.
 ***
 
 ## Usage
 - **Set os environment `export KECAM_BACKEND='torch'` to enable this PyTorch backend**.
 - **Create model and run predict**.
   - Will load same `h5` weights as TF one if available.
-  - Note: `input_shape` will auto fit image data format. Given `input_shape=(224, 224, 3)`, will set to `(3, 224, 224)` if `channels_first`.
+  - Note: `input_shape` will auto fit image data format. Given `input_shape=(224, 224, 3)` or `input_shape=(3, 224, 224)`, will set to `(3, 224, 224)` if `channels_first`.
   - Note: model is defaultly set to `eval` mode.
   ```py
   from keras_cv_attention_models import res_mlp
