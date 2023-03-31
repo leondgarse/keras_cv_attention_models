@@ -870,7 +870,7 @@ class Dense(Layer):
 
 
 class Embedding(Layer):
-    def __init__(self, input_dim, output_dim, embeddings_initializer="uniform", mask_zero=False, input_length=None, **kwargs):
+    def __init__(self, input_dim, output_dim, embeddings_initializer="random_uniform", mask_zero=False, input_length=None, **kwargs):
         self.input_dim, self.output_dim, self.mask_zero, self.input_length = input_dim, output_dim, mask_zero, input_length
         self.embeddings_initializer = embeddings_initializer
         super().__init__(**kwargs)

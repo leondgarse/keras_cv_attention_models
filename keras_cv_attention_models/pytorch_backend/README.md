@@ -6,7 +6,7 @@
   - Currently supports most recognition and detection models except cotnet / halonet / hornet / nat / nfnets / volo. For detection models, still using `tf.image.non_max_suppression_with_scores` while running prediction.
 ***
 
-## Usage
+## Basic Usage
 - **Set os environment `export KECAM_BACKEND='torch'` to enable this PyTorch backend**.
 - **Create model and run predict**.
   - Will load same `h5` weights as TF one if available.
@@ -34,6 +34,11 @@
   mm = wave_mlp.WaveMLP_T(input_shape=(3, 224, 224))
   # >>>> Load pretrained from: ~/.keras/models/wavemlp_t_imagenet.h5
 
+  # Export typical PyTorch onnx / pth
+  import torch
+  torch.onnx.export(mm, torch.randn(1, 3, *mm.input_shape[2:]), mm.name + ".onnx")
+
+  # Or by export_onnx
   mm.export_onnx()
   # Exported onnx: wavemlp_t.onnx
 
@@ -59,7 +64,7 @@
   mm.decode_predictions(mm(mm.preprocess_input(chelsea())))
   # [('n02124075', 'Egyptian_cat', 0.8495876), ('n02123159', 'tiger_cat', 0.029945023), ...]
   ```
-- **Create custom PyTorch model using keras API**
+## Create custom PyTorch model using keras API
   ```py
   from keras_cv_attention_models.pytorch_backend import layers, models
   inputs = layers.Input([3, 224, 224])
@@ -80,5 +85,40 @@
   # Save load test
   mm.save_weights("aa.h5")
   mm.load_weights('aa.h5')
+  ```
+## Simple training
+  - It can be either typical PyTorch training process or a simple version of `compile` + 'fit'.
+  ```py
+  import os
+  os.environ['KECAM_BACKEND'] = 'torch'
+
+  from keras_cv_attention_models.imagenet import data
+  input_shape = (32, 32, 3)
+  batch_size = 16
+  train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = data.init_dataset(
+      'cifar10', input_shape=input_shape, batch_size=batch_size,
+  )
+
+  import torch
+  from kecam import mobilenetv3
+  mm = mobilenetv3.MobileNetV3Large100(input_shape=input_shape, num_classes=num_classes, classifier_activation=None, pretrained=None)
+
+  """ Simple compile + fit """
+  # mm.compile(optimizer="AdamW")
+  # mm.fit(train_dataset, epochs=10)
+
+  """ Or typical PyTorch training process """
+  optimizer = torch.optim.AdamW(mm.parameters())
+  for epoch in range(10):
+      data_gen = train_dataset.as_numpy_iterator()
+      for batch, (xx, yy) in enumerate(data_gen):
+          xx = torch.from_numpy(xx).permute(0, 3, 1, 2)
+          yy = torch.from_numpy(yy)
+          out = mm(xx)
+          loss = torch.functional.F.cross_entropy(out, yy)
+          optimizer.zero_grad()
+          loss.backward()
+          optimizer.step()
+          print(">>>> Epoch {}, batch: {}, loss: {:.4f}".format(epoch, batch, loss.item()))
   ```
 ***

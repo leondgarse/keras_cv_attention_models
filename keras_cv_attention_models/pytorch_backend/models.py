@@ -2,6 +2,7 @@ import torch
 import h5py
 import numpy as np
 from torch import nn
+from contextlib import nullcontext
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.pytorch_backend import layers
 
@@ -117,6 +118,50 @@ class Model(nn.Module):
                 print("     output.shape:", np.shape(output))
                 print("     intra_nodes:", {kk: len(vv) for kk, vv in intra_nodes.items() if len(vv) > 0})
         return [intra_nodes[ii][0] for ii in self.output_names] if self.num_outputs != 1 else intra_nodes[self.output_names[0]][0]
+
+    def compile(self, optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, weighted_metrics=None, **kwargs):
+        self.optimizer = getattr(torch.optim, optimizer)(self.parameters()) if isinstance(optimizer, str) else optimizer
+        self.loss = torch.functional.F.cross_entropy if loss is None else loss
+        self.metrics, self.loss_weights, self.weighted_metrics = metrics, loss_weights, weighted_metrics
+
+        device_type = next(self.parameters()).device.type
+        if device_type == "cpu":
+            scaler = torch.cuda.amp.GradScaler(enabled=False)
+            global_context = nullcontext()
+        else:
+            scaler = torch.cuda.amp.GradScaler(enabled=True)
+            global_context = torch.amp.autocast(device_type=device_type, dtype=torch.float16)
+        self.device_type, self.scaler, self.global_context = device_type, scaler, global_context
+
+    def fit(self, x=None, epochs=1, verbose="auto", callbacks=None, validation_data=None, initial_epoch=0, steps_per_epoch=None, **kwargs):
+        train_dataset = x
+        need_transpose = False
+        if hasattr(train_dataset, "element_spec"):
+            data_shape = train_dataset.element_spec[0].shape
+            if data_shape[-1] == self.input_shape[1]:
+                need_transpose = True  # channel_last -> channel_fisrt
+                perm = [0, len(data_shape) - 1] + list(range(1, len(data_shape) - 1))  # [0, 3, 1, 2]
+
+        for epoch in range(initial_epoch, epochs):
+            data_gen = train_dataset.as_numpy_iterator() if hasattr(train_dataset, "as_numpy_iterator") else train_dataset
+            self.train()
+            for batch, (xx, yy) in enumerate(data_gen):
+                if isinstance(xx, np.ndarray):
+                    xx = torch.from_numpy(xx)
+                if isinstance(yy, np.ndarray):
+                    yy = torch.from_numpy(yy)
+                if need_transpose:
+                    xx = xx.permute(perm)
+
+                with self.global_context:
+                    out = self(xx)
+                    loss = self.loss(out, yy)
+                self.optimizer.zero_grad()
+                self.scaler.scale(loss).backward()
+                self.scaler.unscale_(self.optimizer)
+                self.scaler.step(self.optimizer)  # self.optimizer.step()
+                self.scaler.update()
+                print(">>>> Epoch {}, batch: {}, loss: {:.4f}".format(epoch, batch, loss.item()))
 
     @property
     def layers(self):
