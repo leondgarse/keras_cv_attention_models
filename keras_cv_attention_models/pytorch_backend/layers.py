@@ -1232,23 +1232,23 @@ class Reshape(Layer):
         num_unknown_dim = sum([ii == -1 for ii in self.target_shape])
         assert num_unknown_dim < 2, "At most one unknown dimension in output_shape: {}".format(self.target_shape)
 
-        # if any([ii is None or ii == -1 for ii in input_shape[1:]]):  # Dynamic input_shape
-        if num_unknown_dim > 0:
-            knwon_target_dim = -1 * np.prod(self.target_shape)
-            self.module = partial(
-                lambda inputs: inputs.contiguous().view(
-                    [inputs.shape[0]] + [inputs.shape[1:].numel() // knwon_target_dim if ii == -1 else ii for ii in self.target_shape]
+        if any([ii is None or ii == -1 for ii in input_shape[1:]]):  # Dynamic input_shape
+            if num_unknown_dim > 0:
+                knwon_target_dim = -1 * np.prod(self.target_shape)
+                self.module = partial(
+                    lambda inputs: inputs.contiguous().view(
+                        [inputs.shape[0]] + [inputs.shape[1:].numel() // knwon_target_dim if ii == -1 else ii for ii in self.target_shape]
+                    )
                 )
-            )
+            else:
+                self.module = partial(lambda inputs: inputs.contiguous().view([inputs.shape[0], *self.target_shape]))
         else:
-            self.module = partial(lambda inputs: inputs.contiguous().view([inputs.shape[0], *self.target_shape]))
-        # else:
-        #     total_size = np.prod(input_shape[1:])
-        #     if num_unknown_dim > 0:
-        #         unknown_dim = total_size // (-1 * np.prod(self.target_shape))
-        #         self.target_shape = [unknown_dim if ii == -1 else ii for ii in self.target_shape]
-        #     assert total_size == np.prod(self.target_shape), "Total size of new array must be unchanged, {} -> {}".format(input_shape, self.target_shape)
-        #     self.module = partial(lambda inputs: inputs.contiguous().view([-1, *self.target_shape]))
+            total_size = np.prod(input_shape[1:])
+            if num_unknown_dim > 0:
+                unknown_dim = total_size // (-1 * np.prod(self.target_shape))
+                self.target_shape = [unknown_dim if ii == -1 else ii for ii in self.target_shape]
+            assert total_size == np.prod(self.target_shape), "Total size of new array must be unchanged, {} -> {}".format(input_shape, self.target_shape)
+            self.module = partial(lambda inputs: inputs.contiguous().view([-1, *self.target_shape]))
 
         # self.module = partial(torch.reshape, shape=[-1, *self.target_shape])
         super().build(input_shape)
