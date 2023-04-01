@@ -182,6 +182,9 @@ class Shape(GraphNode):
     def __getitem__(self, index_expr):
         return Shape(self.input_node, index_expr)
 
+    def __index__(self):
+        return self.input_node.shape[self.index_expr]
+
     def __value__(self):
         return [-1 if ii is None else ii for ii in self.input_node.shape[self.index_expr]] if self.is_slice else self.input_node.shape[self.index_expr]
 
@@ -199,10 +202,11 @@ class Shape(GraphNode):
 
 
 class Input(GraphNode):
-    def __init__(self, shape, name=None):
+    def __init__(self, shape, name=None, dtype=None):
         shape = [None, *shape]
         name = "input_{}".format(self.num_instances) if name is None else name
         super().__init__(shape, name=name)
+        self.dtype = dtype
 
 
 class Layer(nn.Module):
@@ -224,7 +228,7 @@ class Layer(nn.Module):
         self.outputs = self.nodes = None
 
     def build(self, input_shape: torch.Size):
-        pass
+        # pass
         # self.input_shape = input_shape
         # self.dtype = self.module.weight.dtype if hasattr(self.module, "weight") else "float32"
         # if self.is_graph_node_input:  # When exporting onnx/pth, model will be built again, and may throws error in compute_output_shape with 0 input_shape
@@ -232,7 +236,7 @@ class Layer(nn.Module):
         # if hasattr(self, "call"):  # General keras layers with call function
         #     self.forward = self.call
         #     self.call = self.call
-        # self.built = True
+        self.built = True
 
     def call(self, inputs, **kwargs):
         return self.module(inputs, **kwargs)
@@ -1228,15 +1232,23 @@ class Reshape(Layer):
         num_unknown_dim = sum([ii == -1 for ii in self.target_shape])
         assert num_unknown_dim < 2, "At most one unknown dimension in output_shape: {}".format(self.target_shape)
 
-        if input_shape[2] is None:  # Dynamic input_shape
-            self.module = partial(lambda inputs: inputs.contiguous().view([inputs.shape[0], *self.target_shape]))
+        # if any([ii is None or ii == -1 for ii in input_shape[1:]]):  # Dynamic input_shape
+        if num_unknown_dim > 0:
+            knwon_target_dim = -1 * np.prod(self.target_shape)
+            self.module = partial(
+                lambda inputs: inputs.contiguous().view(
+                    [inputs.shape[0]] + [inputs.shape[1:].numel() // knwon_target_dim if ii == -1 else ii for ii in self.target_shape]
+                )
+            )
         else:
-            total_size = np.prod(input_shape[1:])
-            if num_unknown_dim == 1:
-                unknown_dim = total_size // (-1 * np.prod(self.target_shape))
-                self.target_shape = [unknown_dim if ii == -1 else ii for ii in self.target_shape]
-            assert total_size == np.prod(self.target_shape), "Total size of new array must be unchanged, {} -> {}".format(input_shape, self.target_shape)
-            self.module = partial(lambda inputs: inputs.contiguous().view([-1, *self.target_shape]))
+            self.module = partial(lambda inputs: inputs.contiguous().view([inputs.shape[0], *self.target_shape]))
+        # else:
+        #     total_size = np.prod(input_shape[1:])
+        #     if num_unknown_dim > 0:
+        #         unknown_dim = total_size // (-1 * np.prod(self.target_shape))
+        #         self.target_shape = [unknown_dim if ii == -1 else ii for ii in self.target_shape]
+        #     assert total_size == np.prod(self.target_shape), "Total size of new array must be unchanged, {} -> {}".format(input_shape, self.target_shape)
+        #     self.module = partial(lambda inputs: inputs.contiguous().view([-1, *self.target_shape]))
 
         # self.module = partial(torch.reshape, shape=[-1, *self.target_shape])
         super().build(input_shape)

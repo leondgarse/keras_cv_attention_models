@@ -193,14 +193,22 @@ class Model(nn.Module):
         return total_params
 
     def export_onnx(self, filepath=None, input_shape=None, batch_size=1, **kwargs):
-        input_shape = self.input_shape[1:] if input_shape is None else input_shape[-3:]
+        input_shape = self.input_shape[1:] if input_shape is None else (input_shape[1:] if len(input_shape) == len(self.input_shape) else input_shape)
+        input_dtype = getattr(self.inputs[0], "dtype") or torch.float32
+        if isinstance(input_dtype, str):
+            input_dtype = getattr(torch, input_dtype)
+
         filepath = (self.name + ".onnx") if filepath is None else (filepath if filepath.endswith(".onnx") else (filepath + ".onnx"))
-        torch.onnx.export(self, torch.ones([batch_size, *input_shape]), filepath, **kwargs)
+        torch.onnx.export(self, torch.ones([batch_size, *input_shape], dtype=input_dtype), filepath, **kwargs)
         print("Exported onnx:", filepath)
 
     def export_pth(self, filepath=None, input_shape=None, batch_size=1, **kwargs):
         input_shape = self.input_shape[1:] if input_shape is None else input_shape[-3:]
-        traced_cell = torch.jit.trace(self, (torch.ones([batch_size, *input_shape])))
+        input_dtype = getattr(self.inputs[0], "dtype") or torch.float32
+        if isinstance(input_dtype, str):
+            input_dtype = getattr(torch, input_dtype)
+
+        traced_cell = torch.jit.trace(self, (torch.ones([batch_size, *input_shape], dtype=input_dtype)))
         filepath = (self.name + ".pth") if filepath is None else (filepath if filepath.endswith(".pth") else (filepath + ".pth"))
         torch.jit.save(traced_cell, filepath, **kwargs)
         print("Exported pth:", filepath)

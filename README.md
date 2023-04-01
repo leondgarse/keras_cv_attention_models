@@ -92,7 +92,7 @@
     import matplotlib.pyplot as plt
     from tensorflow import keras
     ```
-  - Install as pip package. `kecam` is a short alias name of this package. **Note**: the pip package `kecam` doesn't set any requirement, make sure either Tensorflow or PyTorch installed before hand.
+  - Install as pip package. `kecam` is a short alias name of this package. **Note**: the pip package `kecam` doesn't set any requirement, make sure either Tensorflow or PyTorch installed before hand. For PyTorch backend usage, refer [Keras PyTorch Backend](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/pytorch_backend).
     ```sh
     pip install -U keras-cv-attention-models
     # Or
@@ -153,7 +153,7 @@
     pretrained = os.path.expanduser('~/.keras/models/coatnet0_224_imagenet.h5')
     mm = coatnet.CoAtNet1(input_shape=(384, 384, 3), pretrained=pretrained)  # No sense, just showing usage
     ```
-  - **Alias name `kecam`** can be used instead of `keras_cv_attention_models`. It's `__init__.py` only with one line `from keras_cv_attention_models import *`.
+  - **Alias name `kecam`** can be used instead of `keras_cv_attention_models`. It's `__init__.py` only with `from keras_cv_attention_models import *`.
     ```py
     import kecam
     mm = kecam.yolor.YOLOR_CSP()
