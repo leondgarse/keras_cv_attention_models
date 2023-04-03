@@ -274,10 +274,8 @@ def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", u
         pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
         padding = "SAME" if max(pad) > 0 else "VALID"
 
-    if max(pad) == 0:
-        padding = "VALID"
     if use_torch_padding and backend.is_tensorflow_backend and padding == "SAME":
-        inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
+        inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs) if max(pad) > 0 else inputs
         padding = "VALID"
 
     groups = max(1, groups)
@@ -304,10 +302,8 @@ def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", us
         pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
         padding = "SAME" if max(pad) > 0 else "VALID"
 
-    if max(pad) == 0:
-        padding = "VALID"
     if use_torch_padding and backend.is_tensorflow_backend and padding == "SAME":
-        inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
+        inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs) if max(pad) > 0 else inputs
         padding = "VALID"
 
     return layers.DepthwiseConv2D(
