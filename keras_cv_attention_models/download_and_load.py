@@ -272,6 +272,7 @@ def keras_reload_from_torch_model(
     is_state_dict = isinstance(torch_model, dict)
 
     """ Chelsea the cat  """
+    do_predict = do_predict and do_convert
     if do_predict:
         img = test_images.cat()
         img = keras.applications.imagenet_utils.preprocess_input(tf.image.resize(img, input_shape), mode="torch").numpy()

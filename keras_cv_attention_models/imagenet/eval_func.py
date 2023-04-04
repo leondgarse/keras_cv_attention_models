@@ -96,7 +96,7 @@ class ONNXModelInterf:
 
     def __call__(self, imgs):
         imgs = imgs.numpy() if hasattr(imgs, "numpy") else imgs
-        if self.data_format == "NCHW":
+        if self.data_format == "NCHW" and imgs.shape[1] != self.input_shape[1]:
             imgs = imgs.transpose(0, 3, 1, 2)
         return self.ort_session.run(self.output_names, {self.input_name: imgs.astype("float32")})[0]
         # return np.array([self.ort_session.run(self.output_names, {self.input_name: imgs[None]})[0][0] for img in imgs])
