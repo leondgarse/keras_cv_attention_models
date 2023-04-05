@@ -41,6 +41,7 @@
   - [HaloNet](#halonet)
   - [HorNet](#hornet)
   - [IFormer](#iformer)
+  - [InceptionNeXt](#inceptionnext)
   - [LCNet](#lcnet)
   - [LeViT](#levit)
   - [MaxViT](#maxvit)
@@ -858,6 +859,15 @@
   |              | 48.9M  | 30.86G | 384   | 85.7     | [iformer_base_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_base_384_imagenet.h5) |
   | IFormerLarge | 86.6M  | 14.12G | 224   | 84.6     | [iformer_large_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_largel_224_imagenet.h5) |
   |              | 87.7M  | 45.74G | 384   | 85.8     | [iformer_large_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_largel_384_imagenet.h5) |
+## InceptionNeXt
+  - [Keras InceptionNeXt](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/inceptionnext) is for [PDF 2303.16900 InceptionNeXt: When Inception Meets ConvNeXt](https://arxiv.org/pdf/2303.16900.pdf).
+
+  | Model              | Params | FLOP s | Input | Top1 Acc | Download |
+  | ------------------ | ------ | ------ | ----- | -------- | -------- |
+  | InceptionNeXtTiny  | 28.05M | 4.21G  | 224   | 82.3     | [inceptionnext_tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/inceptionnext_tiny_imagenet.h5) |
+  | InceptionNeXtSmall | 49.37M | 8.39G  | 224   | 83.5     | [inceptionnext_small_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/inceptionnext_small_imagenet.h5) |
+  | InceptionNeXtBase  | 86.67M | 14.88G | 224   | 84.0     | [inceptionnext_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/inceptionnext_base_224_imagenet.h5) |
+  |                    | 86.67M | 43.73G | 384   | 85.2     | [inceptionnext_base_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/inceptionnext_base_384_imagenet.h5) |
 ## LCNet
   - [Keras LCNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#lcnet) includes implementation of [PDF 2109.15099 PP-LCNet: A Lightweight CPU Convolutional Neural Network](https://arxiv.org/pdf/2109.15099.pdf).
 
