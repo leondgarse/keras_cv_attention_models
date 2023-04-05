@@ -9,10 +9,10 @@
 ## Models
   | Model              | Params | FLOP s | Input | Top1 Acc | Download |
   | ------------------ | ------ | ------ | ----- | -------- | -------- |
-  | InceptionNeXtTiny  | 28.05M | 4.21G  | 224   | 82.3     | [inceptionnext_tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/inceptionnext_tiny_imagenet.h5) |
-  | InceptionNeXtSmall | 49.37M | 8.39G  | 224   | 83.5     | [inceptionnext_small_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/inceptionnext_small_imagenet.h5) |
-  | InceptionNeXtBase  | 86.67M | 14.88G | 224   | 84.0     | [inceptionnext_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/inceptionnext_base_224_imagenet.h5) |
-  |                    | 86.67M | 43.73G | 384   | 85.2     | [inceptionnext_base_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/inceptionnext_base_384_imagenet.h5) |
+  | InceptionNeXtTiny  | 28.05M | 4.21G  | 224   | 82.3     | [inceptionnext_tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/inceptionnext/inceptionnext_tiny_imagenet.h5) |
+  | InceptionNeXtSmall | 49.37M | 8.39G  | 224   | 83.5     | [inceptionnext_small_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/inceptionnext/inceptionnext_small_imagenet.h5) |
+  | InceptionNeXtBase  | 86.67M | 14.88G | 224   | 84.0     | [inceptionnext_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/inceptionnext/inceptionnext_base_224_imagenet.h5) |
+  |                    | 86.67M | 43.73G | 384   | 85.2     | [inceptionnext_base_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/inceptionnext/inceptionnext_base_384_imagenet.h5) |
 
 ## Usage
   ```py
