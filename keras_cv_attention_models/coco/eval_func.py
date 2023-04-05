@@ -35,6 +35,7 @@ class DecodePredictions(layers.Layer):
         anchor_scale="auto",
         aspect_ratios=(1, 2, 0.5),
         num_scales=3,
+        bbox_len=4, # Typical value is 4, for yolov8 reg_max=16 -> bbox_len = 16 * 4 == 64
         score_threshold=0.3,  # decode parameter, can be set new value in `self.call`
         iou_or_sigma=0.5,  # decode parameter, can be set new value in `self.call`
         max_output_size=100,  # decode parameter, can be set new value in `self.call`
@@ -48,7 +49,7 @@ class DecodePredictions(layers.Layer):
 
         self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
         use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, "auto", anchor_scale)
-        self.aspect_ratios, self.num_scales = aspect_ratios, num_scales
+        self.bbox_len, self.aspect_ratios, self.num_scales = bbox_len, aspect_ratios, num_scales
         self.anchors_mode, self.use_object_scores, self.anchor_scale = anchors_mode, use_object_scores, anchor_scale  # num_anchors not using
         if input_shape is not None and (isinstance(input_shape, (list, tuple)) and input_shape[1] is not None):
             self.__init_anchor__(input_shape)
@@ -78,6 +79,8 @@ class DecodePredictions(layers.Layer):
             self.anchors = anchors_func.get_anchor_free_anchors(input_shape, self.pyramid_levels)
         elif self.anchors_mode == anchors_func.YOLOR_MODE:
             self.anchors = anchors_func.get_yolor_anchors(input_shape, self.pyramid_levels)
+        elif self.anchors_mode == anchors_func.YOLOV8_MODE:
+            self.anchors = anchors_func.get_anchor_free_anchors(input_shape, self.pyramid_levels, grid_zero_start=False)
         else:
             grid_zero_start = False
             self.anchors = anchors_func.get_anchors(input_shape, self.pyramid_levels, self.aspect_ratios, self.num_scales, self.anchor_scale, grid_zero_start)
@@ -86,7 +89,7 @@ class DecodePredictions(layers.Layer):
 
     def __topk_class_boxes_single__(self, pred, topk=5000):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L82
-        bbox_outputs, class_outputs = pred[:, :4], pred[:, 4:]
+        bbox_outputs, class_outputs = pred[:, :self.bbox_len], pred[:, self.bbox_len:]
         num_classes = class_outputs.shape[-1]
         class_outputs_flatten = functional.reshape(class_outputs, -1)
         topk = class_outputs_flatten.shape[0] if topk == -1 else topk  # select all if -1
@@ -153,13 +156,17 @@ class DecodePredictions(layers.Layer):
             if self.use_object_scores:
                 ccs = ccs * functional.gather(object_scores, picking_indices)
         else:
-            bbs, ccs, labels = pred[:, :4], functional.reduce_max(pred[:, 4:], axis=-1), functional.argmax(pred[:, 4:], axis=-1)
+            bbs, scores = pred[:, :self.bbox_len], pred[:, self.bbox_len:]
+            ccs, labels = functional.reduce_max(scores, axis=-1), functional.argmax(scores, axis=-1)
             anchors = self.anchors
             if self.use_object_scores:
                 ccs = ccs * object_scores
 
         # print(f"{bbs.shape = }, {anchors.shape = }")
-        bbs_decoded = anchors_func.decode_bboxes(bbs, anchors)
+        if self.anchors_mode == anchors_func.YOLOV8_MODE:
+            bbs_decoded = anchors_func.yolov8_decode_bboxes(bbs, anchors, regression_max=self.bbox_len // 4)
+        else:
+            bbs_decoded = anchors_func.decode_bboxes(bbs, anchors)
         iou_threshold, soft_nms_sigma = (1.0, iou_or_sigma / 2) if method.lower() == "gaussian" else (iou_or_sigma, 0.0)
 
         if mode == "per_class":

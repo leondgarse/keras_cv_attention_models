@@ -1,5 +1,6 @@
+import math
 from keras_cv_attention_models import backend
-from keras_cv_attention_models.backend import layers, functional, models, image_data_format
+from keras_cv_attention_models.backend import layers, functional, models, initializers, image_data_format
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -11,7 +12,7 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.coco import eval_func, anchors_func
 
 PRETRAINED_DICT = {
-    "": {"coco": ""},
+    "yolov8_n": {"coco": "4cb83c7e452cdcd440b75546df0b211e"},
 }
 
 
@@ -124,34 +125,38 @@ def path_aggregation_fpn(features, depth=3, activation="swish", name=""):
     return downsamples
 
 
-def yolov8_head(inputs, regression_max=16, num_classes=80, num_anchors=3, use_object_scores=True, activation="swish", classifier_activation="sigmoid", name=""):
+def yolov8_head(inputs, num_classes=80, bbox_len=64, num_anchors=1, use_object_scores=False, activation="swish", classifier_activation="sigmoid", name=""):
     channel_axis = -1 if image_data_format() == "channels_last" else 1
+    bias_init = initializers.constant(-math.log((1 - 0.01) / 0.01))
 
     outputs = []
-    left_channels = max(16, regression_max * 4, inputs[0].shape[channel_axis] // 4)
-    right_channels = max(num_classes, inputs[0].shape[channel_axis])
+    reg_channels = max(16, bbox_len, inputs[0].shape[channel_axis] // 4)
+    cls_channels = max(num_classes, inputs[0].shape[channel_axis])
     for id, feature in enumerate(inputs):
         cur_name = name + "{}_".format(id + 1)
 
-        left = conv_bn(feature, left_channels, 3, activation=activation, name=cur_name + "left_1_")
-        left = conv_bn(left, left_channels, 3, activation=activation, name=cur_name + "left_2_")
-        left = conv2d_no_bias(left, regression_max * 4, 1, use_bias=True, name=cur_name + "left_3_")
+        reg_nn = conv_bn(feature, reg_channels, 3, activation=activation, name=cur_name + "reg_1_")
+        reg_nn = conv_bn(reg_nn, reg_channels, 3, activation=activation, name=cur_name + "reg_2_")
+        reg_out = conv2d_no_bias(reg_nn, bbox_len * num_anchors, 1, use_bias=True, name=cur_name + "reg_3_")
 
-        right = conv_bn(feature, right_channels, 3, activation=activation, name=cur_name + "right_1_")
-        right = conv_bn(right, right_channels, 3, activation=activation, name=cur_name + "right_2_")
-        right = conv2d_no_bias(right, num_classes, 1, use_bias=True, name=cur_name + "right_3_")
+        cls_nn = conv_bn(feature, cls_channels, 3, activation=activation, name=cur_name + "cls_1_")
+        cls_nn = conv_bn(cls_nn, cls_channels, 3, activation=activation, name=cur_name + "cls_2_")
+        cls_out = conv2d_no_bias(cls_nn, num_classes * num_anchors, 1, use_bias=True, name=cur_name + "cls_3_")
+        if classifier_activation is not None:
+            cls_out = activation_by_name(cls_out, classifier_activation, name=cur_name + "classifier_")
 
-        out = functional.concat([left, right], axis=channel_axis)
+        # obj_preds
+        if use_object_scores:
+            obj_out = conv2d_no_bias(1 * num_anchors, kernel_size=1, use_bias=True, bias_initializer=bias_init, name=cur_name + "object_")(reg_nn)
+            obj_out = activation_by_name(obj_out, "sigmoid", name=name + "object_out_")
+            out = functional.concat([reg_out, cls_out, obj_out], axis=channel_axis)
+        else:
+            out = functional.concat([reg_out, cls_out], axis=channel_axis)
         out = out if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(out)
         out = layers.Reshape([-1, out.shape[-1]], name=cur_name + "output_reshape")(out)
         outputs.append(out)
     outputs = functional.concat(outputs, axis=1)
     return outputs
-    # return activation_by_name(outputs, classifier_activation, name="classifier_")
-
-    # bbox, cls = functional.split(outputs, [-1, num_classes], axis=-1)
-    # bbox = layers.Reshape([-1, 4, bbox.shape[-1] // 4])(bbox)
-    # bbox = functional.softmax(bbox, axis=-1)
 
 
 """ YOLOV8 models """
@@ -162,8 +167,8 @@ def YOLOV8(
     csp_channels=[32, 64, 128, 256],  # [YOLOV8Backbone parameters]
     depthes=[1, 2, 2, 1],
     features_pick=[-3, -2, -1],  # [Detector parameters]
-    regression_max=16,
-    anchors_mode="yolor",
+    bbox_len=64,  # Typical value is 4, for yolov8 reg_max=16 -> bbox_len = 16 * 4 == 64
+    anchors_mode="yolov8",
     num_anchors="auto",  # "auto" means: anchors_mode=="anchor_free" -> 1, anchors_mode=="yolor" -> 3, else 9
     use_object_scores="auto",  # "auto" means: True if anchors_mode=="anchor_free" or anchors_mode=="yolor", else False
     input_shape=(640, 640, 3),
@@ -202,13 +207,13 @@ def YOLOV8(
 
     fpn_features = path_aggregation_fpn(features, depth=depthes[-1], activation=activation, name="pafpn_")
 
-    outputs = yolov8_head(fpn_features, regression_max, num_classes, num_anchors, use_object_scores, activation, classifier_activation, name="head_")
+    outputs = yolov8_head(fpn_features, num_classes, bbox_len, num_anchors, use_object_scores, activation, classifier_activation, name="head_")
     outputs = layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
     model = models.Model(inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "yolov8", pretrained)
 
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]
-    post_process = eval_func.DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale)
+    post_process = eval_func.DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale, bbox_len=bbox_len)
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     return model
 

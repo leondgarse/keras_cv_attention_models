@@ -9,7 +9,8 @@ if backend.is_tensorflow_backend:
 EFFICIENTDET_MODE = "efficientdet"
 ANCHOR_FREE_MODE = "anchor_free"
 YOLOR_MODE = "yolor"
-NUM_ANCHORS = {ANCHOR_FREE_MODE: 1, YOLOR_MODE: 3, EFFICIENTDET_MODE: 9}
+YOLOV8_MODE = "yolov8"
+NUM_ANCHORS = {ANCHOR_FREE_MODE: 1, YOLOV8_MODE: 1, YOLOR_MODE: 3, EFFICIENTDET_MODE: 9}
 
 """ Init anchors """
 
@@ -20,6 +21,9 @@ def get_anchors_mode_parameters(anchors_mode, use_object_scores="auto", num_anch
         num_anchors = NUM_ANCHORS[anchors_mode] if num_anchors == "auto" else num_anchors
     elif anchors_mode == YOLOR_MODE:
         use_object_scores = True if use_object_scores == "auto" else use_object_scores
+        num_anchors = NUM_ANCHORS[anchors_mode] if num_anchors == "auto" else num_anchors
+    elif anchors_mode == YOLOV8_MODE:
+        use_object_scores = False if use_object_scores == "auto" else use_object_scores
         num_anchors = NUM_ANCHORS[anchors_mode] if num_anchors == "auto" else num_anchors
     else:
         use_object_scores = False if use_object_scores == "auto" else use_object_scores
@@ -207,6 +211,26 @@ def decode_bboxes(preds, anchors, return_centers=False):
         bboxes_center = preds_center * anchors_hw + anchors_center
         bboxes_hw = functional.exp(preds_hw) * anchors_hw
 
+    if return_centers:
+        return functional.concat([bboxes_center, bboxes_hw, preds_others], axis=-1)
+    else:
+        preds_top_left = bboxes_center - 0.5 * bboxes_hw
+        pred_bottom_right = preds_top_left + bboxes_hw
+        return functional.concat([preds_top_left, pred_bottom_right, preds_others], axis=-1)
+
+
+def yolov8_decode_bboxes(preds, anchors, regression_max=16, return_centers=False):
+    preds_bbox, preds_others = functional.split(preds, [4 * regression_max, -1], axis=-1)
+    preds_bbox = functional.reshape(preds_bbox, [*preds_bbox.shape[:-1], 4, regression_max])
+    preds_bbox = functional.softmax(preds_bbox, axis=-1) * functional.range(regression_max, dtype='float32')
+    preds_bbox = functional.reduce_sum(preds_bbox, axis=-1)
+    preds_top_left, preds_bottom_right = functional.split(preds_bbox, [2, 2], axis=-1)
+
+    anchors_hw = anchors[:, 2:] - anchors[:, :2]
+    anchors_center = (anchors[:, :2] + anchors[:, 2:]) * 0.5
+
+    bboxes_center = (preds_bottom_right - preds_top_left) / 2 * anchors_hw + anchors_center
+    bboxes_hw = (preds_bottom_right + preds_top_left) * anchors_hw
     if return_centers:
         return functional.concat([bboxes_center, bboxes_hw, preds_others], axis=-1)
     else:
