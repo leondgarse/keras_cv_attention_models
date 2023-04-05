@@ -170,7 +170,7 @@ def CoAtNet(
     model_name="coatnet",
     kwargs=None,
 ):
-    # Regard input_shape as force using original shape if first element is None or -1,
+    # Regard input_shape as force using original shape if len(input_shape) == 4,
     # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
     input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)

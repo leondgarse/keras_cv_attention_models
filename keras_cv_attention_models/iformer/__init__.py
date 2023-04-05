@@ -1,8 +1,8 @@
 from keras_cv_attention_models.iformer.iformer import InceptionTransformer, IFormerSmall, IFormerBase, IFormerLarge
 
 __head_doc__ = """
-Keras implementation of [Github whai362/PVT](https://github.com/whai362/PVT/tree/v2/classification).
-Paper [PDF 2106.13797 PVTv2: Improved Baselines with Pyramid Vision Transformer](https://arxiv.org/pdf/2106.13797.pdf).
+Keras implementation of [Github sail-sg/iFormer](https://github.com/sail-sg/iFormer).
+Paper [PDF 2205.12956 Inception Transformer](https://arxiv.org/pdf/2205.12956.pdf).
 """
 
 __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.

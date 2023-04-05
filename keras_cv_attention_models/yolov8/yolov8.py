@@ -25,6 +25,7 @@ def conv_bn(inputs, output_channel, kernel_size=1, strides=1, activation="swish"
     nn = conv2d_no_bias(inputs, output_channel, kernel_size, strides, padding="SAME", name=name)
     return batchnorm_with_activation(nn, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name)
 
+
 def csp_with_2_conv(inputs, channels=-1, depth=2, shortcut=True, expansion=0.5, activation="swish", name=""):
     channel_axis = -1 if image_data_format() == "channels_last" else 1
     channels = channels if channels > 0 else inputs.shape[channel_axis]
@@ -43,6 +44,7 @@ def csp_with_2_conv(inputs, channels=-1, depth=2, shortcut=True, expansion=0.5, 
     out = conv_bn(out, channels, kernel_size=1, activation=activation, name=name + "output_")
     return out
 
+
 def spatial_pyramid_pooling_fast(inputs, pool_size=5, activation="swish", name=""):
     channel_axis = -1 if image_data_format() == "channels_last" else 1
     input_channels = inputs.shape[channel_axis]
@@ -56,6 +58,7 @@ def spatial_pyramid_pooling_fast(inputs, pool_size=5, activation="swish", name="
     out = functional.concat([nn, pool_1, pool_2, pool_3], axis=channel_axis)
     out = conv_bn(out, input_channels, kernel_size=1, activation=activation, name=name + "output_")
     return out
+
 
 def YOLOV8Backbone(
     channels=[128, 256, 512, 1024], depthes=[3, 6, 6, 3], out_features=[-3, -2, -1], input_shape=(512, 512, 3), activation="swish", model_name="yolov8_backbone"
@@ -149,6 +152,7 @@ def yolov8_head(inputs, regression_max=16, num_classes=80, num_anchors=3, use_ob
     # bbox, cls = functional.split(outputs, [-1, num_classes], axis=-1)
     # bbox = layers.Reshape([-1, 4, bbox.shape[-1] // 4])(bbox)
     # bbox = functional.softmax(bbox, axis=-1)
+
 
 """ YOLOV8 models """
 

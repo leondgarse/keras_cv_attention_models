@@ -6,7 +6,6 @@ from keras_cv_attention_models.attention_layers import (
     batchnorm_with_activation,
     conv2d_no_bias,
     HeadInitializer,
-    mlp_block,
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
