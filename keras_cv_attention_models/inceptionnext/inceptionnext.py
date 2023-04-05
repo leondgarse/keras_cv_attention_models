@@ -17,8 +17,8 @@ LAYER_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
     "inceptionnext_base": {"imagenet": {224: "9b2bc220f5fc1cc9715daa9c899bff0b", 384: "c1740ea8e9115612eb12ce54c035ed32"}},
-    "inceptionnext_small": {"imagenet": {"046ec2140cce1620fd94cd1b208a9bb6"}},
-    "inceptionnext_tiny": {"imagenet": {"1026a14bc0367f9d29a8d5bf952ac056"}},
+    "inceptionnext_small": {"imagenet": "046ec2140cce1620fd94cd1b208a9bb6"},
+    "inceptionnext_tiny": {"imagenet": "1026a14bc0367f9d29a8d5bf952ac056"},
 }
 
 
