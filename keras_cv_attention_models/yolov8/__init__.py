@@ -27,6 +27,8 @@ Args:
 __detector_tail_doc__ = """  features_pick: specific `layer names` or `pyramid feature indexes` from backbone model.
         Default `[-3, -2, -1]` means using the last 3 pyramid feature output from backbone.
   regression_len: bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64.
+  parallel_mode: False for YOLOV8_X6 and True for others.
+      If False, only concat `short` and the last `deep` one in `path_aggregation_fpn` module.
   anchors_mode: one of ["efficientdet", "anchor_free", "yolor", "yolov8"], controls which anchor to use.
       - efficientdet anchors default settings: use_object_scores=False, num_anchors=9, anchor_scale=4,
           aspect_ratios=[1, 2, 0.5], num_scales=3, grid_zero_start=False.
@@ -69,15 +71,14 @@ YOLOV8.__doc__ = __head_doc__ + __detector_head_doc__ + """
 [Detector parameters]
 """ + __detector_tail_doc__ + """
 Model architectures:
-  | Model       | Params | FLOPs  | Input | COCO val AP | test AP |
-  | ----------- | ------ | ------ | ----- | ----------- | ------- |
-  | YOLOV7_Tiny | 6.23M  | 2.90G  | 416   | 33.3        |         |
-  | YOLOV7_CSP  | 37.67M | 53.0G  | 640   | 51.4        |         |
-  | YOLOV7_X    | 71.41M | 95.0G  | 640   | 53.1        |         |
-  | YOLOV7_W6   | 70.49M | 180.1G | 1280  | 54.9        |         |
-  | YOLOV7_E6   | 97.33M | 257.6G | 1280  | 56.0        |         |
-  | YOLOV7_D6   | 133.9M | 351.4G | 1280  | 56.6        |         |
-  | YOLOV7_E6E  | 151.9M | 421.7G | 1280  | 56.8        |         |
+  | Model     | Params | FLOPs  | Input | COCO val AP | test AP |
+  | --------- | ------ | ------ | ----- | ----------- | ------- |
+  | YOLOV8_N  | 3.16M  | 4.39G  | 640   | 37.3        |         |
+  | YOLOV8_S  | 11.17M | 14.33G | 640   | 44.9        |         |
+  | YOLOV8_M  | 25.90M | 39.52G | 640   | 50.2        |         |
+  | YOLOV8_L  | 43.69M | 82.65G | 640   | 52.9        |         |
+  | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         |
+  | YOLOV8_X6 | 100.6M | 134.1G | 640   |             |         |
 """
 
 YOLOV8_N.__doc__ = __head_doc__ + __detector_head_doc__ + __detector_tail_doc__

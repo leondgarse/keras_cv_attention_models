@@ -40,11 +40,12 @@
     from keras_cv_attention_models.coco import data
     data.show_image_with_bboxes(imm, bboxs, lables, confidences)
     ```
-  - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. **Note: `YOLOV7_*6` models using `focus_stem` requires input at least been an even number**.
+    ![yolov8_n_dog_cat](https://user-images.githubusercontent.com/5744524/230085258-14aee245-0084-4090-a62f-a2f23ce800f5.png)
+  - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`.
     ```py
     from keras_cv_attention_models import yolov8
     model = yolov8.YOLOV8_S(input_shape=(None, None, 3), pretrained="coco")
-    # >>>> Load pretrained from: ~/.keras/models/yolov7_csp_coco.h5
+    # >>>> Load pretrained from: ~/.keras/models/yolov8_s_coco.h5
     print(model.input_shape, model.output_shape)
     # (None, None, None, 3) (None, None, 144)
     print(model(tf.ones([1, 742, 355, 3])).shape)
