@@ -107,7 +107,7 @@
 
     mm.summary()  # Trainable params: 27,142,867
     ```
-  - Currently 3 types anchors supported, parameter **`anchors_mode`** controls which anchor to use, value in `["efficientdet", "anchor_free", "yolor"]`. Default is `"efficientdet"`.
+  - Currently 4 types anchors supported, parameter **`anchors_mode`** controls which anchor to use, value in `["efficientdet", "anchor_free", "yolor", "yolov8"]`. Default is `"efficientdet"`.
     ```py
     from keras_cv_attention_models import efficientdet, coatnet
     bb = coatnet.CoAtNet0(input_shape=(256, 256, 3), num_classes=0)
@@ -125,4 +125,5 @@
     | efficientdet | False             | 9           | 4            | [1, 2, 0.5]   | 3          | False           |
     | anchor_free  | True              | 1           | 1            | [1]           | 1          | True            |
     | yolor        | True              | 3           | None         | presets       | None       | offset=0.5      |
+    | yolov8       | False             | 1           | 1            | [1]           | 1          | False           |
 ***

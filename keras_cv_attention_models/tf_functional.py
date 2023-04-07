@@ -11,6 +11,7 @@ from tensorflow import (
     expand_dims,
     eye,
     gather,
+    gather_nd,
     linspace,
     map_fn,
     matmul,

@@ -20,15 +20,18 @@ Args:
 
 __tail_doc__ = """  features_pick: specific `layer names` or `pyramid feature indexes` from backbone model.
         Default `[-3, -2, -1]` means using the last 3 pyramid feature output from backbone.
+  regression_len: bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64.
   anchors_mode: one of ["efficientdet", "anchor_free", "yolor"], controls which anchor to use.
       - efficientdet anchors default settings: use_object_scores=False, num_anchors=9, anchor_scale=4,
           aspect_ratios=[1, 2, 0.5], num_scales=3, grid_zero_start=False.
       - anchor_free default settings: use_object_scores=True, num_anchors=1, anchor_scale=1,
           aspect_ratios=[1], num_scales=1, grid_zero_start=True.
       - yolor default settings: use_object_scores=True, num_anchors=3.
+      - yolov8 default settings: use_object_scores=False, num_anchors=1, anchor_scale=1,
+          aspect_ratios=[1], num_scales=1, grid_zero_start=False.
       Default "yolor".
   num_anchors: number of anchors for a single grid point, should be same with dataset used value.
-      Default "auto" means: anchors_mode=="anchor_free" -> 1, anchors_mode=="yolor" -> 3, else 9.
+      Default "auto" means: anchors_mode=="anchor_free" / "yolov8" -> 1, anchors_mode=="yolor" -> 3, else 9.
   use_object_scores: bollean value if model header output includes `object_scores`.
       Default "auto" means: True if anchors_mode=="anchor_free" or anchors_mode=="yolor", else False.
   input_shape: input shape if backbone is None, else will use input_shape from backbone.

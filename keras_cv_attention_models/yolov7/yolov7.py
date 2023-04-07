@@ -256,7 +256,9 @@ def path_aggregation_fpn(
 """ YOLOV7Head, using Reparam Conv block """
 
 
-def yolov7_head_single(inputs, filters, use_reparam_conv_head=True, num_classes=80, num_anchors=3, use_object_scores=True, activation="swish", name=""):
+def yolov7_head_single(
+    inputs, filters, use_reparam_conv_head=True, num_classes=80, regression_len=4, num_anchors=3, use_object_scores=True, activation="swish", name=""
+):
     if use_reparam_conv_head:
         # OREPA_3x3_RepConv
         rep_conv_3 = conv_bn(inputs, filters, 3, activation=None, name=name + "3x3_")
@@ -266,7 +268,7 @@ def yolov7_head_single(inputs, filters, use_reparam_conv_head=True, num_classes=
     else:
         nn = conv_bn(inputs, filters, 3, activation=activation, name=name + "1_")
 
-    ouput_classes = num_classes + (5 if use_object_scores else 4)  # num_anchors = 3, num_anchors * (80 + 5) = 255
+    ouput_classes = num_classes + regression_len + (1 if use_object_scores else 0)  # num_anchors = 3, num_anchors * (80 + 5) = 255
     nn = layers.Conv2D(ouput_classes * num_anchors, kernel_size=1, name=name + "2_conv")(nn)
     nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)
     # return nn
@@ -274,14 +276,24 @@ def yolov7_head_single(inputs, filters, use_reparam_conv_head=True, num_classes=
 
 
 def yolov7_head(
-    inputs, use_reparam_conv_head=True, num_classes=80, num_anchors=3, use_object_scores=True, activation="swish", classifier_activation="sigmoid", name=""
+    inputs,
+    use_reparam_conv_head=True,
+    num_classes=80,
+    regression_len=4,
+    num_anchors=3,
+    use_object_scores=True,
+    activation="swish",
+    classifier_activation="sigmoid",
+    name="",
 ):
     channel_axis = -1 if image_data_format() == "channels_last" else 1
     outputs = []
     for id, input in enumerate(inputs):
         cur_name = name + "{}_".format(id + 1)
         filters = int(input.shape[channel_axis] * 2)
-        out = yolov7_head_single(input, filters, use_reparam_conv_head, num_classes, num_anchors, use_object_scores, activation=activation, name=cur_name)
+        out = yolov7_head_single(
+            input, filters, use_reparam_conv_head, num_classes, regression_len, num_anchors, use_object_scores, activation=activation, name=cur_name
+        )
         outputs.append(out)
     # return outputs
     outputs = functional.concat(outputs, axis=1)
@@ -310,8 +322,9 @@ def YOLOV7(
     fpn_csp_downsample_ratio=1,
     use_reparam_conv_head=True,
     features_pick=[-3, -2, -1],  # [Detector parameters]
+    regression_len=4,  # bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64
     anchors_mode="yolor",
-    num_anchors="auto",  # "auto" means: anchors_mode=="anchor_free" -> 1, anchors_mode=="yolor" -> 3, else 9
+    num_anchors="auto",  # "auto" means: anchors_mode=="anchor_free" / "yolov8" -> 1, anchors_mode=="yolor" -> 3, else 9
     use_object_scores="auto",  # "auto" means: True if anchors_mode=="anchor_free" or anchors_mode=="yolor", else False
     input_shape=(640, 640, 3),
     num_classes=80,
@@ -354,13 +367,17 @@ def YOLOV7(
     fpn_kwargs = {"csp_downsample_ratio": fpn_csp_downsample_ratio, "use_additional_stack": use_additional_stack, "activation": activation, "name": "pafpn_"}
     fpn_features = path_aggregation_fpn(features, fpn_hidden_channels, fpn_mid_ratio, fpn_channel_ratio, fpn_stack_concats, fpn_stack_depth, **fpn_kwargs)
 
-    outputs = yolov7_head(fpn_features, use_reparam_conv_head, num_classes, num_anchors, use_object_scores, activation, classifier_activation, name="head_")
+    outputs = yolov7_head(
+        fpn_features, use_reparam_conv_head, num_classes, regression_len, num_anchors, use_object_scores, activation, classifier_activation, name="head_"
+    )
     outputs = layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
     model = models.Model(inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "yolov7", pretrained)
 
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]
-    post_process = eval_func.DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale)
+    post_process = eval_func.DecodePredictions(
+        backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale, regression_len=regression_len
+    )
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     return model
 

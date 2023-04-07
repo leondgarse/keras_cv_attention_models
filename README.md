@@ -70,6 +70,7 @@
   - [EfficientDet](#efficientdet)
   - [YOLOR](#yolor)
   - [YOLOV7](#yolov7)
+  - [YOLOV8](#yolov8)
   - [YOLOX](#yolox)
 - [Licenses](#licenses)
 - [Citing](#citing)
@@ -263,13 +264,15 @@
   - [COCO](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco) contains more detail usage.
   - `custom_dataset_script.py` can be used creating a `json` format file, which can be used as `--data_name xxx.json` for training, detail usage can be found in [Custom detection dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussioncomment-2460664).
   - Default parameters for `coco_train_script.py` is `EfficientDetD0` with `input_shape=(256, 256, 3), batch_size=64, mosaic_mix_prob=0.5, freeze_backbone_epochs=32, total_epochs=105`. Technically, it's any `pyramid structure backbone` + `EfficientDet / YOLOX header / YOLOR header` + `anchor_free / yolor / efficientdet anchors` combination supported.
-  - Currently 3 types anchors supported, parameter **`anchors_mode`** controls which anchor to use, value in `["efficientdet", "anchor_free", "yolor"]`. Default `None` for `det_header` presets.
+  - Currently 4 types anchors supported, parameter **`anchors_mode`** controls which anchor to use, value in `["efficientdet", "anchor_free", "yolor", "yolov8"]`. Default `None` for `det_header` presets.
+  - **NOTE: `YOLOV8` has a default `regression_len=64` for bbox output length. Typically it's `4` for other detection models, for yolov8 it's `reg_max=16 -> regression_len = 16 * 4 == 64`.**
 
     | anchors_mode | use_object_scores | num_anchors | anchor_scale | aspect_ratios | num_scales | grid_zero_start |
     | ------------ | ----------------- | ----------- | ------------ | ------------- | ---------- | --------------- |
     | efficientdet | False             | 9           | 4            | [1, 2, 0.5]   | 3          | False           |
     | anchor_free  | True              | 1           | 1            | [1]           | 1          | True            |
     | yolor        | True              | 3           | None         | presets       | None       | offset=0.5      |
+    | yolov8       | False             | 1           | 1            | [1]           | 1          | False           |
 
     ```sh
     # Default EfficientDetD0
@@ -1234,6 +1237,17 @@
   | YOLOV7_E6   | 97.33M | 257.6G | 1280  | 56.0        |         | [yolov7_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_e6_coco.h5) |
   | YOLOV7_D6   | 133.9M | 351.4G | 1280  | 56.6        |         | [yolov7_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_d6_coco.h5) |
   | YOLOV7_E6E  | 151.9M | 421.7G | 1280  | 56.8        |         | [yolov7_e6e_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_e6e_coco.h5) |
+## YOLOV8
+  - [Keras YOLOV8](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolov8) includes implementation of [Github ultralytics/ultralytics](https://github.com/ultralytics/ultralytics).
+
+  | Model     | Params | FLOPs  | Input | COCO val AP | test AP | Download |
+  | --------- | ------ | ------ | ----- | ----------- | ------- | -------- |
+  | YOLOV8_N  | 3.16M  | 4.39G  | 640   | 37.3        |         | [yolov8_n_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_n_coco.h5) |
+  | YOLOV8_S  | 11.17M | 14.33G | 640   | 44.9        |         | [yolov8_s_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_s_coco.h5) |
+  | YOLOV8_M  | 25.90M | 39.52G | 640   | 50.2        |         | [yolov8_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_m_coco.h5) |
+  | YOLOV8_L  | 43.69M | 82.65G | 640   | 52.9        |         | [yolov8_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_coco.h5) |
+  | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         | [yolov8_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_coco.h5) |
+  | YOLOV8_X6 | 100.6M | 134.1G | 640   |             |         |          |
 ## YOLOX
   - [Keras YOLOX](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolox) includes implementation of [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
 

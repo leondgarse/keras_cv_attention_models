@@ -35,7 +35,7 @@ class DecodePredictions(layers.Layer):
         anchor_scale="auto",
         aspect_ratios=(1, 2, 0.5),
         num_scales=3,
-        bbox_len=4, # Typical value is 4, for yolov8 reg_max=16 -> bbox_len = 16 * 4 == 64
+        regression_len=4, # bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64
         score_threshold=0.3,  # decode parameter, can be set new value in `self.call`
         iou_or_sigma=0.5,  # decode parameter, can be set new value in `self.call`
         max_output_size=100,  # decode parameter, can be set new value in `self.call`
@@ -49,7 +49,7 @@ class DecodePredictions(layers.Layer):
 
         self.pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))
         use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, "auto", anchor_scale)
-        self.bbox_len, self.aspect_ratios, self.num_scales = bbox_len, aspect_ratios, num_scales
+        self.regression_len, self.aspect_ratios, self.num_scales = regression_len, aspect_ratios, num_scales
         self.anchors_mode, self.use_object_scores, self.anchor_scale = anchors_mode, use_object_scores, anchor_scale  # num_anchors not using
         if input_shape is not None and (isinstance(input_shape, (list, tuple)) and input_shape[1] is not None):
             self.__init_anchor__(input_shape)
@@ -68,11 +68,11 @@ class DecodePredictions(layers.Layer):
         super().build(input_shape)
 
     def __init_anchor__(self, input_shape):
-        if isinstance(input_shape, (list, tuple)):
+        if isinstance(input_shape, (list, tuple)) and len(input_shape) > 2:
             # input_shape = input_shape[:2] if backend.image_data_format() == "channels_last" else input_shape[-2:]
             channel_axis, channel_dim = min(enumerate(input_shape), key=lambda xx: xx[1])  # Assume the smallest value is the channel dimension
             input_shape = [dim for axis, dim in enumerate(input_shape) if axis != channel_axis]
-        else:
+        elif isinstance(input_shape, int):
             input_shape = (input_shape, input_shape)
 
         if self.anchors_mode == anchors_func.ANCHOR_FREE_MODE:
@@ -89,7 +89,7 @@ class DecodePredictions(layers.Layer):
 
     def __topk_class_boxes_single__(self, pred, topk=5000):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L82
-        bbox_outputs, class_outputs = pred[:, :self.bbox_len], pred[:, self.bbox_len:]
+        bbox_outputs, class_outputs = pred[:, :self.regression_len], pred[:, self.regression_len:]
         num_classes = class_outputs.shape[-1]
         class_outputs_flatten = functional.reshape(class_outputs, -1)
         topk = class_outputs_flatten.shape[0] if topk == -1 else topk  # select all if -1
@@ -156,17 +156,14 @@ class DecodePredictions(layers.Layer):
             if self.use_object_scores:
                 ccs = ccs * functional.gather(object_scores, picking_indices)
         else:
-            bbs, scores = pred[:, :self.bbox_len], pred[:, self.bbox_len:]
+            bbs, scores = pred[:, :self.regression_len], pred[:, self.regression_len:]
             ccs, labels = functional.reduce_max(scores, axis=-1), functional.argmax(scores, axis=-1)
             anchors = self.anchors
             if self.use_object_scores:
                 ccs = ccs * object_scores
 
         # print(f"{bbs.shape = }, {anchors.shape = }")
-        if self.anchors_mode == anchors_func.YOLOV8_MODE:
-            bbs_decoded = anchors_func.yolov8_decode_bboxes(bbs, anchors, regression_max=self.bbox_len // 4)
-        else:
-            bbs_decoded = anchors_func.decode_bboxes(bbs, anchors)
+        bbs_decoded = anchors_func.decode_bboxes(bbs, anchors, regression_len=self.regression_len)
         iou_threshold, soft_nms_sigma = (1.0, iou_or_sigma / 2) if method.lower() == "gaussian" else (iou_or_sigma, 0.0)
 
         if mode == "per_class":
@@ -257,7 +254,13 @@ def init_eval_dataset(
     import tensorflow_datasets as tfds
     from keras_cv_attention_models.coco import data
 
-    dataset = data.detection_dataset_from_custom_json(data_name) if data_name.endswith(".json") else tfds.load(data_name)
+    # dataset = data.detection_dataset_from_custom_json(data_name) if data_name.endswith(".json") else tfds.load(data_name)
+    if data_name.endswith(".json"):
+        dataset, _, num_classes = detection_dataset_from_custom_json(data_name, with_info=True)
+    else:
+        dataset, info = tfds.load(data_name, with_info=True)
+        num_classes = info.features["objects"]["label"].num_classes
+
     ds = dataset.get("validation", dataset.get("test", None))
 
     mean, std = data.init_mean_std_by_rescale_mode(rescale_mode)
@@ -265,14 +268,14 @@ def init_eval_dataset(
     # ds: [resized_image, scale, pad_top, pad_left, original_image_shape, image_id]
     ds = ds.map(lambda datapoint: (*__image_process__(datapoint["image"]), datapoint.get("image/id", datapoint["image"])))
     ds = ds.batch(batch_size)
-    return ds
+    return ds, num_classes
 
 
-def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={}, is_coco=True, image_id_map=None):
+def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={}, is_coco=True, image_id_map=None, num_classes=80):
     from keras_cv_attention_models.coco import data
 
     target_shape = (eval_dataset.element_spec[0].shape[1], eval_dataset.element_spec[0].shape[2])
-    num_classes = model.output_shape[-1] - 4
+    # num_classes = model.output_shape[-1] - 4
     if is_coco:
         to_91_labels = (lambda label: label + 1) if num_classes >= 90 else (lambda label: data.COCO_80_to_90_LABEL_DICT[label] + 1)
     else:
@@ -446,9 +449,11 @@ class COCOEvalCallback(callbacks.Callback):
 
     def build(self, input_shape, output_shape):
         input_shape = (int(input_shape[1]), int(input_shape[2]))
-        self.eval_dataset = init_eval_dataset(input_shape=input_shape, **self.dataset_kwargs)
+        self.eval_dataset, self.num_classes = init_eval_dataset(input_shape=input_shape, **self.dataset_kwargs)
+        regression_len = (output_shape[-1] - self.num_classes) // 4 * 4
+
         if self.anchors_mode is None or self.anchors_mode == "auto":
-            self.anchors_mode, num_anchors = anchors_func.get_anchors_mode_by_anchors(input_shape, total_anchors=output_shape[1])
+            self.anchors_mode, num_anchors = anchors_func.get_anchors_mode_by_anchors(input_shape, total_anchors=output_shape[1], regression_len=regression_len)
         elif self.anchors_mode == anchors_func.EFFICIENTDET_MODE:
             num_anchors = self.efficient_det_num_anchors
         else:
@@ -458,7 +463,7 @@ class COCOEvalCallback(callbacks.Callback):
         # print(">>>>", self.dataset_kwargs)
         # print(">>>>", self.nms_kwargs)
 
-        self.pred_decoder = DecodePredictions(input_shape, pyramid_levels, self.anchors_mode, **self.anchor_kwargs)
+        self.pred_decoder = DecodePredictions(input_shape, pyramid_levels, self.anchors_mode, regression_len=regression_len, **self.anchor_kwargs)
 
         # Training saving best
         if self.model_basic_save_name is not None:
@@ -486,7 +491,9 @@ class COCOEvalCallback(callbacks.Callback):
 
         # pred_decoder = self.model.decode_predictions
         eval_dataset = self.eval_dataset.take(self.take_samples) if self.take_samples > 0 else self.eval_dataset
-        detection_results = model_detection_and_decode(self.model, eval_dataset, self.pred_decoder, self.nms_kwargs, self.is_coco, self.image_id_map)
+        detection_results = model_detection_and_decode(
+            self.model, eval_dataset, self.pred_decoder, self.nms_kwargs, self.is_coco, self.image_id_map, self.num_classes
+        )
         try:
             coco_eval = self.coco_evaluation(detection_results)
         except:

@@ -239,30 +239,29 @@ def path_aggregation_fpn(features, fpn_depth=2, use_csp_downsample=False, use_sh
 """ YOLORHead """
 
 
-def yolor_head_single(inputs, filters, num_classes=80, num_anchors=3, use_object_scores=True, activation="swish", name=""):
+def yolor_head_single(inputs, filters, num_classes=80, regression_len=4, num_anchors=3, use_object_scores=True, activation="swish", name=""):
     channel_axis = -1 if image_data_format() == "channels_last" else 1
-    initializer = initializers.truncated_normal(stddev=0.2)
 
     nn = conv_dw_pw_block(inputs, filters, 3, activation=activation, name=name + "1_")
-    nn = BiasLayer(initializer=initializer, axis=channel_axis, name=name + "shift_channel")(nn)
+    nn = BiasLayer(initializer=initializers.truncated_normal(stddev=0.2), axis=channel_axis, name=name + "shift_channel")(nn)
 
-    ouput_classes = num_classes + (5 if use_object_scores else 4)  # num_anchors = 3, num_anchors * (80 + 5) = 255
+    ouput_classes = num_classes + regression_len + (1 if use_object_scores else 0)  # num_anchors = 3, num_anchors * (80 + 5) = 255
     nn = layers.Conv2D(ouput_classes * num_anchors, kernel_size=1, name=name + "2_conv")(nn)
     nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)
     control_channels_layer = ChannelAffine(use_bias=False, axis=-1, name=name + "control_channel")
-    control_channels_layer.ww_init = initializer
+    control_channels_layer.ww_init = initializers.truncated_normal(stddev=0.2)
     nn = control_channels_layer(nn)
     # return nn
     return layers.Reshape([-1, ouput_classes], name=name + "output_reshape")(nn)
 
 
-def yolor_head(inputs, num_classes=80, num_anchors=1, use_object_scores=True, activation="swish", classifier_activation="sigmoid", name=""):
+def yolor_head(inputs, num_classes=80, regression_len=4, num_anchors=1, use_object_scores=True, activation="swish", classifier_activation="sigmoid", name=""):
     channel_axis = -1 if image_data_format() == "channels_last" else 1
     outputs = []
     for id, input in enumerate(inputs):
         cur_name = name + "{}_".format(id + 1)
         filters = int(input.shape[channel_axis] * 2)
-        out = yolor_head_single(input, filters, num_classes, num_anchors, use_object_scores, activation=activation, name=cur_name)
+        out = yolor_head_single(input, filters, num_classes, regression_len, num_anchors, use_object_scores, activation=activation, name=cur_name)
         outputs.append(out)
     # return outputs
     outputs = functional.concat(outputs, axis=1)
@@ -285,6 +284,7 @@ def YOLOR(
     use_shortcut_bn=True,
     fpn_depth=2,
     features_pick=[-3, -2, -1],
+    regression_len=4,  # bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64
     anchors_mode="yolor",
     num_anchors="auto",  # "auto" means: anchors_mode=="anchor_free" -> 1, anchors_mode=="yolor" -> 3, else 9
     use_object_scores="auto",  # "auto" means: True if anchors_mode=="anchor_free" or anchors_mode=="yolor", else False
@@ -325,13 +325,15 @@ def YOLOR(
     inputs = backbone.inputs[0]
 
     fpn_features = path_aggregation_fpn(features, fpn_depth, use_csp_downsample, use_shortcut_bn, activation=activation, name="pafpn_")
-    outputs = yolor_head(fpn_features, num_classes, num_anchors, use_object_scores, activation, classifier_activation, name="head_")
+    outputs = yolor_head(fpn_features, num_classes, regression_len, num_anchors, use_object_scores, activation, classifier_activation, name="head_")
     outputs = layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
     model = models.Model(inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "yolor", pretrained)
 
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]
-    post_process = eval_func.DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale)
+    post_process = eval_func.DecodePredictions(
+        backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale, regression_len=regression_len
+    )
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     return model
 

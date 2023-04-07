@@ -141,7 +141,7 @@ def get_yolor_anchors(input_shape=(512, 512), pyramid_levels=[3, 5], offset=0.5,
     return functional.convert_to_tensor(all_anchors.astype("float32"))  # [center_h, center_w, anchor_h, anchor_w, stride_h, stride_w]
 
 
-def get_anchors_mode_by_anchors(input_shape, total_anchors, num_anchors="auto", pyramid_levels_min=3, num_anchors_at_each_level_cumsum=None):
+def get_anchors_mode_by_anchors(input_shape, total_anchors, num_anchors="auto", pyramid_levels_min=3, num_anchors_at_each_level_cumsum=None, regression_len=4):
     if num_anchors_at_each_level_cumsum is None:
         feature_sizes = get_feature_sizes(input_shape, [pyramid_levels_min, pyramid_levels_min + 10])[pyramid_levels_min:]
         feature_sizes = np.array(feature_sizes, dtype="int32")
@@ -153,7 +153,7 @@ def get_anchors_mode_by_anchors(input_shape, total_anchors, num_anchors="auto", 
         max_anchors = num_anchors_at_each_level_cumsum[-1] * picks
         num_anchors = np.ceil(total_anchors / max_anchors[0]) if total_anchors > max_anchors[-1] else picks[np.argmax(total_anchors < max_anchors)]
         num_anchors = int(num_anchors)
-    dd = {1: ANCHOR_FREE_MODE, 3: YOLOR_MODE, 9: EFFICIENTDET_MODE}
+    dd = {1: ANCHOR_FREE_MODE if regression_len == 4 else YOLOV8_MODE, 3: YOLOR_MODE, 9: EFFICIENTDET_MODE}
     return dd.get(num_anchors, EFFICIENTDET_MODE), num_anchors
 
 
@@ -198,31 +198,28 @@ def center_yxhw_to_corners_nd(ss):
     return functional.concat([top_left, bottom_right], axis=-1)
 
 
-def decode_bboxes(preds, anchors, return_centers=False):
+def _efficientdet_decode_bboxes(preds, anchors):
     preds_center, preds_hw, preds_others = functional.split(preds, [2, 2, -1], axis=-1)
-    if anchors.shape[-1] == 6:  # Currently, it's yolor anchors
-        # anchors: [grid_y, grid_x, base_anchor_y, base_anchor_x, stride_y, stride_x]
-        bboxes_center = preds_center * 2 * anchors[:, 4:] + anchors[:, :2]
-        bboxes_hw = (preds_hw * 2) ** 2 * anchors[:, 2:4]
-    else:
-        anchors_hw = anchors[:, 2:] - anchors[:, :2]
-        anchors_center = (anchors[:, :2] + anchors[:, 2:]) * 0.5
 
-        bboxes_center = preds_center * anchors_hw + anchors_center
-        bboxes_hw = functional.exp(preds_hw) * anchors_hw
+    anchors_hw = anchors[:, 2:] - anchors[:, :2]
+    anchors_center = (anchors[:, :2] + anchors[:, 2:]) * 0.5
 
-    if return_centers:
-        return functional.concat([bboxes_center, bboxes_hw, preds_others], axis=-1)
-    else:
-        preds_top_left = bboxes_center - 0.5 * bboxes_hw
-        pred_bottom_right = preds_top_left + bboxes_hw
-        return functional.concat([preds_top_left, pred_bottom_right, preds_others], axis=-1)
+    bboxes_center = preds_center * anchors_hw + anchors_center
+    bboxes_hw = functional.exp(preds_hw) * anchors_hw
+    return bboxes_center, bboxes_hw, preds_others
 
+def _yolor_decode_bboxes(preds, anchors):
+    preds_center, preds_hw, preds_others = functional.split(preds, [2, 2, -1], axis=-1)
 
-def yolov8_decode_bboxes(preds, anchors, regression_max=16, return_centers=False):
-    preds_bbox, preds_others = functional.split(preds, [4 * regression_max, -1], axis=-1)
-    preds_bbox = functional.reshape(preds_bbox, [*preds_bbox.shape[:-1], 4, regression_max])
-    preds_bbox = functional.softmax(preds_bbox, axis=-1) * functional.range(regression_max, dtype='float32')
+    # anchors: [grid_y, grid_x, base_anchor_y, base_anchor_x, stride_y, stride_x]
+    bboxes_center = preds_center * 2 * anchors[:, 4:] + anchors[:, :2]
+    bboxes_hw = (preds_hw * 2) ** 2 * anchors[:, 2:4]
+    return bboxes_center, bboxes_hw, preds_others
+
+def _yolov8_decode_bboxes(preds, anchors, regression_len=64):
+    preds_bbox, preds_others = functional.split(preds, [regression_len, -1], axis=-1)
+    preds_bbox = functional.reshape(preds_bbox, [*preds_bbox.shape[:-1], 4, regression_len // 4])
+    preds_bbox = functional.softmax(preds_bbox, axis=-1) * functional.range(preds_bbox.shape[-1], dtype='float32')
     preds_bbox = functional.reduce_sum(preds_bbox, axis=-1)
     preds_top_left, preds_bottom_right = functional.split(preds_bbox, [2, 2], axis=-1)
 
@@ -231,6 +228,16 @@ def yolov8_decode_bboxes(preds, anchors, regression_max=16, return_centers=False
 
     bboxes_center = (preds_bottom_right - preds_top_left) / 2 * anchors_hw + anchors_center
     bboxes_hw = (preds_bottom_right + preds_top_left) * anchors_hw
+    return bboxes_center, bboxes_hw, preds_others
+
+def decode_bboxes(preds, anchors, regression_len=4, return_centers=False):
+    if anchors.shape[-1] == 6:  # Currently, it's yolor / yolov7 anchors
+        bboxes_center, bboxes_hw, preds_others = _yolor_decode_bboxes(preds, anchors)
+    elif regression_len > 4:  # YOLOV8
+        bboxes_center, bboxes_hw, preds_others = _yolov8_decode_bboxes(preds, anchors, regression_len)
+    else:  # Currently, it's yolox / efficientdet anchors
+        bboxes_center, bboxes_hw, preds_others = _efficientdet_decode_bboxes(preds, anchors)
+
     if return_centers:
         return functional.concat([bboxes_center, bboxes_hw, preds_others], axis=-1)
     else:

@@ -167,7 +167,9 @@ def path_aggregation_fpn(features, depth_mul=1, use_depthwise_conv=False, activa
 """ YOLOXHead """
 
 
-def yolox_head_single(inputs, out_channels, num_classes=80, num_anchors=1, use_depthwise_conv=False, use_object_scores=True, activation="swish", name=""):
+def yolox_head_single(
+    inputs, out_channels, num_classes=80, regression_len=4, num_anchors=1, use_depthwise_conv=False, use_object_scores=True, activation="swish", name=""
+):
     bias_init = initializers.constant(-math.log((1 - 0.01) / 0.01))
 
     # stem
@@ -184,9 +186,9 @@ def yolox_head_single(inputs, out_channels, num_classes=80, num_anchors=1, use_d
     # reg_convs, reg_preds
     reg_nn = conv_dw_pw_block(stem, out_channels, kernel_size=3, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "reg_1_")
     reg_nn = conv_dw_pw_block(reg_nn, out_channels, kernel_size=3, use_depthwise_conv=use_depthwise_conv, activation=activation, name=name + "reg_2_")
-    reg_out = layers.Conv2D(4 * num_anchors, kernel_size=1, name=name + "regression_out")(reg_nn)
+    reg_out = layers.Conv2D(regression_len * num_anchors, kernel_size=1, name=name + "regression_out")(reg_nn)
     reg_out = reg_out if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(reg_out)
-    reg_out = layers.Reshape([-1, 4], name=name + "regression_out_reshape")(reg_out)
+    reg_out = layers.Reshape([-1, regression_len], name=name + "regression_out_reshape")(reg_out)
 
     # obj_preds
     if use_object_scores:
@@ -199,12 +201,16 @@ def yolox_head_single(inputs, out_channels, num_classes=80, num_anchors=1, use_d
         return functional.concat([reg_out, cls_out], axis=-1)
 
 
-def yolox_head(inputs, width_mul=1.0, num_classes=80, num_anchors=1, use_depthwise_conv=False, use_object_scores=True, activation="swish", name=""):
+def yolox_head(
+    inputs, width_mul=1.0, num_classes=80, regression_len=4, num_anchors=1, use_depthwise_conv=False, use_object_scores=True, activation="swish", name=""
+):
     out_channel = int(256 * width_mul)
     outputs = []
     for id, input in enumerate(inputs):
         cur_name = name + "{}_".format(id + 1)
-        out = yolox_head_single(input, out_channel, num_classes, num_anchors, use_depthwise_conv, use_object_scores, activation=activation, name=cur_name)
+        out = yolox_head_single(
+            input, out_channel, num_classes, regression_len, num_anchors, use_depthwise_conv, use_object_scores, activation=activation, name=cur_name
+        )
         outputs.append(out)
     # outputs = functional.concat([layers.Reshape([-1, ii.shape[-1]])(ii) for ii in outputs], axis=1)
     outputs = functional.concat(outputs, axis=1)
@@ -220,6 +226,7 @@ def YOLOX(
     depth_mul=1,
     width_mul=-1,  # -1 means: `min([ii.shape[-1] for ii in features]) / 256` for custom backbones.
     use_depthwise_conv=False,
+    regression_len=4,  # bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64
     anchors_mode="anchor_free",
     num_anchors="auto",  # "auto" means: anchors_mode=="anchor_free" -> 1, anchors_mode=="yolor" -> 3, else 9
     use_object_scores="auto",  # "auto" means: True if anchors_mode=="anchor_free" or anchors_mode=="yolor", else False
@@ -259,13 +266,17 @@ def YOLOX(
     inputs = backbone.inputs[0]
 
     fpn_features = path_aggregation_fpn(features, depth_mul=depth_mul, use_depthwise_conv=use_depthwise_conv, activation=activation, name="pafpn_")
-    outputs = yolox_head(fpn_features, width_mul, num_classes, num_anchors, use_depthwise_conv, use_object_scores, activation=activation, name="head_")
+    outputs = yolox_head(
+        fpn_features, width_mul, num_classes, regression_len, num_anchors, use_depthwise_conv, use_object_scores, activation=activation, name="head_"
+    )
     outputs = layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
     model = models.Model(inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "yolox", pretrained)
 
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]
-    post_process = eval_func.DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale)
+    post_process = eval_func.DecodePredictions(
+        backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale, regression_len=regression_len
+    )
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     return model
 

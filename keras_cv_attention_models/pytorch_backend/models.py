@@ -8,6 +8,39 @@ from keras_cv_attention_models.pytorch_backend import layers
 
 HDF5_OBJECT_HEADER_LIMIT = 64512
 
+class TorchDatasetGen:
+    def __init__(self, x=None, y=None, batch_size=None, validation_data=None, input_shape=None):
+        from torch.utils.data import Dataset, DataLoader
+
+        if isinstance(x, Dataset) or isinstance(x, DataLoader):
+            train_dataset = x
+        elif hasattr(x, "element_spec"):
+            data_shape = x.element_spec[0].shape
+            if input_shape is not None and data_shape[-1] == input_shape[1]:
+                perm = [0, len(data_shape) - 1] + list(range(1, len(data_shape) - 1))  # [0, 3, 1, 2]
+                train_dataset = ((xx.transpose(perm), yy) for xx, yy in x.as_numpy_iterator())
+            else:
+                train_dataset = x.as_numpy_iterator()
+        elif isinstance(x, np.ndarray) or isinstance(x, torch.Tensor):
+            assert y is not None
+            num_batches = xx.shape[0] if batch_size is None else int(np.ceil(xx.shape[0] / batch_size))
+
+            def _convert_tensor(data, id):
+                cur = data[id * batch_size: (id + 1) * batch_size] if batch_size is not None else data[id]
+                cur = torch.from_numpy(cur) if isinstance(cur, np.ndarray) else cur
+                cur = cur.float() if cur.dtype == torch.float64 else cur
+                cur = cur.long() if cur.dtype == torch.int32 else cur
+                return cur
+            train_dataset = ((_convert_tensor(x, id), _convert_tensor(y, id)) for id in range(num_batches))
+        else:  # generator
+            train_dataset = x
+        self.train_dataset = train_dataset
+
+    def __call__(self):
+        import itertools
+
+        self.train_dataset, train_dataset_run = itertools.tee(self.train_dataset)
+        return train_dataset_run
 
 class Model(nn.Module):
     """
@@ -119,10 +152,13 @@ class Model(nn.Module):
                 print("     intra_nodes:", {kk: len(vv) for kk, vv in intra_nodes.items() if len(vv) > 0})
         return [intra_nodes[ii][0] for ii in self.output_names] if self.num_outputs != 1 else intra_nodes[self.output_names[0]][0]
 
-    def compile(self, optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, weighted_metrics=None, **kwargs):
+    def compile(self, optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, **kwargs):
         self.optimizer = getattr(torch.optim, optimizer)(self.parameters()) if isinstance(optimizer, str) else optimizer
         self.loss = torch.functional.F.cross_entropy if loss is None else loss
-        self.metrics, self.loss_weights, self.weighted_metrics = metrics, loss_weights, weighted_metrics
+        self.loss_weights = loss_weights
+
+        self.metrics = {} if metrics is None else (metrics if isinstance(metrics, dict) else {ii.__name__: ii for ii in metrics})
+        self.metrics.update({"loss": self.loss})
 
         device_type = next(self.parameters()).device.type
         if device_type == "cpu":
@@ -133,25 +169,18 @@ class Model(nn.Module):
             global_context = torch.amp.autocast(device_type=device_type, dtype=torch.float16)
         self.device_type, self.scaler, self.global_context = device_type, scaler, global_context
 
-    def fit(self, x=None, epochs=1, verbose="auto", callbacks=None, validation_data=None, initial_epoch=0, steps_per_epoch=None, **kwargs):
-        train_dataset = x
-        need_transpose = False
-        if hasattr(train_dataset, "element_spec"):
-            data_shape = train_dataset.element_spec[0].shape
-            if data_shape[-1] == self.input_shape[1]:
-                need_transpose = True  # channel_last -> channel_fisrt
-                perm = [0, len(data_shape) - 1] + list(range(1, len(data_shape) - 1))  # [0, 3, 1, 2]
-
+    def fit(
+        self, x=None, y=None, batch_size=None, epochs=1, verbose="auto", callbacks=None, validation_data=None, initial_epoch=0, steps_per_epoch=None, **kwargs
+    ):
+        train_dataset_gen = TorchDatasetGen(x, y, batch_size=batch_size, validation_data=validation_data, input_shape=self.input_shape)
         for epoch in range(initial_epoch, epochs):
-            data_gen = train_dataset.as_numpy_iterator() if hasattr(train_dataset, "as_numpy_iterator") else train_dataset
             self.train()
-            for batch, (xx, yy) in enumerate(data_gen):
+            train_dataset = train_dataset_gen()
+            for batch, (xx, yy) in enumerate(train_dataset):
                 if isinstance(xx, np.ndarray):
                     xx = torch.from_numpy(xx)
                 if isinstance(yy, np.ndarray):
                     yy = torch.from_numpy(yy)
-                if need_transpose:
-                    xx = xx.permute(perm)
 
                 with self.global_context:
                     out = self(xx)

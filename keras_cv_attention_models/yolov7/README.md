@@ -19,7 +19,7 @@
 ## Usage
   - **Basic usage**
     ```py
-    from keras_cv_attention_models.yolov7 import yolov7
+    from keras_cv_attention_models import yolov7
     model = yolov7.YOLOV7_CSP(pretrained="coco")
 
     # Run prediction
@@ -35,7 +35,7 @@
     ![yolov7_csp_dog_cat](https://user-images.githubusercontent.com/5744524/204136183-bc7c46cd-6595-441b-995d-72a8974893a4.png)
   - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. **Note: `YOLOV7_*6` models using `focus_stem` requires input at least been an even number**.
     ```py
-    from keras_cv_attention_models.yolov7 import yolov7
+    from keras_cv_attention_models import yolov7
     model = yolov7.YOLOV7_CSP(input_shape=(None, None, 3), pretrained="coco")
     # >>>> Load pretrained from: ~/.keras/models/yolov7_csp_coco.h5
     print(model.input_shape, model.output_shape)
@@ -70,7 +70,7 @@
     print(mm.output_shape)
     # (None, 4032, 85)
     ```
-  - Currently 3 types anchors supported, parameter **`anchors_mode`** controls which anchor to use, value in `["efficientdet", "anchor_free", "yolor"]`. Default is `"yolor"`.
+  - Currently 4 types anchors supported, parameter **`anchors_mode`** controls which anchor to use, value in `["efficientdet", "anchor_free", "yolor", "yolov8"]`. Default is `"yolor"`.
     ```py
     from keras_cv_attention_models import efficientnet, yolov7
     bb = efficientnet.EfficientNetV2B1(input_shape=(256, 256, 3), num_classes=0)
@@ -88,6 +88,7 @@
     | efficientdet | False             | 9           | 4            | [1, 2, 0.5]   | 3          | False           |
     | anchor_free  | True              | 1           | 1            | [1]           | 1          | True            |
     | yolor        | True              | 3           | None         | presets       | None       | offset=0.5      |
+    | yolov8       | False             | 1           | 1            | [1]           | 1          | False           |
 ## Verification with PyTorch version
   ```py
   inputs = np.random.uniform(size=(1, 640, 640, 3)).astype("float32")
@@ -108,7 +109,7 @@
   torch_out = model[-1].forward_once(torch.from_numpy(inputs).permute([0, 3, 1, 2]))
 
   """ Keras YOLOV7_CSP """
-  from keras_cv_attention_models.yolov7 import yolov7
+  from keras_cv_attention_models import yolov7
   mm = yolov7.YOLOV7_CSP(pretrained='coco', classifier_activation=None)
   keras_out = mm(inputs)
 

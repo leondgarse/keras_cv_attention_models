@@ -147,6 +147,7 @@ def EfficientDet(
     head_depth=3,
     num_channels=64,
     use_weighted_sum=True,
+    regression_len=4,  # bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64
     anchors_mode="efficientdet",
     use_object_scores="auto",  # "auto" means: True if anchors_mode=="anchor_free" or anchors_mode=="yolor", else False
     num_anchors="auto",  # "auto" means: anchors_mode=="anchor_free" -> 1, anchors_mode=="yolor" -> 3, else 9
@@ -189,7 +190,9 @@ def EfficientDet(
 
     # Outputs
     bboxes_features = det_header_pre(fpn_features, num_channels, head_depth, use_sep_conv, activation=activation, name="regressor_")
-    bboxes_out = det_header_post(bboxes_features, 4, num_anchors, bias_init="zeros", use_sep_conv=use_sep_conv, head_activation=None, name="regressor_")
+    bboxes_out = det_header_post(
+        bboxes_features, regression_len, num_anchors, bias_init="zeros", use_sep_conv=use_sep_conv, head_activation=None, name="regressor_"
+    )
     if use_object_scores:
         bias_init = initializers.constant(-math.log((1 - 0.01) / 0.01))
         object_out = det_header_post(bboxes_features, 1, num_anchors, bias_init, use_sep_conv, head_activation=classifier_activation, name="object_")
@@ -213,7 +216,9 @@ def EfficientDet(
     # For prediction
     # AA = {"aspect_ratios": anchor_aspect_ratios, "num_scales": anchor_num_scales, "anchor_scale": anchor_scale, "grid_zero_start": anchor_grid_zero_start}
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) + additional_features - 1]  # -> [3, 7]
-    post_process = eval_func.DecodePredictions(backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale)
+    post_process = eval_func.DecodePredictions(
+        backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale, regression_len=regression_len
+    )
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     # model.backbone = backbone
     return model

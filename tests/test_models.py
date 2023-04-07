@@ -598,3 +598,22 @@ def test_YOLOV7_Tiny_dynamic_predict():
 
     pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
     assert COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+
+
+def test_YOLOV8_S_predict():
+    mm = keras_cv_attention_models.yolov8.YOLOV8_S(pretrained="coco")
+    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    assert pred.shape == (1, 8400, 144)
+
+    pred_label = mm.decode_predictions(pred)[0][1].numpy()
+    assert COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+
+
+def test_YOLOV8_S_dynamic_predict():
+    mm = keras_cv_attention_models.yolov8.YOLOV8_S(input_shape=(None, None, 3), pretrained="coco")
+    input_shape = (188, 276, 3)
+    pred = mm(mm.preprocess_input(chelsea(), input_shape=input_shape))  # Chelsea the cat
+    assert pred.shape == (1, 1110, 144)
+
+    pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
+    assert COCO_80_LABEL_DICT[pred_label[0]] == "cat"

@@ -64,13 +64,15 @@
 ## Training
   - `AnchorFreeLoss` usage took me weeks solving why the `bbox_loss` always been `1`. that using `tf.stop_gradient` while assigning is the key...
   - Default parameters for `coco_train_script.py` is `EfficientDetD0` with `input_shape=(256, 256, 3), batch_size=64, mosaic_mix_prob=0.5, freeze_backbone_epochs=32, total_epochs=105`. Technically, it's any `pyramid structure backbone` + `EfficientDet / YOLOX header / YOLOR header` + `anchor_free / yolor_anchors / efficientdet_anchors` combination supported.
-  - Currently 3 types anchors supported, parameter **`anchors_mode`** controls which anchor to use, value in `["efficientdet", "anchor_free", "yolor"]`. Default `None` for `det_header` presets.
+  - Currently 4 types anchors supported, parameter **`anchors_mode`** controls which anchor to use, value in `["efficientdet", "anchor_free", "yolor", "yolov8"]`. Default `None` for `det_header` presets.
+  - **NOTE: `YOLOV8` has a default `regression_len=64` for bbox output length. Typically it's `4` for other detection models, for yolov8 it's `reg_max=16 -> regression_len = 16 * 4 == 64`.**
 
     | anchors_mode | use_object_scores | num_anchors | anchor_scale | aspect_ratios | num_scales | grid_zero_start |
     | ------------ | ----------------- | ----------- | ------------ | ------------- | ---------- | --------------- |
     | efficientdet | False             | 9           | 4            | [1, 2, 0.5]   | 3          | False           |
     | anchor_free  | True              | 1           | 1            | [1]           | 1          | True            |
     | yolor        | True              | 3           | None         | presets       | None       | offset=0.5      |
+    | yolov8       | False             | 1           | 1            | [1]           | 1          | False           |
 
     ```sh
     # Default EfficientDetD0
