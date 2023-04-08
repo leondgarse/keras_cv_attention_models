@@ -2,7 +2,7 @@
 ***
 
 ## Summary
-  - Keras implementation of [Github ultralytics/ultralytics](https://github.com/ultralytics/ultralytics). Model weights converted from official publication.
+  - Keras implementation of [Github ultralytics/ultralytics](https://github.com/ultralytics/ultralytics) detection and classification models. Model weights converted from official publication.
 ***
 
 ## Detection Models
@@ -13,7 +13,7 @@
   | YOLOV8_M  | 25.90M | 39.52G | 640   | 50.2        |         | [yolov8_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_m_coco.h5) |
   | YOLOV8_L  | 43.69M | 82.65G | 640   | 52.9        |         | [yolov8_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_coco.h5) |
   | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         | [yolov8_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_coco.h5) |
-  | YOLOV8_X6 | 100.6M | 134.1G | 640   |             |         |          |
+  | YOLOV8_X6 | 97.42M | 522.6G | 1280  | 56.7 ?      |         | [yolov8_x6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x6_coco.h5) |
 
 ## Classification Models
   | Model        | Params | FLOPs@640 | FLOPs@224 | Input | Top1 Acc | Download |
@@ -125,7 +125,7 @@
     print(mm.output_shape) # (None, 1344, 85)
 
     mm = yolov8.YOLOV8(backbone=bb, anchors_mode="efficientdet", regression_len=64) # Trainable params: 8,280,612
-    print(mm.output_shape) # (None, 1344, 1296) -> 1296 == num_anchors 9 * regression_len 64
+    print(mm.output_shape) # (None, 1344, 1296) -> 1296 == num_anchors 9 * (regression_len 64 + num_classes 80)
     ```
     **Default settings for anchors_mode**
 
@@ -164,7 +164,7 @@
   print(f"{np.allclose(keras_out_reorder, torch_out_concat.detach(), atol=1e-4) = }")
   # np.allclose(keras_out_reorder, torch_out_concat.detach(), atol=1e-4) = True
   ```
-  **COCO eval result**
+## COCO eval results
   ```sh
   python coco_eval_script.py -m yolov8.YOLOV8_N --nms_method hard --nms_iou_or_sigma 0.65 --nms_max_output_size 300 \
   --nms_topk -1 --letterbox_pad 64 --input_shape 704
@@ -180,4 +180,20 @@
   # Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.355
   # Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.649
   # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.761
+  ```
+  ```sh
+  python coco_eval_script.py -m yolov8.YOLOV8_X6 --nms_method hard --nms_iou_or_sigma 0.65 --nms_max_output_size 300 \
+  --nms_topk -1 --letterbox_pad 64 --input_shape 1344
+  # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.567
+  # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.740
+  # Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.618
+  # Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.428
+  # Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.612
+  # Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.702
+  # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.410
+  # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.688
+  # Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.739
+  # Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.623
+  # Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.772
+  # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.855
   ```

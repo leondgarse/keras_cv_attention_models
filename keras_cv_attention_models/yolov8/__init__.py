@@ -78,7 +78,7 @@ Model architectures:
   | YOLOV8_M  | 25.90M | 39.52G | 640   | 50.2        |         |
   | YOLOV8_L  | 43.69M | 82.65G | 640   | 52.9        |         |
   | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         |
-  | YOLOV8_X6 | 100.6M | 134.1G | 640   |             |         |
+  | YOLOV8_X6 | 97.42M | 522.6G | 1280  | 56.7 ?      |         |
 """
 
 YOLOV8_N.__doc__ = __head_doc__ + __detector_head_doc__ + __detector_tail_doc__

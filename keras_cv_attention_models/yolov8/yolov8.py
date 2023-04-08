@@ -296,7 +296,7 @@ def YOLOV8_X(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, b
     return YOLOV8(**locals(), model_name=kwargs.pop("model_name", "yolov8_x"), **kwargs)
 
 
-def YOLOV8_X6(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
+def YOLOV8_X6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_channels = [160, 320, 640, 640, 640]
     csp_depthes = [3, 6, 6, 3, 3]
     features_pick = [-4, -3, -2, -1]

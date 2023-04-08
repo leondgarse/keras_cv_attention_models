@@ -94,11 +94,11 @@
     import matplotlib.pyplot as plt
     from tensorflow import keras
     ```
-  - Install as pip package. `kecam` is a short alias name of this package. **Note**: the pip package `kecam` doesn't set any requirement, make sure either Tensorflow or PyTorch installed before hand. For PyTorch backend usage, refer [Keras PyTorch Backend](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/pytorch_backend).
+  - Install as pip package. `kecam` is a short alias name of this package. **Note**: the pip package `kecam` doesn't set any backend requirement, make sure either Tensorflow or PyTorch installed before hand. For PyTorch backend usage, refer [Keras PyTorch Backend](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/pytorch_backend).
     ```sh
-    pip install -U keras-cv-attention-models
-    # Or
     pip install -U kecam
+    # Or
+    pip install -U keras-cv-attention-models
     # Or
     pip install -U git+https://github.com/leondgarse/keras_cv_attention_models
     ```
@@ -130,7 +130,31 @@
     mm = coatnet.CoAtNet0()
     preds = mm(mm.preprocess_input(chelsea()))
     print(mm.decode_predictions(preds))
-    # [[('n02124075', 'Egyptian_cat', 0.9653769), ('n02123159', 'tiger_cat', 0.018427467), ...]
+    # [[('n02124075', 'Egyptian_cat', 0.9932493), ('n02123159', 'tiger_cat', 0.0038179855), ...]]
+    ```
+    The preset `preprocess_input` and `decode_predictions` also compatible with PyTorch
+    ```py
+    os.environ['KECAM_BACKEND'] = 'torch'
+
+    from keras_cv_attention_models import caformer
+    mm = caformer.CAFormerS18()
+
+    from skimage.data import chelsea
+    preds = mm(mm.preprocess_input(chelsea()))
+    print(preds.__class__)
+    # <class 'torch.Tensor'>
+    print(mm.decode_predictions(preds))
+    # >>>> Using PyTorch backend
+    # >>>> Aligned input_shape: [3, 224, 224]
+    # >>>> Load pretrained from: ~/.keras/models/caformer_s18_224_imagenet.h5
+    # [[('n02124075', 'Egyptian_cat', 0.7761655), ('n02123159', 'tiger_cat', 0.042136244), ...]]
+    ```
+  - **`num_classes=0`** set for excluding model top `GlobalAveragePooling2D + Dense` layers.
+    ```py
+    from keras_cv_attention_models import resnest
+    mm = resnest.ResNest50(num_classes=0)
+    print(mm.output_shape)
+    # (None, 7, 7, 2048)
     ```
   - **`num_classes={custom output classes}`** others than `1000` or `0` will just skip loading the header Dense layer weights. As `model.load_weights(weight_file, by_name=True, skip_mismatch=True)` is used for loading weights.
     ```py
@@ -140,13 +164,6 @@
     # >>>> Load pretrained from: ~/.keras/models/swin_transformer_v2_tiny_window8_256_imagenet.h5
     # WARNING:tensorflow:Skipping loading weights for layer #601 (named predictions) due to mismatch in shape for weight predictions/kernel:0. Weight expects shape (768, 64). Received saved weight with shape (768, 1000)
     # WARNING:tensorflow:Skipping loading weights for layer #601 (named predictions) due to mismatch in shape for weight predictions/bias:0. Weight expects shape (64,). Received saved weight with shape (1000,)
-    ```
-  - **`num_classes=0`** set for excluding model top `GlobalAveragePooling2D + Dense` layers.
-    ```py
-    from keras_cv_attention_models import resnest
-    mm = resnest.ResNest50(num_classes=0)
-    print(mm.output_shape)
-    # (None, 7, 7, 2048)
     ```
   - **Reload own model weights by set `pretrained="xxx.h5"`**. Better than calling `model.load_weights` directly, if reloading model with different `input_shape` and with weights shape not matching.
     ```py
@@ -1238,7 +1255,7 @@
   | YOLOV7_D6   | 133.9M | 351.4G | 1280  | 56.6        |         | [yolov7_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_d6_coco.h5) |
   | YOLOV7_E6E  | 151.9M | 421.7G | 1280  | 56.8        |         | [yolov7_e6e_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_e6e_coco.h5) |
 ## YOLOV8
-  - [Keras YOLOV8](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolov8) includes implementation of [Github ultralytics/ultralytics](https://github.com/ultralytics/ultralytics).
+  - [Keras YOLOV8](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolov8) includes implementation of [Github ultralytics/ultralytics](https://github.com/ultralytics/ultralytics) detection and classification models.
 
   | Model     | Params | FLOPs  | Input | COCO val AP | test AP | Download |
   | --------- | ------ | ------ | ----- | ----------- | ------- | -------- |
@@ -1247,7 +1264,7 @@
   | YOLOV8_M  | 25.90M | 39.52G | 640   | 50.2        |         | [yolov8_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_m_coco.h5) |
   | YOLOV8_L  | 43.69M | 82.65G | 640   | 52.9        |         | [yolov8_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_coco.h5) |
   | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         | [yolov8_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_coco.h5) |
-  | YOLOV8_X6 | 100.6M | 134.1G | 640   |             |         |          |
+  | YOLOV8_X6 | 97.42M | 522.6G | 1280  | 56.7 ?      |         | [yolov8_x6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x6_coco.h5) |
 ## YOLOX
   - [Keras YOLOX](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolox) includes implementation of [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
 
