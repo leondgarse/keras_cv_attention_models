@@ -45,7 +45,7 @@ def csp_with_2_conv(inputs, channels=-1, depth=2, shortcut=True, expansion=0.5, 
     pre = conv_bn(inputs, hidden_channels * 2, kernel_size=1, activation=activation, name=name + "pre_")
     if parallel_mode:
         short, deep = functional.split(pre, 2, axis=channel_axis)
-    else:  # parallel_mode=False for YOLOV8_X6 C2 module, deep branch first
+    else:  # parallel_mode=False for YOLOV8_X6 `path_aggregation_fpn` C2 module, deep branch first
         deep, short = functional.split(pre, 2, axis=channel_axis)
 
     out = [short, deep]
@@ -54,7 +54,7 @@ def csp_with_2_conv(inputs, channels=-1, depth=2, shortcut=True, expansion=0.5, 
         deep = conv_bn(deep, hidden_channels, kernel_size=3, activation=activation, name=name + "pre_{}_2_".format(id))
         deep = (out[-1] + deep) if shortcut else deep
         out.append(deep)
-    # parallel_mode=False for YOLOV8_X6 `path_aggregation_fpn` module, only concat `short` and the last `deep` one.
+    # parallel_mode=False for YOLOV8_X6 `path_aggregation_fpn` C2 module, only concat `short` and the last `deep` one.
     out = functional.concat(out, axis=channel_axis) if parallel_mode else functional.concat([deep, short], axis=channel_axis)
     out = conv_bn(out, channels, kernel_size=1, activation=activation, name=name + "output_")
     return out
@@ -89,7 +89,6 @@ def YOLOV8Backbone(
     kwargs=None,  # Not using, recieving parameter
 ):
     inputs = layers.Input(backend.align_input_shape_by_image_data_format(input_shape))
-    channel_axis = -1 if image_data_format() == "channels_last" else 1
     is_classification_model = num_classes > 0
 
     global BATCH_NORM_EPSILON
@@ -193,10 +192,10 @@ def yolov8_head(
         if classifier_activation is not None:
             cls_out = activation_by_name(cls_out, classifier_activation, name=cur_name + "classifier_")
 
-        # obj_preds
+        # obj_preds, not using for yolov8
         if use_object_scores:
             obj_out = conv2d_no_bias(reg_nn, 1 * num_anchors, kernel_size=1, use_bias=True, bias_initializer=bias_init, name=cur_name + "object_")
-            obj_out = activation_by_name(obj_out, "sigmoid", name=cur_name + "object_out_")
+            obj_out = activation_by_name(obj_out, classifier_activation, name=cur_name + "object_out_")
             out = functional.concat([reg_out, cls_out, obj_out], axis=channel_axis)
         else:
             out = functional.concat([reg_out, cls_out], axis=channel_axis)

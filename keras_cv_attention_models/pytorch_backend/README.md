@@ -102,23 +102,49 @@
   import torch
   from kecam import mobilenetv3
   mm = mobilenetv3.MobileNetV3Large100(input_shape=input_shape, num_classes=num_classes, classifier_activation=None, pretrained=None)
+  if torch.cuda.is_available():
+      _ = mm.to("cuda")
+  if hasattr(torch, "compile"):
+      mm = torch.compile(mm)
 
   """ Simple compile + fit """
-  # mm.compile(optimizer="AdamW")
-  # mm.fit(train_dataset, epochs=10)
-
-  """ Or typical PyTorch training process """
+  mm.compile(optimizer="AdamW")
+  mm.fit(train_dataset, epochs=10)
+  ```
+  Or use typical PyTorch training process
+  ```py
   optimizer = torch.optim.AdamW(mm.parameters())
+  device = next(mm.parameters()).device
+  device_type = device.type
+
+  if device_type == "cuda":
+      scaler = torch.cuda.amp.GradScaler(enabled=True)
+      global_context = torch.amp.autocast(device_type=device_type, dtype=torch.float16)
+  else:
+      from contextlib import nullcontext
+
+      scaler = torch.cuda.amp.GradScaler(enabled=False)
+      global_context = nullcontext()
+
   for epoch in range(10):
       data_gen = train_dataset.as_numpy_iterator()
+      mm.train()
       for batch, (xx, yy) in enumerate(data_gen):
           xx = torch.from_numpy(xx).permute(0, 3, 1, 2)
           yy = torch.from_numpy(yy)
-          out = mm(xx)
-          loss = torch.functional.F.cross_entropy(out, yy)
+          if device_type == "cuda":
+              xx = xx.pin_memory().to(device, non_blocking=True)
+              yy = yy.pin_memory().to(device, non_blocking=True)
+
           optimizer.zero_grad()
-          loss.backward()
-          optimizer.step()
+          with global_context:
+              out = mm(xx)
+              loss = torch.functional.F.cross_entropy(out, yy)
+
+          scaler.scale(loss).backward()
+          scaler.unscale_(optimizer)
+          scaler.step(optimizer)
+          scaler.update()
           print(">>>> Epoch {}, batch: {}, loss: {:.4f}".format(epoch, batch, loss.item()))
   ```
 ***

@@ -83,7 +83,7 @@
     model = yolov8.YOLOV8_S(input_shape=(None, None, 3), pretrained="coco")
     # >>>> Using PyTorch backend
     # >>>> Aligned input_shape: [3, None, None]
-    # >>>> Load pretrained from: ~/.keras/models/yolov7_csp_coco.h5
+    # >>>> Load pretrained from: ~/.keras/models/yolov8_s_coco.h5
 
     print(model.input_shape, model.output_shape)
     # (None, 3, None, None) (None, None, 144)

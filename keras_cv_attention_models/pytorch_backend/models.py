@@ -160,14 +160,15 @@ class Model(nn.Module):
         self.metrics = {} if metrics is None else (metrics if isinstance(metrics, dict) else {ii.__name__: ii for ii in metrics})
         self.metrics.update({"loss": self.loss})
 
-        device_type = next(self.parameters()).device.type
+        device = next(self.parameters()).device
+        device_type = device.type
         if device_type == "cpu":
             scaler = torch.cuda.amp.GradScaler(enabled=False)
             global_context = nullcontext()
         else:
             scaler = torch.cuda.amp.GradScaler(enabled=True)
             global_context = torch.amp.autocast(device_type=device_type, dtype=torch.float16)
-        self.device_type, self.scaler, self.global_context = device_type, scaler, global_context
+        self.device, self.device_type, self.scaler, self.global_context = device, device_type, scaler, global_context
 
     def fit(
         self, x=None, y=None, batch_size=None, epochs=1, verbose="auto", callbacks=None, validation_data=None, initial_epoch=0, steps_per_epoch=None, **kwargs
@@ -181,6 +182,9 @@ class Model(nn.Module):
                     xx = torch.from_numpy(xx)
                 if isinstance(yy, np.ndarray):
                     yy = torch.from_numpy(yy)
+                if self.device_type == "cuda":
+                    # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
+                    xx, yy = xx.pin_memory().to(self.device, non_blocking=True), yy.pin_memory().to(self.device, non_blocking=True)
 
                 with self.global_context:
                     out = self(xx)

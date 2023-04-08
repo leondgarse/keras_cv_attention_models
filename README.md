@@ -181,7 +181,7 @@
     bboxs, lables, confidences = mm.decode_predictions(preds)[0]
     kecam.coco.show_image_with_bboxes(imm, bboxs, lables, confidences)
     ```
-  - **Calculate flops** method from [TF 2.0 Feature: Flops calculation #32809](https://github.com/tensorflow/tensorflow/issues/32809#issuecomment-849439287).
+  - **Calculate flops** method from [TF 2.0 Feature: Flops calculation #32809](https://github.com/tensorflow/tensorflow/issues/32809#issuecomment-849439287). For PyTorch backend, needs `thop` `pip install thop`.
     ```py
     from keras_cv_attention_models import coatnet, resnest, model_surgery
 

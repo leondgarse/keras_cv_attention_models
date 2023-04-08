@@ -374,15 +374,22 @@ def get_global_avg_pool_layer_id(model):
 
 
 def get_flops(model):
-    # https://github.com/tensorflow/tensorflow/issues/32809#issuecomment-849439287
-    import tensorflow as tf
-    from tensorflow.python.profiler import model_analyzer, option_builder
+    if backend.is_tensorflow_backend:
+        # https://github.com/tensorflow/tensorflow/issues/32809#issuecomment-849439287
+        import tensorflow as tf
+        from tensorflow.python.profiler import model_analyzer, option_builder
 
-    input_signature = [tf.TensorSpec(shape=(1, *ii.shape[1:]), dtype=ii.dtype, name=ii.name) for ii in model.inputs]
-    forward_graph = tf.function(model, input_signature).get_concrete_function().graph
-    options = option_builder.ProfileOptionBuilder.float_operation()
-    graph_info = model_analyzer.profile(forward_graph, options=options)
-    flops = graph_info.total_float_ops // 2
+        input_signature = [tf.TensorSpec(shape=(1, *ii.shape[1:]), dtype=ii.dtype, name=ii.name) for ii in model.inputs]
+        forward_graph = tf.function(model, input_signature).get_concrete_function().graph
+        options = option_builder.ProfileOptionBuilder.float_operation()
+        graph_info = model_analyzer.profile(forward_graph, options=options)
+        flops = graph_info.total_float_ops // 2
+    else:
+        import thop
+        import torch
+
+        inputs = torch.ones([1, *model.input_shape[1:]])
+        flops, params = thop.profile(model, inputs=(inputs,))
     print(">>>> FLOPs: {:,}, GFLOPs: {:.4f}G".format(flops, flops / 1e9))
     return flops
 
