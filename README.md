@@ -132,21 +132,21 @@
     print(mm.decode_predictions(preds))
     # [[('n02124075', 'Egyptian_cat', 0.9932493), ('n02123159', 'tiger_cat', 0.0038179855), ...]]
     ```
-    The preset `preprocess_input` and `decode_predictions` also compatible with PyTorch
+    The preset `preprocess_input` and `decode_predictions` also compatible with PyTorch backend.
     ```py
     os.environ['KECAM_BACKEND'] = 'torch'
 
     from keras_cv_attention_models import caformer
     mm = caformer.CAFormerS18()
-
-    from skimage.data import chelsea
-    preds = mm(mm.preprocess_input(chelsea()))
-    print(preds.__class__)
-    # <class 'torch.Tensor'>
-    print(mm.decode_predictions(preds))
     # >>>> Using PyTorch backend
     # >>>> Aligned input_shape: [3, 224, 224]
     # >>>> Load pretrained from: ~/.keras/models/caformer_s18_224_imagenet.h5
+
+    from skimage.data import chelsea
+    preds = mm(mm.preprocess_input(chelsea()))
+    print(preds.shape)
+    # torch.Size([1, 1000])
+    print(mm.decode_predictions(preds))
     # [[('n02124075', 'Egyptian_cat', 0.7761655), ('n02123159', 'tiger_cat', 0.042136244), ...]]
     ```
   - **`num_classes=0`** set for excluding model top `GlobalAveragePooling2D + Dense` layers.
