@@ -27,7 +27,7 @@ Args:
 __detector_tail_doc__ = """  features_pick: specific `layer names` or `pyramid feature indexes` from backbone model.
         Default `[-3, -2, -1]` means using the last 3 pyramid feature output from backbone.
   regression_len: bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64.
-  parallel_mode: False for YOLOV8_X6 and True for others.
+  paf_parallel_mode: False for YOLOV8_X6 and True for others.
       If False, only concat `short` and the last `deep` one in `path_aggregation_fpn` module.
   anchors_mode: one of ["efficientdet", "anchor_free", "yolor", "yolov8"], controls which anchor to use.
       - efficientdet anchors default settings: use_object_scores=False, num_anchors=9, anchor_scale=4,

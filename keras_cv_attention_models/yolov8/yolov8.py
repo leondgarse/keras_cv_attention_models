@@ -17,6 +17,7 @@ PRETRAINED_DICT = {
     "yolov8_n": {"coco": "4cb83c7e452cdcd440b75546df0b211e"},
     "yolov8_s": {"coco": "4e1ac133e2a8831845172d8491c2747a"},
     "yolov8_x": {"coco": "2be28e650bf299aeea7ee26ab765a23e"},
+    "yolov8_x6": {"coco": "f51ed830ccf5efae7dc56f2ce5e20890"},
     "yolov8_l_cls": {"imagenet": "071f41125034dd15401f6c6925fc1e6f"},
     "yolov8_m_cls": {"imagenet": "35ef50aa07ff232afa08f321447e354d"},
     "yolov8_n_cls": {"imagenet": "b1cfac787589689c0f2abde6893ec140"},
@@ -42,7 +43,10 @@ def csp_with_2_conv(inputs, channels=-1, depth=2, shortcut=True, expansion=0.5, 
     hidden_channels = int(channels * expansion)
 
     pre = conv_bn(inputs, hidden_channels * 2, kernel_size=1, activation=activation, name=name + "pre_")
-    short, deep = functional.split(pre, 2, axis=channel_axis)
+    if parallel_mode:
+        short, deep = functional.split(pre, 2, axis=channel_axis)
+    else:  # parallel_mode=False for YOLOV8_X6 C2 module, deep branch first
+        deep, short = functional.split(pre, 2, axis=channel_axis)
 
     out = [short, deep]
     for id in range(depth):
@@ -51,7 +55,7 @@ def csp_with_2_conv(inputs, channels=-1, depth=2, shortcut=True, expansion=0.5, 
         deep = (out[-1] + deep) if shortcut else deep
         out.append(deep)
     # parallel_mode=False for YOLOV8_X6 `path_aggregation_fpn` module, only concat `short` and the last `deep` one.
-    out = functional.concat(out, axis=channel_axis) if parallel_mode else functional.concat([out[0], out[-1]], axis=channel_axis)
+    out = functional.concat(out, axis=channel_axis) if parallel_mode else functional.concat([deep, short], axis=channel_axis)
     out = conv_bn(out, channels, kernel_size=1, activation=activation, name=name + "output_")
     return out
 
@@ -212,7 +216,7 @@ def YOLOV8(
     csp_depthes=[1, 2, 2, 1],
     features_pick=[-3, -2, -1],  # [Detector parameters]
     regression_len=64,  # bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64
-    parallel_mode=True,  # parallel_mode=False for YOLOV8_X6 `path_aggregation_fpn` module, only concat `short` and the last `deep` one.
+    paf_parallel_mode=True,  # paf_parallel_mode=False for YOLOV8_X6 `path_aggregation_fpn` module, only concat `short` and the last `deep` one.
     anchors_mode="yolov8",
     num_anchors="auto",  # "auto" means: anchors_mode=="anchor_free" / "yolov8" -> 1, anchors_mode=="yolor" -> 3, else 9
     use_object_scores="auto",  # "auto" means: True if anchors_mode=="anchor_free" or anchors_mode=="yolor", else False
@@ -250,7 +254,7 @@ def YOLOV8(
     use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, num_anchors, anchor_scale)
     inputs = backbone.inputs[0]
 
-    fpn_features = path_aggregation_fpn(features, depth=csp_depthes[-1], parallel_mode=parallel_mode, activation=activation, name="pafpn_")
+    fpn_features = path_aggregation_fpn(features, depth=csp_depthes[-1], parallel_mode=paf_parallel_mode, activation=activation, name="pafpn_")
 
     outputs = yolov8_head(fpn_features, num_classes, regression_len, num_anchors, use_object_scores, activation, classifier_activation, name="head_")
     outputs = layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
@@ -296,7 +300,7 @@ def YOLOV8_X6(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, 
     csp_channels = [160, 320, 640, 640, 640]
     csp_depthes = [3, 6, 6, 3, 3]
     features_pick = [-4, -3, -2, -1]
-    parallel_mode = False  # C2
+    paf_parallel_mode = False  # C2
     return YOLOV8(**locals(), model_name=kwargs.pop("model_name", "yolov8_x6"), **kwargs)
 
 
