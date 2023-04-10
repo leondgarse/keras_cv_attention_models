@@ -8,39 +8,6 @@ from keras_cv_attention_models.pytorch_backend import layers
 
 HDF5_OBJECT_HEADER_LIMIT = 64512
 
-class TorchDatasetGen:
-    def __init__(self, x=None, y=None, batch_size=None, validation_data=None, input_shape=None):
-        from torch.utils.data import Dataset, DataLoader
-
-        if isinstance(x, Dataset) or isinstance(x, DataLoader):
-            train_dataset = x
-        elif hasattr(x, "element_spec"):
-            data_shape = x.element_spec[0].shape
-            if input_shape is not None and data_shape[-1] == input_shape[1]:
-                perm = [0, len(data_shape) - 1] + list(range(1, len(data_shape) - 1))  # [0, 3, 1, 2]
-                train_dataset = ((xx.transpose(perm), yy) for xx, yy in x.as_numpy_iterator())
-            else:
-                train_dataset = x.as_numpy_iterator()
-        elif isinstance(x, np.ndarray) or isinstance(x, torch.Tensor):
-            assert y is not None
-            num_batches = xx.shape[0] if batch_size is None else int(np.ceil(xx.shape[0] / batch_size))
-
-            def _convert_tensor(data, id):
-                cur = data[id * batch_size: (id + 1) * batch_size] if batch_size is not None else data[id]
-                cur = torch.from_numpy(cur) if isinstance(cur, np.ndarray) else cur
-                cur = cur.float() if cur.dtype == torch.float64 else cur
-                cur = cur.long() if cur.dtype == torch.int32 else cur
-                return cur
-            train_dataset = ((_convert_tensor(x, id), _convert_tensor(y, id)) for id in range(num_batches))
-        else:  # generator
-            train_dataset = x
-        self.train_dataset = train_dataset
-
-    def __call__(self):
-        import itertools
-
-        self.train_dataset, train_dataset_run = itertools.tee(self.train_dataset)
-        return train_dataset_run
 
 class Model(nn.Module):
     """
@@ -212,7 +179,7 @@ class Model(nn.Module):
         with h5py.File(filepath if filepath else self.name + ".h5", "w") as h5_file:
             save_weights_to_hdf5_group(h5_file, self)
 
-    def summary(self, input_shape=None):
+    def summary(self, input_shape=None, **kwargs):
         from torchsummary import summary
 
         input_shape = self.input_shape[1:] if input_shape is None else input_shape[-3:]
@@ -225,15 +192,38 @@ class Model(nn.Module):
         print("Total params: {:,} | Trainable params: {:,} | Non-trainable params:{:,}".format(total_params, trainable_params, non_trainable_params))
         return total_params
 
-    def export_onnx(self, filepath=None, input_shape=None, batch_size=1, **kwargs):
+    def export_onnx(self, filepath=None, input_shape=None, batch_size=1, simplify=False, **kwargs):
         input_shape = self.input_shape[1:] if input_shape is None else (input_shape[1:] if len(input_shape) == len(self.input_shape) else input_shape)
         input_dtype = getattr(self.inputs[0], "dtype") or torch.float32
         if isinstance(input_dtype, str):
             input_dtype = getattr(torch, input_dtype)
 
+        dynamic_axes = kwargs.pop("dynamic_axes", None)
+        input_names = kwargs.pop("input_names", self.input_names)
+        output_names = kwargs.pop("output_names", self.output_names)
+        if dynamic_axes is None and (batch_size is None or batch_size == -1):
+            print("Set dynamic batch size")
+            dynamic_axes = {ii: {0: '-1'} for ii in input_names}
+            dynamic_axes.update({ii: {0: '-1'} for ii in output_names})
+            batch_size = 2
+
         filepath = (self.name + ".onnx") if filepath is None else (filepath if filepath.endswith(".onnx") else (filepath + ".onnx"))
-        torch.onnx.export(self, torch.ones([batch_size, *input_shape], dtype=input_dtype), filepath, **kwargs)
+        dummy_inputs = torch.ones([batch_size, *input_shape], dtype=input_dtype)
+        torch.onnx.export(self, dummy_inputs, filepath, input_names=input_names, output_names=output_names, dynamic_axes=dynamic_axes, **kwargs)
         print("Exported onnx:", filepath)
+
+        if simplify:
+            import onnx, onnxsim
+
+            print("Running onnxsim.simplify...")
+            tt = onnx.load(filepath)
+            tt, check = onnxsim.simplify(tt)
+            if check:
+                with open(filepath, "wb") as ff:
+                    ff.write(tt.SerializeToString())
+                print("Exported simplified onnx:", filepath)
+            else:
+                print("[Error] failed to simplify onnx:", filepath)
 
     def export_pth(self, filepath=None, input_shape=None, batch_size=1, **kwargs):
         input_shape = self.input_shape[1:] if input_shape is None else input_shape[-3:]
@@ -249,6 +239,41 @@ class Model(nn.Module):
     def set_debug(self, debug=True):
         self.debug = debug
         print(">>>> debug: {}".format(self.debug))
+
+
+class TorchDatasetGen:
+    def __init__(self, x=None, y=None, batch_size=None, validation_data=None, input_shape=None):
+        from torch.utils.data import Dataset, DataLoader
+
+        if isinstance(x, Dataset) or isinstance(x, DataLoader):
+            train_dataset = x
+        elif hasattr(x, "element_spec"):
+            data_shape = x.element_spec[0].shape
+            if input_shape is not None and data_shape[-1] == input_shape[1]:
+                perm = [0, len(data_shape) - 1] + list(range(1, len(data_shape) - 1))  # [0, 3, 1, 2]
+                train_dataset = ((xx.transpose(perm), yy) for xx, yy in x.as_numpy_iterator())
+            else:
+                train_dataset = x.as_numpy_iterator()
+        elif isinstance(x, np.ndarray) or isinstance(x, torch.Tensor):
+            assert y is not None
+            num_batches = xx.shape[0] if batch_size is None else int(np.ceil(xx.shape[0] / batch_size))
+
+            def _convert_tensor(data, id):
+                cur = data[id * batch_size: (id + 1) * batch_size] if batch_size is not None else data[id]
+                cur = torch.from_numpy(cur) if isinstance(cur, np.ndarray) else cur
+                cur = cur.float() if cur.dtype == torch.float64 else cur
+                cur = cur.long() if cur.dtype == torch.int32 else cur
+                return cur
+            train_dataset = ((_convert_tensor(x, id), _convert_tensor(y, id)) for id in range(num_batches))
+        else:  # generator
+            train_dataset = x
+        self.train_dataset = train_dataset
+
+    def __call__(self):
+        import itertools
+
+        self.train_dataset, train_dataset_run = itertools.tee(self.train_dataset)
+        return train_dataset_run
 
 
 """ Save / load h5 weights from keras.saving.legacy.hdf5_format """

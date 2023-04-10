@@ -111,26 +111,27 @@
     """ Run predict """
     import tensorflow as tf
     from tensorflow import keras
-    from skimage.data import chelsea
-    img = chelsea() # Chelsea the cat
+    from keras_cv_attention_models.test_images import cat
+    img = cat()
     imm = keras.applications.imagenet_utils.preprocess_input(img, mode='torch')
     pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0)).numpy()
     pred = tf.nn.softmax(pred).numpy()  # If classifier activation is not softmax
     print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-    # [('n02124075', 'Egyptian_cat', 0.9692954),
-    #  ('n02123045', 'tabby', 0.020203391),
-    #  ('n02123159', 'tiger_cat', 0.006867502),
-    #  ('n02127052', 'lynx', 0.00017674894),
-    #  ('n02123597', 'Siamese_cat', 4.9493494e-05)]
+    # [('n02124075', 'Egyptian_cat', 0.99664897),
+    #  ('n02123045', 'tabby', 0.0007249644),
+    #  ('n02123159', 'tiger_cat', 0.00020345),
+    #  ('n02127052', 'lynx', 5.4973923e-05),
+    #  ('n02123597', 'Siamese_cat', 2.675306e-05)]
     ```
     Or just use model preset `preprocess_input` and `decode_predictions`
     ```py
     from keras_cv_attention_models import coatnet
-    from skimage.data import chelsea
     mm = coatnet.CoAtNet0()
-    preds = mm(mm.preprocess_input(chelsea()))
+
+    from keras_cv_attention_models.test_images import cat
+    preds = mm(mm.preprocess_input(cat()))
     print(mm.decode_predictions(preds))
-    # [[('n02124075', 'Egyptian_cat', 0.9932493), ('n02123159', 'tiger_cat', 0.0038179855), ...]]
+    # [[('n02124075', 'Egyptian_cat', 0.9999875), ('n02123045', 'tabby', 5.194884e-06), ...]]
     ```
     The preset `preprocess_input` and `decode_predictions` also compatible with PyTorch backend.
     ```py
@@ -142,12 +143,12 @@
     # >>>> Aligned input_shape: [3, 224, 224]
     # >>>> Load pretrained from: ~/.keras/models/caformer_s18_224_imagenet.h5
 
-    from skimage.data import chelsea
-    preds = mm(mm.preprocess_input(chelsea()))
+    from keras_cv_attention_models.test_images import cat
+    preds = mm(mm.preprocess_input(cat()))
     print(preds.shape)
     # torch.Size([1, 1000])
     print(mm.decode_predictions(preds))
-    # [[('n02124075', 'Egyptian_cat', 0.7761655), ('n02123159', 'tiger_cat', 0.042136244), ...]]
+    # [[('n02124075', 'Egyptian_cat', 0.8817097), ('n02123045', 'tabby', 0.009335292), ...]]
     ```
   - **`num_classes=0`** set for excluding model top `GlobalAveragePooling2D + Dense` layers.
     ```py
@@ -457,9 +458,9 @@
     # isinstance(mm, torch.nn.Module) = True
 
     # Run prediction
-    from skimage.data import chelsea # Chelsea the cat
-    print(mm.decode_predictions(mm(mm.preprocess_input(chelsea())))[0])
-    # [('n02124075', 'Egyptian_cat', 0.86188155), ('n02123159', 'tiger_cat', 0.05125639), ...]
+    from keras_cv_attention_models.test_images import cat
+    print(mm.decode_predictions(mm(mm.preprocess_input(cat())))[0])
+    # [('n02124075', 'Egyptian_cat', 0.9597896), ('n02123045', 'tabby', 0.012809471), ...]
     ```
   - **Export typical PyTorch onnx / pth**.
     ```py

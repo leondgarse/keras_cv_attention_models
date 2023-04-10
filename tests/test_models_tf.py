@@ -1,11 +1,10 @@
 import pytest
-from skimage.data import chelsea
-
 import sys
 
 sys.path.append(".")
 import keras_cv_attention_models
 from keras_cv_attention_models.backend import models
+from keras_cv_attention_models.test_images import cat
 
 """ Recognition models CotNet / HaloNet / HorNet / NFNet / VOLO defination """
 
@@ -55,7 +54,7 @@ def test_VOLO_defination():
 
 def test_EfficientNetV2B1_preprocessing_predict():
     mm = keras_cv_attention_models.efficientnet.EfficientNetV2B1(pretrained="imagenet", include_preprocessing=True)
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    pred = mm(mm.preprocess_input(cat()))
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
@@ -63,7 +62,7 @@ def test_EfficientNetV2B1_preprocessing_predict():
 
 def test_HaloRegNetZB_predict():
     mm = keras_cv_attention_models.halonet.HaloRegNetZB(pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    pred = mm(mm.preprocess_input(cat()))
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
@@ -71,7 +70,7 @@ def test_HaloRegNetZB_predict():
 
 def test_HorNetTinyGF_new_shape_predict():
     mm = keras_cv_attention_models.hornet.HorNetTinyGF(input_shape=(174, 255, 3), pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    pred = mm(mm.preprocess_input(cat()))
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
@@ -79,7 +78,7 @@ def test_HorNetTinyGF_new_shape_predict():
 
 def test_NAT_Mini_new_shape_predict():
     mm = keras_cv_attention_models.nat.NAT_Mini(input_shape=(174, 255, 3), pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    pred = mm(mm.preprocess_input(cat()))
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
@@ -87,7 +86,7 @@ def test_NAT_Mini_new_shape_predict():
 
 def test_VOLO_d1_new_shape_predict():
     mm = keras_cv_attention_models.volo.VOLO_d1(input_shape=(512, 512, 3), pretrained="imagenet")
-    pred = mm(mm.preprocess_input(chelsea()))  # Chelsea the cat
+    pred = mm(mm.preprocess_input(cat()))
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
