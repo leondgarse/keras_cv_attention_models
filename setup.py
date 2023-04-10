@@ -44,6 +44,7 @@ setup(
     include_package_data=True,
     install_requires=[
         # "tensorflow-macos;platform_system=='Darwin'",  # [???]
+        "pillow",
         "tensorflow;platform_system!='Darwin'",
         "tensorflow-addons;platform_machine!='aarch64' and platform_machine!='aarch32'",
         "tensorflow-datasets;platform_machine!='aarch64' and platform_machine!='aarch32'"  # >4.7.0 needs dm-tree, failed on arm, just skip
