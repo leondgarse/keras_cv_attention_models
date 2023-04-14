@@ -1,3 +1,8 @@
+"""
+Wrappering a kecam PyTorch YOLOV8 model for training using ultralytics package
+"""
+
+import math
 import torch
 from torch import nn
 
@@ -74,3 +79,18 @@ class Detect(nn.Module):
             dbox = dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1) * self.strides
             val_out = torch.cat((dbox, cls.sigmoid()), 1)
             return val_out if self.export else (val_out, train_out)
+
+if __name__ == "__main__":
+    from ultralytics import YOLO
+    from keras_cv_attention_models.yolov8 import torch_wrapper
+    from keras_cv_attention_models import efficientnet, yolov8
+
+    backbone = efficientnet.EfficientNetV2B1(input_shape=(3, 640, 640))
+    mm = yolov8.YOLOV8_N(backbone=backbone, pretrained=None, classifier_activation=None)
+    _ = mm.train()
+
+    yolo = YOLO('yolov8n.yaml')
+    tt = torch_wrapper.Detect(mm)
+    tt.yaml = yolo.model.yaml
+    yolo.model = tt
+    yolo.train(data='coco.yaml', epochs=100)
