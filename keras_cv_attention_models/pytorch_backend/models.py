@@ -1,6 +1,7 @@
 import torch
 import h5py
 import numpy as np
+from tqdm import tqdm
 from torch import nn
 from contextlib import nullcontext
 from keras_cv_attention_models import backend
@@ -119,10 +120,10 @@ class Model(nn.Module):
                 print("     intra_nodes:", {kk: len(vv) for kk, vv in intra_nodes.items() if len(vv) > 0})
         return [intra_nodes[ii][0] for ii in self.output_names] if self.num_outputs != 1 else intra_nodes[self.output_names[0]][0]
 
-    def compile(self, optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, **kwargs):
+    def compile(self, optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, grad_accumulate=1, grad_max_norm=-1, **kwargs):
         self.optimizer = getattr(torch.optim, optimizer)(self.parameters()) if isinstance(optimizer, str) else optimizer
         self.loss = torch.functional.F.cross_entropy if loss is None else loss
-        self.loss_weights = loss_weights
+        self.loss_weights, self.grad_accumulate, self.grad_max_norm = loss_weights, grad_accumulate, grad_max_norm
 
         self.metrics = {} if metrics is None else (metrics if isinstance(metrics, dict) else {ii.__name__: ii for ii in metrics})
         self.metrics.update({"loss": self.loss})
@@ -137,31 +138,74 @@ class Model(nn.Module):
             global_context = torch.amp.autocast(device_type=device_type, dtype=torch.float16)
         self.device, self.device_type, self.scaler, self.global_context = device, device_type, scaler, global_context
 
+    def _dataset_gen(self, x=None, y=None, batch_size=None, validation_data=None):
+        if hasattr(x, "element_spec"):  # TF datsets
+            data_shape = x.element_spec[0].shape
+            if self.input_shape is not None and data_shape[-1] == self.input_shape[1]:
+                perm = [0, len(data_shape) - 1] + list(range(1, len(data_shape) - 1))  # [0, 3, 1, 2]
+                train_dataset = ((xx.transpose(perm), yy) for xx, yy in x.as_numpy_iterator())
+            else:
+                train_dataset = x.as_numpy_iterator()
+        elif isinstance(x, np.ndarray) or isinstance(x, torch.Tensor):
+            assert y is not None
+            num_batches = xx.shape[0] if batch_size is None else int(np.ceil(xx.shape[0] / batch_size))
+
+            def _convert_tensor(data, id):
+                cur = data[id * batch_size: (id + 1) * batch_size] if batch_size is not None else data[id]
+                cur = torch.from_numpy(cur) if isinstance(cur, np.ndarray) else cur
+                cur = cur.float() if cur.dtype == torch.float64 else cur
+                cur = cur.long() if cur.dtype == torch.int32 else cur
+                return cur
+            train_dataset = ((_convert_tensor(x, id), _convert_tensor(y, id)) for id in range(num_batches))
+        else:  # generator or torch.utils.data.DataLoader
+            train_dataset = x
+        total = len(x) if hasattr(x, '__len__') else None
+        return train_dataset, total
+
     def fit(
         self, x=None, y=None, batch_size=None, epochs=1, verbose="auto", callbacks=None, validation_data=None, initial_epoch=0, steps_per_epoch=None, **kwargs
     ):
-        train_dataset_gen = TorchDatasetGen(x, y, batch_size=batch_size, validation_data=validation_data, input_shape=self.input_shape)
+        bar_format = "{n_fmt}/{total_fmt} [{bar:30}] - ETA: {elapsed}<{remaining} {rate_fmt}{postfix}{desc}"
+
         for epoch in range(initial_epoch, epochs):
+            print("Epoch {}/{}".format(epoch + 1, epochs))
             self.train()
-            train_dataset = train_dataset_gen()
-            for batch, (xx, yy) in enumerate(train_dataset):
+
+            train_dataset, total = self._dataset_gen(x, y, batch_size=batch_size, validation_data=validation_data)
+            self.optimizer.zero_grad()
+            passed_batches = 0
+            process_bar = tqdm(enumerate(train_dataset), total=total, bar_format=bar_format, ascii=".>>=")
+            print_loss = 0.0
+            for batch, (xx, yy) in process_bar:
                 if isinstance(xx, np.ndarray):
                     xx = torch.from_numpy(xx)
                 if isinstance(yy, np.ndarray):
                     yy = torch.from_numpy(yy)
                 if self.device_type == "cuda":
                     # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
-                    xx, yy = xx.pin_memory().to(self.device, non_blocking=True), yy.pin_memory().to(self.device, non_blocking=True)
+                    xx = xx.pin_memory().to(self.device, non_blocking=True)
+                    yy = yy.pin_memory().to(self.device, non_blocking=True)
 
                 with self.global_context:
                     out = self(xx)
                     loss = self.loss(out, yy)
-                self.optimizer.zero_grad()
+
                 self.scaler.scale(loss).backward()
-                self.scaler.unscale_(self.optimizer)
-                self.scaler.step(self.optimizer)  # self.optimizer.step()
-                self.scaler.update()
-                print(">>>> Epoch {}, batch: {}, loss: {:.4f}".format(epoch, batch, loss.item()))
+
+                passed_batches += 1
+                if passed_batches >= self.grad_accumulate:
+                    self.scaler.unscale_(self.optimizer)
+                    if self.grad_max_norm > 0:
+                        torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=self.grad_max_norm)  # clip gradients
+                    self.scaler.step(self.optimizer)  # self.optimizer.step()
+                    self.scaler.update()
+                    self.optimizer.zero_grad()
+                    passed_batches = 0
+                # print(">>>> Epoch {}, batch: {}, loss: {:.4f}".format(epoch, batch, loss.item()))
+                print_loss = (print_loss * batch + loss) / (batch + 1)
+                process_bar.desc = " - loss: {:.4f}".format(print_loss)  # process_bar.set_description automatically add a : on the tail
+                process_bar.refresh()
+            print()
 
     @property
     def layers(self):
@@ -241,39 +285,7 @@ class Model(nn.Module):
         print(">>>> debug: {}".format(self.debug))
 
 
-class TorchDatasetGen:
-    def __init__(self, x=None, y=None, batch_size=None, validation_data=None, input_shape=None):
-        from torch.utils.data import Dataset, DataLoader
 
-        if isinstance(x, Dataset) or isinstance(x, DataLoader):
-            train_dataset = x
-        elif hasattr(x, "element_spec"):
-            data_shape = x.element_spec[0].shape
-            if input_shape is not None and data_shape[-1] == input_shape[1]:
-                perm = [0, len(data_shape) - 1] + list(range(1, len(data_shape) - 1))  # [0, 3, 1, 2]
-                train_dataset = ((xx.transpose(perm), yy) for xx, yy in x.as_numpy_iterator())
-            else:
-                train_dataset = x.as_numpy_iterator()
-        elif isinstance(x, np.ndarray) or isinstance(x, torch.Tensor):
-            assert y is not None
-            num_batches = xx.shape[0] if batch_size is None else int(np.ceil(xx.shape[0] / batch_size))
-
-            def _convert_tensor(data, id):
-                cur = data[id * batch_size: (id + 1) * batch_size] if batch_size is not None else data[id]
-                cur = torch.from_numpy(cur) if isinstance(cur, np.ndarray) else cur
-                cur = cur.float() if cur.dtype == torch.float64 else cur
-                cur = cur.long() if cur.dtype == torch.int32 else cur
-                return cur
-            train_dataset = ((_convert_tensor(x, id), _convert_tensor(y, id)) for id in range(num_batches))
-        else:  # generator
-            train_dataset = x
-        self.train_dataset = train_dataset
-
-    def __call__(self):
-        import itertools
-
-        self.train_dataset, train_dataset_run = itertools.tee(self.train_dataset)
-        return train_dataset_run
 
 
 """ Save / load h5 weights from keras.saving.legacy.hdf5_format """

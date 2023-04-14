@@ -174,7 +174,6 @@ def yolov8_head(
     inputs, num_classes=80, regression_len=64, num_anchors=1, use_object_scores=False, activation="swish", classifier_activation="sigmoid", name=""
 ):
     channel_axis = -1 if image_data_format() == "channels_last" else 1
-    bias_init = initializers.constant(-math.log((1 - 0.01) / 0.01))
 
     outputs = []
     reg_channels = max(16, regression_len, inputs[0].shape[channel_axis] // 4)
@@ -184,16 +183,19 @@ def yolov8_head(
 
         reg_nn = conv_bn(feature, reg_channels, 3, activation=activation, name=cur_name + "reg_1_")
         reg_nn = conv_bn(reg_nn, reg_channels, 3, activation=activation, name=cur_name + "reg_2_")
-        reg_out = conv2d_no_bias(reg_nn, regression_len * num_anchors, 1, use_bias=True, name=cur_name + "reg_3_")
+        reg_out = conv2d_no_bias(reg_nn, regression_len * num_anchors, 1, use_bias=True, bias_initializer="ones", name=cur_name + "reg_3_")
 
+        strides = 2 ** (id + 3)
+        bias_init = initializers.constant(math.log(5 / num_classes / (640 / strides) ** 2))
         cls_nn = conv_bn(feature, cls_channels, 3, activation=activation, name=cur_name + "cls_1_")
         cls_nn = conv_bn(cls_nn, cls_channels, 3, activation=activation, name=cur_name + "cls_2_")
-        cls_out = conv2d_no_bias(cls_nn, num_classes * num_anchors, 1, use_bias=True, name=cur_name + "cls_3_")
+        cls_out = conv2d_no_bias(cls_nn, num_classes * num_anchors, 1, use_bias=True, bias_initializer=bias_init, name=cur_name + "cls_3_")
         if classifier_activation is not None:
             cls_out = activation_by_name(cls_out, classifier_activation, name=cur_name + "classifier_")
 
         # obj_preds, not using for yolov8
         if use_object_scores:
+            bias_init = initializers.constant(-math.log((1 - 0.01) / 0.01))
             obj_out = conv2d_no_bias(reg_nn, 1 * num_anchors, kernel_size=1, use_bias=True, bias_initializer=bias_init, name=cur_name + "object_")
             obj_out = activation_by_name(obj_out, classifier_activation, name=cur_name + "object_out_")
             out = functional.concat([reg_out, cls_out, obj_out], axis=channel_axis)
