@@ -638,7 +638,7 @@ class Conv(_BaseConvPool):
         dilation_rate=1,
         use_bias=True,
         groups=1,
-        kernel_initializer="glorot_uniform",
+        kernel_initializer=None,
         bias_initializer="zeros",
         **kwargs,
     ):
@@ -662,8 +662,9 @@ class Conv(_BaseConvPool):
             groups=self.groups,
             bias=self.use_bias,
         )
-        kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
-        module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
+        if kernel_initializer is not None:
+            kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
+            module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
         if not isinstance(self.bias_initializer, str):
             module.bias.data = self.bias_initializer(list(module.bias.shape))
         if isinstance(self.bias_initializer, str) and self.bias_initializer != "zeros":
@@ -731,7 +732,7 @@ class ConvTranspose(_BaseConvPool):
         output_padding=None,
         dilation_rate=1,
         use_bias=True,
-        kernel_initializer="glorot_uniform",
+        kernel_initializer=None,
         bias_initializer="zeros",
         **kwargs,
     ):
@@ -756,8 +757,9 @@ class ConvTranspose(_BaseConvPool):
             dilation=self.dilation_rate,
             bias=self.use_bias,
         )
-        kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
-        module.weight.data = kernel_initializer(list(module.weight.shape))
+        if kernel_initializer is not None:
+            kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
+            module.weight.data = kernel_initializer(list(module.weight.shape))
         if not isinstance(self.bias_initializer, str):
             module.bias.data = self.bias_initializer(list(module.bias.shape))
         if isinstance(self.bias_initializer, str) and self.bias_initializer != "zeros":
@@ -868,7 +870,7 @@ class DepthwiseConv2D(Conv):
 
 
 class Dense(Layer):
-    def __init__(self, units, activation=None, use_bias=True, axis=-1, kernel_initializer="glorot_uniform", bias_initializer="zeros", **kwargs):
+    def __init__(self, units, activation=None, use_bias=True, axis=-1, kernel_initializer=None, bias_initializer="zeros", **kwargs):
         self.units, self.activation, self.use_bias, self.axis = int(units), activation, use_bias, axis, kernel_initializer
         self.kernel_initializer, self.bias_initializer = kernel_initializer, bias_initializer
         super().__init__(**kwargs)
@@ -877,8 +879,9 @@ class Dense(Layer):
         self.axis = len(input_shape) + self.axis if self.axis < 0 else self.axis
         module = nn.Linear(in_features=input_shape[self.axis], out_features=self.units, bias=self.use_bias)
 
-        kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
-        module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
+        if kernel_initializer is not None:
+            kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
+            module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
         if not isinstance(self.bias_initializer, str):
             module.bias.data = self.bias_initializer(list(module.bias.shape))
         if isinstance(self.bias_initializer, str) and self.bias_initializer != "zeros":
@@ -1068,7 +1071,7 @@ class SeparableConv2D(Conv):
         padding="VALID",
         dilation_rate=1,
         use_bias=True,
-        pointwise_initializer="glorot_uniform",
+        pointwise_initializer=None,
         bias_initializer="zeros",
         **kwargs,
     ):
@@ -1097,9 +1100,10 @@ class SeparableConv2D(Conv):
             bias=self.use_bias,
         )
 
-        kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
-        depthwise.weight.data = kernel_initializer(list(depthwise.weight.shape))
-        pointwise.weight.data = kernel_initializer(list(pointwise.weight.shape))
+        if kernel_initializer is not None:
+            kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
+            depthwise.weight.data = kernel_initializer(list(depthwise.weight.shape))
+            pointwise.weight.data = kernel_initializer(list(pointwise.weight.shape))
 
         if not isinstance(self.bias_initializer, str):
             depthwise.bias.data = self.bias_initializer(list(depthwise.bias.shape))

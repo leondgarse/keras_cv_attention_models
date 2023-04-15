@@ -6,7 +6,6 @@ BATCH_NORM_DECAY = 0.9
 BATCH_NORM_EPSILON = 1e-5
 TF_BATCH_NORM_EPSILON = 0.001
 LAYER_NORM_EPSILON = 1e-5
-CONV_KERNEL_INITIALIZER = "glorot_uniform"
 
 
 """ Wrapper for default parameters """
@@ -286,7 +285,6 @@ def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", u
         padding="VALID" if padding == "VALID" else (pad if use_torch_padding else "SAME"),
         use_bias=use_bias,
         groups=groups,
-        kernel_initializer=CONV_KERNEL_INITIALIZER,
         name=name and name + "conv",
         **kwargs,
     )(inputs)
@@ -311,7 +309,6 @@ def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", us
         strides=strides,
         padding="VALID" if padding == "VALID" else (pad if use_torch_padding else "SAME"),
         use_bias=use_bias,
-        depthwise_initializer=CONV_KERNEL_INITIALIZER,
         name=name and name + "dw_conv",
         **kwargs,
     )(inputs)
@@ -347,7 +344,7 @@ def global_context_module(inputs, use_attn=True, ratio=0.25, divisor=1, activati
     reduction = make_divisible(filters * ratio, divisor, limit_round_down=0.0)
 
     if use_attn:
-        attn = layers.Conv2D(1, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "attn_conv")(inputs)
+        attn = layers.Conv2D(1, kernel_size=1, use_bias=use_bias, name=name and name + "attn_conv")(inputs)
         attn = functional.reshape(attn, [-1, 1, height * width])  # [batch, height, width, 1] or [batch, 1, height, width] -> [batch, 1, height * width]
         attn = functional.softmax(attn, axis=-1)
         context = inputs if is_channels_last else functional.transpose(inputs, [0, 2, 3, 1])
@@ -377,14 +374,14 @@ def se_module(inputs, se_ratio=0.25, divisor=8, limit_round_down=0.9, activation
     # print(f"{filters = }, {se_ratio = }, {divisor = }, {reduction = }")
     se = functional.reduce_mean(inputs, [h_axis, w_axis], keepdims=True if use_conv else False)
     if use_conv:
-        se = layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_conv")(se)
+        se = layers.Conv2D(reduction, kernel_size=1, use_bias=use_bias, name=name and name + "1_conv")(se)
     else:
-        se = layers.Dense(reduction, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "1_dense")(se)
+        se = layers.Dense(reduction, use_bias=use_bias, name=name and name + "1_dense")(se)
     se = activation_by_name(se, activation=hidden_activation, name=name)
     if use_conv:
-        se = layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "2_conv")(se)
+        se = layers.Conv2D(filters, kernel_size=1, use_bias=use_bias, name=name and name + "2_conv")(se)
     else:
-        se = layers.Dense(filters, use_bias=use_bias, kernel_initializer=CONV_KERNEL_INITIALIZER, name=name and name + "2_dense")(se)
+        se = layers.Dense(filters, use_bias=use_bias, name=name and name + "2_dense")(se)
     se = activation_by_name(se, activation=output_activation, name=name)
     se = se if use_conv else functional.reshape(se, [-1, 1, 1, filters] if image_data_format() == "channels_last" else [-1, filters, 1, 1])
     return layers.Multiply(name=name and name + "out")([inputs, se])
