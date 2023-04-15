@@ -1106,7 +1106,6 @@ class SeparableConv2D(Conv):
             pointwise.weight.data = kernel_initializer(list(pointwise.weight.shape))
 
         if self.use_bias and not isinstance(self.bias_initializer, str):
-            depthwise.bias.data = self.bias_initializer(list(depthwise.bias.shape))
             pointwise.bias.data = self.bias_initializer(list(pointwise.bias.shape))
         if self.use_bias and isinstance(self.bias_initializer, str) and self.bias_initializer != "zeros":
             bias_initializer = getattr(initializers, self.bias_initializer)()
