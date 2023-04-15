@@ -665,9 +665,9 @@ class Conv(_BaseConvPool):
         if self.kernel_initializer is not None:
             kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
             module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
-        if not isinstance(self.bias_initializer, str):
+        if self.use_bias and not isinstance(self.bias_initializer, str):
             module.bias.data = self.bias_initializer(list(module.bias.shape))
-        if isinstance(self.bias_initializer, str) and self.bias_initializer != "zeros":
+        if self.use_bias and isinstance(self.bias_initializer, str) and self.bias_initializer != "zeros":
             bias_initializer = getattr(initializers, self.bias_initializer)()
             module.bias.data = bias_initializer(list(module.bias.shape))
 
@@ -760,9 +760,9 @@ class ConvTranspose(_BaseConvPool):
         if self.kernel_initializer is not None:
             kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
             module.weight.data = kernel_initializer(list(module.weight.shape))
-        if not isinstance(self.bias_initializer, str):
+        if self.use_bias and not isinstance(self.bias_initializer, str):
             module.bias.data = self.bias_initializer(list(module.bias.shape))
-        if isinstance(self.bias_initializer, str) and self.bias_initializer != "zeros":
+        if self.use_bias and isinstance(self.bias_initializer, str) and self.bias_initializer != "zeros":
             bias_initializer = getattr(initializers, self.bias_initializer)()
             module.bias.data = bias_initializer(list(module.bias.shape))
 
@@ -882,9 +882,9 @@ class Dense(Layer):
         if self.kernel_initializer is not None:
             kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
             module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
-        if not isinstance(self.bias_initializer, str):
+        if self.use_bias and not isinstance(self.bias_initializer, str):
             module.bias.data = self.bias_initializer(list(module.bias.shape))
-        if isinstance(self.bias_initializer, str) and self.bias_initializer != "zeros":
+        if self.use_bias and isinstance(self.bias_initializer, str) and self.bias_initializer != "zeros":
             bias_initializer = getattr(initializers, self.bias_initializer)()
             module.bias.data = bias_initializer(list(module.bias.shape))
 
@@ -1105,10 +1105,10 @@ class SeparableConv2D(Conv):
             depthwise.weight.data = kernel_initializer(list(depthwise.weight.shape))
             pointwise.weight.data = kernel_initializer(list(pointwise.weight.shape))
 
-        if not isinstance(self.bias_initializer, str):
+        if self.use_bias and not isinstance(self.bias_initializer, str):
             depthwise.bias.data = self.bias_initializer(list(depthwise.bias.shape))
             pointwise.bias.data = self.bias_initializer(list(pointwise.bias.shape))
-        if isinstance(self.bias_initializer, str) and self.bias_initializer != "zeros":
+        if self.use_bias and isinstance(self.bias_initializer, str) and self.bias_initializer != "zeros":
             bias_initializer = getattr(initializers, self.bias_initializer)()
             depthwise.bias.data = bias_initializer(list(depthwise.bias.shape))
             pointwise.bias.data = bias_initializer(list(pointwise.bias.shape))
