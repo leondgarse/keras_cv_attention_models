@@ -12,7 +12,6 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-LAYER_NORM_EPSILON = 1e-6
 PRETRAINED_DICT = {
     "convnext_tiny": {
         "imagenet": "1deac703865e190528899d5c489afa37",
@@ -31,6 +30,7 @@ PRETRAINED_DICT = {
         "imagenet21k-ft1k": {224: "dc211e955875f8ab6de7518253e41a46", 384: "68ef87754d6ca634e32d2326c34ddd0b"},
     },
     "convnext_xlarge": {"imagenet21k-ft1k": {224: "7c7ab46f41ac34655f3e035b873a2163", 384: "636db850c0a73ba10e8ab32e91c38df6"}},
+    "convnext_xxlarge": {"clip-ft1k": "ba7565b6145085882c8937add0d0e37f"},
     "convnext_v2_atto": {"imagenet": "e604fa1edfefe6207957feec4f5612db"},
     "convnext_v2_base": {
         "imagenet": "879caa3189ed74ed969f9348b82afe47",
@@ -77,9 +77,9 @@ def add_with_layer_scale_and_drop_block(short, deep, layer_scale=0, residual_sca
     return layers.Add(name=name + "output")([short, deep])
 
 
-def block(inputs, output_channel, layer_scale_init_value=1e-6, use_grn=False, drop_rate=0, activation="gelu", name=""):
+def block(inputs, output_channel, layer_scale_init_value=1e-6, use_grn=False, layer_norm_epsilon=1e-6, drop_rate=0, activation="gelu", name=""):
     nn = depthwise_conv2d_no_bias(inputs, kernel_size=7, padding="SAME", use_bias=True, name=name)
-    nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name=name)
+    nn = layer_norm(nn, epsilon=layer_norm_epsilon, name=name)
 
     nn = nn if backend.image_data_format() == "channels_last" else layers.Permute((2, 3, 1), name=name + "permute_pre")(nn)
     nn = layers.Dense(4 * output_channel, name=name + "up_dense")(nn)
@@ -99,6 +99,8 @@ def ConvNeXt(
     layer_scale_init_value=1e-6,  # 1e-6 for v1, 0 for v2
     use_grn=False,  # False for v1, True for v2
     head_init_scale=1.0,
+    layer_norm_epsilon=1e-6,  # 1e-5 for ConvNeXtXXlarge, 1e-6 for others
+    output_num_filters=-1,  # If apply additional dense + activation before output dense, <0 for not using
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",
@@ -117,7 +119,7 @@ def ConvNeXt(
     """ Stem """
     stem_width = stem_width if stem_width > 0 else out_channels[0]
     nn = conv2d_no_bias(inputs, stem_width, kernel_size=4, strides=4, padding="VALID", use_bias=True, name="stem_")
-    nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="stem_")
+    nn = layer_norm(nn, epsilon=layer_norm_epsilon, name="stem_")
 
     """ Blocks """
     total_blocks = sum(num_blocks)
@@ -125,12 +127,12 @@ def ConvNeXt(
     for stack_id, (num_block, out_channel) in enumerate(zip(num_blocks, out_channels)):
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id > 0:
-            nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name=stack_name + "downsample_")
+            nn = layer_norm(nn, epsilon=layer_norm_epsilon, name=stack_name + "downsample_")
             nn = conv2d_no_bias(nn, out_channel, kernel_size=2, strides=2, use_bias=True, name=stack_name + "downsample_")
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
-            nn = block(nn, out_channel, layer_scale_init_value, use_grn, block_drop_rate, activation, name=block_name)
+            nn = block(nn, out_channel, layer_scale_init_value, use_grn, layer_norm_epsilon, block_drop_rate, activation, name=block_name)
             global_block_id += 1
 
     """  Output head """
@@ -138,7 +140,10 @@ def ConvNeXt(
         nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
         if dropout > 0:
             nn = layers.Dropout(dropout, name="head_drop")(nn)
-        nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="head_")
+        nn = layer_norm(nn, epsilon=layer_norm_epsilon, name="head_")
+        if output_num_filters > 0:
+            nn = layers.Dense(output_num_filters, use_bias=True, name="head_pre_dense")(nn)
+            nn = activation_by_name(nn, activation=activation, name="head_pre_")
         head_init = HeadInitializer(scale=head_init_scale)
         nn = layers.Dense(
             num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=head_init, name="predictions"
@@ -178,3 +183,16 @@ def ConvNeXtXlarge(input_shape=(224, 224, 3), num_classes=1000, classifier_activ
     num_blocks = [3, 3, 27, 3]
     out_channels = [256, 512, 1024, 2048]
     return ConvNeXt(**locals(), model_name="convnext_xlarge", **kwargs)
+
+
+def ConvNeXtXlarge(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
+    num_blocks = [3, 3, 27, 3]
+    out_channels = [256, 512, 1024, 2048]
+    return ConvNeXt(**locals(), model_name="convnext_xlarge", **kwargs)
+
+
+def ConvNeXtXXlarge(input_shape=(256, 256, 3), num_classes=1000, classifier_activation="softmax", pretrained="clip-ft1k", **kwargs):
+    num_blocks = [3, 4, 30, 3]
+    out_channels = [384, 768, 1536, 3072]
+    layer_norm_epsilon = kwargs.pop("layer_norm_epsilon", 1e-5)
+    return ConvNeXt(**locals(), model_name="convnext_xxlarge", **kwargs)

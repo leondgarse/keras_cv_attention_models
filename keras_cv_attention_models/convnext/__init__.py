@@ -6,6 +6,7 @@ from keras_cv_attention_models.convnext.convnext import (
     ConvNeXtBase,
     ConvNeXtLarge,
     ConvNeXtXlarge,
+    ConvNeXtXXlarge,
 )
 from keras_cv_attention_models.convnext.convnext_v2 import (
     ConvNeXtV2,
@@ -88,6 +89,7 @@ ConvNeXtSmall.__doc__ = ConvNeXtTiny.__doc__
 ConvNeXtBase.__doc__ = ConvNeXtTiny.__doc__
 ConvNeXtLarge.__doc__ = ConvNeXtTiny.__doc__
 ConvNeXtLarge.__doc__ = ConvNeXtTiny.__doc__
+ConvNeXtXXlarge.__doc__ = ConvNeXtTiny.__doc__
 
 __v2_head_doc__ = """
 Keras implementation of [ConvNeXt](https://github.com/facebookresearch/ConvNeXt-V2).
