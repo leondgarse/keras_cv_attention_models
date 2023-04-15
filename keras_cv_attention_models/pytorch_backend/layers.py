@@ -871,7 +871,7 @@ class DepthwiseConv2D(Conv):
 
 class Dense(Layer):
     def __init__(self, units, activation=None, use_bias=True, axis=-1, kernel_initializer=None, bias_initializer="zeros", **kwargs):
-        self.units, self.activation, self.use_bias, self.axis = int(units), activation, use_bias, axis, kernel_initializer
+        self.units, self.activation, self.use_bias, self.axis = int(units), activation, use_bias, axis
         self.kernel_initializer, self.bias_initializer = kernel_initializer, bias_initializer
         super().__init__(**kwargs)
 
