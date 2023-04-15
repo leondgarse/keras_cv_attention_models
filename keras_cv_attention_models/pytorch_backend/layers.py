@@ -1110,7 +1110,6 @@ class SeparableConv2D(Conv):
             pointwise.bias.data = self.bias_initializer(list(pointwise.bias.shape))
         if self.use_bias and isinstance(self.bias_initializer, str) and self.bias_initializer != "zeros":
             bias_initializer = getattr(initializers, self.bias_initializer)()
-            depthwise.bias.data = bias_initializer(list(depthwise.bias.shape))
             pointwise.bias.data = bias_initializer(list(pointwise.bias.shape))
 
         return nn.Sequential(depthwise, pointwise)
