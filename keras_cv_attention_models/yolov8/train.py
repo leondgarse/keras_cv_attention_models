@@ -19,6 +19,34 @@ class FakeArgs:
         for kk, vv in kwargs.items():
             setattr(self, kk, vv)
 
+class ModelEMA:
+    """ Updated Exponential Moving Average (EMA) from https://github.com/rwightman/pytorch-image-models
+    Keeps a moving average of everything in the model state_dict (parameters and buffers)
+    For EMA details see https://www.tensorflow.org/api_docs/python/tf/train/ExponentialMovingAverage
+    To disable EMA set the `enabled` attribute to `False`.
+    """
+
+    def __init__(self, model, decay=0.9999, tau=2000, updates=0):
+        # Create EMA
+        self.ema = copy.deepcopy(model).eval()  # FP32 EMA
+        self.updates = updates  # number of EMA updates
+        self.decay = lambda x: decay * (1 - math.exp(-x / tau))  # decay exponential ramp (to help early epochs)
+        for p in self.ema.parameters():
+            p.requires_grad_(False)
+        self.enabled = True
+
+    def update(self, model):
+        # Update EMA parameters
+        if self.enabled:
+            self.updates += 1
+            d = self.decay(self.updates)
+
+            msd = model.state_dict()  # model state_dict
+            for k, v in self.ema.state_dict().items():
+                if v.dtype.is_floating_point:  # true for FP16 and FP32
+                    v *= d
+                    v += (1 - d) * msd[k].detach()
+                    # assert v.dtype == msd[k].dtype == torch.float32, f'{k}: EMA {v.dtype},  model {msd[k].dtype}'
 
 def build_optimizer(model, lr=0.01, momentum=0.937, decay=5e-4):
     g = [], [], []  # optimizer parameter groups
@@ -65,7 +93,7 @@ def train(model, dataset_path="coco.yaml", epochs=100, batch_size=16):
     scaler = amp.GradScaler(enabled=use_amp)
     validator = eval.Validator(val_loader=val_loader, model=model, cfg=cfg)
     # validator = v8.detect.DetectionValidator(val_loader, save_dir=Path("./test"), args=copy.copy(cfg))
-    # ema = ModelEMA(model)
+    ema = ModelEMA(model)
 
     nb = len(train_loader)
     nbs = 64
@@ -119,7 +147,7 @@ def train(model, dataset_path="coco.yaml", epochs=100, batch_size=16):
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad()
-                # ema.update(model)
+                ema.update(model)
                 last_opt_step = ni
 
             loss_len = tloss.shape[0] if len(tloss.size()) else 1
