@@ -662,7 +662,7 @@ class Conv(_BaseConvPool):
             groups=self.groups,
             bias=self.use_bias,
         )
-        if kernel_initializer is not None:
+        if self.kernel_initializer is not None:
             kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
             module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
         if not isinstance(self.bias_initializer, str):
@@ -757,7 +757,7 @@ class ConvTranspose(_BaseConvPool):
             dilation=self.dilation_rate,
             bias=self.use_bias,
         )
-        if kernel_initializer is not None:
+        if self.kernel_initializer is not None:
             kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
             module.weight.data = kernel_initializer(list(module.weight.shape))
         if not isinstance(self.bias_initializer, str):
@@ -879,7 +879,7 @@ class Dense(Layer):
         self.axis = len(input_shape) + self.axis if self.axis < 0 else self.axis
         module = nn.Linear(in_features=input_shape[self.axis], out_features=self.units, bias=self.use_bias)
 
-        if kernel_initializer is not None:
+        if self.kernel_initializer is not None:
             kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
             module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
         if not isinstance(self.bias_initializer, str):
@@ -1100,7 +1100,7 @@ class SeparableConv2D(Conv):
             bias=self.use_bias,
         )
 
-        if kernel_initializer is not None:
+        if self.kernel_initializer is not None:
             kernel_initializer = getattr(initializers, self.kernel_initializer)() if isinstance(self.kernel_initializer, str) else self.kernel_initializer
             depthwise.weight.data = kernel_initializer(list(depthwise.weight.shape))
             pointwise.weight.data = kernel_initializer(list(pointwise.weight.shape))
