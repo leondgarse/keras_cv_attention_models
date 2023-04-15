@@ -35,7 +35,7 @@ class DecodePredictions(layers.Layer):
         anchor_scale="auto",
         aspect_ratios=(1, 2, 0.5),
         num_scales=3,
-        regression_len=4, # bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64
+        regression_len=4,  # bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64
         score_threshold=0.3,  # decode parameter, can be set new value in `self.call`
         iou_or_sigma=0.5,  # decode parameter, can be set new value in `self.call`
         max_output_size=100,  # decode parameter, can be set new value in `self.call`
@@ -89,7 +89,7 @@ class DecodePredictions(layers.Layer):
 
     def __topk_class_boxes_single__(self, pred, topk=5000):
         # https://github.com/google/automl/tree/master/efficientdet/tf2/postprocess.py#L82
-        bbox_outputs, class_outputs = pred[:, :self.regression_len], pred[:, self.regression_len:]
+        bbox_outputs, class_outputs = pred[:, : self.regression_len], pred[:, self.regression_len :]
         num_classes = class_outputs.shape[-1]
         class_outputs_flatten = functional.reshape(class_outputs, -1)
         topk = class_outputs_flatten.shape[0] if topk == -1 else topk  # select all if -1
@@ -156,7 +156,7 @@ class DecodePredictions(layers.Layer):
             if self.use_object_scores:
                 ccs = ccs * functional.gather(object_scores, picking_indices)
         else:
-            bbs, scores = pred[:, :self.regression_len], pred[:, self.regression_len:]
+            bbs, scores = pred[:, : self.regression_len], pred[:, self.regression_len :]
             ccs, labels = functional.reduce_max(scores, axis=-1), functional.argmax(scores, axis=-1)
             anchors = self.anchors
             if self.use_object_scores:

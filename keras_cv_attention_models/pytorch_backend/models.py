@@ -151,15 +151,16 @@ class Model(nn.Module):
             num_batches = xx.shape[0] if batch_size is None else int(np.ceil(xx.shape[0] / batch_size))
 
             def _convert_tensor(data, id):
-                cur = data[id * batch_size: (id + 1) * batch_size] if batch_size is not None else data[id]
+                cur = data[id * batch_size : (id + 1) * batch_size] if batch_size is not None else data[id]
                 cur = torch.from_numpy(cur) if isinstance(cur, np.ndarray) else cur
                 cur = cur.float() if cur.dtype == torch.float64 else cur
                 cur = cur.long() if cur.dtype == torch.int32 else cur
                 return cur
+
             train_dataset = ((_convert_tensor(x, id), _convert_tensor(y, id)) for id in range(num_batches))
         else:  # generator or torch.utils.data.DataLoader
             train_dataset = x
-        total = len(x) if hasattr(x, '__len__') else None
+        total = len(x) if hasattr(x, "__len__") else None
         return train_dataset, total
 
     def fit(
@@ -247,8 +248,8 @@ class Model(nn.Module):
         output_names = kwargs.pop("output_names", self.output_names)
         if dynamic_axes is None and (batch_size is None or batch_size == -1):
             print("Set dynamic batch size")
-            dynamic_axes = {ii: {0: '-1'} for ii in input_names}
-            dynamic_axes.update({ii: {0: '-1'} for ii in output_names})
+            dynamic_axes = {ii: {0: "-1"} for ii in input_names}
+            dynamic_axes.update({ii: {0: "-1"} for ii in output_names})
             batch_size = 2
 
         filepath = (self.name + ".onnx") if filepath is None else (filepath if filepath.endswith(".onnx") else (filepath + ".onnx"))
@@ -283,9 +284,6 @@ class Model(nn.Module):
     def set_debug(self, debug=True):
         self.debug = debug
         print(">>>> debug: {}".format(self.debug))
-
-
-
 
 
 """ Save / load h5 weights from keras.saving.legacy.hdf5_format """

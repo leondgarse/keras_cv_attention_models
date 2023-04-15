@@ -208,6 +208,7 @@ def _efficientdet_decode_bboxes(preds, anchors):
     bboxes_hw = functional.exp(preds_hw) * anchors_hw
     return bboxes_center, bboxes_hw, preds_others
 
+
 def _yolor_decode_bboxes(preds, anchors):
     preds_center, preds_hw, preds_others = functional.split(preds, [2, 2, -1], axis=-1)
 
@@ -216,10 +217,11 @@ def _yolor_decode_bboxes(preds, anchors):
     bboxes_hw = (preds_hw * 2) ** 2 * anchors[:, 2:4]
     return bboxes_center, bboxes_hw, preds_others
 
+
 def _yolov8_decode_bboxes(preds, anchors, regression_len=64):
     preds_bbox, preds_others = functional.split(preds, [regression_len, -1], axis=-1)
     preds_bbox = functional.reshape(preds_bbox, [*preds_bbox.shape[:-1], 4, regression_len // 4])
-    preds_bbox = functional.softmax(preds_bbox, axis=-1) * functional.range(preds_bbox.shape[-1], dtype='float32')
+    preds_bbox = functional.softmax(preds_bbox, axis=-1) * functional.range(preds_bbox.shape[-1], dtype="float32")
     preds_bbox = functional.reduce_sum(preds_bbox, axis=-1)
     preds_top_left, preds_bottom_right = functional.split(preds_bbox, [2, 2], axis=-1)
 
@@ -229,6 +231,7 @@ def _yolov8_decode_bboxes(preds, anchors, regression_len=64):
     bboxes_center = (preds_bottom_right - preds_top_left) / 2 * anchors_hw + anchors_center
     bboxes_hw = (preds_bottom_right + preds_top_left) * anchors_hw
     return bboxes_center, bboxes_hw, preds_others
+
 
 def decode_bboxes(preds, anchors, regression_len=4, return_centers=False):
     if anchors.shape[-1] == 6:  # Currently, it's yolor / yolov7 anchors

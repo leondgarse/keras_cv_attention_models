@@ -6,6 +6,7 @@ import math
 import torch
 from torch import nn
 
+
 def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
     """Transform distance(ltrb) to box(xywh or xyxy)."""
     lt, rb = distance.chunk(2, dim)
@@ -16,22 +17,6 @@ def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
         wh = x2y2 - x1y1
         return torch.cat((c_xy, wh), dim)  # xywh bbox
     return torch.cat((x1y1, x2y2), dim)  # xyxy bbox
-
-
-class DFL(nn.Module):
-    # Integral module of Distribution Focal Loss (DFL)
-    # Proposed in Generalized Focal Loss https://ieeexplore.ieee.org/document/9792391
-    def __init__(self, c1=16):
-        super().__init__()
-        self.conv = nn.Conv2d(c1, 1, 1, bias=False).requires_grad_(False)
-        x = torch.arange(c1, dtype=torch.float)
-        self.conv.weight.data[:] = nn.Parameter(x.view(1, c1, 1, 1))
-        self.c1 = c1
-
-    def forward(self, x):
-        b, c, a = x.shape  # batch, channels, anchors
-        return self.conv(x.view(b, 4, self.c1, a).transpose(2, 1).softmax(1)).view(b, 4, a)
-        # return self.conv(x.view(b, self.c1, 4, a).softmax(1)).view(b, 4, a)
 
 
 class Detect(nn.Module):
@@ -48,22 +33,23 @@ class Detect(nn.Module):
         self.num_classes = output_shape[-1] - self.reg_max * 4
         self.names = {ii: str(ii) for ii in range(self.num_classes)}
 
-        self.dfl = DFL(self.reg_max) if self.reg_max > 1 else nn.Identity()
+        # self.dfl = DFL(self.reg_max) if self.reg_max > 1 else nn.Identity()
+        self.dfl = torch.arange(self.reg_max, device=self.device, dtype=torch.float32).view(1, 1, self.reg_max, 1)
         self.pre_val_input_shape, self.pre_val_feature_sizes, self.pre_val_feature_lens = None, None, None
 
     def get_feature_sizes(self, input_shape):
-        feature_sizes = [(math.ceil(input_shape[-2] / (2 ** ii)), math.ceil(input_shape[-1] / (2 ** ii))) for ii in range(3, 3 + self.num_pyramid_levels)]
+        feature_sizes = [(math.ceil(input_shape[-2] / (2**ii)), math.ceil(input_shape[-1] / (2**ii))) for ii in range(3, 3 + self.num_pyramid_levels)]
         feature_lens = [ii[0] * ii[1] for ii in feature_sizes]
         return feature_sizes, feature_lens
 
     def make_anchors(self, feature_sizes, grid_cell_offset=0.5):
         """Generate anchors from features."""
         anchor_points, stride_tensor = [], []
-        strides = [2 ** ii for ii in range(3, 3 + self.num_pyramid_levels)]
+        strides = [2**ii for ii in range(3, 3 + self.num_pyramid_levels)]
         for (hh, ww), stride in zip(feature_sizes, strides):
             sx = torch.arange(end=ww, device=self.device, dtype=torch.float32) + grid_cell_offset  # shift x
             sy = torch.arange(end=hh, device=self.device, dtype=torch.float32) + grid_cell_offset  # shift y
-            sy, sx = torch.meshgrid(sy, sx, indexing='ij')
+            sy, sx = torch.meshgrid(sy, sx, indexing="ij")
             anchor_points.append(torch.stack((sx, sy), -1).view(-1, 2))
             stride_tensor.append(torch.full((hh * ww, 1), stride, dtype=torch.float32, device=self.device))
         return torch.cat(anchor_points).transpose(0, 1), torch.cat(stride_tensor).transpose(0, 1)
@@ -88,18 +74,20 @@ class Detect(nn.Module):
             return train_out
         else:
             box, cls = torch.split(out, (self.reg_max * 4, self.num_classes), dim=1)
-            # box = box.reshape([-1, 4, 16, box.shape[-1]])[:, [1, 0, 3, 2]].reshape([-1, 64, box.shape[-1]])
-            dbox = dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1) * self.strides
-            val_out = torch.cat((dbox, cls.sigmoid()), 1)
+            # box = box.reshape([-1, 4, self.reg_max, box.shape[-1]])[:, [1, 0, 3, 2]].reshape([-1, 64, box.shape[-1]])
+            box = (box.view(-1, 4, self.reg_max, box.shape[-1]).softmax(2) * self.dfl).sum(2).view(-1, 4, box.shape[-1])
+            box = dist2bbox(box, self.anchors.unsqueeze(0), xywh=True, dim=1) * self.strides
+            val_out = torch.cat((box, cls.sigmoid()), 1)
             return val_out if self.export else (val_out, train_out)
 
+
 if __name__ == "__main__":
-    sys.path.append('../ultralytics/')
+    sys.path.append("../ultralytics/")
     import torch
     from keras_cv_attention_models.test_images import dog_cat
     from skimage.transform import resize
 
-    tt = torch.load('yolov8n.pt')['model']
+    tt = torch.load("yolov8n.pt")["model"]
     _ = tt.eval()
     _ = tt.float()
 
