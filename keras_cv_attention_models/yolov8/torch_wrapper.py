@@ -82,6 +82,7 @@ class Detect(nn.Module):
 
 
 if __name__ == "__main__":
+    os.environ["KECAM_BACKEND"] = "torch"
     sys.path.append("../ultralytics/")
     import torch
     from keras_cv_attention_models.test_images import dog_cat

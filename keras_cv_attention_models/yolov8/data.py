@@ -47,6 +47,7 @@ def get_data_loader(dataset_path="../ultralytics/ultralytics/datasets/coco.yaml"
 
 
 if __name__ == "__main__":
+    os.environ["KECAM_BACKEND"] = "torch"
     sys.path.append("../ultralytics/")
     from keras_cv_attention_models.yolov8.data import get_data_loader
 

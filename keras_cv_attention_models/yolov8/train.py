@@ -19,8 +19,9 @@ class FakeArgs:
         for kk, vv in kwargs.items():
             setattr(self, kk, vv)
 
+
 class ModelEMA:
-    """ Updated Exponential Moving Average (EMA) from https://github.com/rwightman/pytorch-image-models
+    """Updated Exponential Moving Average (EMA) from https://github.com/rwightman/pytorch-image-models
     Keeps a moving average of everything in the model state_dict (parameters and buffers)
     For EMA details see https://www.tensorflow.org/api_docs/python/tf/train/ExponentialMovingAverage
     To disable EMA set the `enabled` attribute to `False`.
@@ -48,6 +49,7 @@ class ModelEMA:
                     v += (1 - d) * msd[k].detach()
                     # assert v.dtype == msd[k].dtype == torch.float32, f'{k}: EMA {v.dtype},  model {msd[k].dtype}'
 
+
 def build_optimizer(model, lr=0.01, momentum=0.937, decay=5e-4):
     g = [], [], []  # optimizer parameter groups
     bn = tuple(v for k, v in nn.__dict__.items() if "Norm" in k)  # normalization layers, i.e. BatchNorm2d()
@@ -65,7 +67,7 @@ def build_optimizer(model, lr=0.01, momentum=0.937, decay=5e-4):
     return optimizer
 
 
-def train(model, dataset_path="coco.yaml", epochs=100, batch_size=16):
+def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_epoch=0, overwrite_cfg=None):
     from keras_cv_attention_models.yolov8 import eval, data, losses
 
     if torch.cuda.is_available():
@@ -78,8 +80,15 @@ def train(model, dataset_path="coco.yaml", epochs=100, batch_size=16):
     warmup_epochs = 3
     close_mosaic = 10
 
-    cfg = FakeArgs(data=dataset_path, imgsz=640, iou=0.7, single_cls=False, max_det=300, task="detect", mode="train", split="val", half=False)
-    cfg.update(project=None, name=None, save_txt=False, conf=None, save_hybrid=False, save_json=False, plots=False, verbose=True)
+    cfg = FakeArgs(data=dataset_path, imgsz=640, iou=0.7, single_cls=False, max_det=300, task="detect", mode="train", split="val", half=False, conf=None)
+    cfg.update(seed=0, degrees=0.0, translate=0.1, scale=0.5, shear=0.0, perspective=0.0, hsv_h=0.015, hsv_s=0.7, hsv_v=0.4, flipud=0.0, fliplr=0.5)
+    cfg.update(mask_ratio=4, overlap_mask=True, project=None, name=None, save_txt=False, save_hybrid=False, save_json=False, plots=False, verbose=True)
+    if overwrite_cfg is not None:
+        cfg.update(**overwrite_cfg)
+    # from ultralytics.yolo.cfg import get_cfg
+    # from ultralytics.yolo.utils import DEFAULT_CFG
+    # cfg = get_cfg(DEFAULT_CFG)
+    # cfg.data = dataset_path
 
     train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path)
     _ = model.train()
@@ -102,7 +111,7 @@ def train(model, dataset_path="coco.yaml", epochs=100, batch_size=16):
     momentum = 0.937
     warmup_momentum = 0.8
     last_opt_step = -1
-    for epoch in range(0, epochs):
+    for epoch in range(initial_epoch, epochs):
         # self.run_callbacks('on_train_epoch_start')
         model.train()
         # Update attributes (optional)
@@ -156,8 +165,14 @@ def train(model, dataset_path="coco.yaml", epochs=100, batch_size=16):
         scheduler.step()
         validator()
 
+        if hasattr(model, "model") and hasattr(model.model, "save_weights"):
+            model.model.save_weights(model.model.name + ".h5")
+        elif hasattr(model, "model") and hasattr(model.model, "state_dict"):
+            torch.save(model.model.state_dict(), model.__class__.__name__ + ".pth")
+
 
 if __name__ == "__main__":
+    os.environ["KECAM_BACKEND"] = "torch"
     sys.path.append("../ultralytics/")
     from keras_cv_attention_models.yolov8 import train, yolov8, torch_wrapper
 

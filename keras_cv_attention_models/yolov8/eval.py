@@ -12,7 +12,9 @@ from pathlib import Path
 
 class Validator:
     def __init__(self, model, val_loader, save_dir="./test", cfg={}):
-        validator = v8.detect.DetectionValidator(val_loader, save_dir=Path(save_dir), args=copy.copy(cfg))
+        cfg = copy.copy(cfg)
+        cfg.rect, cfg.mode = True, "val"
+        validator = v8.detect.DetectionValidator(val_loader, save_dir=Path(save_dir), args=cfg)
         # def eval(validator, model):
         validator.data = check_det_dataset(validator.args.data)
         validator.device = next(model.parameters()).device
@@ -63,6 +65,7 @@ class Validator:
 
 
 if __name__ == "__main__":
+    os.environ["KECAM_BACKEND"] = "torch"
     sys.path.append("../ultralytics/")
     from keras_cv_attention_models.yolov8 import data
     from keras_cv_attention_models.yolov8 import yolov8, torch_wrapper
@@ -73,8 +76,9 @@ if __name__ == "__main__":
 
     dataset_path = "coco128.yaml"
     train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path)
-    cfg = FakeArgs(data=dataset_path, imgsz=640, iou=0.7, single_cls=False, max_det=300, task="detect", mode="train", split="val", half=False)
-    cfg.update(project=None, name=None, save_txt=False, conf=None, save_hybrid=False, save_json=False, plots=False, verbose=True)
+    cfg = FakeArgs(data=dataset_path, imgsz=640, iou=0.7, single_cls=False, max_det=300, task="detect", mode="train", split="val", half=False, conf=None)
+    cfg.update(degrees=0.0, translate=0.1, scale=0.5, shear=0.0, perspective=0.0, hsv_h=0.015, hsv_s=0.7, hsv_v=0.4, flipud=0.0, fliplr=0.5)
+    cfg.update(mask_ratio=4, overlap_mask=True, project=None, name=None, save_txt=False, save_hybrid=False, save_json=False, plots=False, verbose=True)
 
     # model = YOLO('../ultralytics/ultralytics/models/v8/yolov8n.yaml').model
     model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None)
