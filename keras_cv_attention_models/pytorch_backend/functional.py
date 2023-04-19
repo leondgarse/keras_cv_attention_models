@@ -232,7 +232,7 @@ def reshape(inputs, shape, name=None):
 
 def resize(inputs, size, method="bilinear", preserve_aspect_ratio=False, antialias=False, name=None):
     if isinstance(inputs, GraphNode) and (isinstance(size, Shape) and (None in size or -1 in size)):  # If dynamic
-        return _ResizeDynamic(mode=method, preserve_aspect_ratio=preserve_aspect_ratio, antialias=antialias, name=name)([inputs, size])
+        return _ResizeDynamic(method=method, preserve_aspect_ratio=preserve_aspect_ratio, antialias=antialias, name=name)([inputs, size])
     elif isinstance(inputs, GraphNode):
         return Lambda(partial(F.interpolate, size=list(size), mode=method, antialias=antialias), name=name)(inputs)  # [TODO] align_corners
         # return Resize(size=size, mode=method, preserve_aspect_ratio=preserve_aspect_ratio, antialias=antialias, name=name)(inputs)  # [TODO] align_corners

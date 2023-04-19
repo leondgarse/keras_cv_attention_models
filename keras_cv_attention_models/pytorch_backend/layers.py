@@ -1405,7 +1405,9 @@ class UpSampling2D(Layer):
         return config
 
     def compute_output_shape(self, input_shape):
-        return [None, input_shape[1], input_shape[2] * self.size[0], input_shape[3] * self.size[1]]
+        height = None if input_shape[2] is None else input_shape[2] * self.size[0]
+        width = None if input_shape[3] is None else input_shape[3] * self.size[1]
+        return [None, input_shape[1], height, width]
 
 
 class ZeroPadding2D(Layer):
