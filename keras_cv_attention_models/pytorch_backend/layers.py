@@ -533,12 +533,13 @@ class BatchNormalization(Layer):
 class _SamePadding(nn.Module):
     """Perform SAME padding like TF"""
 
-    def __init__(self, kernel_size, strides, dilation_rate=1, ndims=2):
+    def __init__(self, kernel_size, strides, dilation_rate=1, ndims=2, value=0):
         super().__init__()
         self.kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else [kernel_size] * ndims
         self.strides = strides if isinstance(strides, (list, tuple)) else [strides] * ndims
         self.dilation_rate = dilation_rate if isinstance(dilation_rate, (list, tuple)) else [dilation_rate] * ndims
         self.ndims = len(self.kernel_size)
+        self.value = value  # For MaxPool2D, needs to be -inf
         self.fixed_padding = None
 
     def build_pad(self, input_shape):
@@ -551,7 +552,7 @@ class _SamePadding(nn.Module):
 
     def forward(self, inputs):
         padding = self.build_pad(inputs.shape) if self.fixed_padding is None else self.fixed_padding
-        return torch.functional.F.pad(inputs, pad=padding)
+        return torch.functional.F.pad(inputs, pad=padding, value=self.value)
 
 
 class _ZeroPadding(Layer):
@@ -579,8 +580,8 @@ class _ZeroPadding(Layer):
 
 
 class _BaseConvPool(Layer):
-    def __init__(self, kernel_size=1, strides=1, padding="VALID", dilation_rate=1, **kwargs):
-        self.kernel_size, self.dilation_rate, self.strides, self.padding = kernel_size, dilation_rate, strides, padding
+    def __init__(self, kernel_size=1, strides=1, padding="VALID", dilation_rate=1, padding_value=0, **kwargs):
+        self.kernel_size, self.dilation_rate, self.strides, self.padding, self.padding_value = kernel_size, dilation_rate, strides, padding, padding_value
         super().__init__(**kwargs)
 
     def build_module(self, input_shape):
@@ -610,7 +611,7 @@ class _BaseConvPool(Layer):
         module = self.build_module(input_shape)
         if max(self.kernel_size) > 0 and padding == "SAME":
             # TF like same padding
-            same_padding = _SamePadding(kernel_size=self.kernel_size, strides=self.strides, dilation_rate=self.dilation_rate, ndims=num_dims)
+            same_padding = _SamePadding(self.kernel_size, strides=self.strides, dilation_rate=self.dilation_rate, ndims=num_dims, value=self.padding_value)
             if None not in input_shape[1:]:
                 same_padding.fixed_padding = same_padding.build_pad(input_shape)  # Set fixed padding
             self.module = nn.Sequential(same_padding, module)
@@ -625,6 +626,7 @@ class _BaseConvPool(Layer):
     def get_config(self):
         config = super().get_config()
         config.update({"kernel_size": self.kernel_size, "strides": self.strides, "padding": self.padding, "dilation_rate": self.dilation_rate})
+        # config.update({"padding_value": self.padding_value})
         return config
 
 
@@ -1217,7 +1219,7 @@ class AvgPool2D(_Pooling2D):
 
 class MaxPool2D(_Pooling2D):
     def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", **kwargs):
-        super().__init__(pool_size=pool_size, strides=strides, padding=padding, reduce=kwargs.pop("reduce", "max"), **kwargs)
+        super().__init__(pool_size=pool_size, strides=strides, padding=padding, reduce=kwargs.pop("reduce", "max"), padding_value=-np.inf, **kwargs)
 
 
 class GlobalAveragePooling1D(Layer):

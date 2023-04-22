@@ -23,6 +23,7 @@ class Validator:
 
     def __call__(self):
         is_pre_training = self.model.training
+        self.model.half()
         self.model.eval()
         dt = Profile(), Profile(), Profile()
         desc = self.validator.get_desc()
@@ -61,6 +62,7 @@ class Validator:
         stats = self.validator.eval_json(stats)  # update stats
         if is_pre_training:
             self.model.train()
+            self.model.float()
         return stats
 
 
@@ -76,7 +78,7 @@ if __name__ == "__main__":
 
     dataset_path = "coco128.yaml"
     train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path)
-    cfg = FakeArgs(data=dataset_path, imgsz=640, iou=0.7, single_cls=False, max_det=300, task="detect", mode="train", split="val", half=False, conf=None)
+    cfg = FakeArgs(data=dataset_path, imgsz=640, iou=0.7, conf=0.001, single_cls=False, max_det=300, task="detect", mode="train", split="val", half=False)
     cfg.update(degrees=0.0, translate=0.1, scale=0.5, shear=0.0, perspective=0.0, hsv_h=0.015, hsv_s=0.7, hsv_v=0.4, flipud=0.0, fliplr=0.5)
     cfg.update(mask_ratio=4, overlap_mask=True, project=None, name=None, save_txt=False, save_hybrid=False, save_json=False, plots=False, verbose=True)
 

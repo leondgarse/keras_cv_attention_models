@@ -81,8 +81,8 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
     close_mosaic = 10
 
     cfg = FakeArgs(data=dataset_path, imgsz=640, iou=0.7, single_cls=False, max_det=300, task="detect", mode="train", split="val", half=False, conf=None)
-    cfg.update(seed=0, degrees=0.0, translate=0.1, scale=0.5, shear=0.0, perspective=0.0, hsv_h=0.015, hsv_s=0.7, hsv_v=0.4, flipud=0.0, fliplr=0.5)
-    cfg.update(mask_ratio=4, overlap_mask=True, project=None, name=None, save_txt=False, save_hybrid=False, save_json=False, plots=False, verbose=True)
+    cfg.update(augment=False, degrees=0.0, translate=0.1, scale=0.5, shear=0.0, perspective=0.0, hsv_h=0.015, hsv_s=0.7, hsv_v=0.4, flipud=0.0, fliplr=0.5)
+    cfg.update(mask_ratio=4, overlap_mask=True, project=None, name=None, save_txt=False, save_hybrid=False, save_json=False, plots=False, verbose=True, seed=0)
     if overwrite_cfg is not None:
         cfg.update(**overwrite_cfg)
     # from ultralytics.yolo.cfg import get_cfg
@@ -91,10 +91,8 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
     # cfg.data = dataset_path
 
     train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path)
-    _ = model.train()
     device = next(model.parameters()).device  # get model device
     compute_loss = losses.Loss(device=device)
-    accumulate = max(round(64 / batch_size), 1)
     optimizer = build_optimizer(model)
     # lf = lambda x: (x * (1 - 0.01) / warmup_epochs + 0.01) if x < warmup_epochs else ((1 - x / epochs) * (1.0 - 0.01) + 0.01)  # linear
     lf = lambda x: (1 - x / epochs) * (1.0 - 0.01) + 0.01  # linear
@@ -105,8 +103,9 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
     ema = ModelEMA(model)
 
     nb = len(train_loader)
-    nbs = 64
     nw = max(round(warmup_epochs * nb), 100)
+    nbs = 64
+    accumulate = max(round(nbs / batch_size), 1)
     warmup_bias_lr = 0.1
     momentum = 0.937
     warmup_momentum = 0.8

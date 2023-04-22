@@ -11,9 +11,9 @@ from ultralytics.yolo.data.dataset import YOLODataset
 
 def to_data_loader(data, cfg, mode="train", batch_size=16):
     if mode == "train":
-        augment, pad, shuffle, rect = True, 0, True, False
+        augment, pad, shuffle, rect, batch_size = True, 0, True, False, batch_size
     else:
-        augment, pad, shuffle, rect = False, 0.5, False, True
+        augment, pad, shuffle, rect, batch_size = False, 0.5, False, False, batch_size * 2
     dataset = YOLODataset(
         img_path=data["train"] if mode == "train" else data["val"],
         imgsz=640,
@@ -38,7 +38,7 @@ def to_data_loader(data, cfg, mode="train", batch_size=16):
     return data_loader
 
 
-def get_data_loader(dataset_path="../ultralytics/ultralytics/datasets/coco.yaml", cfg={}):
+def get_data_loader(dataset_path="coco.yaml", cfg={}):
     cfg = get_cfg(DEFAULT_CFG)
     cfg.data = dataset_path
     data = check_det_dataset(dataset_path)
