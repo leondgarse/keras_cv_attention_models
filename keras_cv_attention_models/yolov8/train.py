@@ -94,13 +94,13 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
     device = next(model.parameters()).device  # get model device
     compute_loss = losses.Loss(device=device)
     optimizer = build_optimizer(model)
+    ema = ModelEMA(model)
     # lf = lambda x: (x * (1 - 0.01) / warmup_epochs + 0.01) if x < warmup_epochs else ((1 - x / epochs) * (1.0 - 0.01) + 0.01)  # linear
     lf = lambda x: (1 - x / epochs) * (1.0 - 0.01) + 0.01  # linear
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
     scaler = amp.GradScaler(enabled=use_amp)
-    validator = eval.Validator(val_loader=val_loader, model=model, cfg=cfg)
+    validator = eval.Validator(val_loader=val_loader, model=ema.ema, cfg=cfg)
     # validator = v8.detect.DetectionValidator(val_loader, save_dir=Path("./test"), args=copy.copy(cfg))
-    ema = ModelEMA(model)
 
     nb = len(train_loader)
     nw = max(round(warmup_epochs * nb), 100)

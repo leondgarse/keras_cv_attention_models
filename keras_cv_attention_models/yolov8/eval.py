@@ -14,16 +14,20 @@ class Validator:
     def __init__(self, model, val_loader, save_dir="./test", cfg={}):
         cfg = copy.copy(cfg)
         cfg.rect, cfg.mode = True, "val"
+        self.device = next(model.parameters()).device
+        cfg.half = self.device.type == "cuda"
+
         validator = v8.detect.DetectionValidator(val_loader, save_dir=Path(save_dir), args=cfg)
         # def eval(validator, model):
         validator.data = check_det_dataset(validator.args.data)
-        validator.device = next(model.parameters()).device
+        validator.device = self.device
         self.n_batches = len(validator.dataloader)
         self.validator, self.model = validator, model
 
     def __call__(self):
         is_pre_training = self.model.training
-        self.model.half()
+        if self.device.type == "cuda":
+            self.model.half()
         self.model.eval()
         dt = Profile(), Profile(), Profile()
         desc = self.validator.get_desc()
@@ -62,6 +66,7 @@ class Validator:
         stats = self.validator.eval_json(stats)  # update stats
         if is_pre_training:
             self.model.train()
+        if self.device.type == "cuda":
             self.model.float()
         return stats
 
