@@ -24,6 +24,7 @@
   - [ConvNeXtV2](#convnextv2)
   - [CoTNet](#cotnet)
   - [DaViT](#davit)
+  - [DINOv2](#dinov2)
   - [EdgeNeXt](#edgenext)
   - [EfficientFormer](#efficientformer)
   - [EfficientFormerV2](#efficientformerv2)
@@ -684,6 +685,15 @@
   | DaViT_L, 21k  | 196.8M | 103.2G | 384   | 87.5     |          |
   | DaViT_H, 1.5B | 348.9M | 327.3G | 512   | 90.2     |          |
   | DaViT_G, 1.5B | 1.406B | 1.022T | 512   | 90.4     |          |
+## DINOv2
+  - [Keras DINOv2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) includes models from [PDF 2304.07193 DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/pdf/2304.07193.pdf).
+
+  | Model              | Params  | FLOPs   | Input | Top1 Acc | Download |
+  | ------------------ | ------- | ------- | ----- | -------- | -------- |
+  | DINOv2_ViT_Small14 | 22.83M  | 47.23G  | 518   | 81.1     | [dinov2_vit_small14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/dinov2_vit_small14_518_imagenet.h5) |
+  | DINOv2_ViT_Base14  | 88.12M  | 152.6G  | 518   | 84.5     | [dinov2_vit_base14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/dinov2_vit_base14_518_imagenet.h5) |
+  | DINOv2_ViT_Large14 | 306.4M  | 509.6G  | 518   | 86.3     | [dinov2_vit_large14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/dinov2_vit_large14_518_imagenet.h5) |
+  | DINOv2_ViT_Giant14 | 1139.6M | 1790.3G | 518   | 86.5     | [dinov2_vit_giant14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/dinov2_vit_giant14_518_imagenet.h5) |
 ## EdgeNeXt
   - [Keras EdgeNeXt](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/edgenext) is for [PDF 2206.10589 EdgeNeXt: Efficiently Amalgamated CNN-Transformer Architecture for Mobile Vision Applications](https://arxiv.org/pdf/2206.10589.pdf).
 

@@ -288,9 +288,11 @@ def keras_reload_from_torch_model(
                 """Torch Run predict"""
                 out = torch_model(torch.from_numpy(np.expand_dims(img.transpose(2, 0, 1), 0).astype("float32")))
                 out = out.detach().cpu().numpy()
+                out = out[None] if len(out.shape) == 1 else out
                 # out = tf.nn.softmax(out).numpy()  # If classifier activation is not softmax
                 torch_out = keras.applications.imagenet_utils.decode_predictions(out)
-            except:
+            except Exception as error:
+                print("[Error] something went wrong in running PyTorch model prediction:", error)
                 pass
     else:
         state_dict = torch_model

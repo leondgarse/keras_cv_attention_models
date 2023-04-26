@@ -23,6 +23,10 @@ PRETRAINED_DICT = {
         "imagenet21k-ft1k": {224: "fce2d162e7fa4dba9a1b1fc5e1dec5ce", 384: "158934d07dd8b1e1c6b96883aa00a748", 512: "64d18088e91df243960e5830aab80a6e"}
     },
     "beit_v2_large_patch16": {"imagenet21k-ft1k": {224: "b3cee12a545bfb676f9f426ee7158d27"}},
+    "dinov2_vit_base14": {"imagenet": {518: "8943697691a511fa472e853c39666d97"}},
+    "dinov2_vit_large14": {"imagenet": {518: "53deb035702a60948688adc858b01af6"}},
+    "dinov2_vit_small14": {"imagenet": {518: "9f823ded0e64beccbd4e19a9fd2b501f"}},
+    "dinov2_vit_giant14": {"imagenet": {518: "12a7cb1f167acb1036d9bfb4e25e796d"}},
     "eva_giant_patch14": {
         "imagenet21k-ft1k": {224: "5a475db6696d6e36ea896ec5dbd1c20d", 336: "fd8eeec10d6b6cb607ce033ea85b8e80", 560: "0ef0d2961523fb2047fbdb59cc347c17"}
     },
@@ -31,6 +35,50 @@ PRETRAINED_DICT = {
     "flexivit_base": {"imagenet": {240: "dac627debb194928db01e1b9b7a548fd"}},
     "flexivit_large": {"imagenet": {240: "6faa953227d2ef1df6758f8eb7234490"}},
 }
+
+
+@backend.register_keras_serializable(package="beit")
+class PositionalEncodingFourierRot(layers.Layer):
+    def __init__(self, temperature=1e4, ref_feature_shape=16, **kwargs):
+        super().__init__(**kwargs)
+        self.temperature, self.ref_feature_shape = float(temperature), ref_feature_shape
+
+    def build(self, input_shape):
+        _, height, width, channels = input_shape  # ex: height, width, filters = 12, 27, 32
+        hh, ww = np.arange(height, dtype="float32"), np.arange(width, dtype="float32")
+        if self.ref_feature_shape is not None and self.ref_feature_shape > 0:
+            # eva's scheme for resizing rope embeddings (ref shape = pretrain)
+            hh = hh / height * self.ref_feature_shape
+            ww = ww / height * self.ref_feature_shape
+
+        pos_fileters = channels // 4
+        grid = np.stack(np.meshgrid(hh, ww, indexing='ij'), axis=-1)
+        dim_t = self.temperature ** (np.arange(pos_fileters, dtype="float32") / pos_fileters)  # (filters,)
+        grid = np.expand_dims(grid, -1) / dim_t
+        grid = np.reshape(grid, [height, width, -1])
+        pos_sin, pos_cos = np.sin(grid), np.cos(grid)
+        pos_sin, pos_cos = np.repeat(pos_sin, 2, axis=-1), np.repeat(pos_cos, 2, axis=-1)
+
+        if hasattr(self, "register_buffer"):  # PyTorch
+            self.register_buffer("pos_sin", functional.convert_to_tensor(pos_sin, dtype="float32"), persistent=False)
+            self.register_buffer("pos_cos", functional.convert_to_tensor(pos_cos, dtype="float32"), persistent=False)
+        else:
+            self.pos_sin = functional.convert_to_tensor(pos_sin, dtype="float32")
+            self.pos_cos = functional.convert_to_tensor(pos_cos, dtype="float32")
+        self.height, self.width, self.channels = height, width, channels
+        super().build(input_shape)
+
+    def call(self, inputs, **kwargs):
+        # def rot(x): return torch.stack([-x[..., 1::2], x[..., ::2]], -1).reshape(x.shape)
+        left, right = functional.split(functional.reshape(inputs, [-1, self.height, self.width, self.channels // 2, 2]), 2, axis=-1)
+        rot = functional.reshape(functional.concat([-right, left], axis=-1), (-1, self.height, self.width, self.channels))
+        # def apply_rot_embed_cat(x: torch.Tensor, emb): return x * cos_emb + rot(x) * sin_emb
+        return inputs * self.pos_cos + rot * self.pos_sin
+
+    def get_config(self):
+        base_config = super().get_config()
+        base_config.update({"ref_feature_shape": self.ref_feature_shape, "temperature": self.temperature})
+        return base_config
 
 
 @backend.register_keras_serializable(package="beit")
@@ -231,7 +279,26 @@ def attention_block(
     return scaled_dot_product_attention(query, key, value, output_shape, pos_emb, out_weight, out_bias, dropout=attn_dropout, name=name)
 
 
-def attention_mlp_block(inputs, embed_dim, gamma_init_value=0.1, mlp_ratio=4, drop_rate=0, activation="gelu", attn_params={}, name=""):
+def swish_gated_mlp(inputs, mlp_ratio=4, name=""):
+    input_channels = inputs.shape[-1]
+    nn = layers.Dense(int(input_channels * mlp_ratio) * 2, name=name + "dense_gate")(inputs)
+    gate, nn = functional.split(nn, 2, axis=-1)
+    # gate = layers.Dense(int(input_channels * mlp_ratio), name=name + "dense_gate")(inputs)
+    gate = activation_by_name(gate, activation="swish", name=name + "gate_")
+    nn = gate * nn
+    nn = layers.Dense(input_channels, name=name + "dense_2")(nn)
+    return nn
+
+
+def mlp_block(inputs, mlp_ratio=4, activation="gelu", name=""):
+    input_channels = inputs.shape[-1]
+    nn = layers.Dense(input_channels * mlp_ratio, name=name + "dense_1")(inputs)
+    nn = activation_by_name(nn, activation, name=name)
+    nn = layers.Dense(input_channels, name=name + "dense_2")(nn)
+    return nn
+
+
+def attention_mlp_block(inputs, gamma_init_value=0.1, mlp_ratio=4, use_swish_gated_mlp=False, drop_rate=0, activation="gelu", attn_params={}, name=""):
     # print(f">>>> {inputs.shape = }, {drop_rate = }")
     nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "attn_ln")(inputs)  # "channels_first" also using axis=-1
     nn = attention_block(nn, **attn_params, name=name + "attn_")
@@ -241,9 +308,10 @@ def attention_mlp_block(inputs, embed_dim, gamma_init_value=0.1, mlp_ratio=4, dr
 
     """ MLP """
     nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "mlp_ln")(attn_out)  # "channels_first" also using axis=-1
-    nn = layers.Dense(embed_dim * mlp_ratio, name=name + "mlp_dense_1")(nn)
-    nn = activation_by_name(nn, activation, name=name + "mlp_")
-    nn = layers.Dense(embed_dim, name=name + "mlp_dense_2")(nn)
+    if use_swish_gated_mlp:
+        nn = swish_gated_mlp(nn, mlp_ratio=mlp_ratio, name=name + "mlp_")
+    else:
+        nn = mlp_block(nn, mlp_ratio=mlp_ratio, activation=activation, name=name + "mlp_")
     nn = ChannelAffine(use_bias=False, weight_init_value=gamma_init_value, name=name + "mlp_gamma")(nn) if gamma_init_value > 0 else nn
     nn = drop_block(nn, drop_rate)
     # print(f">>>> {attn_out.shape = }, {nn.shape = }")
@@ -323,7 +391,9 @@ def Beit(
     gamma_init_value=0.1,  # 0 for Vit, 0.1 for Beit, if > 0 will use `layer_scale` on block output
     use_abs_pos_emb=False,  # True for Vit, False for Beit, whether use abcolute positional embedding or relative one in attention blocks
     use_abs_pos_emb_on_cls_token=True,  # False for FlexiViT, no_embed_class in timm. If use_abs_pos_emb is True, whether apply pos_emb on cls_token.
-    use_mean_pooling=True,  # False for Vit, True for Beit, whether use use mean output or `class_token` output
+    use_swish_gated_mlp=False,  # True for DINOv2
+    use_mean_pooling_head=True,  # False for Vit, True for Beit, whether use use mean output or `class_token` output
+    use_cat_head=False,  # True for DINOv2
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",
@@ -346,7 +416,7 @@ def Beit(
     patch_height = nn.shape[1]
     nn = layers.Reshape([-1, nn.shape[-1]])(nn)
 
-    if use_abs_pos_emb and use_abs_pos_emb_on_cls_token:  # EvaLarge and EvaGiant
+    if use_abs_pos_emb and use_abs_pos_emb_on_cls_token:  # EvaLarge / EvaGiant / DINOv2
         nn = ClassToken(name="cls_token")(nn)
         nn = PositionalEmbedding(input_height=patch_height, name="positional_embedding")(nn)
     elif use_abs_pos_emb:  # FlexiViT models
@@ -372,12 +442,15 @@ def Beit(
     for id in range(depth):
         name = "block{}_".format(id)
         block_drop_rate = drop_connect_rates[id]
-        nn = attention_mlp_block(nn, embed_dim, gamma_init_value, mlp_ratio, block_drop_rate, activation, attn_params, name=name)
+        nn = attention_mlp_block(nn, gamma_init_value, mlp_ratio, use_swish_gated_mlp, block_drop_rate, activation, attn_params, name=name)
 
-    if use_mean_pooling:
+    if use_cat_head:  # DINOv2
+        nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="out_ln")(nn)  # "channels_first" also using axis=-1
+        nn = functional.concat([nn[:, 0], functional.reduce_mean(nn[:, 1:, :], axis=1)], axis=-1)
+    elif use_mean_pooling_head:
         nn = functional.reduce_mean(nn[:, 1:, :], axis=1)
         nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="out_ln")(nn)  # "channels_first" also using axis=-1
-    else:
+    else:  # FlexiViT
         nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="out_ln")(nn)  # "channels_first" also using axis=-1
         nn = nn[:, 0]
 
@@ -429,10 +502,16 @@ def BeitV2LargePatch16(
 def keras_model_load_weights_from_pytorch_model(keras_model, timm_vit_model, save_name=None):
     from keras_cv_attention_models import download_and_load, attention_layers
 
-    skip_weights = ["relative_position_index"]
+    skip_weights = ["relative_position_index", 'mask_token']
     unstack_weights = ["cls_token", "gamma_1", "gamma_2", "relative_position_bias_table", "q_bias", "v_bias", "pos_embed"]
-    tail_align_dict = {"attn_gamma": -6, "mlp_gamma": -9, "attn_query_bias": -1, "attn_value_bias": -1, "attn_pos_emb": -1}
-    full_name_align_dict = {"cls_token": -2 if "flexivit" in keras_model.name else -1, "positional_embedding": -1}
+    if "dinov2" in keras_model.name:
+        tail_align_dict = {}
+    else:
+        tail_align_dict = {"attn_gamma": -6, "mlp_gamma": -9, "attn_query_bias": -1, "attn_value_bias": -1, "attn_pos_emb": -1}
+    if "flexivit" in keras_model.name:
+        full_name_align_dict = {"cls_token": -2, "positional_embedding": -1}
+    else:
+        full_name_align_dict = {"cls_token": -1, "positional_embedding": -1}
     additional_transfer = {attention_layers.MultiHeadRelativePositionalEmbedding: lambda ww: [ww[0].T]}
 
     download_and_load.keras_reload_from_torch_model(

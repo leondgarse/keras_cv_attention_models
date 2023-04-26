@@ -10,6 +10,7 @@ from keras_cv_attention_models.beit.beit import (
 )
 from keras_cv_attention_models.beit.flexivit import ViT, FlexiViTSmall, FlexiViTBase, FlexiViTLarge
 from keras_cv_attention_models.beit.eva import EvaLargePatch14, EvaGiantPatch14
+from keras_cv_attention_models.beit.dinov2 import DINOv2_ViT_Small14, DINOv2_ViT_Base14, DINOv2_ViT_Large14, DINOv2_ViT_Giant14
 
 __beit_head_doc__ = """
 Keras implementation of [beit](https://github.com/microsoft/unilm/tree/master/beit).
@@ -34,6 +35,11 @@ Paper [PDF 2212.08013 FlexiViT: One Model for All Patch Sizes](https://arxiv.org
 __eva_head_doc__ = """
 Keras implementation of [Github baaivision/EVA](https://github.com/baaivision/EVA).
 Paper [PDF 2211.07636 EVA: Exploring the Limits of Masked Visual Representation Learning at Scale](https://arxiv.org/pdf/2211.07636.pdf).
+"""
+
+__dinov2_head_doc__ = """
+Keras implementation of [Github facebookresearch/dinov2](https://github.com/facebookresearch/dinov2).
+Paper [PDF 2304.07193 DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/pdf/2304.07193.pdf).
 """
 
 __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
@@ -76,7 +82,9 @@ Args:
       Default True for Vit, False for Beit.
   use_abs_pos_emb_on_cls_token: boolean value, if `use_abs_pos_emb` is True, whether apply `pos_emb` on `cls_token`.
       False for `FlexiViT`, same as `no_embed_class` in timm. Default True for others.
-  use_mean_pooling: boolean value if use mean output or `class_token` output. Default False for Vit, True for Beit.
+  use_swish_gated_mlp: boolean value if using `dense gated + swish` instead of `activation` in `mlp` block. True for DINOv2, False for others.
+  use_mean_pooling_head: boolean value if use mean output or `class_token` output. Default False for Vit, True for Beit.
+  use_cat_head: boolean value if use mean output concatenated with `class_token` output. Default True for DINOv2, False for others.
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
@@ -108,6 +116,13 @@ Model architectures:
   | EvaGiantPatch14, clip | 1012.6M | 267.40G  | 224   | 89.10    |
   | - m30m                | 1013.0M | 621.45G  | 336   | 89.57    |
   | - m30m                | 1014.4M | 1911.61G | 560   | 89.80    |
+
+  | Model              | Params  | FLOPs   | Input | Top1 Acc |
+  | ------------------ | ------- | ------- | ----- | -------- |
+  | DINOv2_ViT_Small14 | 22.83M  | 47.23G  | 518   | 81.1     |
+  | DINOv2_ViT_Base14  | 88.12M  | 152.6G  | 518   | 84.5     |
+  | DINOv2_ViT_Large14 | 306.4M  | 509.6G  | 518   | 86.3     |
+  | DINOv2_ViT_Giant14 | 1139.6M | 1790.3G | 518   | 86.5     |
 """
 
 Beit.__doc__ = __beit_head_doc__ + __class_tail_doc__
@@ -129,6 +144,11 @@ FlexiViTLarge.__doc__ = FlexiViTSmall.__doc__
 
 EvaLargePatch14.__doc__ = __eva_head_doc__ + __model_tail_doc__
 EvaGiantPatch14.__doc__ = EvaLargePatch14.__doc__
+
+DINOv2_ViT_Small14.__doc__ = __dinov2_head_doc__ + __model_tail_doc__
+DINOv2_ViT_Base14.__doc__ = DINOv2_ViT_Small14.__doc__
+DINOv2_ViT_Large14.__doc__ = DINOv2_ViT_Small14.__doc__
+DINOv2_ViT_Giant14.__doc__ = DINOv2_ViT_Small14.__doc__
 
 MultiHeadRelativePositionalEmbedding.__doc__ = __beit_head_doc__ + """
 Multi Head Relative Positional Embedding layer.

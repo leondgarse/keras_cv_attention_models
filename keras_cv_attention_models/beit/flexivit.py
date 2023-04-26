@@ -16,7 +16,7 @@ def ViT(
     gamma_init_value=0,  # 0 for Vit, 0.1 for Beit, if > 0 will use `layer_scale` on block output
     use_abs_pos_emb=True,  # True for Vit, False for Beit, whether use abcolute positional embedding or relative one in attention blocks
     use_abs_pos_emb_on_cls_token=True,  # False for FlexiViT, no_embed_class in timm. If use_abs_pos_emb is True, whether apply pos_emb on cls_token.
-    use_mean_pooling=False,  # False for Vit, True for Beit, whether use use mean output or `class_token` output
+    use_mean_pooling_head=False,  # False for Vit, True for Beit, whether use use mean output or `class_token` output
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",

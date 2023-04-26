@@ -6,6 +6,7 @@
   - BeitV2 Paper [PDF 2208.06366 BEiT v2: Masked Image Modeling with Vector-Quantized Visual Tokenizers](https://arxiv.org/pdf/2208.06366.pdf).  Model weights reloaded from [Github microsoft/beit2](https://github.com/microsoft/unilm/tree/master/beit2)
   - FlexiViT Paper [PDF 2212.08013 FlexiViT: One Model for All Patch Sizes](https://arxiv.org/pdf/2212.08013.pdf). Model weights reloaded from [Github google-research/big_vision](https://github.com/google-research/big_vision/tree/main/big_vision/configs/proj/flexivit).
   - EVA Paper [PDF 2211.07636 EVA: Exploring the Limits of Masked Visual Representation Learning at Scale](https://arxiv.org/pdf/2211.07636.pdf). Model weights reloaded from [Github baaivision/EVA](https://github.com/baaivision/EVA).
+  - DINOv2 Paper [PDF 2304.07193 DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/pdf/2304.07193.pdf). Model weights reloaded from [Github facebookresearch/dinov2](https://github.com/facebookresearch/dinov2).
 ***
 
 ## Models
@@ -39,6 +40,15 @@
   | EvaGiantPatch14, clip | 1012.6M | 267.40G  | 224   | 88.82    | [eva_giant_patch14_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_224_imagenet21k-ft1k.h5) |
   | - m30m                | 1013.0M | 621.45G  | 336   | 89.57    | [eva_giant_patch14_336.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_336_imagenet21k-ft1k.h5) |
   | - m30m                | 1014.4M | 1911.61G | 560   | 89.80    | [eva_giant_patch14_560.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_560_imagenet21k-ft1k.h5) |
+
+  - **DINOv2 models** Note: `DINOv2_ViT_Giant14` weights are in `float16` format and commpressed by `gzip`, as `float32` ones are too large that exceed 2GB.
+
+  | Model              | Params  | FLOPs   | Input | Top1 Acc | Download |
+  | ------------------ | ------- | ------- | ----- | -------- | -------- |
+  | DINOv2_ViT_Small14 | 22.83M  | 47.23G  | 518   | 81.1     | [dinov2_vit_small14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/dinov2_vit_small14_518_imagenet.h5) |
+  | DINOv2_ViT_Base14  | 88.12M  | 152.6G  | 518   | 84.5     | [dinov2_vit_base14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/dinov2_vit_base14_518_imagenet.h5) |
+  | DINOv2_ViT_Large14 | 306.4M  | 509.6G  | 518   | 86.3     | [dinov2_vit_large14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/dinov2_vit_large14_518_imagenet.h5) |
+  | DINOv2_ViT_Giant14 | 1139.6M | 1790.3G | 518   | 86.5     | [dinov2_vit_giant14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/dinov2_vit_giant14_518_imagenet.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import beit
@@ -71,31 +81,50 @@
   print(mm.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 0.7318501), ('n02123045', 'tabby', 0.021020193), ...]
   ```
-## FlexiViT / EVA models with new patch size
-  - For `FlexiViT` / `EVA` models, when setting new `patch_size`, will reload `stem_conv` weights. Source implementation [Github google-research/big_vision/flexi](https://github.com/google-research/big_vision/blob/main/big_vision/models/proj/flexi/vit.py#L30), paper [PDF 2212.08013 FlexiViT: One Model for All Patch Sizes](https://arxiv.org/pdf/2212.08013.pdf).
+## FlexiViT / EVA / DINOv2 models with new patch size
+  - For `FlexiViT` / `EVA` / `DINOv2` models, when setting new `patch_size`, will reload `stem_conv` weights. Source implementation [Github google-research/big_vision/flexi](https://github.com/google-research/big_vision/blob/main/big_vision/models/proj/flexi/vit.py#L30), paper [PDF 2212.08013 FlexiViT: One Model for All Patch Sizes](https://arxiv.org/pdf/2212.08013.pdf).
   - Not works for `BEiT` models.
   ```py
-  from skimage.data import chelsea
-  from keras_cv_attention_models import flexivit, beit, eva
-
+  from keras_cv_attention_models import flexivit, beit, eva, dinov2
   mm = flexivit.FlexiViTSmall(patch_size=32)  # Original is patch_size=16
   # >>>> Reload mismatched weights: 240 -> (240, 240)
   # >>>> Reload layer: positional_embedding
   # >>>> Reload layer: stem_conv
+
+  from skimage.data import chelsea
   print(mm.decode_predictions(mm(mm.preprocess_input(chelsea())))[0])
   # [('n02124075', 'Egyptian_cat', 0.6939351), ('n02123045', 'tabby', 0.033506528), ...]
   ```
   **Also works for EVA models**
   ```py
-  from skimage.data import chelsea
-  from keras_cv_attention_models import flexivit, beit, eva
-
+  from keras_cv_attention_models import flexivit, beit, eva, dinov2
   mm = beit.EvaLargePatch14(patch_size=32)  # Original is patch_size=14
   # >>>> Reload mismatched weights: 196 -> (196, 196)
   # >>>> Reload layer: positional_embedding
   # >>>> Reload layer: stem_conv
+
+  from skimage.data import chelsea
   print(mm.decode_predictions(mm(mm.preprocess_input(chelsea())))[0])
   # [('n02124075', 'Egyptian_cat', 0.47458684), ('n02123045', 'tabby', 0.04412323), ...]
+  ```
+## Using PyTorch backend
+  - Using PyTorch backend by set `KECAM_BACKEND='torch'` environment variable.
+  ```py
+  os.environ['KECAM_BACKEND'] = 'torch'
+
+  from keras_cv_attention_models import dinov2
+  # >>>> Using PyTorch backend
+
+  mm = dinov2.DINOv2_ViT_Small14(patch_size=32, input_shape=(224, 224, 3))  # Original is patch_size=14
+  # >>>> Aligned input_shape: [3, 224, 224]
+  # >>>> Load pretrained from: ~/.keras/models/dinov2_vit_small14_518_imagenet.h5
+  # >>>> Reload mismatched weights: 518 -> (224, 224)
+  # >>>> Reload layer: stem_conv
+  # >>>> Reload layer: positional_embedding
+
+  from skimage.data import chelsea
+  print(mm.decode_predictions(mm(mm.preprocess_input(chelsea())))[0])
+  # [('n02124075', 'Egyptian_cat', 0.7959234), ('n02123045', 'tabby', 0.12575167), ...]
   ```
 ## Custom ViT models load and convert weights from timm torch model
   - `keras_model_load_weights_from_pytorch_model` can be used for loading most `Beit` / `ViT` / `FlexViT` / `EVA` model weights from initialized timm torch model. Outputs is converted weight file, which can be used for afterward and further usage.
