@@ -168,6 +168,7 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
             model.model.save_weights(model.model.name + ".h5")
         elif hasattr(model, "model") and hasattr(model.model, "state_dict"):
             torch.save(model.model.state_dict(), model.__class__.__name__ + ".pth")
+    return ema
 
 
 if __name__ == "__main__":

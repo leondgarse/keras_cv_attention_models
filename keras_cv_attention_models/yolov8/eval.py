@@ -74,21 +74,18 @@ class Validator:
 if __name__ == "__main__":
     os.environ["KECAM_BACKEND"] = "torch"
     sys.path.append("../ultralytics/")
-    from keras_cv_attention_models.yolov8 import data
-    from keras_cv_attention_models.yolov8 import yolov8, torch_wrapper
-    from keras_cv_attention_models.yolov8.eval import Validator
-    from keras_cv_attention_models.yolov8.train import FakeArgs
+    from keras_cv_attention_models.yolov8 import yolov8, torch_wrapper, train, eval, data
 
     # from ultralytics import YOLO
 
     dataset_path = "coco128.yaml"
-    train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path)
-    cfg = FakeArgs(data=dataset_path, imgsz=640, iou=0.7, conf=0.001, single_cls=False, max_det=300, task="detect", mode="train", split="val", half=False)
+    train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path, rect_val=True)
+    cfg = train.FakeArgs(data=dataset_path, imgsz=640, iou=0.7, conf=0.001, single_cls=False, max_det=300, task="detect", mode="train", split="val", half=False)
     cfg.update(degrees=0.0, translate=0.1, scale=0.5, shear=0.0, perspective=0.0, hsv_h=0.015, hsv_s=0.7, hsv_v=0.4, flipud=0.0, fliplr=0.5)
     cfg.update(mask_ratio=4, overlap_mask=True, project=None, name=None, save_txt=False, save_hybrid=False, save_json=False, plots=False, verbose=True)
 
     # model = YOLO('../ultralytics/ultralytics/models/v8/yolov8n.yaml').model
     model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None)
     model = torch_wrapper.Detect(model)
-    ee = Validator(model, val_loader, cfg=cfg)
+    ee = eval.Validator(model, val_loader, cfg=cfg)
     ee()

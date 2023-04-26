@@ -9,11 +9,11 @@ from ultralytics.yolo.data.utils import check_det_dataset
 from ultralytics.yolo.data.dataset import YOLODataset
 
 
-def to_data_loader(data, cfg, mode="train", batch_size=16):
+def to_data_loader(data, cfg, mode="train", batch_size=16, rect_val=True):
     if mode == "train":
         augment, pad, shuffle, rect, batch_size = True, 0, True, False, batch_size
     else:
-        augment, pad, shuffle, rect, batch_size = False, 0.5, False, False, batch_size * 2
+        augment, pad, shuffle, rect, batch_size = False, 0.5, False, rect_val, batch_size * 2
     dataset = YOLODataset(
         img_path=data["train"] if mode == "train" else data["val"],
         imgsz=640,
@@ -38,11 +38,11 @@ def to_data_loader(data, cfg, mode="train", batch_size=16):
     return data_loader
 
 
-def get_data_loader(dataset_path="coco.yaml", cfg={}):
+def get_data_loader(dataset_path="coco.yaml", cfg={}, batch_size=16, rect_val=True):
     cfg = get_cfg(DEFAULT_CFG)
     cfg.data = dataset_path
     data = check_det_dataset(dataset_path)
-    train_loader, val_loader = to_data_loader(data, cfg), to_data_loader(data, cfg, "val")
+    train_loader, val_loader = to_data_loader(data, cfg), to_data_loader(data, cfg, "val", batch_size=batch_size, rect_val=rect_val)
     return train_loader, val_loader
 
 
