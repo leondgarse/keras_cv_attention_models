@@ -52,7 +52,7 @@ class PositionalEncodingFourierRot(layers.Layer):
             ww = ww / height * self.ref_feature_shape
 
         pos_fileters = channels // 4
-        grid = np.stack(np.meshgrid(hh, ww, indexing='ij'), axis=-1)
+        grid = np.stack(np.meshgrid(hh, ww, indexing="ij"), axis=-1)
         dim_t = self.temperature ** (np.arange(pos_fileters, dtype="float32") / pos_fileters)  # (filters,)
         grid = np.expand_dims(grid, -1) / dim_t
         grid = np.reshape(grid, [height, width, -1])
@@ -502,7 +502,7 @@ def BeitV2LargePatch16(
 def keras_model_load_weights_from_pytorch_model(keras_model, timm_vit_model, save_name=None):
     from keras_cv_attention_models import download_and_load, attention_layers
 
-    skip_weights = ["relative_position_index", 'mask_token']
+    skip_weights = ["relative_position_index", "mask_token"]
     unstack_weights = ["cls_token", "gamma_1", "gamma_2", "relative_position_bias_table", "q_bias", "v_bias", "pos_embed"]
     if "dinov2" in keras_model.name:
         tail_align_dict = {}
