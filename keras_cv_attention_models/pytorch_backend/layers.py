@@ -297,6 +297,10 @@ class Layer(nn.Module):
         param = nn.Parameter(initializer(shape, dtype=dtype), requires_grad=trainable)
         return param
 
+    def register_buffer(self, name, tensor, persistent=True):
+        self.use_layer_as_module = True
+        super().register_buffer(name=name, tensor=tensor, persistent=persistent)
+
     def get_weights(self):
         return [ii.value().detach().cpu().numpy() for ii in self.weights]
 

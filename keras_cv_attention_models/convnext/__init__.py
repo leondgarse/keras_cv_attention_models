@@ -49,8 +49,9 @@ __common_tail_doc__ = """  layer_scale_init_value: layer scale init value, [Goin
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `None`.
   dropout: dropout rate if top layers is included.
-  pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
-      or 'imagenet21k-ft1k' (pre-trined on ImageNet21k, fine-tuning on ImageNet).
+  pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet),
+      or 'imagenet21k-ft1k' (pre-trined on ImageNet21k, fine-tuning on ImageNet),
+      or 'clip-ft1k' (IN-1k fine-tune and IN-12k intermediate fine-tunes for CLIP models).
       Will try to download and load pre-trained model weights if not None.
 
 Returns:
@@ -59,24 +60,25 @@ Returns:
 
 __v1_tail_doc__ = """
 Model architectures:
-  | Model               | Params | FLOPs   | Input | Top1 Acc |
-  | ------------------- | ------ | ------- | ----- | -------- |
-  | ConvNeXtTiny        | 28M    | 4.49G   | 224   | 82.1     |
-  | - ImageNet21k-ft1k  | 28M    | 4.49G   | 224   | 82.9     |
-  | - ImageNet21k-ft1k  | 28M    | 13.19G  | 384   | 84.1     |
-  | ConvNeXtSmall       | 50M    | 8.73G   | 224   | 83.1     |
-  | - ImageNet21k-ft1k  | 50M    | 8.73G   | 224   | 84.6     |
-  | - ImageNet21k-ft1k  | 50M    | 25.67G  | 384   | 85.8     |
-  | ConvNeXtBase        | 89M    | 15.42G  | 224   | 83.8     |
-  | ConvNeXtBase        | 89M    | 45.32G  | 384   | 85.1     |
-  | - ImageNet21k-ft1k  | 89M    | 15.42G  | 224   | 85.8     |
-  | - ImageNet21k-ft1k  | 89M    | 45.32G  | 384   | 86.8     |
-  | ConvNeXtLarge       | 198M   | 34.46G  | 224   | 84.3     |
-  | ConvNeXtLarge       | 198M   | 101.28G | 384   | 85.5     |
-  | - ImageNet21k-ft1k  | 198M   | 34.46G  | 224   | 86.6     |
-  | - ImageNet21k-ft1k  | 198M   | 101.28G | 384   | 87.5     |
-  | ConvNeXtXLarge, 21k | 350M   | 61.06G  | 224   | 87.0     |
-  | ConvNeXtXLarge, 21k | 350M   | 179.43G | 384   | 87.8     |
+  | Model                 | Params | FLOPs   | Input | Top1 Acc |
+  | --------------------- | ------ | ------- | ----- | -------- |
+  | ConvNeXtTiny          | 28M    | 4.49G   | 224   | 82.1     |
+  | - ImageNet21k-ft1k    | 28M    | 4.49G   | 224   | 82.9     |
+  | - ImageNet21k-ft1k    | 28M    | 13.19G  | 384   | 84.1     |
+  | ConvNeXtSmall         | 50M    | 8.73G   | 224   | 83.1     |
+  | - ImageNet21k-ft1k    | 50M    | 8.73G   | 224   | 84.6     |
+  | - ImageNet21k-ft1k    | 50M    | 25.67G  | 384   | 85.8     |
+  | ConvNeXtBase          | 89M    | 15.42G  | 224   | 83.8     |
+  | ConvNeXtBase          | 89M    | 45.32G  | 384   | 85.1     |
+  | - ImageNet21k-ft1k    | 89M    | 15.42G  | 224   | 85.8     |
+  | - ImageNet21k-ft1k    | 89M    | 45.32G  | 384   | 86.8     |
+  | ConvNeXtLarge         | 198M   | 34.46G  | 224   | 84.3     |
+  | ConvNeXtLarge         | 198M   | 101.28G | 384   | 85.5     |
+  | - ImageNet21k-ft1k    | 198M   | 34.46G  | 224   | 86.6     |
+  | - ImageNet21k-ft1k    | 198M   | 101.28G | 384   | 87.5     |
+  | ConvNeXtXLarge, 21k   | 350M   | 61.06G  | 224   | 87.0     |
+  | ConvNeXtXLarge, 21k   | 350M   | 179.43G | 384   | 87.8     |
+  | ConvNeXtXXLarge, clip | 846M   | 198.09G | 256   | 88.6     |
 """
 
 ConvNeXt.__doc__ = __v1_head_doc__ + __common_head_doc__ + __common_tail_doc__ + __v1_tail_doc__
