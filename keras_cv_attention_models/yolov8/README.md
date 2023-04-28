@@ -206,8 +206,8 @@
   # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.855
   ```
 ## Training using PyTorch backend and ultralytics
-  - [Experimental] Training using PyTorch backend, currently using `ultralytics` dataset and validator process. The benefit is that supporting any pyramid staged model in this package.
-  - `rect_val=False` means using fixed data shape `[640, 640]` for validator, or will by dynamic.
+  - **[Experimental] Training using PyTorch backend**, currently using `ultralytics` dataset and validator process. The advantage is that this supports any pyramid staged model in this package.
+  - The parameter `rect_val=False` means using fixed data shape `[640, 640]` for validator, or will by dynamic.
   ```py
   import os, sys
   os.environ["KECAM_BACKEND"] = "torch"
