@@ -270,7 +270,7 @@ def softplus(inputs, name=None):
 
 
 def split(inputs, num_or_size_splits, axis=0, num=None, name=None):
-    axis = len(inputs.shape) - 1 if axis == -1 else axis
+    axis = (len(inputs.shape) + axis) if axis < 0 else axis
     split_axis_shape = inputs.shape[axis]
     assert split_axis_shape is not None
 

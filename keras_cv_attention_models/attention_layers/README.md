@@ -15,6 +15,7 @@
   - **PairWiseRelativePositionalEmbedding** from `swin_transformer_v2`. No weight for this layer, returns a `log` encoded bias depending on input `[height, width]`.
   - **PositionalEmbedding** from `volo`. Positional embedding shape is `[1, height, width, channel]`, then adds directly with input.
   - **PositionalEncodingFourier** from `edgenext`. Layer weight shape depends on parameter `filters` and input channel dimension only, and using `sin` / `cos` encoded distances.
+  - **PositionalEncodingFourierRot** from `eva02`. Applying `sin` / `cos` encoded distances, with shape `pos_sin = pos_cos = [attn_height * attn_width, channels]`, on height / width / channel dimension. Also using `rot` defined as `stack([-inputs[..., 1::2], inputs[..., ::2]], -1).reshape(inputs.shape)`. Then applying positional encoding by `inputs * pos_cos + rot * pos_sin`.
   - **RelativePositionalEmbedding** from `botnet`. Supports both `absolute` / `relative` positional embedding. Layer weights is dotted with input generating positional embedding. It's using same value for all headers.
 ## Attention Blocks
   - **cot_attention** from `cotnet`. It's using `GroupNormalization` / grouped `Conv2D` / `extract_patches` and other strategies.

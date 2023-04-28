@@ -304,6 +304,24 @@ def test_PositionalEncodingFourier():
     assert aa(tf.ones(input_shape)).shape == input_shape
 
 
+def test_PositionalEncodingFourierRot():
+    aa = attention_layers.PositionalEncodingFourierRot()
+    input_shape = [1, 29 * 29 + 1, 3 * 64]
+    assert aa(tf.ones(input_shape)).shape == input_shape
+
+    aa = attention_layers.PositionalEncodingFourierRot(with_cls_token=False)
+    input_shape = [1, 8, 29 * 29, 3 * 64]
+    assert aa(tf.ones(input_shape)).shape == input_shape
+
+    aa = attention_layers.PositionalEncodingFourierRot(with_cls_token=True, num_heads=3)
+    input_shape = [1, 8, 29 * 29 + 1, 3 * 64]
+    assert aa(tf.ones(input_shape)).shape == input_shape
+
+    aa = attention_layers.PositionalEncodingFourierRot(with_cls_token=False, num_heads=3)
+    input_shape = [1, 8, 29 * 29, 3 * 64]
+    assert aa(tf.ones(input_shape)).shape == input_shape
+
+
 def test_RelativePositionalEmbedding():
     aa = attention_layers.RelativePositionalEmbedding()
     hh = pos_hh = 14

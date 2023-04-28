@@ -31,6 +31,7 @@
   - [EfficientNet](#efficientnet)
   - [EfficientNetV2](#efficientnetv2)
   - [EVA](#eva)
+  - [EVA02](#eva02)
   - [FasterNet](#fasternet)
   - [FBNetV3](#fbnetv3)
   - [FlexiViT](#flexivit)
@@ -774,6 +775,15 @@
   | EvaGiantPatch14, clip | 1012.6M | 267.40G  | 224   | 89.10    | [eva_giant_patch14_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_224_imagenet21k-ft1k.h5) |
   | - m30m                | 1013.0M | 621.45G  | 336   | 89.57    | [eva_giant_patch14_336.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_336_imagenet21k-ft1k.h5) |
   | - m30m                | 1014.4M | 1911.61G | 560   | 89.80    | [eva_giant_patch14_560.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_560_imagenet21k-ft1k.h5) |
+## EVA02
+  - [Keras EVA02](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) includes models from [PDF 2303.11331 EVA: EVA-02: A Visual Representation for Neon Genesis](https://arxiv.org/pdf/2303.11331.pdf).
+
+  | Model                                  | Params  | FLOPs   | Input | Top1 Acc | Download |
+  | -------------------------------------- | ------- | ------- | ----- | -------- | -------- |
+  | EVA02TinyPatch14, mim_in22k_ft1k       | 5.76M   | 4.72G   | 336   | 80.658   | [eva02_tiny_patch14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva02_tiny_patch14_336_mim_in22k_ft1k.h5) |
+  | EVA02SmallPatch14, mim_in22k_ft1k      | 22.13M  | 15.57G  | 336   | 85.74    | [eva02_small_patch14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva02_small_patch14_336_mim_in22k_ft1k.h5) |
+  | EVA02BasePatch14, mim_in22k_ft22k_ft1k | 87.12M  | 107.6G  | 448   | 88.692   | [eva02_base_patch14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva02_base_patch14_448_mim_in22k_ft22k_ft1k.h5) |
+  | EVA02LargePatch14, mim_m38m_ft22k_ft1k | 305.08M | 363.68G | 448   | 90.054   | [eva02_large_patch14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva02_large_patch14_448_mim_m38m_ft22k_ft1k.h5) |
 ## FasterNet
   - [Keras FasterNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/fasternet) includes implementation of [PDF 2303.03667 Run, Don’t Walk: Chasing Higher FLOPS for Faster Neural Networks ](https://arxiv.org/pdf/2303.03667.pdf).
 

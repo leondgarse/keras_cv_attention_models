@@ -31,6 +31,7 @@ from keras_cv_attention_models.mlp_family.gated_mlp import spatial_gating_block
 from keras_cv_attention_models.mlp_family.wave_mlp import phase_aware_token_mixing
 from keras_cv_attention_models.volo.volo import outlook_attention, outlook_attention_simple, BiasLayer, PositionalEmbedding, ClassToken, MixupToken
 from keras_cv_attention_models.beit.beit import (
+    PositionalEncodingFourierRot,
     MultiHeadRelativePositionalEmbedding,
     HeadInitializer,
     PatchConv2DWithResampleWeights,

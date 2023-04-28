@@ -31,6 +31,10 @@ PRETRAINED_DICT = {
         "imagenet21k-ft1k": {224: "5a475db6696d6e36ea896ec5dbd1c20d", 336: "fd8eeec10d6b6cb607ce033ea85b8e80", 560: "0ef0d2961523fb2047fbdb59cc347c17"}
     },
     "eva_large_patch14": {"imagenet21k-ft1k": {196: "bbeea886fbde4bd1c8c9876345273a99", 336: "4928faafd0177fe8f0d02dab4abc8e83"}},
+    "eva02_base_patch14": {"mim_in22k_ft22k_ft1k": {448: "fd8cb2e335201fd1925370c78bfb68b0"}},
+    "eva02_large_patch14": {"mim_m38m_ft22k_ft1k": {448: "8a5ba7c06e3f0a2e4c985982b2d93671"}},
+    "eva02_small_patch14": {"mim_in22k_ft1k": {336: "87d87900e8096c3734278aab44c4b5f4"}},
+    "eva02_tiny_patch14": {"mim_in22k_ft1k": {336: "8243463316967ca8f6ee0d0abcc4d236"}},
     "flexivit_small": {"imagenet": {240: "efb73a97d099a491b69ebfaf8a337df8"}},
     "flexivit_base": {"imagenet": {240: "dac627debb194928db01e1b9b7a548fd"}},
     "flexivit_large": {"imagenet": {240: "6faa953227d2ef1df6758f8eb7234490"}},
@@ -39,25 +43,43 @@ PRETRAINED_DICT = {
 
 @backend.register_keras_serializable(package="beit")
 class PositionalEncodingFourierRot(layers.Layer):
-    def __init__(self, temperature=1e4, ref_feature_shape=16, **kwargs):
+    def __init__(self, with_cls_token=True, attn_height=-1, num_heads=-1, temperature=1e4, ref_feature_shape=16, **kwargs):
         super().__init__(**kwargs)
+        self.with_cls_token, self.attn_height, self.num_heads = with_cls_token, attn_height, num_heads
         self.temperature, self.ref_feature_shape = float(temperature), ref_feature_shape
+        self.cls_token_len = 1 if with_cls_token else 0
 
     def build(self, input_shape):
-        _, height, width, channels = input_shape  # ex: height, width, filters = 12, 27, 32
+        # input (with_cls_token=True): `[batch, num_heads, attn_blocks, attn_blocks]`. where `attn_blocks = attn_height * attn_width + class_token`
+        # input (with_cls_token=False): `[batch, num_heads, attn_blocks, attn_blocks]`. where `attn_blocks = attn_height * attn_width`
+        # print(input_shape)
+        if self.attn_height == -1:
+            height = width = int(float(input_shape[-2] - self.cls_token_len) ** 0.5)  # hh == ww, e.g. 14
+        else:
+            height = self.attn_height
+            width = int(float(input_shape[-2] - self.cls_token_len) / height)
+        self.channels = input_shape[-1]
+        self.blocks_shape = [*input_shape[1:-2], input_shape[-2] - self.cls_token_len]
+
         hh, ww = np.arange(height, dtype="float32"), np.arange(width, dtype="float32")
         if self.ref_feature_shape is not None and self.ref_feature_shape > 0:
             # eva's scheme for resizing rope embeddings (ref shape = pretrain)
             hh = hh / height * self.ref_feature_shape
             ww = ww / height * self.ref_feature_shape
 
-        pos_fileters = channels // 4
+        pos_fileters = (self.channels // self.num_heads // 4) if self.num_heads > 0 else (self.channels // 4)
         grid = np.stack(np.meshgrid(hh, ww, indexing="ij"), axis=-1)
         dim_t = self.temperature ** (np.arange(pos_fileters, dtype="float32") / pos_fileters)  # (filters,)
         grid = np.expand_dims(grid, -1) / dim_t
         grid = np.reshape(grid, [height, width, -1])
         pos_sin, pos_cos = np.sin(grid), np.cos(grid)
         pos_sin, pos_cos = np.repeat(pos_sin, 2, axis=-1), np.repeat(pos_cos, 2, axis=-1)
+        # print(f"{pos_sin.shape = }, {pos_cos.shape = }, {height = }, {width = }, {self.channels = }")
+        if self.num_heads > 0:
+            pos_sin = np.repeat(np.expand_dims(pos_sin, axis=-2), self.num_heads, axis=-2).reshape([height * width, self.num_heads * pos_fileters * 4])
+            pos_cos = np.repeat(np.expand_dims(pos_cos, axis=-2), self.num_heads, axis=-2).reshape([height * width, self.num_heads * pos_fileters * 4])
+        else:
+            pos_sin, pos_cos = np.reshape(pos_sin, [height * width, pos_fileters * 4]), np.reshape(pos_cos, [height * width, pos_fileters * 4])
 
         if hasattr(self, "register_buffer"):  # PyTorch
             self.register_buffer("pos_sin", functional.convert_to_tensor(pos_sin, dtype="float32"), persistent=False)
@@ -65,19 +87,24 @@ class PositionalEncodingFourierRot(layers.Layer):
         else:
             self.pos_sin = functional.convert_to_tensor(pos_sin, dtype="float32")
             self.pos_cos = functional.convert_to_tensor(pos_cos, dtype="float32")
-        self.height, self.width, self.channels = height, width, channels
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
+        if self.with_cls_token:
+            cls_token, inputs = functional.split(inputs, [1, -1], axis=-2)  # `[batch, num_heads, class_token + attn_height * attn_width, channels]`
         # def rot(x): return torch.stack([-x[..., 1::2], x[..., ::2]], -1).reshape(x.shape)
-        left, right = functional.split(functional.reshape(inputs, [-1, self.height, self.width, self.channels // 2, 2]), 2, axis=-1)
-        rot = functional.reshape(functional.concat([-right, left], axis=-1), (-1, self.height, self.width, self.channels))
+        left, right = functional.split(functional.reshape(inputs, [-1, *self.blocks_shape, self.channels // 2, 2]), 2, axis=-1)
+        rot = functional.reshape(functional.concat([-right, left], axis=-1), (-1, *self.blocks_shape, self.channels))
         # def apply_rot_embed_cat(x: torch.Tensor, emb): return x * cos_emb + rot(x) * sin_emb
-        return inputs * self.pos_cos + rot * self.pos_sin
+        out = inputs * self.pos_cos + rot * self.pos_sin
+        if self.with_cls_token:
+            out = functional.concat([cls_token, out], axis=-2)
+        return out
 
     def get_config(self):
         base_config = super().get_config()
-        base_config.update({"ref_feature_shape": self.ref_feature_shape, "temperature": self.temperature})
+        base_config.update({"with_cls_token": self.with_cls_token, "attn_height": self.attn_height, "num_heads": self.num_heads})
+        base_config.update({"temperature": self.temperature, "ref_feature_shape": self.ref_feature_shape})
         return base_config
 
 
@@ -253,7 +280,19 @@ def qkv_to_multi_head_channels_last_format(query, key, value, num_heads, data_fo
 
 
 def attention_block(
-    inputs, num_heads=4, key_dim=0, qv_bias=True, qkv_bias=False, out_weight=True, out_bias=False, use_pos_emb=False, attn_height=-1, attn_dropout=0, name=None
+    inputs,
+    num_heads=4,
+    key_dim=0,
+    qv_bias=True,
+    qkv_bias=False,
+    out_weight=True,
+    out_bias=False,
+    use_pos_emb=False,
+    use_rot_pos_emb=False,
+    qk_rope=None,
+    attn_height=-1,
+    attn_dropout=0,
+    name=None,
 ):
     _, bb, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
@@ -263,15 +302,23 @@ def attention_block(
     # if qkv_bias, just use bias in qkv_dense, and set qv_bias False
     qkv_bias, qv_bias = (True, False) if qkv_bias else (False, qv_bias)
 
+    # qv_bias = False
+    # query = layers.Dense(emded_dim, use_bias=True, name=name and name + "query")(inputs)  # For loading eva02 base and large
+    # key = layers.Dense(emded_dim, use_bias=False, name=name and name + "key")(inputs)  # For loading eva02 base and large
+    # value = layers.Dense(emded_dim, use_bias=True, name=name and name + "value")(inputs)  # For loading eva02 base and large
     qkv = layers.Dense(emded_dim * 3, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
-    # print(f">>>> {qkv.shape = }")
-    qkv = functional.reshape(qkv, [-1, bb, qkv.shape[-1]])
+    # qkv = functional.reshape(qkv, [-1, bb, qkv.shape[-1]])
     query, key, value = functional.split(qkv, 3, axis=-1)
     # query = [batch, num_heads, cls_token + hh * ww, key_dim]
+    # print(f">>>> {query.shape = }, {key.shape = }, {value.shape = }")
     if qv_bias:
         query = BiasLayer(name=name + "query_bias")(query)
-    if qv_bias:
         value = BiasLayer(name=name + "value_bias")(value)
+
+    if use_rot_pos_emb:
+        # Create a new one every time, as there's no weights for this layer
+        rope = PositionalEncodingFourierRot(with_cls_token=True, attn_height=attn_height, num_heads=num_heads)
+        query, key = rope(query), rope(key)
     query, key, value = qkv_to_multi_head_channels_last_format(query, key, value, num_heads, data_format="channels_last")
 
     pos_emb = MultiHeadRelativePositionalEmbedding(attn_height=attn_height, name=name and name + "pos_emb") if use_pos_emb else None
@@ -279,40 +326,36 @@ def attention_block(
     return scaled_dot_product_attention(query, key, value, output_shape, pos_emb, out_weight, out_bias, dropout=attn_dropout, name=name)
 
 
-def swish_gated_mlp(inputs, mlp_ratio=4, name=""):
+def mlp_block(inputs, mlp_ratio=4, is_gated=False, use_norm=False, activation="gelu", name=""):
     input_channels = inputs.shape[-1]
-    nn = layers.Dense(int(input_channels * mlp_ratio) * 2, name=name + "dense_gate")(inputs)
-    gate, nn = functional.split(nn, 2, axis=-1)
-    # gate = layers.Dense(int(input_channels * mlp_ratio), name=name + "dense_gate")(inputs)
-    gate = activation_by_name(gate, activation="swish", name=name + "gate_")
-    nn = gate * nn
+    if is_gated:
+        nn = layers.Dense(int(input_channels * mlp_ratio) * 2, name=name + "dense_gate")(inputs)
+        gate, nn = functional.split(nn, 2, axis=-1)
+        # nn = layers.Dense(int(input_channels * mlp_ratio), name=name + "dense_1")(inputs)  # For loading eva02 base and large
+        # gate = layers.Dense(int(input_channels * mlp_ratio), name=name + "dense_gate")(inputs)  # For loading eva02 base and large
+        gate = activation_by_name(gate, activation=activation, name=name + "gate_")
+        nn = gate * nn
+    else:
+        nn = layers.Dense(int(input_channels * mlp_ratio), name=name + "dense_1")(inputs)
+        nn = activation_by_name(nn, activation, name=name)
+    if use_norm:
+        nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "scale_ln")(nn)
     nn = layers.Dense(input_channels, name=name + "dense_2")(nn)
     return nn
 
 
-def mlp_block(inputs, mlp_ratio=4, activation="gelu", name=""):
-    input_channels = inputs.shape[-1]
-    nn = layers.Dense(input_channels * mlp_ratio, name=name + "dense_1")(inputs)
-    nn = activation_by_name(nn, activation, name=name)
-    nn = layers.Dense(input_channels, name=name + "dense_2")(nn)
-    return nn
-
-
-def attention_mlp_block(inputs, gamma_init_value=0.1, mlp_ratio=4, use_swish_gated_mlp=False, drop_rate=0, activation="gelu", attn_params={}, name=""):
+def attention_mlp_block(inputs, layer_scale=0.1, mlp_ratio=4, use_gated_mlp=False, use_norm_mlp=False, drop_rate=0, activation="gelu", attn_params={}, name=""):
     # print(f">>>> {inputs.shape = }, {drop_rate = }")
     nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "attn_ln")(inputs)  # "channels_first" also using axis=-1
     nn = attention_block(nn, **attn_params, name=name + "attn_")
-    nn = ChannelAffine(use_bias=False, weight_init_value=gamma_init_value, name=name + "attn_gamma")(nn) if gamma_init_value > 0 else nn
+    nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "attn_gamma")(nn) if layer_scale > 0 else nn
     nn = drop_block(nn, drop_rate)
     attn_out = layers.Add(name=name + "attn_out")([inputs, nn])
 
     """ MLP """
     nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "mlp_ln")(attn_out)  # "channels_first" also using axis=-1
-    if use_swish_gated_mlp:
-        nn = swish_gated_mlp(nn, mlp_ratio=mlp_ratio, name=name + "mlp_")
-    else:
-        nn = mlp_block(nn, mlp_ratio=mlp_ratio, activation=activation, name=name + "mlp_")
-    nn = ChannelAffine(use_bias=False, weight_init_value=gamma_init_value, name=name + "mlp_gamma")(nn) if gamma_init_value > 0 else nn
+    nn = mlp_block(nn, mlp_ratio=mlp_ratio, is_gated=use_gated_mlp, use_norm=use_norm_mlp, activation=activation, name=name + "mlp_")
+    nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "mlp_gamma")(nn) if layer_scale > 0 else nn
     nn = drop_block(nn, drop_rate)
     # print(f">>>> {attn_out.shape = }, {nn.shape = }")
     nn = layers.Add(name=name + "mlp_output")([attn_out, nn])
@@ -380,23 +423,25 @@ def Beit(
     depth=12,
     embed_dim=768,
     num_heads=12,
-    mlp_ratio=4,
     patch_size=16,
-    attn_key_dim=0,
+    attn_key_dim=0,  # [Attention args]
     attn_qv_bias=True,  # Default False for Vit, True for Beit, if True and attn_qkv_bias being False, will add BiasLayer for query and key.
     attn_qkv_bias=False,  # True for Vit, False for Beit, if True, will just use bias in qkv_dense, and set qv_bias False.
     attn_out_weight=True,
     attn_out_bias=True,
     attn_dropout=0,
-    gamma_init_value=0.1,  # 0 for Vit, 0.1 for Beit, if > 0 will use `layer_scale` on block output
-    use_abs_pos_emb=False,  # True for Vit, False for Beit, whether use abcolute positional embedding or relative one in attention blocks
-    use_abs_pos_emb_on_cls_token=True,  # False for FlexiViT, no_embed_class in timm. If use_abs_pos_emb is True, whether apply pos_emb on cls_token.
-    use_swish_gated_mlp=False,  # True for DINOv2
-    use_mean_pooling_head=True,  # False for Vit, True for Beit, whether use use mean output or `class_token` output
-    use_cat_head=False,  # True for DINOv2
-    input_shape=(224, 224, 3),
+    use_abs_pos_emb=False,  # [Pos emb args] True for Vit, False for Beit, whether use abcolute positional embedding or relative one in attention blocks
+    use_abs_pos_emb_on_cls_token=True,  # [Pos emb args] False for FlexiViT, no_embed_class in timm. If use_abs_pos_emb is True, whether apply pos_emb on cls_token.
+    use_rot_pos_emb=False,  # [Pos emb args] True for EVA02, False for others
+    mlp_ratio=4,  # [MLP args]
+    use_gated_mlp=False,  # [MLP args] True for DINOv2 and EVA02
+    use_norm_mlp=False,  # [MLP args] True for EVA02 base and large, False for others.
+    use_mean_pooling_head=True,  # [Head args] False for Vit, True for Beit, whether use use mean output or `class_token` output
+    use_cat_head=False,  # [Head args] True for DINOv2
+    input_shape=(224, 224, 3),  # [Common args]
     num_classes=1000,
     activation="gelu",
+    layer_scale=0.1,  # 0 for Vit, 0.1 for Beit, if > 0 will use `layer_scale` on block output
     drop_connect_rate=0,
     classifier_activation="softmax",
     pretrained=None,
@@ -416,7 +461,8 @@ def Beit(
     patch_height = nn.shape[1]
     nn = layers.Reshape([-1, nn.shape[-1]])(nn)
 
-    if use_abs_pos_emb and use_abs_pos_emb_on_cls_token:  # EvaLarge / EvaGiant / DINOv2
+    """ Positional embedding """
+    if use_abs_pos_emb and use_abs_pos_emb_on_cls_token:  # ViT / EvaLarge / EvaGiant / DINOv2
         nn = ClassToken(name="cls_token")(nn)
         nn = PositionalEmbedding(input_height=patch_height, name="positional_embedding")(nn)
     elif use_abs_pos_emb:  # FlexiViT models
@@ -425,6 +471,7 @@ def Beit(
     else:  # Beit and BeitV2
         nn = ClassToken(name="cls_token")(nn)
 
+    """ Attention MLP body """
     attn_params = {
         "num_heads": num_heads,
         "key_dim": attn_key_dim,
@@ -433,17 +480,18 @@ def Beit(
         "out_weight": attn_out_weight,
         "out_bias": attn_out_bias,
         "attn_height": patch_height,
-        "attn_dropout": attn_dropout,
         "use_pos_emb": not use_abs_pos_emb,
+        "use_rot_pos_emb": use_rot_pos_emb,
+        "attn_dropout": attn_dropout,
     }
 
-    """ forward_tokens """
     drop_connect_rates = drop_connect_rates_split([depth], 0.0, drop_connect_rate)[0]
     for id in range(depth):
         name = "block{}_".format(id)
         block_drop_rate = drop_connect_rates[id]
-        nn = attention_mlp_block(nn, gamma_init_value, mlp_ratio, use_swish_gated_mlp, block_drop_rate, activation, attn_params, name=name)
+        nn = attention_mlp_block(nn, layer_scale, mlp_ratio, use_gated_mlp, use_norm_mlp, block_drop_rate, activation, attn_params, name=name)
 
+    """ Head """
     if use_cat_head:  # DINOv2
         nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="out_ln")(nn)  # "channels_first" also using axis=-1
         nn = functional.concat([nn[:, 0], functional.reduce_mean(nn[:, 1:, :], axis=1)], axis=-1)
@@ -454,6 +502,7 @@ def Beit(
         nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="out_ln")(nn)  # "channels_first" also using axis=-1
         nn = nn[:, 0]
 
+    """ Output """
     if num_classes > 0:
         head_init = HeadInitializer()
         nn = layers.Dense(
@@ -470,7 +519,7 @@ def BeitBasePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gel
     embed_dim = 768
     depth = 12
     num_heads = 12
-    gamma_init_value = 0.1
+    layer_scale = kwargs.get("layer_scale", 0.1)
     force_reload_mismatch = kwargs.get("patch_size", 16) != 16  # If patch_size not 16, force reload pos_emb and stem_conv weights
     kwargs.pop("kwargs", None)  # From BeitV2BasePatch16
     return Beit(**locals(), model_name=kwargs.pop("model_name", "beit_base_patch16"), **kwargs)
@@ -484,7 +533,7 @@ def BeitLargePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="ge
     embed_dim = 1024
     depth = 24
     num_heads = 16
-    gamma_init_value = 1e-5
+    layer_scale = kwargs.get("layer_scale", 1e-5)
     force_reload_mismatch = kwargs.get("patch_size", 16) != 16  # If patch_size not 16, force reload pos_emb and stem_conv weights
     kwargs.pop("kwargs", None)  # From BeitV2LargePatch16
     return Beit(**locals(), model_name=kwargs.pop("model_name", "beit_large_patch16"), **kwargs)
@@ -494,6 +543,14 @@ def BeitV2LargePatch16(
     input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs
 ):
     return BeitLargePatch16(**locals(), **kwargs, model_name="beit_v2_large_patch16")
+
+
+""" Typical ViT """
+
+
+def ViT(attn_qv_bias=False, attn_qkv_bias=True, use_abs_pos_emb=True, layer_scale=0, use_mean_pooling_head=False, model_name="vit", **kwargs):
+    kwargs.pop("kwargs", None)
+    return Beit(**locals(), **kwargs)
 
 
 """ keras_model_load_weights_from_pytorch_model """

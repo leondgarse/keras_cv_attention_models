@@ -261,6 +261,14 @@ def test_DINOv2_ViT_Small14_new_shape_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_EVA02TinyPatch14_new_shape_predict():
+    mm = keras_cv_attention_models.eva02.EVA02TinyPatch14(input_shape=(224, 224, 3), patch_size=16)
+    pred = mm(mm.preprocess_input(cat()))
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_EdgeNeXt_XX_Small_new_shape_predict():
     mm = keras_cv_attention_models.edgenext.EdgeNeXt_XX_Small(input_shape=(174, 269, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat()))
