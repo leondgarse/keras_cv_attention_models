@@ -341,6 +341,22 @@
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m checkpoints/yoloxtiny_yolor_anchor.h5
     # >>>> [COCOEvalCallback] input_shape: (416, 416), pyramid_levels: [3, 5], anchors_mode: yolor
     ```
+  - [Experimental] Training using PyTorch backend, currently using and `ultralytics` dataset and validator process. The benefit is that supporting any pyramid staged model in this package. `rect_val=False` means using fixed data shape `[640, 640]` for validator, or will by dynamic.
+    ```py
+    import os, sys
+    os.environ["KECAM_BACKEND"] = "torch"
+    sys.path.append(os.path.expanduser("~/workspace/ultralytics/"))
+
+    from keras_cv_attention_models.yolov8 import train, yolov8, torch_wrapper
+    from keras_cv_attention_models import efficientnet
+
+    bb = efficientnet.EfficientNetV2B0(input_shape=(3, 640, 640), num_classes=0)
+    model = yolov8.YOLOV8_N(backbone=bb, classifier_activation=None, pretrained=None).cuda()
+    # model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None).cuda()
+    model = torch_wrapper.Detect(model)
+    ema = train.train(model, dataset_path="coco.yaml", rect_val=False)
+    ```
+    ![yolov8_training](https://user-images.githubusercontent.com/5744524/235142289-cb6a4da0-1ea7-4261-afdd-03a3c36278b8.png)
 ## Visualizing
   - [Visualizing](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/visualizing) is for visualizing convnet filters or attention map scores.
   - **make_and_apply_gradcam_heatmap** is for Grad-CAM class activation visualization.

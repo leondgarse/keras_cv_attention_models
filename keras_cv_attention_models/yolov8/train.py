@@ -67,7 +67,7 @@ def build_optimizer(model, lr=0.01, momentum=0.937, decay=5e-4):
     return optimizer
 
 
-def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_epoch=0, overwrite_cfg=None):
+def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_epoch=0, rect_val=False, overwrite_cfg=None):
     from keras_cv_attention_models.yolov8 import eval, data, losses
 
     if torch.cuda.is_available():
@@ -90,7 +90,7 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
     # cfg = get_cfg(DEFAULT_CFG)
     # cfg.data = dataset_path
 
-    train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path)
+    train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path, rect_val=rect_val)
     device = next(model.parameters()).device  # get model device
     compute_loss = losses.Loss(device=device)
     optimizer = build_optimizer(model)
@@ -168,6 +168,13 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
             model.model.save_weights(model.model.name + ".h5")
         elif hasattr(model, "model") and hasattr(model.model, "state_dict"):
             torch.save(model.model.state_dict(), model.__class__.__name__ + ".pth")
+
+    # Save ema model
+    ema_model = ema.ema.model
+    if hasattr(ema_model, "model") and hasattr(ema_model.model, "save_weights"):
+        ema_model.model.save_weights(ema_model.model.name + "_ema.h5")
+    elif hasattr(ema_model, "model") and hasattr(ema_model.model, "state_dict"):
+        torch.save(ema_model.model.state_dict(), ema_model.__class__.__name__ + "_ema.pth")
     return ema
 
 

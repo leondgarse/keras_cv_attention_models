@@ -9,7 +9,7 @@ from ultralytics.yolo.data.utils import check_det_dataset
 from ultralytics.yolo.data.dataset import YOLODataset
 
 
-def to_data_loader(data, cfg, mode="train", batch_size=16, rect_val=True):
+def to_data_loader(data, cfg, mode="train", batch_size=16, rect_val=False):
     if mode == "train":
         augment, pad, shuffle, rect, batch_size = True, 0, True, False, batch_size
     else:
@@ -38,7 +38,7 @@ def to_data_loader(data, cfg, mode="train", batch_size=16, rect_val=True):
     return data_loader
 
 
-def get_data_loader(dataset_path="coco.yaml", cfg={}, batch_size=16, rect_val=True):
+def get_data_loader(dataset_path="coco.yaml", cfg={}, batch_size=16, rect_val=False):
     cfg = get_cfg(DEFAULT_CFG)
     cfg.data = dataset_path
     data = check_det_dataset(dataset_path)

@@ -1,4 +1,12 @@
 # ___Keras YOLOV8___
+- [Summary](#summary)
+- [Detection Models](#detection-models)
+- [Classification Models](#classification-models)
+- [Usage](#usage)
+- [Custom detector using YOLOV8 header](#custom-detector-using-yolov8-header)
+- [Verification with PyTorch version](#verification-with-pytorch-version)
+- [COCO eval results](#coco-eval-results)
+- [Training using PyTorch backend and ultralytics](#training-using-pytorch-backend-and-ultralytics)
 ***
 
 ## Summary
@@ -197,3 +205,21 @@
   # Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.772
   # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.855
   ```
+## Training using PyTorch backend and ultralytics
+  - [Experimental] Training using PyTorch backend, currently using `ultralytics` dataset and validator process. The benefit is that supporting any pyramid staged model in this package.
+  - `rect_val=False` means using fixed data shape `[640, 640]` for validator, or will by dynamic.
+  ```py
+  import os, sys
+  os.environ["KECAM_BACKEND"] = "torch"
+  sys.path.append(os.path.expanduser("~/workspace/ultralytics/"))
+
+  from keras_cv_attention_models.yolov8 import train, yolov8, torch_wrapper
+  from keras_cv_attention_models import efficientnet
+
+  bb = efficientnet.EfficientNetV2B0(input_shape=(3, 640, 640), num_classes=0)
+  model = yolov8.YOLOV8_N(backbone=bb, classifier_activation=None, pretrained=None).cuda()
+  # model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None).cuda()
+  model = torch_wrapper.Detect(model)
+  ema = train.train(model, dataset_path="coco.yaml", rect_val=False)
+  ```
+  ![yolov8_training](https://user-images.githubusercontent.com/5744524/235142289-cb6a4da0-1ea7-4261-afdd-03a3c36278b8.png)
