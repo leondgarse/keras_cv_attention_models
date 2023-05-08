@@ -158,7 +158,10 @@ class MultiHeadRelativePositionalEmbedding(layers.Layer):
             left_corner = np.concatenate([corner, left], axis=0)
             relative_position_index = np.concatenate([top, relative_position_index], axis=0)
             relative_position_index = np.concatenate([left_corner, relative_position_index], axis=1)  # [197, 197]
-        self.relative_position_index = functional.convert_to_tensor(relative_position_index, dtype="int64")
+        if hasattr(self, "register_buffer"):  # PyTorch
+            self.register_buffer("relative_position_index", functional.convert_to_tensor(relative_position_index, dtype="int64"), persistent=False)
+        else:
+            self.relative_position_index = functional.convert_to_tensor(relative_position_index, dtype="int64")
         super().build(attn_shape)
 
     def call(self, attention_scores, **kwargs):

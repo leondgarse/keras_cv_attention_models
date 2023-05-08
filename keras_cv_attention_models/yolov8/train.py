@@ -50,7 +50,7 @@ class ModelEMA:
                     # assert v.dtype == msd[k].dtype == torch.float32, f'{k}: EMA {v.dtype},  model {msd[k].dtype}'
 
 
-def build_optimizer(model, lr=0.01, momentum=0.937, decay=5e-4):
+def build_optimizer(model, name="sgd", lr=0.01, momentum=0.937, decay=5e-4):
     g = [], [], []  # optimizer parameter groups
     bn = tuple(v for k, v in nn.__dict__.items() if "Norm" in k)  # normalization layers, i.e. BatchNorm2d()
     for v in model.modules():
@@ -61,13 +61,17 @@ def build_optimizer(model, lr=0.01, momentum=0.937, decay=5e-4):
         elif hasattr(v, "weight") and isinstance(v.weight, nn.Parameter):  # weight (with decay)
             g[0].append(v.weight)
 
-    optimizer = torch.optim.SGD(g[2], lr=lr, momentum=momentum, nesterov=True)
+    name_lower = name.lower()
+    if name_lower == "sgd":
+        optimizer = torch.optim.SGD(g[2], lr=lr, momentum=momentum, nesterov=True)
+    elif name_lower == 'adamw':
+        optimizer = torch.optim.AdamW(g[2], lr=lr, betas=(momentum, 0.999), weight_decay=0.0)
     optimizer.add_param_group({"params": g[0], "weight_decay": decay})  # add g0 with weight_decay
     optimizer.add_param_group({"params": g[1], "weight_decay": 0.0})  # add g1 (BatchNorm2d weights)
     return optimizer
 
 
-def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_epoch=0, rect_val=False, overwrite_cfg=None):
+def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_epoch=0, optimizer_name="sgd", rect_val=False, overwrite_cfg=None):
     from keras_cv_attention_models.yolov8 import eval, data, losses
 
     if torch.cuda.is_available():
@@ -80,7 +84,9 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
     warmup_epochs = 3
     close_mosaic = 10
 
-    cfg = FakeArgs(data=dataset_path, imgsz=640, iou=0.7, single_cls=False, max_det=300, task="detect", mode="train", split="val", half=False, conf=None)
+    imgsz = (model.input_shape[2] or 640) if hasattr(model, "input_shape") else 640
+    print(">>>> imgsz:", imgsz)
+    cfg = FakeArgs(data=dataset_path, imgsz=imgsz, iou=0.7, single_cls=False, max_det=300, task="detect", mode="train", split="val", half=False, conf=None)
     cfg.update(augment=False, degrees=0.0, translate=0.1, scale=0.5, shear=0.0, perspective=0.0, hsv_h=0.015, hsv_s=0.7, hsv_v=0.4, flipud=0.0, fliplr=0.5)
     cfg.update(mask_ratio=4, overlap_mask=True, project=None, name=None, save_txt=False, save_hybrid=False, save_json=False, plots=False, verbose=True, seed=0)
     if overwrite_cfg is not None:
@@ -90,10 +96,10 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
     # cfg = get_cfg(DEFAULT_CFG)
     # cfg.data = dataset_path
 
-    train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path, rect_val=rect_val)
+    train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path, batch_size=batch_size, imgsz=imgsz, rect_val=rect_val)
     device = next(model.parameters()).device  # get model device
     compute_loss = losses.Loss(device=device)
-    optimizer = build_optimizer(model)
+    optimizer = build_optimizer(model, name=optimizer_name)
     ema = ModelEMA(model)
     # lf = lambda x: (x * (1 - 0.01) / warmup_epochs + 0.01) if x < warmup_epochs else ((1 - x / epochs) * (1.0 - 0.01) + 0.01)  # linear
     lf = lambda x: (1 - x / epochs) * (1.0 - 0.01) + 0.01  # linear

@@ -70,7 +70,7 @@ def attn_block(
     mlp = layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "mlp_ln")(attn_out)
     mlp = mlp_block(mlp, int(out_channel * mlp_ratio), drop_rate=mlp_drop_rate, use_conv=False, activation=activation, name=name + "mlp_")
     out = add_with_layer_scale_and_drop_block(attn_out, mlp, layer_scale=gamma, drop_rate=drop_rate, axis=-1, name=name + "2_")
-    return out if backend.image_data_format() == "channels_last" else layers.Permute((3, 1, 2), name=name + "permute_post")(out)
+    return out if backend.image_data_format() == "channels_last" else layers.Permute((3, 1, 2), name=name + "permute_post_output")(out)
 
 
 def conv_block(inputs, out_channel, mlp_ratio=4, mlp_drop_rate=0, drop_rate=0, gamma=-1, activation="gelu", name=""):

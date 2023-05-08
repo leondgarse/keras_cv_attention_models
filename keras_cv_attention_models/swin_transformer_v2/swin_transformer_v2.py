@@ -80,7 +80,10 @@ class PairWiseRelativePositionalEmbedding(layers.Layer):
         # torch.sign(relative_coords_table) * torch.log2(torch.abs(relative_coords_table) + 1.0) / math.log2(8)
         relative_log_coords = np.sign(coords) * np.log(1.0 + np.abs(coords)) / (np.log(2.0) * 3.0)
         relative_log_coords = np.reshape(relative_log_coords, [-1, 2])  # [23 * 29, 2]
-        self.relative_log_coords = functional.convert_to_tensor(relative_log_coords, dtype="float32")
+        if hasattr(self, "register_buffer"):  # PyTorch
+            self.register_buffer("relative_log_coords", functional.convert_to_tensor(relative_log_coords, dtype="float32"), persistent=False)
+        else:
+            self.relative_log_coords = functional.convert_to_tensor(relative_log_coords, dtype="float32")
         self.height, self.width = height, width  # For reload with shape mismatched
         super().build(input_shape)
 
@@ -119,7 +122,10 @@ class PairWiseRelativePositionalEmbeddingGather(layers.Layer):
         relative_coords_ww = (relative_coords[:, :, 1] + width - 1) * (2 * height - 1)
         relative_coords_hhww = np.stack([relative_coords_hh, relative_coords_ww], axis=-1)
         relative_position_index = np.sum(relative_coords_hhww, axis=-1)  # [180, 180]
-        self.relative_position_index = functional.convert_to_tensor(relative_position_index, dtype="int64")
+        if hasattr(self, "register_buffer"):  # PyTorch
+            self.register_buffer("relative_position_index", functional.convert_to_tensor(relative_position_index, dtype="float32"), persistent=False)
+        else:
+            self.relative_position_index = functional.convert_to_tensor(relative_position_index, dtype="float32")
         self.height, self.width, self.num_heads = height, width, input_shape[-1]
         super().build(input_shape)
 

@@ -25,8 +25,9 @@ class Detect(nn.Module):
         self.model, self.reg_max, self.num_pyramid_levels, self.export = model, reg_max, num_pyramid_levels, export
         self.device = next(self.model.parameters()).device
 
+        train_input_shape = model.input_shape[2:] if hasattr(model, "input_shape") and model.input_shape[2] is not None else train_input_shape
         train_input_shape = train_input_shape[-2:] if isinstance(train_input_shape, (list, tuple)) else (train_input_shape, train_input_shape)
-        self.input_height, self.input_width = train_input_shape[0], train_input_shape[1]
+        self.input_shape, self.input_height, self.input_width = [None, 3, *train_input_shape], train_input_shape[0], train_input_shape[1]
         self.feature_sizes, self.feature_lens = self.get_feature_sizes(train_input_shape)
 
         output_shape = model.output_shape

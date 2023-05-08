@@ -1,7 +1,9 @@
-# Keras_cv_attention_models
+# Keras_cv_attention_models <img src="https://user-images.githubusercontent.com/5744524/235291937-78bd6cb7-58d7-4f5c-bfbb-d0776d2683b3.png" width="60" align="top">
+***
 - **coco_train_script.py is under testing. Still struggling for this...**
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
+- [**Roadmap and todo list**](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)
 - [General Usage](#general-usage)
   - [Basic](#basic)
   - [Layers](#layers)
@@ -78,9 +80,6 @@
 - [Citing](#citing)
 
 <!-- /TOC -->
-***
-
-# [Roadmap and todo list](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)
 ***
 
 # General Usage
