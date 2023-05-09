@@ -22,7 +22,6 @@
   | YOLOV8_L  | 43.69M | 82.65G | 640   | 52.9        |         | [yolov8_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_coco.h5) |
   | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         | [yolov8_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_coco.h5) |
   | YOLOV8_X6 | 97.42M | 522.6G | 1280  | 56.7 ?      |         | [yolov8_x6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x6_coco.h5) |
-
 ## Classification Models
   | Model        | Params | FLOPs@640 | FLOPs@224 | Input | Top1 Acc | Download |
   | ------------ | ------ | --------- | --------- | ----- | -------- | -------- |
@@ -31,7 +30,6 @@
   | YOLOV8_M_CLS | 17.05M | 20.85G    | 2.56G     | 224   | 76.4     | [yolov8_m_cls.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_m_cls_imagenet.h5) |
   | YOLOV8_L_CLS | 37.48M | 49.41G    | 6.05G     | 224   | 78.0     | [yolov8_l_cls.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_cls_imagenet.h5) |
   | YOLOV8_X_CLS | 57.42M | 76.96G    | 9.43G     | 224   | 78.4     | [yolov8_x_cls.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_cls_imagenet.h5) |
-
 ## Usage
   - **Basic usage**
     ```py
@@ -216,6 +214,7 @@
   from keras_cv_attention_models.yolov8 import train, yolov8, torch_wrapper
   from keras_cv_attention_models import efficientnet
 
+  # model Trainable params: 7,023,904, GFLOPs: 8.1815G
   bb = efficientnet.EfficientNetV2B0(input_shape=(3, 640, 640), num_classes=0)
   model = yolov8.YOLOV8_N(backbone=bb, classifier_activation=None, pretrained=None).cuda()
   # model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None).cuda()

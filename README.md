@@ -1,9 +1,9 @@
-# Keras_cv_attention_models
+# ___Keras_cv_attention_models___
 ***
 - **coco_train_script.py is under testing. Still struggling for this...**
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
-- [**Roadmap and todo list**](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)
+- [___>>>> Roadmap and todo list <<<<___](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)
 - [General Usage](#general-usage)
   - [Basic](#basic)
   - [Layers](#layers)
@@ -340,7 +340,7 @@
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m checkpoints/yoloxtiny_yolor_anchor.h5
     # >>>> [COCOEvalCallback] input_shape: (416, 416), pyramid_levels: [3, 5], anchors_mode: yolor
     ```
-  - **[Experimental] Training using PyTorch backend**, currently using `ultralytics` dataset and validator process. The advantage is that this supports any pyramid staged model in this package. The parameter `rect_val=False` means using fixed data shape `[640, 640]` for validator, or will by dynamic.
+  - **[Experimental] Training using PyTorch backend**, currently using `ultralytics` dataset and validator process. The parameter `rect_val=False` means using fixed data shape `[640, 640]` for validator, or will by dynamic.
     ```py
     import os, sys
     os.environ["KECAM_BACKEND"] = "torch"
@@ -349,6 +349,7 @@
     from keras_cv_attention_models.yolov8 import train, yolov8, torch_wrapper
     from keras_cv_attention_models import efficientnet
 
+    # model Trainable params: 7,023,904, GFLOPs: 8.1815G
     bb = efficientnet.EfficientNetV2B0(input_shape=(3, 640, 640), num_classes=0)
     model = yolov8.YOLOV8_N(backbone=bb, classifier_activation=None, pretrained=None).cuda()
     # model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None).cuda()

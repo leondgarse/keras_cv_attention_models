@@ -123,9 +123,9 @@ class PairWiseRelativePositionalEmbeddingGather(layers.Layer):
         relative_coords_hhww = np.stack([relative_coords_hh, relative_coords_ww], axis=-1)
         relative_position_index = np.sum(relative_coords_hhww, axis=-1)  # [180, 180]
         if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("relative_position_index", functional.convert_to_tensor(relative_position_index, dtype="float32"), persistent=False)
+            self.register_buffer("relative_position_index", functional.convert_to_tensor(relative_position_index, dtype="int64"), persistent=False)
         else:
-            self.relative_position_index = functional.convert_to_tensor(relative_position_index, dtype="float32")
+            self.relative_position_index = functional.convert_to_tensor(relative_position_index, dtype="int64")
         self.height, self.width, self.num_heads = height, width, input_shape[-1]
         super().build(input_shape)
 
