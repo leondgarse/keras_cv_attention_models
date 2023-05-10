@@ -28,7 +28,7 @@
   | DiNAT_Large, 22k          | 200.9M | 30.58G | 224   | 86.6     | [dinat_large_224_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_224_imagenet21k-ft1k.h5) |
   | - 21k num_classes=21841   | 200.9M | 30.58G | 224   |          | [dinat_large_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_imagenet21k.h5) |
   | - 22k, 384                | 200.9M | 89.86G | 384   | 87.4     | [dinat_large_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_384_imagenet21k-ft1k.h5) |
-  | DiNAT_Large_K11, 22k, 384 | 201.1M | 92.57G | 384   | 87.5     | [dinat_large_k11.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_k11_imagenet21k-ft1k.h5) |
+  | DiNAT_Large_K11, 22k, 384 | 201.1M | 92.57G | 384   | 87.5     | [dinat_large_k11_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_k11_imagenet21k-ft1k.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import nat

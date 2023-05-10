@@ -64,7 +64,7 @@ def build_optimizer(model, name="sgd", lr=0.01, momentum=0.937, decay=5e-4):
     name_lower = name.lower()
     if name_lower == "sgd":
         optimizer = torch.optim.SGD(g[2], lr=lr, momentum=momentum, nesterov=True)
-    elif name_lower == 'adamw':
+    elif name_lower == "adamw":
         optimizer = torch.optim.AdamW(g[2], lr=lr, betas=(momentum, 0.999), weight_decay=0.0)
     optimizer.add_param_group({"params": g[0], "weight_decay": decay})  # add g0 with weight_decay
     optimizer.add_param_group({"params": g[1], "weight_decay": 0.0})  # add g1 (BatchNorm2d weights)
