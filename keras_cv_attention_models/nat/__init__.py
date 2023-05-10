@@ -62,16 +62,16 @@ Model architectures:
   | NAT_Small | 50.7M  | 7.84G  | 224   | 83.7     |
   | NAT_Base  | 89.8M  | 13.76G | 224   | 84.3     |
 
-  | Model                   | Params | FLOPs  | Input | Top1 Acc |
-  | ----------------------- | ------ | ------ | ----- | -------- |
-  | DiNAT_Mini              | 20.0M  | 2.73G  | 224   | 81.8     |
-  | DiNAT_Tiny              | 27.9M  | 4.34G  | 224   | 82.7     |
-  | DiNAT_Small             | 50.7M  | 7.84G  | 224   | 83.8     |
-  | DiNAT_Base              | 89.8M  | 13.76G | 224   | 84.4     |
-  | DiNAT_Large, 22k        | 200.9M | 30.58G | 224   | 86.6     |
-  | - 21k num_classes=21841 | 200.9M | 30.58G | 224   |          |
-  | - 22k, 384              | 200.9M | 89.86G | 384   | 87.4     |
-  | DiNAT_Large_K11,22k,384 | 201.1M | 92.57G | 384   | 87.5     |
+  | Model                     | Params | FLOPs  | Input | Top1 Acc |
+  | ------------------------- | ------ | ------ | ----- | -------- |
+  | DiNAT_Mini                | 20.0M  | 2.73G  | 224   | 81.8     |
+  | DiNAT_Tiny                | 27.9M  | 4.34G  | 224   | 82.7     |
+  | DiNAT_Small               | 50.7M  | 7.84G  | 224   | 83.8     |
+  | DiNAT_Base                | 89.8M  | 13.76G | 224   | 84.4     |
+  | DiNAT_Large, 22k          | 200.9M | 30.58G | 224   | 86.6     |
+  | - 21k num_classes=21841   | 200.9M | 30.58G | 224   |          |
+  | - 22k, 384                | 200.9M | 89.86G | 384   | 87.4     |
+  | DiNAT_Large_K11, 22k, 384 | 201.1M | 92.57G | 384   | 87.5     |
 """
 
 NAT_Mini.__doc__ = __head_doc__ + """
