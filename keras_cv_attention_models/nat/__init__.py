@@ -24,8 +24,8 @@ Paper [PDF 2209.15001 Dilated Neighborhood Attention Transformer](https://arxiv.
 
 __tail_doc__ = """  stem_width: output dimension for stem block. Default -1 means using `out_channels[0]`
   attn_kernel_size: kernel_size for `neighborhood_attention` block, defualt 7.
-  use_dilations: True for DiNAT, False for others.
-      Using `dilation_rate=nn.shape[1] // attn_kernel_size` and `[1, dilation_rate, 1, dilation_rate, ...]` in attention blocks.
+  use_every_other_dilations: True for DiNAT, False for others.
+      Using `dilation_rate=nn.shape[1] // attn_kernel_size` in every other attention blocks.
   mlp_ratio: channel expansion ratio for mlp hidden layers, default 3 for NAT_Mini and NAT_Tiny, 2 for NAT_Small and NAT_Base.
   layer_scale: layer scale init value. `-1` means not applying, any value `>=0` will add a scale value for each block output.
       [Going deeper with Image Transformers](https://arxiv.org/pdf/2103.17239.pdf).

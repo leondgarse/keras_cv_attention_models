@@ -184,7 +184,7 @@ def NAT(
     num_heads=[2, 4, 8, 16],
     stem_width=-1,
     attn_kernel_size=7,
-    use_dilations=False,  # True for DiNAT, using `dilation_rate=nn.shape[1] // attn_kernel_size` and `[1, dilation_rate, 1, dilation_rate, ...]` in attn blocks
+    use_every_other_dilations=False,  # True for DiNAT, using `dilation_rate=nn.shape[1] // attn_kernel_size` in every other attention blocks
     mlp_ratio=3,
     layer_scale=-1,
     input_shape=(224, 224, 3),
@@ -219,7 +219,7 @@ def NAT(
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             drop_rate = drop_connect_rate * global_block_id / total_blocks
-            if use_dilations and block_id % 2 == 1:
+            if use_every_other_dilations and block_id % 2 == 1:
                 # input 224 kernel_size 7 -> [8, 4, 2 ,1], input 384 kernel_size 7 -> [13, 6, 3 ,1], input 384 kernel_size 11 -> [8, 4, 2, 1]
                 dilation_rate = (max(1, int(nn.shape[1] // attn_kernel_size)), max(1, int(nn.shape[2] // attn_kernel_size)))
             else:

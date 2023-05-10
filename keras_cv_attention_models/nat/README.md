@@ -5,6 +5,7 @@
   - Keras implementation of [NAT](https://github.com/SHI-Labs/Neighborhood-Attention-Transformer).
   - `NAT` Paper [PDF 2204.07143 Neighborhood Attention Transformer](https://arxiv.org/pdf/2204.07143.pdf).
   - `DiNAT` Paper [PDF 2209.15001 Dilated Neighborhood Attention Transformer](https://arxiv.org/pdf/2209.15001.pdf).
+  - DiNAT is identical to NAT in architecture, with every other layer replaced with Dilated Neighborhood Attention. These variants provide similar or better classification accuracy (except for Tiny), but yield significantly better downstream performance.
   - Model weights reloaded from official publication.
 
   ![nat](https://user-images.githubusercontent.com/5744524/167790694-134a5f58-dac1-4b6f-ae49-5b24013e4f23.png)

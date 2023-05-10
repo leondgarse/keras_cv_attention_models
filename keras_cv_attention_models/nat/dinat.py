@@ -3,15 +3,15 @@ from keras_cv_attention_models.nat.nat import NAT
 
 def DiNAT_Mini(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 5]
-    # use_dilations = [[1, 8, 1], [1, 4, 1, 4], [1, 2] * 3, [1, 1, 1, 1, 1]]
-    use_dilations = True
+    # dilation_rates = [[1, 8, 1], [1, 4, 1, 4], [1, 2] * 3, [1, 1, 1, 1, 1]]
+    use_every_other_dilations = True
     return NAT(**locals(), model_name="dinat_mini", **kwargs)
 
 
 def DiNAT_Tiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 18, 5]
     # dilation_rates = [[1, 8, 1], [1, 4, 1, 4], [1, 2] * 9, [1, 1, 1, 1, 1]]
-    use_dilations = True
+    use_every_other_dilations = True
     return NAT(**locals(), model_name="dinat_tiny", **kwargs)
 
 
@@ -22,7 +22,7 @@ def DiNAT_Small(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", 
     mlp_ratio = kwargs.pop("mlp_ratio", 2)
     # layer_scale = kwargs.pop("layer_scale", 1e-5)
     # dilation_rates = [[1, 8, 1], [1, 4, 1, 4], [1, 2] * 9, [1, 1, 1, 1, 1]]
-    use_dilations = True
+    use_every_other_dilations = True
     return NAT(**locals(), model_name="dinat_small", **kwargs)
 
 
@@ -33,7 +33,7 @@ def DiNAT_Base(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", c
     mlp_ratio = kwargs.pop("mlp_ratio", 2)
     layer_scale = kwargs.pop("layer_scale", 1e-5)
     # dilation_rates = [[1, 8, 1], [1, 4, 1, 4], [1, 2] * 9, [1, 1, 1, 1, 1]]
-    use_dilations = True
+    use_every_other_dilations = True
     return NAT(**locals(), model_name="dinat_base", **kwargs)
 
 
@@ -44,7 +44,7 @@ def DiNAT_Large(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", 
     mlp_ratio = kwargs.pop("mlp_ratio", 2)
     # layer_scale = kwargs.pop("layer_scale", 1e-5)
     # dilation_rates = [[1, 8, 1], [1, 4, 1, 4], [1, 2] * 9, [1, 1, 1, 1, 1]]
-    use_dilations = True
+    use_every_other_dilations = True
     return NAT(**locals(), model_name="dinat_large", **kwargs)
 
 
@@ -55,6 +55,6 @@ def DiNAT_Large_K11(input_shape=(384, 384, 3), num_classes=1000, activation="gel
     mlp_ratio = kwargs.pop("mlp_ratio", 2)
     # layer_scale = kwargs.pop("layer_scale", 1e-5)
     # dilation_rates = [[1, 8, 1], [1, 4, 1, 4], [1, 2] * 9, [1, 1, 1, 1, 1]]
-    use_dilations = True
+    use_every_other_dilations = True
     attn_kernel_size = 11
     return NAT(**locals(), model_name="dinat_large_k11", **kwargs)
