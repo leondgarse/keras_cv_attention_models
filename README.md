@@ -26,6 +26,7 @@
   - [ConvNeXtV2](#convnextv2)
   - [CoTNet](#cotnet)
   - [DaViT](#davit)
+  - [DiNAT](#dinat)
   - [DINOv2](#dinov2)
   - [EdgeNeXt](#edgenext)
   - [EfficientFormer](#efficientformer)
@@ -702,6 +703,19 @@
   | DaViT_L, 21k  | 196.8M | 103.2G | 384   | 87.5     |          |
   | DaViT_H, 1.5B | 348.9M | 327.3G | 512   | 90.2     |          |
   | DaViT_G, 1.5B | 1.406B | 1.022T | 512   | 90.4     |          |
+## DiNAT
+  - [Keras DiNAT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/nat) is for [PDF 2209.15001 Dilated Neighborhood Attention Transformer](https://arxiv.org/pdf/2209.15001.pdf).
+
+  | Model                   | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ----------------------- | ------ | ------ | ----- | -------- | -------- |
+  | DiNAT_Mini              | 20.0M  | 2.73G  | 224   | 81.8     | [dinat_mini_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_mini_imagenet.h5) |
+  | DiNAT_Tiny              | 27.9M  | 4.34G  | 224   | 82.7     | [dinat_tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_tiny_imagenet.h5) |
+  | DiNAT_Small             | 50.7M  | 7.84G  | 224   | 83.8     | [dinat_small_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_small_imagenet.h5) |
+  | DiNAT_Base              | 89.8M  | 13.76G | 224   | 84.4     | [dinat_base_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_base_imagenet.h5) |
+  | DiNAT_Large, 22k        | 200.9M | 30.58G | 224   | 86.6     | [dinat_large_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_224_imagenet21k-ft1k.h5) |
+  | - 21k num_classes=21841 | 200.9M | 30.58G | 224   |          | [dinat_large_imagenet21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_imagenet21k.h5) |
+  | - 22k, 384              | 200.9M | 89.86G | 384   | 87.4     | [dinat_large_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_384_imagenet21k-ft1k.h5) |
+  | DiNAT_Large_K11,22k,384 | 201.1M | 92.57G | 384   | 87.5     | [dinat_large_k11_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_k11_384_imagenet21k-ft1k.h5) |
 ## DINOv2
   - [Keras DINOv2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) includes models from [PDF 2304.07193 DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/pdf/2304.07193.pdf).
 

@@ -263,6 +263,7 @@ def keras_reload_from_torch_model(
     import tensorflow as tf
     from tensorflow import keras
     from keras_cv_attention_models import test_images
+    from keras_cv_attention_models.imagenet.eval_func import decode_predictions
 
     input_shape = input_shape[:2] if keras_model is None else keras_model.input_shape[1:-1]
     if isinstance(torch_model, str):
@@ -290,7 +291,7 @@ def keras_reload_from_torch_model(
                 out = out.detach().cpu().numpy()
                 out = out[None] if len(out.shape) == 1 else out
                 # out = tf.nn.softmax(out).numpy()  # If classifier activation is not softmax
-                torch_out = keras.applications.imagenet_utils.decode_predictions(out)
+                torch_out = decode_predictions(out)
             except Exception as error:
                 print("[Error] something went wrong in running PyTorch model prediction:", error)
                 pass
@@ -346,7 +347,7 @@ def keras_reload_from_torch_model(
         try:
             pred = keras_model(tf.expand_dims(img, 0)).numpy()
             # pred = tf.nn.softmax(pred).numpy()  # If classifier activation is not softmax
-            print(">>>> Keras model prediction:", keras.applications.imagenet_utils.decode_predictions(pred)[0])
+            print(">>>> Keras model prediction:", decode_predictions(pred)[0])
             print()
             if not is_state_dict:
                 print(">>>> Torch model prediction:", torch_out)

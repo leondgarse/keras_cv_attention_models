@@ -7,20 +7,32 @@ from keras_cv_attention_models.nat.nat import (
     MultiHeadRelativePositionalKernelBias,
     neighborhood_attention,
 )
+from keras_cv_attention_models.nat.dinat import (
+    DiNAT_Mini,
+    DiNAT_Tiny,
+    DiNAT_Small,
+    DiNAT_Base,
+    DiNAT_Large,
+    DiNAT_Large_K11,
+)
 
 __head_doc__ = """
 Keras implementation of [NAT](https://github.com/SHI-Labs/Neighborhood-Attention-Transformer).
 Paper [PDF 2204.07143 Neighborhood Attention Transformer](https://arxiv.org/pdf/2204.07143.pdf).
+Paper [PDF 2209.15001 Dilated Neighborhood Attention Transformer](https://arxiv.org/pdf/2209.15001.pdf).
 """
 
 __tail_doc__ = """  stem_width: output dimension for stem block. Default -1 means using `out_channels[0]`
   attn_kernel_size: kernel_size for `neighborhood_attention` block, defualt 7.
+  use_dilations: True for DiNAT, False for others.
+      Using `dilation_rate=nn.shape[1] // attn_kernel_size` and `[1, dilation_rate, 1, dilation_rate, ...]` in attention blocks.
   mlp_ratio: channel expansion ratio for mlp hidden layers, default 3 for NAT_Mini and NAT_Tiny, 2 for NAT_Small and NAT_Base.
   layer_scale: layer scale init value. `-1` means not applying, any value `>=0` will add a scale value for each block output.
       [Going deeper with Image Transformers](https://arxiv.org/pdf/2103.17239.pdf).
       Default -1 for NAT_Mini and NAT_Tiny, 1e-5 for NAT_Small and NAT_Base
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
+  activation: activation used in whole model, default `gelu`.
   drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
       Can be value like `0.2`, indicates the drop probability linearly changes from `0 --> 0.2` for `top --> bottom` layers.
       A higher value means a higher probability will drop the deep branch.
@@ -28,7 +40,8 @@ __tail_doc__ = """  stem_width: output dimension for stem block. Default -1 mean
   dropout: dropout rate if top layers is included.
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
-  pretrained: None or one of ["imagenet", "token_label"].
+  pretrained: None or one of ["imagenet21k-ft1k", "imagenet21k"] for `DiNAT_Large`, or "imagenet21k-ft1k" for `DiNAT_Large_K11`,
+      or "imagenet" for others.
 
 Returns:
     A `keras.Model` instance.
@@ -48,6 +61,17 @@ Model architectures:
   | NAT_Tiny  | 27.9M  | 4.34G  | 224   | 83.2     |
   | NAT_Small | 50.7M  | 7.84G  | 224   | 83.7     |
   | NAT_Base  | 89.8M  | 13.76G | 224   | 84.3     |
+
+  | Model                   | Params | FLOPs  | Input | Top1 Acc |
+  | ----------------------- | ------ | ------ | ----- | -------- |
+  | DiNAT_Mini              | 20.0M  | 2.73G  | 224   | 81.8     |
+  | DiNAT_Tiny              | 27.9M  | 4.34G  | 224   | 82.7     |
+  | DiNAT_Small             | 50.7M  | 7.84G  | 224   | 83.8     |
+  | DiNAT_Base              | 89.8M  | 13.76G | 224   | 84.4     |
+  | DiNAT_Large, 22k        | 200.9M | 30.58G | 224   | 86.6     |
+  | - 21k num_classes=21841 | 200.9M | 30.58G | 224   |          |
+  | - 22k, 384              | 200.9M | 89.86G | 384   | 87.4     |
+  | DiNAT_Large_K11,22k,384 | 201.1M | 92.57G | 384   | 87.5     |
 """
 
 NAT_Mini.__doc__ = __head_doc__ + """
@@ -57,6 +81,13 @@ Args:
 NAT_Tiny.__doc__ = NAT_Mini.__doc__
 NAT_Small.__doc__ = NAT_Mini.__doc__
 NAT_Base.__doc__ = NAT_Mini.__doc__
+
+DiNAT_Mini.__doc__ = NAT_Mini.__doc__
+DiNAT_Tiny.__doc__ = NAT_Mini.__doc__
+DiNAT_Small.__doc__ = NAT_Mini.__doc__
+DiNAT_Base.__doc__ = NAT_Mini.__doc__
+DiNAT_Large.__doc__ = NAT_Mini.__doc__
+DiNAT_Large_K11.__doc__ = NAT_Mini.__doc__
 
 MultiHeadRelativePositionalKernelBias.__doc__ = __head_doc__ + """
 Multi Head Relative Positional Kernel Bias layer. Weights depends on `num_heads` and `kernel_size` not on `input_shape`.
@@ -70,6 +101,7 @@ condition: height >= size, width >= size
 Args:
   input_height: specify `height` for `input` if not square, default -1 assums `input_height == input_width`.
   is_heads_first: boolean value if input is `[batch, num_heads, height * width]` or `[batch, height * width, num_heads]`.
+  dilation_rate: dilation_rate used for last dimension `size * size`.
 
 Examples:
 
@@ -109,6 +141,7 @@ Args:
   out_weight: Boolean, whether use an ouput dense.
   qkv_bias: Boolean, whether the qkv dense layer use bias vectors/matrices.
   out_bias: Boolean, whether the ouput dense layer use bias vectors/matrices.
+  dilation_rate: dilation_rate for extracting `key` and `value` features.
   attn_dropout: Dropout probability for attention scores.
   output_dropout: Dropout probability for attention output.
 

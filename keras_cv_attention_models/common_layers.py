@@ -542,7 +542,8 @@ class CompatibleExtractPatches(layers.Layer):
 
         self.kernel_size = sizes[1] if isinstance(sizes, (list, tuple)) else sizes
         self.strides = strides[1] if isinstance(strides, (list, tuple)) else strides
-        self.dilation_rate = rates[1] if isinstance(rates, (list, tuple)) else rates
+        # dilation_rate can be 2 different values, used in DiNAT
+        self.dilation_rate = (rates if len(rates) == 2 else rates[1:3]) if isinstance(rates, (list, tuple)) else (rates, rates)
         self.filters = self.kernel_size * self.kernel_size
 
         if backend.backend() == "tensorflow":
@@ -580,7 +581,7 @@ class CompatibleExtractPatches(layers.Layer):
         else:
             self._sizes_ = [1, self.kernel_size, self.kernel_size, 1]
             self._strides_ = [1, self.strides, self.strides, 1]
-            self._rates_ = [1, self.dilation_rate, self.dilation_rate, 1]
+            self._rates_ = [1, *self.dilation_rate, 1]
         # output_size = backend.compute_conv_output_size([self.height, self.width], self.kernel_size, self.strides, self.padding, self.dilation_rate)
         # self.output_height, self.output_width = output_size
         super().build(input_shape)

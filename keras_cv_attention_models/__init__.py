@@ -63,6 +63,7 @@ if backend.is_tensorflow_backend:
     from keras_cv_attention_models import halonet
     from keras_cv_attention_models import hornet
     from keras_cv_attention_models import nat
+    from keras_cv_attention_models.nat import dinat
     from keras_cv_attention_models import nfnets
     from keras_cv_attention_models import volo
     from keras_cv_attention_models import visualizing

@@ -166,7 +166,7 @@ def decode_predictions(preds, top=5):
     from keras_cv_attention_models.backend import get_file
 
     preds = np.array(preds.detach() if hasattr(preds, "detach") else preds)
-    if len(preds.shape) != 2 or (preds.shape[-1] != 1000 and preds.shape[-1] != 21843):
+    if len(preds.shape) != 2 or (preds.shape[-1] not in [1000, 21843, 21841]):
         print("[Error] not imagenet or imagenet21k prediction, not supported")
         return
 
