@@ -22,6 +22,12 @@
   | YOLOV8_L  | 43.69M | 82.65G | 640   | 52.9        |         | [yolov8_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_coco.h5) |
   | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         | [yolov8_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_coco.h5) |
   | YOLOV8_X6 | 97.42M | 522.6G | 1280  | 56.7 ?      |         | [yolov8_x6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x6_coco.h5) |
+
+  | Model      | Params | FLOPs  | Input | COCO val AP | test AP | Download |
+  | ---------- | ------ | ------ | ----- | ----------- | ------- | -------- |
+  | YOLO_NAS_S | 12.18M | 15.92G | 640   | 47.5        |         | [yolo_nas_s_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_s_coco.h5) |
+  | YOLO_NAS_M | 31.92M | 43.91G | 640   | 51.55       |         | [yolo_nas_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_m_coco.h5) |
+  | YOLO_NAS_L | 42.02M | 59.95G | 640   | 52.22       |         | [yolo_nas_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_coco.h5) |
 ## Classification Models
   | Model        | Params | FLOPs@640 | FLOPs@224 | Input | Top1 Acc | Download |
   | ------------ | ------ | --------- | --------- | ----- | -------- | -------- |
@@ -47,7 +53,7 @@
     data.show_image_with_bboxes(imm, bboxs, lables, confidences)
     ```
     ![yolov8_n_dog_cat](https://user-images.githubusercontent.com/5744524/230085258-14aee245-0084-4090-a62f-a2f23ce800f5.png)
-  - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`.
+  - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. **Note: For `YOLO_NAS` models, actual input shape needs to be divisible by `32`**.
     ```py
     from keras_cv_attention_models import yolov8
     model = yolov8.YOLOV8_S(input_shape=(None, None, 3), pretrained="coco")
@@ -95,8 +101,8 @@
     # (None, 3, None, None) (None, None, 144)
 
     import torch
-    print(model(torch.ones([1, 3, 742, 355])).shape)
-    # torch.Size([1, 5554, 144])
+    print(model(torch.ones([1, 3, 736, 352])).shape)
+    # torch.Size([1, 5313, 144])
 
     from keras_cv_attention_models import test_images
     imm = test_images.dog_cat()
@@ -222,3 +228,4 @@
   ema = train.train(model, dataset_path="coco.yaml", rect_val=False)
   ```
   ![yolov8_training](https://user-images.githubusercontent.com/5744524/235142289-cb6a4da0-1ea7-4261-afdd-03a3c36278b8.png)
+***

@@ -60,36 +60,61 @@ def init_lr_scheduler(lr_base, lr_decay_steps, lr_min=1e-5, lr_decay_on_batch=Fa
     return lr_scheduler, lr_total_epochs
 
 
-def init_optimizer(optimizer, lr_base, weight_decay, momentum=0.9):
-    import tensorflow_addons as tfa
+def _init_tf_buildin_optimizer_(optimizer_class, lr_base, weight_decay, no_weight_decay, momentum=0.9):
+    import inspect
 
+    default_kwargs = {}
+    is_weight_decay_supported = "weight_decay" in inspect.signature(optimizer_class).parameters  # > TF1.11
+    if is_weight_decay_supported:
+        default_kwargs.update({"weight_decay": weight_decay})
+    if "momentum" in inspect.signature(optimizer_class).parameters:  # SGD / RMSprop
+        default_kwargs.update({"momentum": momentum})
+    optimizer = optimizer_class(learning_rate=lr_base, **default_kwargs)
+
+    if is_weight_decay_supported:
+        optimizer.exclude_from_weight_decay(var_names=no_weight_decay)
+
+    if not hasattr(optimizer, "_variables") and hasattr(optimizer._optimizer, "_variables"):
+        # Bypassing TF 2.11 error AttributeError: 'LossScaleOptimizerV3' object has no attribute '_variables'
+        setattr(optimizer, "variables", optimizer._optimizer.variables)
+    return optimizer
+
+
+def init_optimizer(optimizer, lr_base, weight_decay, momentum=0.9):
     optimizer = optimizer.lower()
+    buildin_optimizers = {"sgd": keras.optimizers.SGD, "rmsprop": keras.optimizers.RMSprop, "adam": keras.optimizers.Adam}
     # norm_weights = ["bn/gamma", "bn/beta", "ln/gamma", "ln/beta", "/positional_embedding", "/bias"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
     no_weight_decay = ["/gamma", "/beta", "/bias", "/positional_embedding", "/no_weight_decay"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
-    if optimizer == "sgd":
-        optimizer = keras.optimizers.SGD(learning_rate=lr_base, momentum=momentum)
-    elif optimizer == "rmsprop":
-        optimizer = keras.optimizers.RMSprop(learning_rate=lr_base, momentum=momentum)
+    if optimizer in buildin_optimizers:
+        optimizer = _init_tf_buildin_optimizer_(buildin_optimizers[optimizer], lr_base, weight_decay, no_weight_decay, momentum)
     elif optimizer == "lamb":
+        import tensorflow_addons as tfa
+
         optimizer = tfa.optimizers.LAMB(learning_rate=lr_base, weight_decay_rate=weight_decay, exclude_from_weight_decay=no_weight_decay, global_clipnorm=1.0)
     elif optimizer == "adamw":
+        import tensorflow_addons as tfa
+
         optimizer = tfa.optimizers.AdamW(learning_rate=lr_base, weight_decay=lr_base * weight_decay, global_clipnorm=1.0)
         if hasattr(optimizer, "exclude_from_weight_decay"):
             setattr(optimizer, "exclude_from_weight_decay", no_weight_decay)
     elif optimizer == "sgdw":
+        import tensorflow_addons as tfa
+
         optimizer = tfa.optimizers.SGDW(learning_rate=lr_base, momentum=momentum, weight_decay=lr_base * weight_decay)
         if hasattr(optimizer, "exclude_from_weight_decay"):
             setattr(optimizer, "exclude_from_weight_decay", no_weight_decay)
     else:
         optimizer = getattr(keras.optimizers, optimizer.capitalize())(learning_rate=lr_base)
+
     return optimizer
 
 
 def is_decoupled_weight_decay(optimizer):
-    import tensorflow_addons as tfa
+    # import tensorflow_addons as tfa
 
     optimizer = optimizer.inner_optimizer if isinstance(optimizer, keras.mixed_precision.LossScaleOptimizer) else optimizer
-    return isinstance(optimizer, tfa.optimizers.weight_decay_optimizers.DecoupledWeightDecayExtension)
+    # return isinstance(optimizer.__module__, tfa.optimizers.weight_decay_optimizers.DecoupledWeightDecayExtension)
+    return optimizer.__module__ == "tensorflow_addons.optimizers.weight_decay_optimizers"
 
 
 def init_loss(bce_threshold=1.0, label_smoothing=0, token_label_loss_weight=0, distill_loss_weight=0, distill_temperature=10, model_output_names=[]):
@@ -136,7 +161,10 @@ def init_model(model=None, input_shape=(224, 224, 3), num_classes=1000, pretrain
         return TorchModelInterf(model)
 
     if model.endswith(".h5"):
-        import tensorflow_addons as tfa
+        try:
+            import tensorflow_addons as tfa
+        except:
+            pass
 
         print(">>>> Restore model from:", model)
         model = keras.models.load_model(model, compile=reload_compile)

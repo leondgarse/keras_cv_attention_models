@@ -6,6 +6,7 @@ from keras_cv_attention_models.attention_layers import (
     batchnorm_with_activation,
     conv2d_no_bias,
     add_pre_post_process,
+    ZeroInitGain,
 )
 from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models.download_and_load import reload_model_weights
@@ -31,17 +32,42 @@ BATCH_NORM_EPSILON = 1e-3
 BATCH_NORM_MOMENTUM = 0.97
 
 
-def conv_bn(inputs, output_channel, kernel_size=1, strides=1, activation="swish", name=""):
+def conv_bn(inputs, output_channel, kernel_size=1, strides=1, use_bias=False, activation="swish", name=""):
     # print(f">>>> {inputs.shape = }, {output_channel = }, {kernel_size = }, {strides = }")
-    nn = conv2d_no_bias(inputs, output_channel, kernel_size, strides, padding="SAME", name=name)
+    nn = conv2d_no_bias(inputs, output_channel, kernel_size, strides, use_bias=use_bias, padding="SAME", name=name)
     return batchnorm_with_activation(nn, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name)
 
 
-def csp_with_2_conv(inputs, channels=-1, depth=2, shortcut=True, expansion=0.5, parallel_mode=True, activation="swish", name=""):
+def reparam_conv_bn(inputs, output_channel, kernel_size=3, strides=1, use_bias=False, activation="swish", name=""):
+    branch_3x3 = conv2d_no_bias(inputs, output_channel, 3, strides, use_bias=use_bias, padding="SAME", name=name + "REPARAM_k3_")
+    branch_3x3 = batchnorm_with_activation(branch_3x3, activation=None, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name + "REPARAM_k3_")
+
+    branch_1x1 = conv2d_no_bias(inputs, output_channel, 1, strides, use_bias=use_bias, padding="VALID", name=name + "REPARAM_k1_")
+    branch_1x1 = batchnorm_with_activation(branch_1x1, activation=None, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name + "REPARAM_k1_")
+
+    out = branch_3x3 + branch_1x1 + inputs
+    return batchnorm_with_activation(out, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name)
+
+
+def csp_with_2_conv(
+    inputs,
+    channels=-1,
+    depth=2,
+    shortcut=True,
+    expansion=0.5,
+    parallel_mode=True,
+    use_bias=False,
+    use_alpha=False,
+    use_reparam_conv=False,
+    activation="swish",
+    name="",
+):
     channel_axis = -1 if image_data_format() == "channels_last" else 1
     channels = channels if channels > 0 else inputs.shape[channel_axis]
     hidden_channels = int(channels * expansion)
 
+    # short = conv_bn(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "short_")  # For YOLO_NAS
+    # deep = conv_bn(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "deep_")  # For YOLO_NAS
     pre = conv_bn(inputs, hidden_channels * 2, kernel_size=1, activation=activation, name=name + "pre_")
     if parallel_mode:
         short, deep = functional.split(pre, 2, axis=channel_axis)
@@ -50,12 +76,20 @@ def csp_with_2_conv(inputs, channels=-1, depth=2, shortcut=True, expansion=0.5, 
 
     out = [short, deep]
     for id in range(depth):
-        deep = conv_bn(deep, hidden_channels, kernel_size=3, activation=activation, name=name + "pre_{}_1_".format(id))
-        deep = conv_bn(deep, hidden_channels, kernel_size=3, activation=activation, name=name + "pre_{}_2_".format(id))
-        deep = (out[-1] + deep) if shortcut else deep
+        cur_short = ZeroInitGain(name=name + "short_{}_alpha".format(id))(out[-1]) if use_alpha else out[-1]
+        cur_name = name + "pre_{}_".format(id)
+        if use_reparam_conv:
+            deep = reparam_conv_bn(deep, hidden_channels, kernel_size=3, use_bias=use_bias, activation=activation, name=cur_name + "1_")
+            deep = reparam_conv_bn(deep, hidden_channels, kernel_size=3, use_bias=use_bias, activation=activation, name=cur_name + "2_")
+        else:
+            deep = conv_bn(deep, hidden_channels, kernel_size=3, use_bias=use_bias, activation=activation, name=cur_name + "1_")
+            deep = conv_bn(deep, hidden_channels, kernel_size=3, use_bias=use_bias, activation=activation, name=cur_name + "2_")
+
+        deep = (cur_short + deep) if shortcut else deep
         out.append(deep)
     # parallel_mode=False for YOLOV8_X6 `path_aggregation_fpn` C2 module, only concat `short` and the last `deep` one.
     out = functional.concat(out, axis=channel_axis) if parallel_mode else functional.concat([deep, short], axis=channel_axis)
+    # out = functional.concat([*out[1:], out[0]], axis=channel_axis) if parallel_mode else functional.concat([deep, short], axis=channel_axis)  # For YOLO_NAS
     out = conv_bn(out, channels, kernel_size=1, activation=activation, name=name + "output_")
     return out
 
@@ -79,6 +113,11 @@ def YOLOV8Backbone(
     channels=[32, 64, 128, 256],
     depthes=[1, 2, 2, 1],
     out_features=[-3, -2, -1],
+    csp_expansions=0.5,
+    csp_parallel_mode=True,
+    use_alpha=False,
+    use_bias=False,
+    use_reparam_conv=False,
     input_shape=(640, 640, 3),
     activation="swish",
     num_classes=0,  # > 0 value for classification model
@@ -103,16 +142,19 @@ def YOLOV8Backbone(
     """ Stem """
     # stem_width = stem_width if stem_width > 0 else channels[0]
     stem_width = channels[0]
-    nn = conv_bn(inputs, stem_width // 2, kernel_size=3, strides=2, activation=activation, name="stem_1_")
-    nn = conv_bn(nn, stem_width, kernel_size=3, strides=2, activation=activation, name="stem_2_")
+    nn = conv_bn(inputs, stem_width // 2, kernel_size=3, strides=2, use_bias=use_bias, activation=activation, name="stem_1_")
+    nn = conv_bn(nn, stem_width, kernel_size=3, strides=2, use_bias=use_bias, activation=activation, name="stem_2_")
 
     """ blocks """
+    block_kwargs = dict(use_bias=use_bias, use_alpha=use_alpha, use_reparam_conv=use_reparam_conv, activation=activation)
     features = [nn]
     for stack_id, (channel, depth) in enumerate(zip(channels, depthes)):
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id >= 1:
-            nn = conv_bn(nn, channel, kernel_size=3, strides=2, activation=activation, name=stack_name + "downsample_")
-        nn = csp_with_2_conv(nn, depth=depth, expansion=0.5, activation=activation, name=stack_name + "c2f_")
+            nn = conv_bn(nn, channel, kernel_size=3, strides=2, use_bias=use_bias, activation=activation, name=stack_name + "downsample_")
+        csp_expansion = csp_expansions[stack_id] if isinstance(csp_expansions, (list, tuple)) else csp_expansions
+        parallel_mode = csp_parallel_mode[stack_id] if isinstance(csp_parallel_mode, (list, tuple)) else csp_parallel_mode
+        nn = csp_with_2_conv(nn, depth=depth, expansion=csp_expansion, parallel_mode=parallel_mode, **block_kwargs, name=stack_name + "c2f_")
 
         if not is_classification_model and stack_id == len(depthes) - 1:
             nn = spatial_pyramid_pooling_fast(nn, pool_size=5, activation=activation, name=stack_name + "spp_fast_")
@@ -134,7 +176,7 @@ def YOLOV8Backbone(
     return model
 
 
-def path_aggregation_fpn(features, depth=3, parallel_mode=True, activation="swish", name=""):
+def path_aggregation_fpn(features, depth=3, parallel_mode=True, use_reparam_conv=False, activation="swish", name=""):
     # yolov8
     # 9: p5 1024 ---+----------------------+-> 21: out2 1024
     #               v [up 1024 -> concat]  ^ [down 512 -> concat]
@@ -154,7 +196,9 @@ def path_aggregation_fpn(features, depth=3, parallel_mode=True, activation="swis
         nn = functional.concat([nn, feature], axis=channel_axis)
 
         out_channel = feature.shape[channel_axis]
-        nn = csp_with_2_conv(nn, channels=out_channel, depth=depth, shortcut=False, parallel_mode=parallel_mode, activation=activation, name=name + p_name)
+        nn = csp_with_2_conv(
+            nn, out_channel, depth, shortcut=False, parallel_mode=parallel_mode, use_reparam_conv=use_reparam_conv, activation=activation, name=name + p_name
+        )
         upsamples.append(nn)
 
     downsamples = [upsamples[-1]]
@@ -165,30 +209,48 @@ def path_aggregation_fpn(features, depth=3, parallel_mode=True, activation="swis
         nn = functional.concat([nn, ii], axis=channel_axis)
 
         out_channel = ii.shape[channel_axis]
-        nn = csp_with_2_conv(nn, channels=out_channel, depth=depth, shortcut=False, parallel_mode=parallel_mode, activation=activation, name=cur_name)
+        nn = csp_with_2_conv(
+            nn, out_channel, depth=depth, shortcut=False, parallel_mode=parallel_mode, use_reparam_conv=use_reparam_conv, activation=activation, name=cur_name
+        )
         downsamples.append(nn)
     return downsamples
 
 
 def yolov8_head(
-    inputs, num_classes=80, regression_len=64, num_anchors=1, use_object_scores=False, activation="swish", classifier_activation="sigmoid", name=""
+    inputs,
+    num_classes=80,
+    regression_len=64,
+    num_anchors=1,
+    depth=2,
+    hidden_channels=-1,
+    use_object_scores=False,
+    activation="swish",
+    classifier_activation="sigmoid",
+    name="",
 ):
     channel_axis = -1 if image_data_format() == "channels_last" else 1
 
     outputs = []
-    reg_channels = max(16, regression_len, inputs[0].shape[channel_axis] // 4)
-    cls_channels = max(num_classes, inputs[0].shape[channel_axis])
-    for id, feature in enumerate(inputs):
+    if hidden_channels == -1:
+        reg_channel = max(64, regression_len, inputs[0].shape[channel_axis] // 4)
+        cls_channel = max(num_classes, inputs[0].shape[channel_axis])
+        reg_channels, cls_channels = [reg_channel] * len(inputs), [cls_channel] * len(inputs)
+    elif isinstance(hidden_channels, (list, tuple)):
+        reg_channels, cls_channels = hidden_channels, hidden_channels
+
+    for id, (feature, reg_channel, cls_channel) in enumerate(zip(inputs, reg_channels, cls_channels)):
         cur_name = name + "{}_".format(id + 1)
 
-        reg_nn = conv_bn(feature, reg_channels, 3, activation=activation, name=cur_name + "reg_1_")
-        reg_nn = conv_bn(reg_nn, reg_channels, 3, activation=activation, name=cur_name + "reg_2_")
+        reg_nn = feature
+        for id in range(depth):
+            reg_nn = conv_bn(reg_nn, reg_channel, 3, activation=activation, name=cur_name + "reg_{}_".format(id + 1))
         reg_out = conv2d_no_bias(reg_nn, regression_len * num_anchors, 1, use_bias=True, bias_initializer="ones", name=cur_name + "reg_3_")
 
         strides = 2 ** (id + 3)
         bias_init = initializers.constant(math.log(5 / num_classes / (640 / strides) ** 2))
-        cls_nn = conv_bn(feature, cls_channels, 3, activation=activation, name=cur_name + "cls_1_")
-        cls_nn = conv_bn(cls_nn, cls_channels, 3, activation=activation, name=cur_name + "cls_2_")
+        cls_nn = feature
+        for id in range(depth):
+            cls_nn = conv_bn(cls_nn, cls_channel, 3, activation=activation, name=cur_name + "cls_{}_".format(id + 1))
         cls_out = conv2d_no_bias(cls_nn, num_classes * num_anchors, 1, use_bias=True, bias_initializer=bias_init, name=cur_name + "cls_3_")
         if classifier_activation is not None:
             cls_out = activation_by_name(cls_out, classifier_activation, name=cur_name + "classifier_")
@@ -217,6 +279,7 @@ def YOLOV8(
     csp_depthes=[1, 2, 2, 1],
     features_pick=[-3, -2, -1],  # [Detector parameters]
     regression_len=64,  # bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64
+    use_reparam_conv=False,  # Use reparam_conv_bn instead of conv_bn block in all csp_blocks.
     paf_parallel_mode=True,  # paf_parallel_mode=False for YOLOV8_X6 `path_aggregation_fpn` module, only concat `short` and the last `deep` one.
     anchors_mode="yolov8",
     num_anchors="auto",  # "auto" means: anchors_mode=="anchor_free" / "yolov8" -> 1, anchors_mode=="yolor" -> 3, else 9
@@ -235,7 +298,7 @@ def YOLOV8(
 ):
     if backbone is None:
         backbone = YOLOV8Backbone(
-            channels=csp_channels, depthes=csp_depthes, out_features=features_pick, input_shape=input_shape, activation=activation, model_name="backbone"
+            csp_channels, csp_depthes, features_pick, use_reparam_conv=use_reparam_conv, input_shape=input_shape, activation=activation, model_name="backbone"
         )
         features = backbone.outputs
     else:
@@ -251,10 +314,12 @@ def YOLOV8(
     use_object_scores, num_anchors, anchor_scale = anchors_func.get_anchors_mode_parameters(anchors_mode, use_object_scores, num_anchors, anchor_scale)
     inputs = backbone.inputs[0]
 
-    fpn_features = path_aggregation_fpn(features, depth=csp_depthes[-1], parallel_mode=paf_parallel_mode, activation=activation, name="pafpn_")
+    fpn_features = path_aggregation_fpn(features, csp_depthes[-1], paf_parallel_mode, use_reparam_conv=use_reparam_conv, activation=activation, name="pafpn_")
 
-    outputs = yolov8_head(fpn_features, num_classes, regression_len, num_anchors, use_object_scores, activation, classifier_activation, name="head_")
+    header_kwargs = {"use_object_scores": use_object_scores, "activation": activation, "classifier_activation": classifier_activation}
+    outputs = yolov8_head(fpn_features, num_classes, regression_len, num_anchors, **header_kwargs, name="head_")
     outputs = layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
+
     model = models.Model(inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "yolov8", pretrained)
 

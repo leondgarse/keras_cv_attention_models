@@ -56,6 +56,7 @@ from keras_cv_attention_models import yolox
 from keras_cv_attention_models import yolor
 from keras_cv_attention_models import yolov7
 from keras_cv_attention_models import yolov8
+from keras_cv_attention_models.yolov8 import yolo_nas
 from keras_cv_attention_models import coco
 
 if backend.is_tensorflow_backend:

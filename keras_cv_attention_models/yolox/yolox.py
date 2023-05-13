@@ -146,11 +146,11 @@ def downsample_merge(inputs, csp_depth, use_depthwise_conv=False, activation="sw
 
 
 def path_aggregation_fpn(features, depth_mul=1, use_depthwise_conv=False, activation="swish", name=""):
-    # p5 ─> fpn_out0 ───────────> pan_out0
-    #          ↓                     ↑
-    # p4 ─> f_out0 ─> fpn_out1 ─> pan_out1
-    #                    ↓           ↑
-    # p3 ───────────> pan_out2 ──────┘
+    # p5 -> fpn_out0 -------------+-> pan_out0
+    #       v                     ^
+    # p4 -> f_out0 -> fpn_out1 ---+-> pan_out1
+    #                 v           ^
+    # p3 -----------> pan_out2 ---+-> pan_out2
     csp_depth = max(round(depth_mul * 3), 1)
     p3, p4, p5 = features  # p3: [64, 64, 256], p4: [32, 32, 512], p5: [16, 16, 1024]
     # fpn_out0: [16, 16, 512], f_out0: [32, 32, 512]

@@ -13,6 +13,7 @@ from keras_cv_attention_models.yolov8.yolov8 import (
     YOLOV8_L_CLS,
     YOLOV8_X_CLS,
 )
+from keras_cv_attention_models.yolov8.yolo_nas import YOLO_NAS, YOLO_NAS_S, YOLO_NAS_M, YOLO_NAS_L
 
 __head_doc__ = """
 Keras implementation of [Github ultralytics/ultralytics](https://github.com/ultralytics/ultralytics).
@@ -27,6 +28,10 @@ Args:
 __detector_tail_doc__ = """  features_pick: specific `layer names` or `pyramid feature indexes` from backbone model.
         Default `[-3, -2, -1]` means using the last 3 pyramid feature output from backbone.
   regression_len: bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64.
+      For YOLO_NAS, it's 17 * 4 == 68.
+  use_reparam_conv: boolean value if using `reparam_conv_bn` instead of `conv_bn` block in all `csp_block`s.
+      `reparam_conv_bn` is a block with `Conv_3x3+BN(inputs) + Conv_1x1+BN(inputs) + inputs`,
+      and can be reparametered to a single `Conv_3x3` layer after training.
   paf_parallel_mode: False for YOLOV8_X6 and True for others.
       If False, only concat `short` and the last `deep` one in `path_aggregation_fpn` module.
   anchors_mode: one of ["efficientdet", "anchor_free", "yolor", "yolov8"], controls which anchor to use.
@@ -79,6 +84,12 @@ Model architectures:
   | YOLOV8_L  | 43.69M | 82.65G | 640   | 52.9        |         |
   | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         |
   | YOLOV8_X6 | 97.42M | 522.6G | 1280  | 56.7 ?      |         |
+
+  | Model      | Params | FLOPs  | Input | COCO val AP | test AP |
+  | ---------- | ------ | ------ | ----- | ----------- | ------- |
+  | YOLO_NAS_S | 12.18M | 15.92G | 640   | 47.5        |         |
+  | YOLO_NAS_M | 31.92M | 43.91G | 640   | 51.55       |         |
+  | YOLO_NAS_L | 42.02M | 59.95G | 640   | 52.22       |         |
 """
 
 YOLOV8_N.__doc__ = __head_doc__ + __detector_head_doc__ + __detector_tail_doc__
@@ -87,6 +98,11 @@ YOLOV8_M.__doc__ = YOLOV8_N.__doc__
 YOLOV8_L.__doc__ = YOLOV8_N.__doc__
 YOLOV8_X.__doc__ = YOLOV8_N.__doc__
 YOLOV8_X6.__doc__ = YOLOV8_N.__doc__
+
+YOLO_NAS.__doc__ = YOLOV8.__doc__
+YOLO_NAS_S.__doc__ = YOLOV8_N.__doc__
+YOLO_NAS_M.__doc__ = YOLOV8_N.__doc__
+YOLO_NAS_L.__doc__ = YOLOV8_N.__doc__
 
 __classifier_tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.

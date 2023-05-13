@@ -747,7 +747,6 @@ class ConvTranspose(_BaseConvPool):
         self.kernel_initializer, self.bias_initializer = kernel_initializer, bias_initializer
         self.output_padding = to_tuple(output_padding, num_dims=2)
         self.module_class = None
-        super().__init__(**kwargs)
 
     def build_module(self, input_shape):
         if self.module_class is None:

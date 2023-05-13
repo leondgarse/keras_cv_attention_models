@@ -73,6 +73,7 @@
   - [WaveMLP](#wavemlp)
 - [Detection Models](#detection-models)
   - [EfficientDet](#efficientdet)
+  - [YOLO_NAS](#yolo_nas)
   - [YOLOR](#yolor)
   - [YOLOV7](#yolov7)
   - [YOLOV8](#yolov8)
@@ -1283,6 +1284,14 @@
   | EfficientDetLite3  | 8.4M   | 7.50G   | 512   | 39.9        | 38.77   | [efficientdet_lite3.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3_512_coco.h5)   |
   | EfficientDetLite3X | 9.3M   | 14.01G  | 640   | 44.0        | 42.64   | [efficientdet_lite3x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3x_640_coco.h5) |
   | EfficientDetLite4  | 15.1M  | 20.20G  | 640   | 44.4        | 43.18   | [efficientdet_lite4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite4_640_coco.h5)   |
+## YOLO_NAS
+  - [Keras YOLO_NAS](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolov8) includes implementation of [Github Deci-AI/super-gradients](https://github.com/Deci-AI/super-gradients) YOLO-NAS models.
+
+  | Model      | Params | FLOPs  | Input | COCO val AP | test AP | Download |
+  | ---------- | ------ | ------ | ----- | ----------- | ------- | -------- |
+  | YOLO_NAS_S | 12.18M | 15.92G | 640   | 47.5        |         | [yolo_nas_s_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_s_coco.h5) |
+  | YOLO_NAS_M | 31.92M | 43.91G | 640   | 51.55       |         | [yolo_nas_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_m_coco.h5) |
+  | YOLO_NAS_L | 42.02M | 59.95G | 640   | 52.22       |         | [yolo_nas_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_coco.h5) |
 ## YOLOR
   - [Keras YOLOR](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolor) includes implementation of [Paper 2105.04206 You Only Learn One Representation: Unified Network for Multiple Tasks](https://arxiv.org/pdf/2105.04206.pdf).
 
