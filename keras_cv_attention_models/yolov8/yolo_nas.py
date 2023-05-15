@@ -9,6 +9,9 @@ PRETRAINED_DICT = {
     "yolo_nas_l": {"coco": "cea25dd86e8e4aa1fd82b7e1288fa583"},
     "yolo_nas_m": {"coco": "16cbc4683b51894334b0264def1593a2"},
     "yolo_nas_s": {"coco": "283395afacb7ca5ea597d2e48dd19329"},
+    "yolo_nas_l_before_reparam": {"coco": "0ba1ec65e511a5ec72b24e4883ef3506"},
+    "yolo_nas_m_before_reparam": {"coco": "23fce210caa6dbabedd01157e0425665"},
+    "yolo_nas_s_before_reparam": {"coco": "cddabb917fd349e0fe6b345537ddd156"},
 }
 
 
@@ -67,6 +70,7 @@ def path_aggregation_fpn(
         [f_out0, p3, p2], depthes[1], expansions[1], parallel_mode, use_alpha, use_reparam_conv, activation, name=name + "c3p3c2_"
     )
 
+    use_reparam_conv = False  # False for downsample_merge blocks
     pan_out1 = downsample_merge([pan_out2, fpn_out1], depthes[2], expansions[2], parallel_mode, use_alpha, use_reparam_conv, activation, name=name + "c3n3_")
     pan_out0 = downsample_merge([pan_out1, fpn_out0], depthes[3], expansions[3], parallel_mode, use_alpha, use_reparam_conv, activation, name=name + "c3n4_")
 
@@ -140,7 +144,7 @@ def YOLO_NAS(
     model = models.Model(inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "yolov8", pretrained)
 
-    pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 2]  # -> [3, 5], Note: -2 here, as path_aggregation_fpn merged one feature
+    pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(fpn_features) - 1]  # -> [3, 5], Note: path_aggregation_fpn merged one feature
     post_process = eval_func.DecodePredictions(
         backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale, regression_len=regression_len
     )
@@ -148,23 +152,50 @@ def YOLO_NAS(
     return model
 
 
-def YOLO_NAS_S(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
-    return YOLO_NAS(**locals(), model_name=kwargs.pop("model_name", "yolo_nas_s"), **kwargs)
+def YOLO_NAS_S(
+    input_shape=(640, 640, 3),
+    freeze_backbone=False,
+    num_classes=80,
+    backbone=None,
+    use_reparam_conv=False,
+    classifier_activation="sigmoid",
+    pretrained="coco",
+    **kwargs
+):
+    return YOLO_NAS(**locals(), model_name=kwargs.pop("model_name", "yolo_nas_s_before_reparam" if use_reparam_conv else "yolo_nas_s"), **kwargs)
 
 
-def YOLO_NAS_M(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
+def YOLO_NAS_M(
+    input_shape=(640, 640, 3),
+    freeze_backbone=False,
+    num_classes=80,
+    backbone=None,
+    use_reparam_conv=False,
+    classifier_activation="sigmoid",
+    pretrained="coco",
+    **kwargs
+):
     csp_expansions = [2 / 3, 2 / 3, 2 / 3, 0.5]
     csp_parallel_mode = [True, True, True, False]
     paf_expansions = [1, 2 / 3, 1, 2 / 3]
     paf_output_channels = [96, 192, 384]
     paf_depthes = [2, 3, 2, 3]
-    return YOLO_NAS(**locals(), model_name=kwargs.pop("model_name", "yolo_nas_m"), **kwargs)
+    return YOLO_NAS(**locals(), model_name=kwargs.pop("model_name", "yolo_nas_m_before_reparam" if use_reparam_conv else "yolo_nas_m"), **kwargs)
 
 
-def YOLO_NAS_L(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
+def YOLO_NAS_L(
+    input_shape=(640, 640, 3),
+    freeze_backbone=False,
+    num_classes=80,
+    backbone=None,
+    use_reparam_conv=False,
+    classifier_activation="sigmoid",
+    pretrained="coco",
+    **kwargs
+):
     csp_expansions = [1, 2 / 3, 2 / 3, 2 / 3]
     csp_parallel_mode = True
     paf_expansions = [2 / 3, 4 / 3, 2 / 3, 2 / 3]
     paf_output_channels = [128, 256, 512]
     paf_depthes = 4
-    return YOLO_NAS(**locals(), model_name=kwargs.pop("model_name", "yolo_nas_l"), **kwargs)
+    return YOLO_NAS(**locals(), model_name=kwargs.pop("model_name", "yolo_nas_l_before_reparam" if use_reparam_conv else "yolo_nas_l"), **kwargs)

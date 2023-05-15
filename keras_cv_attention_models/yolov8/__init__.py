@@ -30,7 +30,7 @@ __detector_tail_doc__ = """  features_pick: specific `layer names` or `pyramid f
   regression_len: bbox output len, typical value is 4, for yolov8 reg_max=16 -> regression_len = 16 * 4 == 64.
       For YOLO_NAS, it's 17 * 4 == 68.
   use_reparam_conv: boolean value if using `reparam_conv_bn` instead of `conv_bn` block in all `csp_block`s.
-      `reparam_conv_bn` is a block with `Conv_3x3+BN(inputs) + Conv_1x1+BN(inputs) + inputs`,
+      Roughly, `reparam_conv_bn` is a block with `Conv_3x3+BN(inputs) + Conv_1x1(inputs) + inputs`,
       and can be reparametered to a single `Conv_3x3` layer after training.
   paf_parallel_mode: False for YOLOV8_X6 and True for others.
       If False, only concat `short` and the last `deep` one in `path_aggregation_fpn` module.
@@ -85,11 +85,14 @@ Model architectures:
   | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         |
   | YOLOV8_X6 | 97.42M | 522.6G | 1280  | 56.7 ?      |         |
 
-  | Model      | Params | FLOPs  | Input | COCO val AP | test AP |
-  | ---------- | ------ | ------ | ----- | ----------- | ------- |
-  | YOLO_NAS_S | 12.18M | 15.92G | 640   | 47.5        |         |
-  | YOLO_NAS_M | 31.92M | 43.91G | 640   | 51.55       |         |
-  | YOLO_NAS_L | 42.02M | 59.95G | 640   | 52.22       |         |
+  | Model                   | Params | FLOPs  | Input | COCO val AP | test AP |
+  | ----------------------- | ------ | ------ | ----- | ----------- | ------- |
+  | YOLO_NAS_S              | 12.18M | 15.92G | 640   | 47.5        |         |
+  | - use_reparam_conv=True | 12.88M | 16.96G | 640   | 47.5        |         |
+  | YOLO_NAS_M              | 31.92M | 43.91G | 640   | 51.55       |         |
+  | - use_reparam_conv=True | 33.86M | 47.12G | 640   | 51.55       |         |
+  | YOLO_NAS_L              | 42.02M | 59.95G | 640   | 52.22       |         |
+  | - use_reparam_conv=True | 44.53M | 64.53G | 640   | 52.22       |         |
 """
 
 YOLOV8_N.__doc__ = __head_doc__ + __detector_head_doc__ + __detector_tail_doc__

@@ -23,11 +23,14 @@
   | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         | [yolov8_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_coco.h5) |
   | YOLOV8_X6 | 97.42M | 522.6G | 1280  | 56.7 ?      |         | [yolov8_x6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x6_coco.h5) |
 
-  | Model      | Params | FLOPs  | Input | COCO val AP | test AP | Download |
-  | ---------- | ------ | ------ | ----- | ----------- | ------- | -------- |
-  | YOLO_NAS_S | 12.18M | 15.92G | 640   | 47.5        |         | [yolo_nas_s_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_s_coco.h5) |
-  | YOLO_NAS_M | 31.92M | 43.91G | 640   | 51.55       |         | [yolo_nas_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_m_coco.h5) |
-  | YOLO_NAS_L | 42.02M | 59.95G | 640   | 52.22       |         | [yolo_nas_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_coco.h5) |
+  | Model                   | Params | FLOPs  | Input | COCO val AP | test AP | Download |
+  | ----------------------- | ------ | ------ | ----- | ----------- | ------- | -------- |
+  | YOLO_NAS_S              | 12.18M | 15.92G | 640   | 47.5        |         | [yolo_nas_s_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_s_coco.h5) |
+  | - use_reparam_conv=True | 12.88M | 16.96G | 640   | 47.5        |         | [s_before_reparam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_s_before_reparam_coco.h5) |
+  | YOLO_NAS_M              | 31.92M | 43.91G | 640   | 51.55       |         | [yolo_nas_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_m_coco.h5) |
+  | - use_reparam_conv=True | 33.86M | 47.12G | 640   | 51.55       |         | [m_before_reparam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_m_before_reparam_coco.h5) |
+  | YOLO_NAS_L              | 42.02M | 59.95G | 640   | 52.22       |         | [yolo_nas_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_coco.h5) |
+  | - use_reparam_conv=True | 44.53M | 64.53G | 640   | 52.22       |         | [l_before_reparam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_before_reparam_coco.h5) |
 ## Classification Models
   | Model        | Params | FLOPs@640 | FLOPs@224 | Input | Top1 Acc | Download |
   | ------------ | ------ | --------- | --------- | ----- | -------- | -------- |

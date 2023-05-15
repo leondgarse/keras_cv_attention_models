@@ -38,14 +38,14 @@ def conv_bn(inputs, output_channel, kernel_size=1, strides=1, use_bias=False, ac
     return batchnorm_with_activation(nn, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name)
 
 
-def reparam_conv_bn(inputs, output_channel, kernel_size=3, strides=1, use_bias=False, activation="swish", name=""):
-    branch_3x3 = conv2d_no_bias(inputs, output_channel, 3, strides, use_bias=use_bias, padding="SAME", name=name + "REPARAM_k3_")
+def reparam_conv_bn(inputs, output_channel, kernel_size=3, strides=1, use_bias=False, use_identity=True, activation="swish", name=""):
+    branch_3x3 = conv2d_no_bias(inputs, output_channel, 3, strides, use_bias=False, padding="SAME", name=name)
     branch_3x3 = batchnorm_with_activation(branch_3x3, activation=None, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name + "REPARAM_k3_")
 
     branch_1x1 = conv2d_no_bias(inputs, output_channel, 1, strides, use_bias=use_bias, padding="VALID", name=name + "REPARAM_k1_")
-    branch_1x1 = batchnorm_with_activation(branch_1x1, activation=None, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name + "REPARAM_k1_")
+    # branch_1x1 = batchnorm_with_activation(branch_1x1, activation=None, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name + "REPARAM_k1_")
 
-    out = branch_3x3 + branch_1x1 + inputs
+    out = (branch_3x3 + branch_1x1 + inputs) if use_identity else (branch_3x3 + branch_1x1)
     return batchnorm_with_activation(out, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name)
 
 
@@ -142,16 +142,24 @@ def YOLOV8Backbone(
     """ Stem """
     # stem_width = stem_width if stem_width > 0 else channels[0]
     stem_width = channels[0]
-    nn = conv_bn(inputs, stem_width // 2, kernel_size=3, strides=2, use_bias=use_bias, activation=activation, name="stem_1_")
-    nn = conv_bn(nn, stem_width, kernel_size=3, strides=2, use_bias=use_bias, activation=activation, name="stem_2_")
+    if use_reparam_conv:
+        nn = reparam_conv_bn(inputs, stem_width // 2, kernel_size=3, strides=2, use_bias=use_bias, use_identity=False, activation=activation, name="stem_1_")
+        nn = reparam_conv_bn(nn, stem_width, kernel_size=3, strides=2, use_bias=use_bias, use_identity=False, activation=activation, name="stem_2_")
+    else:
+        nn = conv_bn(inputs, stem_width // 2, kernel_size=3, strides=2, use_bias=use_bias, activation=activation, name="stem_1_")
+        nn = conv_bn(nn, stem_width, kernel_size=3, strides=2, use_bias=use_bias, activation=activation, name="stem_2_")
 
     """ blocks """
     block_kwargs = dict(use_bias=use_bias, use_alpha=use_alpha, use_reparam_conv=use_reparam_conv, activation=activation)
     features = [nn]
     for stack_id, (channel, depth) in enumerate(zip(channels, depthes)):
         stack_name = "stack{}_".format(stack_id + 1)
+        cur_name = stack_name + "downsample_"
         if stack_id >= 1:
-            nn = conv_bn(nn, channel, kernel_size=3, strides=2, use_bias=use_bias, activation=activation, name=stack_name + "downsample_")
+            if use_reparam_conv:
+                nn = reparam_conv_bn(nn, channel, kernel_size=3, strides=2, use_bias=use_bias, use_identity=False, activation=activation, name=cur_name)
+            else:
+                nn = conv_bn(nn, channel, kernel_size=3, strides=2, use_bias=use_bias, activation=activation, name=cur_name)
         csp_expansion = csp_expansions[stack_id] if isinstance(csp_expansions, (list, tuple)) else csp_expansions
         parallel_mode = csp_parallel_mode[stack_id] if isinstance(csp_parallel_mode, (list, tuple)) else csp_parallel_mode
         nn = csp_with_2_conv(nn, depth=depth, expansion=csp_expansion, parallel_mode=parallel_mode, **block_kwargs, name=stack_name + "c2f_")
@@ -174,6 +182,9 @@ def YOLOV8Backbone(
         add_pre_post_process(model, rescale_mode="raw01")
         reload_model_weights(model, PRETRAINED_DICT, "yolov8", pretrained)
     return model
+
+
+""" path aggregation fpn """
 
 
 def path_aggregation_fpn(features, depth=3, parallel_mode=True, use_reparam_conv=False, activation="swish", name=""):
@@ -210,7 +221,7 @@ def path_aggregation_fpn(features, depth=3, parallel_mode=True, use_reparam_conv
 
         out_channel = ii.shape[channel_axis]
         nn = csp_with_2_conv(
-            nn, out_channel, depth=depth, shortcut=False, parallel_mode=parallel_mode, use_reparam_conv=use_reparam_conv, activation=activation, name=cur_name
+            nn, out_channel, depth=depth, shortcut=False, parallel_mode=parallel_mode, use_reparam_conv=False, activation=activation, name=cur_name
         )
         downsamples.append(nn)
     return downsamples
