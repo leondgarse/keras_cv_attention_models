@@ -97,7 +97,7 @@
     import matplotlib.pyplot as plt
     from tensorflow import keras
     ```
-  - Install as pip package. `kecam` is a short alias name of this package. **Note**: the pip package `kecam` doesn't set any backend requirement, make sure either Tensorflow or PyTorch installed before hand. For PyTorch backend usage, refer [Keras PyTorch Backend](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/pytorch_backend).
+  - Install as pip package. `kecam` is a short alias name of this package. **Note**: the pip package `kecam` doesn't set any backend requirement, make sure either Tensorflow or PyTorch installed before hand. For PyTorch backend usage, refer [Keras PyTorch Backend](keras_cv_attention_models/pytorch_backend).
     ```sh
     pip install -U kecam
     # Or
@@ -206,7 +206,7 @@
     find ./* -name "*.py" | grep -v __init__ | grep -v setup.py | xargs -I {} black -l 160 {}
     ```
 ## Layers
-  - [attention_layers](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `RelativePositionalEmbedding` from `botnet`, `outlook_attention` from `volo`, and many other `Positional Embedding Layers` / `Attention Blocks`.
+  - [attention_layers](keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `RelativePositionalEmbedding` from `botnet`, `outlook_attention` from `volo`, and many other `Positional Embedding Layers` / `Attention Blocks`.
   ```py
   from keras_cv_attention_models import attention_layers
   aa = attention_layers.RelativePositionalEmbedding()
@@ -214,7 +214,7 @@
   # aa(tf.ones([1, 4, 14, 16, 256])).shape = TensorShape([1, 4, 14, 16, 14, 16])
   ```
 ## Model surgery
-  - [model_surgery](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/model_surgery) including functions used to change model parameters after built.
+  - [model_surgery](keras_cv_attention_models/model_surgery) including functions used to change model parameters after built.
   ```py
   from keras_cv_attention_models import model_surgery
   mm = keras.applications.ResNet50()  # Trainable params: 25,583,592
@@ -226,7 +226,7 @@
   mm = model_surgery.convert_to_fused_conv_bn_model(mm)
   ```
 ## ImageNet training and evaluating
-  - [ImageNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/imagenet) contains more detail usage and some comparing results.
+  - [ImageNet](keras_cv_attention_models/imagenet) contains more detail usage and some comparing results.
   - [Init Imagenet dataset using tensorflow_datasets #9](https://github.com/leondgarse/keras_cv_attention_models/discussions/9).
   - For custom dataset, `custom_dataset_script.py` can be used creating a `json` format file, which can be used as `--data_name xxx.json` for training, detail usage can be found in [Custom recognition dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussion-3971513).
   - Another method creating custom dataset is using `tfds.load`, refer [Writing custom datasets](https://www.tensorflow.org/datasets/add_dataset) and [Creating private tensorflow_datasets from tfds #48](https://github.com/leondgarse/keras_cv_attention_models/discussions/48) by @Medicmind.
@@ -282,7 +282,7 @@
   - [Token label train test on CIFAR10 #57](https://github.com/leondgarse/keras_cv_attention_models/discussions/57). **Currently not working as well as expected**. `Token label` is implementation of [Github zihangJiang/TokenLabeling](https://github.com/zihangJiang/TokenLabeling), paper [PDF 2104.10858 All Tokens Matter: Token Labeling for Training Better Vision Transformers](https://arxiv.org/pdf/2104.10858.pdf).
 ## COCO training and evaluating
   - **Currently still under testing**.
-  - [COCO](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco) contains more detail usage.
+  - [COCO](keras_cv_attention_models/coco) contains more detail usage.
   - `custom_dataset_script.py` can be used creating a `json` format file, which can be used as `--data_name xxx.json` for training, detail usage can be found in [Custom detection dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussioncomment-2460664).
   - Default parameters for `coco_train_script.py` is `EfficientDetD0` with `input_shape=(256, 256, 3), batch_size=64, mosaic_mix_prob=0.5, freeze_backbone_epochs=32, total_epochs=105`. Technically, it's any `pyramid structure backbone` + `EfficientDet / YOLOX header / YOLOR header` + `anchor_free / yolor / efficientdet anchors` combination supported.
   - Currently 4 types anchors supported, parameter **`anchors_mode`** controls which anchor to use, value in `["efficientdet", "anchor_free", "yolor", "yolov8"]`. Default `None` for `det_header` presets.
@@ -323,7 +323,7 @@
     CUDA_VISIBLE_DEVICES='0' ./coco_train_script.py --backbone convnext.ConvNeXtTiny --det_header yolor.YOLOR --anchors_mode yolor
     ```
     **Note: COCO training still under testing, may change parameters and default behaviors. Take the risk if would like help developing.**
-  - **`coco_eval_script.py`** is used for evaluating model AP / AR on COCO validation set. It has a dependency `pip install pycocotools` which is not in package requirements. More usage can be found in [COCO Evaluation](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coco#evaluation).
+  - **`coco_eval_script.py`** is used for evaluating model AP / AR on COCO validation set. It has a dependency `pip install pycocotools` which is not in package requirements. More usage can be found in [COCO Evaluation](keras_cv_attention_models/coco#evaluation).
     ```sh
     # EfficientDetD0 using resize method bilinear w/o antialias
     CUDA_VISIBLE_DEVICES='1' ./coco_eval_script.py -m efficientdet.EfficientDetD0 --resize_method bilinear --disable_antialias
@@ -360,7 +360,7 @@
     ```
     ![yolov8_training](https://user-images.githubusercontent.com/5744524/235142289-cb6a4da0-1ea7-4261-afdd-03a3c36278b8.png)
 ## Visualizing
-  - [Visualizing](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/visualizing) is for visualizing convnet filters or attention map scores.
+  - [Visualizing](keras_cv_attention_models/visualizing) is for visualizing convnet filters or attention map scores.
   - **make_and_apply_gradcam_heatmap** is for Grad-CAM class activation visualization.
     ```py
     from keras_cv_attention_models import visualizing, test_images, resnest
@@ -459,7 +459,7 @@
     data.show_image_with_bboxes(imm, bboxes, labels, confidences, num_classes=90)
     ```
 ## Using PyTorch as backend
-  - **Experimental** [Keras PyTorch Backend](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/pytorch_backend).
+  - **Experimental** [Keras PyTorch Backend](keras_cv_attention_models/pytorch_backend).
   - **Set os environment `export KECAM_BACKEND='torch'` to enable this PyTorch backend.**
   - Currently supports most recognition and detection models except cotnet / halonet / hornet / nat / nfnets / volo. For detection models, still using `tf.image.non_max_suppression_with_scores` while running prediction.
   - **Basic model build and prediction**.
@@ -502,7 +502,7 @@
 
 # Recognition Models
 ## AotNet
-  - [Keras AotNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/aotnet) is just a `ResNet` / `ResNetV2` like framework, that set parameters like `attn_types` and `se_ratio` and others, which is used to apply different types attention layer. Works like `byoanet` / `byobnet` from `timm`.
+  - [Keras AotNet](keras_cv_attention_models/aotnet) is just a `ResNet` / `ResNetV2` like framework, that set parameters like `attn_types` and `se_ratio` and others, which is used to apply different types attention layer. Works like `byoanet` / `byobnet` from `timm`.
   - Default parameters set is a typical `ResNet` architecture with `Conv2D use_bias=False` and `padding` like `PyTorch`.
   ```py
   from keras_cv_attention_models import aotnet
@@ -514,7 +514,7 @@
   model.summary()
   ```
 ## BEiT
-  - [Keras BEiT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) includes models from [PDF 2106.08254 BEiT: BERT Pre-Training of Image Transformers](https://arxiv.org/pdf/2106.08254.pdf).
+  - [Keras BEiT](keras_cv_attention_models/beit) includes models from [PDF 2106.08254 BEiT: BERT Pre-Training of Image Transformers](https://arxiv.org/pdf/2106.08254.pdf).
 
   | Model                 | Params  | FLOPs   | Input | Top1 Acc | Download                         |
   | --------------------- | ------- | ------- | ----- | -------- | -------------------------------- |
@@ -524,7 +524,7 @@
   |                       | 305.00M | 191.65G | 384   | 88.382   | [beit_large_patch16_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_384_imagenet21k-ft1k.h5) |
   |                       | 305.67M | 363.46G | 512   | 88.584   | [beit_large_patch16_512.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_512_imagenet21k-ft1k.h5) |
 ## BEiTV2
-  - [Keras BEiT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) includes models from BeitV2 Paper [PDF 2208.06366 BEiT v2: Masked Image Modeling with Vector-Quantized Visual Tokenizers](https://arxiv.org/pdf/2208.06366.pdf).
+  - [Keras BEiT](keras_cv_attention_models/beit) includes models from BeitV2 Paper [PDF 2208.06366 BEiT v2: Masked Image Modeling with Vector-Quantized Visual Tokenizers](https://arxiv.org/pdf/2208.06366.pdf).
 
   | Model              | Params  | FLOPs  | Input | Top1 Acc | Download |
   | ------------------ | ------- | ------ | ----- | -------- | -------- |
@@ -533,7 +533,7 @@
   | BeitV2BasePatch16  | 304.43M | 61.68G | 224   | 87.3     |          |
   | - imagenet21k-ft1k | 304.43M | 61.68G | 224   | 88.4     | [beit_v2_large_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_v2_large_patch16_224_imagenet21k-ft1k.h5)  |
 ## BotNet
-  - [Keras BotNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/botnet) is for [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://arxiv.org/pdf/2101.11605.pdf).
+  - [Keras BotNet](keras_cv_attention_models/botnet) is for [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://arxiv.org/pdf/2101.11605.pdf).
 
   | Model         | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------- | ------ | ------ | ----- | -------- | -------- |
@@ -544,7 +544,7 @@
   | BotNextECA26T | 10.59M | 2.45G  | 256   | 79.270   | [botnext_eca26t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnext_eca26t_256_imagenet.h5) |
   | BotNetSE33T   | 13.7M  | 3.89G  | 256   | 81.2     | [botnet_se33t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/botnet/botnet_se33t_256_imagenet.h5) |
 ## CAFormer
-  - [Keras CAFormer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/caformer) is for [PDF 2210.13452 MetaFormer Baselines for Vision](https://arxiv.org/pdf/2210.13452.pdf). `CAFormer` is using 2 transformer stacks, while `ConvFormer` is all conv blocks.
+  - [Keras CAFormer](keras_cv_attention_models/caformer) is for [PDF 2210.13452 MetaFormer Baselines for Vision](https://arxiv.org/pdf/2210.13452.pdf). `CAFormer` is using 2 transformer stacks, while `ConvFormer` is all conv blocks.
 
   | Model              | Params | FLOPs | Input | Top1 Acc | Download |
   | ------------------ | ------ | ----- | ----- | -------- | -------- |
@@ -584,7 +584,7 @@
   |                    | 100M   | 66.5G | 384   | 85.7     | [convformer_b36_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_b36_384_imagenet.h5) |
   | - imagenet21k-ft1k | 100M   | 66.5G | 384   | 87.6     | [convformer_b36_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/convformer_b36_384_imagenet21k-ft1k.h5) |
 ## CMT
-  - [Keras CMT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cmt) is for [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf).
+  - [Keras CMT](keras_cv_attention_models/cmt) is for [PDF 2107.06263 CMT: Convolutional Neural Networks Meet Vision Transformers](https://arxiv.org/pdf/2107.06263.pdf).
 
   | Model                              | Params | FLOPs | Input | Top1 Acc | Download |
   | ---------------------------------- | ------ | ----- | ----- | -------- | -------- |
@@ -596,7 +596,7 @@
   | CMTSmall_torch                     | 25.1M  | 4.09G | 224   | 83.5     | [cmt_small_torch_224](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_small_torch_224_imagenet.h5) |
   | CMTBase_torch                      | 45.7M  | 9.42G | 256   | 84.5     | [cmt_base_torch_256](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_base_torch_256_imagenet.h5) |
 ## CoaT
-  - [Keras CoaT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coat) is for [PDF 2104.06399 CoaT: Co-Scale Conv-Attentional Image Transformers](http://arxiv.org/abs/2104.06399).
+  - [Keras CoaT](keras_cv_attention_models/coat) is for [PDF 2104.06399 CoaT: Co-Scale Conv-Attentional Image Transformers](http://arxiv.org/abs/2104.06399).
 
   | Model         | Params | FLOPs | Input | Top1 Acc | Download |
   | ------------- | ------ | ----- | ----- | -------- | -------- |
@@ -606,7 +606,7 @@
   | CoaTTiny      | 5.5M   | 4.33G | 224   | 78.3     | [coat_tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coat/coat_tiny_imagenet.h5) |
   | CoaTMini      | 10M    | 6.78G | 224   | 81.0     | [coat_mini_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coat/coat_mini_imagenet.h5) |
 ## CoAtNet
-  - [Keras CoAtNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/coatnet) is for [PDF 2106.04803 CoAtNet: Marrying Convolution and Attention for All Data Sizes](https://arxiv.org/pdf/2106.04803.pdf).
+  - [Keras CoAtNet](keras_cv_attention_models/coatnet) is for [PDF 2106.04803 CoAtNet: Marrying Convolution and Attention for All Data Sizes](https://arxiv.org/pdf/2106.04803.pdf).
 
   | Model                               | Params | FLOPs  | Input | Top1 Acc | Download |
   | ----------------------------------- | ------ | ------ | ----- | -------- | -------- |
@@ -636,7 +636,7 @@
   | CoAtNet6                   | 512   | 1.47B, FLOPs 1521G | 1.336B, FLOPs 1470.56G | 90.45    |
   | CoAtNet7                   | 512   | 2.44B, FLOPs 2586G | 2.413B, FLOPs 2537.56G | 90.88    |
 ## ConvNeXt
-  - [Keras ConvNeXt](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/convnext) is for [PDF 2201.03545 A ConvNet for the 2020s](https://arxiv.org/pdf/2201.03545.pdf).
+  - [Keras ConvNeXt](keras_cv_attention_models/convnext) is for [PDF 2201.03545 A ConvNet for the 2020s](https://arxiv.org/pdf/2201.03545.pdf).
 
   | Model                 | Params | FLOPs   | Input | Top1 Acc | Download |
   | --------------------- | ------ | ------- | ----- | -------- | -------- |
@@ -658,7 +658,7 @@
   | ConvNeXtXLarge, 21k   | 350M   | 179.43G | 384   | 87.8     | [xlarge_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_xlarge_384_imagenet21k-ft1k.h5) |
   | ConvNeXtXXLarge, clip | 846M   | 198.09G | 256   | 88.6     | [xxlarge_384_clip.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_xxlarge_clip-ft1k.h5) |
 ## ConvNeXtV2
-  - [Keras ConvNeXt](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/convnext) includes implementation of [PDF 2301.00808 ConvNeXt V2: Co-designing and Scaling ConvNets with Masked Autoencoders](https://arxiv.org/pdf/2301.00808.pdf). **Please note the CC-BY-NC 4.0 license on theses weights, non-commercial use only**.
+  - [Keras ConvNeXt](keras_cv_attention_models/convnext) includes implementation of [PDF 2301.00808 ConvNeXt V2: Co-designing and Scaling ConvNets with Masked Autoencoders](https://arxiv.org/pdf/2301.00808.pdf). **Please note the CC-BY-NC 4.0 license on theses weights, non-commercial use only**.
 
   | Model              | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------------ | ------ | ------ | ----- | -------- | -------- |
@@ -681,7 +681,7 @@
   | - ImageNet21k-ft1k | 660M   | 337.9G | 384   | 88.7     | [v2_huge_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_huge_384_imagenet21k-ft1k.h5) |
   | - ImageNet21k-ft1k | 660M   | 600.8G | 512   | 88.9     | [v2_huge_512_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/convnext/convnext_v2_huge_512_imagenet21k-ft1k.h5) |
 ## CoTNet
-  - [Keras CoTNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/cotnet) is for [PDF 2107.12292 Contextual Transformer Networks for Visual Recognition](https://arxiv.org/pdf/2107.12292.pdf).
+  - [Keras CoTNet](keras_cv_attention_models/cotnet) is for [PDF 2107.12292 Contextual Transformer Networks for Visual Recognition](https://arxiv.org/pdf/2107.12292.pdf).
 
   | Model        | Params | FLOPs  | Input | Top1 Acc | Download            |
   | ------------ |:------:| ------ | ----- |:--------:| ------------------- |
@@ -694,7 +694,7 @@
   | CotNetSE152D | 55.8M  | 12.22G | 224   |   84.0   | [cotnet_se152d_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_224_imagenet.h5) |
   | CotNetSE152D | 55.8M  | 24.92G | 320   |   84.6   | [cotnet_se152d_320_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_320_imagenet.h5) |
 ## DaViT
-  - [Keras DaViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/davit) is for [PDF 2204.03645 DaViT: Dual Attention Vision Transformers](https://arxiv.org/pdf/2204.03645.pdf).
+  - [Keras DaViT](keras_cv_attention_models/davit) is for [PDF 2204.03645 DaViT: Dual Attention Vision Transformers](https://arxiv.org/pdf/2204.03645.pdf).
 
   | Model         | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------- | ------ | ------ | ----- | -------- | -------- |
@@ -705,7 +705,7 @@
   | DaViT_H, 1.5B | 348.9M | 327.3G | 512   | 90.2     |          |
   | DaViT_G, 1.5B | 1.406B | 1.022T | 512   | 90.4     |          |
 ## DiNAT
-  - [Keras DiNAT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/nat) is for [PDF 2209.15001 Dilated Neighborhood Attention Transformer](https://arxiv.org/pdf/2209.15001.pdf).
+  - [Keras DiNAT](keras_cv_attention_models/nat) is for [PDF 2209.15001 Dilated Neighborhood Attention Transformer](https://arxiv.org/pdf/2209.15001.pdf).
 
   | Model                     | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------------------- | ------ | ------ | ----- | -------- | -------- |
@@ -718,7 +718,7 @@
   | - 22k, 384                | 200.9M | 89.86G | 384   | 87.4     | [dinat_large_384_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_384_imagenet21k-ft1k.h5) |
   | DiNAT_Large_K11, 22k, 384 | 201.1M | 92.57G | 384   | 87.5     | [dinat_large_k11_imagenet21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_k11_imagenet21k-ft1k.h5) |
 ## DINOv2
-  - [Keras DINOv2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) includes models from [PDF 2304.07193 DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/pdf/2304.07193.pdf).
+  - [Keras DINOv2](keras_cv_attention_models/beit) includes models from [PDF 2304.07193 DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/pdf/2304.07193.pdf).
 
   | Model              | Params  | FLOPs   | Input | Top1 Acc | Download |
   | ------------------ | ------- | ------- | ----- | -------- | -------- |
@@ -727,7 +727,7 @@
   | DINOv2_ViT_Large14 | 306.4M  | 509.6G  | 518   | 86.3     | [dinov2_vit_large14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/dinov2_vit_large14_518_imagenet.h5) |
   | DINOv2_ViT_Giant14 | 1139.6M | 1790.3G | 518   | 86.5     | [dinov2_vit_giant14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/dinov2_vit_giant14_518_imagenet.h5) |
 ## EdgeNeXt
-  - [Keras EdgeNeXt](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/edgenext) is for [PDF 2206.10589 EdgeNeXt: Efficiently Amalgamated CNN-Transformer Architecture for Mobile Vision Applications](https://arxiv.org/pdf/2206.10589.pdf).
+  - [Keras EdgeNeXt](keras_cv_attention_models/edgenext) is for [PDF 2206.10589 EdgeNeXt: Efficiently Amalgamated CNN-Transformer Architecture for Mobile Vision Applications](https://arxiv.org/pdf/2206.10589.pdf).
 
   | Model             | Params | FLOPs  | Input | Top1 Acc | Download |
   | ----------------- | ------ | ------ | ----- | -------- | -------- |
@@ -736,7 +736,7 @@
   | EdgeNeXt_Small    | 5.59M  | 1.27G  | 256   | 79.41    | [edgenext_small_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_imagenet.h5) |
   | - usi             | 5.59M  | 1.27G  | 256   | 81.07    | [edgenext_small_256_usi.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_usi.h5) |
 ## EfficientFormer
-  - [Keras EfficientFormer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientformer) is for [PDF 2206.01191 EfficientFormer: Vision Transformers at MobileNet Speed](https://arxiv.org/pdf/2206.01191.pdf).
+  - [Keras EfficientFormer](keras_cv_attention_models/efficientformer) is for [PDF 2206.01191 EfficientFormer: Vision Transformers at MobileNet Speed](https://arxiv.org/pdf/2206.01191.pdf).
 
   | Model                      | Params | FLOPs | Input | Top1 Acc | Download |
   | -------------------------- | ------ | ----- | ----- | -------- | -------- |
@@ -744,7 +744,7 @@
   | EfficientFormerL3, distill | 31.4M  | 3.95G | 224   | 82.4     | [l3_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l3_224_imagenet.h5) |
   | EfficientFormerL7, distill | 74.4M  | 9.79G | 224   | 83.3     | [l7_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l7_224_imagenet.h5) |
 ## EfficientFormerV2
-  - [Keras EfficientFormer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientformer) includes implementation of [PDF 2212.08059 Rethinking Vision Transformers for MobileNet Size and Speed](https://arxiv.org/pdf/2212.08059.pdf).
+  - [Keras EfficientFormer](keras_cv_attention_models/efficientformer) includes implementation of [PDF 2212.08059 Rethinking Vision Transformers for MobileNet Size and Speed](https://arxiv.org/pdf/2212.08059.pdf).
 
   | Model                        | Params | FLOPs  | Input | Top1 Acc | Download |
   | ---------------------------- | ------ | ------ | ----- | -------- | -------- |
@@ -753,7 +753,7 @@
   | EfficientFormerV2S2, distill | 12.7M  | 1.27G  | 224   | 82.0     | [v2_s2_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientformer/efficientformer_v2_s2_224_imagenet.h5) |
   | EfficientFormerV2L, distill  | 26.3M  | 2.59G  | 224   | 83.5     | [v2_l_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientformer/efficientformer_v2_l_224_imagenet.h5) |
 ## EfficientNet
-  - [Keras EfficientNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientnet) includes implementation of [PDF 1911.04252 Self-training with Noisy Student improves ImageNet classification](https://arxiv.org/pdf/1911.04252.pdf).
+  - [Keras EfficientNet](keras_cv_attention_models/efficientnet) includes implementation of [PDF 1911.04252 Self-training with Noisy Student improves ImageNet classification](https://arxiv.org/pdf/1911.04252.pdf).
 
   | V1 Model                       | Params | FLOPs   | Input | Top1 Acc | Download |
   | ------------------------------ | ------ | ------- | ----- | -------- | -------- |
@@ -775,7 +775,7 @@
   | - NoisyStudent                 | 66.3M  | 38.13G  | 600   | 86.9     | [effv1-b7-noisy_student.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-b7-noisy_student.h5) |
   | EfficientNetV1L2, NoisyStudent | 480.3M | 477.98G | 800   | 88.4     | [effv1-l2-noisy_student.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-l2-noisy_student.h5) |
 ## EfficientNetV2
-  - [Keras EfficientNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientnet) includes implementation of [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298).
+  - [Keras EfficientNet](keras_cv_attention_models/efficientnet) includes implementation of [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298).
 
   | V2 Model                   | Params | FLOPs  | Input | Top1 Acc | Download |
   | -------------------------- | ------ | ------ | ----- | -------- | -------- |
@@ -797,7 +797,7 @@
   | - ImageNet21k-ft1k         | 119.5M | 56.27G | 480   | 86.9     | [effv2l-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-l-21k-ft1k.h5)   |
   | EfficientNetV2XL, 21k-ft1k | 206.8M | 93.66G | 512   | 87.2     | [effv2xl-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-xl-21k-ft1k.h5) |
 ## EVA
-  - [Keras EVA](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) includes models from [PDF 2211.07636 EVA: Exploring the Limits of Masked Visual Representation Learning at Scale](https://arxiv.org/pdf/2211.07636.pdf).
+  - [Keras EVA](keras_cv_attention_models/beit) includes models from [PDF 2211.07636 EVA: Exploring the Limits of Masked Visual Representation Learning at Scale](https://arxiv.org/pdf/2211.07636.pdf).
 
   | Model                 | Params  | FLOPs    | Input | Top1 Acc | Download |
   | --------------------- | ------- | -------- | ----- | -------- | -------- |
@@ -807,7 +807,7 @@
   | - m30m                | 1013.0M | 621.45G  | 336   | 89.57    | [eva_giant_patch14_336.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_336_imagenet21k-ft1k.h5) |
   | - m30m                | 1014.4M | 1911.61G | 560   | 89.80    | [eva_giant_patch14_560.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_560_imagenet21k-ft1k.h5) |
 ## EVA02
-  - [Keras EVA02](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) includes models from [PDF 2303.11331 EVA: EVA-02: A Visual Representation for Neon Genesis](https://arxiv.org/pdf/2303.11331.pdf).
+  - [Keras EVA02](keras_cv_attention_models/beit) includes models from [PDF 2303.11331 EVA: EVA-02: A Visual Representation for Neon Genesis](https://arxiv.org/pdf/2303.11331.pdf).
 
   | Model                                  | Params  | FLOPs   | Input | Top1 Acc | Download |
   | -------------------------------------- | ------- | ------- | ----- | -------- | -------- |
@@ -816,7 +816,7 @@
   | EVA02BasePatch14, mim_in22k_ft22k_ft1k | 87.12M  | 107.6G  | 448   | 88.692   | [eva02_base_patch14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva02_base_patch14_448_mim_in22k_ft22k_ft1k.h5) |
   | EVA02LargePatch14, mim_m38m_ft22k_ft1k | 305.08M | 363.68G | 448   | 90.054   | [eva02_large_patch14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva02_large_patch14_448_mim_m38m_ft22k_ft1k.h5) |
 ## FasterNet
-  - [Keras FasterNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/fasternet) includes implementation of [PDF 2303.03667 Run, Don’t Walk: Chasing Higher FLOPS for Faster Neural Networks ](https://arxiv.org/pdf/2303.03667.pdf).
+  - [Keras FasterNet](keras_cv_attention_models/fasternet) includes implementation of [PDF 2303.03667 Run, Don’t Walk: Chasing Higher FLOPS for Faster Neural Networks ](https://arxiv.org/pdf/2303.03667.pdf).
 
   | Model       | Params | FLOPs  | Input | Top1 Acc | Download |
   | ----------- | ------ | ------ | ----- | -------- | -------- |
@@ -827,7 +827,7 @@
   | FasterNetM  | 53.5M  | 8.72G  | 224   | 83.0     | [fasternet_m_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fasternet/fasternet_m_imagenet.h5)   |
   | FasterNetL  | 93.4M  | 15.49G | 224   | 83.5     | [fasternet_l_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fasternet/fasternet_l_imagenet.h5)   |
 ## FBNetV3
-  - [Keras FBNetV3](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#fbnetv3) includes implementation of [PDF 2006.02049 FBNetV3: Joint Architecture-Recipe Search using Predictor Pretraining](https://arxiv.org/pdf/2006.02049.pdf).
+  - [Keras FBNetV3](keras_cv_attention_models/mobilenetv3_family#fbnetv3) includes implementation of [PDF 2006.02049 FBNetV3: Joint Architecture-Recipe Search using Predictor Pretraining](https://arxiv.org/pdf/2006.02049.pdf).
 
   | Model    | Params | FLOPs    | Input | Top1 Acc | Download |
   | -------- | ------ | -------- | ----- | -------- | -------- |
@@ -835,7 +835,7 @@
   | FBNetV3D | 10.31M | 665.02M  | 256   | 79.68    | [fbnetv3_d_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/fbnetv3_d_imagenet.h5) |
   | FBNetV3G | 16.62M | 1379.30M | 256   | 82.05    | [fbnetv3_g_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/fbnetv3_g_imagenet.h5) |
 ## FlexiViT
-  - [Keras FlexiViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/beit) includes models from [PDF 2212.08013 FlexiViT: One Model for All Patch Sizes](https://arxiv.org/pdf/2212.08013.pdf).
+  - [Keras FlexiViT](keras_cv_attention_models/beit) includes models from [PDF 2212.08013 FlexiViT: One Model for All Patch Sizes](https://arxiv.org/pdf/2212.08013.pdf).
 
   | Model         | Params  | FLOPs  | Input | Top1 Acc | Download |
   | ------------- | ------- | ------ | ----- | -------- | -------- |
@@ -843,7 +843,7 @@
   | FlexiViTBase  | 86.59M  | 20.33G | 240   | 84.66    | [flexivit_base_240.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/flexivit_base_240_imagenet.h5) |
   | FlexiViTLarge | 304.47M | 71.09G | 240   | 85.64    | [flexivit_large_240.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/flexivit_large_240_imagenet.h5) |
 ## GCViT
-  - [Keras GCViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/gcvit) includes implementation of [PDF 2206.09959 Global Context Vision Transformers](https://arxiv.org/pdf/2206.09959.pdf).
+  - [Keras GCViT](keras_cv_attention_models/gcvit) includes implementation of [PDF 2206.09959 Global Context Vision Transformers](https://arxiv.org/pdf/2206.09959.pdf).
 
   | Model        | Params | FLOPs | Input | Top1 Acc | Download |
   | ------------ | ------ | ----- | ----- | -------- | -------- |
@@ -853,7 +853,7 @@
   | GCViT_Small  | 51.1M  | 8.63G | 224   | 83.95    | [gcvit_small_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_small_224_imagenet.h5) |
   | GCViT_Base   | 90.3M  | 14.9G | 224   | 84.47    | [gcvit_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_base_224_imagenet.h5) |
 ## GhostNet
-  - [Keras GhostNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/ghostnet) includes implementation of [PDF 1911.11907 GhostNet: More Features from Cheap Operations](https://arxiv.org/pdf/1911.11907.pdf).
+  - [Keras GhostNet](keras_cv_attention_models/ghostnet) includes implementation of [PDF 1911.11907 GhostNet: More Features from Cheap Operations](https://arxiv.org/pdf/1911.11907.pdf).
 
   | Model        | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------ | ------ | ------ | ----- | -------- | -------- |
@@ -862,7 +862,7 @@
   | GhostNet_130 | 7.36M  | 227.7M | 224   | 75.79    | [ghostnet_130_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_130_imagenet.h5) |
   | - ssld       | 7.36M  | 227.7M | 224   | 79.38    | [ghostnet_130_ssld.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnet_130_ssld.h5) |
 ## GhostNetV2
-  - [Keras GhostNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/ghostnet) includes implementation of [PDF GhostNetV2: Enhance Cheap Operation with Long-Range Attention](https://openreview.net/pdf/6db544c65bbd0fa7d7349508454a433c112470e2.pdf).
+  - [Keras GhostNet](keras_cv_attention_models/ghostnet) includes implementation of [PDF GhostNetV2: Enhance Cheap Operation with Long-Range Attention](https://openreview.net/pdf/6db544c65bbd0fa7d7349508454a433c112470e2.pdf).
 
   | Model             | Params | FLOPs  | Input | Top1 Acc | Download |
   | ----------------- | ------ | ------ | ----- | -------- | -------- |
@@ -871,7 +871,7 @@
   | GhostNetV2 (1.3x) | 8.96M  | 271.1M | 224   | 76.9     |          |
   | GhostNetV2 (1.6x) | 12.39M | 400.9M | 224   | 77.8     |          |
 ## GMLP
-  - [Keras GMLP](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#gmlp) includes implementation of [PDF 2105.08050 Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050.pdf).
+  - [Keras GMLP](keras_cv_attention_models/mlp_family#gmlp) includes implementation of [PDF 2105.08050 Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050.pdf).
 
   | Model      | Params | FLOPs  | Input | Top1 Acc | Download |
   | ---------- | ------ | ------ | ----- | -------- | -------- |
@@ -879,7 +879,7 @@
   | GMLPS16    | 20M    | 4.44G  | 224   | 79.6     | [gmlp_s16_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/gmlp_s16_imagenet.h5) |
   | GMLPB16    | 73M    | 15.82G | 224   | 81.6     |          |
 ## GPViT
-  - [Keras GPViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/gpvit) includes implementation of [PDF 2212.06795 GPVIT: A HIGH RESOLUTION NON-HIERARCHICAL VISION TRANSFORMER WITH GROUP PROPAGATION](https://arxiv.org/pdf/2212.06795.pdf).
+  - [Keras GPViT](keras_cv_attention_models/gpvit) includes implementation of [PDF 2212.06795 GPVIT: A HIGH RESOLUTION NON-HIERARCHICAL VISION TRANSFORMER WITH GROUP PROPAGATION](https://arxiv.org/pdf/2212.06795.pdf).
 
   | Model    | Params | FLOPs  | Input | Top1 Acc | Download |
   | -------- | ------ | ------ | ----- | -------- | -------- |
@@ -888,7 +888,7 @@
   | GPViT_L3 | 36.7M  | 23.54G | 224   | 84.1     | [gpvit_l3_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpvit/gpvit_l3_224_imagenet.h5) |
   | GPViT_L4 | 75.5M  | 48.29G | 224   | 84.3     | [gpvit_l4_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpvit/gpvit_l4_224_imagenet.h5) |
 ## HaloNet
-  - [Keras HaloNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/halonet) is for [PDF 2103.12731 Scaling Local Self-Attention for Parameter Efficient Visual Backbones](https://arxiv.org/pdf/2103.12731.pdf).
+  - [Keras HaloNet](keras_cv_attention_models/halonet) is for [PDF 2103.12731 Scaling Local Self-Attention for Parameter Efficient Visual Backbones](https://arxiv.org/pdf/2103.12731.pdf).
 
   | Model          | Params | FLOPs   | Input | Top1 Acc | Download |
   | -------------- | ------ | ------- | ----- | -------- | -------- |
@@ -908,7 +908,7 @@
   | HaloNet50T     | 22.7M  | 5.29G   | 256   | 81.70    | [halonet50t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet50t_256_imagenet.h5) |
   | HaloBotNet50T  | 22.6M  | 5.02G   | 256   | 82.0     | [halobotnet50t_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halobotnet50t_256_imagenet.h5) |
 ## HorNet
-  - [Keras HorNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/hornet) is for [PDF 2207.14284 HorNet: Efficient High-Order Spatial Interactions with Recursive Gated Convolutions](https://arxiv.org/pdf/2207.14284.pdf).
+  - [Keras HorNet](keras_cv_attention_models/hornet) is for [PDF 2207.14284 HorNet: Efficient High-Order Spatial Interactions with Recursive Gated Convolutions](https://arxiv.org/pdf/2207.14284.pdf).
 
   | Model         | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------- | ------ | ------ | ----- | -------- | -------- |
@@ -922,7 +922,7 @@
   | HorNetLargeGF | 196.3M | 34.72G | 224   | 87.0     | [hornet_large_gf_224_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hornet/hornet_large_gf_224_imagenet22k.h5) |
   | HorNetLargeGF | 201.8M | 102.0G | 384   | 87.7     | [hornet_large_gf_384_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hornet/hornet_large_gf_384_imagenet22k.h5) |
 ## IFormer
-  - [Keras IFormer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/iformer) is for [PDF 2205.12956 Inception Transformer](https://arxiv.org/pdf/2205.12956.pdf).
+  - [Keras IFormer](keras_cv_attention_models/iformer) is for [PDF 2205.12956 Inception Transformer](https://arxiv.org/pdf/2205.12956.pdf).
 
   | Model        | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------ | ------ | ------ | ----- | -------- | -------- |
@@ -933,7 +933,7 @@
   | IFormerLarge | 86.6M  | 14.12G | 224   | 84.6     | [iformer_large_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_largel_224_imagenet.h5) |
   |              | 87.7M  | 45.74G | 384   | 85.8     | [iformer_large_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_largel_384_imagenet.h5) |
 ## InceptionNeXt
-  - [Keras InceptionNeXt](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/inceptionnext) is for [PDF 2303.16900 InceptionNeXt: When Inception Meets ConvNeXt](https://arxiv.org/pdf/2303.16900.pdf).
+  - [Keras InceptionNeXt](keras_cv_attention_models/inceptionnext) is for [PDF 2303.16900 InceptionNeXt: When Inception Meets ConvNeXt](https://arxiv.org/pdf/2303.16900.pdf).
 
   | Model              | Params | FLOP s | Input | Top1 Acc | Download |
   | ------------------ | ------ | ------ | ----- | -------- | -------- |
@@ -942,7 +942,7 @@
   | InceptionNeXtBase  | 86.67M | 14.88G | 224   | 84.0     | [inceptionnext_base_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/inceptionnext/inceptionnext_base_224_imagenet.h5) |
   |                    | 86.67M | 43.73G | 384   | 85.2     | [inceptionnext_base_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/inceptionnext/inceptionnext_base_384_imagenet.h5) |
 ## LCNet
-  - [Keras LCNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#lcnet) includes implementation of [PDF 2109.15099 PP-LCNet: A Lightweight CPU Convolutional Neural Network](https://arxiv.org/pdf/2109.15099.pdf).
+  - [Keras LCNet](keras_cv_attention_models/mobilenetv3_family#lcnet) includes implementation of [PDF 2109.15099 PP-LCNet: A Lightweight CPU Convolutional Neural Network](https://arxiv.org/pdf/2109.15099.pdf).
 
   | Model    | Params | FLOPs   | Input | Top1 Acc | Download |
   | -------- | ------ | ------- | ----- | -------- | -------- |
@@ -956,7 +956,7 @@
   | LCNet250 | 9.04M  | 900.16M | 224   | 76.60    | [lcnet_250_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_250_imagenet.h5) |
   | - ssld   | 9.04M  | 900.16M | 224   | 80.82    | [lcnet_250_ssld.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/lcnet_250_ssld.h5) |
 ## LeViT
-  - [Keras LeViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/levit) is for [PDF 2104.01136 LeViT: a Vision Transformer in ConvNet’s Clothing for Faster Inference](https://arxiv.org/pdf/2104.01136.pdf).
+  - [Keras LeViT](keras_cv_attention_models/levit) is for [PDF 2104.01136 LeViT: a Vision Transformer in ConvNet’s Clothing for Faster Inference](https://arxiv.org/pdf/2104.01136.pdf).
 
   | Model                   | Params | FLOPs | Input | Top1 Acc | Download |
   | ----------------------- | ------ | ----- | ----- | -------- | -------- |
@@ -966,7 +966,7 @@
   | LeViT256, distillation  | 19M    | 1.13G | 224   | 81.6     | [levit256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit256_imagenet.h5) |
   | LeViT384, distillation  | 39M    | 2.36G | 224   | 82.6     | [levit384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit384_imagenet.h5) |
 ## MaxViT
-  - [Keras MaxViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/maxvit) is for [PDF 2204.01697 MaxViT: Multi-Axis Vision Transformer](https://arxiv.org/pdf/2204.01697.pdf).
+  - [Keras MaxViT](keras_cv_attention_models/maxvit) is for [PDF 2204.01697 MaxViT: Multi-Axis Vision Transformer](https://arxiv.org/pdf/2204.01697.pdf).
 
   | Model                           | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------------------------- | ------ | ------ | ----- | -------- | -------- |
@@ -992,7 +992,7 @@
   | MaxViT_XLarge, imagenet21k-ft1k | 475M   | 293.7G | 384   | 88.51    | [xlarge_384_21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_xlarge_384_imagenet21k-ft1k.h5) |
   | MaxViT_XLarge, imagenet21k-ft1k | 475M   | 535.2G | 512   | 88.70    | [xlarge_512_21k-ft1k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_xlarge_512_imagenet21k-ft1k.h5) |
 ## MLP mixer
-  - [Keras MLP mixer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#mlp-mixer) includes implementation of [PDF 2105.01601 MLP-Mixer: An all-MLP Architecture for Vision](https://arxiv.org/pdf/2105.01601.pdf).
+  - [Keras MLP mixer](keras_cv_attention_models/mlp_family#mlp-mixer) includes implementation of [PDF 2105.01601 MLP-Mixer: An all-MLP Architecture for Vision](https://arxiv.org/pdf/2105.01601.pdf).
 
   | Model            | Params | FLOPs   | Input | Top1 Acc | Download |
   | ---------------- | ------ | ------- | ----- | -------- | -------- |
@@ -1013,7 +1013,7 @@
   | MLPMixerH14, JFT | 432.3M | 121.22G | 224   | 86.32    |          |
   | - input 448, JFT | 432.3M | 484.73G | 448   | 87.94    |          |
 ## MobileNetV3
-  - [Keras MobileNetV3](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#mobilenetv3) includes implementation of [PDF 1905.02244 Searching for MobileNetV3](https://arxiv.org/pdf/1905.02244.pdf).
+  - [Keras MobileNetV3](keras_cv_attention_models/mobilenetv3_family#mobilenetv3) includes implementation of [PDF 1905.02244 Searching for MobileNetV3](https://arxiv.org/pdf/1905.02244.pdf).
 
   | Model               | Params | FLOPs   | Input | Top1 Acc | Download |
   | ------------------- | ------ | ------- | ----- | -------- | -------- |
@@ -1024,7 +1024,7 @@
   | MobileNetV3Large100 | 5.48M  | 218.73M | 224   | 75.77    | [large_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_large_100_imagenet.h5) |
   | - miil              | 5.48M  | 218.73M | 224   | 77.92    | [large_100_miil.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_large_100_mill.h5) |
 ## MobileViT
-  - [Keras MobileViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilevit) is for [PDF 2110.02178 MOBILEVIT: LIGHT-WEIGHT, GENERAL-PURPOSE, AND MOBILE-FRIENDLY VISION TRANSFORMER](https://arxiv.org/pdf/2110.02178.pdf).
+  - [Keras MobileViT](keras_cv_attention_models/mobilevit) is for [PDF 2110.02178 MOBILEVIT: LIGHT-WEIGHT, GENERAL-PURPOSE, AND MOBILE-FRIENDLY VISION TRANSFORMER](https://arxiv.org/pdf/2110.02178.pdf).
 
   | Model         | Params | FLOPs | Input | Top1 Acc | Download |
   | ------------- | ------ | ----- | ----- | -------- | -------- |
@@ -1032,7 +1032,7 @@
   | MobileViT_XS  | 2.3M   | 1.05G | 256   | 74.7     | [mobilevit_xs_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_xs_imagenet.h5) |
   | MobileViT_S   | 5.6M   | 2.03G | 256   | 78.3     | [mobilevit_s_imagenet](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_s_imagenet.h5) |
 ## MobileViT_V2
-  - [Keras MobileViT_V2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilevit) is for [PDF 2206.02680 Separable Self-attention for Mobile Vision Transformers](https://arxiv.org/pdf/2206.02680.pdf).
+  - [Keras MobileViT_V2](keras_cv_attention_models/mobilevit) is for [PDF 2206.02680 Separable Self-attention for Mobile Vision Transformers](https://arxiv.org/pdf/2206.02680.pdf).
 
   | Model              | Params | FLOPs | Input | Top1 Acc | Download |
   | ------------------ | ------ | ----- | ----- | -------- | -------- |
@@ -1050,7 +1050,7 @@
   | - imagenet22k      | 18.4M  | 7.12G | 256   | 82.36    | [v2_200_256_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_200_256_imagenet22k.h5) |
   | - imagenet22k, 384 | 18.4M  | 16.2G | 384   | 83.41    | [v2_200_384_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_v2_200_384_imagenet22k.h5) |
 ## MogaNet
-  - [Keras MogaNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/moganet) is for [PDF 2211.03295 Efficient Multi-order Gated Aggregation Network](https://arxiv.org/pdf/2211.03295.pdf).
+  - [Keras MogaNet](keras_cv_attention_models/moganet) is for [PDF 2211.03295 Efficient Multi-order Gated Aggregation Network](https://arxiv.org/pdf/2211.03295.pdf).
 
   | Model        | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------ | ------ | ------ | ----- | -------- | -------- |
@@ -1061,7 +1061,7 @@
   | MogaNetBase  | 43.7M  | 9.96G  | 224   | 84.2     | [moganet_base_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/moganet/moganet_base_imagenet.h5) |
   | MogaNetLarge | 82.5M  | 15.96G | 224   | 84.6     | [moganet_large_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/moganet/moganet_large_imagenet.h5) |
 ## NAT
-  - [Keras NAT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/nat) is for [PDF 2204.07143 Neighborhood Attention Transformer](https://arxiv.org/pdf/2204.07143.pdf).
+  - [Keras NAT](keras_cv_attention_models/nat) is for [PDF 2204.07143 Neighborhood Attention Transformer](https://arxiv.org/pdf/2204.07143.pdf).
 
   | Model     | Params | FLOPs  | Input | Top1 Acc | Download |
   | --------- | ------ | ------ | ----- | -------- | -------- |
@@ -1070,7 +1070,7 @@
   | NAT_Small | 50.7M  | 7.84G  | 224   | 83.7     | [nat_small_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_small_imagenet.h5) |
   | NAT_Base  | 89.8M  | 13.76G | 224   | 84.3     | [nat_base_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_base_imagenet.h5) |
 ## NFNets
-  - [Keras NFNets](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/nfnets) is for [PDF 2102.06171 High-Performance Large-Scale Image Recognition Without Normalization](https://arxiv.org/pdf/2102.06171.pdf).
+  - [Keras NFNets](keras_cv_attention_models/nfnets) is for [PDF 2102.06171 High-Performance Large-Scale Image Recognition Without Normalization](https://arxiv.org/pdf/2102.06171.pdf).
 
   | Model       | Params | FLOPs   | Input | Top1 Acc | Download |
   | ----------- | ------ | ------- | ----- | -------- | -------- |
@@ -1088,7 +1088,7 @@
   | ECA_NFNetL2 | 56.72M | 30.12G  | 384   | 84.70    | [eca_nfnetl2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nfnets/eca_nfnetl2_imagenet.h5) |
   | ECA_NFNetL3 | 72.04M | 52.73G  | 448   |          |          |
 ## PVT_V2
-  - [Keras PVT_V2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/pvt) is for [PDF 2106.13797 PVTv2: Improved Baselines with Pyramid Vision Transformer](https://arxiv.org/pdf/2106.13797.pdf).
+  - [Keras PVT_V2](keras_cv_attention_models/pvt) is for [PDF 2106.13797 PVTv2: Improved Baselines with Pyramid Vision Transformer](https://arxiv.org/pdf/2106.13797.pdf).
 
   | Model           | Params | FLOPs  | Input | Top1 Acc | Download |
   | --------------- | ------ | ------ | ----- | -------- | -------- |
@@ -1100,7 +1100,7 @@
   | PVT_V2B4        | 62.6M  | 10.19G | 224   | 83.6     | [pvt_v2_b4_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b4_imagenet.h5) |
   | PVT_V2B5        | 82.0M  | 11.81G | 224   | 83.8     | [pvt_v2_b5_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/pvt/pvt_v2_b5_imagenet.h5) |
 ## RegNetY
-  - [Keras RegNetY](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnet_family#regnety) is for [PDF 2003.13678 Designing Network Design Spaces](https://arxiv.org/pdf/2003.13678.pdf).
+  - [Keras RegNetY](keras_cv_attention_models/resnet_family#regnety) is for [PDF 2003.13678 Designing Network Design Spaces](https://arxiv.org/pdf/2003.13678.pdf).
 
   | Model      | Params  | FLOPs  | Input | Top1 Acc | Download |
   | ---------- | ------- | ------ | ----- | -------- | -------- |
@@ -1110,7 +1110,7 @@
   | RegNetY160 | 83.59M  | 15.92G | 224   | 82.0     | [regnety_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_160_imagenet.h5) |
   | RegNetY320 | 145.05M | 32.29G | 224   | 82.5     | [regnety_320_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnety_320_imagenet.h5) |
 ## RegNetZ
-  - [Keras RegNetZ](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnet_family#regnetz) includes implementation of [Github timm/models/byobnet.py](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/byobnet.py).
+  - [Keras RegNetZ](keras_cv_attention_models/resnet_family#regnetz) includes implementation of [Github timm/models/byobnet.py](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/byobnet.py).
   - Related paper [PDF 2004.02967 Evolving Normalization-Activation Layers](https://arxiv.org/pdf/2004.02967.pdf)
 
   | Model          | Params | FLOPs | Input | Top1 Acc | Download |
@@ -1123,7 +1123,7 @@
   | RegNetZD8_EVO  | 23.46M | 4.61G | 256   | 83.42    | [regnetz_d8_evo_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d8_evo_imagenet.h5)   |
   | RegNetZE8      | 57.70M | 9.88G | 256   | 84.5     | [regnetz_e8_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_e8_imagenet.h5)   |
 ## ResMLP
-  - [Keras ResMLP](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#resmlp) includes implementation of [PDF 2105.03404 ResMLP: Feedforward networks for image classification with data-efficient training](https://arxiv.org/pdf/2105.03404.pdf).
+  - [Keras ResMLP](keras_cv_attention_models/mlp_family#resmlp) includes implementation of [PDF 2105.03404 ResMLP: Feedforward networks for image classification with data-efficient training](https://arxiv.org/pdf/2105.03404.pdf).
 
   | Model         | Params | FLOPs   | Input | Top1 Acc | Download |
   | ------------- | ------ | ------- | ----- | -------- | -------- |
@@ -1133,7 +1133,7 @@
   | ResMLP_B24    | 129M   | 100.39G | 224   | 83.6     | [resmlp_b24_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/resmlp_b24_imagenet.h5) |
   | - imagenet22k | 129M   | 100.39G | 224   | 84.4     | [resmlp_b24_imagenet22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mlp_family/resmlp_b24_imagenet22k.h5) |
 ## ResNeSt
-  - [Keras ResNeSt](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnest) is for [PDF 2004.08955 ResNeSt: Split-Attention Networks](https://arxiv.org/pdf/2004.08955.pdf).
+  - [Keras ResNeSt](keras_cv_attention_models/resnest) is for [PDF 2004.08955 ResNeSt: Split-Attention Networks](https://arxiv.org/pdf/2004.08955.pdf).
 
   | Model          | Params | FLOPs  | Input | Top1 Acc | Download |
   | -------------- | ------ | ------ | ----- | -------- | -------- |
@@ -1142,7 +1142,7 @@
   | resnest200     | 71M    | 35.55G | 320   | 83.84    | [resnest200.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest200_imagenet.h5) |
   | resnest269     | 111M   | 77.42G | 416   | 84.54    | [resnest269.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnest/resnest269_imagenet.h5) |
 ## ResNetD
-  - [Keras ResNetD](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnet_family#resnetd) includes implementation of [PDF 1812.01187 Bag of Tricks for Image Classification with Convolutional Neural Networks](https://arxiv.org/pdf/1812.01187.pdf)
+  - [Keras ResNetD](keras_cv_attention_models/resnet_family#resnetd) includes implementation of [PDF 1812.01187 Bag of Tricks for Image Classification with Convolutional Neural Networks](https://arxiv.org/pdf/1812.01187.pdf)
 
   | Model      | Params | FLOPs  | Input | Top1 Acc | Download |
   | ---------- | ------ | ------ | ----- | -------- | -------- |
@@ -1151,14 +1151,14 @@
   | ResNet152D | 60.21M | 11.75G | 224   | 83.680   | [resnet152d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet152d_imagenet.h5) |
   | ResNet200D | 64.69M | 15.25G | 224   | 83.962   | [resnet200d.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet200d_imagenet.h5) |
 ## ResNetQ
-  - [Keras ResNetQ](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnet_family#resnetq) includes implementation of [Github timm/models/resnet.py](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/resnet.py)
+  - [Keras ResNetQ](keras_cv_attention_models/resnet_family#resnetq) includes implementation of [Github timm/models/resnet.py](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/resnet.py)
 
   | Model     | Params | FLOPs | Input | Top1 Acc | Download |
   | --------- | ------ | ----- | ----- | -------- | -------- |
   | ResNet51Q | 35.7M  | 4.87G | 224   | 82.36    | [resnet51q.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnet51q_imagenet.h5) |
   | ResNet61Q | 36.8M  | 5.96G | 224   |          |          |
 ## ResNeXt
-  - [Keras ResNeXt](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/resnet_family#resnext) includes implementation of [PDF 1611.05431 Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf).
+  - [Keras ResNeXt](keras_cv_attention_models/resnet_family#resnext) includes implementation of [PDF 1611.05431 Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf).
   - `SWSL` means `Semi-Weakly Supervised ResNe*t` from [Github facebookresearch/semi-supervised-ImageNet1K-models](https://github.com/facebookresearch/semi-supervised-ImageNet1K-models). **Please note the CC-BY-NC 4.0 license on theses weights, non-commercial use only**.
 
   | Model                     | Params | FLOPs  | Input | Top1 Acc | Download            |
@@ -1172,7 +1172,7 @@
   | - SWSL                    | 89M    | 16.41G | 224   | 84.284   | [resnext101w_swsl.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101w_swsl.h5)  |
   | ResNeXt101W_64 (64x4d)    | 83.46M | 15.46G | 224   | 82.46    | [resnext101w_64_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/resnext101w_64_imagenet.h5)  |
 ## SwinTransformerV2
-  - [Keras SwinTransformerV2](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/swin_transformer_v2) includes implementation of [PDF 2111.09883 Swin Transformer V2: Scaling Up Capacity and Resolution](https://arxiv.org/pdf/2111.09883.pdf).
+  - [Keras SwinTransformerV2](keras_cv_attention_models/swin_transformer_v2) includes implementation of [PDF 2111.09883 Swin Transformer V2: Scaling Up Capacity and Resolution](https://arxiv.org/pdf/2111.09883.pdf).
 
   | Model                                | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------------------------------ | ------ | ------ | ----- | -------- | -------- |
@@ -1190,7 +1190,7 @@
   | SwinTransformerV2Large_window16, 22k | 196.7M | 48.03G | 256   | 86.9     | [large_window16_256_22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_large_window16_256_imagenet22k.h5) |
   | SwinTransformerV2Large_window24, 22k | 196.7M | 117.1G | 384   | 87.6     | [large_window24_384_22k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_large_window24_384_imagenet22k.h5) |
 ## TinyNet
-  - [Keras TinyNet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mobilenetv3_family#tinynet) includes implementation of [PDF 2010.14819 Model Rubik’s Cube: Twisting Resolution, Depth and Width for TinyNets](https://arxiv.org/pdf/2010.14819.pdf).
+  - [Keras TinyNet](keras_cv_attention_models/mobilenetv3_family#tinynet) includes implementation of [PDF 2010.14819 Model Rubik’s Cube: Twisting Resolution, Depth and Width for TinyNets](https://arxiv.org/pdf/2010.14819.pdf).
 
   | Model    | Params | FLOPs   | Input | Top1 Acc | Download |
   | -------- | ------ | ------- | ----- | -------- | -------- |
@@ -1200,7 +1200,7 @@
   | TinyNetB | 3.73M  | 206.28M | 188   | 74.98    | [tinynet_b_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/tinynet_b_imagenet.h5) |
   | TinyNetA | 6.19M  | 343.74M | 192   | 77.65    | [tinynet_a_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/tinynet_a_imagenet.h5) |
 ## TinyViT
-  - [Keras TinyViT](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/tinyvit) includes implementation of [PDF 2207.10666 TinyViT: Fast Pretraining Distillation for Small Vision Transformers](https://arxiv.org/pdf/2207.10666.pdf).
+  - [Keras TinyViT](keras_cv_attention_models/tinyvit) includes implementation of [PDF 2207.10666 TinyViT: Fast Pretraining Distillation for Small Vision Transformers](https://arxiv.org/pdf/2207.10666.pdf).
 
   | Model                | Params | FLOPs | Input | Top1 Acc | Download |
   | -------------------- | ------ | ----- | ----- | -------- | -------- |
@@ -1213,7 +1213,7 @@
   |                      | 21M    | 13.8G | 384   | 86.2     | [tiny_vit_21m_384_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/tinyvit/tiny_vit_21m_384_imagenet21k-ft1k.h5) |
   |                      | 21M    | 27.0G | 512   | 86.5     | [tiny_vit_21m_512_21k.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/tinyvit/tiny_vit_21m_512_imagenet21k-ft1k.h5) |
 ## UniFormer
-  - [Keras UniFormer](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/uniformer) includes implementation of [PDF 2201.09450 UniFormer: Unifying Convolution and Self-attention for Visual Recognition](https://arxiv.org/pdf/2201.09450.pdf).
+  - [Keras UniFormer](keras_cv_attention_models/uniformer) includes implementation of [PDF 2201.09450 UniFormer: Unifying Convolution and Self-attention for Visual Recognition](https://arxiv.org/pdf/2201.09450.pdf).
 
   | Model                 | Params | FLOPs  | Input | Top1 Acc | Download |
   | --------------------- | ------ | ------ | ----- | -------- | -------- |
@@ -1230,7 +1230,7 @@
   | UniformerLarge64 + TL | 100M   | 19.79G | 224   | 85.6     | [large_64_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_224_token_label.h5) |
   | UniformerLarge64 + TL | 100M   | 63.11G | 384   | 86.3     | [large_64_384_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_384_token_label.h5) |
 ## VOLO
-  - [Keras VOLO](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/volo) is for [PDF 2106.13112 VOLO: Vision Outlooker for Visual Recognition](https://arxiv.org/pdf/2106.13112.pdf).
+  - [Keras VOLO](keras_cv_attention_models/volo) is for [PDF 2106.13112 VOLO: Vision Outlooker for Visual Recognition](https://arxiv.org/pdf/2106.13112.pdf).
 
   | Model   | Params | FLOPs   | Input | Top1 Acc | Download            |
   | ------- | ------ | ------- | ----- | -------- | ------------------- |
@@ -1246,7 +1246,7 @@
   | - 448   | 296M   | 213.72G | 448   | 87.0     | [volo_d5_448_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_448_imagenet.h5) |
   | - 512   | 296M   | 279.36G | 512   | 87.1     | [volo_d5_512_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/volo/volo_d5_512_imagenet.h5) |
 ## WaveMLP
-  - [Keras WaveMLP](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/mlp_family#wavemlp) includes implementation of [PDF 2111.12294 An Image Patch is a Wave: Quantum Inspired Vision MLP](https://arxiv.org/pdf/2111.12294.pdf).
+  - [Keras WaveMLP](keras_cv_attention_models/mlp_family#wavemlp) includes implementation of [PDF 2111.12294 An Image Patch is a Wave: Quantum Inspired Vision MLP](https://arxiv.org/pdf/2111.12294.pdf).
 
   | Model     | Params | FLOPs  | Input | Top1 Acc | Download |
   | --------- | ------ | ------ | ----- | -------- | -------- |
@@ -1258,7 +1258,7 @@
 
 # Detection Models
 ## EfficientDet
-  - [Keras EfficientDet](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/efficientdet) includes implementation of [Paper 1911.09070 EfficientDet: Scalable and Efficient Object Detection](https://arxiv.org/pdf/1911.09070.pdf).
+  - [Keras EfficientDet](keras_cv_attention_models/efficientdet) includes implementation of [Paper 1911.09070 EfficientDet: Scalable and Efficient Object Detection](https://arxiv.org/pdf/1911.09070.pdf).
   - `Det-AdvProp + AutoAugment` [Paper 2103.13886 Robust and Accurate Object Detection via Adversarial Learning](https://arxiv.org/pdf/2103.13886.pdf).
 
   | Model              | Params | FLOPs   | Input | COCO val AP | test AP | Download |
@@ -1285,7 +1285,7 @@
   | EfficientDetLite3X | 9.3M   | 14.01G  | 640   | 44.0        | 42.64   | [efficientdet_lite3x.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite3x_640_coco.h5) |
   | EfficientDetLite4  | 15.1M  | 20.20G  | 640   | 44.4        | 43.18   | [efficientdet_lite4.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_lite4_640_coco.h5)   |
 ## YOLO_NAS
-  - [Keras YOLO_NAS](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolov8) includes implementation of [Github Deci-AI/super-gradients](https://github.com/Deci-AI/super-gradients) YOLO-NAS models.
+  - [Keras YOLO_NAS](keras_cv_attention_models/yolov8) includes implementation of [Github Deci-AI/super-gradients](https://github.com/Deci-AI/super-gradients) YOLO-NAS models.
 
   | Model                   | Params | FLOPs  | Input | COCO val AP | test AP | Download |
   | ----------------------- | ------ | ------ | ----- | ----------- | ------- | -------- |
@@ -1296,7 +1296,7 @@
   | YOLO_NAS_L              | 42.02M | 59.95G | 640   | 52.22       |         | [yolo_nas_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_coco.h5) |
   | - use_reparam_conv=True | 44.53M | 64.53G | 640   | 52.22       |         | [l_before_reparam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_before_reparam_coco.h5) |
 ## YOLOR
-  - [Keras YOLOR](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolor) includes implementation of [Paper 2105.04206 You Only Learn One Representation: Unified Network for Multiple Tasks](https://arxiv.org/pdf/2105.04206.pdf).
+  - [Keras YOLOR](keras_cv_attention_models/yolor) includes implementation of [Paper 2105.04206 You Only Learn One Representation: Unified Network for Multiple Tasks](https://arxiv.org/pdf/2105.04206.pdf).
 
   | Model      | Params | FLOPs   | Input | COCO val AP | test AP | Download |
   | ---------- | ------ | ------- | ----- | ----------- | ------- | -------- |
@@ -1307,7 +1307,7 @@
   | YOLOR_E6   | 115.9M | 341.62G | 1280  | 50.3 ?      | 57.6    | [yolor_e6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_e6_coco.h5)       |
   | YOLOR_D6   | 151.8M | 467.88G | 1280  | 50.8 ?      | 58.2    | [yolor_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolor/yolor_d6_coco.h5)       |
 ## YOLOV7
-  - [Keras YOLOV7](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolov7) includes implementation of [Paper 2207.02696 YOLOv7: Trainable bag-of-freebies sets new state-of-the-art for real-time object detectors](https://arxiv.org/pdf/2207.02696.pdf).
+  - [Keras YOLOV7](keras_cv_attention_models/yolov7) includes implementation of [Paper 2207.02696 YOLOv7: Trainable bag-of-freebies sets new state-of-the-art for real-time object detectors](https://arxiv.org/pdf/2207.02696.pdf).
 
   | Model       | Params | FLOPs  | Input | COCO val AP | test AP | Download |
   | ----------- | ------ | ------ | ----- | ----------- | ------- | -------- |
@@ -1319,7 +1319,7 @@
   | YOLOV7_D6   | 133.9M | 351.4G | 1280  | 56.6        |         | [yolov7_d6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_d6_coco.h5) |
   | YOLOV7_E6E  | 151.9M | 421.7G | 1280  | 56.8        |         | [yolov7_e6e_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov7/yolov7_e6e_coco.h5) |
 ## YOLOV8
-  - [Keras YOLOV8](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolov8) includes implementation of [Github ultralytics/ultralytics](https://github.com/ultralytics/ultralytics) detection and classification models.
+  - [Keras YOLOV8](keras_cv_attention_models/yolov8) includes implementation of [Github ultralytics/ultralytics](https://github.com/ultralytics/ultralytics) detection and classification models.
 
   | Model     | Params | FLOPs  | Input | COCO val AP | test AP | Download |
   | --------- | ------ | ------ | ----- | ----------- | ------- | -------- |
@@ -1330,7 +1330,7 @@
   | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         | [yolov8_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_coco.h5) |
   | YOLOV8_X6 | 97.42M | 522.6G | 1280  | 56.7 ?      |         | [yolov8_x6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x6_coco.h5) |
 ## YOLOX
-  - [Keras YOLOX](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models/yolox) includes implementation of [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
+  - [Keras YOLOX](keras_cv_attention_models/yolox) includes implementation of [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).
 
   | Model     | Params | FLOPs   | Input | COCO val AP | test AP | Download |
   | --------- | ------ | ------- | ----- | ----------- | ------- | -------- |
