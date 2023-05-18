@@ -4,7 +4,7 @@ import sys
 sys.path.append(".")
 import keras_cv_attention_models
 from keras_cv_attention_models.backend import models
-from keras_cv_attention_models.coco.data import COCO_80_LABEL_DICT, COCO_90_LABEL_DICT
+from keras_cv_attention_models.coco.info import COCO_80_LABEL_DICT, COCO_90_LABEL_DICT
 from keras_cv_attention_models.test_images import cat
 
 """ Recognition models defination """
