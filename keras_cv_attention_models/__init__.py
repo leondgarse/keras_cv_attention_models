@@ -1,6 +1,7 @@
 from keras_cv_attention_models import backend
 
 from .version import __version__
+from keras_cv_attention_models import plot_func
 from keras_cv_attention_models import attention_layers
 from keras_cv_attention_models import beit
 from keras_cv_attention_models.beit import flexivit

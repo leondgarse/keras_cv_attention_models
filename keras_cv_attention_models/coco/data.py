@@ -2,18 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from keras_cv_attention_models.imagenet.data import init_mean_std_by_rescale_mode, tf_imread, random_crop_and_resize_image
 from keras_cv_attention_models.coco import anchors_func
-
-COCO_LABELS = """person, bicycle, car, motorcycle, airplane, bus, train, truck, boat, traffic light, fire hydrant, stop sign,
-    parking meter, bench, bird, cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe, backpack, umbrella, handbag, tie,
-    suitcase, frisbee, skis, snowboard, sports ball, kite, baseball bat, baseball glove, skateboard, surfboard, tennis racket,
-    bottle, wine glass, cup, fork, knife, spoon, bowl, banana, apple, sandwich, orange, broccoli, carrot, hot dog, pizza, donut,
-    cake, chair, couch, potted plant, bed, dining table, toilet, tv, laptop, mouse, remote, keyboard, cell phone, microwave, oven,
-    toaster, sink, refrigerator, book, clock, vase, scissors, teddy bear, hair drier, toothbrush"""
-COCO_80_LABEL_DICT = {id: ii.strip() for id, ii in enumerate(COCO_LABELS.split(","))}
-INVALID_ID_90 = [11, 25, 28, 29, 44, 65, 67, 68, 70, 82]
-COCO_90_LABEL_DICT = {id: ii for id, ii in zip(set(range(90)) - set(INVALID_ID_90), COCO_80_LABEL_DICT.values())}
-COCO_90_LABEL_DICT.update({ii: "Unknown" for ii in INVALID_ID_90})
-COCO_80_to_90_LABEL_DICT = {id_80: id_90 for id_80, id_90 in enumerate(set(range(90)) - set(INVALID_ID_90))}
+from keras_cv_attention_models.plot_func import draw_bboxes, show_image_with_bboxes
 
 
 """ Bboxes augment """
@@ -114,6 +103,7 @@ def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, 
     if scale == -1:
         scale = tf.minimum(letterbox_target_shape[0] / height, letterbox_target_shape[1] / width)
     scaled_hh, scaled_ww = int(height * scale), int(width * scale)
+    image = tf.cast(image, "float32")
     image = tf.image.resize(image, [scaled_hh, scaled_ww], method=method, antialias=antialias)
     image = image[crop_y : crop_y + letterbox_target_shape[0], crop_x : crop_x + letterbox_target_shape[1]]
     cropped_shape = tf.shape(image)
@@ -495,60 +485,6 @@ def init_dataset(
 
 
 """ Show """
-
-
-def draw_bboxes(bboxes, ax=None):
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    if ax is None:
-        fig, ax = plt.subplots()
-    bboxes = np.array(bboxes).astype("int32")
-    for bb in bboxes:
-        ax.plot(bb[[1, 1, 3, 3, 1]], bb[[0, 2, 2, 0, 0]])
-    plt.show()
-    return ax
-
-
-def show_image_with_bboxes(
-    image, bboxes, labels=None, confidences=None, is_bbox_width_first=False, ax=None, label_font_size=8, num_classes=80, indices_2_labels=None
-):
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    need_plt_show = False
-    if ax is None:
-        fig, ax = plt.subplots()
-        need_plt_show = True
-    ax.imshow(image)
-    bboxes = np.array(bboxes)
-    if is_bbox_width_first:
-        bboxes = bboxes[:, [1, 0, 3, 2]]
-    for id, bb in enumerate(bboxes):
-        # bbox is [top, left, bottom, right]
-        bb = [bb[0] * image.shape[0], bb[1] * image.shape[1], bb[2] * image.shape[0], bb[3] * image.shape[1]]
-        bb = np.array(bb).astype("int32")
-        ax.plot(bb[[1, 1, 3, 3, 1]], bb[[0, 2, 2, 0, 0]])
-
-        if labels is not None:
-            label = int(labels[id])
-            if indices_2_labels is not None:
-                label = indices_2_labels.get(label, indices_2_labels.get(str(label), "None"))
-            elif num_classes == 90:
-                label = COCO_90_LABEL_DICT[label]
-            elif num_classes == 80:
-                label = COCO_80_LABEL_DICT[label]
-
-            if confidences is not None:
-                label += ": {:.4f}".format(float(confidences[id]))
-            color = ax.lines[-1].get_color()
-            # ax.text(bb[1], bb[0] - 5, "label: {}, {}".format(label, COCO_80_LABEL_DICT[label]), color=color, fontsize=8)
-            ax.text(bb[1], bb[0] - 5, label, color=color, fontsize=label_font_size)
-    ax.set_axis_off()
-    plt.tight_layout()
-    if need_plt_show:
-        plt.show()
-    return ax
 
 
 def show_batch_sample(

@@ -1,7 +1,8 @@
 import os
+import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, callbacks
-from keras_cv_attention_models.coco import anchors_func
+from keras_cv_attention_models.coco import anchors_func, info
 from tqdm import tqdm
 
 
@@ -231,7 +232,7 @@ def image_process(image, target_shape, mean, std, resize_method="bilinear", resi
     if len(image.shape) < 2:
         image = data.tf_imread(image)  # it's image path
     original_image_shape = functional.shape(image)[:2]
-    image = functional.cast(image, "float32")
+    # image = functional.cast(image, "float32")
     image = (image - mean) / std  # automl behavior: rescale -> resize
     image, scale, pad_top, pad_left = data.aspect_aware_resize_and_crop_image(
         image, target_shape, letterbox_pad=letterbox_pad, method=resize_method, antialias=resize_antialias
@@ -272,12 +273,10 @@ def init_eval_dataset(
 
 
 def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={}, is_coco=True, image_id_map=None, num_classes=80):
-    from keras_cv_attention_models.coco import data
-
     target_shape = (eval_dataset.element_spec[0].shape[1], eval_dataset.element_spec[0].shape[2])
     # num_classes = model.output_shape[-1] - 4
     if is_coco:
-        to_91_labels = (lambda label: label + 1) if num_classes >= 90 else (lambda label: data.COCO_80_to_90_LABEL_DICT[label] + 1)
+        to_91_labels = (lambda label: label + 1) if num_classes >= 90 else (lambda label: info.COCO_80_to_90_LABEL_DICT[label] + 1)
     else:
         to_91_labels = lambda label: label
     # Format: [image_id, x, y, width, height, score, class]
@@ -298,7 +297,8 @@ def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={},
                 image_id = image_id_map[image_id.decode() if isinstance(image_id, bytes) else image_id]
             bboxes = scale_bboxes_back_single(bboxes, image_shape, scale, pad_top, pad_left, target_shape).numpy()
             results.extend([to_coco_eval_single(image_id, bb, cc, ss) for bb, cc, ss in zip(bboxes, labels, scores)])  # Loop on prediction results
-    return functional.convert_to_tensor(results).numpy()
+    # return functional.convert_to_tensor(results).numpy()
+    return np.array(results)
 
 
 class COCOEvaluation:
@@ -378,7 +378,7 @@ class COCOEvalCallback(callbacks.Callback):
     Basic test:
     >>> from keras_cv_attention_models import efficientdet, coco
     >>> model = efficientdet.EfficientDetD0()
-    >>> ee = coco.eval_func.COCOEvalCallback(batch_size=4, model_basic_save_name='test', rescale_mode='raw', anchors_mode="anchor_free")
+    >>> ee = coco.eval_func.COCOEvalCallback(batch_size=4)
     >>> ee.model = model
     >>> ee.on_epoch_end()
     """

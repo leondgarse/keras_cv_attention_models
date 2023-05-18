@@ -69,6 +69,64 @@ def stack_and_plot_images(images, texts=None, margin=5, margin_value=0, rows=-1,
     return ax, stacked_images
 
 
+""" Show detection results """
+
+
+def draw_bboxes(bboxes, ax=None):
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    bboxes = np.array(bboxes).astype("int32")
+    for bb in bboxes:
+        ax.plot(bb[[1, 1, 3, 3, 1]], bb[[0, 2, 2, 0, 0]])
+    plt.show()
+    return ax
+
+
+def show_image_with_bboxes(
+    image, bboxes, labels=None, confidences=None, is_bbox_width_first=False, ax=None, label_font_size=8, num_classes=80, indices_2_labels=None
+):
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from keras_cv_attention_models.coco import info
+
+    need_plt_show = False
+    if ax is None:
+        fig, ax = plt.subplots()
+        need_plt_show = True
+    ax.imshow(image)
+    bboxes = np.array(bboxes)
+    if is_bbox_width_first:
+        bboxes = bboxes[:, [1, 0, 3, 2]]
+    for id, bb in enumerate(bboxes):
+        # bbox is [top, left, bottom, right]
+        bb = [bb[0] * image.shape[0], bb[1] * image.shape[1], bb[2] * image.shape[0], bb[3] * image.shape[1]]
+        bb = np.array(bb).astype("int32")
+        ax.plot(bb[[1, 1, 3, 3, 1]], bb[[0, 2, 2, 0, 0]])
+
+        if labels is not None:
+            label = int(labels[id])
+            if indices_2_labels is not None:
+                label = indices_2_labels.get(label, indices_2_labels.get(str(label), "None"))
+            elif num_classes == 90:
+                label = info.COCO_90_LABEL_DICT[label]
+            elif num_classes == 80:
+                label = info.COCO_80_LABEL_DICT[label]
+
+            if confidences is not None:
+                label += ": {:.4f}".format(float(confidences[id]))
+            color = ax.lines[-1].get_color()
+            # ax.text(bb[1], bb[0] - 5, "label: {}, {}".format(label, info.COCO_80_LABEL_DICT[label]), color=color, fontsize=8)
+            ax.text(bb[1], bb[0] - 5, label, color=color, fontsize=label_font_size)
+    ax.set_axis_off()
+    plt.tight_layout()
+    if need_plt_show:
+        plt.show()
+    return ax
+
+
 """ tensorboard_parallel_coordinates_plot """
 
 

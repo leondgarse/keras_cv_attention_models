@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from keras_cv_attention_models.visualizing.plot_func import get_plot_cols_rows, stack_and_plot_images
+from keras_cv_attention_models.plot_func import get_plot_cols_rows, stack_and_plot_images
 
 
 def matmul_prod(aa):

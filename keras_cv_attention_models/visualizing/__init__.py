@@ -1,7 +1,7 @@
 from keras_cv_attention_models.visualizing.visualize_filters import visualize_filters
 from keras_cv_attention_models.visualizing.gradcam_heatmap import make_gradcam_heatmap, make_and_apply_gradcam_heatmap
 from keras_cv_attention_models.visualizing.attention_score_maps import plot_attention_score_maps
-from keras_cv_attention_models.visualizing.plot_func import get_plot_cols_rows, stack_and_plot_images, tensorboard_parallel_coordinates_plot
+from keras_cv_attention_models.plot_func import tensorboard_parallel_coordinates_plot
 
 
 visualize_filters.__doc__ = """
