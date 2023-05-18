@@ -135,20 +135,21 @@ def minimum(xx, yy, name=None):
         return wrapper(lambda inputs: torch.clip(xx, max=yy), [xx, yy], name=name)
 
 
-def non_max_suppression_with_scores(boxes, scores, max_output_size, iou_threshold=0.5, score_threshold=-math.inf, soft_nms_sigma=0.0, name=None):
-    # from torchvision.ops import nms, batched_nms
-    #
-    # return nms(boxes=boxes, scores=scores, iou_threshold=iou_threshold)
-    # batched_nms(boxes=boxes, scores=scores, iou_threshold=iou_threshold)
-    # batched_nms(boxes: torch.Tensor, scores: torch.Tensor, idxs: torch.Tensor, iou_threshold: float)
-    from tensorflow import image  # [TODO] use torch / torchvision one
+def non_max_suppression_with_scores(boxes, scores, max_output_size=100, iou_threshold=0.5, score_threshold=-math.inf, soft_nms_sigma=0.0, name=None):
+    from torchvision.ops import nms, batched_nms
 
-    if hasattr(boxes, "detach"):
-        boxes = boxes.detach().numpy()
-    if hasattr(scores, "detach"):
-        scores = scores.detach().numpy()
-    rr, nms_scores = image.non_max_suppression_with_scores(boxes, scores, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
-    return torch.from_numpy(rr.numpy().astype("int64")), torch.from_numpy(nms_scores.numpy().astype("float32"))
+    valid_scores_index = torch.where(scores > score_threshold)[0]
+    nms_index = nms(boxes=boxes[valid_scores_index], scores=scores[valid_scores_index], iou_threshold=iou_threshold)
+    actual_index = valid_scores_index[nms_index]
+    return actual_index, scores[actual_index]
+    # from tensorflow import image
+    #
+    # if hasattr(boxes, "detach"):
+    #     boxes = boxes.detach().numpy()
+    # if hasattr(scores, "detach"):
+    #     scores = scores.detach().numpy()
+    # rr, nms_scores = image.non_max_suppression_with_scores(boxes, scores, max_output_size, iou_threshold, score_threshold, soft_nms_sigma)
+    # return torch.from_numpy(rr.numpy().astype("int64")), torch.from_numpy(nms_scores.numpy().astype("float32"))
 
 
 def norm(inputs, ord="euclidean", axis=1, keepdims=False, name=None):
@@ -245,7 +246,7 @@ def resize(inputs, size, method="bilinear", preserve_aspect_ratio=False, antiali
 
 
 def shape(inputs):
-    return Shape(inputs)
+    return Shape(inputs) if isinstance(inputs, GraphNode) else inputs.shape
     # return inputs.shape
 
 
@@ -299,6 +300,10 @@ def sqrt(inputs, name=None):
 
 def squeeze(inputs, axis, name=None):
     return wrapper(partial(torch.squeeze, dim=axis), inputs, name=name)
+
+
+def stack(inputs, axis, name=None):
+    return wrapper(partial(torch.stack, dim=axis), inputs, name=name)
 
 
 def tanh(inputs, name=None):
