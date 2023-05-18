@@ -214,10 +214,11 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
     def __dfl_loss__(self, bboxes_true_encoded, bboxes_pred, labels_true):
         target_low_bound = tf.cast(tf.floor(bboxes_true_encoded), bboxes_pred.dtype)
         target_up_bound = target_low_bound + 1
+        weight_low = target_up_bound - bboxes_true_encoded
 
         bboxes_pred_reg = tf.reshape(bboxes_pred, [-1, 4, self.regression_len // 4])
-        dfl_loss_low = K.sparse_categorical_crossentropy(target_low_bound, bboxes_pred_reg, from_logits=True) * (target_up_bound - bboxes_true_encoded)
-        dfl_loss_up = K.sparse_categorical_crossentropy(target_up_bound, bboxes_pred_reg, from_logits=True) * (bboxes_true_encoded - target_up_bound)
+        dfl_loss_low = K.sparse_categorical_crossentropy(target_low_bound, bboxes_pred_reg, from_logits=True) * weight_low
+        dfl_loss_up = K.sparse_categorical_crossentropy(target_up_bound, bboxes_pred_reg, from_logits=True) * (1 - weight_low)
         dfl_loss = tf.reduce_mean(dfl_loss_low, axis=-1) + tf.reduce_mean(dfl_loss_up, axis=-1)
         return tf.reduce_sum(dfl_loss)
         # return tf.reduce_sum(dfl_loss * tf.reduce_sum(labels_true, axis=-1)) / tf.maximum(tf.reduce_sum(labels_true), 1.0)
@@ -468,8 +469,8 @@ class YOLOV8Loss(AnchorFreeLoss):
     >>> bbs, lls, ccs = mm.decode_predictions(pred)[0]
     >>> bbox_labels_true = tf.concat([bbs, tf.one_hot(lls, 80), tf.ones([bbs.shape[0], 1])], axis=-1)
     >>> print("\n", aa(tf.expand_dims(bbox_labels_true, 0), pred))
-    >>> # - dfl_loss: 0.280895025 - cls_loss: 1.84504449 - bbox_loss: 0.120341115
-    >>> # tf.Tensor(2.3482049, shape=(), dtype=float32)
+    >>> # - dfl_loss: 0.910405695 - cls_loss: 1.84504449 - bbox_loss: 0.120341115
+    >>> # tf.Tensor(2.126511, shape=(), dtype=float32)
     """
 
     def __init__(

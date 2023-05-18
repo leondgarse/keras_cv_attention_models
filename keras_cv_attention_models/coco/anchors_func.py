@@ -120,8 +120,8 @@ def get_yolor_anchors(input_shape=(512, 512), pyramid_levels=[3, 5], offset=0.5,
     if is_for_training:
         # YOLOLayer https://github.com/WongKinYiu/yolor/blob/main/models/models.py#L351
         anchor_ratios = anchor_ratios[: len(pyramid_levels)] / [[[2**ii]] for ii in pyramid_levels]
-        feature_sizes = np.array(feature_sizes[min(pyramid_levels) : max(pyramid_levels) + 1], "float32")
-        return anchor_ratios, feature_sizes
+        feature_sizes = np.array(feature_sizes[min(pyramid_levels) : max(pyramid_levels) + 1], "int32")
+        return functional.convert_to_tensor(anchor_ratios.astype("float32")), feature_sizes
 
     all_anchors = []
     for level, anchor_ratio in zip(pyramid_levels, anchor_ratios):
@@ -477,7 +477,7 @@ class AnchorFreeAssignMatching:
 
     def __yolov8_decode_bboxes__(self, bboxes_pred, anchors_centers, anchors_hws):
         regression_len = bboxes_pred.shape[-1] // 4
-        bboxes_pred = functional.reshape(bboxes_pred, [*bboxes_pred.shape[:-1], 4, regression_len])
+        bboxes_pred = functional.reshape(bboxes_pred, [-1, *bboxes_pred.shape[1:-1], 4, regression_len])
         bboxes_pred = functional.softmax(bboxes_pred, axis=-1) * functional.range(regression_len, dtype="float32")
         bboxes_pred = functional.reduce_sum(bboxes_pred, axis=-1)
         preds_top_left, preds_bottom_right = functional.split(bboxes_pred, [2, 2], axis=-1)
@@ -491,10 +491,10 @@ class AnchorFreeAssignMatching:
 
     def __yolov8_encode_bboxes__(self, bboxes_true, anchors_centers, anchors_hws):
         bboxes_true_top_left, bboxes_true_bottom_right = bboxes_true[:, :2], bboxes_true[:, 2:]
-        bboxes_true_top_left_encoded = anchors_centers - bboxes_true_top_left
-        bboxes_true_bottom_right_encoded = bboxes_true_bottom_right - anchors_centers
+        bboxes_true_top_left_encoded = (anchors_centers  - bboxes_true_top_left) / anchors_hws
+        bboxes_true_bottom_right_encoded = (bboxes_true_bottom_right - anchors_centers) / anchors_hws
         out = tf.concat([bboxes_true_top_left_encoded, bboxes_true_bottom_right_encoded], axis=-1)
-        return tf.clip_by_value(out, 0, self.regression_len - 1.01)
+        return tf.clip_by_value(out, 0, self.regression_len / 4 - 1.01)
 
     def __center_iou_nd__(self, bboxes_true_nd, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw):
         # bboxes_true_nd: [num_bboxes, 1, *[top, left, bottom, right]]
@@ -535,6 +535,7 @@ class AnchorFreeAssignMatching:
         )
 
     def __call__(self, bbox_labels_true, bbox_labels_pred):
+        import tensorflow as tf
         from tensorflow.keras import backend as K
 
         # get_assignments https://github.com/Megvii-BaseDetection/YOLOX/tree/master/yolox/models/yolo_head.py#425
@@ -586,7 +587,11 @@ class AnchorFreeAssignMatching:
 
         # object loss, [num_anchors]
         out_object_true = tf.tensor_scatter_nd_update(is_anchor_match_any_bbox, tf.where(is_anchor_match_any_bbox), is_anchor_iou_match_any)
-        object_true_idx = tf.where(out_object_true)  # [num_picked_anchors, 1]
+        if tf.executing_eagerly():
+            object_true_idx = tf.where(out_object_true)  # [num_picked_anchors, 1]
+        else:
+            with tf.xla.experimental.jit_scope(compile_ops=False):
+                object_true_idx = tf.where(out_object_true)  # [num_picked_anchors, 1]
 
         if self.with_encoded_bboxes:
             # l1_target loss, encoded [center_top, center_left, height, width]

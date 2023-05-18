@@ -74,7 +74,7 @@ def _init_tf_buildin_optimizer_(optimizer_class, lr_base, weight_decay, no_weigh
     if is_weight_decay_supported:
         optimizer.exclude_from_weight_decay(var_names=no_weight_decay)
 
-    if not hasattr(optimizer, "_variables") and hasattr(optimizer._optimizer, "_variables"):
+    if not hasattr(optimizer, "_variables") and hasattr(optimizer, "_optimizer") and hasattr(optimizer._optimizer, "_variables"):
         # Bypassing TF 2.11 error AttributeError: 'LossScaleOptimizerV3' object has no attribute '_variables'
         setattr(optimizer, "variables", optimizer._optimizer.variables)
     return optimizer

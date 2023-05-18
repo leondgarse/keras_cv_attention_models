@@ -453,7 +453,7 @@ def init_dataset(
         print(">>>> positional augment methods:", pos_aug.pos_randaug.available_ops)
         train_dataset = train_dataset.map(pos_aug, num_parallel_calls=AUTOTUNE)
 
-    if anchors_mode == anchors_func.ANCHOR_FREE_MODE:  # == "anchor_free"
+    if anchors_mode == anchors_func.ANCHOR_FREE_MODE or anchors_mode == anchors_func.YOLOV8_MODE:  # == "anchor_free"
         # Don't need anchors here, anchor assigning is after getting model predictions.
         bbox_process = lambda bb: to_one_hot_with_class_mark(tf.concat([bb[0], tf.cast(tf.expand_dims(bb[1], -1), bb[0].dtype)], axis=-1), num_classes)
     elif anchors_mode == anchors_func.YOLOR_MODE:  # == "yolor":
