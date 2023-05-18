@@ -2,6 +2,7 @@ import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional
 
+
 if backend.is_tensorflow_backend:
     import tensorflow as tf  # Needed for all assigning achors functions
 
@@ -396,7 +397,7 @@ class AnchorFreeAssignMatching:
     >>> img = test_images.dog_cat()
     >>> pred = mm(mm.preprocess_input(img))
 
-    >>> aa = anchors_func.AnchorFreeAssignMatching([640, 640])
+    >>> aa = anchors_func.AnchorFreeAssignMatching(mm.input_shape[1:-1])
     >>> bbs, lls, ccs = mm.decode_predictions(pred)[0]
     >>> bbox_labels_true = tf.concat([bbs, tf.one_hot(lls, 80), tf.ones([bbs.shape[0], 1])], axis=-1)
     >>> bbox_labels_true_assined = aa(bbox_labels_true, pred[0])
@@ -417,9 +418,20 @@ class AnchorFreeAssignMatching:
     >>> data.show_image_with_bboxes(img, bboxes_true_decode, labels_true.numpy().argmax(-1), labels_true.numpy().max(-1))
     """
 
-    def __init__(self, input_shape, pyramid_levels=[3, 5], center_radius=2.5, topk_ious_max=10, grid_zero_start=True, epsilon=1e-8):
-        self.center_radius, self.topk_ious_max, self.epsilon = center_radius, topk_ious_max, epsilon
-        self.input_shape, self.grid_zero_start = input_shape, grid_zero_start
+    def __init__(
+        self,
+        input_shape,
+        pyramid_levels=[3, 5],
+        center_radius=2.5,
+        topk_ious_max=10,
+        grid_zero_start=True,  # False for YOLOV8, True for YOLOX
+        use_object_scores=True,  # False for YOLOV8, True for YOLOX
+        regression_len=4,  # 64 fro YOLOV8, 4 for YOLOX
+        with_encoded_bboxes=True,  # False for YOLOX not using l1 loss, else False
+        epsilon=1e-8,
+    ):
+        self.center_radius, self.topk_ious_max, self.with_encoded_bboxes, self.epsilon = center_radius, topk_ious_max, with_encoded_bboxes, epsilon
+        self.input_shape, self.grid_zero_start, self.use_object_scores, self.regression_len = input_shape, grid_zero_start, use_object_scores, regression_len
         # pyramid_levels = get_pyramid_levels_by_num_anchors(self.input_shape, self.num_anchors)
         self.anchors = get_anchors(self.input_shape, pyramid_levels, aspect_ratios=[1], num_scales=1, anchor_scale=1, grid_zero_start=self.grid_zero_start)
 
@@ -429,6 +441,9 @@ class AnchorFreeAssignMatching:
         self.anchors_nd = tf.expand_dims(self.anchors, 0)  # [1, num_anchors, 4]
         self.anchors_centers_nd, self.anchors_hws_nd = tf.expand_dims(self.anchors_centers, 0), tf.expand_dims(self.anchors_hws, 0)  # [1, num_anchors, 2]
         self.centers_enlarge_nd = self.anchors_hws_nd * self.center_radius
+
+        self.__decode_bboxes__ = self.__yolov8_decode_bboxes__ if regression_len > 4 else self.__yolox_decode_bboxes__
+        self.__encode_bboxes__ = self.__yolov8_encode_bboxes__ if regression_len > 4 else self.__yolox_encode_bboxes__
 
     def __picking_anchors_by_center_within_bboxes__(self, bboxes_true_nd):
         # get_in_boxes_info https://github.com/Megvii-BaseDetection/YOLOX/tree/master/yolox/models/yolo_head.py#L522
@@ -445,20 +460,41 @@ class AnchorFreeAssignMatching:
         is_anchor_in_center = tf.reduce_all(is_anchor_in_center, axis=-1)
         return is_anchor_in_bbox, is_anchor_in_center
 
-    def __decode_bboxes__(self, bboxes_pred, anchors_centers, anchors_hws):
+    def __yolox_decode_bboxes__(self, bboxes_pred, anchors_centers, anchors_hws):
         bboxes_pred_center = bboxes_pred[:, :2] * anchors_hws + anchors_centers
         bboxes_pred_hw = tf.math.exp(bboxes_pred[:, 2:]) * anchors_hws
         bboxes_pred_top_left = bboxes_pred_center - 0.5 * bboxes_pred_hw
         bboxes_pred_bottom_right = bboxes_pred_top_left + bboxes_pred_hw
         return bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_center, bboxes_pred_hw
 
-    def __encode_bboxes__(self, bboxes_true, anchors_centers, anchors_hws):
+    def __yolox_encode_bboxes__(self, bboxes_true, anchors_centers, anchors_hws):
         # bboxes_true_center, bboxes_true_hw = corners_to_center_yxhw_nd(bboxes_true)
         bboxes_true_hw = bboxes_true[:, 2:] - bboxes_true[:, :2]
         bboxes_true_center = (bboxes_true[:, 2:] + bboxes_true[:, :2]) / 2.0
         bboxes_true_center_encoded = (bboxes_true_center - anchors_centers) / anchors_hws
         bboxes_true_hw_encoded = tf.math.log(bboxes_true_hw / anchors_hws + self.epsilon)
         return tf.concat([bboxes_true_center_encoded, bboxes_true_hw_encoded], axis=-1)
+
+    def __yolov8_decode_bboxes__(self, bboxes_pred, anchors_centers, anchors_hws):
+        regression_len = bboxes_pred.shape[-1] // 4
+        bboxes_pred = functional.reshape(bboxes_pred, [*bboxes_pred.shape[:-1], 4, regression_len])
+        bboxes_pred = functional.softmax(bboxes_pred, axis=-1) * functional.range(regression_len, dtype="float32")
+        bboxes_pred = functional.reduce_sum(bboxes_pred, axis=-1)
+        preds_top_left, preds_bottom_right = functional.split(bboxes_pred, [2, 2], axis=-1)
+
+        preds_top_left, preds_bottom_right = preds_top_left * anchors_hws, preds_bottom_right * anchors_hws
+        bboxes_pred_hw = preds_top_left + preds_bottom_right
+        bboxes_pred_top_left = anchors_centers - preds_top_left
+        bboxes_pred_bottom_right = anchors_centers + preds_bottom_right
+        bboxes_pred_center = (bboxes_pred_top_left + bboxes_pred_bottom_right) / 2
+        return bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_center, bboxes_pred_hw
+
+    def __yolov8_encode_bboxes__(self, bboxes_true, anchors_centers, anchors_hws):
+        bboxes_true_top_left, bboxes_true_bottom_right = bboxes_true[:, :2], bboxes_true[:, 2:]
+        bboxes_true_top_left_encoded = anchors_centers - bboxes_true_top_left
+        bboxes_true_bottom_right_encoded = bboxes_true_bottom_right - anchors_centers
+        out = tf.concat([bboxes_true_top_left_encoded, bboxes_true_bottom_right_encoded], axis=-1)
+        return tf.clip_by_value(out, 0, self.regression_len - 1.01)
 
     def __center_iou_nd__(self, bboxes_true_nd, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw):
         # bboxes_true_nd: [num_bboxes, 1, *[top, left, bottom, right]]
@@ -516,7 +552,12 @@ class AnchorFreeAssignMatching:
         is_anchor_valid = tf.logical_and(tf.gather(is_anchor_in_bbox, pick_cond, axis=-1), tf.gather(is_anchor_in_center, pick_cond, axis=-1))
 
         bbox_labels_pred = bbox_labels_pred[is_anchor_match_any_bbox]
-        bboxes_pred, labels_pred, object_pred = bbox_labels_pred[:, :4], bbox_labels_pred[:, 4:-1], bbox_labels_pred[:, -1:]
+        if self.use_object_scores:
+            bboxes_pred, labels_pred, object_pred = tf.split(bbox_labels_pred, [self.regression_len, -1, 1], axis=-1)
+            obj_labels_pred = tf.sqrt(labels_pred * object_pred)
+        else:
+            bboxes_pred, labels_pred = tf.split(bbox_labels_pred, [self.regression_len, -1], axis=-1)
+            obj_labels_pred = tf.sqrt(labels_pred)
 
         # decode_bboxes
         anchors_centers, anchors_hws = self.anchors_centers[is_anchor_match_any_bbox], self.anchors_hws[is_anchor_match_any_bbox]
@@ -525,7 +566,6 @@ class AnchorFreeAssignMatching:
         ious = self.__center_iou_nd__(bboxes_true_nd, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw)  # [num_bboxes, num_picked_anchors]
         ious_loss = -tf.math.log(ious + self.epsilon)
 
-        obj_labels_pred = tf.sqrt(labels_pred * object_pred)
         cls_loss = K.binary_crossentropy(tf.expand_dims(labels_true, 1), tf.expand_dims(obj_labels_pred, 0))  # [num_bboxes, num_picked_anchors, num_classes]
         cls_loss = tf.reduce_sum(cls_loss, -1)  # [num_bboxes, num_picked_anchors]
         cost = cls_loss + 3.0 * ious_loss + 1e5 * tf.cast(tf.logical_not(is_anchor_valid), cls_loss.dtype)  # [num_bboxes, num_picked_anchors]
@@ -548,10 +588,13 @@ class AnchorFreeAssignMatching:
         out_object_true = tf.tensor_scatter_nd_update(is_anchor_match_any_bbox, tf.where(is_anchor_match_any_bbox), is_anchor_iou_match_any)
         object_true_idx = tf.where(out_object_true)  # [num_picked_anchors, 1]
 
-        # l1_target loss, encoded [center_top, center_left, height, width]
-        anchors_centers_valid = tf.gather_nd(anchors_centers, is_anchor_iou_match_any_idx)
-        anchors_hws_valid = tf.gather_nd(anchors_hws, is_anchor_iou_match_any_idx)
-        out_bboxes_true_encoded = self.__encode_bboxes__(out_bboxes_true, anchors_centers_valid, anchors_hws_valid)
+        if self.with_encoded_bboxes:
+            # l1_target loss, encoded [center_top, center_left, height, width]
+            anchors_centers_valid = tf.gather_nd(anchors_centers, is_anchor_iou_match_any_idx)
+            anchors_hws_valid = tf.gather_nd(anchors_hws, is_anchor_iou_match_any_idx)
+            out_bboxes_true_encoded = self.__encode_bboxes__(out_bboxes_true, anchors_centers_valid, anchors_hws_valid)
 
-        # tf.stop_gradient requires returning value been a single tensor with same dtype as inputs.
-        return tf.concat([out_bboxes_true, out_bboxes_true_encoded, out_labels_true, tf.cast(object_true_idx, out_bboxes_true.dtype)], axis=-1)
+            # tf.stop_gradient requires returning value been a single tensor with same dtype as inputs.
+            return tf.concat([out_bboxes_true, out_bboxes_true_encoded, out_labels_true, tf.cast(object_true_idx, out_bboxes_true.dtype)], axis=-1)
+        else:
+            return tf.concat([out_bboxes_true, out_labels_true, tf.cast(object_true_idx, out_bboxes_true.dtype)], axis=-1)

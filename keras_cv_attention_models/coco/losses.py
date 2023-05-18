@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 
-def __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_bottom_right, pred_hw, use_ciou=False, epsilon=1e-8):
+def __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_bottom_right, pred_hw, use_ciou=False, epsilon=1e-6):
     # Use all top_left, bottom_right, hw as parameters, as hw usaully already calculated before calling this function, like center_hw bboxes.
     inter_top_left = tf.maximum(true_top_left, pred_top_left)
     inter_bottom_right = tf.minimum(true_bottom_right, pred_bottom_right)
@@ -26,7 +26,7 @@ def __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_
         rho = (rho_height + rho_width) / 4
         vv_scale = 4 / math.pi**2
         vv = vv_scale * (tf.atan(true_hw[:, 1] / (true_hw[:, 0] + epsilon)) - tf.atan(pred_hw[:, 1] / (pred_hw[:, 0] + epsilon))) ** 2
-        alpha = tf.stop_gradient(vv / ((1 + epsilon) - iou + vv))
+        alpha = tf.stop_gradient(vv / (1 + epsilon - iou + vv))
         return iou - (rho / outer_area + vv * alpha)
     else:
         return iou
@@ -157,10 +157,14 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         pyramid_levels=[3, 5],  # Required for initing anchors...
         use_l1_loss=False,
         bbox_loss_weight=5.0,
+        class_loss_weight=1.0,
         anchor_assign_center_radius=2.5,
         anchor_assign_topk_ious_max=10,
         anchor_grid_zero_start=True,
-        epsilon=1e-8,
+        use_object_scores=True,  # False for YOLOV8, True for YOLOX
+        regression_len=4,  # 64 fro YOLOV8, 4 for YOLOX
+        use_ciou=False,  # False for YOLOX, True for YOLOV8
+        epsilon=1e-6,
         label_smoothing=0.0,
         from_logits=False,
         **kwargs,
@@ -168,12 +172,23 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         from keras_cv_attention_models.coco import anchors_func
 
         super().__init__(**kwargs)
-        self.bbox_loss_weight, self.use_l1_loss, self.epsilon = bbox_loss_weight, use_l1_loss, epsilon
-        self.label_smoothing, self.from_logits = label_smoothing, from_logits
-        self.input_shape, self.pyramid_levels, self.anchor_grid_zero_start = input_shape, pyramid_levels, anchor_grid_zero_start
+        self.bbox_loss_weight, self.class_loss_weight, self.use_l1_loss, self.use_ciou = bbox_loss_weight, class_loss_weight, use_l1_loss, use_ciou
+        self.use_object_scores, self.regression_len, self.label_smoothing, self.from_logits = use_object_scores, regression_len, label_smoothing, from_logits
+        self.input_shape, self.pyramid_levels, self.anchor_grid_zero_start, self.epsilon = input_shape, pyramid_levels, anchor_grid_zero_start, epsilon
         self.anchor_assign_center_radius, self.anchor_assign_topk_ious_max = anchor_assign_center_radius, anchor_assign_topk_ious_max
+        self.use_dfl_loss = regression_len > 4
+
+        self.with_encoded_bboxes = regression_len > 4 or use_l1_loss
         self.anchor_assign = anchors_func.AnchorFreeAssignMatching(
-            input_shape, pyramid_levels, anchor_assign_center_radius, anchor_assign_topk_ious_max, anchor_grid_zero_start, epsilon=epsilon
+            input_shape=input_shape,
+            pyramid_levels=pyramid_levels,
+            center_radius=anchor_assign_center_radius,
+            topk_ious_max=anchor_assign_topk_ious_max,
+            grid_zero_start=anchor_grid_zero_start,  # False for YOLOV8, True for YOLOX
+            use_object_scores=use_object_scores,  # False for YOLOV8, True for YOLOX
+            regression_len=regression_len,  # 64 fro YOLOV8, 4 for YOLOX
+            with_encoded_bboxes=self.with_encoded_bboxes,  # True for YOLOX using l1 loss, else False
+            epsilon=epsilon,
         )
         self.class_acc = tf.Variable(0, dtype="float32", trainable=False)
         # self.class_acc = tf.Variable(0, dtype="float32", trainable=False, aggregation=tf.VariableAggregation.MEAN)
@@ -192,19 +207,37 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         # true_top_left, true_bottom_right = bboxes_trues[:, :2], bboxes_trues[:, 2:4]
         true_top_left, true_bottom_right, _ = tf.split(bboxes_trues, [2, 2, -1], axis=-1)
         true_hw = true_bottom_right - true_top_left
-        iou = __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_bottom_right, pred_hw, epsilon=self.epsilon)
+        iou = __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_bottom_right, pred_hw, use_ciou=self.use_ciou, epsilon=self.epsilon)
         return 1 - iou**2
+
+
+    def __dfl_loss__(self, bboxes_true_encoded, bboxes_pred, labels_true):
+        target_low_bound = tf.cast(tf.floor(bboxes_true_encoded), bboxes_pred.dtype)
+        target_up_bound = target_low_bound + 1
+
+        bboxes_pred_reg = tf.reshape(bboxes_pred, [-1, 4, self.regression_len // 4])
+        dfl_loss_low = K.sparse_categorical_crossentropy(target_low_bound, bboxes_pred_reg, from_logits=True) * (target_up_bound - bboxes_true_encoded)
+        dfl_loss_up = K.sparse_categorical_crossentropy(target_up_bound, bboxes_pred_reg, from_logits=True) * (bboxes_true_encoded - target_up_bound)
+        dfl_loss = tf.reduce_mean(dfl_loss_low, axis=-1) + tf.reduce_mean(dfl_loss_up, axis=-1)
+        return tf.reduce_sum(dfl_loss)
+        # return tf.reduce_sum(dfl_loss * tf.reduce_sum(labels_true, axis=-1)) / tf.maximum(tf.reduce_sum(labels_true), 1.0)
 
     def __valid_call_single__(self, bbox_labels_true, bbox_labels_pred):
         bbox_labels_true_assined = tf.stop_gradient(self.anchor_assign(bbox_labels_true, bbox_labels_pred))
-        bboxes_true, bboxes_true_encoded, labels_true, object_true_idx_nd = tf.split(bbox_labels_true_assined, [4, 4, -1, 1], axis=-1)
+        if self.with_encoded_bboxes:
+            bboxes_true, bboxes_true_encoded, labels_true, object_true_idx_nd = tf.split(bbox_labels_true_assined, [4, 4, -1, 1], axis=-1)
+        else:
+            bboxes_true, labels_true, object_true_idx_nd = tf.split(bbox_labels_true_assined, [4, -1, 1], axis=-1)
         object_true_idx_nd = tf.cast(object_true_idx_nd, tf.int32)
         object_true = tf.tensor_scatter_nd_update(tf.zeros_like(bbox_labels_pred[:, -1]), object_true_idx_nd, tf.ones_like(bboxes_true[:, -1]))
 
         # object_true_idx = object_true_idx_nd[:, 0]
         # bbox_labels_pred_valid = tf.gather(bbox_labels_pred, object_true_idx)
         bbox_labels_pred_valid = tf.gather_nd(bbox_labels_pred, object_true_idx_nd)
-        bboxes_pred, labels_pred, object_pred = bbox_labels_pred_valid[:, :4], bbox_labels_pred_valid[:, 4:-1], bbox_labels_pred[:, -1]
+        if self.use_object_scores:
+            bboxes_pred, labels_pred, object_pred = tf.split(bbox_labels_pred_valid, [self.regression_len, -1, 1], axis=-1)
+        else:
+            bboxes_pred, labels_pred = tf.split(bbox_labels_pred_valid, [self.regression_len, -1], axis=-1)
         # bboxes_true.set_shape(bboxes_pred.shape)
 
         # anchors_centers = tf.gather(self.anchor_assign.anchors_centers, object_true_idx)
@@ -218,23 +251,22 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         if self.label_smoothing > 0:
             labels_true = labels_true * (1.0 - self.label_smoothing) + 0.5 * self.label_smoothing
         class_loss = tf.reduce_sum(K.binary_crossentropy(labels_true, labels_pred))
-        object_loss = tf.reduce_sum(K.binary_crossentropy(tf.cast(object_true, object_pred.dtype), object_pred))
         bbox_loss = tf.reduce_sum(self.__iou_loss__(bboxes_true, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw))
-        if self.use_l1_loss:
-            l1_loss = tf.reduce_sum(tf.abs(bboxes_true_encoded - bboxes_pred))  # mean absolute error
-        else:
-            l1_loss = 0.0
+
+        object_loss = tf.reduce_sum(K.binary_crossentropy(tf.cast(object_true, object_pred.dtype), object_pred)) if self.use_object_scores else 0.0
+        l1_loss = tf.reduce_sum(tf.abs(bboxes_true_encoded - bboxes_pred)) if self.use_l1_loss else 0.0 # mean absolute error
+        dfl_loss = self.__dfl_loss__(bboxes_true_encoded, bboxes_pred, labels_true) if self.use_dfl_loss else 0.0
 
         num_valid_anchors = tf.cast(tf.shape(bboxes_pred)[0], bboxes_pred.dtype)
         class_acc = tf.reduce_mean(tf.cast(tf.argmax(labels_true, axis=-1) == tf.argmax(labels_pred, axis=-1), "float32"))
-        return class_loss, bbox_loss, object_loss, l1_loss, num_valid_anchors, class_acc
+        return class_loss, bbox_loss, object_loss, l1_loss, dfl_loss, num_valid_anchors, class_acc
 
     def __call_single__(self, inputs):
         bbox_labels_true, bbox_labels_pred = inputs[0], inputs[1]
         return tf.cond(
             tf.reduce_any(bbox_labels_true[:, -1] > 0),
             lambda: self.__valid_call_single__(bbox_labels_true, bbox_labels_pred),
-            lambda: (0.0, 0.0, tf.reduce_sum(K.binary_crossentropy(0.0, bbox_labels_pred[:, -1])), 0.0, 0.0, 0.0),  # Object loss only, target is all False.
+            lambda: (0.0, 0.0, tf.reduce_sum(K.binary_crossentropy(0.0, bbox_labels_pred[:, -1])), 0.0, 0.0, 0.0, 0.0),  # Object loss only, target is all False
         )
 
     def call(self, y_true, y_pred):
@@ -243,20 +275,27 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
             class_pred = tf.sigmoid(class_pred)
             y_pred = tf.concat([bbox_pred, class_pred], axis=-1)
 
-        out_dtype = (y_pred.dtype,) * 6
-        class_loss, bbox_loss, object_loss, l1_loss, num_valid, class_acc = tf.map_fn(self.__call_single__, (y_true, y_pred), fn_output_signature=out_dtype)
+        out_dtype = (y_pred.dtype,) * 7
+        class_loss, bbox_loss, object_loss, l1_loss, dfl_loss, num_valid, class_acc = tf.map_fn(
+            self.__call_single__, (y_true, y_pred), fn_output_signature=out_dtype
+        )
 
         num_valid = tf.maximum(tf.reduce_sum(num_valid), 1.0)
         class_loss, bbox_loss, l1_loss = tf.reduce_sum(class_loss) / num_valid, tf.reduce_sum(bbox_loss) / num_valid, tf.reduce_sum(l1_loss) / num_valid
-        object_loss = tf.reduce_sum(object_loss) / num_valid  # [ ??? ] why not divide actual object shape?
 
         # Calulate accuracy here, will use it in metrics
         self.class_acc.assign(tf.reduce_mean(class_acc))
 
         if self.use_l1_loss:
             tf.print(" - l1_loss:", l1_loss, end="")
-        tf.print(" - cls_loss:", class_loss, "- bbox_loss:", bbox_loss, "- obj_loss:", object_loss, end="\r")
-        return class_loss + object_loss + l1_loss + bbox_loss * self.bbox_loss_weight
+        if self.use_dfl_loss:
+            dfl_loss = tf.reduce_sum(dfl_loss) / num_valid
+            tf.print(" - dfl_loss:", dfl_loss, end="")
+        if self.use_object_scores:
+            object_loss = tf.reduce_sum(object_loss) / num_valid  # [ ??? ] why not divide actual object shape?
+            tf.print(" - obj_loss:", object_loss, end="")
+        tf.print(" - cls_loss:", class_loss, "- bbox_loss:", bbox_loss, end="\r")
+        return class_loss * self.class_loss_weight + object_loss + dfl_loss + l1_loss + bbox_loss * self.bbox_loss_weight
 
     def get_config(self):
         config = super().get_config()
@@ -266,9 +305,13 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
                 "pyramid_levels": self.pyramid_levels,
                 "use_l1_loss": self.use_l1_loss,
                 "bbox_loss_weight": self.bbox_loss_weight,
+                "class_loss_weight": self.class_loss_weight,
                 "anchor_assign_center_radius": self.anchor_assign_center_radius,
                 "anchor_assign_topk_ious_max": self.anchor_assign_topk_ious_max,
                 "anchor_grid_zero_start": self.anchor_grid_zero_start,
+                "use_object_scores": self.use_object_scores,
+                "regression_len": self.regression_len,
+                "use_ciou": self.use_ciou,
                 "epsilon": self.epsilon,
                 "label_smoothing": self.label_smoothing,
                 "from_logits": self.from_logits,
@@ -406,6 +449,64 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
             }
         )
         return config
+
+
+
+@tf.keras.utils.register_keras_serializable(package="kecamLoss")
+class YOLOV8Loss(AnchorFreeLoss):
+    """
+    # Basic test:
+    >>> from keras_cv_attention_models.coco import losses, anchors_func
+    >>> aa = losses.YOLOV8Loss(input_shape=(640, 640))
+
+    >>> from keras_cv_attention_models import yolov8, test_images
+    >>> from keras_cv_attention_models.coco import anchors_func, data
+    >>> mm = yolov8.YOLOV8_S()
+    >>> img = test_images.dog_cat()
+    >>> pred = mm(mm.preprocess_input(img))
+
+    >>> bbs, lls, ccs = mm.decode_predictions(pred)[0]
+    >>> bbox_labels_true = tf.concat([bbs, tf.one_hot(lls, 80), tf.ones([bbs.shape[0], 1])], axis=-1)
+    >>> print("\n", aa(tf.expand_dims(bbox_labels_true, 0), pred))
+    >>> # - dfl_loss: 0.280895025 - cls_loss: 1.84504449 - bbox_loss: 0.120341115
+    >>> # tf.Tensor(2.3482049, shape=(), dtype=float32)
+    """
+
+    def __init__(
+        self,
+        input_shape,  # Required for initing anchors...
+        pyramid_levels=[3, 5],  # Required for initing anchors...
+        use_l1_loss=False,
+        bbox_loss_weight=5.0,
+        class_loss_weight=0.333,  # box_weight=7.5, cls_weight=0.5, dfl_weight=1.5
+        anchor_assign_center_radius=2.5,
+        anchor_assign_topk_ious_max=10,
+        anchor_grid_zero_start=False,
+        use_object_scores=False,  # False for YOLOV8, True for YOLOX
+        regression_len=64,  # 64 fro YOLOV8, 4 for YOLOX
+        use_ciou=True,  # False for YOLOX, True for YOLOV8
+        epsilon=1e-6,
+        label_smoothing=0.0,
+        from_logits=False,
+        **kwargs,
+    ):
+        super().__init__(
+            input_shape=input_shape,
+            pyramid_levels=pyramid_levels,
+            use_l1_loss=use_l1_loss,
+            bbox_loss_weight=bbox_loss_weight,
+            class_loss_weight=class_loss_weight,
+            anchor_assign_center_radius=anchor_assign_center_radius,
+            anchor_assign_topk_ious_max=anchor_assign_topk_ious_max,
+            anchor_grid_zero_start=anchor_grid_zero_start,
+            use_object_scores=use_object_scores,
+            regression_len=regression_len,
+            use_ciou=use_ciou,
+            epsilon=epsilon,
+            label_smoothing=label_smoothing,
+            from_logits=from_logits,
+            **kwargs
+        )
 
 
 @tf.keras.utils.register_keras_serializable(package="kecamLoss")
