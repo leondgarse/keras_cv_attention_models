@@ -73,10 +73,6 @@ def _init_tf_buildin_optimizer_(optimizer_class, lr_base, weight_decay, no_weigh
 
     if is_weight_decay_supported:
         optimizer.exclude_from_weight_decay(var_names=no_weight_decay)
-
-    if not hasattr(optimizer, "_variables") and hasattr(optimizer, "_optimizer") and hasattr(optimizer._optimizer, "_variables"):
-        # Bypassing TF 2.11 error AttributeError: 'LossScaleOptimizerV3' object has no attribute '_variables'
-        setattr(optimizer, "variables", optimizer._optimizer.variables)
     return optimizer
 
 
@@ -220,12 +216,16 @@ def init_distill_model(model, teacher_model):
 def compile_model(model, optimizer, lr_base, weight_decay, loss, loss_weights=None, metrics=["acc"], momentum=0.9):
     if isinstance(optimizer, str):
         optimizer = optimizer.lower()
-        if optimizer == "sgd" and weight_decay > 0:
+        # if optimizer == "sgd" and weight_decay > 0:
             # Add L2 regularizer
-            model = model_surgery.add_l2_regularizer_2_model(model, weight_decay=weight_decay, apply_to_batch_normal=False)
+            # model = model_surgery.add_l2_regularizer_2_model(model, weight_decay=weight_decay, apply_to_batch_normal=False)
         optimizer = init_optimizer(optimizer, lr_base, weight_decay, momentum=momentum)
     print(">>>> Loss: {}, Optimizer: {}".format(loss.__class__.__name__, optimizer.__class__.__name__))
     model.compile(optimizer=optimizer, loss=loss, loss_weights=loss_weights, metrics=metrics)
+
+    if not hasattr(model.optimizer, "_variables") and hasattr(model.optimizer, "_optimizer") and hasattr(model.optimizer._optimizer, "_variables"):
+        # Bypassing TF 2.11 error AttributeError: 'LossScaleOptimizerV3' object has no attribute '_variables'
+        setattr(model.optimizer, "variables", model.optimizer._optimizer.variables)
     return model
 
 

@@ -232,7 +232,7 @@ def image_process(image, target_shape, mean, std, resize_method="bilinear", resi
     if len(image.shape) < 2:
         image = data.tf_imread(image)  # it's image path
     original_image_shape = functional.shape(image)[:2]
-    # image = functional.cast(image, "float32")
+    image = functional.cast(image, "float32")
     image = (image - mean) / std  # automl behavior: rescale -> resize
     image, scale, pad_top, pad_left = data.aspect_aware_resize_and_crop_image(
         image, target_shape, letterbox_pad=letterbox_pad, method=resize_method, antialias=resize_antialias

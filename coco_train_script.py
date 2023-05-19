@@ -188,8 +188,9 @@ def run_training_by_args(args):
             model.summary()
 
     total_anchors = model.output_shape[1]
+    regression_len = (model.output_shape[-1] - num_classes) // 4 * 4
     if args.anchors_mode is None or args.anchors_mode == "auto":
-        args.anchors_mode, num_anchors = anchors_func.get_anchors_mode_by_anchors(input_shape, total_anchors=total_anchors)
+        args.anchors_mode, num_anchors = anchors_func.get_anchors_mode_by_anchors(input_shape, total_anchors=total_anchors, regression_len=regression_len)
     elif args.anchors_mode == anchors_func.EFFICIENTDET_MODE:
         num_anchors = args.efficient_det_num_anchors
     else:
@@ -240,6 +241,8 @@ def run_training_by_args(args):
                 loss = losses.AnchorFreeLoss(input_shape, args.anchor_pyramid_levels, use_l1_loss=args.use_l1_loss, **loss_kwargs)
             elif args.anchors_mode == anchors_func.YOLOR_MODE:  # == "yolor"
                 loss = losses.YOLORLossWithBbox(input_shape, args.anchor_pyramid_levels, **loss_kwargs)
+            elif args.anchors_mode == anchors_func.YOLOV8_MODE:  # == "yolov8"
+                loss = losses.YOLOV8Loss(input_shape, args.anchor_pyramid_levels, **loss_kwargs)
             else:
                 # loss, metrics = losses.FocalLossWithBbox(label_smoothing=args.label_smoothing), losses.ClassAccuracyWithBbox()
                 loss = losses.FocalLossWithBbox(**loss_kwargs)

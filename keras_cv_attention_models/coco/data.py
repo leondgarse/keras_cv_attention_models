@@ -103,7 +103,7 @@ def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, 
     if scale == -1:
         scale = tf.minimum(letterbox_target_shape[0] / height, letterbox_target_shape[1] / width)
     scaled_hh, scaled_ww = int(height * scale), int(width * scale)
-    image = tf.cast(image, "float32")
+    # image = tf.cast(image, "float32")
     image = tf.image.resize(image, [scaled_hh, scaled_ww], method=method, antialias=antialias)
     image = image[crop_y : crop_y + letterbox_target_shape[0], crop_x : crop_x + letterbox_target_shape[1]]
     cropped_shape = tf.shape(image)
@@ -491,7 +491,7 @@ def show_batch_sample(
     dataset, rescale_mode="torch", rows=-1, label_font_size=8, base_size=3, anchors_mode="efficientdet", indices_2_labels=None, **anchor_kwargs
 ):
     import matplotlib.pyplot as plt
-    from keras_cv_attention_models.visualizing import get_plot_cols_rows
+    from keras_cv_attention_models.plot_func import get_plot_cols_rows
 
     if isinstance(dataset, (list, tuple)):
         images, labels = dataset
