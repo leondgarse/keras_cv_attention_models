@@ -1,0 +1,16 @@
+__pycache__
+*.h5
+*.pth
+*.pt
+*.ckpt
+*.npy
+*.npz
+*.onnx
+*.json
+*.tflite
+*.ipynb
+*.swp
+*.log
+.ipynb_checkpoints
+checkpoints
+datasets
