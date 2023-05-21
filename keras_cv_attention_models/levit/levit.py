@@ -28,8 +28,14 @@ class MultiHeadPositionalEmbedding(layers.Layer):
         self.query_height, self.key_height = query_height, key_height
 
     def build(self, input_shape, **kwargs):
-        _, num_heads, qq_blocks, kk_blocks = input_shape
-        self.bb = self.add_weight(name="positional_embedding", shape=(kk_blocks, num_heads), initializer="zeros", trainable=True)
+        if len(input_shape) == 3:
+            _, qq_blocks, kk_blocks = input_shape
+            self.bb = self.add_weight(name="positional_embedding", shape=(kk_blocks,), initializer="zeros", trainable=True)
+            self.output_perm = None
+        else:
+            _, num_heads, qq_blocks, kk_blocks = input_shape
+            self.bb = self.add_weight(name="positional_embedding", shape=(kk_blocks, num_heads), initializer="zeros", trainable=True)
+            self.output_perm = [2, 0, 1]
 
         if self.query_height == -1:
             q_blocks_h = q_blocks_w = int(float(qq_blocks) ** 0.5)  # hh == ww
@@ -64,8 +70,8 @@ class MultiHeadPositionalEmbedding(layers.Layer):
         super(MultiHeadPositionalEmbedding, self).build(input_shape)
 
     def call(self, inputs, **kwargs):
-        pos_bias = functional.transpose(functional.gather(self.bb, self.bb_pos), [2, 0, 1])
-        return inputs + pos_bias
+        pos_bias = functional.gather(self.bb, self.bb_pos)
+        return inputs + (pos_bias if self.output_perm is None else functional.transpose(pos_bias, self.output_perm))
 
     def get_config(self):
         base_config = super().get_config()
