@@ -1,6 +1,17 @@
 import os
 
-is_tensorflow_backend = not "torch" in os.getenv("KECAM_BACKEND", "tensorflow").lower()
+is_tensorflow_backend = "torch" not in os.getenv("KECAM_BACKEND", "tensorflow").lower()
+if is_tensorflow_backend:
+    try:
+        import tensorflow as tf
+    except ModuleNotFoundError as ee:
+        print(">>>> [Warning] os environ 'KECAM_BACKEND' is 'tensorflow', but not installed.")
+        try:
+            import torch
+            is_tensorflow_backend = False
+        except ModuleNotFoundError as ee:
+            raise ModuleNotFoundError('Neither tensorflow nor torch found')
+
 
 if is_tensorflow_backend:
     import tensorflow as tf
@@ -37,8 +48,8 @@ def is_channels_last():
 
 def align_input_shape_by_image_data_format(input_shape):
     """Regard input_shape as force using original shape if len(input_shape) == 4,
-    else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format,
-    or if dynamic shape liek `(None, None, 3)`, will regard the known shape 3 as channel dimentsion.
+    else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format,
+    or if dynamic shape like `(None, None, 3)`, will regard the known shape 3 as channel dimension.
 
     Examples:
     >>> os.environ['KECAM_BACKEND'] = "torch"
@@ -58,7 +69,7 @@ def align_input_shape_by_image_data_format(input_shape):
     if len(input_shape) == 4:  # Regard this as force using original shape
         return input_shape[1:]
 
-    # Assume channel dimention is the one with min value in input_shape
+    # Assume channel dimension is the one with min value in input_shape
     if None in input_shape:
         orign_channel_axis, channel_dim = min(enumerate(input_shape), key=lambda xx: xx[1] is None)
     else:
