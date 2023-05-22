@@ -139,7 +139,7 @@ def EfficientNetV2(
     rescale_mode = "tf" if pretrained is not None and pretrained.startswith("imagenet21k") else rescale_mode
 
     # Regard input_shape as force using original shape if len(input_shape) == 4,
-    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
     input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(shape=input_shape)
     bn_eps = TORCH_BATCH_NORM_EPSILON if is_torch_mode else TF_BATCH_NORM_EPSILON

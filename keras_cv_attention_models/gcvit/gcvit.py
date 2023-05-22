@@ -111,7 +111,7 @@ def GCViT(
 ):
     """Patch stem"""
     # Regard input_shape as force using original shape if len(input_shape) == 4,
-    # else assume channel dimention is the one with min value in input_shape, and put it first or last regarding image_data_format
+    # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
     input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
     nn = conv2d_no_bias(inputs, embed_dim, kernel_size=3, strides=2, use_bias=True, padding="SAME", name="stem_conv")
