@@ -67,7 +67,7 @@ class Model(nn.Module):
         dfs_queue = []
         intra_nodes_ref = {}  # node names, and how many times they should be used
         for ii in self.inputs:
-            dfs_queue.extend(ii.next_nodes)
+            dfs_queue.extend(list(set(ii.next_nodes)))  # In case current node outputs multi times to next node, like `layers.Add()([inputs, inputs])`
             intra_nodes_ref[ii.name] = len(ii.next_nodes)
         while len(dfs_queue) > 0:
             cur_node = dfs_queue.pop(-1)
@@ -76,7 +76,7 @@ class Model(nn.Module):
             if cur_node.name in intra_nodes_ref:
                 raise ValueError("All nodes name should be unique: cur_node: {}, intra_nodes_ref: {}".format(cur_node.name, list(intra_nodes_ref.keys())))
 
-            dfs_queue.extend(cur_node.next_nodes)
+            dfs_queue.extend(list(set(cur_node.next_nodes)))
             # print(cur_node.name)
 
             forward_pipeline.append(cur_node)

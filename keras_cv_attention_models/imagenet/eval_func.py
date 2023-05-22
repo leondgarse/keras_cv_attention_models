@@ -82,23 +82,37 @@ class ONNXModelInterf:
 
         ort.set_default_logger_severity(3)
         model_content = onnx.load_model(model_file)
-        model_content.graph.input[0].type.tensor_type.shape.dim[0].dim_param = "None"  # Set batch_size as dynamic
-        model_content.graph.output[0].type.tensor_type.shape.dim[0].dim_param = "None"  # Set batch_size as dynamic
+        for input in model_content.graph.input:
+            input.type.tensor_type.shape.dim[0].dim_param = "None"  # Set batch_size as dynamic
+        for output in model_content.graph.output:
+            output.type.tensor_type.shape.dim[0].dim_param = "None"  # Set batch_size as dynamic
 
         self.ort_session = ort.InferenceSession(model_content.SerializeToString())
-        self.input_name = self.ort_session.get_inputs()[0].name
-        self.output_names = [self.ort_session.get_outputs()[0].name]
-        self.input_shape = self.ort_session.get_inputs()[0].shape
-        self.output_shape = self.ort_session.get_outputs()[0].shape
+        inputs, outputs = self.ort_session.get_inputs(), self.ort_session.get_outputs()
+        self.input_names, self.output_names = [ii.name for ii in inputs], [ii.name for ii in outputs]
+        self.input_name, self.output_name = self.input_names[0], self.output_names[0]
 
-        # Regard channel shape as the smallest value, and if it's on dimension 1, regard as channel first NCHW format
-        self.data_format = "NCHW" if min(self.input_shape[1:]) == self.input_shape[1] else "NHWC"
+        self.input_shape = inputs[0].shape if len(inputs) == 1 else [ii.shape for ii in inputs]
+        self.output_shape = outputs[0].shape if len(outputs) == 1 else [ii.shape for ii in outputs]
 
-    def __call__(self, imgs):
+        if len(inputs[0].shape) == 4:
+            # Regard channel shape as the smallest value, and if it's on dimension 1, regard as channel first NCHW format
+            self.data_format = "NCHW" if min(inputs[0].shape[1:]) == inputs[0].shape[1] else "NHWC"
+            self.input_channels = inputs[0].shape[1] if self.data_format == "NCHW" else inputs[0].shape[-1]
+        else:
+            self.data_format = "ND"
+            self.input_channels = None
+
+    def __call__(self, imgs, *args, **kwargs):
         imgs = imgs.numpy() if hasattr(imgs, "numpy") else imgs
-        if self.data_format == "NCHW" and imgs.shape[1] != self.input_shape[1]:
+        if self.data_format == "NCHW" and imgs.shape[1] != self.input_channels:
             imgs = imgs.transpose(0, 3, 1, 2)
-        return self.ort_session.run(self.output_names, {self.input_name: imgs.astype("float32")})[0]
+
+        inputs = {name: ii for name, ii in zip(self.input_names, [imgs, *args])}
+        inputs.update(kwargs)
+        # print({kk: vv.shape for kk, vv in inputs.items()})
+        outputs = self.ort_session.run(self.output_names, inputs)
+        return outputs if len(self.output_names) > 1 else outputs[0]
         # return np.array([self.ort_session.run(self.output_names, {self.input_name: imgs[None]})[0][0] for img in imgs])
 
 
