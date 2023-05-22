@@ -50,6 +50,7 @@ def grouped_mhsa_with_multi_head_position(inputs, num_heads, key_dim=-1, output_
 
         # attention_scores = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, key_dim, key_dim]
         attention_scores = (qq @ kk) * qk_scale
+        print(f"{height = }, {width = }")
         attention_scores = MultiHeadPositionalEmbedding(query_height=height, name=cur_name and cur_name + "attn_pos")(attention_scores)
         attention_scores = layers.Softmax(axis=-1, name=cur_name and cur_name + "attention_scores")(attention_scores)
         # attention_scores = layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores) if attn_dropout > 0 else attention_scores
@@ -82,10 +83,14 @@ def res_depthwise_ffn(inputs, mlp_ratio=2, drop_rate=0, activation="relu", name=
     return layers.Add(name=name + "output")([dw, ffn])
 
 def attn_block(inputs, window_size=7, num_heads=4, key_dim=16, kernel_sizes=5, mlp_ratio=2, drop_rate=0, activation="relu", name=""):
+    height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
     pre = res_depthwise_ffn(inputs, mlp_ratio=mlp_ratio, drop_rate=drop_rate, activation=activation, name=name + "pre_")
     # nn = inputs if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(inputs)  # channels_first -> channels_last
-    attn_kwargs = {"key_dim": key_dim, "kernel_sizes": kernel_sizes, "activation": activation}
-    attn = window_attention(pre, window_size, num_heads=num_heads, attention_block=grouped_mhsa_with_multi_head_position, **attn_kwargs, name=name + "attn_")
+    attn_kw = {"key_dim": key_dim, "kernel_sizes": kernel_sizes, "activation": activation}
+    if height <= window_size and width <= window_size:
+        attn = grouped_mhsa_with_multi_head_position(pre, num_heads=num_heads, **attn_kw, name=name + "attn_")
+    else:
+        attn = window_attention(pre, window_size, num_heads=num_heads, attention_block=grouped_mhsa_with_multi_head_position, **attn_kw, name=name + "attn_")
     attn = pre + drop_block(attn, drop_rate)
     # nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last, channels_first
 
@@ -96,7 +101,7 @@ def down_sample_block(inputs, out_channel, hiddem_raio=4, activation="relu", nam
     input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
     nn = conv2d_no_bias(inputs, input_channel * hiddem_raio, kernel_size=1, strides=1, padding="SAME", name=name)
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "pw_")
-    nn = depthwise_conv2d_no_bias(nn, kernel_size=3, strides=1, padding="SAME", name=name)
+    nn = depthwise_conv2d_no_bias(nn, kernel_size=3, strides=2, padding="SAME", name=name)
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "dw_")
     nn = se_module(nn, activation=activation, name=name + "se_")
     nn = conv2d_no_bias(nn, out_channel, kernel_size=1, strides=1, padding="SAME", name=name + "out_")
