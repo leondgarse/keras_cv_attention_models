@@ -53,7 +53,7 @@ if __name__ == "__main__":
     sys.path.append("../ultralytics/")
     from keras_cv_attention_models.yolov8.data import get_data_loader
 
-    train_loader, val_loader = get_data_loader('coco128.yaml')
+    train_loader, val_loader = get_data_loader("coco128.yaml")
     for aa in train_loader:
         break
     plt.imshow(aa["img"][0].permute(1, 2, 0).numpy())

@@ -8,9 +8,10 @@ if is_tensorflow_backend:
         print(">>>> [Warning] os environ 'KECAM_BACKEND' is 'tensorflow', but not installed.")
         try:
             import torch
+
             is_tensorflow_backend = False
         except ModuleNotFoundError as ee:
-            raise ModuleNotFoundError('Neither tensorflow nor torch found')
+            raise ModuleNotFoundError("Neither tensorflow nor torch found")
 
 
 if is_tensorflow_backend:

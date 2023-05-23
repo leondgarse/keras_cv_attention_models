@@ -491,7 +491,7 @@ class AnchorFreeAssignMatching:
 
     def __yolov8_encode_bboxes__(self, bboxes_true, anchors_centers, anchors_hws):
         bboxes_true_top_left, bboxes_true_bottom_right = bboxes_true[:, :2], bboxes_true[:, 2:]
-        bboxes_true_top_left_encoded = (anchors_centers  - bboxes_true_top_left) / anchors_hws
+        bboxes_true_top_left_encoded = (anchors_centers - bboxes_true_top_left) / anchors_hws
         bboxes_true_bottom_right_encoded = (bboxes_true_bottom_right - anchors_centers) / anchors_hws
         out = tf.concat([bboxes_true_top_left_encoded, bboxes_true_bottom_right_encoded], axis=-1)
         return tf.clip_by_value(out, 0, self.regression_len / 4 - 1.01)

@@ -10,8 +10,7 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 long_description = long_description.replace(
-    '](keras_cv_attention_models',
-    '](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models'
+    "](keras_cv_attention_models", "](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models"
 )
 
 exec(open("keras_cv_attention_models/version.py").read())
@@ -51,7 +50,7 @@ setup(
         # "tensorflow-macos;platform_system=='Darwin'",  # [???]
         "tensorflow;platform_system!='Darwin'",
         "tensorflow-addons;platform_machine!='aarch64' and platform_machine!='aarch32'",
-        "tensorflow-datasets;platform_machine!='aarch64' and platform_machine!='aarch32'"  # >4.7.0 needs dm-tree, failed on arm, just skip
+        "tensorflow-datasets;platform_machine!='aarch64' and platform_machine!='aarch32'",  # >4.7.0 needs dm-tree, failed on arm, just skip
     ],
     python_requires=">=3.6",
     license="Apache 2.0",

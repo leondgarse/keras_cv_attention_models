@@ -10,8 +10,7 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 long_description = long_description.replace(
-    '](keras_cv_attention_models',
-    '](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models'
+    "](keras_cv_attention_models", "](https://github.com/leondgarse/keras_cv_attention_models/tree/main/keras_cv_attention_models"
 )
 
 exec(open("keras_cv_attention_models/version.py").read())

@@ -7,7 +7,7 @@
 ***
 
 ## Models
-  | Model              | Params | FLOP s | Input | Top1 Acc | Download |
+  | Model              | Params | FLOPs | Input | Top1 Acc | Download |
   | ------------------ | ------ | ------ | ----- | -------- | -------- |
   | InceptionNeXtTiny  | 28.05M | 4.21G  | 224   | 82.3     | [inceptionnext_tiny_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/inceptionnext/inceptionnext_tiny_imagenet.h5) |
   | InceptionNeXtSmall | 49.37M | 8.39G  | 224   | 83.5     | [inceptionnext_small_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/inceptionnext/inceptionnext_small_imagenet.h5) |

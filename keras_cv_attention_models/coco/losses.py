@@ -210,7 +210,6 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         iou = __bbox_iou__(true_top_left, true_bottom_right, true_hw, pred_top_left, pred_bottom_right, pred_hw, use_ciou=self.use_ciou, epsilon=self.epsilon)
         return 1 - iou**2
 
-
     def __dfl_loss__(self, bboxes_true_encoded, bboxes_pred, labels_true):
         target_low_bound = tf.cast(tf.floor(bboxes_true_encoded), bboxes_pred.dtype)
         target_up_bound = target_low_bound + 1
@@ -255,7 +254,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         bbox_loss = tf.reduce_sum(self.__iou_loss__(bboxes_true, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw))
 
         object_loss = tf.reduce_sum(K.binary_crossentropy(tf.cast(object_true, object_pred.dtype), object_pred)) if self.use_object_scores else 0.0
-        l1_loss = tf.reduce_sum(tf.abs(bboxes_true_encoded - bboxes_pred)) if self.use_l1_loss else 0.0 # mean absolute error
+        l1_loss = tf.reduce_sum(tf.abs(bboxes_true_encoded - bboxes_pred)) if self.use_l1_loss else 0.0  # mean absolute error
         dfl_loss = self.__dfl_loss__(bboxes_true_encoded, bboxes_pred, labels_true) if self.use_dfl_loss else 0.0
 
         num_valid_anchors = tf.cast(tf.shape(bboxes_pred)[0], bboxes_pred.dtype)
@@ -452,7 +451,6 @@ class YOLORLossWithBbox(tf.keras.losses.Loss):
         return config
 
 
-
 @tf.keras.utils.register_keras_serializable(package="kecamLoss")
 class YOLOV8Loss(AnchorFreeLoss):
     """
@@ -506,7 +504,7 @@ class YOLOV8Loss(AnchorFreeLoss):
             epsilon=epsilon,
             label_smoothing=label_smoothing,
             from_logits=from_logits,
-            **kwargs
+            **kwargs,
         )
 
 

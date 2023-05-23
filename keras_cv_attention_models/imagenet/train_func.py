@@ -217,8 +217,8 @@ def compile_model(model, optimizer, lr_base, weight_decay, loss, loss_weights=No
     if isinstance(optimizer, str):
         optimizer = optimizer.lower()
         # if optimizer == "sgd" and weight_decay > 0:
-            # Add L2 regularizer
-            # model = model_surgery.add_l2_regularizer_2_model(model, weight_decay=weight_decay, apply_to_batch_normal=False)
+        #     Add L2 regularizer
+        #     model = model_surgery.add_l2_regularizer_2_model(model, weight_decay=weight_decay, apply_to_batch_normal=False)
         optimizer = init_optimizer(optimizer, lr_base, weight_decay, momentum=momentum)
     print(">>>> Loss: {}, Optimizer: {}".format(loss.__class__.__name__, optimizer.__class__.__name__))
     model.compile(optimizer=optimizer, loss=loss, loss_weights=loss_weights, metrics=metrics)
