@@ -98,7 +98,9 @@ def __grid_window_reverse__(inputs, patch_height, patch_width, window_height, wi
     return nn
 
 
-def window_attention(inputs, window_size, num_heads=4, is_grid=False, attention_block=None, name=None, **kwargs):
+def window_attention(inputs, window_size, num_heads=4, is_grid=False, attention_block=None, data_format="channels_last", name=None, **kwargs):
+    inputs = inputs if data_format == "channels_last" else functional.transpose(inputs, [0, 2, 3, 1])
+
     window_size = window_size if isinstance(window_size, (list, tuple)) else [window_size, window_size]
     window_height = window_size[0] if window_size[0] < inputs.shape[1] else inputs.shape[1]
     window_width = window_size[1] if window_size[1] < inputs.shape[2] else inputs.shape[2]
@@ -116,7 +118,9 @@ def window_attention(inputs, window_size, num_heads=4, is_grid=False, attention_
         nn = __window_partition__(inputs, patch_height, patch_width, window_height, window_width)
 
     if attention_block:
+        nn = nn if data_format == "channels_last" else functional.transpose(nn, [0, 3, 1, 2])
         nn = attention_block(nn, num_heads=num_heads, name=name, **kwargs)
+        nn = nn if data_format == "channels_last" else functional.transpose(nn, [0, 2, 3, 1])
     else:
         nn = multi_head_self_attention(nn, num_heads=num_heads, qkv_bias=True, out_bias=True, name=name)
 
@@ -129,7 +133,7 @@ def window_attention(inputs, window_size, num_heads=4, is_grid=False, attention_
     if should_pad_hh or should_pad_ww:
         nn = nn[:, : nn.shape[1] - should_pad_hh, : nn.shape[2] - should_pad_ww, :]  # In case should_pad_hh or should_pad_ww is 0
 
-    return nn
+    return nn if data_format == "channels_last" else functional.transpose(nn, [0, 3, 1, 2])
 
 
 def conv_positional_encoding(inputs, kernel_size=3, use_norm=False, activation="gelu", name=""):

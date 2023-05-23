@@ -33,6 +33,7 @@ from keras_cv_attention_models.mobilenetv3_family import fbnetv3
 from keras_cv_attention_models.mobilenetv3_family import lcnet
 from keras_cv_attention_models.mobilenetv3_family import mobilenetv3
 from keras_cv_attention_models.mobilenetv3_family import tinynet
+from keras_cv_attention_models import efficientvit
 from keras_cv_attention_models import inceptionnext
 from keras_cv_attention_models import maxvit
 from keras_cv_attention_models import mobilevit

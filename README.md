@@ -33,6 +33,7 @@
   - [EfficientFormerV2](#efficientformerv2)
   - [EfficientNet](#efficientnet)
   - [EfficientNetV2](#efficientnetv2)
+  - [EfficientViT](#efficientvit)
   - [EVA](#eva)
   - [EVA02](#eva02)
   - [FasterNet](#fasternet)
@@ -796,6 +797,17 @@
   | EfficientNetV2L            | 119.5M | 56.27G | 480   | 85.7     | [effv2l-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-l-imagenet.h5)   |
   | - ImageNet21k-ft1k         | 119.5M | 56.27G | 480   | 86.9     | [effv2l-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-l-21k-ft1k.h5)   |
   | EfficientNetV2XL, 21k-ft1k | 206.8M | 93.66G | 512   | 87.2     | [effv2xl-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-xl-21k-ft1k.h5) |
+## EfficientViT
+  - [Keras EfficientViT](keras_cv_attention_models/efficientvit) is for [PDF 2205.14756 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/pdf/2205.14756.pdf).
+
+  | Model           | Params | FLOPs | Input | Top1 Acc | Download |
+  | --------------- | ------ | ----- | ----- | -------- | -------- |
+  | EfficientViT_M0 | 2.35M  | 794M  | 224   | 63.2     | [efficientvit_m0_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_m0_224_imagenet.h5) |
+  | EfficientViT_M1 | 2.98M  | 167M  | 224   | 68.4     | [efficientvit_m1_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_m1_224_imagenet.h5) |
+  | EfficientViT_M2 | 4.19M  | 201M  | 224   | 70.8     | [efficientvit_m2_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_m2_224_imagenet.h5) |
+  | EfficientViT_M3 | 6.90M  | 263M  | 224   | 73.4     | [efficientvit_m3_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_m3_224_imagenet.h5) |
+  | EfficientViT_M4 | 8.80M  | 299M  | 224   | 74.3     | [efficientvit_m4_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_m4_224_imagenet.h5) |
+  | EfficientViT_M5 | 12.47M | 522M  | 224   | 77.1     | [efficientvit_m5_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_m5_224_imagenet.h5) |
 ## EVA
   - [Keras EVA](keras_cv_attention_models/beit) includes models from [PDF 2211.07636 EVA: Exploring the Limits of Masked Visual Representation Learning at Scale](https://arxiv.org/pdf/2211.07636.pdf).
 

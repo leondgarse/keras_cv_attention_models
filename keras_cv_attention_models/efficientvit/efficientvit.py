@@ -14,7 +14,15 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-PRETRAINED_DICT = {}
+PRETRAINED_DICT = {
+    "efficientvit_m0": {"imagenet": {224: "3a3855160a3262ddcb7969b8fc8c1dcc"}},
+    "efficientvit_m1": {"imagenet": {224: "ea8f5812ea397b821abfc83cddf5845b"}},
+    "efficientvit_m2": {"imagenet": {224: "6d267ec3419b7257f293273cef27dfc8"}},
+    "efficientvit_m3": {"imagenet": {224: "6f3e5903fb230a83c2ca17761357f15f"}},
+    "efficientvit_m4": {"imagenet": {224: "ada36562f1702b3baa3578e9d9a1cf7e"}},
+    "efficientvit_m5": {"imagenet": {224: "7277f60414af8111f86d19d486a7f301"}},
+}
+
 
 def grouped_mhsa_with_multi_head_position(inputs, num_heads, key_dim=-1, output_dim=-1, kernel_sizes=5, activation="relu", name=None):
     height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
@@ -50,7 +58,7 @@ def grouped_mhsa_with_multi_head_position(inputs, num_heads, key_dim=-1, output_
 
         # attention_scores = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([query, key]) * qk_scale  # [batch, num_heads, key_dim, key_dim]
         attention_scores = (qq @ kk) * qk_scale
-        print(f"{height = }, {width = }")
+        # print(f"{height = }, {width = }")
         attention_scores = MultiHeadPositionalEmbedding(query_height=height, name=cur_name and cur_name + "attn_pos")(attention_scores)
         attention_scores = layers.Softmax(axis=-1, name=cur_name and cur_name + "attention_scores")(attention_scores)
         # attention_scores = layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores) if attn_dropout > 0 else attention_scores
@@ -69,6 +77,7 @@ def grouped_mhsa_with_multi_head_position(inputs, num_heads, key_dim=-1, output_
     output = batchnorm_with_activation(output, activation=None, zero_gamma=True, name=name and name + "out_")
     return output
 
+
 def res_depthwise_ffn(inputs, mlp_ratio=2, drop_rate=0, activation="relu", name=""):
     input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
     dw = depthwise_conv2d_no_bias(inputs, kernel_size=3, strides=1, padding="SAME", name=name + "dw_")
@@ -82,17 +91,17 @@ def res_depthwise_ffn(inputs, mlp_ratio=2, drop_rate=0, activation="relu", name=
     ffn = drop_block(ffn, drop_rate)
     return layers.Add(name=name + "output")([dw, ffn])
 
+
 def attn_block(inputs, window_size=7, num_heads=4, key_dim=16, kernel_sizes=5, mlp_ratio=2, drop_rate=0, activation="relu", name=""):
     height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
     pre = res_depthwise_ffn(inputs, mlp_ratio=mlp_ratio, drop_rate=drop_rate, activation=activation, name=name + "pre_")
-    # nn = inputs if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(inputs)  # channels_first -> channels_last
-    attn_kw = {"key_dim": key_dim, "kernel_sizes": kernel_sizes, "activation": activation}
+
+    attn_kw = {"num_heads": num_heads, "key_dim": key_dim, "kernel_sizes": kernel_sizes, "activation": activation, "name": name + "attn_"}
     if height <= window_size and width <= window_size:
-        attn = grouped_mhsa_with_multi_head_position(pre, num_heads=num_heads, **attn_kw, name=name + "attn_")
+        attn = grouped_mhsa_with_multi_head_position(pre, **attn_kw)
     else:
-        attn = window_attention(pre, window_size, num_heads=num_heads, attention_block=grouped_mhsa_with_multi_head_position, **attn_kw, name=name + "attn_")
+        attn = window_attention(pre, window_size=window_size, attention_block=grouped_mhsa_with_multi_head_position, data_format=image_data_format(), **attn_kw)
     attn = pre + drop_block(attn, drop_rate)
-    # nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last, channels_first
 
     return res_depthwise_ffn(attn, mlp_ratio=mlp_ratio, drop_rate=drop_rate, activation=activation, name=name + "post_")
 
@@ -126,7 +135,7 @@ def EfficientViT(
     use_distillation=False,  # not provided in pretrained weights
     dropout=0,
     pretrained=None,
-    model_name="efficient_vit",
+    model_name="efficientvit",
     kwargs=None,
 ):
     # Regard input_shape as force using original shape if len(input_shape) == 4,
@@ -153,10 +162,11 @@ def EfficientViT(
             nn = down_sample_block(nn, out_channel, activation=activation, name=stack_name + "downsample_")
             nn = res_depthwise_ffn(nn, mlp_ratio=mlp_ratio, activation=activation, name=stack_name + "post_")
 
+        cur_num_heads = num_heads[stack_id] if isinstance(num_heads, (list, tuple)) else num_heads
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
-            nn = attn_block(nn, window_size, num_heads, key_dim, kernel_sizes, mlp_ratio, drop_rate=block_drop_rate, activation=activation, name=block_name)
+            nn = attn_block(nn, window_size, cur_num_heads, key_dim, kernel_sizes, mlp_ratio, drop_rate=block_drop_rate, activation=activation, name=block_name)
             global_block_id += 1
 
     """ output """
@@ -178,44 +188,46 @@ def EfficientViT(
 
     model = models.Model(inputs, out, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
-    reload_model_weights(model, PRETRAINED_DICT, "efficient_vit", pretrained, MultiHeadPositionalEmbedding)
+    min_shape = max(input_shape[:2] if image_data_format() == "channels_last" else input_shape[1:])  # Relaod mismatch only if all shape < 7 * 32 = 224
+    reload_model_weights(model, PRETRAINED_DICT, "efficientvit", pretrained, MultiHeadPositionalEmbedding if min_shape < window_size * 32 else None)
     return model
 
 
 def EfficientViT_M0(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return EfficientViT(**locals(), model_name="efficient_vit_m0", **kwargs)
+    return EfficientViT(**locals(), model_name="efficientvit_m0", **kwargs)
 
 
 def EfficientViT_M1(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels = [128, 144, 192]
     num_heads = [2, 3, 3]
     kernel_sizes = [7, 5, 3, 3]
-    return EfficientViT(**locals(), model_name="efficient_vit_m1", **kwargs)
+    return EfficientViT(**locals(), model_name="efficientvit_m1", **kwargs)
 
 
 def EfficientViT_M2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels = [128, 192, 224]
     num_heads = [4, 3, 2]
     kernel_sizes = [7, 5, 3, 3]
-    return EfficientViT(**locals(), model_name="efficient_vit_m2", **kwargs)
+    return EfficientViT(**locals(), model_name="efficientvit_m2", **kwargs)
 
 
 def EfficientViT_M3(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels = [128, 240, 320]
     num_heads = [4, 3, 4]
     kernel_sizes = 5
-    return EfficientViT(**locals(), model_name="efficient_vit_m3", **kwargs)
+    return EfficientViT(**locals(), model_name="efficientvit_m3", **kwargs)
 
 
 def EfficientViT_M4(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels = [128, 256, 384]
     num_heads = 4
     kernel_sizes = [7, 5, 3, 3]
-    return EfficientViT(**locals(), model_name="efficient_vit_m4", **kwargs)
+    return EfficientViT(**locals(), model_name="efficientvit_m4", **kwargs)
 
 
 def EfficientViT_M5(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels = [192, 288, 384]
+    num_blocks = [1, 3, 4]
     num_heads = [3, 3, 4]
     kernel_sizes = [7, 5, 3, 3]
-    return EfficientViT(**locals(), model_name="efficient_vit_m5", **kwargs)
+    return EfficientViT(**locals(), model_name="efficientvit_m5", **kwargs)

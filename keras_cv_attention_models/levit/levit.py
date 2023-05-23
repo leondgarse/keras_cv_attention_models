@@ -85,7 +85,12 @@ class MultiHeadPositionalEmbedding(layers.Layer):
             source_bb = source_layer.bb  # layer
         source_bb = np.array(source_bb.detach() if hasattr(source_bb, "detach") else source_bb).astype("float32")
         hh = ww = int(float(source_bb.shape[0]) ** 0.5)
-        ss = source_bb.reshape((hh, ww, source_bb.shape[-1]))  # [hh, ww, num_heads]
+        if hh == self.k_blocks_h and ww == self.k_blocks_w:
+            self.set_weights([source_bb])
+            return
+
+        num_heads = source_bb.shape[-1] if len(source_bb.shape) == 2 else 1
+        ss = source_bb.reshape((hh, ww, num_heads))  # [hh, ww, num_heads]
         # target_hh = target_ww = int(float(self.bb.shape[0]) ** 0.5)
         tt = backend.numpy_image_resize(ss, target_shape=[self.k_blocks_h, self.k_blocks_w], method=method)  # [target_hh, target_ww, num_heads]
         tt = tt.reshape((self.bb.shape))  # [target_hh * target_ww, num_heads]
