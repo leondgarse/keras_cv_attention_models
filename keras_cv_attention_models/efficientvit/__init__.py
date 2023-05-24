@@ -46,7 +46,7 @@ Args:
 Model architectures:
   | Model           | Params | FLOPs | Input | Top1 Acc |
   | --------------- | ------ | ----- | ----- | -------- |
-  | EfficientViT_M0 | 2.35M  | 794M  | 224   | 63.2     |
+  | EfficientViT_M0 | 2.35M  | 79.4M | 224   | 63.2     |
   | EfficientViT_M1 | 2.98M  | 167M  | 224   | 68.4     |
   | EfficientViT_M2 | 4.19M  | 201M  | 224   | 70.8     |
   | EfficientViT_M3 | 6.90M  | 263M  | 224   | 73.4     |
