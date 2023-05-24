@@ -70,6 +70,12 @@ def test_BiasPositionalEmbedding():
     assert aa(tf.ones(input_shape)).shape == input_shape
 
 
+def test_cascaded_mhsa_with_multi_head_position():
+    input_shape = [2, 14, 16, 256]
+    out = attention_layers.cascaded_mhsa_with_multi_head_position(tf.ones(input_shape), num_heads=4)
+    assert out.shape == input_shape
+
+
 def test_ChannelAffine():
     aa = attention_layers.ChannelAffine()
     input_shape = [2, 14, 14, 192]

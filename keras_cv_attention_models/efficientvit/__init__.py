@@ -6,7 +6,7 @@ from keras_cv_attention_models.efficientvit.efficientvit import (
     EfficientViT_M3,
     EfficientViT_M4,
     EfficientViT_M5,
-    grouped_mhsa_with_multi_head_position,
+    cascaded_mhsa_with_multi_head_position,
 )
 
 __head_doc__ = """
@@ -64,7 +64,46 @@ EfficientViT_M3.__doc__ = EfficientViT_M0.__doc__
 EfficientViT_M4.__doc__ = EfficientViT_M0.__doc__
 EfficientViT_M5.__doc__ = EfficientViT_M0.__doc__
 
-grouped_mhsa_with_multi_head_position.__doc__ = __head_doc__ + """
+cascaded_mhsa_with_multi_head_position.__doc__ = __head_doc__ + """
+Cascaded multi head self attention with MultiHeadPositionalEmbedding. Defined as function, not layer.
+Cascaded calling flow performing multi head attention. Also using `Conv2D + BatchNorm` for `query` / `key` / `value` / `output`,
+and an additional `DepthwiseConv2D` on `query` with `kernel_size`.
+
+input: `[batch, height, width, channel]` if `channels_last`, or `[batch, channel, height, width]` if `channels_first`.
+output: `[batch, height, width, channel]` if `channels_last`, or `[batch, channel, height, width]` if `channels_first`.
+
 Args:
- [TODO]
+  inputs: input tensor.
+  num_heads: Number of attention heads.
+  key_dim: Size of each attention head for query, key. Default `0` for `key_dim = inputs.shape[-1] // num_heads`.
+  kernel_sizes: int or list value indicates kernel_size for each head. Length must larger than max of num_heads.
+  activation: activation used for output, default `relu`.
+
+Examples:
+
+>>> from keras_cv_attention_models import attention_layers
+>>> inputs = keras.layers.Input([14, 16, 256])
+>>> nn = attention_layers.cascaded_mhsa_with_multi_head_position(inputs, num_heads=1, name="attn_")
+>>> print(f"{nn.shape = }")
+# nn.shape = TensorShape([None, 14, 16, 256])
+
+>>> mm = keras.models.Model(inputs, nn)
+>>> mm.summary()
+>>> print({ii.name: ii.shape for ii in mm.weights})
+# {'attn_1_qkv_conv/kernel:0': TensorShape([1, 1, 256, 768]),
+#  'attn_1_qkv_bn/gamma:0': TensorShape([768]),
+#  'attn_1_qkv_bn/beta:0': TensorShape([768]),
+#  'attn_1_qkv_bn/moving_mean:0': TensorShape([768]),
+#  'attn_1_qkv_bn/moving_variance:0': TensorShape([768]),
+#  'attn_1_query_dw_conv/depthwise_kernel:0': TensorShape([5, 5, 256, 1]),
+#  'attn_1_query_bn/gamma:0': TensorShape([256]),
+#  'attn_1_query_bn/beta:0': TensorShape([256]),
+#  'attn_1_query_bn/moving_mean:0': TensorShape([256]),
+#  'attn_1_query_bn/moving_variance:0': TensorShape([256]),
+#  'attn_1_attn_pos/positional_embedding:0': TensorShape([224]),
+#  'attn_outconv/kernel:0': TensorShape([1, 1, 256, 256]),
+#  'attn_out_bn/gamma:0': TensorShape([256]),
+#  'attn_out_bn/beta:0': TensorShape([256]),
+#  'attn_out_bn/moving_mean:0': TensorShape([256]),
+#  'attn_out_bn/moving_variance:0': TensorShape([256])}
 """

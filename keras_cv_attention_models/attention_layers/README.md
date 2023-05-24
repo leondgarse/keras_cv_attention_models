@@ -35,6 +35,7 @@
   - **split_attention_conv2d** from `resnest`. Generating `attention_scores` using grouped `Conv2D`.
   - **window_attention** from `davit`. Typical MHSA with `window_partition` process ahead and `window_reverse` process after.
   - **window_mhsa_with_pair_wise_positional_embedding** from `swin_transformer_v2`. Generating `attention_scores` by calculating cosine similarity between `query` and `key`, and applying `PairWiseRelativePositionalEmbedding`.
+  - **cascaded_mhsa_with_multi_head_position** from `efficientvit`. Cascaded calling flow performing multi head attention. Also using `Conv2D + BatchNorm` for `query` / `key` / `value` / `output`, and an additional `DepthwiseConv2D` on `query` with `kernel_size`.
 ## Usage Examples
   - **RelativePositionalEmbedding**
     ```py

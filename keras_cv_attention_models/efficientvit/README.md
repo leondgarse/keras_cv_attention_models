@@ -28,7 +28,7 @@
   print(model.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.4258187), ('n02123159', 'tiger_cat', 0.14353083), ...]
   ```
-  **Change input resolution** if input_shape is all less than `window_size * 32 = 7 * 32 = 224`, will load `MultiHeadPositionalEmbedding` weights by `load_resized_weights`
+  **Change input resolution** if input_shape is all less than `window_size * 32 = 7 * 32 = 224`, or `window_size` is not `7`, will load `MultiHeadPositionalEmbedding` weights by `load_resized_weights`
   ```py
   from keras_cv_attention_models import efficientvit, test_images
   model = efficientvit.EfficientViT_M1(input_shape=(193, 127, 3))
@@ -48,20 +48,20 @@
   ```py
   os.environ['KECAM_BACKEND'] = 'torch'
   from keras_cv_attention_models import efficientvit, test_images
-  model = efficientvit.EfficientViT_M0(pretrained="imagenet", input_shape=(193, 127, 3))
+  model = efficientvit.EfficientViT_M0(pretrained="imagenet", input_shape=(256, 256, 3), window_size=8)
   # >>>> Using PyTorch backend
-  # >>>> Aligned input_shape: [3, 193, 127]
+  # >>>> Aligned input_shape: [3, 256, 256]
   # >>>> Load pretrained from: ~/.keras/models/efficientvit_m0_224_imagenet.h5
-  # Warning: skip loading weights for layer: stack2_block1_attn_1_attn_pos, required weights: [[28]], provided: [(49,)]
+  # Warning: skip loading weights for layer: stack2_block1_attn_1_attn_pos, required weights: [[64]], provided: [(49,)]
   # ...
-  # >>>> Reload mismatched weights: 224 -> (193, 127)
+  # >>>> Reload mismatched weights: 224 -> (256, 256)
   # >>>> Reload layer: stack1_block1_attn_1_attn_pos
   # ...
 
   # Run prediction
   preds = model(model.preprocess_input(test_images.cat()))
   print(model.decode_predictions(preds))
-  # [('n02124075', 'Egyptian_cat', 0.32934698), ('n02123159', 'tiger_cat', 0.13576186), ...]
+  # [('n02124075', 'Egyptian_cat', 0.42882437), ('n02123159', 'tiger_cat', 0.15752947), ...]
   ```  
 ## Verification with PyTorch version
   ```py

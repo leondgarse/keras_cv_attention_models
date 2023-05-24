@@ -7,7 +7,6 @@ from keras_cv_attention_models.attention_layers import (
     depthwise_conv2d_no_bias,
     drop_block,
     se_module,
-    mlp_block,
     window_attention,
     MultiHeadPositionalEmbedding,
     add_pre_post_process,
@@ -24,12 +23,12 @@ PRETRAINED_DICT = {
 }
 
 
-def grouped_mhsa_with_multi_head_position(inputs, num_heads, key_dim=-1, output_dim=-1, kernel_sizes=5, activation="relu", name=None):
+def cascaded_mhsa_with_multi_head_position(inputs, num_heads=4, key_dim=-1, kernel_sizes=5, activation="relu", name=None):
     height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
     channel_axis = -1 if image_data_format() == "channels_last" else 1
     key_dim = key_dim if key_dim > 0 else inputs.shape[channel_axis] // num_heads
-    output_dim = output_dim if output_dim > 0 else inputs.shape[channel_axis]
-    value_dim = output_dim // num_heads
+    out_shape = inputs.shape[channel_axis]
+    value_dim = out_shape // num_heads
     qk_scale = 1.0 / (float(key_dim) ** 0.5)
     # embed_dim = key_dim * num_heads
 
@@ -73,7 +72,7 @@ def grouped_mhsa_with_multi_head_position(inputs, num_heads, key_dim=-1, output_
     output = functional.concat(output, axis=channel_axis)
 
     output = activation_by_name(output, activation=activation, name=name)
-    output = conv2d_no_bias(output, output_dim, name=name and name + "out")
+    output = conv2d_no_bias(output, out_shape, name=name and name + "out")
     output = batchnorm_with_activation(output, activation=None, zero_gamma=True, name=name and name + "out_")
     return output
 
@@ -98,9 +97,10 @@ def attn_block(inputs, window_size=7, num_heads=4, key_dim=16, kernel_sizes=5, m
 
     attn_kw = {"num_heads": num_heads, "key_dim": key_dim, "kernel_sizes": kernel_sizes, "activation": activation, "name": name + "attn_"}
     if height <= window_size and width <= window_size:
-        attn = grouped_mhsa_with_multi_head_position(pre, **attn_kw)
+        attn = cascaded_mhsa_with_multi_head_position(pre, **attn_kw)
     else:
-        attn = window_attention(pre, window_size=window_size, attention_block=grouped_mhsa_with_multi_head_position, data_format=image_data_format(), **attn_kw)
+        data_format = image_data_format()
+        attn = window_attention(pre, window_size=window_size, attention_block=cascaded_mhsa_with_multi_head_position, data_format=data_format, **attn_kw)
     attn = pre + drop_block(attn, drop_rate)
 
     return res_depthwise_ffn(attn, mlp_ratio=mlp_ratio, drop_rate=drop_rate, activation=activation, name=name + "post_")
@@ -188,8 +188,8 @@ def EfficientViT(
 
     model = models.Model(inputs, out, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
-    min_shape = max(input_shape[:2] if image_data_format() == "channels_last" else input_shape[1:])  # Relaod mismatch only if all shape < 7 * 32 = 224
-    reload_model_weights(model, PRETRAINED_DICT, "efficientvit", pretrained, MultiHeadPositionalEmbedding if min_shape < window_size * 32 else None)
+    max_shape = max(input_shape[:2] if image_data_format() == "channels_last" else input_shape[1:])  # Relaod mismatch only if all shape < 7 * 32 = 224
+    reload_model_weights(model, PRETRAINED_DICT, "efficientvit", pretrained, MultiHeadPositionalEmbedding if window_size != 7 or max_shape < 224 else None)
     return model
 
 

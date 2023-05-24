@@ -3,7 +3,7 @@
 
 ## Summary
   - Experimental implementation for using PyTorch as Keras backend.
-  - Currently supports most recognition and detection models except cotnet / halonet / hornet / nat / nfnets / volo. For detection models, still using `tf.image.non_max_suppression_with_scores` while running prediction.
+  - Currently supports most recognition and detection models except cotnet / halonet / hornet / nat / nfnets / volo. For detection models, using `torchvision.ops.nms` while running prediction.
 ***
 
 ## Basic Usage

@@ -204,7 +204,7 @@
     ```
   - **Code format** is using `line-length=160`:
     ```sh
-    find ./* -name "*.py" | grep -v __init__ | grep -v setup.py | xargs -I {} black -l 160 {}
+    find ./* -name "*.py" | grep -v __init__ | xargs -I {} black -l 160 {}
     ```
 ## Layers
   - [attention_layers](keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `RelativePositionalEmbedding` from `botnet`, `outlook_attention` from `volo`, and many other `Positional Embedding Layers` / `Attention Blocks`.
@@ -462,7 +462,7 @@
 ## Using PyTorch as backend
   - **Experimental** [Keras PyTorch Backend](keras_cv_attention_models/pytorch_backend).
   - **Set os environment `export KECAM_BACKEND='torch'` to enable this PyTorch backend.**
-  - Currently supports most recognition and detection models except cotnet / halonet / hornet / nat / nfnets / volo. For detection models, still using `tf.image.non_max_suppression_with_scores` while running prediction.
+  - Currently supports most recognition and detection models except cotnet / halonet / hornet / nat / nfnets / volo. For detection models, using `torchvision.ops.nms` while running prediction.
   - **Basic model build and prediction**.
     - Will load same `h5` weights as TF one if available.
     - Note: `input_shape` will auto fit image data format. Given `input_shape=(224, 224, 3)` or `input_shape=(3, 224, 224)`, will both set to `(3, 224, 224)` if `channels_first`.
