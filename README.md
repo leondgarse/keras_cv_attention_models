@@ -798,7 +798,7 @@
   | - ImageNet21k-ft1k         | 119.5M | 56.27G | 480   | 86.9     | [effv2l-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-l-21k-ft1k.h5)   |
   | EfficientNetV2XL, 21k-ft1k | 206.8M | 93.66G | 512   | 87.2     | [effv2xl-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-xl-21k-ft1k.h5) |
 ## EfficientViT
-  - [Keras EfficientViT](keras_cv_attention_models/efficientvit) is for [PDF 2205.14756 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/pdf/2205.14756.pdf).
+  - [Keras EfficientViT](keras_cv_attention_models/efficientvit) is for [Paper 2305.07027 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/abs/2305.07027).
 
   | Model           | Params | FLOPs | Input | Top1 Acc | Download |
   | --------------- | ------ | ----- | ----- | -------- | -------- |

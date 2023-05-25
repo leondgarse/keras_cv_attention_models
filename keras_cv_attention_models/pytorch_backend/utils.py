@@ -41,7 +41,7 @@ def validate_file_md5(fpath, file_hash, chunk_size=65535):
 def get_file(fname=None, origin=None, cache_subdir="datasets", file_hash=None):
     # print(f">>>> {fname = }, {origin = }, {cache_subdir = }, {file_hash = }")
     save_dir = os.path.join(os.path.expanduser("~/.keras"), cache_subdir)
-    if os.path.exists(save_dir):
+    if not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
     fname = os.path.basename(origin) if fname is None else fname
     file_path = os.path.join(save_dir, fname)
@@ -54,7 +54,7 @@ def get_file(fname=None, origin=None, cache_subdir="datasets", file_hash=None):
         else:
             return file_path
 
-    print("Downloading data from", origin)
+    print("Downloading data from {} to {}".format(origin, file_path))
     torch.hub.download_url_to_file(origin, file_path)
     if os.path.exists(file_path) and file_hash is not None and not validate_file_md5(file_path, file_hash):
         raise ValueError("Incomplete or corrupted file detected. The md5 file hash does not match the provided value {}.".format(file_hash))
