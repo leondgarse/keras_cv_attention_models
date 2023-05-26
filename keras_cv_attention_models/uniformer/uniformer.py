@@ -1,6 +1,7 @@
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -204,18 +205,21 @@ def token_label_imagenet_decode_predictions(preds, top=5, classifier_activation=
     return decode_predictions(preds.numpy(), top=top) if do_decode else preds
 
 
+@register_model
 def UniformerSmall32(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", token_label_top=False, pretrained="token_label", **kwargs):
     num_blocks = [3, 4, 8, 3]
     head_dimension = 32
     return Uniformer(**locals(), model_name="uniformer_small_32", **kwargs)
 
 
+@register_model
 def UniformerSmall64(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", token_label_top=False, pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 8, 3]
     head_dimension = 64
     return Uniformer(**locals(), model_name="uniformer_small_64", **kwargs)
 
 
+@register_model
 def UniformerSmallPlus32(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", token_label_top=False, pretrained="imagenet", **kwargs):
     num_blocks = [3, 5, 9, 3]
     head_dimension = 32
@@ -223,6 +227,7 @@ def UniformerSmallPlus32(input_shape=(224, 224, 3), num_classes=1000, classifier
     return Uniformer(**locals(), model_name="uniformer_small_plus_32", **kwargs)
 
 
+@register_model
 def UniformerSmallPlus64(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", token_label_top=False, pretrained="imagenet", **kwargs):
     num_blocks = [3, 5, 9, 3]
     head_dimension = 64
@@ -230,18 +235,21 @@ def UniformerSmallPlus64(input_shape=(224, 224, 3), num_classes=1000, classifier
     return Uniformer(**locals(), model_name="uniformer_small_plus_64", **kwargs)
 
 
+@register_model
 def UniformerBase32(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", token_label_top=False, pretrained="token_label", **kwargs):
     num_blocks = [5, 8, 20, 7]
     head_dimension = 32
     return Uniformer(**locals(), model_name="uniformer_base_32", **kwargs)
 
 
+@register_model
 def UniformerBase64(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", token_label_top=False, pretrained="imagenet", **kwargs):
     num_blocks = [5, 8, 20, 7]
     head_dimension = 64
     return Uniformer(**locals(), model_name="uniformer_base_64", **kwargs)
 
 
+@register_model
 def UniformerLarge64(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", token_label_top=False, pretrained="token_label", **kwargs):
     num_blocks = [5, 10, 24, 7]
     out_channels = [128, 192, 448, 640]

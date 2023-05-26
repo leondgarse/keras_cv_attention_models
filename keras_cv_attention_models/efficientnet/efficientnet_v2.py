@@ -5,6 +5,7 @@ EfficientNetV2: Smaller Models and Faster Training.
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, is_channels_last
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     batchnorm_with_activation,
     conv2d_no_bias,
@@ -235,6 +236,7 @@ def reload_model_weights(model, pretrained="imagenet"):
         model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
 
 
+@register_model
 def EfficientNetV2B0(input_shape=(224, 224, 3), num_classes=1000, dropout=0.2, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     # width 1.0, depth 1.0
     out_channels = [16, 32, 48, 96, 112, 192]
@@ -244,6 +246,7 @@ def EfficientNetV2B0(input_shape=(224, 224, 3), num_classes=1000, dropout=0.2, c
     return EfficientNetV2(**locals(), model_name="efficientnet_v2-b0", **kwargs)
 
 
+@register_model
 def EfficientNetV2B1(input_shape=(240, 240, 3), num_classes=1000, dropout=0.2, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     # width 1.0, depth 1.1
     out_channels = [16, 32, 48, 96, 112, 192]
@@ -253,6 +256,7 @@ def EfficientNetV2B1(input_shape=(240, 240, 3), num_classes=1000, dropout=0.2, c
     return EfficientNetV2(**locals(), model_name="efficientnet_v2-b1", **kwargs)
 
 
+@register_model
 def EfficientNetV2B2(input_shape=(260, 260, 3), num_classes=1000, dropout=0.3, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     # width 1.1, depth 1.2
     out_channels = [16, 32, 56, 104, 120, 208]
@@ -262,6 +266,7 @@ def EfficientNetV2B2(input_shape=(260, 260, 3), num_classes=1000, dropout=0.3, c
     return EfficientNetV2(**locals(), model_name="efficientnet_v2-b2", **kwargs)
 
 
+@register_model
 def EfficientNetV2B3(input_shape=(300, 300, 3), num_classes=1000, dropout=0.3, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     # width 1.2, depth 1.4
     out_channels = [16, 40, 56, 112, 136, 232]
@@ -271,6 +276,7 @@ def EfficientNetV2B3(input_shape=(300, 300, 3), num_classes=1000, dropout=0.3, c
     return EfficientNetV2(**locals(), model_name="efficientnet_v2-b3", **kwargs)
 
 
+@register_model
 def EfficientNetV2T(input_shape=(288, 288, 3), num_classes=1000, dropout=0.2, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     # width 1.4 * 0.8, depth 1.8 * 0.9, from timm
     is_torch_mode = True
@@ -281,6 +287,7 @@ def EfficientNetV2T(input_shape=(288, 288, 3), num_classes=1000, dropout=0.2, cl
     return EfficientNetV2(**locals(), model_name="efficientnet_v2-t", **kwargs)
 
 
+@register_model
 def EfficientNetV2T_GC(input_shape=(288, 288, 3), num_classes=1000, dropout=0.2, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     # width 1.4 * 0.8, depth 1.8 * 0.9, from timm
     is_torch_mode = True
@@ -292,6 +299,7 @@ def EfficientNetV2T_GC(input_shape=(288, 288, 3), num_classes=1000, dropout=0.2,
     return EfficientNetV2(**locals(), model_name="efficientnet_v2-t-gc", **kwargs)
 
 
+@register_model
 def EfficientNetV2S(input_shape=(384, 384, 3), num_classes=1000, dropout=0.2, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     # width 1.4, depth 1.8
     out_channels = [24, 48, 64, 128, 160, 256]
@@ -302,6 +310,7 @@ def EfficientNetV2S(input_shape=(384, 384, 3), num_classes=1000, dropout=0.2, cl
     return EfficientNetV2(**locals(), model_name="efficientnet_v2-s", **kwargs)
 
 
+@register_model
 def EfficientNetV2M(input_shape=(480, 480, 3), num_classes=1000, dropout=0.3, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     # width 1.6, depth 2.2
     out_channels = [24, 48, 80, 160, 176, 304, 512]
@@ -315,6 +324,7 @@ def EfficientNetV2M(input_shape=(480, 480, 3), num_classes=1000, dropout=0.3, cl
     return EfficientNetV2(**locals(), model_name="efficientnet_v2-m", **kwargs)
 
 
+@register_model
 def EfficientNetV2L(input_shape=(480, 480, 3), num_classes=1000, dropout=0.4, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     # width 1.6, depth 2.2
     out_channels = [32, 64, 96, 192, 224, 384, 640]
@@ -328,6 +338,7 @@ def EfficientNetV2L(input_shape=(480, 480, 3), num_classes=1000, dropout=0.4, cl
     return EfficientNetV2(**locals(), model_name="efficientnet_v2-l", **kwargs)
 
 
+@register_model
 def EfficientNetV2XL(input_shape=(512, 512, 3), num_classes=1000, dropout=0.4, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
     out_channels = [32, 64, 96, 192, 256, 512, 640]
     depthes = [4, 8, 8, 16, 24, 32, 8]

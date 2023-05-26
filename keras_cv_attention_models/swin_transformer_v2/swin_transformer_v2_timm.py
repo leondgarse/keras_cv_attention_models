@@ -2,6 +2,7 @@ import math
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, initializers
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     ChannelAffine,
     drop_block,
@@ -323,11 +324,13 @@ def SwinTransformerV2(
     return model
 
 
+@register_model
 def SwinTransformerV2Tiny_ns(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     use_stack_norm = True
     return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_tiny_ns", **kwargs)
 
 
+@register_model
 def SwinTransformerV2Small_ns(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 18, 2]
     use_stack_norm = True

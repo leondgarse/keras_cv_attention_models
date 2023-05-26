@@ -1,6 +1,7 @@
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     BiasLayer,
@@ -518,6 +519,7 @@ def Beit(
     return model
 
 
+@register_model
 def BeitBasePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
     embed_dim = 768
     depth = 12
@@ -528,10 +530,12 @@ def BeitBasePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gel
     return Beit(**locals(), model_name=kwargs.pop("model_name", "beit_base_patch16"), **kwargs)
 
 
+@register_model
 def BeitV2BasePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
     return BeitBasePatch16(**locals(), **kwargs, model_name="beit_v2_base_patch16")
 
 
+@register_model
 def BeitLargePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
     embed_dim = 1024
     depth = 24
@@ -542,6 +546,7 @@ def BeitLargePatch16(input_shape=(224, 224, 3), num_classes=1000, activation="ge
     return Beit(**locals(), model_name=kwargs.pop("model_name", "beit_large_patch16"), **kwargs)
 
 
+@register_model
 def BeitV2LargePatch16(
     input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs
 ):

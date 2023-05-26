@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     ChannelAffine,
@@ -155,42 +156,49 @@ def ConvNeXt(
     return model
 
 
+@register_model
 def ConvNeXtTiny(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 9, 3]
     out_channels = [96, 192, 384, 768]
     return ConvNeXt(**locals(), model_name="convnext_tiny", **kwargs)
 
 
+@register_model
 def ConvNeXtSmall(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 27, 3]
     out_channels = [96, 192, 384, 768]
     return ConvNeXt(**locals(), model_name="convnext_small", **kwargs)
 
 
+@register_model
 def ConvNeXtBase(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 27, 3]
     out_channels = [128, 256, 512, 1024]
     return ConvNeXt(**locals(), model_name="convnext_base", **kwargs)
 
 
+@register_model
 def ConvNeXtLarge(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 27, 3]
     out_channels = [192, 384, 768, 1536]
     return ConvNeXt(**locals(), model_name="convnext_large", **kwargs)
 
 
+@register_model
 def ConvNeXtXlarge(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
     num_blocks = [3, 3, 27, 3]
     out_channels = [256, 512, 1024, 2048]
     return ConvNeXt(**locals(), model_name="convnext_xlarge", **kwargs)
 
 
+@register_model
 def ConvNeXtXlarge(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
     num_blocks = [3, 3, 27, 3]
     out_channels = [256, 512, 1024, 2048]
     return ConvNeXt(**locals(), model_name="convnext_xlarge", **kwargs)
 
 
+@register_model
 def ConvNeXtXXlarge(input_shape=(256, 256, 3), num_classes=1000, classifier_activation="softmax", pretrained="clip-ft1k", **kwargs):
     num_blocks = [3, 4, 30, 3]
     out_channels = [384, 768, 1536, 3072]

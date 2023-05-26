@@ -1,4 +1,5 @@
 from keras_cv_attention_models.backend import layers, functional, models, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import add_pre_post_process
 from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models.download_and_load import reload_model_weights
@@ -152,6 +153,7 @@ def YOLO_NAS(
     return model
 
 
+@register_model
 def YOLO_NAS_S(
     input_shape=(640, 640, 3),
     freeze_backbone=False,
@@ -165,6 +167,7 @@ def YOLO_NAS_S(
     return YOLO_NAS(**locals(), model_name=kwargs.pop("model_name", "yolo_nas_s_before_reparam" if use_reparam_conv else "yolo_nas_s"), **kwargs)
 
 
+@register_model
 def YOLO_NAS_M(
     input_shape=(640, 640, 3),
     freeze_backbone=False,
@@ -183,6 +186,7 @@ def YOLO_NAS_M(
     return YOLO_NAS(**locals(), model_name=kwargs.pop("model_name", "yolo_nas_m_before_reparam" if use_reparam_conv else "yolo_nas_m"), **kwargs)
 
 
+@register_model
 def YOLO_NAS_L(
     input_shape=(640, 640, 3),
     freeze_backbone=False,

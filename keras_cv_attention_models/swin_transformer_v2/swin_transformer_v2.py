@@ -2,6 +2,7 @@ import math
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, initializers
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     BiasLayer,
     # ChannelAffine,
@@ -397,28 +398,33 @@ def SwinTransformerV2(
     return model
 
 
+@register_model
 def SwinTransformerV2Tiny_window8(input_shape=(256, 256, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     window_size = kwargs.pop("window_size", 8)
     return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_tiny_window8", **kwargs)
 
 
+@register_model
 def SwinTransformerV2Tiny_window16(input_shape=(256, 256, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     window_size = kwargs.pop("window_size", 16)
     return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_tiny_window16", **kwargs)
 
 
+@register_model
 def SwinTransformerV2Small_window8(input_shape=(256, 256, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 18, 2]
     window_size = kwargs.pop("window_size", 8)
     return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_small_window8", **kwargs)
 
 
+@register_model
 def SwinTransformerV2Small_window16(input_shape=(256, 256, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 18, 2]
     window_size = kwargs.pop("window_size", 16)
     return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_small_window16", **kwargs)
 
 
+@register_model
 def SwinTransformerV2Base_window8(input_shape=(256, 256, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 18, 2]
     num_heads = [4, 8, 16, 32]
@@ -427,6 +433,7 @@ def SwinTransformerV2Base_window8(input_shape=(256, 256, 3), num_classes=1000, c
     return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_base_window8", **kwargs)
 
 
+@register_model
 def SwinTransformerV2Base_window12(input_shape=(192, 192, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k", **kwargs):
     num_blocks = [2, 2, 18, 2]
     num_heads = [4, 8, 16, 32]
@@ -435,6 +442,7 @@ def SwinTransformerV2Base_window12(input_shape=(192, 192, 3), num_classes=1000, 
     return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_base_window12", **kwargs)
 
 
+@register_model
 def SwinTransformerV2Base_window16(input_shape=(256, 256, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 18, 2]
     num_heads = [4, 8, 16, 32]
@@ -444,6 +452,7 @@ def SwinTransformerV2Base_window16(input_shape=(256, 256, 3), num_classes=1000, 
     return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_base_window16", **kwargs)
 
 
+@register_model
 def SwinTransformerV2Base_window24(input_shape=(384, 384, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet22k", **kwargs):
     num_blocks = [2, 2, 18, 2]
     num_heads = [4, 8, 16, 32]
@@ -453,6 +462,7 @@ def SwinTransformerV2Base_window24(input_shape=(384, 384, 3), num_classes=1000, 
     return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_base_window24", **kwargs)
 
 
+@register_model
 def SwinTransformerV2Large_window12(input_shape=(192, 192, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet21k", **kwargs):
     num_blocks = [2, 2, 18, 2]
     num_heads = [6, 12, 24, 48]
@@ -461,6 +471,7 @@ def SwinTransformerV2Large_window12(input_shape=(192, 192, 3), num_classes=1000,
     return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_large_window12", **kwargs)
 
 
+@register_model
 def SwinTransformerV2Large_window16(input_shape=(256, 256, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet22k", **kwargs):
     num_blocks = [2, 2, 18, 2]
     num_heads = [6, 12, 24, 48]
@@ -470,6 +481,7 @@ def SwinTransformerV2Large_window16(input_shape=(256, 256, 3), num_classes=1000,
     return SwinTransformerV2(**locals(), model_name="swin_transformer_v2_large_window16", **kwargs)
 
 
+@register_model
 def SwinTransformerV2Large_window24(input_shape=(384, 384, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet22k", **kwargs):
     num_blocks = [2, 2, 18, 2]
     num_heads = [6, 12, 24, 48]

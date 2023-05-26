@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -148,12 +149,14 @@ def WaveMLP(
     return model
 
 
+@register_model
 def WaveMLP_T(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 4, 2]
     out_channels = [64, 128, 320, 512]
     return WaveMLP(**locals(), model_name="wavemlp_t", **kwargs)
 
 
+@register_model
 def WaveMLP_S(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 3, 10, 3]
     out_channels = [64, 128, 320, 512]
@@ -161,6 +164,7 @@ def WaveMLP_S(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cl
     return WaveMLP(**locals(), model_name="wavemlp_s", **kwargs)
 
 
+@register_model
 def WaveMLP_M(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 18, 3]
     out_channels = [64, 128, 320, 512]
@@ -170,6 +174,7 @@ def WaveMLP_M(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cl
     return WaveMLP(**locals(), model_name="wavemlp_m", **kwargs)
 
 
+@register_model
 def WaveMLP_B(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
     num_blocks = [2, 2, 18, 2]
     out_channels = [96, 192, 384, 768]

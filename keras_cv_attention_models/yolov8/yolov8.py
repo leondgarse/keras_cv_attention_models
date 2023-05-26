@@ -1,6 +1,7 @@
 import math
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, initializers, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -342,33 +343,39 @@ def YOLOV8(
     return model
 
 
+@register_model
 def YOLOV8_N(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     return YOLOV8(**locals(), model_name=kwargs.pop("model_name", "yolov8_n"), **kwargs)
 
 
+@register_model
 def YOLOV8_S(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_channels = [64, 128, 256, 512]
     return YOLOV8(**locals(), model_name=kwargs.pop("model_name", "yolov8_s"), **kwargs)
 
 
+@register_model
 def YOLOV8_M(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_channels = [96, 192, 384, 576]
     csp_depthes = [2, 4, 4, 2]
     return YOLOV8(**locals(), model_name=kwargs.pop("model_name", "yolov8_m"), **kwargs)
 
 
+@register_model
 def YOLOV8_L(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_channels = [128, 256, 512, 512]
     csp_depthes = [3, 6, 6, 3]
     return YOLOV8(**locals(), model_name=kwargs.pop("model_name", "yolov8_l"), **kwargs)
 
 
+@register_model
 def YOLOV8_X(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_channels = [160, 320, 640, 640]
     csp_depthes = [3, 6, 6, 3]
     return YOLOV8(**locals(), model_name=kwargs.pop("model_name", "yolov8_x"), **kwargs)
 
 
+@register_model
 def YOLOV8_X6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_channels = [160, 320, 640, 640, 640]
     csp_depthes = [3, 6, 6, 3, 3]
@@ -380,27 +387,32 @@ def YOLOV8_X6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80
 """ Classification models """
 
 
+@register_model
 def YOLOV8_N_CLS(input_shape=(640, 640, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return YOLOV8Backbone(**locals(), model_name=kwargs.pop("model_name", "yolov8_n_cls"), **kwargs)
 
 
+@register_model
 def YOLOV8_S_CLS(input_shape=(640, 640, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     channels = [64, 128, 256, 512]
     return YOLOV8Backbone(**locals(), model_name=kwargs.pop("model_name", "yolov8_s_cls"), **kwargs)
 
 
+@register_model
 def YOLOV8_M_CLS(input_shape=(640, 640, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     channels = [96, 192, 384, 768]
     depthes = [2, 4, 4, 2]
     return YOLOV8Backbone(**locals(), model_name=kwargs.pop("model_name", "yolov8_m_cls"), **kwargs)
 
 
+@register_model
 def YOLOV8_L_CLS(input_shape=(640, 640, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     channels = [128, 256, 512, 1024]
     depthes = [3, 6, 6, 3]
     return YOLOV8Backbone(**locals(), model_name=kwargs.pop("model_name", "yolov8_l_cls"), **kwargs)
 
 
+@register_model
 def YOLOV8_X_CLS(input_shape=(640, 640, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     channels = [160, 320, 640, 1280]
     depthes = [3, 6, 6, 3]

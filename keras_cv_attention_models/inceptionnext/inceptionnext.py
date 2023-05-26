@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -105,15 +106,18 @@ def InceptionNeXt(
     return model
 
 
+@register_model
 def InceptionNeXtTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return InceptionNeXt(**locals(), model_name="inceptionnext_tiny", **kwargs)
 
 
+@register_model
 def InceptionNeXtSmall(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 27, 3]
     return InceptionNeXt(**locals(), model_name="inceptionnext_small", **kwargs)
 
 
+@register_model
 def InceptionNeXtBase(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 27, 3]
     embed_dims = [128, 256, 512, 1024]

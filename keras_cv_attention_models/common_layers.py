@@ -71,6 +71,8 @@ def activation_by_name(inputs, activation="relu", name=None):
     activation_lower = activation.lower()
     if activation_lower == "hard_swish":
         return layers.Activation(activation=hard_swish, name=layer_name)(inputs)
+    if activation_lower == "leaky_relu":
+        return layers.LeakyReLU(name=layer_name)(inputs)
     elif activation_lower == "mish":
         return layers.Activation(activation=mish, name=layer_name)(inputs)
     elif activation_lower == "phish":

@@ -1,6 +1,7 @@
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, initializers, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import activation_by_name, drop_block, eca_module, se_module, make_divisible, add_pre_post_process
 
@@ -284,34 +285,42 @@ def NormFreeNet(
     return model
 
 
+@register_model
 def NFNetF0(input_shape=(256, 256, 3), num_classes=1000, activation="gelu", dropout=0.2, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[1, 2, 6, 3], model_name="nfnetf0", **locals(), **kwargs)
 
 
+@register_model
 def NFNetF1(input_shape=(320, 320, 3), num_classes=1000, activation="gelu", dropout=0.3, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[2, 4, 12, 6], model_name="nfnetf1", **locals(), **kwargs)
 
 
+@register_model
 def NFNetF2(input_shape=(352, 352, 3), num_classes=1000, activation="gelu", dropout=0.4, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[3, 6, 18, 9], model_name="nfnetf2", **locals(), **kwargs)
 
 
+@register_model
 def NFNetF3(input_shape=(416, 416, 3), num_classes=1000, activation="gelu", dropout=0.4, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[4, 8, 24, 12], model_name="nfnetf3", **locals(), **kwargs)
 
 
+@register_model
 def NFNetF4(input_shape=(512, 512, 3), num_classes=1000, activation="gelu", dropout=0.5, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[5, 10, 30, 15], model_name="nfnetf4", **locals(), **kwargs)
 
 
+@register_model
 def NFNetF5(input_shape=(544, 544, 3), num_classes=1000, activation="gelu", dropout=0.5, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[6, 12, 36, 18], model_name="nfnetf5", **locals(), **kwargs)
 
 
+@register_model
 def NFNetF6(input_shape=(576, 576, 3), num_classes=1000, activation="gelu", dropout=0.5, pretrained="imagenet", **kwargs):
     return NormFreeNet(num_blocks=[7, 14, 42, 21], model_name="nfnetf6", **locals(), **kwargs)
 
 
+@register_model
 def NFNetF7(input_shape=(608, 608, 3), num_classes=1000, activation="gelu", dropout=0.5, pretrained=None, **kwargs):
     return NormFreeNet(num_blocks=[8, 16, 48, 24], model_name="nfnetf7", **locals(), **kwargs)
 
@@ -321,6 +330,7 @@ def NormFreeNet_Light(channel_ratio=0.25, group_size=64, torch_padding=True, use
     return NormFreeNet(**locals(), **kwargs)
 
 
+@register_model
 def NFNetL0(input_shape=(288, 288, 3), num_classes=1000, activation="swish", dropout=0.2, pretrained="imagenet", **kwargs):
     num_blocks = [1, 2, 6, 3]
     num_features_factor = 1.5
@@ -328,6 +338,7 @@ def NFNetL0(input_shape=(288, 288, 3), num_classes=1000, activation="swish", dro
     return NormFreeNet_Light(model_name="nfnetl0", **locals(), **kwargs)
 
 
+@register_model
 def ECA_NFNetL0(input_shape=(288, 288, 3), num_classes=1000, activation="swish", dropout=0.2, pretrained="imagenet", **kwargs):
     num_blocks = [1, 2, 6, 3]
     num_features_factor = 1.5
@@ -335,18 +346,21 @@ def ECA_NFNetL0(input_shape=(288, 288, 3), num_classes=1000, activation="swish",
     return NormFreeNet_Light(model_name="eca_nfnetl0", **locals(), **kwargs)
 
 
+@register_model
 def ECA_NFNetL1(input_shape=(320, 320, 3), num_classes=1000, activation="swish", dropout=0.2, pretrained="imagenet", **kwargs):
     num_blocks = [2, 4, 12, 6]
     attn_type = "eca"
     return NormFreeNet_Light(model_name="eca_nfnetl1", **locals(), **kwargs)
 
 
+@register_model
 def ECA_NFNetL2(input_shape=(384, 384, 3), num_classes=1000, activation="swish", dropout=0.2, pretrained="imagenet", **kwargs):
     num_blocks = [3, 6, 18, 9]
     attn_type = "eca"
     return NormFreeNet_Light(model_name="eca_nfnetl2", **locals(), **kwargs)
 
 
+@register_model
 def ECA_NFNetL3(input_shape=(448, 448, 3), num_classes=1000, activation="swish", dropout=0.2, pretrained=None, **kwargs):
     num_blocks = [4, 8, 24, 12]
     attn_type = "eca"

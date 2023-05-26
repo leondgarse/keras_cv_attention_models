@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, initializers
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import activation_by_name, add_pre_post_process
 
@@ -122,13 +123,16 @@ BLOCK_CONFIGS = {
 }
 
 
+@register_model
 def GMLPTiny16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return GMLP(**BLOCK_CONFIGS["tiny16"], **locals(), model_name="gmlp_tiny16", **kwargs)
 
 
+@register_model
 def GMLPS16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return GMLP(**BLOCK_CONFIGS["s16"], **locals(), model_name="gmlp_s16", **kwargs)
 
 
+@register_model
 def GMLPB16(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return GMLP(**BLOCK_CONFIGS["b16"], **locals(), model_name="gmlp_b16", **kwargs)

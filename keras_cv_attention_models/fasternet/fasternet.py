@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -99,32 +100,38 @@ def FasterNet(
     return model
 
 
+@register_model
 def FasterNetT0(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return FasterNet(**locals(), model_name="fasternet_t0", **kwargs)
 
 
+@register_model
 def FasterNetT1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 64
     return FasterNet(**locals(), model_name="fasternet_t1", **kwargs)
 
 
+@register_model
 def FasterNetT2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 96
     return FasterNet(**locals(), model_name="fasternet_t2", **kwargs)
 
 
+@register_model
 def FasterNetS(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 128
     num_blocks = [1, 2, 13, 2]
     return FasterNet(**locals(), model_name="fasternet_s", **kwargs)
 
 
+@register_model
 def FasterNetM(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 144
     num_blocks = [3, 4, 18, 3]
     return FasterNet(**locals(), model_name="fasternet_m", **kwargs)
 
 
+@register_model
 def FasterNetL(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 192
     num_blocks = [3, 4, 18, 3]

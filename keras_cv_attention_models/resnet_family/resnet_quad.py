@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, drop_block, quad_stem, add_pre_post_process
 
@@ -111,6 +112,7 @@ def ResNetQ(
     return model
 
 
+@register_model
 def ResNet51Q(input_shape=(224, 224, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 4, 6, 4]
     out_channels = [64, 128, 384, 384 * 4]
@@ -123,6 +125,7 @@ def ResNet51Q(input_shape=(224, 224, 3), num_classes=1000, activation="swish", c
     return ResNetQ(**locals(), model_name="resnet51q", **kwargs)
 
 
+@register_model
 def ResNet61Q(input_shape=(224, 224, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [1, 4, 6, 4]
     out_channels = [256, 128, 384, 384 * 4]

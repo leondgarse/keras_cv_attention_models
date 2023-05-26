@@ -1,4 +1,5 @@
 from keras_cv_attention_models.aotnet import AotNet
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
@@ -16,21 +17,25 @@ def ResNetD(num_blocks, input_shape=(224, 224, 3), pretrained="imagenet", stem_t
     return model
 
 
+@register_model
 def ResNet50D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
     return ResNetD(**locals(), model_name="resnet50d", **kwargs)
 
 
+@register_model
 def ResNet101D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
     return ResNetD(**locals(), model_name="resnet101d", **kwargs)
 
 
+@register_model
 def ResNet152D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 8, 36, 3]
     return ResNetD(**locals(), model_name="resnet152d", **kwargs)
 
 
+@register_model
 def ResNet200D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 24, 36, 3]
     return ResNetD(**locals(), model_name="resnet200d", **kwargs)

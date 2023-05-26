@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -170,22 +171,27 @@ def MobileNetV3Small(
     return MobileNetV3(**locals(), **kwargs)
 
 
+@register_model
 def MobileNetV3Large075(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return MobileNetV3Large(**locals(), width_ratio=0.75, model_name="mobilenetv3_large_075", **kwargs)
 
 
+@register_model
 def MobileNetV3Large100(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return MobileNetV3Large(**locals(), model_name="mobilenetv3_large_100", **kwargs)
 
 
+@register_model
 def MobileNetV3Small050(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     fix_stem = True
     return MobileNetV3Small(**locals(), width_ratio=0.5, model_name="mobilenetv3_small_050", **kwargs)
 
 
+@register_model
 def MobileNetV3Small075(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return MobileNetV3Small(**locals(), width_ratio=0.75, model_name="mobilenetv3_small_075", **kwargs)
 
 
+@register_model
 def MobileNetV3Small100(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return MobileNetV3Small(**locals(), model_name="mobilenetv3_small_100", **kwargs)

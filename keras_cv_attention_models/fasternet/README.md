@@ -61,7 +61,7 @@
   # (1, 768, 6, 3 )
   print(model(torch.ones([1, 3, 32, 526])).shape)
   # (1, 768, 1, 16)
-  ```  
+  ```
 ## Verification with PyTorch version
   ```py
   """ PyTorch fasternet_t2 """

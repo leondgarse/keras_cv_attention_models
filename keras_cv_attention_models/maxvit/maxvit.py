@@ -1,6 +1,7 @@
 import math
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -174,6 +175,7 @@ def MaxViT(
     return model
 
 
+@register_model
 def MaxViT_Tiny(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 5, 2]
     out_channels = [64, 128, 256, 512]
@@ -181,6 +183,7 @@ def MaxViT_Tiny(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0
     return MaxViT(**locals(), model_name="maxvit_tiny", **kwargs)
 
 
+@register_model
 def MaxViT_Small(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 5, 2]
     out_channels = [96, 192, 384, 768]
@@ -188,6 +191,7 @@ def MaxViT_Small(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=
     return MaxViT(**locals(), model_name="maxvit_small", **kwargs)
 
 
+@register_model
 def MaxViT_Base(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 6, 14, 2]
     out_channels = [96, 192, 384, 768]
@@ -195,6 +199,7 @@ def MaxViT_Base(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0
     return MaxViT(**locals(), model_name="maxvit_base", **kwargs)
 
 
+@register_model
 def MaxViT_Large(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 6, 14, 2]
     out_channels = [128, 256, 512, 1024]
@@ -202,6 +207,7 @@ def MaxViT_Large(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=
     return MaxViT(**locals(), model_name="maxvit_large", **kwargs)
 
 
+@register_model
 def MaxViT_XLarge(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 6, 14, 2]
     out_channels = [192, 384, 768, 1536]

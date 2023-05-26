@@ -1,4 +1,5 @@
 from keras_cv_attention_models.aotnet import AotNet
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
@@ -36,6 +37,7 @@ def RegNetY(num_blocks, out_channels, input_shape=(224, 224, 3), hidden_channel_
     return model
 
 
+@register_model
 def RegNetY032(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 5, 13, 1]
     out_channels = [72, 216, 576, 1512]
@@ -44,6 +46,7 @@ def RegNetY032(input_shape=(224, 224, 3), num_classes=1000, activation="relu", c
     return model
 
 
+@register_model
 def RegNetY040(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 6, 12, 2]
     out_channels = [128, 192, 512, 1088]
@@ -52,6 +55,7 @@ def RegNetY040(input_shape=(224, 224, 3), num_classes=1000, activation="relu", c
     return model
 
 
+@register_model
 def RegNetY064(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 7, 14, 2]
     out_channels = [144, 288, 576, 1296]
@@ -60,6 +64,7 @@ def RegNetY064(input_shape=(224, 224, 3), num_classes=1000, activation="relu", c
     return model
 
 
+@register_model
 def RegNetY080(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 4, 10, 1]
     out_channels = [168, 448, 896, 2016]
@@ -68,6 +73,7 @@ def RegNetY080(input_shape=(224, 224, 3), num_classes=1000, activation="relu", c
     return model
 
 
+@register_model
 def RegNetY160(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 4, 11, 1]
     out_channels = [224, 448, 1232, 3024]
@@ -76,6 +82,7 @@ def RegNetY160(input_shape=(224, 224, 3), num_classes=1000, activation="relu", c
     return model
 
 
+@register_model
 def RegNetY320(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 5, 12, 1]
     out_channels = [232, 696, 1392, 3712]
@@ -84,6 +91,7 @@ def RegNetY320(input_shape=(224, 224, 3), num_classes=1000, activation="relu", c
     return model
 
 
+@register_model
 def RegNetZB16(input_shape=(224, 224, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 6, 12, 2]
     strides = [2, 2, 2, 2]
@@ -105,6 +113,7 @@ def RegNetZB16(input_shape=(224, 224, 3), num_classes=1000, activation="swish", 
     return model
 
 
+@register_model
 def RegNetZC16(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 6, 12, 2]
     strides = [2, 2, 2, 2]
@@ -126,6 +135,7 @@ def RegNetZC16(input_shape=(256, 256, 3), num_classes=1000, activation="swish", 
     return model
 
 
+@register_model
 def RegNetZC16_EVO(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     use_evo_norm = True
     evo_norm_group_size = 16
@@ -133,6 +143,7 @@ def RegNetZC16_EVO(input_shape=(256, 256, 3), num_classes=1000, activation="swis
     return RegNetZC16(**locals(), model_name="regnetz_c16_evo", **kwargs)
 
 
+@register_model
 def RegNetZD32(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 6, 12, 3]
     strides = [1, 2, 2, 2]
@@ -155,6 +166,7 @@ def RegNetZD32(input_shape=(256, 256, 3), num_classes=1000, activation="swish", 
     return model
 
 
+@register_model
 def RegNetZD8(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 6, 12, 3]
     strides = [1, 2, 2, 2]
@@ -177,6 +189,7 @@ def RegNetZD8(input_shape=(256, 256, 3), num_classes=1000, activation="swish", c
     return model
 
 
+@register_model
 def RegNetZD8_EVO(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     stem_type = "deep2"
     use_evo_norm = True
@@ -185,6 +198,7 @@ def RegNetZD8_EVO(input_shape=(256, 256, 3), num_classes=1000, activation="swish
     return RegNetZD8(**locals(), model_name="regnetz_d8_evo", **kwargs)
 
 
+@register_model
 def RegNetZE8(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 8, 16, 3]
     strides = [1, 2, 2, 2]

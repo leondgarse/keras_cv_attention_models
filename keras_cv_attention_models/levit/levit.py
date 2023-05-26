@@ -1,7 +1,8 @@
 import math
 import numpy as np
 from keras_cv_attention_models import backend
-from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers, register_keras_serializable
+from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
@@ -21,7 +22,7 @@ PRETRAINED_DICT = {
 }
 
 
-@register_keras_serializable(package="levit")
+@backend.register_keras_serializable(package="levit")
 class MultiHeadPositionalEmbedding(layers.Layer):
     def __init__(self, query_height=-1, key_height=-1, **kwargs):
         super(MultiHeadPositionalEmbedding, self).__init__(**kwargs)
@@ -289,16 +290,19 @@ def LeViT(
     return model
 
 
+@register_model
 def LeViT128S(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True, classifier_activation=None, pretrained="imagenet", **kwargs):
     return LeViT(**locals(), model_name="levit128s", **kwargs)
 
 
+@register_model
 def LeViT128(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True, classifier_activation=None, pretrained="imagenet", **kwargs):
     num_heads = [4, 8, 12]
     depthes = [4, 4, 4]
     return LeViT(**locals(), model_name="levit128", **kwargs)
 
 
+@register_model
 def LeViT192(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True, classifier_activation=None, pretrained="imagenet", **kwargs):
     patch_channel = 192
     out_channels = [288, 384, 384]
@@ -308,6 +312,7 @@ def LeViT192(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True,
     return LeViT(**locals(), model_name="levit192", **kwargs)
 
 
+@register_model
 def LeViT256(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True, classifier_activation=None, pretrained="imagenet", **kwargs):
     patch_channel = 256
     out_channels = [384, 512, 512]
@@ -317,6 +322,7 @@ def LeViT256(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True,
     return LeViT(**locals(), model_name="levit256", **kwargs)
 
 
+@register_model
 def LeViT384(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True, classifier_activation=None, pretrained="imagenet", **kwargs):
     patch_channel = 384
     out_channels = [512, 768, 768]

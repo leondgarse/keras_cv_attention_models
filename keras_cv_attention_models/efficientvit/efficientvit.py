@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -193,10 +194,12 @@ def EfficientViT(
     return model
 
 
+@register_model
 def EfficientViT_M0(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return EfficientViT(**locals(), model_name="efficientvit_m0", **kwargs)
 
 
+@register_model
 def EfficientViT_M1(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels = [128, 144, 192]
     num_heads = [2, 3, 3]
@@ -204,6 +207,7 @@ def EfficientViT_M1(input_shape=(224, 224, 3), num_classes=1000, activation="rel
     return EfficientViT(**locals(), model_name="efficientvit_m1", **kwargs)
 
 
+@register_model
 def EfficientViT_M2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels = [128, 192, 224]
     num_heads = [4, 3, 2]
@@ -211,6 +215,7 @@ def EfficientViT_M2(input_shape=(224, 224, 3), num_classes=1000, activation="rel
     return EfficientViT(**locals(), model_name="efficientvit_m2", **kwargs)
 
 
+@register_model
 def EfficientViT_M3(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels = [128, 240, 320]
     num_heads = [4, 3, 4]
@@ -218,6 +223,7 @@ def EfficientViT_M3(input_shape=(224, 224, 3), num_classes=1000, activation="rel
     return EfficientViT(**locals(), model_name="efficientvit_m3", **kwargs)
 
 
+@register_model
 def EfficientViT_M4(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels = [128, 256, 384]
     num_heads = 4
@@ -225,6 +231,7 @@ def EfficientViT_M4(input_shape=(224, 224, 3), num_classes=1000, activation="rel
     return EfficientViT(**locals(), model_name="efficientvit_m4", **kwargs)
 
 
+@register_model
 def EfficientViT_M5(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels = [192, 288, 384]
     num_blocks = [1, 3, 4]

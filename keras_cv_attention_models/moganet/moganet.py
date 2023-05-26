@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -134,28 +135,33 @@ def MogaNet(
     return model
 
 
+@register_model
 def MogaNetXtiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return MogaNet(**locals(), model_name="moganet_xtiny", **kwargs)
 
 
+@register_model
 def MogaNetTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 12, 2]
     out_channels = [32, 64, 128, 256]
     return MogaNet(**locals(), model_name="moganet_tiny", **kwargs)
 
 
+@register_model
 def MogaNetSmall(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 3, 12, 2]
     out_channels = [64, 128, 320, 512]
     return MogaNet(**locals(), model_name="moganet_small", **kwargs)
 
 
+@register_model
 def MogaNetBase(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [4, 6, 22, 3]
     out_channels = [64, 160, 320, 512]
     return MogaNet(**locals(), model_name="moganet_base", **kwargs)
 
 
+@register_model
 def MogaNetLarge(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [4, 6, 44, 4]
     out_channels = [64, 160, 320, 640]

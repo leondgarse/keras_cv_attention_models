@@ -1,6 +1,7 @@
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, initializers, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     add_with_layer_scale_and_drop_block,
     ChannelAffine,
@@ -237,16 +238,19 @@ def NAT(
     return model
 
 
+@register_model
 def NAT_Mini(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 5]
     return NAT(**locals(), model_name="nat_mini", **kwargs)
 
 
+@register_model
 def NAT_Tiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 18, 5]
     return NAT(**locals(), model_name="nat_tiny", **kwargs)
 
 
+@register_model
 def NAT_Small(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 18, 5]
     num_heads = [3, 6, 12, 24]
@@ -256,6 +260,7 @@ def NAT_Small(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cl
     return NAT(**locals(), model_name="nat_small", **kwargs)
 
 
+@register_model
 def NAT_Base(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 18, 5]
     num_heads = [4, 8, 16, 32]

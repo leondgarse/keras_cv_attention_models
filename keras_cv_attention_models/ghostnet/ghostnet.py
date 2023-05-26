@@ -1,4 +1,5 @@
 from keras_cv_attention_models.ghostnet.ghostnet_v2 import GhostNetV2
+from keras_cv_attention_models.models import register_model
 
 
 def GhostNet(
@@ -24,13 +25,16 @@ def GhostNet(
     return GhostNetV2(**locals())
 
 
+@register_model
 def GhostNet_050(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return GhostNet(**locals(), width_mul=0.5, model_name="ghostnet_050", **kwargs)
 
 
+@register_model
 def GhostNet_100(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return GhostNet(**locals(), model_name="ghostnet_100", **kwargs)
 
 
+@register_model
 def GhostNet_130(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return GhostNet(**locals(), width_mul=1.3, model_name="ghostnet_130", **kwargs)

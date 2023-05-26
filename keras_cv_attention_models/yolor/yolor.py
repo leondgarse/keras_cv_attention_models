@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, initializers, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     BiasLayer,
     ChannelAffine,
@@ -338,6 +339,7 @@ def YOLOR(
     return model
 
 
+@register_model
 def YOLOR_CSP(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_depthes = [2, 8, 8, 4]
     csp_channels = [128, 256, 512, 1024]
@@ -346,6 +348,7 @@ def YOLOR_CSP(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, 
     return YOLOR(**locals(), model_name=kwargs.pop("model_name", "yolor_csp"), **kwargs)
 
 
+@register_model
 def YOLOR_CSPX(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_depthes = [3, 10, 10, 5]
     csp_channels = [160, 320, 640, 1280]
@@ -354,6 +357,7 @@ def YOLOR_CSPX(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80,
     return YOLOR(**locals(), model_name=kwargs.pop("model_name", "yolor_csp_x"), **kwargs)
 
 
+@register_model
 def YOLOR_P6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_depthes = [3, 7, 7, 3, 3]
     csp_channels = [128, 256, 384, 512, 640]
@@ -365,6 +369,7 @@ def YOLOR_P6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80,
     return YOLOR(**locals(), model_name=kwargs.pop("model_name", "yolor_p6"), **kwargs)
 
 
+@register_model
 def YOLOR_W6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_depthes = [3, 7, 7, 3, 3]
     csp_channels = [128, 256, 512, 768, 1024]
@@ -376,6 +381,7 @@ def YOLOR_W6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80,
     return YOLOR(**locals(), model_name=kwargs.pop("model_name", "yolor_w6"), **kwargs)
 
 
+@register_model
 def YOLOR_E6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_depthes = [3, 7, 7, 3, 3]
     csp_channels = [160, 320, 640, 960, 1280]
@@ -389,6 +395,7 @@ def YOLOR_E6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80,
     return YOLOR(**locals(), model_name=kwargs.pop("model_name", "yolor_e6"), **kwargs)
 
 
+@register_model
 def YOLOR_D6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_depthes = [3, 15, 15, 7, 7]
     csp_channels = [160, 320, 640, 960, 1280]

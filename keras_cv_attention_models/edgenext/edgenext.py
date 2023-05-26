@@ -1,6 +1,7 @@
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     ChannelAffine,
     activation_by_name,
@@ -221,16 +222,19 @@ def EdgeNeXt(
     return model
 
 
+@register_model
 def EdgeNeXt_XX_Small(input_shape=(256, 256, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return EdgeNeXt(**locals(), model_name="edgenext_xx_small", **kwargs)
 
 
+@register_model
 def EdgeNeXt_X_Small(input_shape=(256, 256, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 9, 3]
     out_channels = [32, 64, 100, 192]
     return EdgeNeXt(**locals(), model_name="edgenext_x_small", **kwargs)
 
 
+@register_model
 def EdgeNeXt_Small(input_shape=(256, 256, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 9, 3]
     out_channels = [48, 96, 160, 304]

@@ -1,4 +1,5 @@
 from keras_cv_attention_models.aotnet import AotNet
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 
@@ -18,18 +19,21 @@ def ResNeXt(num_blocks, input_shape=(224, 224, 3), pretrained="imagenet", stride
     return model
 
 
+@register_model
 def ResNeXt50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
     hidden_channel_ratio = 0.5
     return ResNeXt(**locals(), model_name="resnext50", **kwargs)
 
 
+@register_model
 def ResNeXt101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
     hidden_channel_ratio = 0.5
     return ResNeXt(**locals(), model_name="resnext101", **kwargs)
 
 
+@register_model
 def ResNeXt50D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
     hidden_channel_ratio = 0.5
@@ -38,12 +42,14 @@ def ResNeXt50D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", c
     return ResNeXt(**locals(), model_name="resnext50d", **kwargs)
 
 
+@register_model
 def ResNeXt101W(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
     hidden_channel_ratio = 1
     return ResNeXt(**locals(), model_name="resnext101w", **kwargs)
 
 
+@register_model
 def ResNeXt101W_se(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained=None, **kwargs):
     # timm using an additional conv + bn before se_module
     num_blocks = [3, 4, 23, 3]
@@ -53,6 +59,7 @@ def ResNeXt101W_se(input_shape=(224, 224, 3), num_classes=1000, activation="relu
     return ResNeXt(**locals(), model_name="resnext101w", **kwargs)
 
 
+@register_model
 def ResNeXt101W_64(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
     hidden_channel_ratio = 1

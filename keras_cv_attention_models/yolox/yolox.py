@@ -1,6 +1,7 @@
 import math
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, initializers, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -281,25 +282,31 @@ def YOLOX(
     return model
 
 
+@register_model
 def YOLOXNano(input_shape=(416, 416, 3), freeze_backbone=False, num_classes=80, backbone=None, activation="swish", pretrained="coco", **kwargs):
     return YOLOX(**locals(), depth_mul=0.33, width_mul=0.25, use_depthwise_conv=True, model_name=kwargs.pop("model_name", "yolox_nano"), **kwargs)
 
 
+@register_model
 def YOLOXTiny(input_shape=(416, 416, 3), freeze_backbone=False, num_classes=80, backbone=None, activation="swish", pretrained="coco", **kwargs):
     return YOLOX(**locals(), depth_mul=0.33, width_mul=0.375, model_name=kwargs.pop("model_name", "yolox_tiny"), **kwargs)
 
 
+@register_model
 def YOLOXS(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, activation="swish", pretrained="coco", **kwargs):
     return YOLOX(**locals(), depth_mul=0.33, width_mul=0.5, model_name=kwargs.pop("model_name", "yolox_s"), **kwargs)
 
 
+@register_model
 def YOLOXM(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, activation="swish", pretrained="coco", **kwargs):
     return YOLOX(**locals(), depth_mul=0.67, width_mul=0.75, model_name=kwargs.pop("model_name", "yolox_m"), **kwargs)
 
 
+@register_model
 def YOLOXL(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, activation="swish", pretrained="coco", **kwargs):
     return YOLOX(**locals(), depth_mul=1.0, width_mul=1.0, model_name=kwargs.pop("model_name", "yolox_l"), **kwargs)
 
 
+@register_model
 def YOLOXX(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, activation="swish", pretrained="coco", **kwargs):
     return YOLOX(**locals(), depth_mul=1.33, width_mul=1.25, model_name=kwargs.pop("model_name", "yolox_x"), **kwargs)

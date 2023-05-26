@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -156,36 +157,43 @@ def PyramidVisionTransformerV2(
     return model
 
 
+@register_model
 def PVT_V2B0(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dims = [32, 64, 160, 256]
     return PyramidVisionTransformerV2(**locals(), model_name="pvt_v2_b0", **kwargs)
 
 
+@register_model
 def PVT_V2B1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return PyramidVisionTransformerV2(**locals(), model_name="pvt_v2_b1", **kwargs)
 
 
+@register_model
 def PVT_V2B2(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
     return PyramidVisionTransformerV2(**locals(), model_name="pvt_v2_b2", **kwargs)
 
 
+@register_model
 def PVT_V2B2_linear(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
     use_linear = True
     return PyramidVisionTransformerV2(**locals(), model_name="pvt_v2_b2_linear", **kwargs)
 
 
+@register_model
 def PVT_V2B3(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 18, 3]
     return PyramidVisionTransformerV2(**locals(), model_name="pvt_v2_b3", **kwargs)
 
 
+@register_model
 def PVT_V2B4(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 8, 27, 3]
     return PyramidVisionTransformerV2(**locals(), model_name="pvt_v2_b4", **kwargs)
 
 
+@register_model
 def PVT_V2B5(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 6, 40, 3]
     mlp_ratios = 4

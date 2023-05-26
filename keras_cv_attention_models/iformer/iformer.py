@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -160,10 +161,12 @@ def InceptionTransformer(
     return model
 
 
+@register_model
 def IFormerSmall(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return InceptionTransformer(**locals(), model_name="iformer_small", **kwargs)
 
 
+@register_model
 def IFormerBase(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [4, 6, 14, 6]
     embed_dims = [96, 192, 384, 512]
@@ -172,6 +175,7 @@ def IFormerBase(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", 
     return InceptionTransformer(**locals(), model_name="iformer_base", **kwargs)
 
 
+@register_model
 def IFormerLarge(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [4, 6, 18, 8]
     embed_dims = [96, 192, 448, 640]

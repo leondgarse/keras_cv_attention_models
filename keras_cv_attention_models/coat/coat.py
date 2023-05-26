@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import ClassToken, layer_norm, conv2d_no_bias, activation_by_name, add_pre_post_process
 
@@ -289,21 +290,25 @@ def CoaT(
     return model
 
 
+@register_model
 def CoaTLiteTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return CoaT(**locals(), model_name="coat_lite_tiny", **kwargs)
 
 
+@register_model
 def CoaTLiteMini(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dims = [64, 128, 320, 512]
     return CoaT(**locals(), model_name="coat_lite_mini", **kwargs)
 
 
+@register_model
 def CoaTLiteSmall(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     serial_depths = [3, 4, 6, 3]
     embed_dims = [64, 128, 320, 512]
     return CoaT(**locals(), model_name="coat_lite_small", **kwargs)
 
 
+@register_model
 def CoaTTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dims = [152, 152, 152, 152]
     mlp_ratios = [4, 4, 4, 4]
@@ -311,6 +316,7 @@ def CoaTTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cla
     return CoaT(**locals(), model_name="coat_tiny", **kwargs)
 
 
+@register_model
 def CoaTMini(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dims = [152, 216, 216, 216]
     mlp_ratios = [4, 4, 4, 4]

@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     ChannelAffine,
     MultiHeadRelativePositionalEmbedding,
@@ -148,20 +149,24 @@ def GCViT(
     return model
 
 
+@register_model
 def GCViT_XXTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return GCViT(**locals(), model_name="gcvit_xx_tiny", **kwargs)
 
 
+@register_model
 def GCViT_XTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 5]
     return GCViT(**locals(), model_name="gcvit_x_tiny", **kwargs)
 
 
+@register_model
 def GCViT_Tiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 19, 5]
     return GCViT(**locals(), model_name="gcvit_tiny", **kwargs)
 
 
+@register_model
 def GCViT_Small(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 19, 5]
     num_heads = [3, 6, 12, 24]
@@ -171,6 +176,7 @@ def GCViT_Small(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", 
     return GCViT(**locals(), model_name="gcvit_small", **kwargs)
 
 
+@register_model
 def GCViT_Base(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 19, 5]
     num_heads = [4, 8, 16, 32]

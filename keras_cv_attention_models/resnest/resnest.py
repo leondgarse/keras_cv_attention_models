@@ -1,6 +1,7 @@
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.aotnet import AotNet
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias
@@ -88,17 +89,21 @@ def ResNest(
     return model
 
 
+@register_model
 def ResNest50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", groups=2, **kwargs):
     return ResNest(num_blocks=[3, 4, 6, 3], stem_width=64, model_name="resnest50", **locals(), **kwargs)
 
 
+@register_model
 def ResNest101(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", groups=2, **kwargs):
     return ResNest(num_blocks=[3, 4, 23, 3], stem_width=128, model_name="resnest101", **locals(), **kwargs)
 
 
+@register_model
 def ResNest200(input_shape=(320, 320, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", groups=2, **kwargs):
     return ResNest(num_blocks=[3, 24, 36, 3], stem_width=128, model_name="resnest200", **locals(), **kwargs)
 
 
+@register_model
 def ResNest269(input_shape=(416, 416, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", groups=2, **kwargs):
     return ResNest(num_blocks=[3, 30, 48, 8], stem_width=128, model_name="resnest269", **locals(), **kwargs)

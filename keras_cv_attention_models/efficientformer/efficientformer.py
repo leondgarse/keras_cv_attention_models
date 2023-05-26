@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     add_with_layer_scale_and_drop_block,
     ChannelAffine,
@@ -123,10 +124,12 @@ def EfficientFormer(
     return model
 
 
+@register_model
 def EfficientFormerL1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
     return EfficientFormer(**locals(), model_name="efficientformer_l1", **kwargs)
 
 
+@register_model
 def EfficientFormerL3(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
     num_blocks = [4, 4, 12, 6]
     out_channels = [64, 128, 320, 512]
@@ -134,6 +137,7 @@ def EfficientFormerL3(input_shape=(224, 224, 3), num_classes=1000, activation="g
     return EfficientFormer(**locals(), model_name="efficientformer_l3", **kwargs)
 
 
+@register_model
 def EfficientFormerL7(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
     num_blocks = [6, 6, 18, 8]
     out_channels = [96, 192, 384, 768]

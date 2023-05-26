@@ -1,4 +1,5 @@
 from keras_cv_attention_models.beit.beit import Beit, keras_model_load_weights_from_pytorch_model
+from keras_cv_attention_models.models import register_model
 
 
 def DINOv2(layer_scale=1.0, use_abs_pos_emb=True, use_cat_head=True, attn_qkv_bias=True, model_name="dinov2", **kwargs):
@@ -8,6 +9,7 @@ def DINOv2(layer_scale=1.0, use_abs_pos_emb=True, use_cat_head=True, attn_qkv_bi
     return Beit(**locals(), **kwargs)
 
 
+@register_model
 def DINOv2_ViT_Small14(input_shape=(518, 518, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 384
     depth = 12
@@ -15,6 +17,7 @@ def DINOv2_ViT_Small14(input_shape=(518, 518, 3), num_classes=1000, activation="
     return DINOv2(**locals(), model_name="dinov2_vit_small14", **kwargs)
 
 
+@register_model
 def DINOv2_ViT_Base14(input_shape=(518, 518, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 768
     depth = 12
@@ -22,6 +25,7 @@ def DINOv2_ViT_Base14(input_shape=(518, 518, 3), num_classes=1000, activation="g
     return DINOv2(**locals(), model_name="dinov2_vit_base14", **kwargs)
 
 
+@register_model
 def DINOv2_ViT_Large14(input_shape=(518, 518, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 1024
     depth = 24
@@ -29,6 +33,7 @@ def DINOv2_ViT_Large14(input_shape=(518, 518, 3), num_classes=1000, activation="
     return DINOv2(**locals(), model_name="dinov2_vit_large14", **kwargs)
 
 
+@register_model
 def DINOv2_ViT_Giant14(input_shape=(518, 518, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 1536
     depth = 40

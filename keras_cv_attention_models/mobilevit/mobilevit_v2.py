@@ -1,4 +1,5 @@
 from keras_cv_attention_models.mobilevit.mobilevit import MobileViT
+from keras_cv_attention_models.models import register_model
 
 
 def MobileViT_V2(
@@ -24,35 +25,42 @@ def get_mobilevit_v2_width(multiplier=1.0):
     return int(32 * multiplier), [int(ii * multiplier) for ii in [64, 128, 256, 384, 512]]  # stem_width, out_channels
 
 
+@register_model
 def MobileViT_V2_050(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     stem_width, out_channels = get_mobilevit_v2_width(0.5)
     return MobileViT_V2(**locals(), model_name="mobilevit_v2_050", **kwargs)
 
 
+@register_model
 def MobileViT_V2_075(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     stem_width, out_channels = get_mobilevit_v2_width(0.75)
     return MobileViT_V2(**locals(), model_name="mobilevit_v2_075", **kwargs)
 
 
+@register_model
 def MobileViT_V2_100(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return MobileViT_V2(**locals(), model_name="mobilevit_v2_100", **kwargs)
 
 
+@register_model
 def MobileViT_V2_125(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     stem_width, out_channels = get_mobilevit_v2_width(1.25)
     return MobileViT_V2(**locals(), model_name="mobilevit_v2_125", **kwargs)
 
 
+@register_model
 def MobileViT_V2_150(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     stem_width, out_channels = get_mobilevit_v2_width(1.5)
     return MobileViT_V2(**locals(), model_name="mobilevit_v2_150", **kwargs)
 
 
+@register_model
 def MobileViT_V2_175(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     stem_width, out_channels = get_mobilevit_v2_width(1.75)
     return MobileViT_V2(**locals(), model_name="mobilevit_v2_175", **kwargs)
 
 
+@register_model
 def MobileViT_V2_200(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     stem_width, out_channels = get_mobilevit_v2_width(2.0)
     return MobileViT_V2(**locals(), model_name="mobilevit_v2_200", **kwargs)

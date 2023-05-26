@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, is_channels_last
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -225,10 +226,12 @@ def EfficientFormerV2(
     return model
 
 
+@register_model
 def EfficientFormerV2S0(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
     return EfficientFormerV2(**locals(), model_name="efficientformer_v2_s0", **kwargs)
 
 
+@register_model
 def EfficientFormerV2S1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 9, 6]
     out_channels = [32, 48, 120, 224]
@@ -236,6 +239,7 @@ def EfficientFormerV2S1(input_shape=(224, 224, 3), num_classes=1000, activation=
     return EfficientFormerV2(**locals(), model_name="efficientformer_v2_s1", **kwargs)
 
 
+@register_model
 def EfficientFormerV2S2(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
     num_blocks = [4, 4, 12, 8]
     out_channels = [32, 64, 144, 288]
@@ -244,6 +248,7 @@ def EfficientFormerV2S2(input_shape=(224, 224, 3), num_classes=1000, activation=
     return EfficientFormerV2(**locals(), model_name="efficientformer_v2_s2", **kwargs)
 
 
+@register_model
 def EfficientFormerV2L(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
     num_blocks = [5, 5, 15, 10]
     out_channels = [40, 80, 192, 384]

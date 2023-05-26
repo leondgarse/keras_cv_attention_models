@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -146,17 +147,20 @@ def CAFormer(
     return model
 
 
+@register_model
 def CAFormerS18(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     kwargs.pop("kwargs", None)
     return CAFormer(**locals(), model_name=kwargs.pop("model_name", "caformer_s18"), **kwargs)
 
 
+@register_model
 def CAFormerS36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 12, 18, 3]
     kwargs.pop("kwargs", None)
     return CAFormer(**locals(), model_name=kwargs.pop("model_name", "caformer_s36"), **kwargs)
 
 
+@register_model
 def CAFormerM36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 12, 18, 3]
     out_channels = [96, 192, 384, 576]
@@ -165,6 +169,7 @@ def CAFormerM36(input_shape=(224, 224, 3), num_classes=1000, activation="star_re
     return CAFormer(**locals(), model_name=kwargs.pop("model_name", "caformer_m36"), **kwargs)
 
 
+@register_model
 def CAFormerB36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 12, 18, 3]
     out_channels = [128, 256, 512, 768]
@@ -176,17 +181,21 @@ def CAFormerB36(input_shape=(224, 224, 3), num_classes=1000, activation="star_re
 """ ConvFormer """
 
 
+@register_model
 def ConvFormerS18(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return CAFormerS18(**locals(), block_types=["conv", "conv", "conv", "conv"], model_name="convformer_s18", **kwargs)
 
 
+@register_model
 def ConvFormerS36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return CAFormerS36(**locals(), block_types=["conv", "conv", "conv", "conv"], model_name="convformer_s36", **kwargs)
 
 
+@register_model
 def ConvFormerM36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return CAFormerM36(**locals(), block_types=["conv", "conv", "conv", "conv"], model_name="convformer_m36", **kwargs)
 
 
+@register_model
 def ConvFormerB36(input_shape=(224, 224, 3), num_classes=1000, activation="star_relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return CAFormerB36(**locals(), block_types=["conv", "conv", "conv", "conv"], model_name="convformer_b36", **kwargs)

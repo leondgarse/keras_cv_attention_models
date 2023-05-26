@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     anti_alias_downsample,
@@ -379,53 +380,64 @@ def AotNet(
     return model
 
 
+@register_model
 def AotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 4, 6, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name=kwargs.pop("model_name", "aotnet50"), **kwargs)
 
 
+@register_model
 def AotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 4, 23, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name=kwargs.pop("model_name", "aotnet101"), **kwargs)
 
 
+@register_model
 def AotNet152(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 8, 36, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name=kwargs.pop("model_name", "aotnet152"), **kwargs)
 
 
+@register_model
 def AotNet200(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 24, 36, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [1, 2, 2, strides]
     return AotNet(**locals(), model_name=kwargs.pop("model_name", "aotnet200"), **kwargs)
 
 
-def AotNetV2(num_blocks, preact=True, strides=1, strides_first=False, **kwargs):
+""" AotNetV2 """
+
+
+def AotNetV2(num_blocks=[3, 4, 6, 3], preact=True, strides=1, strides_first=False, **kwargs):
     strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
     return AotNet(num_blocks, preact=preact, strides=strides, strides_first=strides_first, **kwargs)
 
 
+@register_model
 def AotNet50V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 4, 6, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
     return AotNetV2(**locals(), model_name=kwargs.pop("model_name", "aotnet50v2"), **kwargs)
 
 
+@register_model
 def AotNet101V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 4, 23, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
     return AotNetV2(**locals(), model_name=kwargs.pop("model_name", "aotnet101v2"), **kwargs)
 
 
+@register_model
 def AotNet152V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 8, 36, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]
     return AotNetV2(**locals(), model_name=kwargs.pop("model_name", "aotnet152v2"), **kwargs)
 
 
+@register_model
 def AotNet200V2(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", strides=2, **kwargs):
     num_blocks = [3, 24, 36, 3]
     strides = strides if isinstance(strides, (list, tuple)) else [2, 2, 2, strides]

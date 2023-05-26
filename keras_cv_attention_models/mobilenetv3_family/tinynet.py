@@ -1,4 +1,5 @@
 from keras_cv_attention_models.mobilenetv3_family.mobilenetv3 import MobileNetV3
+from keras_cv_attention_models.models import register_model
 
 
 def get_expanded_width_depth(width, depth):
@@ -32,26 +33,31 @@ def TinyNet(
     return MobileNetV3(**locals(), **kwargs)
 
 
+@register_model
 def TinyNetA(input_shape=(192, 192, 3), num_classes=1000, activations="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels, num_blocks = get_expanded_width_depth(1.0, 1.2)
     return TinyNet(**locals(), model_name="tinynet_a", **kwargs)
 
 
+@register_model
 def TinyNetB(input_shape=(188, 188, 3), num_classes=1000, activations="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels, num_blocks = get_expanded_width_depth(0.75, 1.1)
     return TinyNet(**locals(), model_name="tinynet_b", **kwargs)
 
 
+@register_model
 def TinyNetC(input_shape=(184, 184, 3), num_classes=1000, activations="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels, num_blocks = get_expanded_width_depth(0.54, 0.85)
     return TinyNet(**locals(), model_name="tinynet_c", **kwargs)
 
 
+@register_model
 def TinyNetD(input_shape=(152, 152, 3), num_classes=1000, activations="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels, num_blocks = get_expanded_width_depth(0.54, 0.695)
     return TinyNet(**locals(), model_name="tinynet_d", **kwargs)
 
 
+@register_model
 def TinyNetE(input_shape=(106, 106, 3), num_classes=1000, activations="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels, num_blocks = get_expanded_width_depth(0.51, 0.6)
     return TinyNet(**locals(), model_name="tinynet_e", **kwargs)

@@ -2,6 +2,7 @@ import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, initializers, image_data_format
 from keras_cv_attention_models.aotnet import AotNet
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import conv2d_no_bias, scaled_dot_product_attention, qkv_to_multi_head_channels_last_format
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
@@ -205,21 +206,25 @@ def BotNet(input_shape=(224, 224, 3), strides=1, pretrained="imagenet", **kwargs
     return model
 
 
+@register_model
 def BotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", strides=1, **kwargs):
     num_blocks = [3, 4, 6, 3]
     return BotNet(**locals(), model_name="botnet50", **kwargs)
 
 
+@register_model
 def BotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained=None, strides=1, **kwargs):
     num_blocks = [3, 4, 23, 3]
     return BotNet(**locals(), model_name="botnet101", **kwargs)
 
 
+@register_model
 def BotNet152(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained=None, strides=1, **kwargs):
     num_blocks = [3, 8, 36, 3]
     return BotNet(**locals(), model_name="botnet152", **kwargs)
 
 
+@register_model
 def BotNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 2, 2]
     attn_types = [None, None, [None, "bot"], "bot"]
@@ -231,6 +236,7 @@ def BotNet26T(input_shape=(256, 256, 3), num_classes=1000, activation="relu", cl
     return model
 
 
+@register_model
 def BotNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 2, 2]
     attn_types = [None, None, [None, "bot"], "bot"]
@@ -243,6 +249,7 @@ def BotNextECA26T(input_shape=(256, 256, 3), num_classes=1000, activation="swish
     return model
 
 
+@register_model
 def BotNetSE33T(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     stem_type = "tiered"
     stem_last_strides = 2

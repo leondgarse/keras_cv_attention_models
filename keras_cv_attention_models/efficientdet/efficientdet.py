@@ -1,6 +1,7 @@
 import math
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, initializers, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models import efficientnet
 from keras_cv_attention_models.attention_layers import activation_by_name, add_pre_post_process
@@ -224,6 +225,7 @@ def EfficientDet(
     return model
 
 
+@register_model
 def EfficientDetD0(input_shape=(512, 512, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
         backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
@@ -234,6 +236,7 @@ def EfficientDetD0(input_shape=(512, 512, 3), freeze_backbone=False, num_classes
     return EfficientDet(**locals(), fpn_depth=3, head_depth=3, num_channels=64, **kwargs)
 
 
+@register_model
 def EfficientDetD1(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
         backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
@@ -244,6 +247,7 @@ def EfficientDetD1(input_shape=(640, 640, 3), freeze_backbone=False, num_classes
     return EfficientDet(**locals(), fpn_depth=4, head_depth=3, num_channels=88, **kwargs)
 
 
+@register_model
 def EfficientDetD2(input_shape=(768, 768, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
         backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
@@ -254,6 +258,7 @@ def EfficientDetD2(input_shape=(768, 768, 3), freeze_backbone=False, num_classes
     return EfficientDet(**locals(), fpn_depth=5, head_depth=3, num_channels=112, **kwargs)
 
 
+@register_model
 def EfficientDetD3(input_shape=(896, 896, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
         backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
@@ -264,6 +269,7 @@ def EfficientDetD3(input_shape=(896, 896, 3), freeze_backbone=False, num_classes
     return EfficientDet(**locals(), fpn_depth=6, head_depth=4, num_channels=160, **kwargs)
 
 
+@register_model
 def EfficientDetD4(input_shape=(1024, 1024, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
         backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
@@ -274,6 +280,7 @@ def EfficientDetD4(input_shape=(1024, 1024, 3), freeze_backbone=False, num_class
     return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=224, **kwargs)
 
 
+@register_model
 def EfficientDetD5(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
         backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
@@ -284,6 +291,7 @@ def EfficientDetD5(input_shape=(1280, 1280, 3), freeze_backbone=False, num_class
     return EfficientDet(**locals(), fpn_depth=7, head_depth=4, num_channels=288, **kwargs)
 
 
+@register_model
 def EfficientDetD6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
         backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
@@ -294,6 +302,7 @@ def EfficientDetD6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_class
     return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, **kwargs)
 
 
+@register_model
 def EfficientDetD7(input_shape=(1536, 1536, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
         backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
@@ -305,6 +314,7 @@ def EfficientDetD7(input_shape=(1536, 1536, 3), freeze_backbone=False, num_class
     return EfficientDet(**locals(), fpn_depth=8, head_depth=5, num_channels=384, use_weighted_sum=False, **kwargs)
 
 
+@register_model
 def EfficientDetD7X(input_shape=(1536, 1536, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="swish", pretrained="coco", **kwargs):
     if backbone is None:
         backbone_kwargs = {} if pretrained is None else {"pretrained": None}  # Load EfficientNet weights if EfficientDet pretrained not specified
@@ -319,6 +329,7 @@ def EfficientDetD7X(input_shape=(1536, 1536, 3), freeze_backbone=False, num_clas
 """ EfficientDetLite models """
 
 
+@register_model
 def EfficientDetLite0(input_shape=(320, 320, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
     if backbone is None:
         backbone = efficientnet.EfficientNetV1Lite0(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
@@ -328,6 +339,7 @@ def EfficientDetLite0(input_shape=(320, 320, 3), freeze_backbone=False, num_clas
     return EfficientDet(**locals(), fpn_depth=3, head_depth=3, num_channels=64, use_weighted_sum=False, rescale_mode="tf", **kwargs)
 
 
+@register_model
 def EfficientDetLite1(input_shape=(384, 384, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
     if backbone is None:
         backbone = efficientnet.EfficientNetV1Lite1(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
@@ -337,6 +349,7 @@ def EfficientDetLite1(input_shape=(384, 384, 3), freeze_backbone=False, num_clas
     return EfficientDet(**locals(), fpn_depth=4, head_depth=3, num_channels=88, use_weighted_sum=False, rescale_mode="tf", **kwargs)
 
 
+@register_model
 def EfficientDetLite2(input_shape=(448, 448, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
     if backbone is None:
         backbone = efficientnet.EfficientNetV1Lite2(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
@@ -346,6 +359,7 @@ def EfficientDetLite2(input_shape=(448, 448, 3), freeze_backbone=False, num_clas
     return EfficientDet(**locals(), fpn_depth=5, head_depth=3, num_channels=112, use_weighted_sum=False, rescale_mode="tf", **kwargs)
 
 
+@register_model
 def EfficientDetLite3(input_shape=(512, 512, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
     if backbone is None:
         backbone = efficientnet.EfficientNetV1Lite3(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
@@ -355,6 +369,7 @@ def EfficientDetLite3(input_shape=(512, 512, 3), freeze_backbone=False, num_clas
     return EfficientDet(**locals(), fpn_depth=6, head_depth=4, num_channels=160, use_weighted_sum=False, rescale_mode="tf", **kwargs)
 
 
+@register_model
 def EfficientDetLite3X(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
     if backbone is None:
         backbone = efficientnet.EfficientNetV1Lite3(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)
@@ -364,6 +379,7 @@ def EfficientDetLite3X(input_shape=(640, 640, 3), freeze_backbone=False, num_cla
     return EfficientDet(**locals(), fpn_depth=6, head_depth=4, num_channels=200, use_weighted_sum=False, rescale_mode="tf", **kwargs)
 
 
+@register_model
 def EfficientDetLite4(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=90, backbone=None, activation="relu6", pretrained="coco", **kwargs):
     if backbone is None:
         backbone = efficientnet.EfficientNetV1Lite4(input_shape=input_shape, num_classes=0, output_conv_filter=0, activation=activation)

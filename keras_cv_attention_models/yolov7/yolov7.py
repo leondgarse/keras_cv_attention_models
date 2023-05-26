@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -382,6 +383,7 @@ def YOLOV7(
     return model
 
 
+@register_model
 def YOLOV7_Tiny(
     input_shape=(416, 416, 3),
     freeze_backbone=False,
@@ -411,10 +413,12 @@ def YOLOV7_Tiny(
     return YOLOV7(**locals(), model_name=kwargs.pop("model_name", "yolov7_tiny"), **kwargs)
 
 
+@register_model
 def YOLOV7_CSP(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     return YOLOV7(**locals(), model_name=kwargs.pop("model_name", "yolov7_csp"), **kwargs)
 
 
+@register_model
 def YOLOV7_X(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     stack_concats = [-1, -3, -5, -7, -8]
     stack_depth = 8
@@ -426,6 +430,7 @@ def YOLOV7_X(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, b
     return YOLOV7(**locals(), model_name=kwargs.pop("model_name", "yolov7_x"), **kwargs)
 
 
+@register_model
 def YOLOV7_W6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     csp_channels = kwargs.pop("csp_channels", [64, 128, 256, 384, 512])
     features_pick = kwargs.pop("features_pick", [-4, -3, -2, -1])
@@ -442,6 +447,7 @@ def YOLOV7_W6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80
     return YOLOV7(**locals(), model_name=kwargs.pop("model_name", "yolov7_w6"), **kwargs)
 
 
+@register_model
 def YOLOV7_E6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     stack_concats = [-1, -3, -5, -7, -8]
     stack_depth = 8
@@ -455,6 +461,7 @@ def YOLOV7_E6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80
     return YOLOV7_W6(**locals(), model_name=kwargs.pop("model_name", "yolov7_e6"), **kwargs)
 
 
+@register_model
 def YOLOV7_D6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     stack_concats = [-1, -3, -5, -7, -9, -10]
     stack_depth = 10
@@ -462,6 +469,7 @@ def YOLOV7_D6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80
     return YOLOV7_E6(**locals(), model_name=kwargs.pop("model_name", "yolov7_d6"), **kwargs)
 
 
+@register_model
 def YOLOV7_E6E(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     use_additional_stack = True
     return YOLOV7_E6(**locals(), model_name=kwargs.pop("model_name", "yolov7_e6e"), **kwargs)

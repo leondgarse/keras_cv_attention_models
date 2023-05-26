@@ -2,6 +2,7 @@ import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 from keras_cv_attention_models.aotnet import AotNet
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import batchnorm_with_activation, conv2d_no_bias, CompatibleExtractPatches, group_norm
 
@@ -105,18 +106,21 @@ def CotNet(input_shape=(224, 224, 3), bn_after_attn=False, shortcut_type="avg", 
     return model
 
 
+@register_model
 def CotNet50(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
     strides = [1, 2, 2, 2]
     return CotNet(**locals(), **kwargs, model_name="cotnet50")
 
 
+@register_model
 def CotNet101(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
     strides = [1, 2, 2, 2]
     return CotNet(**locals(), **kwargs, model_name="cotnet101")
 
 
+@register_model
 def CotNetSE50D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 6, 3]
     strides = [2, 2, 2, 2]
@@ -133,6 +137,7 @@ def CotNetSE50D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", 
     return CotNet(**locals(), **kwargs, model_name="cotnet_se50d")
 
 
+@register_model
 def CotNetSE101D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 23, 3]
     strides = [2, 2, 2, 2]
@@ -149,6 +154,7 @@ def CotNetSE101D(input_shape=(224, 224, 3), num_classes=1000, activation="relu",
     return CotNet(**locals(), **kwargs, model_name="cotnet_se101d")
 
 
+@register_model
 def CotNetSE152D(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 8, 36, 3]
     strides = [2, 2, 2, 2]

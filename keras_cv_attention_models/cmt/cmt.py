@@ -1,6 +1,7 @@
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     batchnorm_with_activation,
     conv2d_no_bias,
@@ -244,6 +245,7 @@ def CMT_torch(qkv_bias=True, attn_out_bias=True, attn_use_bn=True, use_block_pos
     return CMT(**locals(), **kwargs)
 
 
+@register_model
 def CMTTiny(input_shape=(160, 160, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 10, 2]
     out_channels = [46, 92, 184, 368]
@@ -252,6 +254,7 @@ def CMTTiny(input_shape=(160, 160, 3), num_classes=1000, activation="gelu", clas
     return CMT(**locals(), model_name="cmt_tiny", **kwargs)
 
 
+@register_model
 def CMTTiny_torch(input_shape=(160, 160, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 10, 2]
     out_channels = [46, 92, 184, 368]
@@ -260,6 +263,7 @@ def CMTTiny_torch(input_shape=(160, 160, 3), num_classes=1000, activation="gelu"
     return CMT_torch(**locals(), model_name="cmt_tiny_torch", **kwargs)
 
 
+@register_model
 def CMTXS_torch(input_shape=(192, 192, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 12, 3]
     out_channels = [52, 104, 208, 416]
@@ -268,6 +272,7 @@ def CMTXS_torch(input_shape=(192, 192, 3), num_classes=1000, activation="gelu", 
     return CMT_torch(**locals(), model_name="cmt_xs_torch", **kwargs)
 
 
+@register_model
 def CMTSmall_torch(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 16, 3]
     out_channels = [64, 128, 256, 512]
@@ -276,6 +281,7 @@ def CMTSmall_torch(input_shape=(224, 224, 3), num_classes=1000, activation="gelu
     return CMT_torch(**locals(), model_name="cmt_small_torch", **kwargs)
 
 
+@register_model
 def CMTBase_torch(input_shape=(256, 256, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [4, 4, 20, 4]
     out_channels = [76, 152, 304, 608]

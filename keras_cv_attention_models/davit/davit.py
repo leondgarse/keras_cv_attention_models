@@ -2,6 +2,7 @@ import math
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, initializers
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     add_with_layer_scale_and_drop_block,
     ChannelAffine,
@@ -225,16 +226,19 @@ def DaViT(
     return model
 
 
+@register_model
 def DaViT_T(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 6, 2]
     return DaViT(**locals(), model_name="davit_t", **kwargs)
 
 
+@register_model
 def DaViT_S(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 18, 2]
     return DaViT(**locals(), model_name="davit_s", **kwargs)
 
 
+@register_model
 def DaViT_B(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 2, 18, 2]
     out_channels = [128, 256, 512, 1024]
@@ -242,6 +246,7 @@ def DaViT_B(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="
     return DaViT(**locals(), model_name="davit_b", **kwargs)
 
 
+@register_model
 def DaViT_L(input_shape=(384, 384, 3), num_classes=1000, classifier_activation="softmax", pretrained=None, **kwargs):
     num_blocks = [2, 2, 18, 2]
     out_channels = [192, 384, 768, 1536]
@@ -249,6 +254,7 @@ def DaViT_L(input_shape=(384, 384, 3), num_classes=1000, classifier_activation="
     return DaViT(**locals(), model_name="davit_l", **kwargs)
 
 
+@register_model
 def DaViT_H(input_shape=(512, 512, 3), num_classes=1000, classifier_activation="softmax", pretrained=None, **kwargs):
     num_blocks = [2, 2, 18, 2]
     out_channels = [256, 512, 1024, 2048]
@@ -256,6 +262,7 @@ def DaViT_H(input_shape=(512, 512, 3), num_classes=1000, classifier_activation="
     return DaViT(**locals(), model_name="davit_h", **kwargs)
 
 
+@register_model
 def DaViT_G(input_shape=(512, 512, 3), num_classes=1000, classifier_activation="softmax", pretrained=None, **kwargs):
     num_blocks = [2, 2, 24, 6]
     out_channels = [384, 768, 1536, 3072]

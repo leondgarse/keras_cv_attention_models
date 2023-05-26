@@ -2,6 +2,7 @@ import math
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers, register_keras_serializable
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
@@ -461,6 +462,7 @@ def VOLO(
     return model
 
 
+@register_model
 def VOLO_d1(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", **kwargs):
     num_blocks = [4, 14]
     embed_dims = [192, 384]
@@ -470,6 +472,7 @@ def VOLO_d1(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", 
     return VOLO(**locals(), model_name="volo_d1", **kwargs)
 
 
+@register_model
 def VOLO_d2(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", **kwargs):
     num_blocks = [6, 18]
     embed_dims = [256, 512]
@@ -479,6 +482,7 @@ def VOLO_d2(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", 
     return VOLO(**locals(), model_name="volo_d2", **kwargs)
 
 
+@register_model
 def VOLO_d3(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", **kwargs):
     num_blocks = [8, 28]
     embed_dims = [256, 512]
@@ -488,6 +492,7 @@ def VOLO_d3(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", 
     return VOLO(**locals(), model_name="volo_d3", **kwargs)
 
 
+@register_model
 def VOLO_d4(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", **kwargs):
     num_blocks = [8, 28]
     embed_dims = [384, 768]
@@ -497,6 +502,7 @@ def VOLO_d4(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", 
     return VOLO(**locals(), model_name="volo_d4", **kwargs)
 
 
+@register_model
 def VOLO_d5(input_shape=(224, 224, 3), num_classes=1000, pretrained="imagenet", **kwargs):
     num_blocks = [12, 36]
     embed_dims = [384, 768]

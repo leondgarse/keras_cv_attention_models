@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     ChannelAffine,
     conv2d_no_bias,
@@ -178,42 +179,50 @@ def HorNet(
     return model
 
 
+@register_model
 def HorNetTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HorNet(**locals(), model_name="hornet_tiny", **kwargs)
 
 
+@register_model
 def HorNetTinyGF(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     use_global_local_filter = [False, False, True, True]
     return HorNet(**locals(), model_name="hornet_tiny_gf", **kwargs)
 
 
+@register_model
 def HorNetSmall(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 96
     return HorNet(**locals(), model_name="hornet_small", **kwargs)
 
 
+@register_model
 def HorNetSmallGF(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 96
     use_global_local_filter = [False, False, True, True]
     return HorNet(**locals(), model_name="hornet_small_gf", **kwargs)
 
 
+@register_model
 def HorNetBase(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 128
     return HorNet(**locals(), model_name="hornet_base", **kwargs)
 
 
+@register_model
 def HorNetBaseGF(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dim = 128
     use_global_local_filter = [False, False, True, True]
     return HorNet(**locals(), model_name="hornet_base_gf", **kwargs)
 
 
+@register_model
 def HorNetLarge(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet22k", **kwargs):
     embed_dim = 192
     return HorNet(**locals(), model_name="hornet_large", **kwargs)
 
 
+@register_model
 def HorNetLargeGF(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet22k", **kwargs):
     embed_dim = 192
     use_global_local_filter = [False, False, True, True]

@@ -1,6 +1,7 @@
 import math
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
@@ -132,16 +133,19 @@ def TinyViT(
     return model
 
 
+@register_model
 def TinyViT_5M(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
     return TinyViT(**locals(), model_name=kwargs.pop("model_name", "tiny_vit_5m"), **kwargs)
 
 
+@register_model
 def TinyViT_11M(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
     out_channels = [64, 128, 256, 448]
     num_heads = [2, 4, 8, 14]
     return TinyViT(**locals(), model_name=kwargs.pop("model_name", "tiny_vit_11m"), **kwargs)
 
 
+@register_model
 def TinyViT_21M(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs):
     out_channels = [96, 192, 384, 576]
     num_heads = [3, 6, 12, 18]

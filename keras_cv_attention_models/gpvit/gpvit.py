@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     add_with_layer_scale_and_drop_block,
     batchnorm_with_activation,
@@ -238,16 +239,19 @@ def GPViT(
     return model
 
 
+@register_model
 def GPViT_L1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return GPViT(**locals(), model_name="gpvit_l1", **kwargs)
 
 
+@register_model
 def GPViT_L2(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dims = 348
     stem_depth = 2
     return GPViT(**locals(), model_name="gpvit_l2", **kwargs)
 
 
+@register_model
 def GPViT_L3(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dims = 432
     stem_depth = 2
@@ -255,6 +259,7 @@ def GPViT_L3(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cla
     return GPViT(**locals(), model_name="gpvit_l3", **kwargs)
 
 
+@register_model
 def GPViT_L4(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     embed_dims = 624
     stem_depth = 3

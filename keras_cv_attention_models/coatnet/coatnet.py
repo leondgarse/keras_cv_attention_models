@@ -1,5 +1,6 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     batchnorm_with_activation,
@@ -210,6 +211,7 @@ def CoAtNet(
     return model
 
 
+@register_model
 def CoAtNetT(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", **kwargs):
     num_blocks = [3, 4, 6, 3]
     out_channels = [64, 128, 256, 512]
@@ -217,6 +219,7 @@ def CoAtNetT(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, c
     return CoAtNet(**locals(), model_name="coatnett", **kwargs)
 
 
+@register_model
 def CoAtNet0(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [2, 3, 5, 2]
     out_channels = [96, 192, 384, 768]
@@ -224,6 +227,7 @@ def CoAtNet0(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, c
     return CoAtNet(**locals(), model_name="coatnet0", **kwargs)
 
 
+@register_model
 def CoAtNet1(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.3, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 6, 14, 2]
     out_channels = [96, 192, 384, 768]
@@ -231,6 +235,7 @@ def CoAtNet1(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.3,
     return CoAtNet(**locals(), model_name="coatnet1", **kwargs)
 
 
+@register_model
 def CoAtNet2(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.5, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 6, 14, 2]
     out_channels = [128, 256, 512, 1024]
@@ -238,6 +243,7 @@ def CoAtNet2(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.5,
     return CoAtNet(**locals(), model_name="coatnet2", **kwargs)
 
 
+@register_model
 def CoAtNet3(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.7, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 6, 14, 2]
     out_channels = [192, 384, 768, 1536]
@@ -245,6 +251,7 @@ def CoAtNet3(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.7,
     return CoAtNet(**locals(), model_name="coatnet3", **kwargs)
 
 
+@register_model
 def CoAtNet4(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.2, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 12, 28, 2]
     out_channels = [192, 384, 768, 1536]
@@ -252,6 +259,7 @@ def CoAtNet4(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.2,
     return CoAtNet(**locals(), model_name="coatnet4", **kwargs)
 
 
+@register_model
 def CoAtNet5(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.2, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 12, 28, 2]
     out_channels = [256, 512, 1280, 2048]
@@ -260,6 +268,7 @@ def CoAtNet5(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.2,
     return CoAtNet(**locals(), model_name="coatnet5", **kwargs)
 
 
+@register_model
 def CoAtNet6(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.2, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 4, 8, 42, 2]
     out_channels = [192, 384, 768, 1536, 2048]
@@ -270,6 +279,7 @@ def CoAtNet6(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.2,
     return CoAtNet(**locals(), model_name="coatnet6", **kwargs)
 
 
+@register_model
 def CoAtNet7(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0.2, classifier_activation="softmax", **kwargs):
     num_blocks = [2, 4, 8, 42, 2]
     out_channels = [256, 512, 1024, 2048, 3072]
