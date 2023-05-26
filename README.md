@@ -70,6 +70,7 @@
   - [TinyNet](#tinynet)
   - [TinyViT](#tinyvit)
   - [UniFormer](#uniformer)
+  - [VanillaNet](#vanillanet)
   - [VOLO](#volo)
   - [WaveMLP](#wavemlp)
 - [Detection Models](#detection-models)
@@ -798,7 +799,7 @@
   | - ImageNet21k-ft1k         | 119.5M | 56.27G | 480   | 86.9     | [effv2l-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-l-21k-ft1k.h5)   |
   | EfficientNetV2XL, 21k-ft1k | 206.8M | 93.66G | 512   | 87.2     | [effv2xl-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-xl-21k-ft1k.h5) |
 ## EfficientViT
-  - [Keras EfficientViT](keras_cv_attention_models/efficientvit) is for [Paper 2305.07027 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/abs/2305.07027).
+  - [Keras EfficientViT](keras_cv_attention_models/efficientvit) is for Paper [PDF 2305.07027 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/pdf/2305.07027.pdf).
 
   | Model           | Params | FLOPs | Input | Top1 Acc | Download |
   | --------------- | ------ | ----- | ----- | -------- | -------- |
@@ -1241,6 +1242,29 @@
   | - Token Labeling      | 50M    | 8.31G  | 224   | 84.8     | [base_64_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_token_label.h5) |
   | UniformerLarge64 + TL | 100M   | 19.79G | 224   | 85.6     | [large_64_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_224_token_label.h5) |
   | UniformerLarge64 + TL | 100M   | 63.11G | 384   | 86.3     | [large_64_384_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_384_token_label.h5) |
+## VanillaNet
+  - [Keras VanillaNet](keras_cv_attention_models/nanillanet) is for [PDF 2305.12972 VanillaNet: the Power of Minimalism in Deep Learning](https://arxiv.org/pdf/2305.12972.pdf).
+
+  | Model         | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ------------- | ------ | ------ | ----- | -------- | -------- |
+  | VanillaNet5   | 22.33M | 8.46G  | 224   | 72.49    | [vanillanet_5_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/vanillanet/vanillanet_5_imagenet.h5) |
+  | - deploy=True | 15.52M | 5.17G  | 224   | 72.49    | [vanillanet_5_deploy_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/vanillanet/vanillanet_5_deploy_imagenet.h5) |
+  | VanillaNet6   | 56.12M | 10.11G | 224   | 76.36    | [vanillanet_6_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/vanillanet/vanillanet_6_imagenet.h5) |
+  | - deploy=True | 32.51M | 6.00G  | 224   | 76.36    | [vanillanet_6_deploy_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/vanillanet/vanillanet_6_deploy_imagenet.h5) |
+  | VanillaNet7   | 56.67M | 11.84G | 224   | 77.98    | [vanillanet_7_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/vanillanet/vanillanet_7_imagenet.h5) |
+  | - deploy=True | 32.80M | 6.90G  | 224   | 77.98    | [vanillanet_7_deploy_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/vanillanet/vanillanet_7_deploy_imagenet.h5) |
+  | VanillaNet8   | 65.18M | 13.50G | 224   | 79.13    | [vanillanet_8_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/vanillanet/vanillanet_8_imagenet.h5) |
+  | - deploy=True | 37.10M | 7.75G  | 224   | 79.13    | [vanillanet_8_deploy_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/vanillanet/vanillanet_8_deploy_imagenet.h5) |
+  | VanillaNet9   | 73.68M | 15.17G | 224   | 79.87    | [vanillanet_9_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/vanillanet/vanillanet_9_imagenet.h5) |
+  | - deploy=True | 41.40M | 8.59G  | 224   | 79.87    | [vanillanet_9_deploy_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/vanillanet/vanillanet_9_deploy_imagenet.h5) |
+  | VanillaNet10  | 82.19M | 16.83G | 224   | 80.57    | [vanillanet_10_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/vanillanet/vanillanet_10_imagenet.h5) |
+  | - deploy=True | 45.69M | 9.43G  | 224   | 80.57    | [vanillanet_10_deploy_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/vanillanet/vanillanet_10_deploy_imagenet.h5) |
+  | VanillaNet11  | 90.69M | 18.49G | 224   | 81.08    |          |
+  | - deploy=True | 50.00M | 10.27G | 224   | 81.08    |          |
+  | VanillaNet12  | 99.20M | 20.16G | 224   | 81.55    |          |
+  | - deploy=True | 54.29M | 11.11G | 224   | 81.55    |          |
+  | VanillaNet13  | 107.7M | 21.82G | 224   | 82.05    |          |
+  | - deploy=True | 58.59M | 11.96G | 224   | 82.05    |          |
 ## VOLO
   - [Keras VOLO](keras_cv_attention_models/volo) is for [PDF 2106.13112 VOLO: Vision Outlooker for Visual Recognition](https://arxiv.org/pdf/2106.13112.pdf).
 

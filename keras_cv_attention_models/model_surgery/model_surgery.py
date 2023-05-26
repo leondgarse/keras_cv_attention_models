@@ -446,7 +446,79 @@ def convert_mixed_float16_to_float32(model):
     return models.clone_model(model, input_tensors=input_tensors, clone_function=do_convert_to_mixed_float16)
 
 
-def fuse_conv_bn(conv_layer, bn_layer):
+def fuse_layer_single_input(model, fuse_layer_condition, pre_layer_condition=None, layer_config_process=None, layer_weight_process=None):
+    """
+    Convert model by fusing Conv + batchnorm
+
+    Exampls:
+    >>> from keras_cv_attention_models import model_surgery
+    >>> mm = keras.applications.ResNet50()
+    >>> bb = model_surgery.convert_to_fused_conv_bn_model(mm)
+    """
+    import json
+
+    pre_layer_condition = (lambda layer: True) if pre_layer_condition is None else pre_layer_condition
+
+    """ Check bn layers with conv layer input """
+    model_config = json.loads(model.to_json())
+    ee = {layer["name"]: layer for layer in model_config["config"]["layers"]}
+    pre_fused_layers, fused_layers = [], []
+    for layer in model_config["config"]["layers"]:
+        if fuse_layer_condition(layer) and len(layer["inbound_nodes"]) == 1:
+            input_node = layer["inbound_nodes"][0][0]
+            if isinstance(input_node, list) and pre_layer_condition(ee.get(input_node[0], {})):
+                pre_fused_layers.append(input_node[0])
+                fused_layers.append(layer["name"])
+    print(">>>> len(pre_fused_layers) =", len(pre_fused_layers), "len(fused_layers) =", len(fused_layers))
+    print()
+    # len(fuse_convs) = 53, len(fuse_bns) = 53
+
+    """ Create new model config """
+    layers = []
+    fused_layers_dict = dict(zip(fused_layers, pre_fused_layers))
+    pre_fused_layers_dict = dict(zip(pre_fused_layers, fused_layers))
+    is_inbound_elem = lambda xx: isinstance(xx, list) and isinstance(xx[0], str)
+    for layer in model_config["config"]["layers"]:
+        if layer["name"] in pre_fused_layers and layer_config_process is not None:
+            print(">>>> Create new layer config for:", layer["name"])
+            fused_layer_config = ee.get(pre_fused_layers_dict[layer["name"]])["config"]
+            layer["config"] = layer_config_process(layer["config"], fused_layer_config)
+        elif layer["name"] in fused_layers:
+            print(">>>> Remove layer:", layer["name"])
+            continue
+
+        for ii in layer["inbound_nodes"]:
+            # print(ii)
+            if is_inbound_elem(ii):
+                # print(">>>> Replace inbound_nodes: {}, {} --> {}".format(layer["name"], ii[0], fused_bn_dict[ii[0]]))
+                ii[0] = fused_layers_dict.get(ii[0], ii[0])
+                ii[3] = {kk: [fused_layers_dict.get(vv[0], vv[0]), *vv[1:]] if is_inbound_elem(vv) else vv for kk, vv in ii[3].items()}
+            elif isinstance(ii, list) and isinstance(ii[0], list):
+                for jj in ii:
+                    jj[0] = fused_layers_dict.get(jj[0], jj[0])
+                    jj[3] = {kk: [fused_layers_dict.get(vv[0], vv[0]), *vv[1:]] if is_inbound_elem(vv) else vv for kk, vv in jj[3].items()}
+
+        layers.append(layer)
+    model_config["config"]["layers"] = layers
+    new_model = models.model_from_json(json.dumps(model_config))
+    print()
+
+    """ New model set layer weights by layer names """
+    for layer in new_model.layers:
+        if layer.name in fused_layers:  # This should not happen
+            continue
+
+        orign_layer = model.get_layer(layer.name)
+        if layer.name in pre_fused_layers_dict and layer_weight_process is not None:
+            orign_fused_layer = model.get_layer(pre_fused_layers_dict[layer.name])
+            print(">>>> Fuse weights {} <- {}".format(layer.name, orign_fused_layer.name))
+            layer.set_weights(layer_weight_process(orign_layer, orign_fused_layer))
+        else:
+            layer.set_weights(orign_layer.get_weights())
+    return new_model
+
+
+def fuse_conv_bn_weights(conv_layer, bn_layer):
     # BatchNormalization returns: gamma * (batch - self.moving_mean) / sqrt(self.moving_var + epsilon) + beta
     # --> conv_w_new = gamma * conv_w / np.sqrt(var + epsilon)
     # --> conv_b_new = gamma * (conv_b - mean) / sqrt(var + epsilon) + beta
@@ -461,13 +533,13 @@ def fuse_conv_bn(conv_layer, bn_layer):
         bias = bn_layer.gamma * (conv_layer.bias - bn_layer.moving_mean) / batch_std + bn_layer.beta
     else:
         bias = bn_layer.gamma * (-1 * bn_layer.moving_mean) / batch_std + bn_layer.beta
-
-    cc = conv_layer.get_config()
-    cc["use_bias"] = True
-    fused_conv_bn = conv_layer.__class__.from_config(cc)
-    fused_conv_bn.build(conv_layer.input_shape)
-    fused_conv_bn.set_weights([ww, bias])
-    return fused_conv_bn
+    return [ww, bias]
+    # cc = conv_layer.get_config()
+    # cc["use_bias"] = True
+    # fused_conv_bn = conv_layer.__class__.from_config(cc)
+    # fused_conv_bn.build(conv_layer.input_shape)
+    # fused_conv_bn.set_weights([ww, bias])
+    # return fused_conv_bn
 
 
 def convert_to_fused_conv_bn_model(model):
@@ -479,63 +551,74 @@ def convert_to_fused_conv_bn_model(model):
     >>> mm = keras.applications.ResNet50()
     >>> bb = model_surgery.convert_to_fused_conv_bn_model(mm)
     """
-    import json
+    fuse_layer_condition = lambda layer: layer["class_name"] == "BatchNormalization"
+    pre_layer_condition = lambda layer: layer.get("class_name") in ["Conv2D", "DepthwiseConv2D"]
 
-    """ Check bn layers with conv layer input """
-    model_config = json.loads(model.to_json())
-    ee = {layer["name"]: layer for layer in model_config["config"]["layers"]}
-    fuse_convs, fuse_bns = [], []
-    conv_names = ["Conv2D", "DepthwiseConv2D"]
-    for layer in model_config["config"]["layers"]:
-        if layer["class_name"] == "BatchNormalization" and len(layer["inbound_nodes"]) == 1:
-            input_node = layer["inbound_nodes"][0][0]
-            if isinstance(input_node, list) and ee.get(input_node[0], {"class_name": None})["class_name"] in conv_names:
-                fuse_convs.append(input_node[0])
-                fuse_bns.append(layer["name"])
-    print(">>>> len(fuse_convs) =", len(fuse_convs), "len(fuse_bns) =", len(fuse_bns))
-    # len(fuse_convs) = 53, len(fuse_bns) = 53
+    def layer_config_process(pre_layer_config, fused_layer_config):
+        pre_layer_config["use_bias"] = True
+        return pre_layer_config
 
-    """ Create new model config """
-    layers = []
-    fused_bn_dict = dict(zip(fuse_bns, fuse_convs))
-    fused_conv_dict = dict(zip(fuse_convs, fuse_bns))
-    is_inbound_elem = lambda xx: isinstance(xx, list) and isinstance(xx[0], str)
-    for layer in model_config["config"]["layers"]:
-        if layer["name"] in fuse_convs:
-            print(">>>> Fuse conv bn:", layer["name"])
-            layer["config"]["use_bias"] = True
-        elif layer["name"] in fuse_bns:
-            continue
+    layer_weight_process = lambda pre_fused_layer, fused_layer: fuse_conv_bn_weights(pre_fused_layer, fused_layer)
 
-        for ii in layer["inbound_nodes"]:
-            # print(ii)
-            if is_inbound_elem(ii):
-                # print(">>>> Replace inbound_nodes: {}, {} --> {}".format(layer["name"], ii[0], fused_bn_dict[ii[0]]))
-                ii[0] = fused_bn_dict.get(ii[0], ii[0])
-                ii[3] = {kk: [fused_bn_dict.get(vv[0], vv[0]), *vv[1:]] if is_inbound_elem(vv) else vv for kk, vv in ii[3].items()}
-            elif isinstance(ii, list) and isinstance(ii[0], list):
-                for jj in ii:
-                    jj[0] = fused_bn_dict.get(jj[0], jj[0])
-                    jj[3] = {kk: [fused_bn_dict.get(vv[0], vv[0]), *vv[1:]] if is_inbound_elem(vv) else vv for kk, vv in jj[3].items()}
+    return fuse_layer_single_input(
+        model=model,
+        fuse_layer_condition=fuse_layer_condition,
+        pre_layer_condition=pre_layer_condition,
+        layer_config_process=layer_config_process,
+        layer_weight_process=layer_weight_process,
+    )
 
-        layers.append(layer)
-    model_config["config"]["layers"] = layers
-    new_model = models.model_from_json(json.dumps(model_config))
 
-    """ New model set layer weights by layer names """
-    for layer in new_model.layers:
-        if layer.name in fuse_bns:  # This should not happen
-            continue
+def remove_layer_single_input(model, remove_layer_condition, pre_layer_condition=None, layer_config_process=None, layer_weight_process=None):
+    return fuse_layer_single_input(model, remove_layer_condition, pre_layer_condition, layer_config_process, layer_weight_process)
 
-        orign_layer = model.get_layer(layer.name)
-        if layer.name in fused_conv_dict:
-            orign_bn_layer = model.get_layer(fused_conv_dict[layer.name])
-            print(">>>> Fuse conv bn", layer.name, orign_bn_layer.name)
-            conv_bn = fuse_conv_bn(orign_layer, orign_bn_layer)
-            layer.set_weights(conv_bn.get_weights())
-        else:
-            layer.set_weights(orign_layer.get_weights())
-    return new_model
+
+def fuse_sequential_conv_strict(model):
+    """
+    Convert model by fusing Conv + batchnorm
+
+    Exampls:
+    >>> from keras_cv_attention_models import model_surgery
+    >>> mm = keras.applications.ResNet50()
+    >>> bb = model_surgery.convert_to_fused_conv_bn_model(mm)
+    """
+    fuse_layer_condition = lambda layer: layer["class_name"] == "Conv2D" and max(layer["config"]["kernel_size"]) == 1
+    pre_layer_condition = lambda layer: layer.get("class_name") in ["Conv2D"]
+
+    def layer_config_process(pre_layer_config, fused_layer_config):
+        pre_layer_config["filters"] = fused_layer_config["filters"]
+        pre_layer_config["kernel_size"] = pre_layer_config["kernel_size"] if max(pre_layer_config["kernel_size"]) > 1 else fused_layer_config["kernel_size"]
+        pre_layer_config["strides"] = pre_layer_config["strides"] if max(pre_layer_config["strides"]) > 1 else fused_layer_config["strides"]
+        pre_layer_config["use_bias"] = pre_layer_config["use_bias"] or fused_layer_config["use_bias"]
+        pre_layer_config["padding"] = pre_layer_config["padding"] if pre_layer_config["padding"].lower() != "valid" else fused_layer_config["padding"]
+
+        return pre_layer_config
+
+    def layer_weight_process(pre_fused_layer, fused_layer):
+        pre_ww = pre_fused_layer.get_weights()
+        pre_ww, pre_bias = pre_ww if len(pre_ww) == 2 else (pre_ww, None)
+        fused_ww = fused_layer.get_weights()
+        fused_ww, fused_bias = fused_ww if len(fused_ww) == 2 else (fused_ww, None)
+
+        fused_ww = np.squeeze(fused_ww)
+        new_ww = pre_ww @ fused_ww
+
+        if pre_bias is None and fused_bias is None:
+            return [new_ww]
+        if pre_bias is None:
+            return [new_ww, fused_bias]
+
+        pre_bias = pre_bias @ fused_ww
+        new_bias = pre_bias if fused_bias is None else (fused_bias + pre_bias)
+        return [new_ww, new_bias]
+
+    return fuse_layer_single_input(
+        model=model,
+        fuse_layer_condition=fuse_layer_condition,
+        pre_layer_condition=pre_layer_condition,
+        layer_config_process=layer_config_process,
+        layer_weight_process=layer_weight_process,
+    )
 
 
 """ TFLite """

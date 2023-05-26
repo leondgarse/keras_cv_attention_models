@@ -1221,7 +1221,8 @@ class AvgPool2D(_Pooling2D):
 
 
 class MaxPool2D(_Pooling2D):
-    def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", **kwargs):
+    def __init__(self, pool_size=(2, 2), strides=None, padding="VALID", **kwargs):
+        strides = strides or pool_size
         super().__init__(pool_size=pool_size, strides=strides, padding=padding, reduce=kwargs.pop("reduce", "max"), padding_value=-np.inf, **kwargs)
 
 
