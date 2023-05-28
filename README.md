@@ -196,12 +196,26 @@
     model_surgery.get_flops(resnest.ResNest50())
     # >>>> FLOPs: 5,378,399,992, GFLOPs: 5.3784G
     ```
-  - **`tensorflow_addons`** is not imported by default. While reloading model depending on `GroupNormalization` like `MobileViTV2` from `h5` directly, needs to import `tensorflow_addons` manually first.
+  - **[Deprecated] `tensorflow_addons`** is not imported by default. While reloading model depending on `GroupNormalization` like `MobileViTV2` from `h5` directly, needs to import `tensorflow_addons` manually first.
     ```py
     import tensorflow_addons as tfa
 
     model_path = os.path.expanduser('~/.keras/models/mobilevit_v2_050_256_imagenet.h5')
     mm = keras.models.load_model(model_path)
+    ```
+  - **Export TF model to onnx**. Needs `tf2onnx` for TF, `pip install onnx tf2onnx onnxsim onnxruntime`. For using PyTorch backend, exporting onnx is supported by PyTorch.
+    ```py
+    from keras_cv_attention_models import volo, nat, model_surgery
+    mm = nat.DiNAT_Small(pretrained=True)
+    model_surgery.export_onnx(mm, fuse_conv_bn=True, batch_size=1, simplify=True)
+    # Exported simplified onnx: dinat_small.onnx
+
+    # Run test
+    from keras_cv_attention_models.imagenet import eval_func
+    aa = eval_func.ONNXModelInterf(mm.name + '.onnx')
+    inputs = np.random.uniform(size=[1, *mm.input_shape[1:]]).astype('float32')
+    print(f"{np.allclose(aa(inputs), mm(inputs), atol=1e-5) = }")
+    # np.allclose(aa(inputs), mm(inputs), atol=1e-5) = True
     ```
   - **Code format** is using `line-length=160`:
     ```sh

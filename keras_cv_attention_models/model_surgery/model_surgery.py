@@ -621,7 +621,7 @@ def fuse_sequential_conv_strict(model):
     )
 
 
-""" TFLite """
+""" TFLite and ONNX """
 
 
 @backend.register_keras_serializable(package="model_surgery")
@@ -692,13 +692,22 @@ def convert_groups_conv2d_2_split_conv2d(model):
     return models.clone_model(model, input_tensors=input_tensors, clone_function=__convert_groups_conv2d_2_split_conv2d__)
 
 
-def convert_gelu_and_extract_patches_for_tflite(model):
+def convert_gelu_to_approximate(model):
     from keras_cv_attention_models import attention_layers
 
-    def __convert_gelu_and_extract_patches_for_tflite__(layer):
+    def __convert_gelu_to_approximate__(layer):
         if isinstance(layer, layers.Activation) and layer.activation.__name__ == "gelu":
             return layers.Lambda(lambda xx: functional.gelu(xx, approximate=True))
-        elif isinstance(layer, attention_layers.CompatibleExtractPatches):
+        return layer
+
+    input_tensors = layers.Input(model.input_shape[1:])
+    return models.clone_model(model, input_tensors=input_tensors, clone_function=__convert_gelu_to_approximate__)
+
+def convert_extract_patches_to_conv(model):
+    from keras_cv_attention_models import attention_layers
+
+    def __convert_extract_patches_to_conv__(layer):
+        if isinstance(layer, attention_layers.CompatibleExtractPatches):
             aa = layer.get_config()
             aa.update({"force_conv": True})
             bb = attention_layers.CompatibleExtractPatches.from_config(aa)
@@ -707,10 +716,65 @@ def convert_gelu_and_extract_patches_for_tflite(model):
         return layer
 
     input_tensors = layers.Input(model.input_shape[1:])
-    return models.clone_model(model, input_tensors=input_tensors, clone_function=__convert_gelu_and_extract_patches_for_tflite__)
+    return models.clone_model(model, input_tensors=input_tensors, clone_function=__convert_extract_patches_to_conv__)
+
+
+def convert_gelu_and_extract_patches_for_tflite(model):
+    print("[Deprecated], use convert_gelu_to_approximate -> convert_extract_patches_to_conv instead")
+    model = convert_gelu_to_approximate(model)
+    model = convert_extract_patches_to_conv(model)
+    return model
 
 
 def prepare_for_tflite(model):
     model = convert_groups_conv2d_2_split_conv2d(model)
-    model = convert_gelu_and_extract_patches_for_tflite(model)
+    model = convert_gelu_to_approximate(model)
+    model = convert_extract_patches_to_conv(model)
     return model
+
+
+def _tf_export_onnx_(model, filepath=None, fuse_conv_bn=True, batch_size=None, simplify=False, **kwargs):
+    import tensorflow as tf
+    import tf2onnx
+
+    model = convert_extract_patches_to_conv(model)
+    if fuse_conv_bn:
+        model = convert_to_fused_conv_bn_model(model)
+
+    spec = (tf.TensorSpec((batch_size, *model.input_shape[1:]), tf.float32, name="input"),)
+    filepath = filepath or model.name + ".onnx"
+    model_proto, _ = tf2onnx.convert.from_keras(model, input_signature=spec, output_path=filepath, **kwargs)
+    print("Exported onnx:", filepath)
+
+    if simplify:
+        import onnx, onnxsim
+
+        print("Running onnxsim.simplify...")
+        model_proto, check = onnxsim.simplify(model_proto)
+        if check:
+            with open(filepath, "wb") as ff:
+                ff.write(model_proto.SerializeToString())
+            print("Exported simplified onnx:", filepath)
+        else:
+            print("[Error] failed to simplify onnx:", filepath)
+
+
+def export_onnx(model, filepath=None, fuse_conv_bn=True, batch_size=None, simplify=False, **kwargs):
+    """
+    >>> # !pip install onnx tf2onnx onnxsim onnxruntime
+    >>> from keras_cv_attention_models import volo, nat, model_surgery
+    >>> mm = nat.DiNAT_Small(pretrained=True)
+    >>> model_surgery.export_onnx(mm, fuse_conv_bn=True, batch_size=1, simplify=True)
+    >>> # Exported simplified onnx: dinat_small.onnx
+
+    # Run test
+    >>> from keras_cv_attention_models.imagenet import eval_func
+    >>> aa = eval_func.ONNXModelInterf(mm.name + '.onnx')
+    >>> inputs = np.random.uniform(size=[1, *mm.input_shape[1:]]).astype('float32')
+    >>> print(f"{np.allclose(aa(inputs), mm(inputs), atol=1e-5) = }")
+    >>> # np.allclose(aa(inputs), mm(inputs), atol=1e-5) = True
+    """
+    if hasattr(model, "export_onnx"):
+        model.export_onnx(filepath=filepath, simplify=simplify, **kwargs)
+    else:
+        _tf_export_onnx_(model, filepath=filepath, fuse_conv_bn=fuse_conv_bn, batch_size=batch_size, simplify=simplify, **kwargs)
