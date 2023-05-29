@@ -119,7 +119,7 @@ def down_sample_block(inputs, out_channel, hiddem_raio=4, activation="relu", nam
     return nn
 
 
-def EfficientViT(
+def EfficientViT_M(
     num_blocks=[1, 2, 3],
     out_channels=[64, 128, 192],
     window_size=7,
@@ -136,7 +136,7 @@ def EfficientViT(
     use_distillation=False,  # not provided in pretrained weights
     dropout=0,
     pretrained=None,
-    model_name="efficientvit",
+    model_name="efficientvit_m",
     kwargs=None,
 ):
     # Regard input_shape as force using original shape if len(input_shape) == 4,

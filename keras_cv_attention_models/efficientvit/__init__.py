@@ -1,5 +1,5 @@
-from keras_cv_attention_models.efficientvit.efficientvit import (
-    EfficientViT,
+from keras_cv_attention_models.efficientvit.efficientvit_m import (
+    EfficientViT_M,
     EfficientViT_M0,
     EfficientViT_M1,
     EfficientViT_M2,
@@ -9,12 +9,12 @@ from keras_cv_attention_models.efficientvit.efficientvit import (
     cascaded_mhsa_with_multi_head_position,
 )
 
-__head_doc__ = """
+__m_head_doc__ = """
 Keras implementation of [Github microsoft/Cream/EfficientViT/classification](https://github.com/microsoft/Cream/tree/main/EfficientViT/classification).
 Paper [PDF 2305.07027 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/pdf/2305.07027.pdf).
 """
 
-__tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
+__m_tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default `relu`.
   drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
@@ -32,7 +32,7 @@ Returns:
     A `keras.Model` instance.
 """
 
-EfficientViT.__doc__ = __head_doc__ + """
+EfficientViT_M.__doc__ = __m_head_doc__ + """
 Args:
   num_blocks: number of blocks in each stack.
   out_channels: output channels for each stack.
@@ -42,7 +42,7 @@ Args:
   kernel_sizes: int or list value indicates kernel_size for each head in attention blocks. Length must larger than max of num_heads.
   mlp_ratio: int value indicates expand ratio for mlp blocks hidden channels.
   model_name: string, model name.
-""" + __tail_doc__ + """
+""" + __m_tail_doc__ + """
 Model architectures:
   | Model           | Params | FLOPs | Input | Top1 Acc |
   | --------------- | ------ | ----- | ----- | -------- |
@@ -54,9 +54,9 @@ Model architectures:
   | EfficientViT_M5 | 12.47M | 522M  | 224   | 77.1     |
 """
 
-EfficientViT_M0.__doc__ = __head_doc__ + """
+EfficientViT_M0.__doc__ = __m_head_doc__ + """
 Args:
-""" + __tail_doc__
+""" + __m_tail_doc__
 
 EfficientViT_M1.__doc__ = EfficientViT_M0.__doc__
 EfficientViT_M2.__doc__ = EfficientViT_M0.__doc__
@@ -64,7 +64,7 @@ EfficientViT_M3.__doc__ = EfficientViT_M0.__doc__
 EfficientViT_M4.__doc__ = EfficientViT_M0.__doc__
 EfficientViT_M5.__doc__ = EfficientViT_M0.__doc__
 
-cascaded_mhsa_with_multi_head_position.__doc__ = __head_doc__ + """
+cascaded_mhsa_with_multi_head_position.__doc__ = __m_head_doc__ + """
 Cascaded multi head self attention with MultiHeadPositionalEmbedding. Defined as function, not layer.
 Cascaded calling flow performing multi head attention. Also using `Conv2D + BatchNorm` for `query` / `key` / `value` / `output`,
 and an additional `DepthwiseConv2D` on `query` with `kernel_size`.
