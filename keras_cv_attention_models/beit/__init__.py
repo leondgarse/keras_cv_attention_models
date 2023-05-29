@@ -122,7 +122,7 @@ Model architectures:
   | ------------------ | ------- | ------ | ----- | -------- |
   | BeitV2BasePatch16  | 86.53M  | 17.61G | 224   | 85.5     |
   | - imagenet21k-ft1k | 86.53M  | 17.61G | 224   | 86.5     |
-  | BeitV2BasePatch16  | 304.43M | 61.68G | 224   | 87.3     |
+  | BeitV2LargePatch16 | 304.43M | 61.68G | 224   | 87.3     |
   | - imagenet21k-ft1k | 304.43M | 61.68G | 224   | 88.4     |
 """
 

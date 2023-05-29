@@ -76,22 +76,6 @@ def test_HorNetTinyGF_new_shape_predict():
     assert out[1] == "Egyptian_cat"
 
 
-def test_NAT_Mini_new_shape_predict():
-    mm = keras_cv_attention_models.nat.NAT_Mini(input_shape=(174, 255, 3), pretrained="imagenet")
-    pred = mm(mm.preprocess_input(cat()))
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
-def test_DiNAT_Mini_new_shape_predict():
-    mm = keras_cv_attention_models.nat.DiNAT_Mini(input_shape=(174, 255, 3), pretrained="imagenet")
-    pred = mm(mm.preprocess_input(cat()))
-    out = mm.decode_predictions(pred)[0][0]
-
-    assert out[1] == "Egyptian_cat"
-
-
 def test_VOLO_d1_new_shape_predict():
     mm = keras_cv_attention_models.volo.VOLO_d1(input_shape=(512, 512, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat()))

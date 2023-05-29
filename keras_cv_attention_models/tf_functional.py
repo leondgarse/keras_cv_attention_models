@@ -9,7 +9,6 @@ from tensorflow import (
     concat,
     convert_to_tensor,
     expand_dims,
-    eye,
     gather,
     gather_nd,
     linspace,

@@ -194,6 +194,7 @@ def decode_predictions(preds, top=5):
         else:
             url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/imagenet21k_class_index.json"
 
+        print(">>>> Trying to get index file:", os.path.join(os.path.expanduser("~/.keras/datasets"), os.path.basename(url)))
         class_index_path = get_file(origin=url)
         with open(class_index_path) as ff:
             if is_imagenet:

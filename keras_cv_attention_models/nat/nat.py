@@ -70,7 +70,7 @@ class MultiHeadRelativePositionalKernelBias(layers.Layer):
         bias_coords_shape = [bias_coords.shape[0]] + [1] * (len(input_shape) - 4) + [bias_coords.shape[1]]
         bias_coords = np.reshape(bias_coords, bias_coords_shape)  # [height * width, 1 * n, size * size]
         if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("bias_coords", functional.convert_to_tensor(bias_coords, dtype="int64"), persistent=False)
+            self.register_buffer("bias_coords", functional.convert_to_tensor(bias_coords.copy(), dtype="int64"), persistent=False)
         else:
             self.bias_coords = functional.convert_to_tensor(bias_coords, dtype="int64")
 
@@ -93,17 +93,21 @@ def replicate_padding(inputs, kernel_size=1, dilation_rate=1):
     padded = (kernel_size - 1) // 2
     dilation_rate = dilation_rate if isinstance(dilation_rate, (list, tuple)) else (dilation_rate, dilation_rate)
 
-    # left = functional.repeat(functional.expand_dims(inputs[:, :dilation_rate], axis=1), padded, axis=1)
-    # left = functional.reshape(left, [-1, left.shape[1] * left.shape[2], *left.shape[2:]])
-    multiples = [padded if id == 1 else 1 for id in range(len(inputs.shape))]
-    top = functional.tile(inputs[:, : dilation_rate[0]], multiples)
-    bottom = functional.tile(inputs[:, -dilation_rate[0] :], multiples)
-    top_bottom = functional.concat([top, inputs, bottom], axis=1)
+    if max(dilation_rate) == 1:  # NAT
+        nn = functional.concat([functional.repeat(inputs[:, :1], padded, axis=1), inputs, functional.repeat(inputs[:, -1:], padded, axis=1)], axis=1)
+        out = functional.concat([functional.repeat(nn[:, :, :1], padded, axis=2), nn, functional.repeat(nn[:, :, -1:], padded, axis=2)], axis=2)
+    else:  # DiNAT
+        # left = functional.repeat(functional.expand_dims(inputs[:, :dilation_rate], axis=1), padded, axis=1)
+        # left = functional.reshape(left, [-1, left.shape[1] * left.shape[2], *left.shape[2:]])
+        multiples = [padded if id == 1 else 1 for id in range(len(inputs.shape))]
+        top = functional.tile(inputs[:, : dilation_rate[0]], multiples)
+        bottom = functional.tile(inputs[:, -dilation_rate[0] :], multiples)
+        top_bottom = functional.concat([top, inputs, bottom], axis=1)
 
-    multiples = [padded if id == 2 else 1 for id in range(len(inputs.shape))]
-    left = functional.tile(top_bottom[:, :, : dilation_rate[1]], multiples)
-    right = functional.tile(top_bottom[:, :, -dilation_rate[1] :], multiples)
-    out = functional.concat([left, top_bottom, right], axis=2)
+        multiples = [padded if id == 2 else 1 for id in range(len(inputs.shape))]
+        left = functional.tile(top_bottom[:, :, : dilation_rate[1]], multiples)
+        right = functional.tile(top_bottom[:, :, -dilation_rate[1] :], multiples)
+        out = functional.concat([left, top_bottom, right], axis=2)
     return out
 
 
@@ -130,8 +134,11 @@ def neighborhood_attention(
     query = functional.expand_dims(functional.reshape(query, [-1, hh * ww, num_heads, key_dim]), -2)  # [batch, hh * ww, num_heads, 1, key_dim]
 
     # key_value: [batch, height - (kernel_size - 1), width - (kernel_size - 1), kernel_size, kernel_size, key + value]
-    key_value = CompatibleExtractPatches(sizes=kernel_size, strides=1, rates=dilation_rate, padding="VALID", compressed=False)(key_value)
-    # print(f"{key_value.shape = }, {window_size = }, {key_value.shape = }")
+    if backend.backend() == "pytorch":
+        key_value = functional.extract_patches(key_value, sizes=kernel_size, strides=1, rates=dilation_rate, padding="VALID", compressed=False)
+    else:
+        key_value = CompatibleExtractPatches(sizes=kernel_size, strides=1, rates=dilation_rate, padding="VALID", compressed=False)(key_value)
+    # print(f"{key_value.shape = }, {window_size = }")
     key_value = replicate_padding(key_value, kernel_size=kernel_size, dilation_rate=dilation_rate)
     # print(f"After pad {key_value.shape = }")
 
@@ -169,14 +176,13 @@ def nat_block(
     inputs, attn_kernel_size=7, num_heads=4, mlp_ratio=4, dilation_rate=1, attn_drop_rate=0, drop_rate=0, layer_scale=-1, activation="gelu", name=None
 ):
     input_channel = inputs.shape[-1]
-
-    attn = layer_norm(inputs, name=name + "attn_")
+    attn = layer_norm(inputs, axis=-1, name=name + "attn_")
     attn = neighborhood_attention(attn, attn_kernel_size, num_heads, dilation_rate=dilation_rate, attn_dropout=attn_drop_rate, name=name + "attn_")
-    attn_out = add_with_layer_scale_and_drop_block(inputs, attn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "1_")
+    attn_out = add_with_layer_scale_and_drop_block(inputs, attn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "1_")
 
-    mlp = layer_norm(attn_out, name=name + "mlp_")
+    mlp = layer_norm(attn_out, axis=-1, name=name + "mlp_")
     mlp = mlp_block(mlp, int(input_channel * mlp_ratio), activation=activation, name=name + "mlp_")
-    return add_with_layer_scale_and_drop_block(attn_out, mlp, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "2_")
+    return add_with_layer_scale_and_drop_block(attn_out, mlp, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "2_")
 
 
 def NAT(
@@ -206,7 +212,8 @@ def NAT(
     stem_width = stem_width if stem_width > 0 else out_channels[0]
     nn = conv2d_no_bias(inputs, stem_width // 2, kernel_size=3, strides=2, use_bias=True, padding="SAME", name="stem_1_")
     nn = conv2d_no_bias(nn, stem_width, kernel_size=3, strides=2, use_bias=True, padding="SAME", name="stem_2_")
-    nn = layer_norm(nn, name="stem_")
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
+    nn = layer_norm(nn, axis=-1, name="stem_")
 
     """ stages """
     total_blocks = sum(num_blocks)
@@ -215,8 +222,10 @@ def NAT(
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id > 0:
             ds_name = stack_name + "downsample_"
+            nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last -> channels_first
             nn = conv2d_no_bias(nn, out_channel, kernel_size=3, strides=2, padding="SAME", name=ds_name)
-            nn = layer_norm(nn, name=ds_name)
+            nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
+            nn = layer_norm(nn, axis=-1, name=ds_name)
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             drop_rate = drop_connect_rate * global_block_id / total_blocks
@@ -229,7 +238,8 @@ def NAT(
                 nn, attn_kernel_size, num_head, mlp_ratio, dilation_rate, drop_rate=drop_rate, layer_scale=layer_scale, activation=activation, name=block_name
             )
             global_block_id += 1
-    nn = layer_norm(nn, name="pre_output_")
+    nn = layer_norm(nn, axis=-1, name="pre_output_")
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last -> channels_first
 
     nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
     model = models.Model(inputs, nn, name=model_name)

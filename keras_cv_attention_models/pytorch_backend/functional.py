@@ -1,11 +1,17 @@
 import torch
 import math
 import torch.nn.functional as F
-from keras_cv_attention_models.pytorch_backend.layers import Lambda, Concatenate, GraphNode, Shape, _ZeroPadding, Add, _ResizeDynamic
 from functools import partial
-
-
-# eye, tf.image.extract_patches, shape, tile, stack
+from keras_cv_attention_models.pytorch_backend.layers import(
+    _ZeroPadding,
+    _ResizeDynamic,
+    Add,
+    Concatenate,
+    GraphNode,
+    Lambda,
+    Shape,
+    compute_conv_output_size,
+)
 
 
 def wrapper(func, inputs, name=None):
@@ -57,29 +63,52 @@ def expand_dims(inputs, axis, name=None):
     return wrapper(partial(torch.unsqueeze, dim=axis), inputs, name=name)
 
 
-def extract_patches(inputs, sizes, strides=1, rates=1, padding=0, name=None):
+def extract_patches(inputs, sizes=1, strides=1, rates=1, padding="VALID", data_format="channels_last", compressed=True, name=None):
     """
-    >>> import torch
-    >>> from torch import nn
+    tf.image.extract_patches -> out shape [batch, patch_height, patch_width, kernel_size * kernel_szie * channel]
+    torch.functional.F.unfold -> out shape [batch, channel * kernel_size * kernel_szie, patch_height * patch_width]
+    - compressed=False -> out shape [batch, patch_height, patch_width, kernel_size, kernel_szie, channel]
 
+    >>> import torch
+    >>> from keras_cv_attention_models.pytorch_backend import functional
+    >>> kernel_size = 3
     >>> image = np.zeros([256, 256, 3])
     >>> image[:, :, 1] += 128 # G
     >>> image[:, :, 2] += 256 # B
-
     >>> aa = np.expand_dims(image.astype("float32"), 0)
-    >>> tf_out = tf.image.extract_patches(aa, sizes=[1, 3, 3, 1], strides=[1, 2, 2, 1], rates=[1, 1, 1, 1], padding='VALID')
-
-    >>> kernel_size = 3
-    >>> # cc = nn.Unfold(kernel_size=kernel_size, padding=0, stride=2)(torch.from_numpy(aa).permute(0, 3, 1, 2))
-    >>> cc = torch.functional.F.unfold(torch.from_numpy(aa).permute(0, 3, 1, 2), kernel_size=kernel_size, padding=0, stride=2)
-    >>> patch_shape = list(torch.functional.F.conv2d(torch.zeros([0, 3, 256, 256]), torch.zeros([3, 3, 3, 3]), stride=2).shape[2:])
-    >>> cc = cc.reshape([-1, aa.shape[-1], kernel_size * kernel_size, cc.shape[-1]]).permute([0, 3, 2, 1])
-    >>> torch_out = cc.reshape([-1, *patch_shape, kernel_size * kernel_size * aa.shape[-1]])
+    >>> tf_out = tf.image.extract_patches(aa, sizes=[1, kernel_size, kernel_size, 1], strides=[1, 2, 2, 1], rates=[1, 1, 1, 1], padding='VALID')
+    >>> torch_out = functional.extract_patches(torch.from_numpy(image[None].astype('float32')), kernel_size, 2)
     >>> print(f"{np.allclose(tf_out, torch_out.detach()) = }")
-    >>> # np.allclose(tf_out, torch_out.detach()) = True
     """
-    unfold = F.unfold(inputs, kernel_size=sizes, dilation=rates, padding=padding, stride=strides)
-    unfold = unfold.reshape([-1, inputs.shape[1], kernel_size * kernel_size, unfold.shape[-1]]).permute([0, 3, 2, 1])
+    channel = inputs.shape[1] if data_format == "channels_first" else inputs.shape[-1]
+    height, width = inputs.shape[2:] if data_format == "channels_first" else inputs.shape[1:-1]
+
+    kernel_size = sizes[1] if isinstance(sizes, (list, tuple)) else sizes
+    strides = strides[1] if isinstance(strides, (list, tuple)) else strides
+    # dilation_rate can be 2 different values, used in DiNAT
+    dilation_rate = (rates if len(rates) == 2 else rates[1:3]) if isinstance(rates, (list, tuple)) else (rates, rates)
+
+    padding = padding.upper()
+    pad_value = kernel_size // 2 if padding == "SAME" else 0
+    unfold = torch.nn.Unfold(kernel_size=kernel_size, dilation=dilation_rate, padding=pad_value, stride=strides)
+    patch_size = compute_conv_output_size((height, width), kernel_size, strides, padding, dilation_rate=dilation_rate)
+    if data_format == "channels_first":
+        if compressed:
+            target_shape = [-1, channel * kernel_size * kernel_size, *patch_size]
+        else:
+            target_shape = [-1, channel, kernel_size, kernel_size, *patch_size]
+        module = lambda xx: unfold(xx).contiguous().view(target_shape)
+    else:
+        if compressed:
+            pre_perm_shape = [-1, channel, kernel_size * kernel_size, *patch_size]
+            perm = [0, 3, 4, 2, 1]
+            target_shape = [-1, *patch_size, kernel_size * kernel_size * channel]
+        else:
+            pre_perm_shape = [-1, channel, kernel_size, kernel_size, *patch_size]
+            perm = [0, 4, 5, 2, 3, 1]
+            target_shape = [-1, *patch_size, kernel_size, kernel_size, channel]
+        module = lambda xx: unfold(xx.permute([0, 3, 1, 2])).contiguous().view(pre_perm_shape).permute(perm).contiguous().view(target_shape)
+    return wrapper(module, inputs, name=name)
 
 
 def gather(inputs, indices, axis=None, batch_dims=0, name=None):
@@ -308,6 +337,10 @@ def stack(inputs, axis, name=None):
 
 def tanh(inputs, name=None):
     return wrapper(F.tanh, inputs, name=name)
+
+
+def tile(inputs, multiples, name=None):
+    return wrapper(lambda xx: xx.repeat(multiples), inputs, name=name)
 
 
 def top_k(inputs, k=1, sorted=True, name=None):

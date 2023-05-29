@@ -10,9 +10,9 @@ from keras_cv_attention_models.beit import eva02
 from keras_cv_attention_models.beit import dinov2
 from keras_cv_attention_models import botnet
 from keras_cv_attention_models import caformer
+from keras_cv_attention_models import coat
 from keras_cv_attention_models import coatnet
 from keras_cv_attention_models import convnext
-from keras_cv_attention_models import cotnet
 from keras_cv_attention_models import cmt
 from keras_cv_attention_models import davit
 from keras_cv_attention_models import efficientnet
@@ -38,6 +38,8 @@ from keras_cv_attention_models import inceptionnext
 from keras_cv_attention_models import maxvit
 from keras_cv_attention_models import mobilevit
 from keras_cv_attention_models import moganet
+from keras_cv_attention_models import nat
+from keras_cv_attention_models.nat import dinat
 from keras_cv_attention_models import pvt
 from keras_cv_attention_models import tinyvit
 from keras_cv_attention_models import resnest
@@ -63,11 +65,9 @@ from keras_cv_attention_models.yolov8 import yolo_nas
 from keras_cv_attention_models import coco
 
 if backend.is_tensorflow_backend:
-    from keras_cv_attention_models import coat
+    from keras_cv_attention_models import cotnet
     from keras_cv_attention_models import halonet
     from keras_cv_attention_models import hornet
-    from keras_cv_attention_models import nat
-    from keras_cv_attention_models.nat import dinat
     from keras_cv_attention_models import nfnets
     from keras_cv_attention_models import volo
     from keras_cv_attention_models import visualizing

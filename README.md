@@ -88,7 +88,7 @@
 
 # General Usage
 ## Basic
-  - **Currently recommended TF version is `tensorflow==2.10.0`. Expecially for training or TFLite conversion**.
+  - **Currently recommended TF version is `tensorflow==2.11.1`. Expecially for training or TFLite conversion**.
   - **Default import** will not specific these while using them in READMEs.
     ```py
     import os
@@ -546,7 +546,7 @@
   | ------------------ | ------- | ------ | ----- | -------- | -------- |
   | BeitV2BasePatch16  | 86.53M  | 17.61G | 224   | 85.5     |          |
   | - imagenet21k-ft1k | 86.53M  | 17.61G | 224   | 86.5     | [beit_v2_base_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_v2_base_patch16_224_imagenet21k-ft1k.h5)  |
-  | BeitV2BasePatch16  | 304.43M | 61.68G | 224   | 87.3     |          |
+  | BeitV2LargePatch16 | 304.43M | 61.68G | 224   | 87.3     |          |
   | - imagenet21k-ft1k | 304.43M | 61.68G | 224   | 88.4     | [beit_v2_large_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_v2_large_patch16_224_imagenet21k-ft1k.h5)  |
 ## BotNet
   - [Keras BotNet](keras_cv_attention_models/botnet) is for [PDF 2101.11605 Bottleneck Transformers for Visual Recognition](https://arxiv.org/pdf/2101.11605.pdf).
@@ -1257,7 +1257,7 @@
   | UniformerLarge64 + TL | 100M   | 19.79G | 224   | 85.6     | [large_64_224_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_224_token_label.h5) |
   | UniformerLarge64 + TL | 100M   | 63.11G | 384   | 86.3     | [large_64_384_token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_384_token_label.h5) |
 ## VanillaNet
-  - [Keras VanillaNet](keras_cv_attention_models/nanillanet) is for [PDF 2305.12972 VanillaNet: the Power of Minimalism in Deep Learning](https://arxiv.org/pdf/2305.12972.pdf).
+  - [Keras VanillaNet](keras_cv_attention_models/vanillanet) is for [PDF 2305.12972 VanillaNet: the Power of Minimalism in Deep Learning](https://arxiv.org/pdf/2305.12972.pdf).
 
   | Model         | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------- | ------ | ------ | ----- | -------- | -------- |

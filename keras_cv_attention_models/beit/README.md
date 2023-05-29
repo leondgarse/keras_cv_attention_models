@@ -23,7 +23,7 @@
   | ------------------ | ------- | ------ | ----- | -------- | -------- |
   | BeitV2BasePatch16  | 86.53M  | 17.61G | 224   | 85.5     |          |
   | - imagenet21k-ft1k | 86.53M  | 17.61G | 224   | 86.5     | [beit_v2_base_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_v2_base_patch16_224_imagenet21k-ft1k.h5)  |
-  | BeitV2BasePatch16  | 304.43M | 61.68G | 224   | 87.3     |          |
+  | BeitV2LargePatch16 | 304.43M | 61.68G | 224   | 87.3     |          |
   | - imagenet21k-ft1k | 304.43M | 61.68G | 224   | 88.4     | [beit_v2_large_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_v2_large_patch16_224_imagenet21k-ft1k.h5)  |
 ## DINOv2 models
   - Note: `DINOv2_ViT_Giant14` weights are in `float16` format and commpressed by `gzip`, as `float32` ones are too large that exceed 2GB.

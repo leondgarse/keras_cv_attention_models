@@ -173,28 +173,6 @@ def mhsa_with_relative_position_embedding(
     out = scaled_dot_product_attention(query, key, value, output_shape, pos_emb_func, out_weight, out_bias, dropout=attn_dropout, name=name)
     return out if data_format == "channels_last" else layers.Permute([3, 1, 2])(out)
 
-    # query *= qk_scale
-    # [batch, num_heads, hh * ww, hh * ww]
-    # attention_scores = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([query, key]) * qk_scale
-    # pos_emb = functional.reshape(pos_emb, [-1, *attention_scores.shape[1:]])
-    # attention_scores = keras.layers.Add()([attention_scores, pos_emb])
-    # # attention_scores = tf.nn.softmax(attention_scores, axis=-1)
-    # attention_scores = keras.layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
-    #
-    # if attn_dropout > 0:
-    #     attention_scores = keras.layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
-    # # value = [batch, num_heads, hh * ww, vv_dim]
-    # # attention_output = tf.matmul(attention_scores, value)  # [batch, num_heads, hh * ww, vv_dim]
-    # attention_output = keras.layers.Lambda(lambda xx: tf.matmul(xx[0], xx[1]))([attention_scores, value])
-    # attention_output = tf.transpose(attention_output, perm=[0, 2, 1, 3])
-    # attention_output = tf.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * vv_dim])
-    # # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
-    #
-    # if out_weight:
-    #     # [batch, hh, ww, num_heads * vv_dim] * [num_heads * vv_dim, out] --> [batch, hh, ww, out]
-    #     attention_output = keras.layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
-    # return attention_output
-
 
 def BotNet(input_shape=(224, 224, 3), strides=1, pretrained="imagenet", **kwargs):
     attn_types = [None, None, None, "bot"]

@@ -490,10 +490,10 @@ def make_divisible(vv, divisor=4, min_value=None, limit_round_down=0.9):
 def __unfold_filters_initializer__(weight_shape, dtype="float32"):
     kernel_size = weight_shape[0]
     kernel_out = kernel_size * kernel_size
-    ww = functional.reshape(functional.eye(kernel_out), [kernel_size, kernel_size, 1, kernel_out])
+    ww = np.reshape(np.eye(kernel_out, dtype="float32"), [kernel_size, kernel_size, 1, kernel_out])
     if len(weight_shape) == 5:  # Conv3D or Conv3DTranspose
-        ww = functional.expand_dims(ww, 2)
-    return ww
+        ww = np.expand_dims(ww, 2)
+    return functional.convert_to_tensor(ww)
 
 
 def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=2, dilation_rate=1, padding="SAME", compressed="auto", name=None):
@@ -558,14 +558,15 @@ class CompatibleExtractPatches(layers.Layer):
         else:
             self.use_conv = force_conv
 
-        self.use_layer_as_module = True  # For PyTorch backend
-
     def build(self, input_shape):
         _, self.height, self.width, self.channel = input_shape
         if self.padding.upper() == "SAME":
-            pad = self.kernel_size // 2
-            self.pad_value = [[0, 0], [pad, pad], [pad, pad], [0, 0]]
-            self.height, self.width = self.height + pad * 2, self.width + pad * 2
+            pad_value = self.kernel_size // 2
+            self.pad_value_list = [[0, 0], [pad_value, pad_value], [pad_value, pad_value], [0, 0]]
+            self.height, self.width = self.height + pad_value * 2, self.width + pad_value * 2
+            self.pad_value = pad_value
+        else:
+            self.pad_value = 0
 
         if self.use_conv:
             self.conv = layers.Conv2D(
@@ -589,8 +590,8 @@ class CompatibleExtractPatches(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs):
-        if self.padding.upper() == "SAME":
-            inputs = functional.pad(inputs, self.pad_value)
+        if self.pad_value > 0:
+            inputs = functional.pad(inputs, self.pad_value_list)
 
         if self.use_conv:
             merge_channel = functional.transpose(inputs, [0, 3, 1, 2])

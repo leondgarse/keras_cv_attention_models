@@ -185,6 +185,7 @@ class EngineInferenceOneInOneOut:
         size = trt.volume(engine.get_tensor_shape(input_binding)) * max_batch_size
         self.host_input = cuda.pagelocked_empty(shape=[size], dtype=self.input_dtype)
         self.cuda_input = cuda.mem_alloc(self.host_input.nbytes)
+        self.input_binding, self.output_binding = input_binding, output_binding
 
         self.output_shape = [max_batch_size, *engine.get_tensor_shape(output_binding)[1:]]
         self.output_dtype = trt.nptype(engine.get_tensor_dtype(output_binding))
@@ -210,7 +211,7 @@ class EngineInferenceOneInOneOut:
 
         inputs = imgs.ravel()
         # self.context.set_binding_shape(0, imgs.shape)
-        np.copyto(self.host_input[: inputs.shape[0]], imgs.ravel())
+        np.copyto(self.host_input[: inputs.shape[0]], inputs)
         cuda.memcpy_htod_async(self.cuda_input, self.host_input[: inputs.shape[0]], self.stream)
         # Run inference asynchronously, same function in cpp is `IExecutionContext::enqueueV2`
         self.context.execute_async_v2(bindings=self.allocations, stream_handle=self.stream.handle)
@@ -222,8 +223,13 @@ class EngineInferenceOneInOneOut:
 
 
 if __name__ == "__main__":
+    # !pip install kecam torch torchvision onnx pycuda tensorrt
+    # !git clone https://github.com/NVIDIA/TensorRT.git
+    # cd TensorRT/samples/trtexec
+
     import torch
     import torchvision
+    from kecam.imagenet.tensorrt_engine import ImageCalibrator, build_onnx_engine_one_input, EngineInferenceOneInOneOut
 
     mm = torchvision.models.resnet50(pretrained=True)
     torch.onnx.export(mm, torch.ones([1, 3, 224, 224]), "aaa.onnx")
