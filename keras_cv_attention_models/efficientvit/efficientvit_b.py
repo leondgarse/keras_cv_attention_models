@@ -8,12 +8,11 @@ from keras_cv_attention_models.attention_layers import (
     depthwise_conv2d_no_bias,
     drop_block,
     layer_norm,
-    qkv_to_multi_head_channels_last_format,
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-PRETRAINED_DICT = {"": {"imagenet": {224: ""}}}
+PRETRAINED_DICT = {"efficientvit_b1": {"imagenet": {224: "4fac7e85f4528276fafb5bb92e3f694f"}}}
 
 
 def MBConv(inputs, output_channel, shortcut=True, strides=1, expansion=4, use_bias=False, use_norm=True, drop_rate=0, activation="hard_swish", name=""):
@@ -29,7 +28,8 @@ def MBConv(inputs, output_channel, shortcut=True, strides=1, expansion=4, use_bi
     nn = conv2d_no_bias(nn, output_channel, 1, strides=1, use_bias=False, name=name + "pw_")
     nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "pw_")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
-    return layers.Add(name=name + "output")([inputs, nn]) if shortcut else nn
+    return layers.Add(name=name + "output")([inputs, nn]) if shortcut else layers.Identity(name=name + "output")(nn)
+
 
 def lite_mhsa(inputs, num_heads=8, key_dim=16, sr_ratio=5, qkv_bias=False, out_shape=None, out_bias=False, dropout=0, activation="relu", name=None):
     channel_axis = -1 if image_data_format() == "channels_last" else 1
@@ -45,15 +45,24 @@ def lite_mhsa(inputs, num_heads=8, key_dim=16, sr_ratio=5, qkv_bias=False, out_s
     sr_qkv = conv2d_no_bias(sr_qkv, emb_dim * 3, use_bias=qkv_bias, groups=3 * num_heads, name=name and name + "qkv_pw_")
     qkv = functional.concat([qkv, sr_qkv], axis=channel_axis)
 
-    query, key, value = functional.split(qkv, 3, axis=channel_axis)  # [TODO] <- num_heads * 3 * key_dim
+    if image_data_format() == "channels_last":
+        qkv = functional.reshape(qkv, [-1, height * width, qkv.shape[-1] // (3 * key_dim), 3 * key_dim])
+        query, key, value = functional.split(qkv, 3, axis=-1)
+        query = functional.transpose(query, [0, 2, 1, 3])
+        key = functional.transpose(key, [0, 2, 3, 1])
+        value = functional.transpose(value, [0, 2, 1, 3])
+    else:
+        qkv = functional.reshape(qkv, [-1, qkv.shape[1] // (3 * key_dim), 3 * key_dim, height * width])
+        query, key, value = functional.split(qkv, 3, axis=2)
+        query = functional.transpose(query, [0, 1, 3, 2])
+        value = functional.transpose(value, [0, 1, 3, 2])
     query = activation_by_name(query, activation=activation)
-    key = activation_by_name(query, activation=activation)
-    query, key, value = qkv_to_multi_head_channels_last_format(query, key, value, num_heads=num_heads)
+    key = activation_by_name(key, activation=activation)
     # print(f">>>> {inputs.shape = }, {query.shape = }, {sr_ratio = }")
 
-    attn = query @ (key @ value)
-    scale = query @ functional.reduce_sum(key, axis=-1, keepdims=True)  # [TODO] -> functional.reduce_sum(query @ key, axis=-1, keepdims=True) ???
-    attention_output = attn / (scale + 1e-15)
+    query_key = query @ key
+    scale = functional.reduce_sum(query_key, axis=-1, keepdims=True)
+    attention_output = query_key @ value / (scale + 1e-15)
 
     if image_data_format() == "channels_last":
         output = functional.transpose(attention_output, perm=[0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
@@ -62,17 +71,16 @@ def lite_mhsa(inputs, num_heads=8, key_dim=16, sr_ratio=5, qkv_bias=False, out_s
         output = functional.transpose(attention_output, perm=[0, 1, 3, 2])  # [batch, num_heads, key_dim * attn_ratio, q_blocks]
         output = functional.reshape(output, [-1, output.shape[1] * output.shape[2], height, width])
     output = conv2d_no_bias(output, out_shape, use_bias=out_bias, name=name and name + "out_")
-    output = batchnorm_with_activation(output, activation=None, name=name and name + "output_")
+    output = batchnorm_with_activation(output, activation=None, name=name and name + "out_")
     return output
 
 
 def EfficientViT_B(
-    num_blocks=[2, 3, 3, 4],
+    num_blocks=[2, 3, 4, 5],
     out_channels=[32, 64, 128, 256],
     stem_width=16,
     block_types=["conv", "conv", "transform", "transform"],
     expansion=4,
-    head_ratio=16,
     head_dimension=16,
     output_filters=[1536, 1600],
     input_shape=(224, 224, 3),
@@ -111,8 +119,8 @@ def EfficientViT_B(
                 cur_name = (name + "downsample_") if stride > 1 else name
                 nn = MBConv(nn, out_channel, shortcut, stride, expansion, use_bias, use_norm, drop_rate=block_drop_rate, activation=activation, name=cur_name)
             else:
-                num_heads = out_channel // head_ratio
-                attn = lite_mhsa(nn, num_heads=num_heads, key_dim=head_dimension, sr_ratio=5, name=name)
+                num_heads = out_channel // head_dimension
+                attn = lite_mhsa(nn, num_heads=num_heads, key_dim=head_dimension, sr_ratio=5, name=name + "attn_")
                 nn = nn + attn
                 nn = MBConv(nn, out_channel, shortcut, stride, expansion, use_bias, use_norm, drop_rate=block_drop_rate, activation=activation, name=name)
             global_block_id += 1
@@ -145,7 +153,7 @@ def EfficientViT_B1(input_shape=(224, 224, 3), num_classes=1000, drop_connect_ra
 @register_model
 def EfficientViT_B2(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", **kwargs):
     out_channels = [48, 96, 192, 384]
-    num_blocks = [3, 4, 4, 6]
+    num_blocks = [3, 4, 5, 7]
     stem_width = 24
     head_dimension = 32
     output_filters = [2304, 2560]
@@ -155,7 +163,7 @@ def EfficientViT_B2(input_shape=(224, 224, 3), num_classes=1000, drop_connect_ra
 @register_model
 def EfficientViT_B3(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", **kwargs):
     out_channels = [64, 128, 256, 512]
-    num_blocks = [4, 6, 6, 9]
+    num_blocks = [4, 6, 7, 10]
     stem_width = 32
     head_dimension = 32
     output_filters = [2304, 2560]

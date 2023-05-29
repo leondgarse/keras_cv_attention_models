@@ -2,7 +2,7 @@ import torch
 import math
 import torch.nn.functional as F
 from functools import partial
-from keras_cv_attention_models.pytorch_backend.layers import(
+from keras_cv_attention_models.pytorch_backend.layers import (
     _ZeroPadding,
     _ResizeDynamic,
     Add,

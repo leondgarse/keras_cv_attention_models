@@ -8,6 +8,7 @@ from keras_cv_attention_models.efficientvit.efficientvit_m import (
     EfficientViT_M5,
     cascaded_mhsa_with_multi_head_position,
 )
+from keras_cv_attention_models.efficientvit.efficientvit_b import EfficientViT_B, EfficientViT_B1, EfficientViT_B2, EfficientViT_B3
 
 __m_head_doc__ = """
 Keras implementation of [Github microsoft/Cream/EfficientViT/classification](https://github.com/microsoft/Cream/tree/main/EfficientViT/classification).

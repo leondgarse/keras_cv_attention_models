@@ -703,6 +703,7 @@ def convert_gelu_to_approximate(model):
     input_tensors = layers.Input(model.input_shape[1:])
     return models.clone_model(model, input_tensors=input_tensors, clone_function=__convert_gelu_to_approximate__)
 
+
 def convert_extract_patches_to_conv(model):
     from keras_cv_attention_models import attention_layers
 
