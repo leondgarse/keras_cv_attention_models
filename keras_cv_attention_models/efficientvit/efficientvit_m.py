@@ -196,7 +196,7 @@ def EfficientViT_M(
 
 @register_model
 def EfficientViT_M0(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return EfficientViT(**locals(), model_name="efficientvit_m0", **kwargs)
+    return EfficientViT_M(**locals(), model_name="efficientvit_m0", **kwargs)
 
 
 @register_model
@@ -204,7 +204,7 @@ def EfficientViT_M1(input_shape=(224, 224, 3), num_classes=1000, activation="rel
     out_channels = [128, 144, 192]
     num_heads = [2, 3, 3]
     kernel_sizes = [7, 5, 3, 3]
-    return EfficientViT(**locals(), model_name="efficientvit_m1", **kwargs)
+    return EfficientViT_M(**locals(), model_name="efficientvit_m1", **kwargs)
 
 
 @register_model
@@ -212,7 +212,7 @@ def EfficientViT_M2(input_shape=(224, 224, 3), num_classes=1000, activation="rel
     out_channels = [128, 192, 224]
     num_heads = [4, 3, 2]
     kernel_sizes = [7, 5, 3, 3]
-    return EfficientViT(**locals(), model_name="efficientvit_m2", **kwargs)
+    return EfficientViT_M(**locals(), model_name="efficientvit_m2", **kwargs)
 
 
 @register_model
@@ -220,7 +220,7 @@ def EfficientViT_M3(input_shape=(224, 224, 3), num_classes=1000, activation="rel
     out_channels = [128, 240, 320]
     num_heads = [4, 3, 4]
     kernel_sizes = 5
-    return EfficientViT(**locals(), model_name="efficientvit_m3", **kwargs)
+    return EfficientViT_M(**locals(), model_name="efficientvit_m3", **kwargs)
 
 
 @register_model
@@ -228,7 +228,7 @@ def EfficientViT_M4(input_shape=(224, 224, 3), num_classes=1000, activation="rel
     out_channels = [128, 256, 384]
     num_heads = 4
     kernel_sizes = [7, 5, 3, 3]
-    return EfficientViT(**locals(), model_name="efficientvit_m4", **kwargs)
+    return EfficientViT_M(**locals(), model_name="efficientvit_m4", **kwargs)
 
 
 @register_model
@@ -237,4 +237,4 @@ def EfficientViT_M5(input_shape=(224, 224, 3), num_classes=1000, activation="rel
     num_blocks = [1, 3, 4]
     num_heads = [3, 3, 4]
     kernel_sizes = [7, 5, 3, 3]
-    return EfficientViT(**locals(), model_name="efficientvit_m5", **kwargs)
+    return EfficientViT_M(**locals(), model_name="efficientvit_m5", **kwargs)
