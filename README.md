@@ -33,7 +33,8 @@
   - [EfficientFormerV2](#efficientformerv2)
   - [EfficientNet](#efficientnet)
   - [EfficientNetV2](#efficientnetv2)
-  - [EfficientViT](#efficientvit)
+  - [EfficientViT_B](#efficientvit_b)
+  - [EfficientViT_M](#efficientvit_m)
   - [EVA](#eva)
   - [EVA02](#eva02)
   - [FasterNet](#fasternet)
@@ -477,7 +478,7 @@
 ## Using PyTorch as backend
   - **Experimental** [Keras PyTorch Backend](keras_cv_attention_models/pytorch_backend).
   - **Set os environment `export KECAM_BACKEND='torch'` to enable this PyTorch backend.**
-  - Currently supports most recognition and detection models except cotnet / halonet / hornet / nat / nfnets / volo. For detection models, using `torchvision.ops.nms` while running prediction.
+  - Currently supports most recognition and detection models except cotnet / halonet / hornet / nfnets / volo. For detection models, using `torchvision.ops.nms` while running prediction.
   - **Basic model build and prediction**.
     - Will load same `h5` weights as TF one if available.
     - Note: `input_shape` will auto fit image data format. Given `input_shape=(224, 224, 3)` or `input_shape=(3, 224, 224)`, will both set to `(3, 224, 224)` if `channels_first`.
@@ -812,8 +813,22 @@
   | EfficientNetV2L            | 119.5M | 56.27G | 480   | 85.7     | [effv2l-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-l-imagenet.h5)   |
   | - ImageNet21k-ft1k         | 119.5M | 56.27G | 480   | 86.9     | [effv2l-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-l-21k-ft1k.h5)   |
   | EfficientNetV2XL, 21k-ft1k | 206.8M | 93.66G | 512   | 87.2     | [effv2xl-21k-ft1k.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-xl-21k-ft1k.h5) |
-## EfficientViT
-  - [Keras EfficientViT](keras_cv_attention_models/efficientvit) is for Paper [PDF 2305.07027 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/pdf/2305.07027.pdf).
+## EfficientViT_B
+  - [Keras EfficientViT_B](keras_cv_attention_models/efficientvit) is for Paper [PDF 2205.14756 EfficientViT: Lightweight Multi-Scale Attention for On-Device Semantic Segmentation](https://arxiv.org/pdf/2205.14756.pdf).
+
+  | Model           | Params | FLOPs | Input | Top1 Acc | Download |
+  | --------------- | ------ | ----- | ----- | -------- | -------- |
+  | EfficientViT_B1 | 9.10M  | 0.58G | 224   | 79.4     | [efficientvit_b1_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b1_224_imagenet.h5) |
+  | EfficientViT_B1 | 9.10M  | 0.78G | 256   | 79.9     | [efficientvit_b1_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b1_256_imagenet.h5) |
+  | EfficientViT_B1 | 9.10M  | 1.03G | 288   | 80.4     | [efficientvit_b1_288_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b1_288_imagenet.h5) |
+  | EfficientViT_B2 | 24.33M | 1.68G | 224   | 82.1     | [efficientvit_b2_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b2_224_imagenet.h5) |
+  | EfficientViT_B2 | 24.33M | 2.25G | 256   | 82.7     | [efficientvit_b2_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b2_256_imagenet.h5) |
+  | EfficientViT_B2 | 24.33M | 2.92G | 288   | 83.1     | [efficientvit_b2_288_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b2_288_imagenet.h5) |
+  | EfficientViT_B3 | 48.65M | 4.14G | 224   | 83.5     | [efficientvit_b3_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_224_imagenet.h5) |
+  | EfficientViT_B3 | 48.65M | 5.51G | 256   | 83.8     | [efficientvit_b3_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_256_imagenet.h5) |
+  | EfficientViT_B3 | 48.65M | 7.14G | 288   | 84.2     | [efficientvit_b3_288_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_288_imagenet.h5) |
+## EfficientViT_M
+  - [Keras EfficientViT_M](keras_cv_attention_models/efficientvit) is for Paper [PDF 2305.07027 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/pdf/2305.07027.pdf).
 
   | Model           | Params | FLOPs | Input | Top1 Acc | Download |
   | --------------- | ------ | ----- | ----- | -------- | -------- |

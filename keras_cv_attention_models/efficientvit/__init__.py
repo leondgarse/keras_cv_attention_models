@@ -15,7 +15,7 @@ Keras implementation of [Github microsoft/Cream/EfficientViT/classification](htt
 Paper [PDF 2305.07027 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/pdf/2305.07027.pdf).
 """
 
-__m_tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
+__tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default `relu`.
   drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
@@ -43,7 +43,7 @@ Args:
   kernel_sizes: int or list value indicates kernel_size for each head in attention blocks. Length must larger than max of num_heads.
   mlp_ratio: int value indicates expand ratio for mlp blocks hidden channels.
   model_name: string, model name.
-""" + __m_tail_doc__ + """
+""" + __tail_doc__ + """
 Model architectures:
   | Model           | Params | FLOPs | Input | Top1 Acc |
   | --------------- | ------ | ----- | ----- | -------- |
@@ -57,13 +57,56 @@ Model architectures:
 
 EfficientViT_M0.__doc__ = __m_head_doc__ + """
 Args:
-""" + __m_tail_doc__
+""" + __tail_doc__
 
 EfficientViT_M1.__doc__ = EfficientViT_M0.__doc__
 EfficientViT_M2.__doc__ = EfficientViT_M0.__doc__
 EfficientViT_M3.__doc__ = EfficientViT_M0.__doc__
 EfficientViT_M4.__doc__ = EfficientViT_M0.__doc__
 EfficientViT_M5.__doc__ = EfficientViT_M0.__doc__
+
+__b_head_doc__ = """
+Keras implementation of [Github mit-han-lab/efficientvit](https://github.com/mit-han-lab/efficientvit).
+Paper [PDF 2205.14756 EfficientViT: Lightweight Multi-Scale Attention for On-Device Semantic Segmentation](https://arxiv.org/pdf/2205.14756.pdf).
+"""
+
+EfficientViT_B.__doc__ = __b_head_doc__ + """
+Args:
+  num_blocks: number of blocks in each stack.
+  out_channels: output channels for each stack.
+  stem_width: output dimension for stem block.
+  block_types: block types for each stack,
+      - `conv` or any `c` / `C` starts word, means `mb_conv` block.
+      - `transfrom` or any not `c` / `C` starts word, means `lite_mhsa` + `mb_conv` block.
+      value could be in format like `"cctt"` or `"CCTT"` or `["conv", "conv", "transfrom", "transform"]`.
+  expansion: filter expansion in each block. The larger the wider.
+  head_dimension: heads dimension for transformer block, and `num_heads = channels // head_dimension`.
+  output_filters: int or list of int value indicates id using additional blocks before output.
+      - int value for adding `Conv2D + BatchNorm + Activation` block, and the value is used as conv2D filters.
+      - list value for adding another `Dense + LayerNorm + Activation` block, and the second value is used as Dense filters.
+      - Set `0` for disable.
+  model_name: string, model name.
+""" + __tail_doc__ + """
+Model architectures:
+  | Model           | Params | FLOPs | Input | Top1 Acc |
+  | --------------- | ------ | ----- | ----- | -------- |
+  | EfficientViT_B1 | 9.10M  | 0.58G | 224   | 79.4     |
+  | EfficientViT_B1 | 9.10M  | 0.78G | 256   | 79.9     |
+  | EfficientViT_B1 | 9.10M  | 1.03G | 288   | 80.4     |
+  | EfficientViT_B2 | 24.33M | 1.68G | 224   | 82.1     |
+  | EfficientViT_B2 | 24.33M | 2.25G | 256   | 82.7     |
+  | EfficientViT_B2 | 24.33M | 2.92G | 288   | 83.1     |
+  | EfficientViT_B3 | 48.65M | 4.14G | 224   | 83.5     |
+  | EfficientViT_B3 | 48.65M | 5.51G | 256   | 83.8     |
+  | EfficientViT_B3 | 48.65M | 7.14G | 288   | 84.2     |
+"""
+
+EfficientViT_B1.__doc__ = __b_head_doc__ + """
+Args:
+""" + __tail_doc__
+
+EfficientViT_B2.__doc__ = EfficientViT_B1.__doc__
+EfficientViT_B3.__doc__ = EfficientViT_B1.__doc__
 
 cascaded_mhsa_with_multi_head_position.__doc__ = __m_head_doc__ + """
 Cascaded multi head self attention with MultiHeadPositionalEmbedding. Defined as function, not layer.

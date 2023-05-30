@@ -49,7 +49,7 @@ def test_VOLO_defination():
     assert isinstance(mm, models.Model)
 
 
-""" Recognition models EfficientNetV2B1_preprocessing / HaloNet / HorNet / NAT / VOLO prediction """
+""" Recognition models EfficientNetV2B1_preprocessing / HaloNet / HorNet / VOLO prediction """
 
 
 def test_EfficientNetV2B1_preprocessing_predict():

@@ -2,8 +2,10 @@
 ***
 
 ## Summary
-  - Keras implementation of [Github microsoft/Cream/EfficientViT/classification](https://github.com/microsoft/Cream/tree/main/EfficientViT/classification). Paper [PDF 2305.07027 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/pdf/2305.07027.pdf).
+  - `EfficientViT_M` is implementation of [Github microsoft/Cream/EfficientViT/classification](https://github.com/microsoft/Cream/tree/main/EfficientViT/classification). Paper [PDF 2305.07027 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/pdf/2305.07027.pdf).
+  - `EfficientViT_B` is implementation of [Github mit-han-lab/efficientvit](https://github.com/mit-han-lab/efficientvit). Paper [PDF 2205.14756 EfficientViT: Lightweight Multi-Scale Attention for On-Device Semantic Segmentation](https://arxiv.org/pdf/2205.14756.pdf).
   - Model weights ported from official publication.
+  - **Note: `EfficientViT_M` and `EfficientViT_B` are actually totally different, just a name conflict.**
 ***
 
 ## Models
@@ -16,6 +18,17 @@
   | EfficientViT_M4 | 8.80M  | 299M  | 224   | 74.3     | [efficientvit_m4_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_m4_224_imagenet.h5) |
   | EfficientViT_M5 | 12.47M | 522M  | 224   | 77.1     | [efficientvit_m5_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_m5_224_imagenet.h5) |
 
+  | Model           | Params | FLOPs | Input | Top1 Acc | Download |
+  | --------------- | ------ | ----- | ----- | -------- | -------- |
+  | EfficientViT_B1 | 9.10M  | 0.58G | 224   | 79.4     | [efficientvit_b1_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b1_224_imagenet.h5) |
+  | EfficientViT_B1 | 9.10M  | 0.78G | 256   | 79.9     | [efficientvit_b1_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b1_256_imagenet.h5) |
+  | EfficientViT_B1 | 9.10M  | 1.03G | 288   | 80.4     | [efficientvit_b1_288_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b1_288_imagenet.h5) |
+  | EfficientViT_B2 | 24.33M | 1.68G | 224   | 82.1     | [efficientvit_b2_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b2_224_imagenet.h5) |
+  | EfficientViT_B2 | 24.33M | 2.25G | 256   | 82.7     | [efficientvit_b2_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b2_256_imagenet.h5) |
+  | EfficientViT_B2 | 24.33M | 2.92G | 288   | 83.1     | [efficientvit_b2_288_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b2_288_imagenet.h5) |
+  | EfficientViT_B3 | 48.65M | 4.14G | 224   | 83.5     | [efficientvit_b3_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_224_imagenet.h5) |
+  | EfficientViT_B3 | 48.65M | 5.51G | 256   | 83.8     | [efficientvit_b3_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_256_imagenet.h5) |
+  | EfficientViT_B3 | 48.65M | 7.14G | 288   | 84.2     | [efficientvit_b3_288_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_288_imagenet.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import efficientvit, test_images
@@ -28,7 +41,7 @@
   print(model.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.4258187), ('n02123159', 'tiger_cat', 0.14353083), ...]
   ```
-  **Change input resolution** if input_shape is all less than `window_size * 32 = 7 * 32 = 224`, or `window_size` is not `7`, will load `MultiHeadPositionalEmbedding` weights by `load_resized_weights`
+  **EfficientViT_M Change input resolution** if input_shape is all less than `window_size * 32 = 7 * 32 = 224`, or `window_size` is not `7`, will load `MultiHeadPositionalEmbedding` weights by `load_resized_weights`
   ```py
   from keras_cv_attention_models import efficientvit, test_images
   model = efficientvit.EfficientViT_M1(input_shape=(193, 127, 3))
@@ -43,6 +56,17 @@
   preds = model(model.preprocess_input(test_images.cat()))
   print(model.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.50921583), ('n02123045', 'tabby', 0.14553155), ...]
+  ```
+  **EfficientViT_B Change input resolution**
+  ```py
+  from keras_cv_attention_models import efficientvit, test_images
+  model = efficientvit.EfficientViT_B1(input_shape=(193, 257, 3), pretrained="imagenet")
+  # >>>> Load pretrained from: /home/leondgarse/.keras/models/efficientvit_b1_256_imagenet.h5
+
+  # Run prediction
+  preds = model(model.preprocess_input(test_images.cat()))
+  print(model.decode_predictions(preds))
+  # [('n02124075', 'Egyptian_cat', 0.98537457), ('n02123159', 'tiger_cat', 0.0035056944), ...]
   ```
   **Using PyTorch backend** by set `KECAM_BACKEND='torch'` environment variable.
   ```py
@@ -77,6 +101,28 @@
   """ Keras EfficientViT_M0 """
   from keras_cv_attention_models import efficientvit
   mm = efficientvit.EfficientViT_M0(pretrained="imagenet", classifier_activation=None)
+
+  """ Verification """
+  inputs = np.random.uniform(size=(1, *mm.input_shape[1:3], 3)).astype("float32")
+  torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2)).detach().numpy()
+  keras_out = mm(inputs).numpy()
+  print(f"{np.allclose(torch_out, keras_out, atol=1e-5) = }")
+  # np.allclose(torch_out, keras_out, atol=1e-5) = True
+  ```
+  ```py
+  """ PyTorch efficientvit_cls_b1 """
+  sys.path.append('../efficientvit/')
+  import torch
+  from models.efficientvit import cls as torch_efficientvit
+
+  torch_model = torch_efficientvit.efficientvit_cls_b1()
+  ss = torch.load('b1-r224.pt', map_location='cpu')
+  torch_model.load_state_dict(ss['state_dict'])
+  _ = torch_model.eval()
+
+  """ Keras EfficientViT_B1 """
+  from keras_cv_attention_models import efficientvit
+  mm = efficientvit.EfficientViT_B1(pretrained="imagenet", classifier_activation=None)
 
   """ Verification """
   inputs = np.random.uniform(size=(1, *mm.input_shape[1:3], 3)).astype("float32")

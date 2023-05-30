@@ -311,6 +311,14 @@ def test_EfficientNetV2B0_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_EfficientViT_B1_new_shape_predict():
+    mm = keras_cv_attention_models.efficientvit.EfficientViT_B1(input_shape=(192, 127, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(cat()))
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_EfficientViT_M0_new_shape_predict():
     mm = keras_cv_attention_models.efficientvit.EfficientViT_M0(input_shape=(192, 127, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat()))
