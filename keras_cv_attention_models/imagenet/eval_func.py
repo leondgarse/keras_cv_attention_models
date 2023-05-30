@@ -188,13 +188,14 @@ def decode_predictions(preds, top=5):
 
     global CLASS_INDEX_IMAGENET
     global CLASS_INDEX_IMAGENET21K
-    if (is_imagenet and CLASS_INDEX_IMAGENET is None) or CLASS_INDEX_IMAGENET21K is None:
+    if (is_imagenet and CLASS_INDEX_IMAGENET is None) or (not is_imagenet and CLASS_INDEX_IMAGENET21K is None):
         if is_imagenet:
             url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/imagenet_class_index.json"
         else:
             url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/imagenet21k_class_index.json"
 
-        print(">>>> Trying to get index file:", os.path.join(os.path.expanduser("~/.keras/datasets"), os.path.basename(url)))
+        index_file = os.path.join(os.path.expanduser("~/.keras/datasets"), os.path.basename(url))
+        print(">>>> Trying to load index file:", index_file)
         class_index_path = get_file(origin=url)
         with open(class_index_path) as ff:
             if is_imagenet:

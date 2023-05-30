@@ -48,9 +48,10 @@ def compute_conv_output_size(input_shape, kernel_size, strides=1, padding="valid
 class Weight:
     def __init__(self, name, value):
         self.name, self.shape, self.__value__ = name, value.shape, value
+        self.trainable = value.requires_grad if hasattr(value, "requires_grad") else True
 
     def __repr__(self):
-        return "{} shape={}".format(self.name, self.shape)
+        return "{}, shape={}".format(self.name, self.shape)
 
     def value(self):
         return self.__value__

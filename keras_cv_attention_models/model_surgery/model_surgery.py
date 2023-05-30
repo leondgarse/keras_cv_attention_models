@@ -394,11 +394,15 @@ def get_flops(model):
     return flops
 
 
-def print_model_params_count(model):
-    aa = []
-    model.summary(print_fn=lambda xx: aa.append(xx) if "params:" in xx else None)
-    print("\n".join(aa))
-    return {ii.split(":")[0]: int("".join(ii.split(":")[1].strip().split(","))) for ii in aa}
+def count_params(model):
+    total_params, trainable_params = 0, 0
+    for ii in model.weights:
+        cur_params = np.prod(ii.shape)
+        total_params += cur_params
+        trainable_params += cur_params if ii.trainable else 0
+    non_trainable_params = total_params - trainable_params
+    print("Total params: {:,} | Trainable params: {:,} | Non-trainable params:{:,}".format(total_params, trainable_params, non_trainable_params))
+    return total_params, trainable_params
 
 
 """ Inference """

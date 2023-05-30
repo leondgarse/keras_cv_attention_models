@@ -221,6 +221,13 @@ class Model(nn.Module):
     def layers(self):
         return list(self.__layers__.values())
 
+    @property
+    def weights(self):
+        skips = ["num_batches_tracked", "total_ops", "total_params"]
+        buffers = [layers.Weight(name=name, value=value) for name, value in self.named_buffers() if not name.split(".")[-1] in skips]
+        parameters = [layers.Weight(name=name, value=value) for name, value in self.named_parameters()]
+        return parameters + buffers
+
     def get_layer(self, layer_name):
         return self.__layers__[layer_name]
 
