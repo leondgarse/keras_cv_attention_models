@@ -399,7 +399,7 @@ class _Merge(Layer):
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        self.check_input(input_shape)
+        self.check_input(list(input_shape))
         self.module = self.merge_function
         super().build(input_shape)
 

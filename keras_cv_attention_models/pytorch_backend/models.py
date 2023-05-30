@@ -236,9 +236,9 @@ class Model(nn.Module):
         with h5py.File(filepath, "r") as h5_file:
             load_weights_from_hdf5_group(h5_file, self, skip_mismatch=skip_mismatch, debug=self.debug)
 
-    def save_weights(self, filepath=None):
+    def save_weights(self, filepath=None, compression=None):
         with h5py.File(filepath if filepath else self.name + ".h5", "w") as h5_file:
-            save_weights_to_hdf5_group(h5_file, self)
+            save_weights_to_hdf5_group(h5_file, self, compression=compression)
 
     def summary(self, input_shape=None, **kwargs):
         from torchsummary import summary
@@ -333,11 +333,11 @@ def load_weights_from_hdf5_group(h5_file, model, skip_mismatch=False, debug=Fals
             tt.set_weights(ss)
 
 
-def save_subset_weights_to_hdf5_group(group, weight_names, weight_values):
+def save_subset_weights_to_hdf5_group(group, weight_names, weight_values, compression=None):
     """Save top-level weights of a model to a HDF5 group."""
     save_attributes_to_hdf5_group(group, "weight_names", weight_names)
     for name, val in zip(weight_names, weight_values):
-        param_dset = group.create_dataset(name, val.shape, dtype=val.dtype)
+        param_dset = group.create_dataset(name, val.shape, dtype=val.dtype, compression=compression, chunks=True)
         if not val.shape:
             # scalar
             param_dset[()] = val
@@ -378,12 +378,15 @@ def save_attributes_to_hdf5_group(group, name, data):
         group.attrs[name] = data
 
 
-def save_weights_to_hdf5_group(h5_file, model):
-    """Saves the weights of a list of layers to a HDF5 group."""
+def save_weights_to_hdf5_group(h5_file, model, compression=None):
+    """Saves the weights of a list of layers to a HDF5 group.
+    - compression: refer `from h5py._hl import dataset; help(h5py.File.create_dataset)`
+          and `from h5py._hl import dataset; help(dataset.make_new_dset)`.
+    """
     save_attributes_to_hdf5_group(h5_file, "layer_names", [layer.name.encode("utf8") for layer in model.layers])
     h5_file.attrs["backend"] = backend.backend().encode("utf8")
     for layer in sorted(model.layers, key=lambda x: x.name):
         layer_group = h5_file.create_group(layer.name)
         weight_names = [ww.name.encode("utf8") for ww in layer.weights]
         weight_values = layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()
-        save_subset_weights_to_hdf5_group(layer_group, weight_names, weight_values)
+        save_subset_weights_to_hdf5_group(layer_group, weight_names, weight_values, compression=compression)
