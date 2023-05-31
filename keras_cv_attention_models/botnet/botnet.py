@@ -24,7 +24,7 @@ class RelativePositionalEmbedding(layers.Layer):
         self.position_height = position_height
         self.position_width = position_width if position_width > 0 else position_height
         self.use_absolute_pos = use_absolute_pos
-        self.dynamic_shape = dynamic_shape
+        self.dynamic_shape = dynamic_shape  # Deprecated
 
     def build(self, input_shape):
         _, num_heads, height, width, key_dim = input_shape
@@ -32,6 +32,7 @@ class RelativePositionalEmbedding(layers.Layer):
         self.position_width = self.position_width if self.position_width > width else width
         self.key_dim = key_dim
         stddev = key_dim**-0.5
+        self.num_heads, self.input_height, self.input_width = num_heads, height, width
 
         if self.use_absolute_pos:
             hh_shape = (key_dim, self.position_height)
@@ -43,7 +44,7 @@ class RelativePositionalEmbedding(layers.Layer):
         initializer = initializers.random_normal(stddev=stddev)
         self.pos_emb_h = self.add_weight(name="r_height", shape=hh_shape, initializer=initializer, trainable=True)
         self.pos_emb_w = self.add_weight(name="r_width", shape=ww_shape, initializer=initializer, trainable=True)
-        self.input_height, self.input_width = height, width
+
         super().build(input_shape)
 
     def get_config(self):
@@ -58,19 +59,22 @@ class RelativePositionalEmbedding(layers.Layer):
         )
         return base_config
 
-    def rel_to_abs(self, rel_pos):
+    def rel_to_abs(self, rel_pos, is_height):
         """
         Converts relative indexing to absolute.
         Input: [bs+heads, height, width, 2 * pos_dim - 1]
         Output: [bs+heads, height, width, pos_dim]
         """
-        bs_heads, hh, ww, dim = rel_pos.shape  # [bs+heads, height, width, 2 * width - 1]
-        pos_dim = (dim + 1) // 2
+        pos_dim = self.position_height if is_height else self.position_width  # Use static values
+        num_blocks = self.input_height if is_height else self.input_width  # Use static values
+
+        # pos_dim = (dim + 1) // 2
         if pos_dim == 1:
             return rel_pos
-        if ww == 1:
+        if num_blocks == 1:
             return rel_pos[:, :, :, -pos_dim:]
-        full_rank_gap = pos_dim - ww
+        _, hh, ww, dim = rel_pos.shape  # [bs+heads, height, width, 2 * width - 1]
+        full_rank_gap = pos_dim - num_blocks
         # [bs+heads, height, width * (2 * pos_dim - 1)] --> [bs+heads, height, width * (2 * pos_dim - 1) - width]
         flat_x = functional.reshape(rel_pos, [-1, hh, ww * dim])[:, :, ww - 1 : -1]
         # [bs+heads, height, width, 2 * (pos_dim - 1)] --> [bs+heads, height, width, pos_dim]
@@ -78,18 +82,18 @@ class RelativePositionalEmbedding(layers.Layer):
         return functional.reshape(flat_x, [-1, hh, ww, 2 * (pos_dim - 1)])[:, :, :, full_rank_gap : pos_dim + full_rank_gap]
 
     def relative_logits(self, inputs):
-        bs, heads, hh, ww, cc = inputs.shape  # e.g.: [1, 4, 14, 16, 128]
-        inputs = functional.reshape(inputs, [-1, hh, ww, cc])  # Merge bs and heads, for supporting TFLite conversion
+        # bs, heads, hh, ww, cc = inputs.shape  # e.g.: [1, 4, 14, 16, 128]
+        inputs = functional.reshape(inputs, [-1, self.input_height, self.input_width, self.key_dim])  # Merge bs and heads, for supporting TFLite conversion
         rel_logits_w = functional.matmul(inputs, self.pos_emb_w)  # [4, 14, 16, 31], 2 * 16 - 1 == 31
-        rel_logits_w = self.rel_to_abs(rel_logits_w)  # [4, 14, 16, 16]
+        rel_logits_w = self.rel_to_abs(rel_logits_w, is_height=False)  # [4, 14, 16, 16]
 
         query_h = functional.transpose(inputs, [0, 2, 1, 3])  # [4, 16, 14, 128], [bs+heads, ww, hh, dims], Exchange `ww` and `hh`
         rel_logits_h = functional.matmul(query_h, self.pos_emb_h)  # [4, 16, 14, 27], 2 * 14 - 1 == 27
-        rel_logits_h = self.rel_to_abs(rel_logits_h)  # [4, 16, 14, 14]
+        rel_logits_h = self.rel_to_abs(rel_logits_h, is_height=True)  # [4, 16, 14, 14]
         rel_logits_h = functional.transpose(rel_logits_h, [0, 2, 1, 3])  # [4, 14, 16, 14], transpose back
 
         logits = functional.expand_dims(rel_logits_w, axis=-2) + functional.expand_dims(rel_logits_h, axis=-1)  # [4, 14, 16, 14, 16]
-        return functional.reshape(logits, [-1, heads, hh, ww, self.position_height, self.position_width])  # [1, 4, 14, 16, 14, 16]
+        return functional.reshape(logits, [-1, self.num_heads, self.input_height, self.input_width, self.position_height, self.position_width])
 
     def absolute_logits(self, inputs):
         # pos_emb = tf.expand_dims(self.pos_emb_w, -2) + tf.expand_dims(self.pos_emb_h, -1)

@@ -101,9 +101,6 @@ Args:
   position_width: positional embedding width. Default `0` for using `input_shape[3]` or `position_height` if set.
       Should be larger than `input_shape[3]`.
   use_absolute_pos: Set `True` to use absolute positional embeddings.
-  dynamic_shape: Set `True` for dynamically change output shape depending on inputs shape.
-      - Works only if coming inputs shape is smaller than orignal initialized `position_height` and `position_width`.
-      - For larger inputs, please reload layer weights by `self.load_resized_weights`.
 
 Examples:
 
@@ -117,21 +114,4 @@ aa(tf.ones([1, 4, 4, 6, 32])).shape = TensorShape([1, 4, 4, 6, 14, 16])
 >>> print({ii.name:ii.shape for ii in aa.weights})
 {'relative_positional_embedding_6/r_height:0': TensorShape([32, 27]),
  'relative_positional_embedding_6/r_width:0': TensorShape([32, 31])}
-
-For `dynamic_shape=True`:
->>> aa = attention_layers.RelativePositionalEmbedding(dynamic_shape=True)
->>> print(f"{aa(tf.ones([1, 4, 14, 16, 32])).shape = }")
-aa(tf.ones([1, 4, 14, 16, 32])).shape = TensorShape([1, 4, 14, 16, 14, 16])
->>> print(f"{aa(tf.ones([1, 4, 4, 6, 32])).shape = }")  # last 2 dimension in output is `[height, width]`
-aa(tf.ones([1, 4, 4, 6, 32])).shape = TensorShape([1, 4, 4, 6, 4, 6])
-
-Reload layer weights by `self.load_resized_weights`:
->>> bb = attention_layers.RelativePositionalEmbedding(dynamic_shape=True)
->>> bb.build([None, 4, 24, 26, 32])
->>> print({ii.name:ii.shape for ii in bb.weights})
-{'r_height:0': TensorShape([32, 47]),
- 'r_width:0': TensorShape([32, 51])}
->>> bb.load_resized_weights(aa)
->>> print(f"{bb(tf.ones([1, 4, 21, 22, 32])).shape = }")
-bb(tf.ones([1, 4, 21, 22, 32])).shape = TensorShape([1, 4, 21, 22, 21, 22])
 """

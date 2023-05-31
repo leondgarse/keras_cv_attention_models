@@ -243,10 +243,11 @@ def repeat(inputs, repeats, axis, name=None):
     >>> np.allclose(torch_out.detach(), tf_out)
     """
     if inputs.shape[axis] is None:
-        expand_shape = [-1] * len(inputs.shape)
+        expand_shape = [1] * len(inputs.shape)
         expand_shape.insert(axis + 1, repeats)
         out_shape = [(-1 if ii is None or ii == -1 else ii * repeats) if dim == axis else ii for dim, ii in enumerate(inputs.shape)]
-        return wrapper(lambda inputs: torch.expand_copy(torch.unsqueeze(inputs, axis + 1), expand_shape).contiguous().view(out_shape), inputs, name=name)
+        # return wrapper(lambda inputs: torch.expand_copy(torch.unsqueeze(inputs, axis + 1), expand_shape).contiguous().view(out_shape), inputs, name=name)
+        return wrapper(lambda xx: xx.unsqueeze(axis + 1).repeat(expand_shape).contiguous().view(out_shape), inputs, name=name)
     else:
         return wrapper(partial(torch.repeat_interleave, repeats=repeats, dim=axis), inputs, name=name)
     # expand_shape.insert(axis + 1, repeats)
