@@ -449,13 +449,13 @@ def YOLOV7_W6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80
 
 @register_model
 def YOLOV7_E6(input_shape=(1280, 1280, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
-    stack_concats = [-1, -3, -5, -7, -8]
-    stack_depth = 8
-    stem_width = 80
-    csp_downsample_ratios = [1, 1, 1, [1, 480 / 640], [1, 640 / 960]]  # different from YOLOV7_W6
+    stack_concats = kwargs.pop("stack_concats", [-1, -3, -5, -7, -8])
+    stack_depth = kwargs.pop("stack_depth", 8)
+    stem_width = kwargs.pop("stem_width", 80)
+    csp_downsample_ratios = kwargs.pop("csp_downsample_ratios", [1, 1, 1, [1, 480 / 640], [1, 640 / 960]])  # different from YOLOV7_W6
 
-    fpn_mid_ratio = 0.5
-    fpn_csp_downsample_ratio = [1, [1, 240 / 320], [1, 320 / 480]]  # different from YOLOV7_W6
+    fpn_mid_ratio = kwargs.pop("fpn_mid_ratio", 0.5)
+    fpn_csp_downsample_ratio = kwargs.pop("fpn_csp_downsample_ratio", [1, [1, 240 / 320], [1, 320 / 480]])  # different from YOLOV7_W6
 
     kwargs.pop("kwargs", None)  # From YOLOV7_E6E / YOLOV7_D6
     return YOLOV7_W6(**locals(), model_name=kwargs.pop("model_name", "yolov7_e6"), **kwargs)
