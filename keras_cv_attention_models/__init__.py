@@ -13,6 +13,7 @@ from keras_cv_attention_models import caformer
 from keras_cv_attention_models import coat
 from keras_cv_attention_models import coatnet
 from keras_cv_attention_models import convnext
+from keras_cv_attention_models import cotnet
 from keras_cv_attention_models import cmt
 from keras_cv_attention_models import davit
 from keras_cv_attention_models import efficientnet
@@ -23,6 +24,7 @@ from keras_cv_attention_models import gcvit
 from keras_cv_attention_models import ghostnet
 from keras_cv_attention_models import ghostnet as ghostnetv2  # Will be removed
 from keras_cv_attention_models import gpt2
+from keras_cv_attention_models import halonet
 from keras_cv_attention_models import iformer
 from keras_cv_attention_models import levit
 from keras_cv_attention_models import mlp_family
@@ -68,8 +70,6 @@ from keras_cv_attention_models.yolov8 import yolo_nas
 from keras_cv_attention_models import coco
 
 if backend.is_tensorflow_backend:
-    from keras_cv_attention_models import cotnet
-    from keras_cv_attention_models import halonet
     from keras_cv_attention_models import hornet
     from keras_cv_attention_models import nfnets
     from keras_cv_attention_models import volo
