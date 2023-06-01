@@ -1420,7 +1420,7 @@ class UpSampling2D(Layer):
 class ZeroPadding2D(Layer):
     def __init__(self, padding=(1, 1), **kwargs):
         assert len(padding) == 2 if isinstance(padding, (list, tuple)) else isinstance(padding, int), "padding should be 2 values or an int: {}".format(padding)
-        if isinstance(padding[0], (list, tuple)):
+        if isinstance(padding, (list, tuple)) and isinstance(padding[0], (list, tuple)):
             assert isinstance(padding[1], (list, tuple)) and len(padding[0]) == 2 and len(padding[1]) == 2
 
         self.padding = list(padding) if isinstance(padding, (list, tuple)) else [padding, padding]
