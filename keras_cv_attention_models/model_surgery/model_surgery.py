@@ -450,7 +450,7 @@ def convert_mixed_float16_to_float32(model):
     return models.clone_model(model, input_tensors=input_tensors, clone_function=do_convert_to_mixed_float16)
 
 
-def fuse_layer_single_input(model, fuse_layer_condition, pre_layer_condition=None, layer_config_process=None, layer_weight_process=None):
+def fuse_layer_single_input(model, fuse_layer_condition, pre_layer_condition=None, layer_config_process=None, layer_weight_process=None, verbose=0):
     """
     Convert model by fusing Conv + batchnorm
 
@@ -473,9 +473,10 @@ def fuse_layer_single_input(model, fuse_layer_condition, pre_layer_condition=Non
             if isinstance(input_node, list) and pre_layer_condition(ee.get(input_node[0], {})):
                 pre_fused_layers.append(input_node[0])
                 fused_layers.append(layer["name"])
-    print(">>>> len(pre_fused_layers) =", len(pre_fused_layers), "len(fused_layers) =", len(fused_layers))
-    print()
-    # len(fuse_convs) = 53, len(fuse_bns) = 53
+    if verbose > 0:
+        print(">>>> len(pre_fused_layers) =", len(pre_fused_layers), "len(fused_layers) =", len(fused_layers))
+        print()
+        # len(fuse_convs) = 53, len(fuse_bns) = 53
 
     """ Create new model config """
     layers = []
@@ -484,11 +485,13 @@ def fuse_layer_single_input(model, fuse_layer_condition, pre_layer_condition=Non
     is_inbound_elem = lambda xx: isinstance(xx, list) and isinstance(xx[0], str)
     for layer in model_config["config"]["layers"]:
         if layer["name"] in pre_fused_layers and layer_config_process is not None:
-            print(">>>> Create new layer config for:", layer["name"])
+            if verbose > 0:
+                print(">>>> Create new layer config for:", layer["name"])
             fused_layer_config = ee.get(pre_fused_layers_dict[layer["name"]])["config"]
             layer["config"] = layer_config_process(layer["config"], fused_layer_config)
         elif layer["name"] in fused_layers:
-            print(">>>> Remove layer:", layer["name"])
+            if verbose > 0:
+                print(">>>> Remove layer:", layer["name"])
             continue
 
         for ii in layer["inbound_nodes"]:
@@ -505,7 +508,8 @@ def fuse_layer_single_input(model, fuse_layer_condition, pre_layer_condition=Non
         layers.append(layer)
     model_config["config"]["layers"] = layers
     new_model = models.model_from_json(json.dumps(model_config))
-    print()
+    if verbose > 0:
+        print()
 
     """ New model set layer weights by layer names """
     for layer in new_model.layers:
@@ -515,7 +519,8 @@ def fuse_layer_single_input(model, fuse_layer_condition, pre_layer_condition=Non
         orign_layer = model.get_layer(layer.name)
         if layer.name in pre_fused_layers_dict and layer_weight_process is not None:
             orign_fused_layer = model.get_layer(pre_fused_layers_dict[layer.name])
-            print(">>>> Fuse weights {} <- {}".format(layer.name, orign_fused_layer.name))
+            if verbose > 0:
+                print(">>>> Fuse weights {} <- {}".format(layer.name, orign_fused_layer.name))
             layer.set_weights(layer_weight_process(orign_layer, orign_fused_layer))
         else:
             layer.set_weights(orign_layer.get_weights())
@@ -546,7 +551,7 @@ def fuse_conv_bn_weights(conv_layer, bn_layer):
     # return fused_conv_bn
 
 
-def convert_to_fused_conv_bn_model(model):
+def convert_to_fused_conv_bn_model(model, verbose=0):
     """
     Convert model by fusing Conv + batchnorm
 
@@ -570,14 +575,15 @@ def convert_to_fused_conv_bn_model(model):
         pre_layer_condition=pre_layer_condition,
         layer_config_process=layer_config_process,
         layer_weight_process=layer_weight_process,
+        verbose=verbose,
     )
 
 
-def remove_layer_single_input(model, remove_layer_condition, pre_layer_condition=None, layer_config_process=None, layer_weight_process=None):
-    return fuse_layer_single_input(model, remove_layer_condition, pre_layer_condition, layer_config_process, layer_weight_process)
+def remove_layer_single_input(model, remove_layer_condition, pre_layer_condition=None, layer_config_process=None, layer_weight_process=None, verbose=0):
+    return fuse_layer_single_input(model, remove_layer_condition, pre_layer_condition, layer_config_process, layer_weight_process, verbose=verbose)
 
 
-def fuse_sequential_conv_strict(model):
+def fuse_sequential_conv_strict(model, verbose=0):
     """
     Convert model by fusing Conv + batchnorm
 
@@ -622,6 +628,7 @@ def fuse_sequential_conv_strict(model):
         pre_layer_condition=pre_layer_condition,
         layer_config_process=layer_config_process,
         layer_weight_process=layer_weight_process,
+        verbose=verbose,
     )
 
 
@@ -675,7 +682,7 @@ def convert_groups_conv2d_2_split_conv2d(model):
             # Check if ScaledStandardizedConv2D or typical Conv2D
             bb = SplitScaledStandardizedConv2D.from_config(aa) if hasattr(layer, "gain") else SplitConv2D.from_config(aa)
             # bb.build(layer.input_shape)   # looks like build not working [ ??? ]
-            bb(initializers.ones([1, *layer.input_shape[1:]]))
+            bb(initializers.ones()([1, *layer.input_shape[1:]]))
             wws = functional.split(layer.get_weights()[0], bb.groups, axis=-1)
             if bb.use_bias:
                 bbs = functional.split(layer.get_weights()[1], bb.groups, axis=-1)
@@ -742,8 +749,10 @@ def _tf_export_onnx_(model, filepath=None, fuse_conv_bn=True, batch_size=None, s
     import tensorflow as tf
     import tf2onnx
 
-    model = convert_extract_patches_to_conv(model)
+    model = convert_extract_patches_to_conv(model)  # ExtractImagePatches not supported in ONNX
+    model = convert_groups_conv2d_2_split_conv2d(model)  # StatefulPartitionCall not supported in ONNX
     if fuse_conv_bn:
+        print("Fuse Conv + BN")
         model = convert_to_fused_conv_bn_model(model)
 
     spec = (tf.TensorSpec((batch_size, *model.input_shape[1:]), tf.float32, name="input"),)
