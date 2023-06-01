@@ -1,5 +1,5 @@
 from keras_cv_attention_models import backend
-from keras_cv_attention_models.backend import layers, functional, initializers
+from keras_cv_attention_models.backend import layers, functional, initializers, image_data_format
 from keras_cv_attention_models.aotnet import AotNet
 from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
@@ -24,16 +24,17 @@ PRETRAINED_DICT = {
 def halo_attention(
     inputs, num_heads=8, key_dim=0, block_size=4, halo_size=1, strides=1, out_shape=None, out_weight=True, out_bias=False, attn_dropout=0, name=None
 ):
-    _, hh, ww, cc = inputs.shape
+    height_axis, width_axis, channel_axis = (1, 2, 3) if image_data_format() == "channels_last" else (2, 3, 1)
+    filters = inputs.shape[channel_axis]
     if key_dim > 1:
         key_dim = key_dim  # Specified one
     elif key_dim > 0:
-        key_dim = make_divisible(cc * key_dim, divisor=8) // num_heads  # regard as key_dim_ratio
+        key_dim = make_divisible(filters * key_dim, divisor=8) // num_heads  # regard as key_dim_ratio
     else:
-        key_dim = cc // num_heads  # Default value
+        key_dim = filters // num_heads  # Default value
     # qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
     qk_scale = 1.0 / (float(key_dim) ** 0.5)
-    out_shape = cc if out_shape is None else out_shape
+    out_shape = filters if out_shape is None else out_shape
     emb_dim = num_heads * key_dim
     kv_kernel = block_size + halo_size * 2
     if block_size % strides != 0:
@@ -44,11 +45,11 @@ def halo_attention(
     query_block = block_size // strides
 
     query = conv2d_no_bias(inputs, emb_dim, kernel_size=1, strides=strides, name=name and name + "query_")
-    _, hh, ww, cc = query.shape
     # print(f">>>> {inputs.shape = }, {query.shape = }, {block_size = }, {strides = }")
     # attn_query = rearrange(query, "B (h hb) (w wb) (hd c) -> B hd h w (hb wb) c", hb=query_block, wb=query_block, hd=num_heads)
     # pos_query = rearrange(attn_query, "B hd h w (hb wb) c -> B (hd h w) hb wb c", hb=query_block, wb=query_block)
-    hh_qq, ww_qq, cc_qq = hh // query_block, ww // query_block, cc // num_heads
+    query = query if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(query)  # channels_first -> channels_last
+    hh_qq, ww_qq, cc_qq = query.shape[1] // query_block, query.shape[2] // query_block, emb_dim // num_heads
     query = functional.reshape(query, [-1, hh_qq, query_block, ww_qq, query_block, num_heads, cc_qq])
     query = functional.transpose(query, [0, 5, 1, 3, 2, 4, 6])  # [batch, num_heads, hh, ww, query_block, query_block, key_dim]
     # attn_query = [batch, num_heads, hh, ww, query_block * query_block, key_dim]
@@ -58,11 +59,14 @@ def halo_attention(
 
     # key_value = [batch, height, width, key_dim + out_shape]
     key_value = conv2d_no_bias(inputs, emb_dim + out_shape, kernel_size=1, use_bias=False, name=name and name + "key_value_")
+    key_value = key_value if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(key_value)  # channels_first -> channels_last
     kv_padded = functional.pad(key_value, [[0, 0], [halo_size, halo_size], [halo_size, halo_size], [0, 0]])
-    sizes, strides = [1, kv_kernel, kv_kernel, 1], [1, block_size, block_size, 1]
     # kv_inp = [batch, hh, ww, kv_kernel * kv_kernel * (key_dim + out_shape)]
-    # kv_inp = tf.image.extract_patches(kv_padded, sizes=sizes, strides=strides, rates=[1, 1, 1, 1], padding="VALID")
-    kv_inp = CompatibleExtractPatches(sizes=sizes, strides=strides, rates=[1, 1, 1, 1], padding="VALID")(kv_padded)
+    if backend.backend() == "pytorch":
+        kv_inp = functional.extract_patches(kv_padded, sizes=kv_kernel, strides=block_size, padding="VALID")
+    else:
+        # kv_inp = tf.image.extract_patches(kv_padded, sizes=sizes, strides=strides, rates=[1, 1, 1, 1], padding="VALID")
+        kv_inp = CompatibleExtractPatches(sizes=kv_kernel, strides=block_size, padding="VALID")(kv_padded)
     # kv_inp = rearrange(kv_inp, "B h w (hb wb hd c) -> B hd h w (hb wb) c", hb=kv_kernel, wb=kv_kernel, hd=num_heads)
     _, hh_kk, ww_kk, cc = kv_inp.shape
     cc_kk = cc // num_heads // kv_kernel // kv_kernel
@@ -100,12 +104,17 @@ def halo_attention(
     attention_output = functional.reshape(attention_output, [-1, hh_aa * query_block, ww_aa * query_block, heads * cc_aa])
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
+    cur_data_format = "channels_last"
     if avg_pool_down:
+        attention_output = attention_output if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(attention_output)
         attention_output = layers.AvgPool2D(2, strides=2, name=name and name + "avg_pool")(attention_output)
+        cur_data_format = image_data_format()
     if out_weight:
         # [batch, hh, ww, num_heads * out_dim] * [out, out] --> [batch, hh, ww, out]
+        attention_output = attention_output if cur_data_format == "channels_last" else layers.Permute([2, 3, 1])(attention_output)
         attention_output = layers.Dense(out_shape, use_bias=out_bias, name=name and name + "output")(attention_output)
-    return attention_output
+        cur_data_format = "channels_last"
+    return attention_output if cur_data_format == image_data_format() else layers.Permute([3, 1, 2])(attention_output)
 
 
 BLOCK_CONFIGS = {

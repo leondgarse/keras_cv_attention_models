@@ -1420,17 +1420,27 @@ class UpSampling2D(Layer):
 class ZeroPadding2D(Layer):
     def __init__(self, padding=(1, 1), **kwargs):
         assert len(padding) == 2 if isinstance(padding, (list, tuple)) else isinstance(padding, int), "padding should be 2 values or an int: {}".format(padding)
+        if isinstance(padding[0], (list, tuple)):
+            assert isinstance(padding[1], (list, tuple)) and len(padding[0]) == 2 and len(padding[1]) == 2
+
         self.padding = list(padding) if isinstance(padding, (list, tuple)) else [padding, padding]
+        if isinstance(padding, (list, tuple)):
+            if isinstance(padding[0], (list, tuple)):
+                self.padding = padding
+            else:
+                self.padding = [[padding[0], padding[0]], [padding[1], padding[1]]]
+        else:
+            self.padding = [[padding, padding], [padding, padding]]
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        padding = [self.padding[1], self.padding[1], self.padding[0], self.padding[0]]  # [left, right, top, bottom]
+        padding = [self.padding[1][0], self.padding[1][1], self.padding[0][0], self.padding[0][1]]  # [left, right, top, bottom]
         self.module = torch.nn.ZeroPad2d(padding=padding)
         super().build(input_shape)
 
     def compute_output_shape(self, input_shape):
-        hh = None if input_shape[2] is None else (input_shape[2] + self.padding[0] * 2)
-        ww = None if input_shape[3] is None else (input_shape[3] + self.padding[1] * 2)
+        hh = None if input_shape[2] is None else (input_shape[2] + self.padding[0][0] + self.padding[0][1])
+        ww = None if input_shape[3] is None else (input_shape[3] + self.padding[1][0] + self.padding[1][1])
         return [input_shape[0], input_shape[1], hh, ww]
 
     def get_config(self):

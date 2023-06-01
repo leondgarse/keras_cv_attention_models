@@ -478,7 +478,7 @@
 ## Using PyTorch as backend
   - **Experimental** [Keras PyTorch Backend](keras_cv_attention_models/pytorch_backend).
   - **Set os environment `export KECAM_BACKEND='torch'` to enable this PyTorch backend.**
-  - Currently supports most recognition and detection models except cotnet / halonet / hornet / nfnets / volo. For detection models, using `torchvision.ops.nms` while running prediction.
+  - Currently supports most recognition and detection models except hornet / nfnets / volo. For detection models, using `torchvision.ops.nms` while running prediction.
   - **Basic model build and prediction**.
     - Will load same `h5` weights as TF one if available.
     - Note: `input_shape` will auto fit image data format. Given `input_shape=(224, 224, 3)` or `input_shape=(3, 224, 224)`, will both set to `(3, 224, 224)` if `channels_first`.

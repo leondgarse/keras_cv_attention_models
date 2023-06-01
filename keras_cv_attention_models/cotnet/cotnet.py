@@ -56,7 +56,10 @@ def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activ
     # sizes, patch_strides = [1, kernel_size, kernel_size, 1], [1, 1, 1, 1]
     # embed = layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "embed_pad")(embed)
     # embed = functional.extract_patches(embed, sizes=sizes, strides=patch_strides, rates=(1, 1, 1, 1), padding="VALID")
-    embed = CompatibleExtractPatches(sizes=kernel_size, strides=1, name=name and name + "patchs_")(embed)
+    if backend.backend() == "pytorch":
+        embed = functional.extract_patches(embed, sizes=kernel_size, strides=1, padding="SAME", data_format=image_data_format())
+    else:
+        embed = CompatibleExtractPatches(sizes=kernel_size, strides=1, padding="SAME", name=name and name + "patchs_")(embed)
 
     if image_data_format() == "channels_last":
         embed_ww = functional.reshape(embed_ww, (-1, height, width, filters // reduction, kernel_size * kernel_size))
@@ -67,6 +70,8 @@ def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activ
         embed_ww = functional.reshape(embed_ww, (-1, filters // reduction, kernel_size * kernel_size, height, width))
         reduction_axis, kernel_axis = 2, 1
         embed_ww = functional.expand_dims(functional.transpose(embed_ww, [0, 2, 1, 3, 4]), axis=reduction_axis)  # expand dim on `reduction` axis
+        embed = functional.reshape(embed, [-1, filters, kernel_size * kernel_size, height * width])
+        embed = functional.transpose(embed, [0, 2, 1, 3])
         embed = functional.reshape(embed, [-1, kernel_size * kernel_size, reduction, filters // reduction, height, width])
 
     embed_out = layers.Multiply(name=name and name + "local_conv_mul")([embed, embed_ww])

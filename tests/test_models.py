@@ -229,6 +229,14 @@ def test_CoAtNet_new_shape_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_CotNet_new_shape_predict():
+    mm = keras_cv_attention_models.cotnet.CotNet50(input_shape=(193, 117, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(cat()))
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_ConvNeXt_predict():
     mm = keras_cv_attention_models.convnext.ConvNeXtTiny(pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat()))
@@ -361,6 +369,14 @@ def test_GhostNetV2_100_dynamic_predict():
 
 def test_GPViT_L1_new_shape_predict():
     mm = keras_cv_attention_models.gpvit.GPViT_L1(input_shape=(112, 157, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(cat()))
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_HaloRegNetZB_new_shape_predict():
+    mm = keras_cv_attention_models.halonet.HaloRegNetZB(input_shape=(193, 117, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat()))
     out = mm.decode_predictions(pred)[0][0]
 
