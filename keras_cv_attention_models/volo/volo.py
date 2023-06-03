@@ -35,8 +35,8 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
     """ attention """
     # [1, 14, 14, 192]
     pool_padding = "VALID" if height % strides == 0 and width % strides == 0 else "SAME"
-    attn = attn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(attn)  # channels_last -> channels_first
-    attn = layers.AvgPool2D(pool_size=strides, strides=strides, padding=pool_padding)(inputs)
+    attn = inputs if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(inputs)  # channels_last -> channels_first
+    attn = layers.AvgPool2D(pool_size=strides, strides=strides, padding=pool_padding)(attn)
     attn = attn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(attn)  # channels_first -> channels_last
     # [1, 14, 14, 486]
     attn = layers.Dense(kernel_size**4 * num_heads, name=name + "attn")(attn) * qk_scale
