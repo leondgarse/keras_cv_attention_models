@@ -1006,13 +1006,13 @@
   | [MaxViT_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_224_imagenet.h5)                | 119M   | 24.2G  | 224   | 84.95    | 76.544 qps   |
   | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_384_imagenet.h5)                      | 119M   | 74.2G  | 384   | 86.34    | 32.3341 qps   |
   | - [512](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_512_imagenet.h5)                      | 119M   | 138.5G | 512   | 86.66    | 18.3942 qps   |
-  | - [imagenet21k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_224_imagenet21k.h5)              | 135M   | 24.2G  | 224   |          |            |
+  | - [imagenet21k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_224_imagenet21k.h5)              | 135M   | 24.2G  | 224   |          | 76.544 qps   |
   | - [imagenet21k-ft1k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_384_imagenet21k-ft1k.h5)     | 119M   | 74.2G  | 384   | 88.24    | 32.3341 qps   |
   | - [imagenet21k-ft1k, 512](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_base_512_imagenet21k-ft1k.h5)     | 119M   | 138.5G | 512   | 88.38    | 18.3942 qps   |
   | [MaxViT_Large](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_224_imagenet.h5)               | 212M   | 43.9G  | 224   | 85.17    | 59.1861 qps  |
   | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_384_imagenet.h5)                    | 212M   | 133.1G | 384   | 86.40    | 24.3532 qps  |
   | - [512](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_512_imagenet.h5)                    | 212M   | 245.4G | 512   | 86.70    | 13.3465 qps  |
-  | - [imagenet21k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_224_imagenet21k.h5)              | 233M   | 43.9G  | 224   |          |            |
+  | - [imagenet21k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_224_imagenet21k.h5)              | 233M   | 43.9G  | 224   |          | 59.1861 qps  |
   | - [imagenet21k-ft1k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_384_imagenet21k-ft1k.h5)     | 212M   | 133.1G | 384   | 88.32    |24.3532 qps  |
   | - [imagenet21k-ft1k, 512](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_large_512_imagenet21k-ft1k.h5)     | 212M   | 245.4G | 512   | 88.46    | 13.3465 qps  |
   | [MaxViT_XLarge, imagenet21k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_xlarge_224_imagenet21k.h5) | 507M   | 97.7G  | 224   |          | 38.8319 qps  |
