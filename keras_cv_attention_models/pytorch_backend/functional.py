@@ -31,12 +31,15 @@ def assign(parameter, data):
 
 
 def cast(inputs, dtype="float32"):
-    if isinstance(inputs, torch.Tensor) and str(inputs.dtype).endswith(dtype):
+    if isinstance(inputs, torch.Tensor) and (inputs.dtype == dtype or str(inputs.dtype).endswith(str(dtype))):
         return inputs
-    if dtype == "float32":
+    elif dtype == torch.float32 or dtype == "float32":
         return inputs.float()
+    elif dtype == torch.float16 or dtype == "float16" or dtype == "half":
+        return inputs.half()
     else:
-        return convert_to_tensor(inputs, dtype)
+        dtype = dtype if isinstance(dtype, str) else str(dtype).split(".")[-1]
+        return torch.tensor(inputs, dtype=getattr(torch, dtype))
 
 
 def clip_by_value(inputs, clip_value_min, clip_value_max, name=None):

@@ -2,6 +2,15 @@ import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional
 from keras_cv_attention_models.models import register_model
+from keras_cv_attention_models.download_and_load import reload_model_weights
+
+
+PRETRAINED_DICT = {
+    "gpt2_base": {"webtext": "0426da02ebc343d8523f5c80bb5f2eab"},
+    "gpt2_large": {"webtext": "fcbca87c1d32ff4cdd70c8b9f47c7824"},
+    "gpt2_medium": {"webtext": "cd2284a909af2894617df5fb6f8b91e5"},
+    "gpt2_xlarge": {"webtext": ["18f8e5c068a09fdde70e5716e1b62e3f", "c8c0c2e39732d9f8e482e860cb6f8058"]},
+}
 
 
 @backend.register_keras_serializable(package="kecam/gpt2")
@@ -45,7 +54,7 @@ class CausalMask(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs):
-        return inputs + self.causal_mask[:, :, : inputs.shape[2], : inputs.shape[3]]
+        return inputs + functional.cast(self.causal_mask[:, :, : inputs.shape[2], : inputs.shape[3]], inputs.dtype)
 
     def get_config(self):
         base_config = super().get_config()
@@ -118,17 +127,18 @@ def GPT2(
 
     model = models.Model(inputs, out, name=model_name)
     model.max_block_size = max_block_size  # or model.get_layer('pos_idx').block_size
-    load_weights_from_huggingface(model, pretrained=pretrained)
+    model.run_prediction = RunPrediction(model)
+    reload_model_weights(model, PRETRAINED_DICT, "gpt2", pretrained)
     return model
 
 
 @register_model
-def GPT2_Base(max_block_size=1024, vocab_size=50257, activation="gelu/app", pretrained="huggingface", **kwargs):
+def GPT2_Base(max_block_size=1024, vocab_size=50257, activation="gelu/app", pretrained="webtext", **kwargs):
     return GPT2(**locals(), **kwargs, model_name="gpt2_base")
 
 
 @register_model
-def GPT2_Medium(max_block_size=1024, vocab_size=50257, activation="gelu/app", pretrained="huggingface", **kwargs):
+def GPT2_Medium(max_block_size=1024, vocab_size=50257, activation="gelu/app", pretrained="webtext", **kwargs):
     num_blocks = 24
     embedding_size = 1024
     num_heads = 16
@@ -136,7 +146,7 @@ def GPT2_Medium(max_block_size=1024, vocab_size=50257, activation="gelu/app", pr
 
 
 @register_model
-def GPT2_Large(max_block_size=1024, vocab_size=50257, activation="gelu/app", pretrained="huggingface", **kwargs):
+def GPT2_Large(max_block_size=1024, vocab_size=50257, activation="gelu/app", pretrained="webtext", **kwargs):
     num_blocks = 36
     embedding_size = 1280
     num_heads = 20
@@ -144,7 +154,7 @@ def GPT2_Large(max_block_size=1024, vocab_size=50257, activation="gelu/app", pre
 
 
 @register_model
-def GPT2_XLarge(max_block_size=1024, vocab_size=50257, activation="gelu/app", pretrained="huggingface", **kwargs):
+def GPT2_XLarge(max_block_size=1024, vocab_size=50257, activation="gelu/app", pretrained="webtext", **kwargs):
     num_blocks = 48
     embedding_size = 1600
     num_heads = 25
@@ -152,6 +162,60 @@ def GPT2_XLarge(max_block_size=1024, vocab_size=50257, activation="gelu/app", pr
 
 
 """ Load weights and run prediction functions """
+
+
+class RunPrediction:
+    def __init__(self, model):
+        self.model = model
+
+    @staticmethod
+    def softmax_numpy(inputs, axis=-1):
+        exp_inputs = np.exp(inputs - np.max(inputs, axis=axis))
+        return exp_inputs / np.sum(exp_inputs, keepdims=True, axis=axis)
+
+    def __call__(self, inputs, num_samples=10, max_new_tokens=500, temperature=0.8, top_k=200):
+        """
+        Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
+        the sequence max_new_tokens times, feeding the predictions back into the model each time.
+        Most likely you'll want to make sure to be in model.eval() mode of operation for this.
+
+        Args:
+          num_samples = 10  # number of samples to draw
+          max_new_tokens = 500  # number of tokens generated in each sample
+          temperature = 0.8  # 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions
+          top_k = 200  # retain only the top_k most likely tokens, clamp others to have 0 probability
+        """
+        import tiktoken
+
+        enc = tiktoken.get_encoding("gpt2")
+        start_ids = np.array(enc.encode(inputs))
+
+        max_block_size = self.model.get_layer("pos_idx").block_size
+        vocab_size = self.model.output_shape[-1]
+        vocab_indexes = np.arange(vocab_size)
+        for k in range(num_samples):
+            inputs_idxes = start_ids
+            for _ in range(max_new_tokens):
+                # if the sequence context is growing too long we must crop it at block_size
+                idx_cond = inputs_idxes if inputs_idxes.shape[-1] <= max_block_size else inputs_idxes[-max_block_size:]
+                # forward the model to get the logits for the index in the sequence
+                logits = self.model(functional.convert_to_tensor(idx_cond, dtype="int64")[None])
+                # pluck the logits at the final step and scale by desired temperature
+                logits = logits[:, -1, :] / temperature
+                logits = logits.detach().cpu().numpy() if hasattr(logits, "detach") else logits.numpy()
+
+                if top_k is not None:
+                    # optionally crop the logits to only the top k options
+                    threshold_pos = min(top_k, vocab_size)
+                    logits_threshold = np.sort(logits)[:, -threshold_pos]
+                    logits[logits < logits_threshold[:, None]] = -float("Inf")
+
+                # sample from the distribution
+                probs = self.softmax_numpy(logits, axis=-1)
+                multinomial_pick = np.array([np.random.choice(vocab_indexes, p=prob) for prob in probs])
+                inputs_idxes = np.concatenate([inputs_idxes, multinomial_pick], axis=-1)
+            print(enc.decode(inputs_idxes.tolist()))
+            print("---------------")
 
 
 def load_weights_from_huggingface(model, pretrained="huggingface", save_name=None, force=False):
@@ -209,58 +273,8 @@ def load_weights_from_huggingface(model, pretrained="huggingface", save_name=Non
         model.save_weights(save_name)  # Kecam PyTorch backend
 
 
-def softmax_numpy(inputs, axis=-1):
-    exp_inputs = np.exp(inputs - np.max(inputs, axis=axis))
-    return exp_inputs / np.sum(exp_inputs, keepdims=True, axis=axis)
-
-
-def run_prediction(model, inputs, num_samples=10, max_new_tokens=500, temperature=0.8, top_k=200):
-    """
-    Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
-    the sequence max_new_tokens times, feeding the predictions back into the model each time.
-    Most likely you'll want to make sure to be in model.eval() mode of operation for this.
-
-    Args:
-      num_samples = 10  # number of samples to draw
-      max_new_tokens = 500  # number of tokens generated in each sample
-      temperature = 0.8  # 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions
-      top_k = 200  # retain only the top_k most likely tokens, clamp others to have 0 probability
-    """
-    import tiktoken
-
-    enc = tiktoken.get_encoding("gpt2")
-    start_ids = np.array(enc.encode(inputs))
-
-    max_block_size = model.get_layer("pos_idx").block_size
-    vocab_size = model.output_shape[-1]
-    vocab_indexes = np.arange(vocab_size)
-    for k in range(num_samples):
-        inputs_idxes = start_ids
-        for _ in range(max_new_tokens):
-            # if the sequence context is growing too long we must crop it at block_size
-            idx_cond = inputs_idxes if inputs_idxes.shape[-1] <= max_block_size else inputs_idxes[-max_block_size:]
-            # forward the model to get the logits for the index in the sequence
-            logits = model(functional.convert_to_tensor(idx_cond, dtype="int64")[None])
-            # pluck the logits at the final step and scale by desired temperature
-            logits = logits[:, -1, :] / temperature
-            logits = logits.detach().cpu().numpy() if hasattr(logits, "detach") else logits.numpy()
-
-            if top_k is not None:
-                # optionally crop the logits to only the top k options
-                threshold_pos = min(top_k, vocab_size)
-                logits_threshold = np.sort(logits)[:, -threshold_pos]
-                logits[logits < logits_threshold[:, None]] = -float("Inf")
-
-            # sample from the distribution
-            probs = softmax_numpy(logits, axis=-1)
-            multinomial_pick = np.array([np.random.choice(vocab_indexes, p=prob) for prob in probs])
-            inputs_idxes = np.concatenate([inputs_idxes, multinomial_pick], axis=-1)
-        print(enc.decode(inputs_idxes.tolist()))
-        print("---------------")
-
-
 if __name__ == "__test__":
     from keras_cv_attention_models import gpt2
 
-    mm = gpt2.GPT2_Base(pretrained="huggingface")
-    gpt2.run_prediction(mm, "hello world")
+    mm = gpt2.GPT2_Base(pretrained="webtext")
+    mm.run_prediction("hello world")

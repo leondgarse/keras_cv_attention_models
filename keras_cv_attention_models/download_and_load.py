@@ -33,19 +33,28 @@ def reload_model_weights(
     elif request_resolution == -1:
         request_resolution = 224  # Default is 224
 
-    pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/{}/{}_{}.h5"
-    url = pre_url.format(sub_release, model.name, pretrained)
-    file_name = os.path.basename(url)
-    try:
-        pretrained_model = get_file(file_name, url, cache_subdir="models", file_hash=file_hash)
-    except:
-        print("[Error] will not load weights, url not found or download failed:", url)
-        return None
+    if isinstance(file_hash, (list, tuple)):
+        # For large weight file split in several pieces. In format aa.1.h5, aa.2.h5, ...
+        pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/{}/{}_{}.{}.h5"
+        is_multi_files = True
     else:
-        print(">>>> Load pretrained from:", pretrained_model)
-        # model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
-        load_weights_with_mismatch(model, pretrained_model, mismatch_class, force_reload_mismatch, request_resolution, method)
-        return pretrained_model
+        pre_url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/{}/{}_{}.h5"
+        is_multi_files = False
+        file_hash = [file_hash]
+
+    for id, cur_file_hash in enumerate(file_hash):
+        url = pre_url.format(sub_release, model.name, pretrained, id) if is_multi_files else pre_url.format(sub_release, model.name, pretrained)
+        file_name = os.path.basename(url)
+        try:
+            pretrained_model = get_file(file_name, url, cache_subdir="models", file_hash=cur_file_hash)
+        except:
+            print("[Error] will not load weights, url not found or download failed:", url)
+            return None
+        else:
+            print(">>>> Load pretrained from:", pretrained_model)
+            # model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
+            load_weights_with_mismatch(model, pretrained_model, mismatch_class, force_reload_mismatch, request_resolution, method)
+            return pretrained_model
 
 
 def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_reload_mismatch=False, request_resolution=-1, method=None):
