@@ -306,8 +306,9 @@ class COCOEvaluation:
         from pycocotools.coco import COCO
 
         if annotations is None:
-            url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/coco_annotations_instances_val2017.json"
-            annotations = backend.get_file(origin=url)
+            url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/coco_annotations_instances_val2017.json"
+            file_hash = "b681580a54b900b3cb44022fd1102ad5"
+            annotations = backend.get_file(origin=url, file_hash=file_hash)
 
         if isinstance(annotations, dict):  # json already loaded as dict
             coco_gt = COCO()

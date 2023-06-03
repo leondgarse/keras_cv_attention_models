@@ -35,7 +35,9 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
     """ attention """
     # [1, 14, 14, 192]
     pool_padding = "VALID" if height % strides == 0 and width % strides == 0 else "SAME"
+    attn = attn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(attn)  # channels_last -> channels_first
     attn = layers.AvgPool2D(pool_size=strides, strides=strides, padding=pool_padding)(inputs)
+    attn = attn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(attn)  # channels_first -> channels_last
     # [1, 14, 14, 486]
     attn = layers.Dense(kernel_size**4 * num_heads, name=name + "attn")(attn) * qk_scale
     # [1, 14, 14, 6, 9, 9]
@@ -47,8 +49,11 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
 
     """ unfold """
     # [1, 14, 14, 1728] if compressed else [1, 14, 14, 3, 3, 192]
-    # patches = functional.extract_patches(pad_vv, patch_kernel, patch_strides, [1, 1, 1, 1], padding="VALID")
-    patches = CompatibleExtractPatches(kernel_size, strides, padding="SAME", compressed=False, name=name)(vv)
+    if backend.backend() == "pytorch":
+        patches = functional.extract_patches(vv, sizes=kernel_size, strides=strides, padding="SAME")
+    else:
+        # patches = functional.extract_patches(pad_vv, patch_kernel, patch_strides, [1, 1, 1, 1], padding="VALID")
+        patches = CompatibleExtractPatches(kernel_size, strides, padding="SAME", compressed=False, name=name)(vv)
 
     """ matmul """
     # mm = einops.rearrange(patches, 'D H W (k h p) -> D H W h k p', h=num_head, k=kernel_size * kernel_size)
@@ -161,7 +166,7 @@ class BiasLayer(layers.Layer):
 def attention_mlp_block(inputs, embed_dim, num_heads=1, mlp_ratio=3, attention_type=None, drop_rate=0, mlp_activation="gelu", dropout=0, name=""):
     # print(f">>>> {drop_rate = }")
     nn_0 = inputs[:, :1] if attention_type == "class" else inputs
-    nn_1 = layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "LN")(inputs)
+    nn_1 = layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, axis=-1, name=name + "LN")(inputs)
     key_dim = embed_dim // num_heads
 
     if attention_type == "outlook":
@@ -183,7 +188,7 @@ def attention_mlp_block(inputs, embed_dim, num_heads=1, mlp_ratio=3, attention_t
     nn_1 = layers.Add()([nn_0, nn_1])
 
     """ MLP """
-    nn_2 = layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "mlp_LN")(nn_1)
+    nn_2 = layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, axis=-1, name=name + "mlp_LN")(nn_1)
     nn_2 = layers.Dense(embed_dim * mlp_ratio, name=name + "mlp_dense_1")(nn_2)
     # gelu with approximate=False using `erf` leads to GPU memory leak...
     # nn_2 = layers.Activation("gelu", name=name + "mlp_" + mlp_activation)(nn_2)
@@ -374,6 +379,7 @@ def VOLO(
 
     """ forward_embeddings """
     nn = patch_stem(inputs, hidden_dim=stem_hidden_dim, stem_width=embed_dims[0], patch_size=patch_size, strides=2, name="stem_")
+    nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
 
     if mix_token:
         scale = 2
@@ -424,7 +430,7 @@ def VOLO(
     for id in range(classfiers):
         name = "classfiers{}_".format(id)
         nn = attention_mlp_block(nn, embed_dim, num_head, mlp_ratio, "class", mlp_activation=mlp_activation, name=name)
-    nn = layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, name="pre_out_LN")(nn)
+    nn = layers.LayerNormalization(epsilon=BATCH_NORM_EPSILON, axis=-1, name="pre_out_LN")(nn)
 
     if token_label_top:
         # Training with label token
