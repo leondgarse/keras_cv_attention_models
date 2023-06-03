@@ -1,14 +1,6 @@
 from keras_cv_attention_models.halonet.halonet import (
     halo_attention,
     HaloNet,
-    HaloNetH0,
-    HaloNetH1,
-    HaloNetH2,
-    HaloNetH3,
-    HaloNetH4,
-    HaloNetH5,
-    HaloNetH6,
-    HaloNetH7,
     HaloNet26T,
     HaloNet50T,
     HaloNetSE33T,
@@ -57,15 +49,6 @@ Args:
 Model architectures:
   | Model          | Params | FLOPs   | Input | Top1 Acc |
   | -------------- | ------ | ------- | ----- | -------- |
-  | HaloNetH0      | 5.5M   | 2.40G   | 256   | 77.9     |
-  | HaloNetH1      | 8.1M   | 3.04G   | 256   | 79.9     |
-  | HaloNetH2      | 9.4M   | 3.37G   | 256   | 80.4     |
-  | HaloNetH3      | 11.8M  | 6.30G   | 320   | 81.9     |
-  | HaloNetH4      | 19.1M  | 12.17G  | 384   | 83.3     |
-  | - 21k          | 19.1M  | 12.17G  | 384   | 85.5     |
-  | HaloNetH5      | 30.7M  | 32.61G  | 448   | 84.0     |
-  | HaloNetH6      | 43.4M  | 53.20G  | 512   | 84.4     |
-  | HaloNetH7      | 67.4M  | 119.64G | 600   | 84.9     |
   | HaloNextECA26T | 10.7M  | 2.43G   | 256   | 79.50    |
   | HaloNet26T     | 12.5M  | 3.18G   | 256   | 79.13    |
   | HaloNetSE33T   | 13.7M  | 3.55G   | 256   | 80.99    |
@@ -91,6 +74,7 @@ HaloNet26T.__doc__ = __head_doc__ + """Model weights are reloaded from timm [Git
 
 Args:
 """ + __tail_doc__
+
 HaloNetSE33T.__doc__ = HaloNet26T.__doc__
 HaloNextECA26T.__doc__ = HaloNet26T.__doc__
 HaloNet50T.__doc__ = HaloNet26T.__doc__

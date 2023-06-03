@@ -104,9 +104,10 @@ def GPT2(
     num_blocks=12,
     embedding_size=768,
     num_heads=12,
-    max_block_size=1024,
-    vocab_size=50304,
     block_use_bias=True,
+    vocab_size=50304,
+    max_block_size=1024,
+    include_top=True,
     dropout=0.0,
     activation="gelu/app",
     pretrained=None,
@@ -123,22 +124,27 @@ def GPT2(
     for block_id in range(num_blocks):
         nn = attention_mlp_block(nn, max_block_size, num_heads, block_use_bias, dropout, name="blocks.{}.".format(block_id))
     nn = layers.LayerNormalization(axis=-1, name="ln_f")(nn)
-    out = layers.Dense(vocab_size, use_bias=False, name="lm_head")(nn)
 
-    model = models.Model(inputs, out, name=model_name)
+    if include_top:
+        nn = layers.Dense(vocab_size, use_bias=False, name="lm_head")(nn)
+
+    model = models.Model(inputs, nn, name=model_name)
     model.max_block_size = max_block_size  # or model.get_layer('pos_idx').block_size
     model.run_prediction = RunPrediction(model)
-    reload_model_weights(model, PRETRAINED_DICT, "gpt2", pretrained)
+    if pretrained == "huggingface":
+        load_weights_from_huggingface(model, save_path="~/.keras/models")
+    else:
+        reload_model_weights(model, PRETRAINED_DICT, "gpt2", pretrained)
     return model
 
 
 @register_model
-def GPT2_Base(max_block_size=1024, vocab_size=50257, activation="gelu/app", pretrained="webtext", **kwargs):
+def GPT2_Base(max_block_size=1024, vocab_size=50257, include_top=True, activation="gelu/app", pretrained="webtext", **kwargs):
     return GPT2(**locals(), **kwargs, model_name="gpt2_base")
 
 
 @register_model
-def GPT2_Medium(max_block_size=1024, vocab_size=50257, activation="gelu/app", pretrained="webtext", **kwargs):
+def GPT2_Medium(max_block_size=1024, vocab_size=50257, include_top=True, activation="gelu/app", pretrained="webtext", **kwargs):
     num_blocks = 24
     embedding_size = 1024
     num_heads = 16
@@ -146,7 +152,7 @@ def GPT2_Medium(max_block_size=1024, vocab_size=50257, activation="gelu/app", pr
 
 
 @register_model
-def GPT2_Large(max_block_size=1024, vocab_size=50257, activation="gelu/app", pretrained="webtext", **kwargs):
+def GPT2_Large(max_block_size=1024, vocab_size=50257, include_top=True, activation="gelu/app", pretrained="webtext", **kwargs):
     num_blocks = 36
     embedding_size = 1280
     num_heads = 20
@@ -154,7 +160,7 @@ def GPT2_Large(max_block_size=1024, vocab_size=50257, activation="gelu/app", pre
 
 
 @register_model
-def GPT2_XLarge(max_block_size=1024, vocab_size=50257, activation="gelu/app", pretrained="webtext", **kwargs):
+def GPT2_XLarge(max_block_size=1024, vocab_size=50257, include_top=True, activation="gelu/app", pretrained="webtext", **kwargs):
     num_blocks = 48
     embedding_size = 1600
     num_heads = 25
@@ -173,15 +179,15 @@ class RunPrediction:
         exp_inputs = np.exp(inputs - np.max(inputs, axis=axis))
         return exp_inputs / np.sum(exp_inputs, keepdims=True, axis=axis)
 
-    def __call__(self, inputs, num_samples=10, max_new_tokens=500, temperature=0.8, top_k=200):
+    def __call__(self, inputs, num_samples=1, max_new_tokens=100, temperature=0.8, top_k=200):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
 
         Args:
-          num_samples = 10  # number of samples to draw
-          max_new_tokens = 500  # number of tokens generated in each sample
+          num_samples = 1  # number of samples to draw
+          max_new_tokens = 100  # number of tokens generated in each sample
           temperature = 0.8  # 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions
           top_k = 200  # retain only the top_k most likely tokens, clamp others to have 0 probability
         """
@@ -218,21 +224,23 @@ class RunPrediction:
             print("---------------")
 
 
-def load_weights_from_huggingface(model, pretrained="huggingface", save_name=None, force=False):
+def load_weights_from_huggingface(model, save_name=None, save_path=".", force=False):
     import os
 
     model_type_map = {"gpt2_base": "gpt2", "gpt2_medium": "gpt2-medium", "gpt2_large": "gpt2-large", "gpt2_xlarge": "gpt2-xl"}
-    if pretrained != "huggingface" or model.name not in model_type_map:
+    if model.name not in model_type_map:
         print("No pretrained available, model will be randomly initialized.")
         return
 
+    pretrained = "huggingface"
     save_name = save_name if save_name is not None else "{}_{}.h5".format(model.name, pretrained)
-    if not force and os.path.exists(save_name):
-        print("Load previously saved model:", save_name)
-        model.load_weights(save_name)
+    save_path = os.path.join(os.path.expanduser(save_path), save_name)
+    if not force and os.path.exists(save_path):
+        print("Load previously saved model:", save_path)
+        model.load_weights(save_path)
         return
     else:
-        print("Load and convert weights from huggingface")
+        print("Convert and load weights from huggingface")
 
     from transformers import GPT2LMHeadModel
 
@@ -266,15 +274,15 @@ def load_weights_from_huggingface(model, pretrained="huggingface", save_name=Non
         else:
             target_layer.set_weights(source_weights)
 
-    print(">>>> Save to:", save_name)
-    if hasattr(target_layer, "save"):
-        model.save(save_name)
+    print(">>>> Save to:", save_path)
+    if hasattr(model, "save"):
+        model.save(save_path)
     else:
-        model.save_weights(save_name)  # Kecam PyTorch backend
+        model.save_weights(save_path)  # Kecam PyTorch backend
 
 
 if __name__ == "__test__":
     from keras_cv_attention_models import gpt2
 
-    mm = gpt2.GPT2_Base(pretrained="webtext")
+    mm = gpt2.GPT2_Base()
     mm.run_prediction("hello world")

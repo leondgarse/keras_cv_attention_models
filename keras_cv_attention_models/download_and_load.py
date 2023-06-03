@@ -42,8 +42,9 @@ def reload_model_weights(
         is_multi_files = False
         file_hash = [file_hash]
 
+    pretrained_models = []
     for id, cur_file_hash in enumerate(file_hash):
-        url = pre_url.format(sub_release, model.name, pretrained, id) if is_multi_files else pre_url.format(sub_release, model.name, pretrained)
+        url = pre_url.format(sub_release, model.name, pretrained, id + 1) if is_multi_files else pre_url.format(sub_release, model.name, pretrained)
         file_name = os.path.basename(url)
         try:
             pretrained_model = get_file(file_name, url, cache_subdir="models", file_hash=cur_file_hash)
@@ -54,15 +55,18 @@ def reload_model_weights(
             print(">>>> Load pretrained from:", pretrained_model)
             # model.load_weights(pretrained_model, by_name=True, skip_mismatch=True)
             load_weights_with_mismatch(model, pretrained_model, mismatch_class, force_reload_mismatch, request_resolution, method)
-            return pretrained_model
+            pretrained_models.append(pretrained_model)
+    return pretrained_model[0] if len(pretrained_models) == 1 else pretrained_models
 
 
 def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_reload_mismatch=False, request_resolution=-1, method=None):
     model.load_weights(weight_file, by_name=True, skip_mismatch=True)
-    if image_data_format() == "channels_first":
+    if len(model.input_shape) == 4 and image_data_format() == "channels_first":
         input_height, input_width = model.input_shape[2], model.input_shape[3]
-    else:
+    elif len(model.input_shape) == 4:
         input_height, input_width = model.input_shape[1], model.input_shape[2]
+    else:
+        input_height, input_width = -1, -1
 
     # if mismatch_class is not None:
     if mismatch_class is not None and (force_reload_mismatch or request_resolution != input_height or request_resolution != input_width):

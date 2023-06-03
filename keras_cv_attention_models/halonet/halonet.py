@@ -234,42 +234,34 @@ def HaloNet(
     return model
 
 
-@register_model
 def HaloNetH0(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h0"], model_name="haloneth0", request_resolution=256, **locals(), **kwargs)
 
 
-@register_model
 def HaloNetH1(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h1"], model_name="haloneth1", request_resolution=256, **locals(), **kwargs)
 
 
-@register_model
 def HaloNetH2(input_shape=(256, 256, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h2"], model_name="haloneth2", request_resolution=256, **locals(), **kwargs)
 
 
-@register_model
 def HaloNetH3(input_shape=(320, 320, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h3"], model_name="haloneth3", request_resolution=320, **locals(), **kwargs)
 
 
-@register_model
 def HaloNetH4(input_shape=(384, 384, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h4"], model_name="haloneth4", request_resolution=384, **locals(), **kwargs)
 
 
-@register_model
 def HaloNetH5(input_shape=(448, 448, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h5"], model_name="haloneth5", request_resolution=448, **locals(), **kwargs)
 
 
-@register_model
 def HaloNetH6(input_shape=(512, 512, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return HaloNet(**BLOCK_CONFIGS["h6"], model_name="haloneth6", request_resolution=512, **locals(), **kwargs)
 
 
-@register_model
 def HaloNetH7(input_shape=(600, 600, 3), num_classes=1000, activation="swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     # input_shape should be divisible by `int(tf.reduce_prod(strides) * halo_block_size)`, may using 640 here
     return HaloNet(**BLOCK_CONFIGS["h7"], model_name="haloneth7", request_resolution=600, **locals(), **kwargs)
