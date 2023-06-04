@@ -168,3 +168,52 @@ def tensorboard_parallel_coordinates_plot(dataframe, metrics_name, metrics_displ
         print(">>>> metrics_map:", metrics_map)
     print(">>>> Start tensorboard by: ! tensorboard --logdir {}".format(log_dir))
     print(">>>> Then select `HPARAMS` -> `PARALLEL COORDINATES VIEW`")
+
+
+""" Plot model summary """
+
+
+def plot_model_summary(plot_series, x_label, y_label="acc_metrics", model_table="model_summary.csv", filter_extra=True, ax=None):
+    """
+    >>> from keras_cv_attention_models import plot_func
+    >>> plot_series = ["efficientvit_b", "efficientvit_m", "efficientnet", "efficientnetv2"]
+    >>> plot_func.plot_model_summary(plot_series, x_label='inference', model_table="model_summary.csv")
+    """
+    import matplotlib.pyplot as plt
+
+    if isinstance(model_table, str):
+        import pandas as pd
+
+        dd = pd.read_csv(model_table)
+    else:
+        dd = model_table
+    # dd = dd[dd.category == "Recognition"]
+    dd = dd[dd[x_label].notnull()]
+    dd = dd[dd[y_label].notnull()]
+    if filter_extra:
+        dd = dd[dd["extra"].isnull()]
+
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    plot_series = None if plot_series is None else [ii.lower() for ii in plot_series]
+    for name, group in dd.groupby(dd["series"]):
+        if plot_series is not None and name.lower() not in plot_series:
+            continue
+        xx = group[x_label].values
+        yy = group[y_label].values
+        plt.scatter(xx, yy, label=name)
+        plt.plot(xx, yy)
+        for _, cur in group.iterrows():
+            # print(cur)
+            extra = "" if str(cur["extra"]) == "nan" else ("," + cur["extra"])
+            text = cur["model"][len(name) :] + extra
+            plt.text(cur[x_label], cur[y_label], text)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    plt.show()
+    return ax

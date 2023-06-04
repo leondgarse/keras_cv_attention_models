@@ -6,6 +6,7 @@
 - [___>>>> Roadmap and todo list <<<<___](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)
 - [General Usage](#general-usage)
   - [Basic](#basic)
+  - [T4 Inference](#t4-inference)
   - [Layers](#layers)
   - [Model surgery](#model-surgery)
   - [ImageNet training and evaluating](#imagenet-training-and-evaluating)
@@ -220,15 +221,29 @@
     print(f"{np.allclose(aa(inputs), mm(inputs), atol=1e-5) = }")
     # np.allclose(aa(inputs), mm(inputs), atol=1e-5) = True
     ```
-  - **T4 Inference** in the model tables are tested using `trtexec` on `Tesla T4` with `CUDA=12.0.1-1, Driver=525.60.13`. All models are exported as ONNX using PyTorch backend, using `batch_szie=1` only. [Colab trtexec.ipynb](https://colab.research.google.com/drive/1xLwfvbZNqadkdAZu9b0UzOrETLo657oc?usp=drive_link).
-    ```sh
-    # Basic trtexec command
-    trtexec --onnx=ConvFormerS18.onnx --fp16 --allowGPUFallback --useSpinWait # --useCudaGraph
+  - **Model summary** `model_summary.csv` contains gathered model info.
+    - `params` for model params count in `M`
+    - `flops` for FLOPs in `G`
+    - `input` for model input shape
+    - `acc_metrics` means `Imagenet Top1 Accuracy` for recognition models, `COCO val AP` for detection models
+    - `inference` for `T4 inference query per second` with `batch_size=1 + trtexec`
+    - `extra` means if any extra training info.
+    ```py
+    from keras_cv_attention_models import plot_func
+    plot_series = ["efficientvit_b", "efficientvit_m", "efficientnet", "efficientnetv2"]
+    plot_func.plot_model_summary(plot_series, x_label='inference', model_table="model_summary.csv")
     ```
+    ![model_summary](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/33afa083-df15-46f1-b8a4-6a70851ba421)
   - **Code format** is using `line-length=160`:
     ```sh
     find ./* -name "*.py" | grep -v __init__ | xargs -I {} black -l 160 {}
     ```
+## T4 Inference
+  - **T4 Inference** in the model tables are tested using `trtexec` on `Tesla T4` with `CUDA=12.0.1-1, Driver=525.60.13`. All models are exported as ONNX using PyTorch backend, using `batch_szie=1` only. [Colab trtexec.ipynb](https://colab.research.google.com/drive/1xLwfvbZNqadkdAZu9b0UzOrETLo657oc?usp=drive_link).
+  ```sh
+  # Basic trtexec command
+  trtexec --onnx=ConvFormerS18.onnx --fp16 --allowGPUFallback --useSpinWait # --useCudaGraph
+  ```
 ## Layers
   - [attention_layers](keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `RelativePositionalEmbedding` from `botnet`, `outlook_attention` from `volo`, and many other `Positional Embedding Layers` / `Attention Blocks`.
   ```py
@@ -543,10 +558,10 @@
   | Model                 | Params  | FLOPs   | Input | Top1 Acc | T4 Inference |
   | --------------------- | ------- | ------- | ----- | -------- | ------------ |
   | [BeitBasePatch16, 21k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_224_imagenet21k-ft1k.h5)  | 86.53M  | 17.61G  | 224   | 85.240   | 351.521 qps  |
-  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_384_imagenet21k-ft1k.h5)                 | 86.74M  | 55.70G  | 384   | 86.808   | 150.047 qps  |
+  | - [384, 21k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_base_patch16_384_imagenet21k-ft1k.h5)            | 86.74M  | 55.70G  | 384   | 86.808   | 150.047 qps  |
   | [BeitLargePatch16, 21k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_224_imagenet21k-ft1k.h5) | 304.43M | 61.68G  | 224   | 87.476   | 99.8014 qps  |
-  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_384_imagenet21k-ft1k.h5)                 | 305.00M | 191.65G | 384   | 88.382   | 48.0033 qps  |
-  | - [512](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_512_imagenet21k-ft1k.h5)                 | 305.67M | 363.46G | 512   | 88.584   | 23.8038 qps  |
+  | - [384, 21k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_384_imagenet21k-ft1k.h5)            | 305.00M | 191.65G | 384   | 88.382   | 48.0033 qps  |
+  | - [512, 21k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/beit_large_patch16_512_imagenet21k-ft1k.h5)            | 305.67M | 363.46G | 512   | 88.584   | 23.8038 qps  |
 ## BEiTV2
   - [Keras BEiT](keras_cv_attention_models/beit) includes models from BeitV2 Paper [PDF 2208.06366 BEiT v2: Masked Image Modeling with Vector-Quantized Visual Tokenizers](https://arxiv.org/pdf/2208.06366.pdf).
 
@@ -613,9 +628,9 @@
   | Model                              | Params | FLOPs | Input | Top1 Acc | T4 Inference |
   | ---------------------------------- | ------ | ----- | ----- | -------- | ------------ |
   | CMTTiny, (Self trained 105 epochs) | 9.5M   | 0.65G | 160   | 77.4     | 342.318 qps  |
-  | - [305 epochs](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_160_imagenet.h5)                       | 9.5M   | 0.65G | 160   | 78.94    | 342.318 qps  |
-  | - [fine-tuned 224 (69 epochs)](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_224_imagenet.h5)       | 9.5M   | 1.32G | 224   | 80.73    | 293.799 qps  |
-  | [CMTTiny_torch, 1000 epochs](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_torch_160_imagenet.h5)         | 9.5M   | 0.65G | 160   | 79.2     | 374.156 qps  |
+  | - [(305 epochs)](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_160_imagenet.h5)                     | 9.5M   | 0.65G | 160   | 78.94    | 342.318 qps  |
+  | - [224, (fine-tuned 69 epochs)](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_224_imagenet.h5)      | 9.5M   | 1.32G | 224   | 80.73    | 293.799 qps  |
+  | [CMTTiny_torch, (1000 epochs)](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_tiny_torch_160_imagenet.h5)       | 9.5M   | 0.65G | 160   | 79.2     | 374.156 qps  |
   | [CMTXS_torch](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_xs_torch_192_imagenet.h5)                        | 15.2M  | 1.58G | 192   | 81.8     | 275.403 qps  |
   | [CMTSmall_torch](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_small_torch_224_imagenet.h5)                     | 25.1M  | 4.09G | 224   | 83.5     | 181.83 qps   |
   | [CMTBase_torch](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cmt/cmt_base_torch_256_imagenet.h5)                      | 45.7M  | 9.42G | 256   | 84.5     | 108.942 qps  |
@@ -637,16 +652,16 @@
   | [CoAtNet0, (Self trained 105 epochs)](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) | 23.3M  | 2.09G  | 160   | 80.48    | 425.88 qps   |
   | [CoAtNet0, (Self trained 305 epochs)](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) | 23.8M  | 4.22G  | 224   | 82.79    | 425.88 qps   |
   | CoAtNet0                            | 25M    | 4.2G   | 224   | 81.6     | 425.88 qps   |
-  | CoAtNet0, Stride-2 DConv2D          | 25M    | 4.6G   | 224   | 82.0     | 425.88 qps   |
+  | CoAtNet0, (Stride-2 DConv2D)        | 25M    | 4.6G   | 224   | 82.0     | 425.88 qps   |
   | CoAtNet1                            | 42M    | 8.4G   | 224   | 83.3     | 214.872 qps  |
-  | CoAtNet1, Stride-2 DConv2D          | 42M    | 8.8G   | 224   | 83.5     | 214.872 qps  |
+  | CoAtNet1, (Stride-2 DConv2D)        | 42M    | 8.8G   | 224   | 83.5     | 214.872 qps  |
   | CoAtNet2                            | 75M    | 15.7G  | 224   | 84.1     | 162.664 qps  |
-  | CoAtNet2, Stride-2 DConv2D          | 75M    | 16.6G  | 224   | 84.1     | 162.664 qps  |
-  | CoAtNet2, ImageNet-21k pretrain     | 75M    | 16.6G  | 224   | 87.1     | 162.664 qps  |
+  | CoAtNet2, (Stride-2 DConv2D)        | 75M    | 16.6G  | 224   | 84.1     | 162.664 qps  |
+  | CoAtNet2, ImageNet-21k              | 75M    | 16.6G  | 224   | 87.1     | 162.664 qps  |
   | CoAtNet3                            | 168M   | 34.7G  | 224   | 84.5     | 99.0514 qps  |
-  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 34.7G  | 224   | 87.6     | 99.0514 qps  |
-  | CoAtNet3, ImageNet-21k pretrain     | 168M   | 203.1G | 512   | 87.9     | 99.0514 qps  |
-  | CoAtNet4, ImageNet-21k pretrain     | 275M   | 360.9G | 512   | 88.1     | 57.4435 qps  |
+  | CoAtNet3, ImageNet-21k              | 168M   | 34.7G  | 224   | 87.6     | 99.0514 qps  |
+  | CoAtNet3, ImageNet-21k              | 168M   | 203.1G | 512   | 87.9     | 99.0514 qps  |
+  | CoAtNet4, ImageNet-21k              | 275M   | 360.9G | 512   | 88.1     | 57.4435 qps  |
   | CoAtNet4, ImageNet-21K + PT-RA-E150 | 275M   | 360.9G | 512   | 88.56    | 57.4435 qps  |
 ## ConvNeXt
   - [Keras ConvNeXt](keras_cv_attention_models/convnext) is for [PDF 2201.03545 A ConvNet for the 2020s](https://arxiv.org/pdf/2201.03545.pdf).
@@ -838,7 +853,7 @@
   | Model                 | Params  | FLOPs    | Input | Top1 Acc | T4 Inference |
   | --------------------- | ------- | -------- | ----- | -------- | ------------ |
   | [EvaLargePatch14, 22k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_large_patch14_196_imagenet21k-ft1k.h5)  | 304.14M | 61.65G   | 196   | 88.59    | 101.135 qps  |
-  | - [336](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_large_patch14_336_imagenet21k-ft1k.h5)                 | 304.53M | 191.55G  | 336   | 89.20    | 45.2344 qps  |
+  | - [336, 22k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_large_patch14_336_imagenet21k-ft1k.h5)            | 304.53M | 191.55G  | 336   | 89.20    | 45.2344 qps  |
   | [EvaGiantPatch14, clip](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_224_imagenet21k-ft1k.h5) | 1012.6M | 267.40G  | 224   | 89.10    |              |
   | - [m30m](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_336_imagenet21k-ft1k.h5)                | 1013.0M | 621.45G  | 336   | 89.57    |              |
   | - [m30m](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/eva_giant_patch14_560_imagenet21k-ft1k.h5)                | 1014.4M | 1911.61G | 560   | 89.80    |              |
@@ -985,13 +1000,13 @@
 ## LeViT
   - [Keras LeViT](keras_cv_attention_models/levit) is for [PDF 2104.01136 LeViT: a Vision Transformer in ConvNet’s Clothing for Faster Inference](https://arxiv.org/pdf/2104.01136.pdf).
 
-  | Model                   | Params | FLOPs | Input | Top1 Acc | T4 Inference |
-  | ----------------------- | ------ | ----- | ----- | -------- | ------------ |
-  | [LeViT128S, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit128s_imagenet.h5) | 7.8M   | 0.31G | 224   | 76.6     | 865.62 qps   |
-  | [LeViT128, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit128_imagenet.h5)  | 9.2M   | 0.41G | 224   | 78.6     | 672.763 qps  |
-  | [LeViT192, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit192_imagenet.h5)  | 11M    | 0.66G | 224   | 80.0     | 636.368 qps  |
-  | [LeViT256, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit256_imagenet.h5)  | 19M    | 1.13G | 224   | 81.6     | 582.359 qps  |
-  | [LeViT384, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit384_imagenet.h5)  | 39M    | 2.36G | 224   | 82.6     | 455.795 qps  |
+  | Model              | Params | FLOPs | Input | Top1 Acc | T4 Inference |
+  | ------------------ | ------ | ----- | ----- | -------- | ------------ |
+  | [LeViT128S, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit128s_imagenet.h5) | 7.8M   | 0.31G | 224   | 76.6     | 865.62 qps   |
+  | [LeViT128, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit128_imagenet.h5)  | 9.2M   | 0.41G | 224   | 78.6     | 672.763 qps  |
+  | [LeViT192, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit192_imagenet.h5)  | 11M    | 0.66G | 224   | 80.0     | 636.368 qps  |
+  | [LeViT256, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit256_imagenet.h5)  | 19M    | 1.13G | 224   | 81.6     | 582.359 qps  |
+  | [LeViT384, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/levit384_imagenet.h5)  | 39M    | 2.36G | 224   | 82.6     | 455.795 qps  |
 ## MaxViT
   - [Keras MaxViT](keras_cv_attention_models/maxvit) is for [PDF 2204.01697 MaxViT: Multi-Axis Vision Transformer](https://arxiv.org/pdf/2204.01697.pdf).
 
@@ -1205,7 +1220,6 @@
   | ------------------------------------ | ------ | ------ | ----- | -------- | ------------ |
   | [SwinTransformerV2Tiny_ns](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_tiny_ns_224_imagenet.h5)             | 28.3M  | 4.69G  | 224   | 81.8     | 292.892 qps  |
   | [SwinTransformerV2Small_ns](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_small_ns_224_imagenet.h5)            | 49.7M  | 9.12G  | 224   | 83.5     | 164.114 qps  |
-  |                                      |        |        |       |          |              |
   | [SwinTransformerV2Tiny_window8](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_tiny_window8_256_imagenet.h5)        | 28.3M  | 5.99G  | 256   | 81.8     | 266.172 qps  |
   | [SwinTransformerV2Tiny_window16](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_tiny_window16_256_imagenet.h5)       | 28.3M  | 6.75G  | 256   | 82.8     | 207.568 qps  |
   | [SwinTransformerV2Small_window8](https://github.com/leondgarse/keras_cv_attention_models/releases/download/swin_transformer_v2/swin_transformer_v2_small_window8_256_imagenet.h5)       | 49.7M  | 11.63G | 256   | 83.7     | 141.093 qps  |
@@ -1237,8 +1251,8 @@
   | - [imagenet21k-ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/tinyvit/tiny_vit_11m_224_imagenet21k-ft1k.h5)   | 11M    | 2.0G  | 224   | 83.2     | 454.312 qps  |
   | [TinyViT_21M, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/tinyvit/tiny_vit_21m_224_imagenet.h5) | 21M    | 4.3G  | 224   | 83.1     | 334.34 qps   |
   | - [imagenet21k-ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/tinyvit/tiny_vit_21m_224_imagenet21k-ft1k.h5)   | 21M    | 4.3G  | 224   | 84.8     | 334.34 qps   |
-  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/tinyvit/tiny_vit_21m_384_imagenet21k-ft1k.h5)                | 21M    | 13.8G | 384   | 86.2     | 201.022 qps  |
-  | - [512](https://github.com/leondgarse/keras_cv_attention_models/releases/download/tinyvit/tiny_vit_21m_512_imagenet21k-ft1k.h5)                | 21M    | 27.0G | 512   | 86.5     | 126.521 qps  |
+  | - [384, 21k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/tinyvit/tiny_vit_21m_384_imagenet21k-ft1k.h5)           | 21M    | 13.8G | 384   | 86.2     | 201.022 qps  |
+  | - [512, 21k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/tinyvit/tiny_vit_21m_512_imagenet21k-ft1k.h5)           | 21M    | 27.0G | 512   | 86.5     | 126.521 qps  |
 ## UniFormer
   - [Keras UniFormer](keras_cv_attention_models/uniformer) includes implementation of [PDF 2201.09450 UniFormer: Unifying Convolution and Self-attention for Visual Recognition](https://arxiv.org/pdf/2201.09450.pdf).
 
@@ -1255,7 +1269,7 @@
   | [UniformerBase64](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_imagenet.h5)      | 50M    | 8.31G  | 224   | 83.8     | 187.371 qps  |
   | - [Token Labeling](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_token_label.h5)     | 50M    | 8.31G  | 224   | 84.8     | 187.371 qps  |
   | [UniformerLarge64, TL](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_224_token_label.h5) | 100M   | 19.79G | 224   | 85.6     | 105.681 qps  |
-  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_384_token_label.h5)                | 100M   | 63.11G | 384   | 86.3     | 52.4368 qps  |
+  | - [384, TL](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_384_token_label.h5)            | 100M   | 63.11G | 384   | 86.3     | 52.4368 qps  |
 ## VanillaNet
   - [Keras VanillaNet](keras_cv_attention_models/vanillanet) is for [PDF 2305.12972 VanillaNet: the Power of Minimalism in Deep Learning](https://arxiv.org/pdf/2305.12972.pdf).
 
