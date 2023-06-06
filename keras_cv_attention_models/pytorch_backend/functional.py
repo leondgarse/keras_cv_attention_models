@@ -102,13 +102,11 @@ def extract_patches(inputs, sizes=1, strides=1, rates=1, padding="VALID", data_f
             target_shape = [-1, channel, kernel_size, kernel_size, *patch_size]
         module = lambda xx: unfold(xx).contiguous().view(target_shape)
     else:
+        pre_perm_shape = [-1, channel, kernel_size * kernel_size, patch_size[0] * patch_size[1]]
+        perm = [0, 3, 2, 1]
         if compressed:
-            pre_perm_shape = [-1, channel, kernel_size * kernel_size, *patch_size]
-            perm = [0, 3, 4, 2, 1]
             target_shape = [-1, *patch_size, kernel_size * kernel_size * channel]
         else:
-            pre_perm_shape = [-1, channel, kernel_size, kernel_size, *patch_size]
-            perm = [0, 4, 5, 2, 3, 1]
             target_shape = [-1, *patch_size, kernel_size, kernel_size, channel]
         module = lambda xx: unfold(xx.permute([0, 3, 1, 2])).contiguous().view(pre_perm_shape).permute(perm).contiguous().view(target_shape)
     return wrapper(module, inputs, name=name)

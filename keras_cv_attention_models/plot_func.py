@@ -177,7 +177,7 @@ def plot_model_summary(plot_series, x_label, y_label="acc_metrics", model_table=
     """
     >>> from keras_cv_attention_models import plot_func
     >>> plot_series = ["efficientvit_b", "efficientvit_m", "efficientnet", "efficientnetv2"]
-    >>> plot_func.plot_model_summary(plot_series, x_label='inference', model_table="model_summary.csv")
+    >>> plot_func.plot_model_summary(plot_series, x_label='inference_qps', model_table="model_summary.csv")
     """
     import matplotlib.pyplot as plt
 

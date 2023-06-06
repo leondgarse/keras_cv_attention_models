@@ -226,20 +226,24 @@
     - `flops` for FLOPs in `G`
     - `input` for model input shape
     - `acc_metrics` means `Imagenet Top1 Accuracy` for recognition models, `COCO val AP` for detection models
-    - `inference` for `T4 inference query per second` with `batch_size=1 + trtexec`
+    - `inference_qps` for `T4 inference query per second` with `batch_size=1 + trtexec`
     - `extra` means if any extra training info.
     ```py
     from keras_cv_attention_models import plot_func
     plot_series = ["efficientvit_b", "efficientvit_m", "efficientnet", "efficientnetv2"]
-    plot_func.plot_model_summary(plot_series, x_label='inference', model_table="model_summary.csv")
+    plot_series = [
+        "efficientnetv2", 'tinynet', 'lcnet', 'mobilenetv3', 'ghostnet', 'fasternet',
+        'inceptionnext', 'efficientvit_m', 'mobilevit', 'tinyvit', 'convnextv2',
+    ]
+    plot_func.plot_model_summary(plot_series, x_label='inference_qps', model_table="model_summary.csv")
     ```
-    ![model_summary](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/33afa083-df15-46f1-b8a4-6a70851ba421)
+    ![model_summary](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/76d1737a-2573-4133-b992-66dd00a583b0)
   - **Code format** is using `line-length=160`:
     ```sh
     find ./* -name "*.py" | grep -v __init__ | xargs -I {} black -l 160 {}
     ```
 ## T4 Inference
-  - **T4 Inference** in the model tables are tested using `trtexec` on `Tesla T4` with `CUDA=12.0.1-1, Driver=525.60.13`. All models are exported as ONNX using PyTorch backend, using `batch_szie=1` only. [Colab trtexec.ipynb](https://colab.research.google.com/drive/1xLwfvbZNqadkdAZu9b0UzOrETLo657oc?usp=drive_link).
+  - **T4 Inference** in the model tables are tested using `trtexec` on `Tesla T4` with `CUDA=12.0.1-1, Driver=525.60.13`. All models are exported as ONNX using PyTorch backend, using `batch_szie=1` only. [Colab trtexec.ipynb](https://colab.research.google.com/drive/1xLwfvbZNqadkdAZu9b0UzOrETLo657oc?usp=drive_link). **Note: this data is for reference only, and vary in different batch sizes or benchmark tools or platforms or implementations**.
   ```sh
   # Basic trtexec command
   trtexec --onnx=ConvFormerS18.onnx --fp16 --allowGPUFallback --useSpinWait # --useCudaGraph
@@ -649,13 +653,13 @@
 
   | Model                               | Params | FLOPs  | Input | Top1 Acc | T4 Inference |
   | ----------------------------------- | ------ | ------ | ----- | -------- | ------------ |
-  | [CoAtNet0, (Self trained 105 epochs)](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) | 23.3M  | 2.09G  | 160   | 80.48    | 425.88 qps   |
+  | [CoAtNet0, (Self trained 105 epochs)](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_160_imagenet.h5) | 23.3M  | 2.09G  | 160   | 80.48    | 597.086 qps  |
   | [CoAtNet0, (Self trained 305 epochs)](https://github.com/leondgarse/keras_cv_attention_models/releases/download/coatnet/coatnet0_224_imagenet.h5) | 23.8M  | 4.22G  | 224   | 82.79    | 425.88 qps   |
-  | CoAtNet0                            | 25M    | 4.2G   | 224   | 81.6     | 425.88 qps   |
+  | CoAtNet0                            | 25M    | 4.2G   | 224   | 81.6     | 456.76 qps   |
   | CoAtNet0, (Stride-2 DConv2D)        | 25M    | 4.6G   | 224   | 82.0     | 425.88 qps   |
-  | CoAtNet1                            | 42M    | 8.4G   | 224   | 83.3     | 214.872 qps  |
+  | CoAtNet1                            | 42M    | 8.4G   | 224   | 83.3     | 229.832 qps  |
   | CoAtNet1, (Stride-2 DConv2D)        | 42M    | 8.8G   | 224   | 83.5     | 214.872 qps  |
-  | CoAtNet2                            | 75M    | 15.7G  | 224   | 84.1     | 162.664 qps  |
+  | CoAtNet2                            | 75M    | 15.7G  | 224   | 84.1     | 169.795 qps  |
   | CoAtNet2, (Stride-2 DConv2D)        | 75M    | 16.6G  | 224   | 84.1     | 162.664 qps  |
   | CoAtNet2, ImageNet-21k              | 75M    | 16.6G  | 224   | 87.1     | 162.664 qps  |
   | CoAtNet3                            | 168M   | 34.7G  | 224   | 84.5     | 99.0514 qps  |
@@ -735,14 +739,14 @@
 
   | Model                     | Params | FLOPs  | Input | Top1 Acc | T4 Inference |
   | ------------------------- | ------ | ------ | ----- | -------- | ------------ |
-  | [DiNAT_Mini](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_mini_imagenet.h5)                | 20.0M  | 2.73G  | 224   | 81.8     |              |
-  | [DiNAT_Tiny](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_tiny_imagenet.h5)                | 27.9M  | 4.34G  | 224   | 82.7     |              |
-  | [DiNAT_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_small_imagenet.h5)               | 50.7M  | 7.84G  | 224   | 83.8     |              |
-  | [DiNAT_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_base_imagenet.h5)                | 89.8M  | 13.76G | 224   | 84.4     |              |
-  | [DiNAT_Large, 22k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_224_imagenet21k-ft1k.h5)          | 200.9M | 30.58G | 224   | 86.6     |              |
+  | [DiNAT_Mini](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_mini_imagenet.h5)                | 20.0M  | 2.73G  | 224   | 81.8     | 84.3186 qps  |
+  | [DiNAT_Tiny](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_tiny_imagenet.h5)                | 27.9M  | 4.34G  | 224   | 82.7     | 61.5707 qps  |
+  | [DiNAT_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_small_imagenet.h5)               | 50.7M  | 7.84G  | 224   | 83.8     | 40.4339 qps  |
+  | [DiNAT_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_base_imagenet.h5)                | 89.8M  | 13.76G | 224   | 84.4     | 29.7462 qps  |
+  | [DiNAT_Large, 22k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_224_imagenet21k-ft1k.h5)          | 200.9M | 30.58G | 224   | 86.6     | 18.5385 qps  |
   | - [21k num_classes=21841](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_imagenet21k.h5)   | 200.9M | 30.58G | 224   |          |              |
-  | - [22k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_384_imagenet21k-ft1k.h5)                | 200.9M | 89.86G | 384   | 87.4     |              |
-  | [DiNAT_Large_K11, 22k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_k11_imagenet21k-ft1k.h5) | 201.1M | 92.57G | 384   | 87.5     |              |
+  | - [22k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_384_imagenet21k-ft1k.h5)                | 200.9M | 89.86G | 384   | 87.4     | 6.63453 qps  |
+  | [DiNAT_Large_K11, 22k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/dinat_large_k11_imagenet21k-ft1k.h5) | 201.1M | 92.57G | 384   | 87.5     | 2.70882 qps  |
 ## DINOv2
   - [Keras DINOv2](keras_cv_attention_models/beit) includes models from [PDF 2304.07193 DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/pdf/2304.07193.pdf).
 
@@ -968,7 +972,7 @@
 
   | Model        | Params | FLOPs  | Input | Top1 Acc | T4 Inference |
   | ------------ | ------ | ------ | ----- | -------- | ------------ |
-  | [IFormerSmall](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_small_224_imagenet.h5) | 19.9M  | 4.88G  | 224   | 83.4     | 250 qps      |
+  | [IFormerSmall](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_small_224_imagenet.h5) | 19.9M  | 4.88G  | 224   | 83.4     | 250.0 qps    |
   | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_small_384_imagenet.h5)        | 20.9M  | 16.29G | 384   | 84.6     | 130.196 qps  |
   | [IFormerBase](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_base_224_imagenet.h5)  | 47.9M  | 9.44G  | 224   | 84.6     | 147.068 qps  |
   | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/iformer/iformer_base_384_imagenet.h5)        | 48.9M  | 30.86G | 384   | 85.7     | 78.2124 qps  |
@@ -1107,10 +1111,10 @@
 
   | Model     | Params | FLOPs  | Input | Top1 Acc | T4 Inference |
   | --------- | ------ | ------ | ----- | -------- | ------------ |
-  | [NAT_Mini](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_mini_imagenet.h5)  | 20.0M  | 2.73G  | 224   | 81.8     |              |
-  | [NAT_Tiny](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_tiny_imagenet.h5)  | 27.9M  | 4.34G  | 224   | 83.2     |              |
-  | [NAT_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_small_imagenet.h5) | 50.7M  | 7.84G  | 224   | 83.7     |              |
-  | [NAT_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_base_imagenet.h5)  | 89.8M  | 13.76G | 224   | 84.3     |              |
+  | [NAT_Mini](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_mini_imagenet.h5)  | 20.0M  | 2.73G  | 224   | 81.8     | 85.3971 qps  |
+  | [NAT_Tiny](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_tiny_imagenet.h5)  | 27.9M  | 4.34G  | 224   | 83.2     | 63.7573 qps  |
+  | [NAT_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_small_imagenet.h5) | 50.7M  | 7.84G  | 224   | 83.7     | 41.5853 qps  |
+  | [NAT_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/nat/nat_base_imagenet.h5)  | 89.8M  | 13.76G | 224   | 84.3     | 31.255 qps   |
 ## NFNets
   - [Keras NFNets](keras_cv_attention_models/nfnets) is for [PDF 2102.06171 High-Performance Large-Scale Image Recognition Without Normalization](https://arxiv.org/pdf/2102.06171.pdf).
 
@@ -1327,17 +1331,17 @@
 
   | Model              | Params | FLOPs   | Input | COCO val AP | test AP | T4 Inference |
   | ------------------ | ------ | ------- | ----- | ----------- | ------- | ------------ |
-  | [EfficientDetD0](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d0_512_coco.h5)     | 3.9M   | 2.55G   | 512   | 34.3        | 34.6    |              |
+  | [EfficientDetD0](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d0_512_coco.h5)     | 3.9M   | 2.55G   | 512   | 34.3        | 34.6    | 274.844 qps  |
   | - Det-AdvProp      | 3.9M   | 2.55G   | 512   | 35.1        | 35.3    |              |
-  | [EfficientDetD1](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d1_640_coco.h5)     | 6.6M   | 6.13G   | 640   | 40.2        | 40.5    |              |
+  | [EfficientDetD1](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d1_640_coco.h5)     | 6.6M   | 6.13G   | 640   | 40.2        | 40.5    | 148.824 qps  |
   | - Det-AdvProp      | 6.6M   | 6.13G   | 640   | 40.8        | 40.9    |              |
-  | [EfficientDetD2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d2_768_coco.h5)     | 8.1M   | 11.03G  | 768   | 43.5        | 43.9    |              |
+  | [EfficientDetD2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d2_768_coco.h5)     | 8.1M   | 11.03G  | 768   | 43.5        | 43.9    | 97.6105 qps  |
   | - Det-AdvProp      | 8.1M   | 11.03G  | 768   | 44.3        | 44.3    |              |
-  | [EfficientDetD3](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d3_896_coco.h5)     | 12.0M  | 24.95G  | 896   | 46.8        | 47.2    |              |
+  | [EfficientDetD3](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d3_896_coco.h5)     | 12.0M  | 24.95G  | 896   | 46.8        | 47.2    | 55.1658 qps  |
   | - Det-AdvProp      | 12.0M  | 24.95G  | 896   | 47.7        | 48.0    |              |
-  | [EfficientDetD4](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d4_1024_coco.h5)     | 20.7M  | 55.29G  | 1024  | 49.3        | 49.7    |              |
+  | [EfficientDetD4](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d4_1024_coco.h5)     | 20.7M  | 55.29G  | 1024  | 49.3        | 49.7    | 31.7801 qps  |
   | - Det-AdvProp      | 20.7M  | 55.29G  | 1024  | 50.4        | 50.4    |              |
-  | [EfficientDetD5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d5_1280_coco.h5)     | 33.7M  | 135.62G | 1280  | 51.2        | 51.5    |              |
+  | [EfficientDetD5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d5_1280_coco.h5)     | 33.7M  | 135.62G | 1280  | 51.2        | 51.5    | 15.4823 qps  |
   | - Det-AdvProp      | 33.7M  | 135.62G | 1280  | 52.2        | 52.5    |              |
   | [EfficientDetD6](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d6_1280_coco.h5)     | 51.9M  | 225.93G | 1280  | 52.1        | 52.6    | 11.3327 qps  |
   | [EfficientDetD7](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientdet/efficientdet_d7_1536_coco.h5)     | 51.9M  | 325.34G | 1536  | 53.4        | 53.7    | 7.81326 qps  |
@@ -1408,12 +1412,12 @@
 
 # Language Models
 ## GPT2
-  - [Keras GPT2](keras_cv_attention_models/gpt2) includes implementation of [Language Models are Unsupervised Multitask Learners](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf).
+  - [Keras GPT2](keras_cv_attention_models/gpt2) includes implementation of [Language Models are Unsupervised Multitask Learners](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf). `T4 Inference` is tested using `input_shape=[1, 1024]`.
 
   | Model            | Params  | FLOPs   | vocab_size | LAMBADA PPL | T4 Inference |
   | ---------------- | ------- | ------- | ---------- | ----------- | ------------ |
-  | [GPT2_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_base_webtext.h5)        | 163.04M | 146.42G | 50257      | 35.13       |              |
-  | [GPT2_Medium](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_medium_webtext.h5)      | 406.29M | 415.07G | 50257      | 15.60       |              |
+  | [GPT2_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_base_webtext.h5)        | 163.04M | 146.42G | 50257      | 35.13       | 30.6871 qps  |
+  | [GPT2_Medium](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_medium_webtext.h5)      | 406.29M | 415.07G | 50257      | 15.60       | 17.2073 qps  |
   | [GPT2_Large](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_large_webtext.h5)       | 838.36M | 890.28G | 50257      | 10.87       |              |
   | [GPT2_XLarge](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_xlarge_webtext.1.h5), [+.2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_xlarge_webtext.2.h5) | 1.638B  | 1758.3G | 50257      | 8.63        |              |
 ***
