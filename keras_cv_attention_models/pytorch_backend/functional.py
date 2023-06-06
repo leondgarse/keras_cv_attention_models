@@ -200,7 +200,7 @@ def pad(inputs, paddings, mode="CONSTANT", constant_values=0, name=None):
     # for pp in paddings[::-1]:
     #     pad += pp
     # return Lambda(partial(F.pad, pad=pad, mode=mode.lower(), value=constant_values), name=name)(inputs)
-    return _ZeroPadding(padding=paddings)(inputs)
+    return _ZeroPadding(padding=paddings, mode=mode.lower(), value=constant_values)(inputs)
 
 
 def pow(inputs, exponent, name=None):
@@ -227,6 +227,7 @@ def reduce_sum(inputs, axis=None, keepdims=False, name=None):
     if isinstance(inputs, (list, tuple)) and axis == 0:
         return Add(name=name)(inputs)
     else:
+        # return wrapper(lambda xx: xx.sum(dim=axis, keepdim=keepdims), inputs, name=name)
         return wrapper(partial(torch.sum, dim=axis, keepdim=keepdims), inputs, name=name)
 
 

@@ -93,10 +93,17 @@ def replicate_padding(inputs, kernel_size=1, dilation_rate=1):
     padded = (kernel_size - 1) // 2
     dilation_rate = dilation_rate if isinstance(dilation_rate, (list, tuple)) else (dilation_rate, dilation_rate)
 
-    if max(dilation_rate) == 1:  # NAT
+    if backend.backend() == "pytorch" and max(dilation_rate) == 1:  # NAT
+        out = functional.pad(inputs, paddings=[[padded, padded], [padded, padded], [0, 0]], mode="replicate")
+    elif backend.backend() == "pytorch":  # DiNAT
+        paddings = [[dilation_rate[0], dilation_rate[0]], [dilation_rate[1], dilation_rate[1]], [0, 0]]
+        out = inputs
+        for _ in range(padded):
+            out = functional.pad(out, paddings=paddings, mode="replicate")
+    elif max(dilation_rate) == 1:  # TF NAT
         nn = functional.concat([functional.repeat(inputs[:, :1], padded, axis=1), inputs, functional.repeat(inputs[:, -1:], padded, axis=1)], axis=1)
         out = functional.concat([functional.repeat(nn[:, :, :1], padded, axis=2), nn, functional.repeat(nn[:, :, -1:], padded, axis=2)], axis=2)
-    else:  # DiNAT
+    else:  # TF DiNAT
         # left = functional.repeat(functional.expand_dims(inputs[:, :dilation_rate], axis=1), padded, axis=1)
         # left = functional.reshape(left, [-1, left.shape[1] * left.shape[2], *left.shape[2:]])
         multiples = [padded if id == 1 else 1 for id in range(len(inputs.shape))]
@@ -134,15 +141,16 @@ def neighborhood_attention(
     query = functional.expand_dims(functional.reshape(query, [-1, hh * ww, num_heads, key_dim]), -2)  # [batch, hh * ww, num_heads, 1, key_dim]
 
     # key_value: [batch, height - (kernel_size - 1), width - (kernel_size - 1), kernel_size, kernel_size, key + value]
+    # print(f"{key_value.shape = }, {window_size = }")
     if backend.backend() == "pytorch":
-        key_value = functional.extract_patches(key_value, sizes=kernel_size, strides=1, rates=dilation_rate, padding="VALID", compressed=False)
+        key_value = functional.extract_patches(key_value, sizes=kernel_size, strides=1, rates=dilation_rate, padding="VALID", compressed=True)
+        key_value = replicate_padding(key_value, kernel_size=kernel_size, dilation_rate=dilation_rate)  # Keep it here, as the input shape is different
     else:
         key_value = CompatibleExtractPatches(sizes=kernel_size, strides=1, rates=dilation_rate, padding="VALID", compressed=False)(key_value)
-    # print(f"{key_value.shape = }, {window_size = }")
-    key_value = replicate_padding(key_value, kernel_size=kernel_size, dilation_rate=dilation_rate)
+        key_value = replicate_padding(key_value, kernel_size=kernel_size, dilation_rate=dilation_rate)
     # print(f"After pad {key_value.shape = }")
 
-    key_value = functional.reshape(key_value, [-1, kernel_size * kernel_size, key_value.shape[-1]])
+    key_value = functional.reshape(key_value, [-1, kernel_size * kernel_size, qkv_out * 2])
     key, value = functional.split(key_value, 2, axis=-1)  # [batch * block_height * block_width, K * K, key_dim]
     # print(f"{key.shape = }, {value.shape = }, {[hh * ww, num_heads, key_dim, kernel_size * kernel_size] = }")
     key = functional.transpose(functional.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  # [batch * hh*ww, num_heads, key_dim, K * K]

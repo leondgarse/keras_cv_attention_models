@@ -41,9 +41,18 @@ class ReluWeightedSum(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs):
-        gain = functional.relu(self.gain)
-        gain = gain / (functional.reduce_sum(gain) + self.__epsilon__)
-        return functional.reduce_sum([inputs[id] * gain[id] for id in range(self.total)], axis=0)
+        if backend.backend() == "pytorch":
+            # [???] Or will Type Error: Type 'tensor(float)' of input parameter (onnx::ReduceSum_1256) of operator (ReduceSum)
+            gain = self.gain.relu()
+            gain = gain / (gain.sum() + self.__epsilon__)
+        else:
+            gain = functional.relu(self.gain)
+            gain = gain / functional.reduce_sum(gain)
+        # return functional.reduce_sum([inputs[id] * gain[id] for id in range(self.total)], axis=0)
+        out = inputs[0] * gain[0]
+        for id in range(1, self.total):
+            out += inputs[id] * gain[id]
+        return out
 
     def compute_output_shape(self, input_shape):
         return input_shape[0]

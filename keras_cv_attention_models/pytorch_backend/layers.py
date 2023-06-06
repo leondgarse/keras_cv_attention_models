@@ -561,26 +561,35 @@ class _SamePadding(nn.Module):
 
 
 class _ZeroPadding(Layer):
-    def __init__(self, padding, **kwargs):
-        self.padding = padding
+    def __init__(self, padding, mode="constant", constant_values=None, **kwargs):
+        self.padding, self.mode, self.constant_values = padding, mode, constant_values
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        assert len(input_shape) == len(self.padding), "padding shoule be same length with input, including batch dimension, padding: {}".format(self.padding)
+        # print(f"{input_shape = }, {self.padding = }")
+        if self.mode == "replicate":
+            assert len(input_shape) > len(self.padding), "replicate padding shoule not including batch dimension, padding: {}".format(self.padding)
+        else:
+            assert len(input_shape) == len(self.padding), "padding shoule be same length with input, including batch, padding: {}".format(self.padding)
         padding = []
         for pad in self.padding[::-1]:
             assert len(pad) == 2, "each element in padding should be exactly 2 values, padding: {}".format(self.padding)
             padding += pad
+        # print(f"{padding = }")
 
-        self.module = partial(torch.functional.F.pad, pad=padding)
+        self.module = partial(torch.functional.F.pad, pad=padding, mode=self.mode, value=self.constant_values)
         super().build(input_shape)
 
     def compute_output_shape(self, input_shape):
-        return [None if ii is None else ii + pp[0] + pp[1] for ii, pp in zip(input_shape, self.padding)]
+        if self.mode == "replicate":
+            pad_len = len(self.padding)
+            return input_shape[:-pad_len] + [None if ii is None else ii + pp[0] + pp[1] for ii, pp in zip(input_shape[-pad_len:], self.padding)]
+        else:
+            return [None if ii is None else ii + pp[0] + pp[1] for ii, pp in zip(input_shape, self.padding)]
 
     def get_config(self):
         config = super().get_config()
-        config.update({"padding": self.padding})
+        config.update({"padding": self.padding, "mode": self.mode, "constant_values": self.constant_values})
         return config
 
 
