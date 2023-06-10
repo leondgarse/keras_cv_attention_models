@@ -17,6 +17,7 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 
 LAYER_NORM_EPSILON = 1e-6
 
+
 PRETRAINED_DICT = {
     "beit_base_patch16": {"imagenet21k-ft1k": {224: "d7102337a13a3983f3b6470de77b5d5c", 384: "76353026477c60f8fdcbcc749fea17b3"}},
     "beit_v2_base_patch16": {"imagenet21k-ft1k": {224: "d001dcb67cdda16bfdbb2873ab9b13c8"}},
@@ -242,7 +243,7 @@ def scaled_dot_product_attention(query, key, value, output_shape, pos_emb=None, 
     # output = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([attention_scores, value])
     attention_output = attention_scores @ value
     output = functional.transpose(attention_output, perm=[0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
-    output = functional.reshape(output, [-1, *blocks, output.shape[2] * output.shape[3]])  # [batch, q_blocks, channel * attn_ratio]
+    output = functional.reshape(output, [-1, *blocks, np.prod(output.shape[1:]) // np.prod(blocks)])  # [batch, q_blocks, channel * attn_ratio]
 
     if out_weight:
         # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
