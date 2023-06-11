@@ -81,3 +81,33 @@
   print(f"{np.allclose(torch_out, keras_out, atol=1e-5) = }")
   # np.allclose(torch_out, keras_out, atol=1e-5) = True
   ```
+  **With new input_shape**
+  ```py
+  new_shape = 448
+
+  """ PyTorch torch_hiera """
+  sys.path.append('../hiera/')
+  sys.path.append('../pytorch-image-models/')  # Needs timm
+  import torch
+  from hiera import hiera as torch_hiera
+
+  torch_model = torch_hiera.hiera_base_224(input_size=(new_shape, new_shape))
+  ss = torch.load('hiera_base_224.pth', map_location=torch.device('cpu'))['model_state']
+  aa = ss['pos_embed'].detach().reshape([1, 56, 56, 96]).permute([0, 3, 1, 2])
+  bb = torch.functional.F.interpolate(aa, [new_shape // 4, new_shape // 4], mode='bilinear')
+  ss['pos_embed'] = bb.permute([0, 2, 3, 1]).reshape([1, -1, 96])
+
+  torch_model.load_state_dict(ss)
+  _ = torch_model.eval()
+
+  """ Keras HieraBase """
+  from keras_cv_attention_models import hiera
+  mm = hiera.HieraBase(classifier_activation="softmax", input_shape=(new_shape, new_shape, 3))
+
+  """ Verification """
+  inputs = np.random.uniform(size=(1, *mm.input_shape[1:3], 3)).astype("float32")
+  torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2)).detach().numpy()
+  keras_out = mm(inputs).numpy()
+  print(f"{np.allclose(torch_out, keras_out, atol=1e-5) = }")
+  # np.allclose(torch_out, keras_out, atol=1e-5) = True
+  ```
