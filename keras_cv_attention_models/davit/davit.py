@@ -61,7 +61,7 @@ def multi_head_self_attention_channel(
 
 
 def __window_partition__(inputs, patch_height, patch_width, window_height, window_width):
-    """ [B, patch_height * window_height, patch_width * window_width, channel] -> [B * patch_height * patch_width, window_height, window_width, channel] """
+    """[B, patch_height * window_height, patch_width * window_width, channel] -> [B * patch_height * patch_width, window_height, window_width, channel]"""
     input_channel = inputs.shape[-1]
     # print(f">>>> window_attention {inputs.shape = }, {patch_height = }, {patch_width = }, {window_height = }, {window_width = }")
     # [batch * patch_height, window_height, patch_width, window_width * channel], limit transpose perm <= 4
@@ -81,7 +81,7 @@ def __window_reverse__(inputs, patch_height, patch_width, window_height, window_
 
 
 def __grid_window_partition__(inputs, patch_height, patch_width, window_height, window_width):
-    """ [B, window_height * patch_height, window_width * patch_width , channel] -> [B * patch_height * patch_width, window_height, window_width, channel] """
+    """[B, window_height * patch_height, window_width * patch_width , channel] -> [B * patch_height * patch_width, window_height, window_width, channel]"""
     input_channel = inputs.shape[-1]
     nn = functional.reshape(inputs, [-1, window_height, patch_height, window_width * patch_width * input_channel])
     nn = functional.transpose(nn, [0, 2, 1, 3])  # [batch, patch_height, window_height, window_width * patch_width * input_channel]

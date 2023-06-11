@@ -15,7 +15,7 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 LAYER_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
-    "hiera_base": {"mae_in1k_ft1k": {224: "3909d65fbb85d229b1d640b70f6d5a52"}},
+    "hiera_base": {"mae_in1k_ft1k": {224: "7998153d4cf4a2571e1268c8be1d9324"}},
 }
 
 
@@ -29,14 +29,14 @@ def mhsa_with_window_extracted_and_strides(
     qk_scale = 1.0 / (float(key_dim) ** 0.5)
     window_size_prod = window_size_prod if window_size_prod > 0 else blocks
     window_blocks = blocks // window_size_prod
-    print(f"{blocks = }, {window_blocks = }, {window_size_prod = }, {num_heads = }")
+    # print(f"{blocks = }, {window_blocks = }, {window_size_prod = }, {num_heads = }")
 
     qkv = layers.Dense(qkv_out * 3, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
     query, key, value = functional.split(qkv, 3, axis=-1)
 
     if strides_prod > 1:
-        query = functional.reshape(query, [-1, window_size_prod // strides_prod, strides_prod, window_blocks * num_heads, key_dim])
-        query = functional.reduce_max(query, axis=-3)
+        query = functional.reshape(query, [-1, strides_prod, window_size_prod // strides_prod, window_blocks * num_heads, key_dim])
+        query = functional.reduce_max(query, axis=1)
         query = functional.transpose(query, [0, 2, 1, 3])
     else:
         query = functional.transpose(functional.reshape(query, [-1, window_size_prod, window_blocks * num_heads, key_dim]), [0, 2, 1, 3])
@@ -103,6 +103,7 @@ def Hiera(
     num_heads=[1, 2, 4, 8],
     use_window_attentions=[True, True, [True, False], False],  # [True, False] means first one is True, others are False
     mlp_ratio=4,
+    strides=[1, 2, 2, 2],
     # window_ratios=[8, 4, 1, 1],
     input_shape=(224, 224, 3),
     num_classes=1000,
@@ -118,8 +119,7 @@ def Hiera(
     # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
     input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
-    strides = [1, 2, 2, 2]
-    window_size_prod = 8 * 8  # Total downsample rates after stem
+    window_size_prod = np.prod(strides) ** 2  # Total downsample rates after stem
 
     """ forward_embeddings """
     nn = conv2d_no_bias(inputs, embed_dim, 7, strides=4, padding="same", use_bias=True, name="stem_")
@@ -134,16 +134,16 @@ def Hiera(
     global_block_id = 0
     for stack_id, (num_block, stride, use_window_attention) in enumerate(zip(num_blocks, strides, use_window_attentions)):
         stack_name = "stack{}_".format(stack_id + 1)
-        cur_out_channels = embed_dim * (2 ** stack_id)
+        cur_out_channels = embed_dim * (2**stack_id)
         cur_num_heads = num_heads[stack_id] if isinstance(num_heads, (list, tuple)) else num_heads
         stack_use_window_attention = use_window_attention if isinstance(use_window_attention, (list, tuple)) else [use_window_attention]
         stack_use_window_attention = stack_use_window_attention + stack_use_window_attention[-1:] * (num_block - len(stack_use_window_attention))
-        window_size_prod //= (stride ** 2)
+        window_size_prod //= stride**2
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
-            strides_prod = (stride ** 2) if block_id == 0 else 1
-            cur_window_size_prod = (window_size_prod * strides_prod)  if stack_use_window_attention[block_id] else -1
+            strides_prod = (stride**2) if block_id == 0 else 1
+            cur_window_size_prod = (window_size_prod * strides_prod) if stack_use_window_attention[block_id] else -1
             nn = attention_mlp_block(
                 nn, cur_out_channels, cur_num_heads, cur_window_size_prod, strides_prod, mlp_ratio, block_drop_rate, activation=activation, name=block_name
             )

@@ -638,6 +638,8 @@ class PreprocessInput:
         input_shape = input_shape[1:] if len(input_shape) == 4 else input_shape
         if None in input_shape:
             self.input_shape = (None, None)  # Dynamic input_shape
+        elif len(input_shape) == 2:
+            self.input_shape = input_shape
         else:
             channel_axis, channel_dim = min(enumerate(input_shape), key=lambda xx: xx[1])  # Assume the smallest value is the channel dimension
             self.input_shape = [dim for axis, dim in enumerate(input_shape) if axis != channel_axis]

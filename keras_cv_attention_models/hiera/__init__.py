@@ -5,7 +5,8 @@ Keras implementation of [Github facebookresearch/hiera](https://github.com/faceb
 Paper [PDF 2306.00989 Hiera: A Hierarchical Vision Transformer without the Bells-and-Whistles](https://arxiv.org/pdf/2306.00989.pdf).
 """
 
-__tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
+__tail_doc__ = """  strides: list of int indicates strides for each stack. Default `[1, 2, 2, 2]`.
+  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default `gelu`.
   drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).

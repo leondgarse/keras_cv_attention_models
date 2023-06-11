@@ -273,9 +273,9 @@ def keras_reload_from_torch_model(
 ):
     import torch
     import numpy as np
-    import tensorflow as tf
-    from tensorflow import keras
+
     from keras_cv_attention_models import test_images
+    from keras_cv_attention_models.common_layers import PreprocessInput
     from keras_cv_attention_models.imagenet.eval_func import decode_predictions
 
     input_shape = input_shape[:2] if keras_model is None else keras_model.input_shape[1:-1]
@@ -288,8 +288,8 @@ def keras_reload_from_torch_model(
     """ Chelsea the cat  """
     do_predict = do_predict and do_convert
     if do_predict:
-        img = test_images.cat()
-        img = keras.applications.imagenet_utils.preprocess_input(tf.image.resize(img, input_shape), mode="torch").numpy()
+        pp = PreprocessInput(input_shape=input_shape, rescale_mode="torch")
+        img = pp(test_images.cat()).numpy()
 
     if not is_state_dict:
         _ = torch_model.eval()
@@ -300,7 +300,7 @@ def keras_reload_from_torch_model(
                 # from torchsummary import summary
                 # summary(torch_model, (3, *input_shape), device="cpu")
                 """Torch Run predict"""
-                out = torch_model(torch.from_numpy(np.expand_dims(img.transpose(2, 0, 1), 0).astype("float32")))
+                out = torch_model(torch.from_numpy(img.copy().transpose(0, 3, 1, 2).astype("float32")))
                 out = out.detach().cpu().numpy()
                 out = out[None] if len(out.shape) == 1 else out
                 # out = tf.nn.softmax(out).numpy()  # If classifier activation is not softmax
@@ -358,7 +358,7 @@ def keras_reload_from_torch_model(
     """ Keras run predict """
     if do_predict:
         try:
-            pred = keras_model(tf.expand_dims(img, 0)).numpy()
+            pred = keras_model(img).numpy()
             # pred = tf.nn.softmax(pred).numpy()  # If classifier activation is not softmax
             print(">>>> Keras model prediction:", decode_predictions(pred)[0])
             print()

@@ -86,7 +86,7 @@
   preds = model(model.preprocess_input(test_images.cat()))
   print(model.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.42882437), ('n02123159', 'tiger_cat', 0.15752947), ...]
-  ```  
+  ```
 ## Verification with PyTorch version
   ```py
   """ PyTorch EfficientViT_M0 """

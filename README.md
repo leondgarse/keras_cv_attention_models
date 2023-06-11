@@ -47,6 +47,7 @@
   - [GMLP](#gmlp)
   - [GPViT](#gpvit)
   - [HaloNet](#halonet)
+  - [Hiera](#hiera)
   - [HorNet](#hornet)
   - [IFormer](#iformer)
   - [InceptionNeXt](#inceptionnext)
@@ -953,6 +954,17 @@
   | [HaloRegNetZB](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/haloregnetz_b_224_imagenet.h5)   | 11.68M | 1.97G   | 224   | 81.042   | 582.876 qps  |
   | [HaloNet50T](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halonet50t_256_imagenet.h5)     | 22.7M  | 5.29G   | 256   | 81.70    | 509.481 qps  |
   | [HaloBotNet50T](https://github.com/leondgarse/keras_cv_attention_models/releases/download/halonet/halobotnet50t_256_imagenet.h5)  | 22.6M  | 5.02G   | 256   | 82.0     | 435.006 qps  |
+## Hiera
+  - [Keras Hiera](keras_cv_attention_models/hiera) is for [PDF 2306.00989 Hiera: A Hierarchical Vision Transformer without the Bells-and-Whistles](https://arxiv.org/pdf/2306.00989.pdf).
+
+  | Model         | Params  | FLOPs   | Input | Top1 Acc | T4 Inference |
+  | ------------- | ------- | ------- | ----- | -------- | ------------ |
+  | HieraTiny     | 27.91M  | 4.93G   | 224   | 82.8     |              |
+  | HieraSmall    | 35.01M  | 6.44G   | 224   | 83.8     |              |
+  | [HieraBase](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_base_224_mae_in1k_ft1k.h5)     | 51.52M  | 9.43G   | 224   | 84.5     |              |
+  | HieraBasePlus | 69.90M  | 12.71G  | 224   | 85.2     |              |
+  | HieraLarge    | 213.74M | 40.43G  | 224   | 86.1     |              |
+  | HieraHuge     | 672.78M | 125.03G | 224   | 86.9     |              |
 ## HorNet
   - [Keras HorNet](keras_cv_attention_models/hornet) is for [PDF 2207.14284 HorNet: Efficient High-Order Spatial Interactions with Recursive Gated Convolutions](https://arxiv.org/pdf/2207.14284.pdf).
 

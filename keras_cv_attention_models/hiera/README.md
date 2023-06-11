@@ -7,25 +7,55 @@
 ***
 
 ## Models
-  | Model         | Params  | FLOPs   | Input | Top1 Acc | Download |
-  | ------------- | ------- | ------- | ----- | -------- | -------- |
-  | HieraTiny     | 27.91M  | 4.93G   | 224   | 82.8     |          |
-  | HieraSmall    | 35.01M  | 6.44G   | 224   | 83.8     |          |
-  | HieraBase     | 51.52M  | 9.43G   | 224   | 84.5     |          |
-  | HieraBasePlus | 69.90M  | 12.71G  | 224   | 85.2     |          |
-  | HieraLarge    | 213.74M | 40.43G  | 224   | 86.1     |          |
-  | HieraHuge     | 672.78M | 125.03G | 224   | 86.9     |          |
+  | Model         | Params  | FLOPs   | Input | Top1 Acc | T4 Inference |
+  | ------------- | ------- | ------- | ----- | -------- | ------------ |
+  | HieraTiny     | 27.91M  | 4.93G   | 224   | 82.8     |              |
+  | HieraSmall    | 35.01M  | 6.44G   | 224   | 83.8     |              |
+  | [HieraBase](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_base_224_mae_in1k_ft1k.h5)     | 51.52M  | 9.43G   | 224   | 84.5     |              |
+  | HieraBasePlus | 69.90M  | 12.71G  | 224   | 85.2     |              |
+  | HieraLarge    | 213.74M | 40.43G  | 224   | 86.1     |              |
+  | HieraHuge     | 672.78M | 125.03G | 224   | 86.9     |              |
 ## Usage
   ```py
   from keras_cv_attention_models import hiera, test_images
 
   # Will download and load pretrained imagenet weights.
   mm = hiera.HieraBase()
+  # >>>> Load pretrained from: ~/.keras/models/hiera_base_224_mae_in1k_ft1k.h5
 
   # Run prediction
   preds = mm(mm.preprocess_input(test_images.cat()))
   print(mm.decode_predictions(preds))
-  # [('n02124075', 'Egyptian_cat', 0.8966972), ('n02123045', 'tabby', 0.0072582546), ...]
+  # [('n02124075', 'Egyptian_cat', 0.8947084), ('n02123045', 'tabby', 0.006296753), ...]
+  ```
+  **Change input resolution** input_shape should be divisible by `32`, which is `stem_strides=4 * strides=[1, 2, 2, 2]`. **Note: pretrained weights not working well with new input_shape, as `window_size` is bounded with `unroll` and `strides`**.
+  ```py
+  from keras_cv_attention_models import hiera, test_images
+  mm = hiera.HieraBase(input_shape=(448, 448, 3))
+  # >>>> Load pretrained from: ~/.keras/models/hiera_base_224_mae_in1k_ft1k.h5
+  # WARNING:tensorflow:Skipping loading weights for layer #3 (named positional_embedding) ...
+  # >>>> Reload mismatched weights: 224 -> (448, 448)
+  # >>>> Reload layer: positional_embedding
+  print(mm.decode_predictions(mm(mm.preprocess_input(test_images.cat()))))
+  # [('n04275548', 'spider_web', 0.4003983), ('n01773549', 'barn_spider', 0.10982952), ...]
+
+  """ A little better with new strides """
+  mm = hiera.HieraBase(input_shape=(448, 448, 3), strides=[1, 4, 2, 2])
+  print(mm.decode_predictions(mm(mm.preprocess_input(test_images.cat()))))
+  # [('n02124075', 'Egyptian_cat', 0.37766436), ('n03000247', 'chain_mail', 0.09813311), ...]
+  ```
+  **Using PyTorch backend** by set `KECAM_BACKEND='torch'` environment variable.
+  ```py
+  os.environ['KECAM_BACKEND'] = 'torch'
+  from keras_cv_attention_models import hiera, test_images
+  model = hiera.HieraBase()
+  # >>>> Using PyTorch backend
+  # >>>> Load pretrained from: ~/.keras/models/hiera_base_224_mae_in1k_ft1k.h5
+
+  # Run prediction
+  preds = model(model.preprocess_input(test_images.cat()))
+  print(model.decode_predictions(preds))
+  # [('n02124075', 'Egyptian_cat', 0.8947087), ('n02123045', 'tabby', 0.006296773), ...]
   ```
 ## Verification with PyTorch version
   ```py
@@ -48,6 +78,6 @@
   inputs = np.random.uniform(size=(1, *mm.input_shape[1:3], 3)).astype("float32")
   torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2)).detach().numpy()
   keras_out = mm(inputs).numpy()
-  print(f"{np.allclose(torch_out, keras_out, atol=5e-2) = }")
-  # np.allclose(torch_out, keras_out, atol=5e-2) = True
+  print(f"{np.allclose(torch_out, keras_out, atol=1e-5) = }")
+  # np.allclose(torch_out, keras_out, atol=1e-5) = True
   ```
