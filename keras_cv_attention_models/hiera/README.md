@@ -7,14 +7,14 @@
 ***
 
 ## Models
-  | Model         | Params  | FLOPs   | Input | Top1 Acc | T4 Inference |
-  | ------------- | ------- | ------- | ----- | -------- | ------------ |
-  | HieraTiny     | 27.91M  | 4.93G   | 224   | 82.8     |              |
-  | HieraSmall    | 35.01M  | 6.44G   | 224   | 83.8     |              |
-  | [HieraBase](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_base_224_mae_in1k_ft1k.h5)     | 51.52M  | 9.43G   | 224   | 84.5     |              |
-  | HieraBasePlus | 69.90M  | 12.71G  | 224   | 85.2     |              |
-  | HieraLarge    | 213.74M | 40.43G  | 224   | 86.1     |              |
-  | HieraHuge     | 672.78M | 125.03G | 224   | 86.9     |              |
+  | Model                        | Params  | FLOPs   | Input | Top1 Acc | T4 Inference |
+  | ---------------------------- | ------- | ------- | ----- | -------- | ------------ |
+  | HieraTiny, mae_in1k_ft1k     | 27.91M  | 4.93G   | 224   | 82.8     | 704.4 qps    |
+  | HieraSmall, mae_in1k_ft1k    | 35.01M  | 6.44G   | 224   | 83.8     | 545.488 qps  |
+  | [HieraBase, mae_in1k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_base_224_mae_in1k_ft1k.h5)     | 51.52M  | 9.43G   | 224   | 84.5     | 371.988 qps  |
+  | HieraBasePlus, mae_in1k_ft1k | 69.90M  | 12.71G  | 224   | 85.2     | 304.957 qps  |
+  | HieraLarge, mae_in1k_ft1k    | 213.74M | 40.43G  | 224   | 86.1     | 110.719 qps  |
+  | HieraHuge, mae_in1k_ft1k     | 672.78M | 125.03G | 224   | 86.9     |              |
 ## Usage
   ```py
   from keras_cv_attention_models import hiera, test_images
@@ -28,7 +28,7 @@
   print(mm.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.8947084), ('n02123045', 'tabby', 0.006296753), ...]
   ```
-  **Change input resolution** input_shape should be divisible by `32`, which is `stem_strides=4 * strides=[1, 2, 2, 2]`. **Note: pretrained weights not working well with new input_shape, as `window_size` is bounded with `unroll` and `strides`**.
+  **Change input resolution** input_shape should be divisible by `32`, which is `stem_strides=4 * strides=[1, 2, 2, 2]`. **Note: pretrained weights not works well with new input_shape, as `window_size` is bounded with `unroll` and `strides`**.
   ```py
   from keras_cv_attention_models import hiera, test_images
   mm = hiera.HieraBase(input_shape=(448, 448, 3))

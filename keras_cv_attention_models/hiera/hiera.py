@@ -79,22 +79,22 @@ def unroll(inputs, strides=[2, 2, 2]):
     -> [batch, height * width, channels]
     """
     height, width, channels = inputs.shape[1:]
-    # nn = inputs
-    # for ii in strides:
-    #     nn = functional.reshape(nn, [-1, nn.shape[-3] // ii, ii, nn.shape[-2] // ii, ii, nn.shape[-1]])
-    #     nn = functional.transpose(nn, [0, 2, 4, 1, 3, 5])
-    # return functional.reshape(nn, [-1, height * width, channels])
-
-    height_strided = height // np.prod(strides)
-    width_strided = width // np.prod(strides)
-    inner_shape = [-1, height_strided, *strides, width_strided, *strides, channels]
-    nn = functional.reshape(inputs, inner_shape)
-
-    strides_len = len(strides) + 1
-    perm = [0] + np.ravel([[ii, ii + strides_len] for ii in range(strides_len, 0, -1)]).tolist() + [2 * strides_len + 1]  # [0, 4, 8, 3, 7, 2, 6, 1, 5, 9]
-    nn = functional.transpose(nn, perm)
-
+    nn = inputs
+    for ii in strides:
+        nn = functional.reshape(nn, [-1, nn.shape[-3] // ii, ii, nn.shape[-2] // ii, ii, nn.shape[-1]])
+        nn = functional.transpose(nn, [0, 2, 4, 1, 3, 5])
     return functional.reshape(nn, [-1, height * width, channels])
+
+    # height_strided = height // np.prod(strides)
+    # width_strided = width // np.prod(strides)
+    # inner_shape = [-1, height_strided, *strides, width_strided, *strides, channels]
+    # nn = functional.reshape(inputs, inner_shape)
+    #
+    # strides_len = len(strides) + 1
+    # perm = [0] + np.ravel([[ii, ii + strides_len] for ii in range(strides_len, 0, -1)]).tolist() + [2 * strides_len + 1]  # [0, 4, 8, 3, 7, 2, 6, 1, 5, 9]
+    # nn = functional.transpose(nn, perm)
+    #
+    # return functional.reshape(nn, [-1, height * width, channels])
 
 
 def Hiera(
