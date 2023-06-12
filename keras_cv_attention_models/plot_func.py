@@ -173,11 +173,11 @@ def tensorboard_parallel_coordinates_plot(dataframe, metrics_name, metrics_displ
 """ Plot model summary """
 
 
-def plot_model_summary(plot_series, x_label, y_label="acc_metrics", model_table="model_summary.csv", filter_extra=True, ax=None):
+def plot_model_summary(plot_series, x_label, y_label="acc_metrics", model_table="model_summary.csv", allow_extras=None, ax=None):
     """
     >>> from keras_cv_attention_models import plot_func
     >>> plot_series = ["efficientvit_b", "efficientvit_m", "efficientnet", "efficientnetv2"]
-    >>> plot_func.plot_model_summary(plot_series, x_label='inference_qps', model_table="model_summary.csv")
+    >>> plot_func.plot_model_summary(plot_series, x_label='inference_qps', model_table="model_summary.csv", allow_extras=None)
     """
     import matplotlib.pyplot as plt
 
@@ -190,16 +190,22 @@ def plot_model_summary(plot_series, x_label, y_label="acc_metrics", model_table=
     # dd = dd[dd.category == "Recognition"]
     dd = dd[dd[x_label].notnull()]
     dd = dd[dd[y_label].notnull()]
-    if filter_extra:
-        dd = dd[dd["extra"].isnull()]
 
     if ax is None:
         fig, ax = plt.subplots()
 
     plot_series = None if plot_series is None else [ii.lower() for ii in plot_series]
+    gather_extras = []
+    allow_extras = [] if allow_extras is None else allow_extras
     for name, group in dd.groupby(dd["series"]):
         if plot_series is not None and name.lower() not in plot_series:
             continue
+
+        gather_extras.extend(group["extra"].values)
+        extra_condition = group["extra"].isnull()
+        if allow_extras:
+            extra_condition = np.logical_or(extra_condition, [ii in allow_extras for ii in group["extra"]])
+        group = group[extra_condition]
         xx = group[x_label].values
         yy = group[y_label].values
         plt.scatter(xx, yy, label=name)
@@ -216,4 +222,7 @@ def plot_model_summary(plot_series, x_label, y_label="acc_metrics", model_table=
     plt.tight_layout()
 
     plt.show()
+    other_extras = [ii for ii in set(gather_extras) - set(allow_extras) if isinstance(ii, str)]
+    if len(other_extras) > 0:
+        print("All other extras:", other_extras)
     return ax
