@@ -1,4 +1,4 @@
-from keras_cv_attention_models.ghostnet.ghostnet_v2 import GhostNetV2, GhostNetV2_100
+from keras_cv_attention_models.ghostnet.ghostnet_v2 import GhostNetV2, GhostNetV2_100, GhostNetV2_130, GhostNetV2_160
 from keras_cv_attention_models.ghostnet.ghostnet import GhostNet, GhostNet_050, GhostNet_100, GhostNet_130
 
 __v2_head_doc__ = """
@@ -46,6 +46,9 @@ Model architectures:
 GhostNetV2_100.__doc__ = __v2_head_doc__ + """
 Args:
 """ + __tail_doc__
+
+GhostNetV2_130.__doc__ = GhostNetV2_100.__doc__
+GhostNetV2_160.__doc__ = GhostNetV2_100.__doc__
 
 __v1_head_doc__ = """
 Keras implementation of [Github huawei-noah/ghostnet_pytorch](https://github.com/huawei-noah/Efficient-AI-Backbones/tree/master/ghostnet_pytorch).

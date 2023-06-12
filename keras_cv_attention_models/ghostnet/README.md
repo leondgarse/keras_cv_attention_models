@@ -2,8 +2,7 @@
 ***
 
 ## Summary
-  - Keras implementation of [Gitee mindspore/models/ghostnetv2](https://gitee.com/mindspore/models/tree/master/research/cv/ghostnetv2). Paper [PDF GhostNetV2: Enhance Cheap Operation with Long-Range Attention](https://openreview.net/pdf/6db544c65bbd0fa7d7349508454a433c112470e2.pdf).
-  - `GhostNetV2_100` model weights ported from official publication [download.mindspore ghostnetv2](https://download.mindspore.cn/model_zoo/research/cv/ghostnetv2/).
+  - Keras implementation of [Github huawei-noah/ghostnetv2_pytorch](https://github.com/huawei-noah/Efficient-AI-Backbones/tree/master/ghostnetv2_pytorch). Paper [PDF GhostNetV2: Enhance Cheap Operation with Long-Range Attention](https://openreview.net/pdf/6db544c65bbd0fa7d7349508454a433c112470e2.pdf).
   - `GhostNet_100` model weights ported from official publication [Github huawei-noah/ghostnet_pytorch](https://github.com/huawei-noah/Efficient-AI-Backbones/tree/master/ghostnet_pytorch). Paper [PDF 1911.11907 GhostNet: More Features from Cheap Operations](https://arxiv.org/pdf/1911.11907.pdf).
   - `GhostNet_050` and `GhostNet_130` model weights ported from [Github PaddlePaddle/PaddleClas](https://github.com/PaddlePaddle/PaddleClas).
 
@@ -13,12 +12,11 @@
 ## Models
   - `GhostNetV2_100` should be same with `GhostNetV2 (1.0x)`. Weights are ported from official publication. Currently it's only weights with accuracy `74.41` provided.
 
-  | Model             | Params | FLOPs  | Input | Top1 Acc | Download |
-  | ----------------- | ------ | ------ | ----- | -------- | -------- |
-  | GhostNetV2_100    | 6.12M  | 168.5M | 224   | 74.41    | [ghostnetv2_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnetv2_100_imagenet.h5) |
-  | GhostNetV2 (1.0x) | 6.12M  | 168.5M | 224   | 75.3     |          |
-  | GhostNetV2 (1.3x) | 8.96M  | 271.1M | 224   | 76.9     |          |
-  | GhostNetV2 (1.6x) | 12.39M | 400.9M | 224   | 77.8     |          |
+  | Model          | Params | FLOPs  | Input | Top1 Acc | Download |
+  | -------------- | ------ | ------ | ----- | -------- | -------- |
+  | GhostNetV2_100 | 6.12M  | 168.5M | 224   | 75.3     | [ghostnetv2_100_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnetv2_100_imagenet.h5) |
+  | GhostNetV2_130 | 8.96M  | 271.1M | 224   | 76.9     | [ghostnetv2_130_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnetv2_130_imagenet.h5) |
+  | GhostNetV2_160 | 12.39M | 400.9M | 224   | 77.8     | [ghostnetv2_160_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/ghostnetv2/ghostnetv2_160_imagenet.h5) |
 
   | Model        | Params | FLOPs  | Input | Top1 Acc | Download |
   | ------------ | ------ | ------ | ----- | -------- | -------- |

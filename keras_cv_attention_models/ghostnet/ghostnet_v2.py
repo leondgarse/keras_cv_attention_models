@@ -14,7 +14,9 @@ from keras_cv_attention_models.attention_layers import (
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
-    "ghostnetv2_100": {"imagenet": "4f28597d5f72731ed4ef4f69ec9c1799"},
+    "ghostnetv2_100": {"imagenet": "d9da39a786811d6c7755396cead539e6"},
+    "ghostnetv2_130": {"imagenet": "e69d07ba05ac171eb0c9e28b6348c477"},
+    "ghostnetv2_160": {"imagenet": "641c7a0ba319bf38261c50e3c9cd280d"},
     "ghostnet_050": {"imagenet": "dbb5a89e19fa78f2f35f38b4c1ae4351"},
     "ghostnet_100": {"imagenet": "19a0f0f03f20e4bd6c1736102b4d979d"},
     "ghostnet_130": {"imagenet": "3a73bc721765c516a894b567674fc60b", "ssld": "62571bb90d71a7487679ae97642d13fb"},
@@ -33,7 +35,7 @@ def decoupled_fully_connected_attention_block(inputs, out_channel, name=""):
     nn = activation_by_name(nn, "sigmoid", name=name)
     # print(f"{nn.shape = }, {nn.shape = }")
     size = functional.shape(inputs)[1:-1] if image_data_format() == "channels_last" else functional.shape(inputs)[2:]  # For dynamic shape
-    nn = functional.resize(nn, size, antialias=False, method="bilinear")
+    nn = functional.resize(nn, size, antialias=False, method="nearest")
     # nn = layers.UpSampling2D(size=(2, 2), interpolation='bilinear')(nn)
     # if int(nn.shape[1] - nn.shape[1]) > 0 or int(nn.shape[2] - nn.shape[2]) > 0:
     #     nn = nn[:, :nn.shape[1], :nn.shape[2]]
@@ -146,3 +148,13 @@ def GhostNetV2(
 @register_model
 def GhostNetV2_100(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return GhostNetV2(**locals(), model_name="ghostnetv2_100", **kwargs)
+
+
+@register_model
+def GhostNetV2_130(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return GhostNetV2(**locals(), width_mul=1.3, model_name="ghostnetv2_130", **kwargs)
+
+
+@register_model
+def GhostNetV2_160(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    return GhostNetV2(**locals(), width_mul=1.6, model_name="ghostnetv2_160", **kwargs)
