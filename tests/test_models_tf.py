@@ -6,15 +6,7 @@ import keras_cv_attention_models
 from keras_cv_attention_models.backend import models
 from keras_cv_attention_models.test_images import cat
 
-""" Recognition models HorNet / NFNet / VOLO defination """
-
-
-def test_HorNet_defination():
-    mm = keras_cv_attention_models.hornet.HorNetSmall(pretrained=None)
-    assert isinstance(mm, models.Model)
-
-    mm = keras_cv_attention_models.hornet.HorNetSmallGF(pretrained=None, num_classes=0)
-    assert isinstance(mm, models.Model)
+""" Recognition models HorNet*GF / NFNet / VOLO defination """
 
 
 def test_NFNet_defination():

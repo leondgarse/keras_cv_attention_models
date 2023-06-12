@@ -391,6 +391,14 @@ def test_HieraBase_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_HorNetTiny_dynamic_predict():
+    mm = keras_cv_attention_models.hornet.HorNetTiny(input_shape=(None, None, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(cat(), input_shape=(160, 256, 3)))
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_IFormerSmall_new_shape_predict():
     mm = keras_cv_attention_models.iformer.IFormerSmall(input_shape=(174, 255, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat()))

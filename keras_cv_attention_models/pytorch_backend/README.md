@@ -3,7 +3,7 @@
 
 ## Summary
   - Experimental implementation for using PyTorch as Keras backend.
-  - Currently supports most recognition and detection models except hornet / nfnets / volo. For detection models, using `torchvision.ops.nms` while running prediction.
+  - Currently supports most recognition and detection models except hornet*gf / nfnets / volo. For detection models, using `torchvision.ops.nms` while running prediction.
 ***
 
 ## Basic Usage

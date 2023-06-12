@@ -26,6 +26,7 @@ from keras_cv_attention_models import ghostnet as ghostnetv2  # Will be removed
 from keras_cv_attention_models import gpt2
 from keras_cv_attention_models import halonet
 from keras_cv_attention_models import hiera
+from keras_cv_attention_models import hornet
 from keras_cv_attention_models import iformer
 from keras_cv_attention_models import levit
 from keras_cv_attention_models import mlp_family
@@ -71,7 +72,6 @@ from keras_cv_attention_models.yolov8 import yolo_nas
 from keras_cv_attention_models import coco
 
 if backend.is_tensorflow_backend:
-    from keras_cv_attention_models import hornet
     from keras_cv_attention_models import nfnets
     from keras_cv_attention_models import volo
     from keras_cv_attention_models import visualizing

@@ -1,11 +1,10 @@
 from keras_cv_attention_models import backend
-from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
+from keras_cv_attention_models.backend import layers, models, functional, initializers
 from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
-    ChannelAffine,
+    add_with_layer_scale_and_drop_block,
     conv2d_no_bias,
     depthwise_conv2d_no_bias,
-    drop_block,
     layer_norm,
     mlp_block,
     add_pre_post_process,
@@ -83,11 +82,12 @@ def global_local_filter(inputs, name=None):
 
 
 def gnconv(inputs, use_global_local_filter=False, dw_kernel_size=7, gn_split=3, scale=0.3333333, name=None):
-    input_channel = inputs.shape[-1]
+    channel_axis = -1 if backend.image_data_format() == "channels_last" else 1
+    input_channel = inputs.shape[channel_axis]
     nn = conv2d_no_bias(inputs, input_channel * 2, kernel_size=1, use_bias=True, name=name and name + "pre_")
     split_dims = [input_channel // (2**ii) for ii in range(gn_split)][::-1]
     # print(f">>>> {nn.shape = }, {split_dims = }")
-    pw_first, dw_list = functional.split(nn, [split_dims[0], sum(split_dims)], axis=-1)
+    pw_first, dw_list = functional.split(nn, [split_dims[0], sum(split_dims)], axis=channel_axis)
 
     if use_global_local_filter:
         dw_list = global_local_filter(dw_list, name=name and name + "gf_")
@@ -95,10 +95,10 @@ def gnconv(inputs, use_global_local_filter=False, dw_kernel_size=7, gn_split=3, 
         dw_list = depthwise_conv2d_no_bias(dw_list, kernel_size=dw_kernel_size, padding="SAME", use_bias=True, name=name and name + "list_")
     dw_list *= scale
 
-    dw_list = functional.split(dw_list, split_dims, axis=-1)
+    dw_list = functional.split(dw_list, split_dims, axis=channel_axis)
     nn = pw_first * dw_list[0]
     for id, dw in enumerate(dw_list[1:], start=1):
-        pw = conv2d_no_bias(nn, dw.shape[-1], kernel_size=1, use_bias=True, name=name and name + "pw{}_".format(id))
+        pw = conv2d_no_bias(nn, dw.shape[channel_axis], kernel_size=1, use_bias=True, name=name and name + "pw{}_".format(id))
         nn = pw * dw
 
     nn = conv2d_no_bias(nn, input_channel, kernel_size=1, use_bias=True, name=name and name + "output_")
@@ -107,18 +107,15 @@ def gnconv(inputs, use_global_local_filter=False, dw_kernel_size=7, gn_split=3, 
 
 def block(inputs, mlp_ratio=4, use_global_local_filter=False, gn_split=3, scale=0.3333333, layer_scale=0, drop_rate=0, activation="gelu", name=""):
     # print(global_query)
-    input_channel = inputs.shape[-1]
     attn = layer_norm(inputs, name=name + "attn_")
     attn = gnconv(attn, use_global_local_filter, gn_split=gn_split, scale=scale, name=name + "gnconv_")
-    attn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "1_gamma")(attn) if layer_scale >= 0 else attn
-    attn = drop_block(attn, drop_rate=drop_rate, name=name + "attn_")
-    attn_out = layers.Add(name=name + "attn_out")([inputs, attn])
+    attn_out = add_with_layer_scale_and_drop_block(inputs, attn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "1_")
 
-    mlp = layer_norm(attn_out, name=name + "mlp_")
-    mlp = mlp_block(mlp, int(input_channel * mlp_ratio), use_conv=False, activation=activation, name=name + "mlp_")
-    mlp = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "2_gamma")(mlp) if layer_scale >= 0 else mlp
-    mlp = drop_block(mlp, drop_rate=drop_rate, name=name + "mlp_")
-    return layers.Add(name=name + "output")([attn_out, mlp])
+    mlp = attn_out if backend.image_data_format() == "channels_last" else layers.Permute((2, 3, 1))(attn_out)
+    mlp = layer_norm(mlp, axis=-1, name=name + "mlp_")
+    mlp = mlp_block(mlp, int(mlp.shape[-1] * mlp_ratio), use_conv=False, activation=activation, name=name + "mlp_")
+    mlp = mlp if backend.image_data_format() == "channels_last" else layers.Permute((3, 1, 2))(mlp)
+    return add_with_layer_scale_and_drop_block(attn_out, mlp, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "2_")
 
 
 def HorNet(
@@ -154,7 +151,8 @@ def HorNet(
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id > 0:
             nn = layer_norm(nn, name=stack_name)
-            nn = conv2d_no_bias(nn, nn.shape[-1] * 2, kernel_size=2, strides=2, use_bias=True, name=stack_name)
+            input_channels = nn.shape[-1 if backend.image_data_format() == "channels_last" else 1]
+            nn = conv2d_no_bias(nn, input_channels * 2, kernel_size=2, strides=2, use_bias=True, name=stack_name)
 
         cur_use_global_local_filter = use_global_local_filter[stack_id] if isinstance(use_global_local_filter, (list, tuple)) else use_global_local_filter
         cur_gn_split = gn_split[stack_id] if isinstance(gn_split, (list, tuple)) else gn_split
