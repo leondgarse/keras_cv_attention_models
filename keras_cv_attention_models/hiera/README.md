@@ -9,12 +9,12 @@
 ## Models
   | Model                        | Params  | FLOPs   | Input | Top1 Acc | T4 Inference |
   | ---------------------------- | ------- | ------- | ----- | -------- | ------------ |
-  | HieraTiny, mae_in1k_ft1k     | 27.91M  | 4.93G   | 224   | 82.8     | 704.4 qps    |
-  | HieraSmall, mae_in1k_ft1k    | 35.01M  | 6.44G   | 224   | 83.8     | 545.488 qps  |
+  | [HieraTiny, mae_in1k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_tiny_224_mae_in1k_ft1k.h5)     | 27.91M  | 4.93G   | 224   | 82.8     | 704.4 qps    |
+  | [HieraSmall, mae_in1k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_small_224_mae_in1k_ft1k.h5)    | 35.01M  | 6.44G   | 224   | 83.8     | 545.488 qps  |
   | [HieraBase, mae_in1k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_base_224_mae_in1k_ft1k.h5)     | 51.52M  | 9.43G   | 224   | 84.5     | 371.988 qps  |
-  | HieraBasePlus, mae_in1k_ft1k | 69.90M  | 12.71G  | 224   | 85.2     | 304.957 qps  |
-  | HieraLarge, mae_in1k_ft1k    | 213.74M | 40.43G  | 224   | 86.1     | 110.719 qps  |
-  | HieraHuge, mae_in1k_ft1k     | 672.78M | 125.03G | 224   | 86.9     |              |
+  | [HieraBasePlus, mae_in1k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_base_plus_224_mae_in1k_ft1k.h5) | 69.90M  | 12.71G  | 224   | 85.2     | 304.957 qps  |
+  | [HieraLarge, mae_in1k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_large_224_mae_in1k_ft1k.h5)    | 213.74M | 40.43G  | 224   | 86.1     | 110.719 qps  |
+  | [HieraHuge, mae_in1k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_huge_224_mae_in1k_ft1k.h5)     | 672.78M | 125.03G | 224   | 86.9     |              |
 ## Usage
   ```py
   from keras_cv_attention_models import hiera, test_images

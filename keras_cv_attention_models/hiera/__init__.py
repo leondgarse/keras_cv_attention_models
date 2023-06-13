@@ -16,7 +16,7 @@ __tail_doc__ = """  strides: list of int indicates strides for each stack. Defau
   dropout: dropout rate if top layers is included.
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
-  pretrained: one of None or "mae_in1k_ft1k". Currently only `HieraBase` weights available.
+  pretrained: one of None or "mae_in1k_ft1k".
       Will try to download and load pre-trained model weights if not None.
 
 Returns:

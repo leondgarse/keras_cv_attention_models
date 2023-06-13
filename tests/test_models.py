@@ -383,8 +383,8 @@ def test_HaloRegNetZB_new_shape_predict():
     assert out[1] == "Egyptian_cat"
 
 
-def test_HieraBase_predict():
-    mm = keras_cv_attention_models.hiera.HieraBase()
+def test_HieraTiny_predict():
+    mm = keras_cv_attention_models.hiera.HieraTiny()
     pred = mm(mm.preprocess_input(cat()))
     out = mm.decode_predictions(pred)[0][0]
 

@@ -16,6 +16,11 @@ LAYER_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
     "hiera_base": {"mae_in1k_ft1k": {224: "7998153d4cf4a2571e1268c8be1d9324"}},
+    "hiera_base_plus": {"mae_in1k_ft1k": {224: "5492209f8d7f8632e5db218e2b32496d"}},
+    "hiera_huge": {"mae_in1k_ft1k": {224: "2226812b40266ab28e4394849ba7690f"}},
+    "hiera_large": {"mae_in1k_ft1k": {224: "68a3f6329f54f5f3bf7737989e3b67df"}},
+    "hiera_small": {"mae_in1k_ft1k": {224: "aaba43ec87328a487a06f24d67a4e56d"}},
+    "hiera_tiny": {"mae_in1k_ft1k": {224: "d7b913744fc2371e489f536dc236ae03"}},
 }
 
 
@@ -51,16 +56,19 @@ def attention_mlp_block(inputs, out_channels=-1, num_heads=4, window_size_prod=-
     # print(f">>>> {inputs.shape = }, {drop_rate = }")
     input_channels = inputs.shape[-1]
     out_channels = out_channels if out_channels > 0 else input_channels
+
     pre = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "attn_ln")(inputs)  # "channels_first" also using axis=-1
-    attn = mhsa_with_window_extracted_and_strides(
-        pre, num_heads=num_heads, out_shape=out_channels, window_size_prod=window_size_prod, strides_prod=strides_prod, name=name + "attn_"
-    )
-    attn = drop_block(attn, drop_rate)
     if strides_prod > 1 or out_channels != input_channels:
         short = pre if out_channels == input_channels else layers.Dense(out_channels, name=name + "short_dense")(pre)
         short = functional.reduce_max(functional.reshape(short, [-1, strides_prod, short.shape[1] // strides_prod, short.shape[-1]]), axis=1)
     else:
         short = inputs
+
+    """ Attention """
+    attn = mhsa_with_window_extracted_and_strides(
+        pre, num_heads=num_heads, out_shape=out_channels, window_size_prod=window_size_prod, strides_prod=strides_prod, name=name + "attn_"
+    )
+    attn = drop_block(attn, drop_rate)
     attn_out = layers.Add(name=name + "attn_out")([short, attn])
 
     """ MLP """
@@ -166,12 +174,12 @@ def Hiera(
 
 
 @register_model
-def HieraTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def HieraTiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="mae_in1k_ft1k", **kwargs):
     return Hiera(**locals(), model_name="hiera_tiny", **kwargs)
 
 
 @register_model
-def HieraSmall(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def HieraSmall(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="mae_in1k_ft1k", **kwargs):
     num_blocks = [1, 2, 11, 2]
     return Hiera(**locals(), model_name="hiera_small", **kwargs)
 
@@ -183,7 +191,7 @@ def HieraBase(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", cl
 
 
 @register_model
-def HieraBasePlus(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def HieraBasePlus(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="mae_in1k_ft1k", **kwargs):
     num_blocks = [2, 3, 16, 3]
     embed_dim = 112
     num_heads = [2, 4, 8, 16]
@@ -191,7 +199,7 @@ def HieraBasePlus(input_shape=(224, 224, 3), num_classes=1000, activation="gelu"
 
 
 @register_model
-def HieraLarge(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def HieraLarge(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="mae_in1k_ft1k", **kwargs):
     num_blocks = [2, 6, 36, 4]
     embed_dim = 144
     num_heads = [2, 4, 8, 16]
@@ -199,7 +207,7 @@ def HieraLarge(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", c
 
 
 @register_model
-def HieraHuge(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+def HieraHuge(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="mae_in1k_ft1k", **kwargs):
     num_blocks = [2, 6, 36, 4]
     embed_dim = 256
     num_heads = [4, 8, 16, 32]

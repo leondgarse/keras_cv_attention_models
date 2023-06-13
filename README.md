@@ -957,14 +957,14 @@
 ## Hiera
   - [Keras Hiera](keras_cv_attention_models/hiera) is for [PDF 2306.00989 Hiera: A Hierarchical Vision Transformer without the Bells-and-Whistles](https://arxiv.org/pdf/2306.00989.pdf).
 
-  | Model         | Params  | FLOPs   | Input | Top1 Acc | T4 Inference |
-  | ------------- | ------- | ------- | ----- | -------- | ------------ |
-  | HieraTiny     | 27.91M  | 4.93G   | 224   | 82.8     |              |
-  | HieraSmall    | 35.01M  | 6.44G   | 224   | 83.8     |              |
-  | [HieraBase](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_base_224_mae_in1k_ft1k.h5)     | 51.52M  | 9.43G   | 224   | 84.5     |              |
-  | HieraBasePlus | 69.90M  | 12.71G  | 224   | 85.2     |              |
-  | HieraLarge    | 213.74M | 40.43G  | 224   | 86.1     |              |
-  | HieraHuge     | 672.78M | 125.03G | 224   | 86.9     |              |
+  | Model                        | Params  | FLOPs   | Input | Top1 Acc | T4 Inference |
+  | ---------------------------- | ------- | ------- | ----- | -------- | ------------ |
+  | [HieraTiny, mae_in1k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_tiny_224_mae_in1k_ft1k.h5)     | 27.91M  | 4.93G   | 224   | 82.8     | 704.4 qps    |
+  | [HieraSmall, mae_in1k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_small_224_mae_in1k_ft1k.h5)    | 35.01M  | 6.44G   | 224   | 83.8     | 545.488 qps  |
+  | [HieraBase, mae_in1k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_base_224_mae_in1k_ft1k.h5)     | 51.52M  | 9.43G   | 224   | 84.5     | 371.988 qps  |
+  | [HieraBasePlus, mae_in1k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_base_plus_224_mae_in1k_ft1k.h5) | 69.90M  | 12.71G  | 224   | 85.2     | 304.957 qps  |
+  | [HieraLarge, mae_in1k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_large_224_mae_in1k_ft1k.h5)    | 213.74M | 40.43G  | 224   | 86.1     | 110.719 qps  |
+  | [HieraHuge, mae_in1k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/hiera/hiera_huge_224_mae_in1k_ft1k.h5)     | 672.78M | 125.03G | 224   | 86.9     |              |
 ## HorNet
   - [Keras HorNet](keras_cv_attention_models/hornet) is for [PDF 2207.14284 HorNet: Efficient High-Order Spatial Interactions with Recursive Gated Convolutions](https://arxiv.org/pdf/2207.14284.pdf).
 
