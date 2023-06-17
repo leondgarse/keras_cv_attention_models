@@ -48,13 +48,13 @@ class CausalMask(layers.Layer):
     def build(self, input_shape):
         causal_mask = (1 - np.tri(self.block_size).astype("float32")[None, None]) * -1e10
         if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("causal_mask", functional.convert_to_tensor(causal_mask, dtype="float32"), persistent=False)
+            self.register_buffer("causal_mask", functional.convert_to_tensor(causal_mask, dtype=self.compute_dtype), persistent=False)
         else:
-            self.causal_mask = functional.convert_to_tensor(causal_mask, dtype="float32")
+            self.causal_mask = functional.convert_to_tensor(causal_mask, dtype=self.compute_dtype)
         super().build(input_shape)
 
     def call(self, inputs):
-        return inputs + functional.cast(self.causal_mask[:, :, : inputs.shape[2], : inputs.shape[3]], inputs.dtype)
+        return inputs + self.causal_mask[:, :, : inputs.shape[2], : inputs.shape[3]]
 
     def get_config(self):
         base_config = super().get_config()

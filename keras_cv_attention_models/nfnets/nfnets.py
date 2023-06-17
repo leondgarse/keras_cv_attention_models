@@ -57,7 +57,7 @@ class ScaledStandardizedConv2D(layers.Conv2D):
             default_conv_op = self._convolution_op  # TF < 2.7.0
         else:
             default_conv_op = self.convolution_op  # TF 2.7.0
-        self.gain = self.add_weight(name="gain", shape=(self.filters,), initializer="ones", trainable=True, dtype="float32")
+        self.gain = self.add_weight(name="gain", shape=(self.filters,), initializer="ones", trainable=True)
         self.fan_in = float(np.prod(self.kernel.shape[:-1]))
         self.__eps__ = float(self.eps)
         self.__gamma__ = float(self.gamma)
@@ -91,9 +91,9 @@ class ZeroInitGain(layers.Layer):
         self.bb_init = initializers.Constant(bias_init_value) if bias_init_value != 0 else "zeros"
 
     def build(self, input_shape):
-        self.gain = self.add_weight(name="gain", shape=(), initializer=self.ww_init, dtype="float32", trainable=True)
+        self.gain = self.add_weight(name="gain", shape=(), initializer=self.ww_init, trainable=True)
         if self.use_bias:
-            self.bias = self.add_weight(name="bias", shape=(), initializer=self.bb_init, dtype="float32", trainable=True)
+            self.bias = self.add_weight(name="bias", shape=(), initializer=self.bb_init, trainable=True)
         super().build(input_shape)
 
     def call(self, inputs):

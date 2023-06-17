@@ -51,7 +51,7 @@ def concat(inputs, axis, name=None):
 
 
 def convert_to_tensor(inputs, dtype="float32"):
-    return torch.tensor(inputs, dtype=getattr(torch, dtype))
+    return torch.tensor(inputs, dtype=getattr(torch, dtype) if isinstance(dtype, str) else dtype)
 
 
 def cos(inputs, name=None):

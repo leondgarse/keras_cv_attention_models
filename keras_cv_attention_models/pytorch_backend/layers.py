@@ -53,6 +53,10 @@ class Weight:
     def __repr__(self):
         return "{}, shape={}".format(self.name, self.shape)
 
+    @property
+    def dtype(self):
+        return self.__value__.dtype
+
     def value(self):
         return self.__value__
 
@@ -279,6 +283,13 @@ class Layer(nn.Module):
             return cur_node
         else:
             return self.call(inputs, **kwargs)
+
+    @property
+    def compute_dtype(self):
+        try:
+            return next(self.parameters()).dtype
+        except StopIteration:
+            return torch.get_default_dtype()
 
     @property
     def weights(self):

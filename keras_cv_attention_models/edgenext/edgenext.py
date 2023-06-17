@@ -49,12 +49,12 @@ class PositionalEncodingFourier(layers.Layer):
         positional_embedding = np.concatenate([pos_hh, pos_ww], axis=-1)  # [12, 27, 64]
 
         if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("positional_embedding", functional.convert_to_tensor(positional_embedding, dtype="float32"), persistent=False)
+            self.register_buffer("positional_embedding", functional.convert_to_tensor(positional_embedding, dtype=self.compute_dtype), persistent=False)
         else:
-            self.positional_embedding = functional.convert_to_tensor(positional_embedding, dtype="float32")
+            self.positional_embedding = functional.convert_to_tensor(positional_embedding, dtype=self.compute_dtype)
 
-        self.token_projection_ww = self.add_weight(name="ww", shape=(self.filters * 2, channels), trainable=True, dtype="float32")
-        self.token_projection_bb = self.add_weight(name="bb", shape=(channels,), trainable=True, dtype="float32")
+        self.token_projection_ww = self.add_weight(name="ww", shape=(self.filters * 2, channels), trainable=True)
+        self.token_projection_bb = self.add_weight(name="bb", shape=(channels,), trainable=True)
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):

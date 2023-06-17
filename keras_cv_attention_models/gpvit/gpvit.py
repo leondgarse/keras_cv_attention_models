@@ -37,7 +37,7 @@ class PureWeigths(layers.Layer):
         self.shape = shape
 
     def build(self, input_shape):
-        self.gain = self.add_weight(name="gain", shape=self.shape, dtype="float32", trainable=True)
+        self.gain = self.add_weight(name="gain", shape=self.shape, trainable=True)
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):

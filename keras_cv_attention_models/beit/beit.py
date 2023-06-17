@@ -84,11 +84,11 @@ class PositionalEncodingFourierRot(layers.Layer):
             pos_sin, pos_cos = np.reshape(pos_sin, [height * width, pos_fileters * 4]), np.reshape(pos_cos, [height * width, pos_fileters * 4])
 
         if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("pos_sin", functional.convert_to_tensor(pos_sin, dtype="float32"), persistent=False)
-            self.register_buffer("pos_cos", functional.convert_to_tensor(pos_cos, dtype="float32"), persistent=False)
+            self.register_buffer("pos_sin", functional.convert_to_tensor(pos_sin, dtype=self.compute_dtype), persistent=False)
+            self.register_buffer("pos_cos", functional.convert_to_tensor(pos_cos, dtype=self.compute_dtype), persistent=False)
         else:
-            self.pos_sin = functional.convert_to_tensor(pos_sin, dtype="float32")
-            self.pos_cos = functional.convert_to_tensor(pos_cos, dtype="float32")
+            self.pos_sin = functional.convert_to_tensor(pos_sin, dtype=self.compute_dtype)
+            self.pos_cos = functional.convert_to_tensor(pos_cos, dtype=self.compute_dtype)
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):

@@ -36,7 +36,7 @@ class ReluWeightedSum(layers.Layer):
 
     def build(self, input_shape):
         self.total = len(input_shape)
-        self.gain = self.add_weight(name="gain", shape=(self.total,), initializer=self.initializer, dtype="float32", trainable=True)
+        self.gain = self.add_weight(name="gain", shape=(self.total,), initializer=self.initializer, trainable=True)
         self.__epsilon__ = float(self.epsilon)
         super().build(input_shape)
 

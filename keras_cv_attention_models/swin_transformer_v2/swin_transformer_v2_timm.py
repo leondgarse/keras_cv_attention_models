@@ -33,7 +33,7 @@ class DivideScale(layers.Layer):
             axis = self.axis if isinstance(self.axis, (list, tuple)) else [self.axis]
             for ii in axis:
                 weight_shape[ii] = input_shape[ii]
-        self.scale = self.add_weight(name="weight", shape=weight_shape, initializer=self.initializer, trainable=True, dtype="float32")
+        self.scale = self.add_weight(name="weight", shape=weight_shape, initializer=self.initializer, trainable=True)
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
@@ -59,14 +59,12 @@ class PairWiseRelativePositionalEmbedding(layers.Layer):
         coords = np.stack([yy, xx], axis=-1).astype("float32")  # [14, 14, 2]
         coords_flatten = np.reshape(coords, [-1, 2])  # [196, 2]
         relative_coords = coords_flatten[:, None, :] - coords_flatten[None, :, :]  # [196, 196, 2]
-        # relative_coords = tf.reshape(relative_coords, [-1, 2])  # [196 * 196, 2]
-        # relative_coords = tf.cast(relative_coords, self.dtype)
         relative_coords_log = np.sign(relative_coords) * np.log(1.0 + np.abs(relative_coords))
 
         if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("relative_coords_log", functional.convert_to_tensor(relative_coords_log, dtype="float32"), persistent=False)
+            self.register_buffer("relative_coords_log", functional.convert_to_tensor(relative_coords_log, dtype=self.compute_dtype), persistent=False)
         else:
-            self.relative_coords_log = functional.convert_to_tensor(relative_coords_log, dtype="float32")
+            self.relative_coords_log = functional.convert_to_tensor(relative_coords_log, dtype=self.compute_dtype)
         self.height, self.width = height, width
         super().build(input_shape)
 
@@ -102,15 +100,13 @@ class WindowAttentionMask(layers.Layer):
         mask = np.transpose(mask, [0, 2, 1, 3])
         mask = np.reshape(mask, [-1, self.window_height * self.window_width])
         attn_mask = np.expand_dims(mask, 1) - np.expand_dims(mask, 2)
-        # attn_mask = tf.cast(np.where(attn_mask != 0, -100, 0), self._compute_dtype)
         attn_mask = np.where(attn_mask != 0, -100, 0)
         attn_mask = np.expand_dims(np.expand_dims(attn_mask, 1), 0)  # expand dims on batch and num_heads
-        # attn_mask = functional.convert_to_tensor(attn_mask, dtype="float32")
 
         if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("attn_mask", functional.convert_to_tensor(attn_mask, dtype="float32"), persistent=False)
+            self.register_buffer("attn_mask", functional.convert_to_tensor(attn_mask, dtype=self.compute_dtype), persistent=False)
         else:
-            self.attn_mask = functional.convert_to_tensor(attn_mask, dtype="float32")
+            self.attn_mask = functional.convert_to_tensor(attn_mask, dtype=self.compute_dtype)
 
         self.num_heads, self.query_blocks = input_shape[1], input_shape[2]
         super().build(input_shape)
