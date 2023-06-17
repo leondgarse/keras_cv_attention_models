@@ -35,7 +35,7 @@ PRETRAINED_DICT = {
 
 
 def multi_head_self_attention(
-    inputs, num_heads=4, key_dim=0, out_shape=None, out_weight=True, qkv_bias=False, out_bias=False, attn_dropout=0, output_dropout=0, name=None
+    inputs, num_heads=4, key_dim=0, out_shape=None, pos_emb=None, out_weight=True, qkv_bias=False, out_bias=False, attn_dropout=0, output_dropout=0, name=None
 ):
     _, hh, ww, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
@@ -51,7 +51,7 @@ def multi_head_self_attention(
     value = functional.transpose(functional.reshape(value, [-1, value.shape[1], num_heads, vv_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, vv_dim]
 
     output_shape = [hh, ww, out_shape]
-    attention_output = scaled_dot_product_attention(query, key, value, output_shape, out_weight=out_weight, out_bias=out_bias, dropout=attn_dropout, name=name)
+    attention_output = scaled_dot_product_attention(query, key, value, output_shape, pos_emb, out_weight, out_bias=out_bias, dropout=attn_dropout, name=name)
     attention_output = layers.Dropout(output_dropout, name=name and name + "out_drop")(attention_output) if output_dropout > 0 else attention_output
     return attention_output
 

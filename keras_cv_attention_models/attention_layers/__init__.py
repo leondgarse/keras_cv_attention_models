@@ -49,7 +49,14 @@ from keras_cv_attention_models.nfnets.nfnets import ScaledStandardizedConv2D, Ze
 from keras_cv_attention_models.coatnet.coatnet import mhsa_with_multi_head_relative_position_embedding
 from keras_cv_attention_models.cmt.cmt import light_mhsa_with_multi_head_relative_position_embedding, BiasPositionalEmbedding
 from keras_cv_attention_models.uniformer.uniformer import multi_head_self_attention
-from keras_cv_attention_models.davit.davit import multi_head_self_attention_channel, window_attention
+from keras_cv_attention_models.davit.davit import (
+    multi_head_self_attention_channel,
+    window_attention,
+    window_partition,
+    window_reverse,
+    pad_to_divisible_by_window_size,
+    reverse_padded_for_window_size,
+)
 from keras_cv_attention_models.edgenext.edgenext import PositionalEncodingFourier, cross_covariance_attention
 from keras_cv_attention_models.efficientvit.efficientvit_m import cascaded_mhsa_with_multi_head_position
 from keras_cv_attention_models.mobilevit.mobilevit import linear_self_attention

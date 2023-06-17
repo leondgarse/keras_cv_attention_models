@@ -104,6 +104,8 @@ def unroll(inputs, strides=[2, 2, 2]):
     #
     # return functional.reshape(nn, [-1, height * width, channels])
 
+def reroll(inputs, height=-1):
+    pass
 
 def Hiera(
     num_blocks=[1, 2, 7, 2],
@@ -118,6 +120,7 @@ def Hiera(
     activation="gelu",
     drop_connect_rate=0,
     dropout=0,
+    extract_features=False,
     classifier_activation="softmax",
     pretrained=None,
     model_name="hiera",
@@ -140,6 +143,7 @@ def Hiera(
     """ stages """
     total_blocks = sum(num_blocks)
     global_block_id = 0
+    featrues = []
     for stack_id, (num_block, stride, use_window_attention) in enumerate(zip(num_blocks, strides, use_window_attentions)):
         stack_name = "stack{}_".format(stack_id + 1)
         cur_out_channels = embed_dim * (2**stack_id)
@@ -169,6 +173,8 @@ def Hiera(
 
     model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
+    if extract_features:
+        model.extract_features = lambda: features
     reload_model_weights(model, PRETRAINED_DICT, "hiera", pretrained, PositionalEmbedding)
     return model
 
