@@ -5,6 +5,7 @@ from keras_cv_attention_models.backend import layers, functional, models, image_
 from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     conv2d_no_bias,
+    depthwise_conv2d_no_bias,
     batchnorm_with_activation,
     add_with_layer_scale_and_drop_block,
     pad_to_divisible_by_window_size,
@@ -14,7 +15,6 @@ from keras_cv_attention_models.attention_layers import (
     multi_head_self_attention,
     layer_norm,
     mlp_block,
-    output_block,
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
@@ -23,21 +23,23 @@ BATCH_NORM_EPSILON = 1e-4
 LAYER_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
-    "": {"": {192: ""}},
+    "fastervit_0": {"imagenet": {224: "49617cdbc62cbf835879e583791db02f"}},
 }
 
 # [TODO] deploy
+@backend.register_keras_serializable(package="kecam")
 class MlpPairwisePositionalEmbedding(layers.Layer):
-    def __init__(self, hidden_dim=512, attn_height=-1, pos_scale=-1, use_absolute_pos=False, **kwargs):
+    def __init__(self, hidden_dim=512, attn_height=-1, attn_width=-1, pos_scale=-1, use_absolute_pos=False, **kwargs):
         # No weight, just need to wrapper a layer, or will not in model structure
         super().__init__(**kwargs)
-        self.hidden_dim, self.attn_height, self.pos_scale, self.use_absolute_pos = hidden_dim, attn_height, pos_scale, use_absolute_pos
+        self.hidden_dim, self.attn_height, self.attn_width, self.pos_scale = hidden_dim, attn_height, attn_width, pos_scale
+        self.use_absolute_pos = use_absolute_pos
 
     def _build_absolute_index_(self):
         hh, ww = np.meshgrid(range(0, self.height), range(0, self.width), indexing="ij")
         coords = np.stack([hh, ww], axis=-1).astype("float32")
         coords = coords / [self.height // 2, self.width // 2] - 1
-        # coords = np.reshape(coords, [-1, 2])
+        coords = np.reshape(coords, [-1, coords.shape[-1]]) if self.is_compressed else coords
         if hasattr(self, "register_buffer"):  # PyTorch
             self.register_buffer("coords", functional.convert_to_tensor(coords, dtype=self.compute_dtype), persistent=False)
         else:
@@ -78,17 +80,19 @@ class MlpPairwisePositionalEmbedding(layers.Layer):
 
     def build(self, input_shape):
         if self.use_absolute_pos:
-            self.height, self.width = input_shape[1], input_shape[2]
+            # input_shape: [batch, height, width, channel] or [batch, height * width, channel]
+            self.is_compressed = len(input_shape) == 3
+            self.height, self.width = [int(input_shape[1] ** 0.5), int(input_shape[1] ** 0.5)] if self.is_compressed else input_shape[1:-1]
+
             self._build_absolute_index_()
             out_shape = [self.hidden_dim, input_shape[-1]]
         else:
             # input_shape: [batch, num_heads, hh * ww, hh * ww]
-            if self.attn_height == -1:
-                height = width = int(float(input_shape[-2]) ** 0.5)  # hh == ww, e.g. 14
-            else:
-                height = self.attn_height
-                width = input_shape[-2] // height
+            height = int(float(input_shape[-2]) ** 0.5) if self.attn_height == -1 else self.attn_height  # hh == ww, e.g. 14
+            width = (input_shape[-2] // height) if self.attn_width == -1 else self.attn_width  # hh == ww, e.g. 14
             self.height, self.width, self.num_heads = height, width, input_shape[1]
+            padding = input_shape[-2] - height * width
+            self.padding = [[padding, 0], [padding, 0], [0, 0]] if padding > 0 else None
 
             self._build_relative_coords_()
             self._build_relative_index_()
@@ -108,39 +112,20 @@ class MlpPairwisePositionalEmbedding(layers.Layer):
         if not self.use_absolute_pos:
             pos_bias = functional.gather(pos_bias, self.relative_position_index)  # [hh * ww, hh * ww, num_heads]
             pos_bias = functional.sigmoid(pos_bias) * 16.0
+            pos_bias = functional.pad(pos_bias, self.padding) if self.padding else pos_bias
             pos_bias = functional.expand_dims(functional.transpose(pos_bias, [2, 0, 1]), 0)
         return inputs + pos_bias
 
     def get_config(self):
         base_config = super().get_config()
-        base_config.update(
-            {"hidden_dim": self.hidden_dim, "attn_height": self.attn_height, "pos_scale": self.pos_scale, "use_absolute_pos": self.use_absolute_pos}
-        )
+        base_config.update({
+            "hidden_dim": self.hidden_dim,
+            "attn_height": self.attn_height,
+            "attn_width": self.attn_width,
+            "pos_scale": self.pos_scale,
+            "use_absolute_pos": self.use_absolute_pos
+        })
         return base_config
-
-
-def attention_mlp_block(inputs, num_heads=4, mlp_ratio=4, sr_ratio=1, pos_scale=-1, pos_hidden_dim=512, layer_scale=0, drop_rate=0, activation="gelu", name=""):
-    # channnel_axis = -1 if image_data_format() == "channels_last" else 1
-    input_channel = inputs.shape[-1]
-    pre = MlpPairwisePositionalEmbedding(hidden_dim=pos_hidden_dim, pos_scale=pos_scale, use_absolute_pos=True, name=name + "pos_")(inputs)
-
-    if sr_ratio > 1:
-        pass  # [TODO]
-
-    """ attention """
-    nn = layer_norm(pre, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "attn_")
-    pos_emb = MlpPairwisePositionalEmbedding(hidden_dim=pos_hidden_dim, attn_height=inputs.shape[1], pos_scale=pos_scale, name=name + "hat_pos_")
-    attn = multi_head_self_attention(nn, num_heads=num_heads, pos_emb=pos_emb, qkv_bias=True, out_bias=True, name=name + "hat_")
-    attn_out = add_with_layer_scale_and_drop_block(pre, nn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "attn_")
-
-    if sr_ratio > 1:
-        pass  # [TODO]
-
-    """ MLP """
-    nn = layer_norm(attn_out, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "mlp_")
-    nn = mlp_block(nn, input_channel * mlp_ratio, use_bias=False, activation=activation, name=name + "mlp_")
-    nn = add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "mlp_")
-    return nn
 
 
 def res_conv_bn_block(inputs, layer_scale=0, drop_rate=0, activation="gelu", name=""):
@@ -155,6 +140,64 @@ def res_conv_bn_block(inputs, layer_scale=0, drop_rate=0, activation="gelu", nam
     return nn
 
 
+def attention_mlp_block(
+    inputs, carrier_tokens=None, num_heads=4, mlp_ratio=4, pos_scale=-1, pos_hidden_dim=512, layer_scale=0, drop_rate=0, activation="gelu", name=""
+):
+    input_channel = inputs.shape[-1]
+
+    if carrier_tokens is not None:
+        attn_height = attn_width = int(inputs.shape[1] ** 0.5)
+        carrier_tokens = functional.reshape(carrier_tokens, [-1, np.prod(carrier_tokens.shape[1:-1]), carrier_tokens.shape[-1]])
+        inputs = functional.concat([carrier_tokens, inputs], axis=1)
+    else:
+        attn_height, attn_width = inputs.shape[1:-1]
+
+    """ attention """
+    attn = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "attn_")
+    pos_emb = MlpPairwisePositionalEmbedding(pos_hidden_dim, attn_height=attn_height, attn_width=attn_width, pos_scale=pos_scale, name=name + "attn_pos")
+    attn = multi_head_self_attention(attn, num_heads=num_heads, pos_emb=pos_emb, qkv_bias=True, out_bias=True, name=name + "attn_")
+    attn_out = add_with_layer_scale_and_drop_block(inputs, attn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "attn_out_")
+
+    """ MLP """
+    nn = layer_norm(attn_out, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "mlp_")
+    nn = mlp_block(nn, input_channel * mlp_ratio, use_bias=True, activation=activation, name=name + "mlp_")
+    nn = add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "mlp_")
+    # print(f"{nn.shape = }, {attn_height = }, {attn_width = }")
+    if carrier_tokens is not None:
+        carrier_tokens, nn = functional.split(nn, [-1, attn_height * attn_width], axis=1)
+    return nn, carrier_tokens
+
+
+def hierarchical_attention(
+    inputs, carrier_tokens=None, num_heads=4, mlp_ratio=4, pos_scale=-1, pos_hidden_dim=512, layer_scale=0, drop_rate=0, activation="gelu", name=""
+):
+    attn_kwargs = {"num_heads": num_heads, "mlp_ratio": mlp_ratio, "pos_scale": pos_scale, "pos_hidden_dim": pos_hidden_dim, "layer_scale": layer_scale}
+    # print(f"{inputs.shape = }, {attn_kwargs = }")
+    if carrier_tokens is not None:
+        # print(f"{carrier_tokens.shape = }")
+        carrier_tokens = MlpPairwisePositionalEmbedding(
+            hidden_dim=pos_hidden_dim, pos_scale=pos_scale, use_absolute_pos=True, name=name + "hat_pos"
+        )(carrier_tokens)
+        carrier_tokens, _ = attention_mlp_block(carrier_tokens, **attn_kwargs, drop_rate=drop_rate, activation=activation, name=name + "hat_")
+        ct_patch_height, ct_patch_width = carrier_tokens.shape[1] // 2, carrier_tokens.shape[2] // 2
+        carrier_tokens = window_partition(carrier_tokens, window_height=2, window_width=2)
+
+    # Take carrier_tokens in, for haddling shape there
+    pre = MlpPairwisePositionalEmbedding(hidden_dim=pos_hidden_dim, pos_scale=pos_scale, use_absolute_pos=True, name=name + "pre_attn_pos")(inputs)
+    nn, carrier_tokens = attention_mlp_block(pre, carrier_tokens, **attn_kwargs, drop_rate=drop_rate, activation=activation, name=name)
+
+    if carrier_tokens is not None:
+        carrier_tokens = window_reverse(carrier_tokens, patch_height=ct_patch_height, patch_width=ct_patch_width, window_height=2, window_width=2)
+    return nn, carrier_tokens
+
+def global_carrier_tokens(inputs, window_size=7, token_size=2, name=""):
+    # return inputs
+    nn = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="SAME", use_bias=True, name=name)
+    nn = layers.AvgPool2D(pool_size=5, strides=3)(nn)  # [TODO] calculate pool_size, strides
+    # nn = window_partition(nn, token_size, token_size)
+    return nn
+
+
 def FastViT(
     num_blocks=[2, 3, 6, 5],
     num_heads=[2, 4, 8, 16],
@@ -165,6 +208,7 @@ def FastViT(
     mlp_ratio=4,
     ct_size=2,
     pos_scale=-1,  # If pretrained weights are from different input_shape or window_size, pos_scale is previous actually using window_size
+    use_layernorm_output=False,
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",
@@ -195,7 +239,7 @@ def FastViT(
         stack_name = "stack{}_".format(stack_id + 1)
         out_channels = embed_dim * (2**stack_id)
         is_conv_block = True if block_type[0].lower() == "c" else False
-        nn = nn if is_conv_block or backend.image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
+        nn = nn if is_conv_block or image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
 
         if stack_id > 0:
             layer_norm_axis = -1 if image_data_format() == "channels_last" or not is_conv_block else 1
@@ -205,10 +249,14 @@ def FastViT(
             nn = nn if is_conv_block or image_data_format() == "channels_last" else layers.Permute([2, 3, 1], name=stack_name + "permute_post")(nn)
 
         if not is_conv_block:
+            use_carrier_tokens = nn.shape[1] > window_size or nn.shape[2] > window_size
+            carrier_tokens = global_carrier_tokens(nn, window_size, token_size=2, name=stack_name + "token_") if use_carrier_tokens else None
+
             nn, window_height, window_width, padding_height, padding_width = pad_to_divisible_by_window_size(nn, window_size)
             patch_height, patch_width = nn.shape[1] // window_height, nn.shape[2] // window_width
             nn = window_partition(nn, window_height, window_width)
-            sr_ratio = max(patch_height, patch_width)
+            # sr_ratio = max(patch_height, patch_width)
+            nn = functional.reshape(nn, [-1, nn.shape[1] * nn.shape[2], nn.shape[-1]]) if use_carrier_tokens else nn
 
         for block_id in range(num_block):
             name = "stack_{}_block_{}_".format(stack_id + 1, block_id + 1)
@@ -217,16 +265,22 @@ def FastViT(
             if is_conv_block:
                 nn = res_conv_bn_block(nn, layer_scale=layer_scale, drop_rate=block_drop_rate, activation=activation, name=name)
             else:
-                nn = attention_mlp_block(
-                    nn, num_head, mlp_ratio, sr_ratio, pos_scale=pos_scale, layer_scale=layer_scale, drop_rate=block_drop_rate, activation=activation, name=name
+                nn, carrier_tokens = hierarchical_attention(
+                    nn, carrier_tokens, num_head, mlp_ratio, pos_scale, layer_scale=layer_scale, drop_rate=block_drop_rate, activation=activation, name=name
                 )
 
         if not is_conv_block:
-            nn = window_reverse(nn, patch_height, patch_width)
+            nn = window_reverse(nn, patch_height, patch_width, window_height, window_width)
             nn = reverse_padded_for_window_size(nn, padding_height, padding_width)
     nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name="permute_post")(nn)
 
-    nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
+    if num_classes > 0:
+        nn = nn if use_layernorm_output else batchnorm_with_activation(nn, epsilon=BATCH_NORM_EPSILON, activation=None, name="pre_out_")
+        nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
+        nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="post_ln")(nn) if use_layernorm_output else nn
+        if dropout > 0:
+            nn = layers.Dropout(dropout, name="head_drop")(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
     model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "fastervit", pretrained)

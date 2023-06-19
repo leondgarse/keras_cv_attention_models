@@ -85,6 +85,8 @@ def window_partition(inputs, window_height, window_width=-1):
     input_channel = inputs.shape[-1]
     window_width = window_width if window_width > 0 else window_height
     patch_height, patch_width = inputs.shape[1] // window_height, inputs.shape[2] // window_width
+    if patch_height == 1 and patch_width == 1:
+        return inputs
 
     # print(f">>>> window_attention {inputs.shape = }, {patch_height = }, {patch_width = }, {window_height = }, {window_width = }")
     # [batch * patch_height, window_height, patch_width, window_width * channel], limit transpose perm <= 4
@@ -94,11 +96,13 @@ def window_partition(inputs, window_height, window_width=-1):
     return nn
 
 
-def window_reverse(inputs, patch_height, patch_width=-1):
+def window_reverse(inputs, patch_height, patch_width, window_height, window_width):
     """[B * patch_height * patch_width, window_height, window_width, channel] -> [B, patch_height * window_height, patch_width * window_width, channel]"""
     input_channel = inputs.shape[-1]
     patch_width = patch_width if patch_width > 0 else patch_height
-    window_height, window_width = inputs.shape[1], inputs.shape[2]
+    # window_height, window_width = inputs.shape[1], inputs.shape[2]
+    if patch_height == 1 and patch_width == 1:
+        return inputs
 
     # [batch * patch_height, patch_width, window_height, window_width * input_channel], limit transpose perm <= 4
     nn = functional.reshape(inputs, [-1, patch_width, window_height, window_width * input_channel])
@@ -112,6 +116,8 @@ def grid_window_partition(inputs, window_height, window_width=-1):
     input_channel = inputs.shape[-1]
     window_width = window_width if window_width > 0 else window_height
     patch_height, patch_width = inputs.shape[1] // window_height, inputs.shape[2] // window_width
+    if patch_height == 1 and patch_width == 1:
+        return inputs
 
     nn = functional.reshape(inputs, [-1, window_height, patch_height, window_width * patch_width * input_channel])
     nn = functional.transpose(nn, [0, 2, 1, 3])  # [batch, patch_height, window_height, window_width * patch_width * input_channel]
@@ -121,11 +127,13 @@ def grid_window_partition(inputs, window_height, window_width=-1):
     return nn
 
 
-def grid_window_reverse(inputs, patch_height, patch_width=-1):
+def grid_window_reverse(inputs, patch_height, patch_width, window_height, window_width):
     """[B * patch_height * patch_width, window_height, window_width, channel] -> [B, window_height * patch_height, window_width * patch_width , channel]"""
     input_channel = inputs.shape[-1]
     patch_width = patch_width if patch_width > 0 else patch_height
-    window_height, window_width = inputs.shape[1], inputs.shape[2]
+    # window_height, window_width = inputs.shape[1], inputs.shape[2]
+    if patch_height == 1 and patch_width == 1:
+        return inputs
 
     nn = functional.reshape(inputs, [-1, patch_width, window_height * window_width, input_channel])
     nn = functional.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, window_height * window_width, patch_width, input_channel]
@@ -154,9 +162,9 @@ def window_attention(inputs, window_size, num_heads=4, is_grid=False, attention_
 
     # window_reverse, merge windows
     if is_grid:
-        nn = grid_window_reverse(nn, patch_height, patch_width)
+        nn = grid_window_reverse(nn, patch_height, patch_width, window_height, window_width)
     else:
-        nn = window_reverse(nn, patch_height, patch_width)
+        nn = window_reverse(nn, patch_height, patch_width, window_height, window_width)
 
     nn = reverse_padded_for_window_size(nn, padding_height, padding_width)
     return nn if data_format == "channels_last" else functional.transpose(nn, [0, 3, 1, 2])

@@ -37,20 +37,21 @@ PRETRAINED_DICT = {
 def multi_head_self_attention(
     inputs, num_heads=4, key_dim=0, out_shape=None, pos_emb=None, out_weight=True, qkv_bias=False, out_bias=False, attn_dropout=0, output_dropout=0, name=None
 ):
-    _, hh, ww, cc = inputs.shape
-    key_dim = key_dim if key_dim > 0 else cc // num_heads
-    out_shape = cc if out_shape is None or not out_weight else out_shape
+    input_channels = inputs.shape[-1]
+    blocks = inputs.shape[1:-1]
+    key_dim = key_dim if key_dim > 0 else input_channels // num_heads
+    out_shape = input_channels if out_shape is None or not out_weight else out_shape
     qk_out = num_heads * key_dim
     vv_dim = out_shape // num_heads
 
     qkv = layers.Dense(qk_out * 2 + out_shape, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
-    qkv = functional.reshape(qkv, [-1, qkv.shape[1] * qkv.shape[2], qkv.shape[-1]])
+    qkv = functional.reshape(qkv, [-1, np.prod(qkv.shape[1:-1]), qkv.shape[-1]])
     query, key, value = functional.split(qkv, [qk_out, qk_out, out_shape], axis=-1)
     query = functional.transpose(functional.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, key_dim]
     key = functional.transpose(functional.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
     value = functional.transpose(functional.reshape(value, [-1, value.shape[1], num_heads, vv_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, vv_dim]
 
-    output_shape = [hh, ww, out_shape]
+    output_shape = [*blocks, out_shape]
     attention_output = scaled_dot_product_attention(query, key, value, output_shape, pos_emb, out_weight, out_bias=out_bias, dropout=attn_dropout, name=name)
     attention_output = layers.Dropout(output_dropout, name=name and name + "out_drop")(attention_output) if output_dropout > 0 else attention_output
     return attention_output

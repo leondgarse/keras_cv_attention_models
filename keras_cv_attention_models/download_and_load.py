@@ -115,7 +115,7 @@ def state_dict_stack_by_layer(state_dict, skip_weights=["num_batches_tracked"], 
             kk = kk[:-2]  # Keras weight name like "..../weight:0"
         split_token = "/" if "/" in kk else "."
         split_kk = kk.split(split_token)
-        vv = vv.numpy() if hasattr(vv, "numpy") else vv
+        vv = (vv.float().numpy() if hasattr(vv, "float") else vv.numpy()) if hasattr(vv, "numpy") else vv
         if split_kk[-1] in skip_weights:
             continue
 
