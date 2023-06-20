@@ -62,6 +62,7 @@ from keras_cv_attention_models.efficientvit.efficientvit_m import cascaded_mhsa_
 from keras_cv_attention_models.mobilevit.mobilevit import linear_self_attention
 from keras_cv_attention_models.swin_transformer_v2.swin_transformer_v2 import (
     ExpLogitScale,
+    MlpPairwisePositionalEmbedding,
     PairWiseRelativePositionalEmbedding,
     PairWiseRelativePositionalEmbeddingGather,
     shifted_window_attention,

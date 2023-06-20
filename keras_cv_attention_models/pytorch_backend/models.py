@@ -232,7 +232,6 @@ class Model(nn.Module):
         return self.__layers__[layer_name]
 
     def load_weights(self, filepath, by_name=True, skip_mismatch=False):
-        ff = h5py.File(filepath, mode="r")
         with h5py.File(filepath, "r") as h5_file:
             load_weights_from_hdf5_group(h5_file, self, skip_mismatch=skip_mismatch, debug=self.debug)
 
@@ -303,6 +302,13 @@ class Model(nn.Module):
 
 
 """ Save / load h5 weights from keras.saving.legacy.hdf5_format """
+
+
+def read_h5_as_dict(filepath):
+    with h5py.File(filepath, "r") as h5_file:
+        weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
+        aa = {kk: [np.array(vv[ww]) for ww in vv.attrs["weight_names"]] for kk, vv in weights.items() if len(vv) > 0}
+    return aa
 
 
 def load_weights_from_hdf5_group(h5_file, model, skip_mismatch=False, debug=False):

@@ -405,7 +405,7 @@ def count_params(model):
     return total_params, trainable_params
 
 
-""" Inference """
+""" Inference and deploy """
 
 
 def convert_to_mixed_float16(model, convert_batch_norm=False, policy_name="mixed_float16"):
@@ -630,6 +630,13 @@ def fuse_sequential_conv_strict(model, verbose=0):
         layer_weight_process=layer_weight_process,
         verbose=verbose,
     )
+
+
+def convert_to_deploy(model):
+    for ii in model.layers:
+        if hasattr(ii, "switch_to_deploy"):
+            ii.switch_to_deploy()
+    return model
 
 
 """ TFLite and ONNX """

@@ -1,6 +1,7 @@
 __pycache__
 *.h5
 *.pth
+*.pth.tar
 *.pt
 *.ckpt
 *.npy
@@ -11,6 +12,8 @@ __pycache__
 *.ipynb
 *.swp
 *.log
+*.tar
+*.tar.gz
 .ipynb_checkpoints
 checkpoints
 datasets

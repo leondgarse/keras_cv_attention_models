@@ -144,6 +144,129 @@ class PairWiseRelativePositionalEmbeddingGather(layers.Layer):
 
 
 @backend.register_keras_serializable(package="kecam")
+class MlpPairwisePositionalEmbedding(layers.Layer):
+    def __init__(self, hidden_dim=512, attn_height=-1, attn_width=-1, pos_scale=-1, use_absolute_pos=False, **kwargs):
+        # No weight, just need to wrapper a layer, or will not in model structure
+        super().__init__(**kwargs)
+        self.hidden_dim, self.attn_height, self.attn_width, self.pos_scale = hidden_dim, attn_height, attn_width, pos_scale
+        self.use_absolute_pos = use_absolute_pos
+
+    def _build_absolute_index_(self):
+        hh, ww = np.meshgrid(range(0, self.height), range(0, self.width), indexing="ij")
+        coords = np.stack([hh, ww], axis=-1).astype("float32")
+        coords = coords / [self.height // 2, self.width // 2] - 1
+        coords = np.reshape(coords, [-1, coords.shape[-1]]) if self.is_compressed else coords
+        if hasattr(self, "register_buffer"):  # PyTorch
+            self.register_buffer("coords", functional.convert_to_tensor(coords, dtype=self.compute_dtype), persistent=False)
+        else:
+            self.coords = functional.convert_to_tensor(coords, dtype=self.compute_dtype)
+
+    def _build_relative_index_(self):
+        hh, ww = np.meshgrid(range(self.height), range(self.width))
+        coords = np.stack([hh, ww], axis=-1).astype("float32")  # [15, 12, 2]
+        coords_flatten = np.reshape(coords, [-1, 2])  # [180, 2]
+        relative_coords = coords_flatten[:, None, :] - coords_flatten[None, :, :]  # [180, 180, 2]
+        # relative_coords = tf.reshape(relative_coords, [-1, 2])  # [196 * 196, 2]
+
+        relative_coords_hh = relative_coords[:, :, 0] + self.height - 1
+        relative_coords_ww = (relative_coords[:, :, 1] + self.width - 1) * (2 * self.height - 1)
+        relative_coords_hhww = np.stack([relative_coords_hh, relative_coords_ww], axis=-1)
+        relative_position_index = np.sum(relative_coords_hhww, axis=-1)  # [180, 180]
+        if hasattr(self, "register_buffer"):  # PyTorch
+            self.register_buffer("relative_position_index", functional.convert_to_tensor(relative_position_index, dtype="int64"), persistent=False)
+        else:
+            self.relative_position_index = functional.convert_to_tensor(relative_position_index, dtype="int64")
+
+    def _build_relative_coords_(self):
+        hh, ww = np.meshgrid(range(-self.height + 1, self.height), range(-self.width + 1, self.width), indexing="ij")
+        coords = np.stack([hh, ww], axis=-1).astype("float32")
+        if self.pos_scale == -1:
+            pos_scale = [self.height, self.width]
+        else:
+            # If pretrined weights are from different input_shape or window_size, pos_scale is previous actually using window_size
+            pos_scale = self.pos_scale if isinstance(self.pos_scale, (list, tuple)) else [self.pos_scale, self.pos_scale]
+        coords = coords * 8 / [float(pos_scale[0] - 1), float(pos_scale[1] - 1)]  # [23, 29, 2], normalize to -8, 8
+        # torch.sign(relative_coords_table) * torch.log2(torch.abs(relative_coords_table) + 1.0) / math.log2(8)
+        coords = np.sign(coords) * np.log(1.0 + np.abs(coords)) / (np.log(2.0) * 3.0)
+        coords = np.reshape(coords, [-1, 2])  # [23 * 29, 2]
+        if hasattr(self, "register_buffer"):  # PyTorch
+            self.register_buffer("coords", functional.convert_to_tensor(coords, dtype=self.compute_dtype), persistent=False)
+        else:
+            self.coords = functional.convert_to_tensor(coords, dtype=self.compute_dtype)
+
+    def build(self, input_shape):
+        if self.use_absolute_pos:
+            # input_shape: [batch, height, width, channel] or [batch, height * width, channel]
+            self.is_compressed = len(input_shape) == 3
+            if self.is_compressed:
+                self.height = int(float(input_shape[-2]) ** 0.5) if self.attn_height == -1 else self.attn_height
+                self.width = input_shape[-2] // self.height
+            else:
+                self.height, self.width = input_shape[1:-1]
+
+            self._build_absolute_index_()
+            out_shape = [self.hidden_dim, input_shape[-1]]
+        else:
+            # input_shape: [batch, num_heads, hh * ww, hh * ww]
+            height = int(float(input_shape[-2]) ** 0.5) if self.attn_height == -1 else self.attn_height  # hh == ww, e.g. 14
+            width = (input_shape[-2] // height) if self.attn_width == -1 else self.attn_width  # hh == ww, e.g. 14
+            self.height, self.width, self.num_heads = height, width, input_shape[1]
+            padding = input_shape[-2] - height * width
+            self.padding = [[padding, 0], [padding, 0], [0, 0]] if padding > 0 else None
+
+            self._build_relative_coords_()
+            self._build_relative_index_()
+            out_shape = [self.hidden_dim, self.num_heads]
+
+        self.hidden_weight = self.add_weight(name="hidden_weight", shape=[2, self.hidden_dim], trainable=True)
+        self.hidden_bias = self.add_weight(name="hidden_bias", shape=[self.hidden_dim], initializer="zeros", trainable=True)
+        self.out = self.add_weight(name="out", shape=out_shape, trainable=True)
+
+        self.is_deploy_mode = False
+        super().build(input_shape)
+
+    def call(self, inputs, **kwargs):
+        if self.is_deploy_mode:
+            return inputs + self.deploy_bias
+
+        pos_bias = self.coords @ self.hidden_weight + self.hidden_bias
+        pos_bias = functional.relu(pos_bias)
+        pos_bias = pos_bias @ self.out
+
+        if not self.use_absolute_pos:
+            pos_bias = functional.gather(pos_bias, self.relative_position_index)  # [hh * ww, hh * ww, num_heads]
+            pos_bias = functional.sigmoid(pos_bias) * 16.0
+            pos_bias = functional.pad(pos_bias, self.padding) if self.padding else pos_bias
+            pos_bias = functional.transpose(pos_bias, [2, 0, 1])
+        return inputs + functional.expand_dims(pos_bias, 0)
+
+    def get_config(self):
+        base_config = super().get_config()
+        base_config.update(
+            {
+                "hidden_dim": self.hidden_dim,
+                "attn_height": self.attn_height,
+                "attn_width": self.attn_width,
+                "pos_scale": self.pos_scale,
+                "use_absolute_pos": self.use_absolute_pos,
+            }
+        )
+        return base_config
+
+    def switch_to_deploy(self):
+        deploy_bias = self(initializers.zeros()([1, *self.input_shape[1:]]))
+        delattr(self, "hidden_weight")
+        delattr(self, "hidden_bias")
+        delattr(self, "out")
+
+        if hasattr(self, "register_buffer"):  # PyTorch
+            self.register_buffer("deploy_bias", functional.convert_to_tensor(deploy_bias, dtype=self.compute_dtype), persistent=False)
+        else:
+            self.deploy_bias = functional.convert_to_tensor(deploy_bias, dtype=self.compute_dtype)
+        self.is_deploy_mode = True
+
+
+@backend.register_keras_serializable(package="kecam")
 class WindowAttentionMask(layers.Layer):
     def __init__(self, height, width, window_height, window_width, shift_height=0, shift_width=0, **kwargs):
         # No weight, just need to wrapper a layer, or will meet some error in model saving or loading...
@@ -237,6 +360,7 @@ def window_mhsa_with_pair_wise_positional_embedding(
     relative_position_bias = functional.sigmoid(relative_position_bias) * 16.0
     relative_position_bias = functional.expand_dims(functional.transpose(relative_position_bias, [2, 0, 1]), 0)  # [1, num_heads, hh * ww, hh * ww]
     attn = attn + relative_position_bias
+    # attn = MlpPairwisePositionalEmbedding(pos_scale=pos_scale, attn_height=inputs.shape[1], name=name and name + "pos_emb")(attn)
 
     if mask is not None:
         attn = mask(attn)
@@ -391,9 +515,17 @@ def SwinTransformerV2(
 
     nn = output_block(nn, num_classes=num_classes, drop_rate=dropout, classifier_activation=classifier_activation)
     model = models.Model(inputs, nn, name=model_name)
-    add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "swin_transformer_v2", pretrained)
+
+    add_pre_post_process(model, rescale_mode="torch")
+    model.switch_to_deploy = lambda: switch_to_deploy(model)
     return model
+
+
+def switch_to_deploy(model):
+    from keras_cv_attention_models.model_surgery.model_surgery import convert_to_deploy
+
+    return convert_to_deploy(model)
 
 
 @register_model

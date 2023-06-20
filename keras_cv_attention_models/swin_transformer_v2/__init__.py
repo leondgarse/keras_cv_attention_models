@@ -1,6 +1,7 @@
 from keras_cv_attention_models.swin_transformer_v2.swin_transformer_v2 import (
     ExpLogitScale,
     PairWiseRelativePositionalEmbedding,
+    MlpPairwisePositionalEmbedding,
     shifted_window_attention,
     WindowAttentionMask,
     window_mhsa_with_pair_wise_positional_embedding,

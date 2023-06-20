@@ -57,6 +57,7 @@ from keras_cv_attention_models.resnet_family import resnet_deep
 from keras_cv_attention_models.resnet_family import regnet
 from keras_cv_attention_models import gpvit
 from keras_cv_attention_models import swin_transformer_v2
+from keras_cv_attention_models import fastervit
 from keras_cv_attention_models import uniformer
 from keras_cv_attention_models import vanillanet
 from keras_cv_attention_models import download_and_load

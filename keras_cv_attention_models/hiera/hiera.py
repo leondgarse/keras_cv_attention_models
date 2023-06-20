@@ -104,8 +104,10 @@ def unroll(inputs, strides=[2, 2, 2]):
     #
     # return functional.reshape(nn, [-1, height * width, channels])
 
+
 def reroll(inputs, height=-1):
     pass
+
 
 def Hiera(
     num_blocks=[1, 2, 7, 2],
