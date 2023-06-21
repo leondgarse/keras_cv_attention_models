@@ -232,12 +232,10 @@ class Model(nn.Module):
         return self.__layers__[layer_name]
 
     def load_weights(self, filepath, by_name=True, skip_mismatch=False):
-        with h5py.File(filepath, "r") as h5_file:
-            load_weights_from_hdf5_group(h5_file, self, skip_mismatch=skip_mismatch, debug=self.debug)
+        load_weights_from_hdf5_file(filepath, self, skip_mismatch=skip_mismatch, debug=self.debug)
 
-    def save_weights(self, filepath=None, compression=None):
-        with h5py.File(filepath if filepath else self.name + ".h5", "w") as h5_file:
-            save_weights_to_hdf5_group(h5_file, self, compression=compression)
+    def save_weights(self, filepath=None, **kwargs):
+        save_weights_to_hdf5_file(filepath if filepath else self.name + ".h5", self, **kwargs)
 
     def summary(self, input_shape=None, **kwargs):
         from torchsummary import summary
@@ -311,32 +309,34 @@ def read_h5_as_dict(filepath):
     return aa
 
 
-def load_weights_from_hdf5_group(h5_file, model, skip_mismatch=False, debug=False):
-    weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
+def load_weights_from_hdf5_file(filepath, model, skip_mismatch=False, debug=False):
+    with h5py.File(filepath, "r") as h5_file:
+        weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
 
-    for tt in model.layers:
-        if len(tt.weights) == 0:
-            continue
-        if debug:
-            print(">>>> Load layer weights:", tt.name, [ii.name for ii in tt.weights])
-        if tt.name not in weights:
-            print("Warning: {} not exists in provided h5 weights".format(tt.name))
-            continue
+        for tt in model.layers:
+            if len(tt.weights) == 0:
+                continue
+            if debug:
+                print(">>>> Load layer weights:", tt.name, [ii.name for ii in tt.weights])
+            if tt.name not in weights:
+                if debug:
+                    print("Warning: {} not exists in provided h5 weights".format(tt.name))
+                continue
 
-        ss = weights[tt.name]
-        ss = [np.array(ss[ww]) for ww in ss.attrs["weight_names"]]
-        source_shape, target_shape = [ii.shape for ii in ss], [list(ii.shape) for ii in tt.weights]
+            ss = weights[tt.name]
+            ss = [np.array(ss[ww]) for ww in ss.attrs["weight_names"]]
+            source_shape, target_shape = [ii.shape for ii in ss], [list(ii.shape) for ii in tt.weights]
 
-        if debug:
-            print("     [Before transpose] required weights: {}, provided: {}".format(target_shape, source_shape))
-        if skip_mismatch and (len(source_shape) != len(target_shape) or any([np.prod(ii) != np.prod(jj) for ii, jj in zip(source_shape, target_shape)])):
-            print("Warning: skip loading weights for layer: {}, required weights: {}, provided: {}".format(tt.name, target_shape, source_shape))
-            continue
+            if debug:
+                print("     [Before transpose] required weights: {}, provided: {}".format(target_shape, source_shape))
+            if skip_mismatch and (len(source_shape) != len(target_shape) or any([np.prod(ii) != np.prod(jj) for ii, jj in zip(source_shape, target_shape)])):
+                print("Warning: skip loading weights for layer: {}, required weights: {}, provided: {}".format(tt.name, target_shape, source_shape))
+                continue
 
-        if hasattr(tt, "set_weights_channels_last"):
-            tt.set_weights_channels_last(ss)
-        else:
-            tt.set_weights(ss)
+            if hasattr(tt, "set_weights_channels_last"):
+                tt.set_weights_channels_last(ss)
+            else:
+                tt.set_weights(ss)
 
 
 def save_subset_weights_to_hdf5_group(group, weight_names, weight_values, compression=None):
@@ -384,15 +384,17 @@ def save_attributes_to_hdf5_group(group, name, data):
         group.attrs[name] = data
 
 
-def save_weights_to_hdf5_group(h5_file, model, compression=None):
-    """Saves the weights of a list of layers to a HDF5 group.
-    - compression: refer `from h5py._hl import dataset; help(h5py.File.create_dataset)`
+def save_weights_to_hdf5_file(filepath, model, compression=None, layer_start=None, layer_end=None):
+    """Saves the weights of a list of layers to a HDF5 file.
+    - compression: refer `import h5py; help(h5py.File.create_dataset)`
           and `from h5py._hl import dataset; help(dataset.make_new_dset)`.
     """
-    save_attributes_to_hdf5_group(h5_file, "layer_names", [layer.name.encode("utf8") for layer in model.layers])
-    h5_file.attrs["backend"] = backend.backend().encode("utf8")
-    for layer in sorted(model.layers, key=lambda x: x.name):
-        layer_group = h5_file.create_group(layer.name)
-        weight_names = [ww.name.encode("utf8") for ww in layer.weights]
-        weight_values = layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()
-        save_subset_weights_to_hdf5_group(layer_group, weight_names, weight_values, compression=compression)
+    model_layers = model.layers[layer_start:layer_end]
+    with h5py.File(filepath, "w") as h5_file:
+        save_attributes_to_hdf5_group(h5_file, "layer_names", [layer.name.encode("utf8") for layer in model_layers])
+        h5_file.attrs["backend"] = backend.backend().encode("utf8")
+        for layer in sorted(model_layers, key=lambda x: x.name):
+            layer_group = h5_file.create_group(layer.name)
+            weight_names = [ww.name.encode("utf8") for ww in layer.weights]
+            weight_values = layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()
+            save_subset_weights_to_hdf5_group(layer_group, weight_names, weight_values, compression=compression)
