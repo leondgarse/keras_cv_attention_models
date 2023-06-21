@@ -260,7 +260,7 @@ class MlpPairwisePositionalEmbedding(layers.Layer):
         delattr(self, "out")
 
         if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("deploy_bias", functional.convert_to_tensor(deploy_bias, dtype=self.compute_dtype), persistent=False)
+            self.register_buffer("deploy_bias", deploy_bias.detach(), persistent=False)
         else:
             self.deploy_bias = functional.convert_to_tensor(deploy_bias, dtype=self.compute_dtype)
         self.is_deploy_mode = True

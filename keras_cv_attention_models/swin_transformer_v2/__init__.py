@@ -136,6 +136,33 @@ Examples:
 # tf.gather(relative_log_coords, relative_position_index).shape = TensorShape([16, 16, 2])
 """
 
+MlpPairwisePositionalEmbedding.__doc__ = __head_doc__ + """
+MLP Pair Wise Relative Positional Embedding layer.
+
+use_absolute_pos=True input: `[batch, height, width, channel]` or `[batch, height * width, channel]`.
+use_absolute_pos=True output: input + `[1, height, width, channel]` or `[1, height * width, channel]`.
+use_absolute_pos=False input: `[batch, num_heads, hh * ww, hh * ww]`.
+use_absolute_pos=False output: input + `[1, num_heads, hh * ww, hh * ww]`.
+
+Args:
+  hidden_dim:
+  attn_height:
+  attn_width:
+  pos_scale: If pretrained weights are from different input_shape or window_size, pos_scale is previous actually using window_size.
+      Default -1 for using `[height, width]` from input_shape.
+  use_absolute_pos:
+
+Examples:
+>>> from keras_cv_attention_models import attention_layers
+>>> aa = attention_layers.MlpPairwisePositionalEmbedding()
+>>> print(f"{aa(tf.ones([9, 4, 49, 49])).shape = }")
+# aa(tf.ones([9, 4, 49, 49])).shape = TensorShape([9, 4, 49, 49])
+>>> print({ii.name: ii.shape for ii in aa.weights})
+# {'mlp_pairwise_positional_embedding_2/hidden_weight:0': TensorShape([2, 512]),
+#  'mlp_pairwise_positional_embedding_2/hidden_bias:0': TensorShape([512]),
+#  'mlp_pairwise_positional_embedding_2/out:0': TensorShape([512, 4])}
+"""
+
 WindowAttentionMask.__doc__ = __head_doc__ + """
 Window Attention Mask layer.
 No weight, just need to wrapper a layer, or will meet some error in model saving or loading.

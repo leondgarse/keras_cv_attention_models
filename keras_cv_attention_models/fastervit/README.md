@@ -7,18 +7,18 @@
 ***
 
 ## Models
-  | Model      | Params   | FLOPs   | Input | Top1 Acc | Download |
-  | ---------- | -------- | ------- | ----- | -------- | -------- |
-  | FasterViT0 | 31.40M   | 3.51G   | 224   | 82.1     |          |
-  | FasterViT1 | 53.37M   | 5.52G   | 224   | 83.2     |          |
-  | FasterViT2 | 75.92M   | 9.00G   | 224   | 84.2     |          |
-  | FasterViT3 | 159.55M  | 18.75G  | 224   | 84.9     |          |
-  | FasterViT4 | 351.12M  | 41.57G  | 224   | 85.4     |          |
-  | FasterViT5 | 957.52M  | 114.08G | 224   | 85.6     |          |
-  | FasterViT6 | 1360.33M | 144.13G | 224   | 85.8     |          |
+  | Model      | Params   | FLOPs   | Input | Top1 Acc |
+  | ---------- | -------- | ------- | ----- | -------- |
+  | [FasterViT0](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastervit/fastervit_0_224_imagenet.h5) | 31.40M   | 3.51G   | 224   | 82.1     |
+  | [FasterViT1](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastervit/fastervit_1_224_imagenet.h5) | 53.37M   | 5.52G   | 224   | 83.2     |
+  | [FasterViT2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastervit/fastervit_2_224_imagenet.h5) | 75.92M   | 9.00G   | 224   | 84.2     |
+  | [FasterViT3](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastervit/fastervit_3_224_imagenet.h5) | 159.55M  | 18.75G  | 224   | 84.9     |
+  | [FasterViT4](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastervit/fastervit_4_224_imagenet.h5) | 351.12M  | 41.57G  | 224   | 85.4     |
+  | [FasterViT5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastervit/fastervit_5_224_imagenet.h5) | 957.52M  | 114.08G | 224   | 85.6     |
+  | [FasterViT6](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastervit/fastervit_6_224_imagenet.1.h5), [+.2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastervit/fastervit_6_224_imagenet.2.h5) | 1360.33M | 144.13G | 224   | 85.8     |
 ## Usage
   ```py
-  from keras_cv_attention_models import fastervit
+  from keras_cv_attention_models import fastervit, test_images
 
   # Will download and load pretrained imagenet weights.
   mm = fastervit.FasterViT0(pretrained="imagenet")
@@ -28,13 +28,66 @@
   print(mm.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.7712158), ('n02123045', 'tabby', 0.017085848), ...]
   ```
+  **Change input resolution** input_shape should be larger than `window_sizes[3] * 16 == 7 * 16 == 112`
+  ```py
+  from keras_cv_attention_models import fastervit, test_images
+
+  # Will download and load pretrained imagenet weights.
+  mm = fastervit.FasterViT1(pretrained="imagenet", input_shape=(219, 112, 3))
+
+  # Run prediction
+  preds = mm(mm.preprocess_input(test_images.cat()))
+  print(mm.decode_predictions(preds))
+  # [('n02124075', 'Egyptian_cat', 0.816042), ('n02123045', 'tabby', 0.016786952), ...]
+  ```
+  **Switch to deploy** by calling `model.switch_to_deploy()`, will replace all positional embedding layers with a single bias one.
+  ```py
+  from keras_cv_attention_models import fastervit, test_images, model_surgery
+
+  mm = fastervit.FasterViT0(pretrained="imagenet")
+  model_surgery.count_params(mm)
+  # Total params: 31,408,168 | Trainable params: 31,404,840 | Non-trainable params:3,328
+  preds = mm(mm.preprocess_input(test_images.cat()))
+
+  _ = mm.switch_to_deploy()
+  model_surgery.count_params(mm)
+  # Total params: 28,382,248 | Trainable params: 28,378,920 | Non-trainable params:3,328
+  preds_deploy = mm(mm.preprocess_input(test_images.cat()))
+
+  print(f"{np.allclose(preds, preds_deploy) = }")
+  # np.allclose(preds, preds_deploy) = True
+  ```
+  **Using PyTorch backend** by set `KECAM_BACKEND='torch'` environment variable.
+  ```py
+  os.environ['KECAM_BACKEND'] = 'torch'
+  from keras_cv_attention_models import fastervit, test_images, model_surgery
+  mm = fastervit.FasterViT0(input_shape=(219, 112, 3))
+  # >>>> Using PyTorch backend
+  # >>>> Load pretrained from: ~/.keras/models/fastervit_0_224_imagenet.h5
+
+  # Run prediction
+  preds = mm(mm.preprocess_input(test_images.cat()))
+  print(mm.decode_predictions(preds))
+  # [('n02124075', 'Egyptian_cat', 0.8153747), ('n02123045', 'tabby', 0.013647158), ...]
+  model_surgery.count_params(mm)
+  # Total params: 31,431,032 | Trainable params: 31,404,840 | Non-trainable params:26,192
+
+  # switch_to_deploy
+  _ = mm.switch_to_deploy()
+  model_surgery.count_params(mm)
+  # Total params: 28,764,968 | Trainable params: 28,378,920 | Non-trainable params:386,048
+  preds_deploy = mm(mm.preprocess_input(test_images.cat()))
+
+  print(f"{np.allclose(preds.detach(), preds_deploy.detach()) = }")
+  # np.allclose(preds.detach(), preds_deploy.detach()) = True
+  ```
 ## Verification with PyTorch version
   ```py
   """ PyTorch faster_vit_0_224 """
   sys.path.append('../FasterViT/')
   sys.path.append('../pytorch-image-models/')  # Needs timm
   import torch
-  from models import faster_vit
+  from fastervit.models import faster_vit
 
   torch_model = faster_vit.faster_vit_0_224()
   ss = torch.load('fastervit_0_224_1k.pth.tar', map_location=torch.device('cpu'))

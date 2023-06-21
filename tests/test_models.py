@@ -1,5 +1,6 @@
 import pytest
 import sys
+import numpy as np
 
 sys.path.append(".")
 import keras_cv_attention_models
@@ -341,6 +342,21 @@ def test_FasterNetT2_dynamic_predict():
     out = mm.decode_predictions(pred)[0][0]
 
     assert out[1] == "Egyptian_cat"
+
+
+def test_FasterViT0_dynamic_predict():
+    mm = keras_cv_attention_models.fastervit.FasterViT0(input_shape=(192, 127, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(cat()))
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+    _ = mm.switch_to_deploy()
+    deploy_pred = mm(mm.preprocess_input(cat()))
+
+    pred = pred.detach() if hasattr(pred, "detach") else pred
+    deploy_pred = deploy_pred.detach() if hasattr(deploy_pred, "detach") else deploy_pred
+    assert np.allclose(pred, deploy_pred, atol=1e-7)
 
 
 def test_FBNetV3B_dynamic_predict():

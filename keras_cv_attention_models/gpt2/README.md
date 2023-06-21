@@ -8,12 +8,12 @@
 ## Models
   - For `GPT2_XLarge`, needs to download 2 file parts `gpt2_xlarge_webtext.1.h5` and `gpt2_xlarge_webtext.2.h5`.
 
-  | Model            | Params  | FLOPs   | vocab_size | LAMBADA PPL | T4 Inference |
-  | ---------------- | ------- | ------- | ---------- | ----------- | ------------ |
-  | [GPT2_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_base_webtext.h5)        | 163.04M | 146.42G | 50257      | 35.13       |              |
-  | [GPT2_Medium](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_medium_webtext.h5)      | 406.29M | 415.07G | 50257      | 15.60       |              |
-  | [GPT2_Large](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_large_webtext.h5)       | 838.36M | 890.28G | 50257      | 10.87       |              |
-  | [GPT2_XLarge](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_xlarge_webtext.1.h5), [+.2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_xlarge_webtext.2.h5) | 1.638B  | 1758.3G | 50257      | 8.63        |              |
+  | Model            | Params  | FLOPs   | vocab_size | LAMBADA PPL |
+  | ---------------- | ------- | ------- | ---------- | ----------- |
+  | [GPT2_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_base_webtext.h5)        | 163.04M | 146.42G | 50257      | 35.13       |
+  | [GPT2_Medium](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_medium_webtext.h5)      | 406.29M | 415.07G | 50257      | 15.60       |
+  | [GPT2_Large](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_large_webtext.h5)       | 838.36M | 890.28G | 50257      | 10.87       |
+  | [GPT2_XLarge](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_xlarge_webtext.1.h5), [+.2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_xlarge_webtext.2.h5) | 1.638B  | 1758.3G | 50257      | 8.63        |
 ## Usage
   ```py
   from keras_cv_attention_models import gpt2

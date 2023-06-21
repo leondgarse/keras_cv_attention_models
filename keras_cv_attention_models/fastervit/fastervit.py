@@ -29,6 +29,9 @@ PRETRAINED_DICT = {
     "fastervit_1": {"imagenet": {224: "3b309f8c894a8f822e3a0cc374381b93"}},
     "fastervit_2": {"imagenet": {224: "b1f7ff0d70859199c24af59716adec2a"}},
     "fastervit_3": {"imagenet": {224: "dea02b352abbb2e76ceb241853b55c56"}},
+    "fastervit_4": {"imagenet": {224: "9cd2a9df1de436c37da92a164d333a78"}},
+    "fastervit_5": {"imagenet": {224: "4448add6981ec321ba7d6bd780886281"}},
+    "fastervit_6": {"imagenet": {224: ["342756534860f0602ab2715445ce9c20", "00174cfde85f89a17cf74d4384191ea1"]}},
 }
 
 
@@ -48,9 +51,10 @@ def attention_mlp_block(inputs, carrier_tokens=None, num_heads=4, mlp_ratio=4, p
     input_channel = inputs.shape[-1]
 
     if carrier_tokens is not None:
-        attn_height = attn_width = int(inputs.shape[1] ** 0.5)
-        carrier_tokens = functional.reshape(carrier_tokens, [-1, np.prod(carrier_tokens.shape[1:-1]), carrier_tokens.shape[-1]])
+        num_carrier_tokens = np.prod(carrier_tokens.shape[1:-1])
+        carrier_tokens = functional.reshape(carrier_tokens, [-1, num_carrier_tokens, carrier_tokens.shape[-1]])
         inputs = functional.concat([carrier_tokens, inputs], axis=1)
+        attn_height = attn_width = int(inputs.shape[1] ** 0.5)  # attn_height, attn_width should be all equal to window_size
     else:
         attn_height, attn_width = inputs.shape[1:-1]
 
@@ -72,12 +76,12 @@ def attention_mlp_block(inputs, carrier_tokens=None, num_heads=4, mlp_ratio=4, p
     nn = add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "mlp_")
     # print(f"{nn.shape = }, {attn_height = }, {attn_width = }")
     if carrier_tokens is not None:
-        carrier_tokens, nn = functional.split(nn, [-1, attn_height * attn_width], axis=1)
+        carrier_tokens, nn = functional.split(nn, [num_carrier_tokens, attn_height * attn_width], axis=1)
     return nn, carrier_tokens, ct_gamma_layer
 
 
 def hierarchical_attention(
-    inputs, carrier_tokens=None, num_heads=4, mlp_ratio=4, pos_scale=-1, use_propagation=False, layer_scale=0, drop_rate=0, activation="gelu", name=""
+    inputs, num_heads=4, mlp_ratio=4, carrier_tokens=None, token_size=2, use_propagation=False, pos_scale=-1, layer_scale=0, drop_rate=0, activation="gelu", name=""
 ):
     attn_kwargs = {"num_heads": num_heads, "mlp_ratio": mlp_ratio, "pos_scale": pos_scale, "layer_scale": layer_scale, "drop_rate": drop_rate}
     # print(f"{inputs.shape = }, {attn_kwargs = }")
@@ -85,37 +89,43 @@ def hierarchical_attention(
         # print(f"{carrier_tokens.shape = }")
         carrier_tokens = MlpPairwisePositionalEmbedding(pos_scale=pos_scale, use_absolute_pos=True, name=name + "hat_pos")(carrier_tokens)
         carrier_tokens, _, ct_gamma_layer = attention_mlp_block(carrier_tokens, **attn_kwargs, activation=activation, name=name + "hat_")
-        ct_patch_height, ct_patch_width = carrier_tokens.shape[1] // 2, carrier_tokens.shape[2] // 2
-        carrier_tokens = window_partition(carrier_tokens, window_height=2, window_width=2)
+        ct_patch_height, ct_patch_width = carrier_tokens.shape[1] // token_size, carrier_tokens.shape[2] // token_size
+        carrier_tokens = window_partition(carrier_tokens, window_height=token_size, window_width=token_size)
     else:
         ct_gamma_layer = None
 
-    # Take carrier_tokens in, for haddling shape there
     pre = MlpPairwisePositionalEmbedding(pos_scale=pos_scale, use_absolute_pos=True, name=name + "pre_attn_pos")(inputs)
+    # Take carrier_tokens in, for haddling shape there
     nn, carrier_tokens, _ = attention_mlp_block(pre, carrier_tokens, **attn_kwargs, activation=activation, name=name)
 
     if use_propagation and carrier_tokens is not None:
-        nn = do_propagation(nn, carrier_tokens, ct_gamma_layer)
+        nn = do_propagation(nn, carrier_tokens, ct_gamma_layer, token_size)
     elif carrier_tokens is not None:
         carrier_tokens = window_reverse(carrier_tokens, patch_height=ct_patch_height, patch_width=ct_patch_width, window_height=2, window_width=2)
     return nn, carrier_tokens
 
 
-def do_propagation(inputs, carrier_tokens, ct_gamma_layer=None):
-    height = width = int(float(inputs.shape[1]) ** 0.5)
-    carrier_tokens = functional.reshape(carrier_tokens, [-1, 2, 2, carrier_tokens.shape[-1]])
+def do_propagation(inputs, carrier_tokens, ct_gamma_layer=None, token_size=2):
+    height = width = int(float(inputs.shape[1]) ** 0.5)  # height, width should be all equal to window_size
+    carrier_tokens = functional.reshape(carrier_tokens, [-1, token_size, token_size, carrier_tokens.shape[-1]])
     carrier_tokens = carrier_tokens if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(carrier_tokens)
     carrier_tokens = functional.resize(carrier_tokens, size=(height, width), method="nearest")
     carrier_tokens = carrier_tokens if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(carrier_tokens)
-    carrier_tokens = functional.reshape(carrier_tokens, [-1, np.prod(carrier_tokens.shape[1:-1]), carrier_tokens.shape[-1]])
+    carrier_tokens = functional.reshape(carrier_tokens, [-1, height * width, carrier_tokens.shape[-1]])
     carrier_tokens = ct_gamma_layer(carrier_tokens) if ct_gamma_layer is not None else carrier_tokens
     return inputs + carrier_tokens
 
 
 def global_carrier_tokens(inputs, window_size=7, token_size=2, name=""):
     # return inputs
+    height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
+    outputs = [token_size * math.ceil(height / window_size), token_size * math.ceil(width / window_size)]
+    strides = [height // outputs[0], width // outputs[1]]
+    pool_size = [height - (outputs[0] - 1) * strides[0], width - (outputs[1] - 1) * strides[1]]
+
     nn = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="SAME", use_bias=True, name=name)
-    nn = layers.AvgPool2D(pool_size=5, strides=3)(nn)  # [TODO] calculate pool_size, strides
+    nn = layers.AvgPool2D(pool_size=pool_size, strides=strides)(nn)  # [TODO] calculate pool_size, strides
+    # print(f"[global_carrier_tokens] {inputs.shape = }, {outputs = }, {pool_size = }, {strides = }, {nn.shape = }")
     # nn = window_partition(nn, token_size, token_size)
     return nn
 
@@ -128,7 +138,7 @@ def FasterViT(
     stem_hidden_dim=64,
     embed_dim=64,
     mlp_ratio=4,
-    ct_size=2,
+    carrier_token_size=2,
     pos_scale=-1,  # If pretrained weights are from different input_shape or window_size, pos_scale is previous actually using window_size
     use_propagation=False,
     # use_layernorm_output=False,
@@ -153,35 +163,35 @@ def FasterViT(
     nn = conv2d_no_bias(nn, embed_dim, 3, strides=2, padding="same", name="stem_2_")
     nn = batchnorm_with_activation(nn, epsilon=BATCH_NORM_EPSILON, activation="relu", name="stem_2_")
 
-    block_types = ["conv", "conv", "transform", "transform"]
+    is_conv_blocks = [True, True, False, False]
+    carrier_token_sizes = [0, 0, carrier_token_size, 0]
 
     """ stage [1, 2, 3, 4] """
     total_blocks = sum(num_blocks)
     global_block_id = 0
-    for stack_id, (num_block, block_type, window_size, num_head) in enumerate(zip(num_blocks, block_types, window_sizes, num_heads)):
+    block_args = zip(num_blocks, is_conv_blocks, window_sizes, num_heads, carrier_token_sizes)
+    for stack_id, (num_block, is_conv_block, window_size, num_head, carrier_token_size) in enumerate(block_args):
         stack_name = "stack{}_".format(stack_id + 1)
         out_channels = embed_dim * (2**stack_id)
-        is_conv_block = True if block_type[0].lower() == "c" else False
-        nn = nn if is_conv_block or image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
 
         if stack_id > 0:
-            layer_norm_axis = -1 if image_data_format() == "channels_last" or not is_conv_block else 1
-            nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, axis=layer_norm_axis, name=stack_name + "downsample_")
-            nn = nn if is_conv_block or image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=stack_name + "permute_pre")(nn)
+            nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name=stack_name + "downsample_")
             nn = conv2d_no_bias(nn, out_channels, 3, strides=2, padding="same", name=stack_name + "downsample_")
-            nn = nn if is_conv_block or image_data_format() == "channels_last" else layers.Permute([2, 3, 1], name=stack_name + "permute_post")(nn)
 
         if not is_conv_block:
-            use_carrier_tokens = nn.shape[1] > window_size or nn.shape[2] > window_size
-            carrier_tokens = global_carrier_tokens(nn, window_size, token_size=2, name=stack_name + "token_") if use_carrier_tokens else None
+            # use_carrier_token = nn.shape[1] > window_size or nn.shape[2] > window_size
+            if carrier_token_size > 0:
+                carrier_tokens = global_carrier_tokens(nn, window_size, token_size=carrier_token_size, name=stack_name + "token_")
+                carrier_tokens = carrier_tokens if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(carrier_tokens)
+            else:
+                carrier_tokens = None
+            nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)
 
             nn, window_height, window_width, padding_height, padding_width = pad_to_divisible_by_window_size(nn, window_size)
             patch_height, patch_width = nn.shape[1] // window_height, nn.shape[2] // window_width
             nn = window_partition(nn, window_height, window_width)
             # sr_ratio = max(patch_height, patch_width)
-            nn = functional.reshape(nn, [-1, nn.shape[1] * nn.shape[2], nn.shape[-1]]) if use_carrier_tokens else nn
-        else:
-            use_carrier_tokens = False
+            nn = functional.reshape(nn, [-1, nn.shape[1] * nn.shape[2], nn.shape[-1]]) if carrier_token_size > 0 else nn
 
         for block_id in range(num_block):
             name = "stack{}_block{}_".format(stack_id + 1, block_id + 1)
@@ -192,13 +202,13 @@ def FasterViT(
                 nn = res_conv_bn_block(nn, layer_scale=0, drop_rate=block_drop_rate, activation=activation, name=name)
             else:
                 nn, carrier_tokens = hierarchical_attention(
-                    nn, carrier_tokens, num_head, mlp_ratio, pos_scale, cur_use_propagation, layer_scale, block_drop_rate, activation=activation, name=name
+                    nn, num_head, mlp_ratio, carrier_tokens, carrier_token_size, cur_use_propagation, pos_scale, layer_scale, block_drop_rate, activation, name
                 )
 
         if not is_conv_block:
             nn = window_reverse(nn, patch_height, patch_width, window_height, window_width)
             nn = reverse_padded_for_window_size(nn, padding_height, padding_width)
-    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name="permute_post")(nn)
+        nn = nn if is_conv_block or image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=stack_name + "permute_output")(nn)
 
     if num_classes > 0:
         nn = batchnorm_with_activation(nn, epsilon=BATCH_NORM_EPSILON, activation=None, name="pre_out_")
@@ -254,7 +264,7 @@ def FasterViT3(input_shape=(224, 224, 3), num_classes=1000, classifier_activatio
 def FasterViT4(input_shape=(224, 224, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 12, 5]
     num_heads = [4, 8, 16, 32]
-    embed_dim = 192
+    embed_dim = 196
     layer_scale = 1e-5
     use_propagation = True
     return FasterViT(**locals(), model_name="fastervit_4", **kwargs)

@@ -28,12 +28,12 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model       | Params  | FLOPs   | vocab_size | LAMBADA PPL | T4 Inference |
-  | ------------| ------- | ------- | ---------- | ----------- | ------------ |
-  | GPT2_Base   | 163.04M | 146.42G | 50257      | 35.13       |              |
-  | GPT2_Medium | 406.29M | 415.07G | 50257      | 15.60       |              |
-  | GPT2_Large  | 838.36M | 890.28G | 50257      | 10.87       |              |
-  | GPT2_XLarge | 1.638B  | 1758.3G | 50257      | 8.63        |              |
+  | Model       | Params  | FLOPs   | vocab_size | LAMBADA PPL |
+  | ------------| ------- | ------- | ---------- | ----------- |
+  | GPT2_Base   | 163.04M | 146.42G | 50257      | 35.13       |
+  | GPT2_Medium | 406.29M | 415.07G | 50257      | 15.60       |
+  | GPT2_Large  | 838.36M | 890.28G | 50257      | 10.87       |
+  | GPT2_XLarge | 1.638B  | 1758.3G | 50257      | 8.63        |
 """
 
 GPT2_Base.__doc__ = __head_doc__ + """
