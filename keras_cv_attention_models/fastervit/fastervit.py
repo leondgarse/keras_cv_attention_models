@@ -81,7 +81,17 @@ def attention_mlp_block(inputs, carrier_tokens=None, num_heads=4, mlp_ratio=4, p
 
 
 def hierarchical_attention(
-    inputs, num_heads=4, mlp_ratio=4, carrier_tokens=None, token_size=2, use_propagation=False, pos_scale=-1, layer_scale=0, drop_rate=0, activation="gelu", name=""
+    inputs,
+    num_heads=4,
+    mlp_ratio=4,
+    carrier_tokens=None,
+    token_size=2,
+    use_propagation=False,
+    pos_scale=-1,
+    layer_scale=0,
+    drop_rate=0,
+    activation="gelu",
+    name="",
 ):
     attn_kwargs = {"num_heads": num_heads, "mlp_ratio": mlp_ratio, "pos_scale": pos_scale, "layer_scale": layer_scale, "drop_rate": drop_rate}
     # print(f"{inputs.shape = }, {attn_kwargs = }")
@@ -101,7 +111,9 @@ def hierarchical_attention(
     if use_propagation and carrier_tokens is not None:
         nn = do_propagation(nn, carrier_tokens, ct_gamma_layer, token_size)
     elif carrier_tokens is not None:
-        carrier_tokens = window_reverse(carrier_tokens, patch_height=ct_patch_height, patch_width=ct_patch_width, window_height=2, window_width=2)
+        carrier_tokens = window_reverse(
+            carrier_tokens, patch_height=ct_patch_height, patch_width=ct_patch_width, window_height=token_size, window_width=token_size
+        )
     return nn, carrier_tokens
 
 
@@ -117,14 +129,13 @@ def do_propagation(inputs, carrier_tokens, ct_gamma_layer=None, token_size=2):
 
 
 def global_carrier_tokens(inputs, window_size=7, token_size=2, name=""):
-    # return inputs
-    height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
-    outputs = [token_size * math.ceil(height / window_size), token_size * math.ceil(width / window_size)]
-    strides = [height // outputs[0], width // outputs[1]]
-    pool_size = [height - (outputs[0] - 1) * strides[0], width - (outputs[1] - 1) * strides[1]]
+    input_size = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
+    outputs = [token_size * math.ceil(input_size[0] / window_size), token_size * math.ceil(input_size[1] / window_size)]
+    strides = [input_size[0] // outputs[0], input_size[1] // outputs[1]]
+    pool_size = [input_size[0] - (outputs[0] - 1) * strides[0], input_size[1] - (outputs[1] - 1) * strides[1]]
 
     nn = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="SAME", use_bias=True, name=name)
-    nn = layers.AvgPool2D(pool_size=pool_size, strides=strides)(nn)  # [TODO] calculate pool_size, strides
+    nn = layers.AvgPool2D(pool_size=pool_size, strides=strides)(nn)
     # print(f"[global_carrier_tokens] {inputs.shape = }, {outputs = }, {pool_size = }, {strides = }, {nn.shape = }")
     # nn = window_partition(nn, token_size, token_size)
     return nn
@@ -134,7 +145,6 @@ def FasterViT(
     num_blocks=[2, 3, 6, 5],
     num_heads=[2, 4, 8, 16],
     window_sizes=[8, 8, 7, 7],
-    # block_types=["conv", "conv", "transform", "transform"],
     stem_hidden_dim=64,
     embed_dim=64,
     mlp_ratio=4,
