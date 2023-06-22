@@ -102,7 +102,7 @@ def window_reverse(inputs, patch_height, patch_width, window_height, window_widt
     patch_width = patch_width if patch_width > 0 else patch_height
     # window_height, window_width = inputs.shape[1], inputs.shape[2]
     if patch_height == 1 and patch_width == 1:
-        return inputs
+        return functional.reshape(inputs, [-1, patch_height * window_height, patch_width * window_width, input_channel])
 
     # [batch * patch_height, patch_width, window_height, window_width * input_channel], limit transpose perm <= 4
     nn = functional.reshape(inputs, [-1, patch_width, window_height, window_width * input_channel])
@@ -133,7 +133,7 @@ def grid_window_reverse(inputs, patch_height, patch_width, window_height, window
     patch_width = patch_width if patch_width > 0 else patch_height
     # window_height, window_width = inputs.shape[1], inputs.shape[2]
     if patch_height == 1 and patch_width == 1:
-        return inputs
+        return functional.reshape(inputs, [-1, window_height * patch_height, window_width * patch_width, input_channel])
 
     nn = functional.reshape(inputs, [-1, patch_width, window_height * window_width, input_channel])
     nn = functional.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, window_height * window_width, patch_width, input_channel]

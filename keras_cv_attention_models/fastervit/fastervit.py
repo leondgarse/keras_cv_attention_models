@@ -52,11 +52,12 @@ def attention_mlp_block(inputs, carrier_tokens=None, num_heads=4, mlp_ratio=4, p
 
     if carrier_tokens is not None:
         num_carrier_tokens = np.prod(carrier_tokens.shape[1:-1])
-        carrier_tokens = functional.reshape(carrier_tokens, [-1, num_carrier_tokens, carrier_tokens.shape[-1]])
+        # carrier_tokens = functional.reshape(carrier_tokens, [-1, num_carrier_tokens, carrier_tokens.shape[-1]])
         inputs = functional.concat([carrier_tokens, inputs], axis=1)
         attn_height = attn_width = int(inputs.shape[1] ** 0.5)  # attn_height, attn_width should be all equal to window_size
     else:
         attn_height, attn_width = inputs.shape[1:-1]
+    # print(f"{attn_height = }, {attn_width = }")
 
     """ attention """
     attn = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "attn_")
@@ -97,10 +98,15 @@ def hierarchical_attention(
     # print(f"{inputs.shape = }, {attn_kwargs = }")
     if carrier_tokens is not None:
         # print(f"{carrier_tokens.shape = }")
-        carrier_tokens = MlpPairwisePositionalEmbedding(pos_scale=pos_scale, use_absolute_pos=True, name=name + "hat_pos")(carrier_tokens)
-        carrier_tokens, _, ct_gamma_layer = attention_mlp_block(carrier_tokens, **attn_kwargs, activation=activation, name=name + "hat_")
+        ct_channels = carrier_tokens.shape[-1]
         ct_patch_height, ct_patch_width = carrier_tokens.shape[1] // token_size, carrier_tokens.shape[2] // token_size
-        carrier_tokens = window_partition(carrier_tokens, window_height=token_size, window_width=token_size)
+        carrier_tokens = MlpPairwisePositionalEmbedding(pos_scale=pos_scale, use_absolute_pos=True, name=name + "hat_pos")(carrier_tokens)
+        # carrier_tokens = functional.reshape(carrier_tokens, [-1, np.prod(carrier_tokens.shape[1:-1]), ct_channels])
+        carrier_tokens, _, ct_gamma_layer = attention_mlp_block(carrier_tokens, **attn_kwargs, activation=activation, name=name + "hat_")
+        # print(f"{carrier_tokens.shape = }")
+        carrier_tokens = functional.reshape(carrier_tokens, [-1, token_size, ct_patch_width, token_size * ct_channels])
+        carrier_tokens = functional.transpose(carrier_tokens, [0, 2, 1, 3])  # [batch * patch_height, patch_width, window_height, window_width * channel]
+        carrier_tokens = functional.reshape(carrier_tokens, [-1, token_size * token_size, ct_channels])
     else:
         ct_gamma_layer = None
 
@@ -199,9 +205,13 @@ def FasterViT(
 
             nn, window_height, window_width, padding_height, padding_width = pad_to_divisible_by_window_size(nn, window_size)
             patch_height, patch_width = nn.shape[1] // window_height, nn.shape[2] // window_width
-            nn = window_partition(nn, window_height, window_width)
             # sr_ratio = max(patch_height, patch_width)
-            nn = functional.reshape(nn, [-1, nn.shape[1] * nn.shape[2], nn.shape[-1]]) if carrier_token_size > 0 else nn
+            nn = functional.reshape(nn, [-1, window_height, patch_width, window_width * out_channels])
+            nn = functional.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, patch_width, window_height, window_width * channel]
+            if carrier_token_size > 0:
+                nn = functional.reshape(nn, [-1, window_height * window_width, out_channels])
+            else:
+                nn = functional.reshape(nn, [-1, window_height, window_width, out_channels])
 
         for block_id in range(num_block):
             name = "stack{}_block{}_".format(stack_id + 1, block_id + 1)
@@ -218,6 +228,7 @@ def FasterViT(
         if not is_conv_block:
             nn = window_reverse(nn, patch_height, patch_width, window_height, window_width)
             nn = reverse_padded_for_window_size(nn, padding_height, padding_width)
+        # print(f"{nn.shape = }")
         nn = nn if is_conv_block or image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name=stack_name + "permute_output")(nn)
 
     if num_classes > 0:

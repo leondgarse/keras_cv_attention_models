@@ -50,6 +50,9 @@ def multi_head_self_attention(
     query = functional.transpose(functional.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, key_dim]
     key = functional.transpose(functional.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
     value = functional.transpose(functional.reshape(value, [-1, value.shape[1], num_heads, vv_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, vv_dim]
+    # qkv = functional.reshape(qkv, [-1, np.prod(qkv.shape[1:-1]), 3, num_heads, key_dim])
+    # query, key, value = functional.transpose(qkv, [2, 0, 3, 1, 4])
+    # key = functional.transpose(key, [0, 1, 3, 2])
 
     output_shape = [*blocks, out_shape]
     attention_output = scaled_dot_product_attention(query, key, value, output_shape, pos_emb, out_weight, out_bias=out_bias, dropout=attn_dropout, name=name)

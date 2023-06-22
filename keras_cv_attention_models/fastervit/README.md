@@ -40,7 +40,7 @@
   print(mm.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.816042), ('n02123045', 'tabby', 0.016786952), ...]
   ```
-  **Switch to deploy** by calling `model.switch_to_deploy()`, will replace all positional embedding layers with a single bias one.
+  **Switch to deploy** by calling `model.switch_to_deploy()`, will replace all positional embedding layers with a single bias one. **Note: when running inference using `ONNX`, `onnxsim` will automatically converting it to a single `Add`, no need to call this manually**.
   ```py
   from keras_cv_attention_models import fastervit, test_images, model_surgery
 
@@ -69,17 +69,6 @@
   preds = mm(mm.preprocess_input(test_images.cat()))
   print(mm.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.8153747), ('n02123045', 'tabby', 0.013647158), ...]
-  model_surgery.count_params(mm)
-  # Total params: 31,431,032 | Trainable params: 31,404,840 | Non-trainable params:26,192
-
-  # switch_to_deploy
-  _ = mm.switch_to_deploy()
-  model_surgery.count_params(mm)
-  # Total params: 28,764,968 | Trainable params: 28,378,920 | Non-trainable params:386,048
-  preds_deploy = mm(mm.preprocess_input(test_images.cat()))
-
-  print(f"{np.allclose(preds.detach(), preds_deploy.detach()) = }")
-  # np.allclose(preds.detach(), preds_deploy.detach()) = True
   ```
 ## Verification with PyTorch version
   ```py

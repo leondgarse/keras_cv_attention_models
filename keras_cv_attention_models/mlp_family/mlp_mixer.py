@@ -29,13 +29,15 @@ def mlp_block(inputs, hidden_dim, output_channel=-1, drop_rate=0, use_conv=False
     if use_conv:
         nn = layers.Conv2D(hidden_dim, kernel_size=1, use_bias=use_bias, name=name and name + "Conv_0")(inputs)
     else:
-        nn = layers.Dense(hidden_dim, use_bias=use_bias, name=name and name + "Dense_0")(inputs)
+        nn = functional.reshape(inputs, [-1, inputs.shape[-1]])  # For using Gemm
+        nn = layers.Dense(hidden_dim, use_bias=use_bias, name=name and name + "Dense_0")(nn)
     nn = activation_by_name(nn, activation, name=name)
     nn = layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
     if use_conv:
         nn = layers.Conv2D(output_channel, kernel_size=1, use_bias=use_bias, name=name and name + "Conv_1")(nn)
     else:
         nn = layers.Dense(output_channel, use_bias=use_bias, name=name and name + "Dense_1")(nn)
+        nn = functional.reshape(nn, [-1, *inputs.shape[1:-1], output_channel])
     nn = layers.Dropout(drop_rate)(nn) if drop_rate > 0 else nn
     return nn
 
