@@ -72,8 +72,10 @@ def attention_mlp_block(inputs, carrier_tokens=None, num_heads=4, mlp_ratio=4, p
     attn_out = add_with_layer_scale_and_drop_block(inputs, attn, layer_scale=0, drop_rate=drop_rate, axis=-1, name=name + "attn_out_")
 
     """ MLP """
-    nn = layer_norm(attn_out, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "mlp_")
+    nn = functional.reshape(attn_out, [-1, attn_out.shape[-1]])  # For using Gemm
+    nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "mlp_")
     nn = mlp_block(nn, input_channel * mlp_ratio, use_bias=True, activation=activation, name=name + "mlp_")
+    nn = functional.reshape(nn, [-1, *attn_out.shape[1:]])
     nn = add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "mlp_")
     # print(f"{nn.shape = }, {attn_height = }, {attn_width = }")
     if carrier_tokens is not None:
