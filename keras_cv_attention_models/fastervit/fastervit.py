@@ -12,7 +12,6 @@ from keras_cv_attention_models.attention_layers import (
     add_with_layer_scale_and_drop_block,
     pad_to_divisible_by_window_size,
     reverse_padded_for_window_size,
-    window_partition,
     window_reverse,
     multi_head_self_attention,
     layer_norm,
@@ -114,7 +113,7 @@ def hierarchical_attention(
     else:
         ct_gamma_layer = None
 
-    pre = MlpPairwisePositionalEmbedding(pos_scale=pos_scale, use_absolute_pos=True, name=name + "pre_attn_pos")(inputs)
+    pre = MlpPairwisePositionalEmbedding(pos_scale=pos_scale, attn_height=attn_height, use_absolute_pos=True, name=name + "pre_attn_pos")(inputs)
     # Take carrier_tokens in, for haddling shape there
     nn, carrier_tokens, _ = attention_mlp_block(pre, carrier_tokens, attn_height=attn_height, **attn_kwargs, activation=activation, name=name)
 
@@ -138,9 +137,9 @@ def do_propagation(inputs, carrier_tokens, ct_gamma_layer=None, token_size=2):
     return inputs + carrier_tokens
 
 
-def global_carrier_tokens(inputs, window_size=7, token_size=2, name=""):
+def global_carrier_tokens(inputs, window_size=(7, 7), token_size=2, name=""):
     input_size = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
-    outputs = [token_size * math.ceil(input_size[0] / window_size), token_size * math.ceil(input_size[1] / window_size)]
+    outputs = [token_size * math.ceil(input_size[0] / window_size[0]), token_size * math.ceil(input_size[1] / window_size[1])]
     strides = [input_size[0] // outputs[0], input_size[1] // outputs[1]]
     pool_size = [input_size[0] - (outputs[0] - 1) * strides[0], input_size[1] - (outputs[1] - 1) * strides[1]]
 
@@ -154,7 +153,8 @@ def global_carrier_tokens(inputs, window_size=7, token_size=2, name=""):
 def FasterViT(
     num_blocks=[2, 3, 6, 5],
     num_heads=[2, 4, 8, 16],
-    window_sizes=[8, 8, 7, 7],
+    # window_sizes=[8, 8, 7, 7],
+    window_ratios=[1, 1, 2, 1],
     stem_hidden_dim=64,
     embed_dim=64,
     mlp_ratio=4,
@@ -189,8 +189,8 @@ def FasterViT(
     """ stage [1, 2, 3, 4] """
     total_blocks = sum(num_blocks)
     global_block_id = 0
-    block_args = zip(num_blocks, is_conv_blocks, window_sizes, num_heads, carrier_token_sizes)
-    for stack_id, (num_block, is_conv_block, window_size, num_head, carrier_token_size) in enumerate(block_args):
+    block_args = zip(num_blocks, is_conv_blocks, window_ratios, num_heads, carrier_token_sizes)
+    for stack_id, (num_block, is_conv_block, window_ratio, num_head, carrier_token_size) in enumerate(block_args):
         stack_name = "stack{}_".format(stack_id + 1)
         out_channels = embed_dim * (2**stack_id)
 
@@ -199,7 +199,10 @@ def FasterViT(
             nn = conv2d_no_bias(nn, out_channels, 3, strides=2, padding="same", name=stack_name + "downsample_")
 
         if not is_conv_block:
-            # use_carrier_token = nn.shape[1] > window_size or nn.shape[2] > window_size
+            height, width = nn.shape[1:-1] if image_data_format() == "channels_last" else nn.shape[2:]
+            window_size = (math.ceil(height / window_ratio), math.ceil(width / window_ratio))
+            # print(f"{window_size = }")
+            # use_carrier_token = nn.shape[1] > window_size[1] or nn.shape[2] > window_size[2]
             if carrier_token_size > 0:
                 carrier_tokens = global_carrier_tokens(nn, window_size, token_size=carrier_token_size, name=stack_name + "token_")
                 carrier_tokens = carrier_tokens if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(carrier_tokens)
@@ -210,9 +213,10 @@ def FasterViT(
             nn, window_height, window_width, padding_height, padding_width = pad_to_divisible_by_window_size(nn, window_size)
             patch_height, patch_width = nn.shape[1] // window_height, nn.shape[2] // window_width
             # sr_ratio = max(patch_height, patch_width)
-            nn = functional.reshape(nn, [-1, window_height, patch_width, window_width * out_channels])
-            nn = functional.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, patch_width, window_height, window_width * channel]
-            nn = functional.reshape(nn, [-1, window_height * window_width, out_channels])  # All using 3D, faster for ONNX inference [???]
+            if patch_height > 1 or patch_width > 1:
+                nn = functional.reshape(nn, [-1, window_height, patch_width, window_width * out_channels])
+                nn = functional.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, patch_width, window_height, window_width * channel]
+                nn = functional.reshape(nn, [-1, window_height * window_width, out_channels])  # All using 3D, faster for ONNX inference [???]
 
         for block_id in range(num_block):
             name = "stack{}_block{}_".format(stack_id + 1, block_id + 1)

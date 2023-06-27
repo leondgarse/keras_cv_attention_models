@@ -5,7 +5,11 @@ Keras implementation of [Github NVlabs/FasterViT](https://github.com/NVlabs/Fast
 Paper [PDF 2306.06189 FasterViT: Fast Vision Transformers with Hierarchical Attention](https://arxiv.org/pdf/2306.06189.pdf).
 """
 
-__tail_doc__ = """  window_ratios: window split ratio. Each stack will calculate `window_size = (height // window_ratio, width // window_ratio)` .
+__tail_doc__ = """  window_ratios: window split ratio. It's mainly for the 3rd stack, that `window_size = (height // window_ratio, width // window_ratio)`.
+      `1` means not using window partition, while `window_size == (height, width)`.
+  carrier_token_size: int value indicates carrier token size for the 3rd stack.
+  pos_scale: If pretrained weights are from different input_shape or window_size, pos_scale is previous actually using window_size.
+  use_propagation: boolean value if using `do_propagation` block at the end of the 3rd stack.
   layer_scale: layer scale init value. Default `-1` means not applying, any value `>=0` will add a scale value for each block output.
       [Going deeper with Image Transformers](https://arxiv.org/pdf/2103.17239.pdf).
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
@@ -29,6 +33,7 @@ FasterViT.__doc__ = __head_doc__ + """
 Args:
   num_blocks: number of blocks in each stack.
   num_heads: num heads for each stack.
+  stem_hidden_dim: hidden dimension for the 1st stem `Conv2D`.
   embed_dim: basic hidden dims, expand * 2 for each stack.
   mlp_ratio: expand ratio for mlp blocks hidden channel.
   model_name: string, model name.

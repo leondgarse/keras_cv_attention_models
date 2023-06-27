@@ -28,7 +28,7 @@
   print(mm.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.7712158), ('n02123045', 'tabby', 0.017085848), ...]
   ```
-  **Change input resolution** input_shape should be larger than `window_sizes[3] * 16 == 7 * 16 == 112`
+  **Change input resolution**
   ```py
   from keras_cv_attention_models import fastervit, test_images
 
@@ -38,7 +38,7 @@
   # Run prediction
   preds = mm(mm.preprocess_input(test_images.cat()))
   print(mm.decode_predictions(preds))
-  # [('n02124075', 'Egyptian_cat', 0.816042), ('n02123045', 'tabby', 0.016786952), ...]
+  # [('n02124075', 'Egyptian_cat', 0.85765785), ('n02123045', 'tabby', 0.015630195), ...]
   ```
   **Switch to deploy** by calling `model.switch_to_deploy()`, will replace all positional embedding layers with a single bias one. **Note: when running inference using `ONNX`, `onnxsim` will automatically converting it to a single `Add`, no need to call this manually**.
   ```py
@@ -68,7 +68,7 @@
   # Run prediction
   preds = mm(mm.preprocess_input(test_images.cat()))
   print(mm.decode_predictions(preds))
-  # [('n02124075', 'Egyptian_cat', 0.8153747), ('n02123045', 'tabby', 0.013647158), ...]
+  # [('n02124075', 'Egyptian_cat', 0.8119516), ('n02123045', 'tabby', 0.011075884), ...]
   ```
 ## Verification with PyTorch version
   ```py
