@@ -546,6 +546,18 @@ class BatchNormalization(Layer):
         return config
 
 
+class _Reshape(nn.Module):
+    def __init__(self, target_shape, **kwargs):
+        self.target_shape = [-1 if ii is None else ii for ii in target_shape]
+        super().__init__(**kwargs)
+
+    def forward(self, inputs):
+        return inputs.contiguous().view([*self.target_shape])
+
+    def extra_repr(self):
+        return f"target_shape={self.target_shape}"
+
+
 class _SamePadding(nn.Module):
     """Perform SAME padding like TF"""
 
@@ -916,6 +928,7 @@ class Dense(Layer):
 
         if self.axis == len(input_shape) - 1:
             self.module = module if self.activation is None else nn.Sequential(module, Activation(self.activation))
+            # self.module = nn.Sequential(_Reshape([-1, input_shape[-1]]), module, _Reshape([-1, *input_shape[1:-1], self.units]))
         else:
             ndims = len(input_shape)
             perm = get_perm(total_axis=ndims, from_axis=self.axis, to_axis=-1)  # like axis=1 -> [0, 2, 3, 1]

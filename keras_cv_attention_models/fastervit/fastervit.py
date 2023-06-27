@@ -47,16 +47,19 @@ def res_conv_bn_block(inputs, layer_scale=0, drop_rate=0, activation="gelu", nam
     return nn
 
 
-def attention_mlp_block(inputs, carrier_tokens=None, num_heads=4, mlp_ratio=4, pos_scale=-1, layer_scale=0, drop_rate=0, activation="gelu", name=""):
+def attention_mlp_block(
+    inputs, carrier_tokens=None, num_heads=4, attn_height=-1, mlp_ratio=4, pos_scale=-1, layer_scale=0, drop_rate=0, activation="gelu", name=""
+):
     input_channel = inputs.shape[-1]
+    if len(inputs.shape) == 4:
+        attn_height, attn_width = inputs.shape[1:-1]
+    else:
+        attn_height = attn_height if attn_height > 0 else int(inputs.shape[1] ** 0.5)  # inputs is square shape, attn_height == attn_width
+        attn_width = inputs.shape[1] // attn_height
 
     if carrier_tokens is not None:
         num_carrier_tokens = np.prod(carrier_tokens.shape[1:-1])
-        # carrier_tokens = functional.reshape(carrier_tokens, [-1, num_carrier_tokens, carrier_tokens.shape[-1]])
         inputs = functional.concat([carrier_tokens, inputs], axis=1)
-        attn_height = attn_width = int(inputs.shape[1] ** 0.5)  # attn_height, attn_width should be all equal to window_size
-    else:
-        attn_height, attn_width = inputs.shape[1:-1]
     # print(f"{attn_height = }, {attn_width = }")
 
     """ attention """
@@ -72,10 +75,8 @@ def attention_mlp_block(inputs, carrier_tokens=None, num_heads=4, mlp_ratio=4, p
     attn_out = add_with_layer_scale_and_drop_block(inputs, attn, layer_scale=0, drop_rate=drop_rate, axis=-1, name=name + "attn_out_")
 
     """ MLP """
-    nn = functional.reshape(attn_out, [-1, attn_out.shape[-1]])  # For using Gemm
-    nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "mlp_")
+    nn = layer_norm(attn_out, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "mlp_")
     nn = mlp_block(nn, input_channel * mlp_ratio, use_bias=True, activation=activation, name=name + "mlp_")
-    nn = functional.reshape(nn, [-1, *attn_out.shape[1:]])
     nn = add_with_layer_scale_and_drop_block(attn_out, nn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "mlp_")
     # print(f"{nn.shape = }, {attn_height = }, {attn_width = }")
     if carrier_tokens is not None:
@@ -86,6 +87,7 @@ def attention_mlp_block(inputs, carrier_tokens=None, num_heads=4, mlp_ratio=4, p
 def hierarchical_attention(
     inputs,
     num_heads=4,
+    attn_height=-1,
     mlp_ratio=4,
     carrier_tokens=None,
     token_size=2,
@@ -103,7 +105,7 @@ def hierarchical_attention(
         ct_channels = carrier_tokens.shape[-1]
         ct_patch_height, ct_patch_width = carrier_tokens.shape[1] // token_size, carrier_tokens.shape[2] // token_size
         carrier_tokens = MlpPairwisePositionalEmbedding(pos_scale=pos_scale, use_absolute_pos=True, name=name + "hat_pos")(carrier_tokens)
-        # carrier_tokens = functional.reshape(carrier_tokens, [-1, np.prod(carrier_tokens.shape[1:-1]), ct_channels])
+        carrier_tokens = functional.reshape(carrier_tokens, [-1, np.prod(carrier_tokens.shape[1:-1]), ct_channels])
         carrier_tokens, _, ct_gamma_layer = attention_mlp_block(carrier_tokens, **attn_kwargs, activation=activation, name=name + "hat_")
         # print(f"{carrier_tokens.shape = }")
         carrier_tokens = functional.reshape(carrier_tokens, [-1, token_size, ct_patch_width, token_size * ct_channels])
@@ -114,7 +116,7 @@ def hierarchical_attention(
 
     pre = MlpPairwisePositionalEmbedding(pos_scale=pos_scale, use_absolute_pos=True, name=name + "pre_attn_pos")(inputs)
     # Take carrier_tokens in, for haddling shape there
-    nn, carrier_tokens, _ = attention_mlp_block(pre, carrier_tokens, **attn_kwargs, activation=activation, name=name)
+    nn, carrier_tokens, _ = attention_mlp_block(pre, carrier_tokens, attn_height=attn_height, **attn_kwargs, activation=activation, name=name)
 
     if use_propagation and carrier_tokens is not None:
         nn = do_propagation(nn, carrier_tokens, ct_gamma_layer, token_size)
@@ -210,10 +212,7 @@ def FasterViT(
             # sr_ratio = max(patch_height, patch_width)
             nn = functional.reshape(nn, [-1, window_height, patch_width, window_width * out_channels])
             nn = functional.transpose(nn, [0, 2, 1, 3])  # [batch * patch_height, patch_width, window_height, window_width * channel]
-            if carrier_token_size > 0:
-                nn = functional.reshape(nn, [-1, window_height * window_width, out_channels])
-            else:
-                nn = functional.reshape(nn, [-1, window_height, window_width, out_channels])
+            nn = functional.reshape(nn, [-1, window_height * window_width, out_channels])  # All using 3D, faster for ONNX inference [???]
 
         for block_id in range(num_block):
             name = "stack{}_block{}_".format(stack_id + 1, block_id + 1)
@@ -223,8 +222,10 @@ def FasterViT(
             if is_conv_block:
                 nn = res_conv_bn_block(nn, layer_scale=0, drop_rate=block_drop_rate, activation=activation, name=name)
             else:
+                # Save line width
+                hat_kwargs = {"use_propagation": cur_use_propagation, "pos_scale": pos_scale, "layer_scale": layer_scale, "drop_rate": block_drop_rate}
                 nn, carrier_tokens = hierarchical_attention(
-                    nn, num_head, mlp_ratio, carrier_tokens, carrier_token_size, cur_use_propagation, pos_scale, layer_scale, block_drop_rate, activation, name
+                    nn, num_head, window_height, mlp_ratio, carrier_tokens, carrier_token_size, **hat_kwargs, activation=activation, name=name
                 )
 
         if not is_conv_block:
