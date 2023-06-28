@@ -22,11 +22,11 @@ PRETRAINED_DICT = {
 }
 
 
-def attn_block(inputs, num_heads=8, key_dim=32, attn_ratio=4, mlp_ratio=4, layer_scale=0, drop_rate=0, activation="gelu", name=""):
+def attn_block(inputs, num_heads=8, key_dim=32, attn_height=-1, attn_ratio=4, mlp_ratio=4, layer_scale=0, drop_rate=0, activation="gelu", name=""):
     input_channel = inputs.shape[-1]  # also using -1 for channels_first
 
     nn = layer_norm(inputs, axis=-1, name=name + "attn_")
-    nn = mhsa_with_multi_head_position(nn, num_heads, key_dim=key_dim, attn_ratio=attn_ratio, qkv_bias=True, out_bias=True, name=name)
+    nn = mhsa_with_multi_head_position(nn, num_heads, key_dim=key_dim, attn_height=attn_height, attn_ratio=attn_ratio, qkv_bias=True, out_bias=True, name=name)
     attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, axis=-1, name=name + "attn_")
 
     nn = layer_norm(attn_out, axis=-1, name=name + "mlp_")
@@ -92,16 +92,25 @@ def EfficientFormer(
         cur_num_attn_blocks = num_attn_blocks_each_stack[stack_id] if isinstance(num_attn_blocks_each_stack, (list, tuple)) else num_attn_blocks_each_stack
         attn_block_start_id = num_block - cur_num_attn_blocks
         for block_id in range(num_block):
-            block_name = stack_name + "block{}_".format(block_id + 1)
+            cur_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             mlp_ratio = cur_mlp_ratios[block_id] if isinstance(cur_mlp_ratios, (list, tuple)) else cur_mlp_ratios
-            if block_id >= attn_block_start_id:
-                nn = layers.Permute([2, 3, 1])(nn) if block_id == attn_block_start_id and image_data_format() == "channels_first" else nn
-                nn = attn_block(nn, mlp_ratio=mlp_ratio, layer_scale=layer_scale, drop_rate=block_drop_rate, activation=activation, name=block_name)
-                nn = layers.Permute([3, 1, 2])(nn) if block_id == num_block - 1 and image_data_format() == "channels_first" else nn
-            else:
-                nn = conv_block(nn, mlp_ratio=mlp_ratio, layer_scale=layer_scale, drop_rate=block_drop_rate, activation=activation, name=block_name)
 
+            if block_id >= attn_block_start_id:
+                if block_id == attn_block_start_id:
+                    nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)
+                    block_height, block_width = nn.shape[1:-1]
+                    nn = functional.reshape(nn, [-1, block_height * block_width, nn.shape[-1]])  # Using 3D for attention inputs
+
+                nn = attn_block(
+                    nn, attn_height=block_height, mlp_ratio=mlp_ratio, layer_scale=layer_scale, drop_rate=block_drop_rate, activation=activation, name=cur_name
+                )
+
+                if block_id == num_block - 1:
+                    nn = functional.reshape(nn, [-1, block_height, block_width, nn.shape[-1]])  # Revert 3D to 4D
+                    nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)
+            else:
+                nn = conv_block(nn, mlp_ratio=mlp_ratio, layer_scale=layer_scale, drop_rate=block_drop_rate, activation=activation, name=cur_name)
             global_block_id += 1
 
     """ output """

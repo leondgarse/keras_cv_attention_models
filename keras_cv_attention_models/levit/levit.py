@@ -113,22 +113,28 @@ class MultiHeadPositionalEmbedding(layers.Layer):
 
 
 def mhsa_with_multi_head_position(
-    inputs, num_heads, key_dim=-1, output_dim=-1, attn_ratio=1, use_bn=False, qkv_bias=False, out_bias=False, activation=None, name=None
+    inputs, num_heads, key_dim=-1, attn_height=-1, output_dim=-1, attn_ratio=1, use_bn=False, qkv_bias=False, out_bias=False, activation=None, name=None
 ):
-    _, height, width, input_channels = inputs.shape
+    input_channels = inputs.shape[-1]
+    input_blocks = inputs.shape[1:-1]
     key_dim = key_dim if key_dim > 0 else input_channels // num_heads
     output_dim = output_dim if output_dim > 0 else input_channels
     embed_dim = key_dim * num_heads
+    if len(inputs.shape) == 4:
+        attn_height, attn_width = inputs.shape[1:-1]
+    else:
+        attn_height = attn_height if attn_height > 0 else int(inputs.shape[1] ** 0.5)  # inputs is square shape, attn_height == attn_width
+        attn_width = inputs.shape[1] // attn_height
 
     qkv_dim = (attn_ratio + 1 + 1) * embed_dim
     qkv = layers.Dense(qkv_dim, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
     qkv = batchnorm_with_activation(qkv, activation=None, axis=-1, name=name and name + "qkv_") if use_bn else qkv
-    qkv = functional.reshape(qkv, (-1, qkv.shape[1] * qkv.shape[2], num_heads, qkv_dim // num_heads))
+    qkv = functional.reshape(qkv, (-1, np.prod(qkv.shape[1:-1]), num_heads, qkv_dim // num_heads))
     qq, kk, vv = functional.split(qkv, [key_dim, key_dim, key_dim * attn_ratio], axis=-1)
     qq, kk, vv = functional.transpose(qq, [0, 2, 1, 3]), functional.transpose(kk, [0, 2, 3, 1]), functional.transpose(vv, [0, 2, 1, 3])
 
-    output_shape = (height, width, output_dim)
-    pos_emb = MultiHeadPositionalEmbedding(query_height=height, name=name and name + "attn_pos")
+    output_shape = (*input_blocks, output_dim)
+    pos_emb = MultiHeadPositionalEmbedding(query_height=attn_height, name=name and name + "attn_pos")
     output = scaled_dot_product_attention(qq, kk, vv, output_shape, pos_emb=pos_emb, out_weight=False, name=name)
 
     if activation:
@@ -178,7 +184,7 @@ def mhsa_with_multi_head_position_and_strides(
 
 
 def res_mhsa_with_multi_head_position(inputs, embed_dim, num_heads, key_dim, attn_ratio, drop_rate=0, activation="hard_swish", name=""):
-    nn = mhsa_with_multi_head_position(inputs, num_heads, key_dim, embed_dim, attn_ratio, use_bn=True, activation=activation, name=name)
+    nn = mhsa_with_multi_head_position(inputs, num_heads, key_dim, output_dim=embed_dim, attn_ratio=attn_ratio, use_bn=True, activation=activation, name=name)
     if drop_rate > 0:
         nn = layers.Dropout(drop_rate, noise_shape=(None, 1, 1), name=name + "drop")(nn)
     return layers.Add(name=name + "add")([inputs, nn])

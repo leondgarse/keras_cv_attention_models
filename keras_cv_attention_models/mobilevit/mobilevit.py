@@ -240,7 +240,7 @@ def MobileViT(
     inputs = layers.Input(input_shape)
     nn = conv2d_no_bias(inputs, stem_width, kernel_size=3, strides=2, padding="same", name="stem_")
     nn = batchnorm_with_activation(nn, activation=activation, name="stem_")
-    height_axis, width_axis, channel_axis = (1, 2, 3) if image_data_format() == "channels_last" else (2, 3, 1)
+    height_axis, width_axis, channel_axis = (1, 2, -1) if image_data_format() == "channels_last" else (2, 3, 1)
 
     # Save line width
     mhsa_mlp_block_common_kwargs = {
@@ -277,7 +277,14 @@ def MobileViT(
                 if use_linear_attention:  # channels_last for Tensorflow, channels_first for PyTorch
                     nn = linear_mhsa_mlp_block(nn, attn_channel, layer_scale=layer_scale, **mhsa_mlp_block_common_kwargs, name=name)
                 else:  # channels_last for both Tensorflow or PyTorch
+                    if block_id == 1:
+                        block_height, block_width = nn.shape[1:-1]
+                        channel_axis = -1
+                        nn = functional.reshape(nn, [-1, block_height * block_width, nn.shape[-1]])  # Using 3D for attention inputs
                     nn = mhsa_mlp_block(nn, attn_channel, layer_scale=layer_scale, **mhsa_mlp_block_common_kwargs, name=name)
+                    if block_id == num_block - 1:
+                        channel_axis = -1 if image_data_format() == "channels_last" else 1
+                        nn = functional.reshape(nn, [-1, block_height, block_width, nn.shape[-1]])  # Revert 3D to 4D
 
                 if block_id == num_block - 1:  # post
                     norm_axis = "auto" if use_linear_attention else -1

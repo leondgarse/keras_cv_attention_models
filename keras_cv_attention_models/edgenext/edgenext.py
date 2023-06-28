@@ -74,11 +74,12 @@ def norm_inverted_bottleneck(inputs, mlp_ratio=4, layer_scale=1e-6, drop_rate=0,
 
 def cross_covariance_attention(inputs, num_heads=4, key_dim=0, qkv_bias=True, out_bias=True, attn_dropout=0, out_dropout=0, name=None):
     input_channel = inputs.shape[-1]  # channels_last only, it should be permuted before entering this
+    input_blocks = inputs.shape[1:-1]
     key_dim = key_dim if key_dim > 0 else input_channel // num_heads
     qk_out = key_dim * num_heads
 
-    qkv = layers.Dense(qk_out * 3, use_bias=True, name=name and name + "qkv")(inputs)
-    qkv = functional.reshape(qkv, [-1, qkv.shape[1] * qkv.shape[2], qkv.shape[-1]])
+    qkv = functional.reshape(inputs, [-1, np.prod(input_blocks), inputs.shape[-1]]) if len(inputs.shape) > 3 else inputs
+    qkv = layers.Dense(qk_out * 3, use_bias=True, name=name and name + "qkv")(qkv)
     query, key, value = functional.split(qkv, 3, axis=-1)
     query = functional.transpose(functional.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  #  [batch, num_heads, key_dim, hh * ww]
     key = functional.transpose(functional.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, key_dim]
@@ -94,7 +95,7 @@ def cross_covariance_attention(inputs, num_heads=4, key_dim=0, qkv_bias=True, ou
     # [batch, num_heads, key_dim, key_dim] * [batch, num_heads, key_dim, hh * ww] -> [batch, num_heads, key_dim, hh * ww]
     attention_output = functional.matmul(attention_scores, value)
     attention_output = functional.transpose(attention_output, perm=[0, 3, 1, 2])  # [batch, hh * ww, num_heads, key_dim]
-    attention_output = functional.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * key_dim])  # [batch, hh, ww, num_heads * key_dim]
+    attention_output = functional.reshape(attention_output, [-1, *input_blocks, num_heads * key_dim])  # [batch, hh, ww, num_heads * key_dim]
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
     # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
@@ -127,6 +128,10 @@ def split_depthwise_transpose_attention(
     # XCA
     attn = attn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(attn)  # channels_first -> channels_last
     attn = PositionalEncodingFourier(name=name + "pos")(attn) if use_pos_emb else attn
+
+    attn_height, attn_width = attn.shape[1:-1]
+    attn = functional.reshape(attn, [-1, attn_height * attn_width, attn.shape[-1]])  # Using 3D for attention inputs
+
     nn = layer_norm(attn, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "xca_")
     nn = cross_covariance_attention(nn, num_heads, name=name + "xca_")
     nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, axis=-1, name=name + "xca_gamma")(nn) if layer_scale >= 0 else nn
@@ -135,6 +140,7 @@ def split_depthwise_transpose_attention(
 
     # Inverted Bottleneck
     nn = norm_inverted_bottleneck(nn, mlp_ratio, layer_scale, drop_rate, activation=activation, name=name + "ir_")
+    nn = functional.reshape(nn, [-1, attn_height, attn_width, nn.shape[-1]])  # Revert 3D to 4D
     nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last -> channels_first
     return layers.Add(name=name + "output")([inputs, nn])
 

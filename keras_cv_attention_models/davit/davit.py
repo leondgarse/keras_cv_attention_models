@@ -27,15 +27,16 @@ PRETRAINED_DICT = {
 def multi_head_self_attention_channel(
     inputs, num_heads=4, key_dim=0, out_shape=None, out_weight=True, qkv_bias=False, out_bias=False, attn_dropout=0, output_dropout=0, name=None
 ):
-    _, hh, ww, cc = inputs.shape
-    key_dim = key_dim if key_dim > 0 else cc // num_heads
+    input_channel = inputs.shape[-1]
+    input_blocks = inputs.shape[1:-1]
+    key_dim = key_dim if key_dim > 0 else input_channel // num_heads
     # qk_scale = float(1.0 / tf.math.sqrt(tf.cast(key_dim, "float32")))
     qk_scale = 1.0 / (float(key_dim) ** 0.5)
-    out_shape = cc if out_shape is None or not out_weight else out_shape
+    out_shape = input_channel if out_shape is None or not out_weight else out_shape
     qkv_out = num_heads * key_dim
 
-    qkv = layers.Dense(qkv_out * 3, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
-    qkv = functional.reshape(qkv, [-1, qkv.shape[1] * qkv.shape[2], qkv.shape[-1]])
+    qkv = functional.reshape(inputs, [-1, np.prod(input_blocks), inputs.shape[-1]]) if len(inputs.shape) > 3 else inputs
+    qkv = layers.Dense(qkv_out * 3, use_bias=qkv_bias, name=name and name + "qkv")(qkv)
     value, query, key = functional.split(qkv, 3, axis=-1)  # Matching weights from PyTorch
     query = functional.transpose(functional.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
     key = functional.transpose(functional.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  # [batch, num_heads, hh * ww, key_dim]
@@ -50,7 +51,7 @@ def multi_head_self_attention_channel(
     # attention_output = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([attention_scores, value])
     attention_output = attention_scores @ value
     attention_output = functional.transpose(attention_output, perm=[0, 3, 1, 2])  # [batch, hh * ww, num_heads, key_dim]
-    attention_output = functional.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * key_dim])
+    attention_output = functional.reshape(attention_output, [-1, *input_blocks, num_heads * key_dim])
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
     if out_weight:

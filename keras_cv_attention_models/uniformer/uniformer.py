@@ -44,8 +44,8 @@ def multi_head_self_attention(
     qk_out = num_heads * key_dim
     vv_dim = out_shape // num_heads
 
-    qkv = layers.Dense(qk_out * 2 + out_shape, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
-    qkv = functional.reshape(qkv, [-1, np.prod(qkv.shape[1:-1]), qkv.shape[-1]])
+    qkv = functional.reshape(inputs, [-1, np.prod(blocks), inputs.shape[-1]]) if len(inputs.shape) > 3 else inputs
+    qkv = layers.Dense(qk_out * 2 + out_shape, use_bias=qkv_bias, name=name and name + "qkv")(qkv)
     query, key, value = functional.split(qkv, [qk_out, qk_out, out_shape], axis=-1)
     query = functional.transpose(functional.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, key_dim]
     key = functional.transpose(functional.reshape(key, [-1, key.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]
@@ -68,6 +68,9 @@ def attn_block(
 
     # print(f">>>> {is_conv = }, {num_heads = }")
     pre_attn = pos_out if backend.image_data_format() == "channels_last" else layers.Permute((2, 3, 1), name=name + "permute_pre")(pos_out)
+    height, width = pre_attn.shape[1:-1]
+    pre_attn = functional.reshape(pre_attn, [-1, height * width, pre_attn.shape[-1]])  # Using 3D for attention inputs
+
     attn = layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "attn_ln")(pre_attn)
     attn = multi_head_self_attention(attn, num_heads, qkv_bias=qkv_bias, out_bias=True, attn_dropout=attn_drop_rate, name=name + "attn_mhsa_")
     attn_out = add_with_layer_scale_and_drop_block(pre_attn, attn, layer_scale=gamma, drop_rate=drop_rate, axis=-1, name=name + "1_")
@@ -75,6 +78,7 @@ def attn_block(
     mlp = layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "mlp_ln")(attn_out)
     mlp = mlp_block(mlp, int(out_channel * mlp_ratio), drop_rate=mlp_drop_rate, use_conv=False, activation=activation, name=name + "mlp_")
     out = add_with_layer_scale_and_drop_block(attn_out, mlp, layer_scale=gamma, drop_rate=drop_rate, axis=-1, name=name + "2_")
+    out = functional.reshape(out, [-1, height, width, out.shape[-1]])  # Revert 3D to 4D
     return out if backend.image_data_format() == "channels_last" else layers.Permute((3, 1, 2), name=name + "permute_post_output")(out)
 
 

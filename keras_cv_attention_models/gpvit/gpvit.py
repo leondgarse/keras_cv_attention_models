@@ -80,7 +80,7 @@ def window_lepe_attention(inputs, num_heads=4, window_size=2, key_dim=0, qkv_bia
     # qkv = self.qkv(img).reshape(B, -1, 3, C).permute(2, 0, 1, 3).contiguous()
     # split 3 -> split 2
     qkv = layers.Dense(emb_dim * 3, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
-    qkv = functional.reshape(qkv, [-1, hh * ww * 3, emb_dim])
+    qkv = functional.reshape(qkv, [-1, hh, ww, 3, emb_dim])
     qkv_left, qkv_right = functional.split(qkv, 2, axis=-1)
     qkv_left = functional.reshape(qkv_left, [-1, hh, ww, 3 * qkv_left.shape[-1]])
     qkv_right = functional.reshape(qkv_right, [-1, hh, ww, 3 * qkv_right.shape[-1]])

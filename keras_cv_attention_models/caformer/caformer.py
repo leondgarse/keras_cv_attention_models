@@ -119,6 +119,10 @@ def CAFormer(
             nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1], name=stack_name + "permute_post")(nn)
 
         use_attn = True if block_type[0].lower() == "t" else False
+        if use_attn:
+            block_height, block_width = nn.shape[1:-1]
+            nn = functional.reshape(nn, [-1, block_height * block_width, nn.shape[-1]])  # Using 3D for attention inputs
+
         mlp_ratio = mlp_ratios[stack_id] if isinstance(mlp_ratios, (list, tuple)) else mlp_ratios
         layer_scale = layer_scales[stack_id] if isinstance(layer_scales, (list, tuple)) else layer_scales
         residual_scale = residual_scales[stack_id] if isinstance(residual_scales, (list, tuple)) else residual_scales
@@ -127,6 +131,9 @@ def CAFormer(
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             nn = meta_former_block(nn, use_attn, head_dim, mlp_ratio, layer_scale, residual_scale, block_drop_rate, activation=activation, name=name)
             global_block_id += 1
+
+        if use_attn:
+            nn = functional.reshape(nn, [-1, block_height, block_width, nn.shape[-1]])  # Revert 3D to 4D
     nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2], name="pre_output_permute")(nn)
 
     if num_classes > 0:
