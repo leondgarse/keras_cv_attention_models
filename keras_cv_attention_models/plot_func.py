@@ -214,7 +214,7 @@ def plot_model_summary(plot_series, x_label, y_label="acc_metrics", model_table=
             # print(cur)
             extra = "" if str(cur["extra"]) == "nan" else ("," + cur["extra"])
             text = cur["model"][len(name) :] + extra
-            plt.text(cur[x_label], cur[y_label], text)
+            plt.text(cur[x_label], cur[y_label], text, fontsize=9)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.legend()
