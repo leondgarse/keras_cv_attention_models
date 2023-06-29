@@ -225,7 +225,7 @@ def compile_model(model, optimizer, lr_base, weight_decay, loss, loss_weights=No
 
     if not hasattr(model.optimizer, "_variables") and hasattr(model.optimizer, "_optimizer") and hasattr(model.optimizer._optimizer, "_variables"):
         # Bypassing TF 2.11 error AttributeError: 'LossScaleOptimizerV3' object has no attribute '_variables'
-        setattr(model.optimizer, "variables", model.optimizer._optimizer.variables)
+        setattr(model.optimizer, "_variables", model.optimizer._optimizer._variables)
     return model
 
 

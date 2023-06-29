@@ -178,6 +178,7 @@ def run_training_by_args(args):
 
     # Init model first, for getting actual pyramid_levels
     total_images, num_classes, steps_per_epoch = data.init_dataset(args.data_name, batch_size=batch_size, info_only=True)
+    print(">>>> total_images: {}, num_classes: {}, steps_per_epoch: {}".format(total_images, num_classes, steps_per_epoch))
     with strategy.scope():
         if args.backbone is not None:
             backbone = init_model(args.backbone, input_shape, 0, args.backbone_pretrained, **args.additional_backbone_kwargs)
@@ -238,11 +239,13 @@ def run_training_by_args(args):
                 loss_kwargs.update({"bbox_loss_weight": args.bbox_loss_weight})
 
             if args.anchors_mode == anchors_func.ANCHOR_FREE_MODE:  # == "anchor_free"
-                loss = losses.AnchorFreeLoss(input_shape, args.anchor_pyramid_levels, use_l1_loss=args.use_l1_loss, **loss_kwargs)
+                loss = losses.AnchorFreeLoss(
+                    input_shape, args.anchor_pyramid_levels, regression_len=regression_len, use_l1_loss=args.use_l1_loss, **loss_kwargs
+                )
             elif args.anchors_mode == anchors_func.YOLOR_MODE:  # == "yolor"
                 loss = losses.YOLORLossWithBbox(input_shape, args.anchor_pyramid_levels, **loss_kwargs)
             elif args.anchors_mode == anchors_func.YOLOV8_MODE:  # == "yolov8"
-                loss = losses.YOLOV8Loss(input_shape, args.anchor_pyramid_levels, **loss_kwargs)
+                loss = losses.YOLOV8Loss(input_shape, args.anchor_pyramid_levels, regression_len=regression_len, **loss_kwargs)
             else:
                 # loss, metrics = losses.FocalLossWithBbox(label_smoothing=args.label_smoothing), losses.ClassAccuracyWithBbox()
                 loss = losses.FocalLossWithBbox(**loss_kwargs)

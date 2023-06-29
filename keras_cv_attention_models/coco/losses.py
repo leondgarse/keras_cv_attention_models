@@ -222,6 +222,13 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         return tf.reduce_sum(dfl_loss)
         # return tf.reduce_sum(dfl_loss * tf.reduce_sum(labels_true, axis=-1)) / tf.maximum(tf.reduce_sum(labels_true), 1.0)
 
+    def __l1_loss__(self, bboxes_true_encoded, bboxes_pred):
+        if self.regression_len == 4:
+            return tf.reduce_sum(tf.abs(bboxes_true_encoded - bboxes_pred))  # mean absolute error
+        else:
+            dist = tf.abs(tf.expand_dims(bboxes_true_encoded, -1) - tf.reshape(bboxes_pred, [-1, 4, self.regression_len // 4]))
+            return tf.reduce_sum(tf.reduce_mean(dist, axis=-1))
+
     def __valid_call_single__(self, bbox_labels_true, bbox_labels_pred):
         bbox_labels_true_assined = tf.stop_gradient(self.anchor_assign(bbox_labels_true, bbox_labels_pred))
         if self.with_encoded_bboxes:
@@ -254,7 +261,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         bbox_loss = tf.reduce_sum(self.__iou_loss__(bboxes_true, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw))
 
         object_loss = tf.reduce_sum(K.binary_crossentropy(tf.cast(object_true, object_pred.dtype), object_pred)) if self.use_object_scores else 0.0
-        l1_loss = tf.reduce_sum(tf.abs(bboxes_true_encoded - bboxes_pred)) if self.use_l1_loss else 0.0  # mean absolute error
+        l1_loss = self.__l1_loss__(bboxes_true_encoded, bboxes_pred) if self.use_l1_loss else 0.0  # mean absolute error
         dfl_loss = self.__dfl_loss__(bboxes_true_encoded, bboxes_pred, labels_true) if self.use_dfl_loss else 0.0
 
         num_valid_anchors = tf.cast(tf.shape(bboxes_pred)[0], bboxes_pred.dtype)
