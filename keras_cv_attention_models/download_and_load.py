@@ -1,6 +1,9 @@
 import os
 import numpy as np
+from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format, get_file
+
+HDF5_OBJECT_HEADER_LIMIT = 64512
 
 
 def reload_model_weights(
@@ -96,13 +99,116 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_re
             pass
 
 
-def read_h5_weights(filepath):
+""" Save / load h5 weights from keras.saving.legacy.hdf5_format, supports both TF and PyTorch model """
+
+
+def read_h5_weights(filepath, only_valid_weights=True):
     import h5py
-    import numpy as np
 
     with h5py.File(filepath, "r") as h5_file:
         weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
-        return {kk: [np.array(vv[ww]) for ww in vv.attrs["weight_names"]] for kk, vv in weights.items() if len(vv) > 0}
+        return {kk: {ww: np.array(vv[ww]) for ww in vv.attrs["weight_names"]} for kk, vv in weights.items() if not only_valid_weights or len(vv) > 0}
+
+
+def load_weights_from_hdf5_file(filepath, model, skip_mismatch=False, debug=False):
+    import h5py
+
+    with h5py.File(filepath, "r") as h5_file:
+        weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
+
+        for tt in model.layers:
+            if len(tt.weights) == 0:
+                continue
+            if debug:
+                print(">>>> Load layer weights:", tt.name, [ii.name for ii in tt.weights])
+            if tt.name not in weights:
+                if debug:
+                    print("Warning: {} not exists in provided h5 weights".format(tt.name))
+                continue
+
+            ss = weights[tt.name]
+            ss = [np.array(ss[ww]) for ww in ss.attrs["weight_names"]]
+            source_shape, target_shape = [ii.shape for ii in ss], [list(ii.shape) for ii in tt.weights]
+
+            if debug:
+                print("     [Before transpose] required weights: {}, provided: {}".format(target_shape, source_shape))
+            if skip_mismatch and (len(source_shape) != len(target_shape) or any([np.prod(ii) != np.prod(jj) for ii, jj in zip(source_shape, target_shape)])):
+                print("Warning: skip loading weights for layer: {}, required weights: {}, provided: {}".format(tt.name, target_shape, source_shape))
+                continue
+
+            if hasattr(tt, "set_weights_channels_last"):
+                tt.set_weights_channels_last(ss)
+            else:
+                tt.set_weights(ss)
+
+
+def save_attributes_to_hdf5_group(group, name, data):
+    """Saves attributes (data) of the specified name into the HDF5 group.
+
+    This method deals with an inherent problem of HDF5 file which is not
+    able to store data larger than HDF5_OBJECT_HEADER_LIMIT bytes.
+    """
+    # Check that no item in `data` is larger than `HDF5_OBJECT_HEADER_LIMIT`
+    # because in that case even chunking the array would not make the saving possible.
+    bad_attributes = [x for x in data if len(x) > HDF5_OBJECT_HEADER_LIMIT]
+
+    # Expecting this to never be true.
+    if bad_attributes:
+        raise RuntimeError(
+            "The following attributes cannot be saved to HDF5 file because " f"they are larger than {HDF5_OBJECT_HEADER_LIMIT} " f"bytes: {bad_attributes}"
+        )
+
+    data_npy = np.asarray(data)
+
+    num_chunks = 1
+    chunked_data = np.array_split(data_npy, num_chunks)
+
+    # This will never loop forever thanks to the test above.
+    while any([x.nbytes > HDF5_OBJECT_HEADER_LIMIT for x in chunked_data]):
+        num_chunks += 1
+        chunked_data = np.array_split(data_npy, num_chunks)
+
+    if num_chunks > 1:
+        for chunk_id, chunk_data in enumerate(chunked_data):
+            group.attrs["%s%d" % (name, chunk_id)] = chunk_data
+    else:
+        group.attrs[name] = data
+
+
+def save_weights_to_hdf5_file(filepath, model, compression=None, layer_start=None, layer_end=None):
+    """Saves the weights of a list of layers to a HDF5 file.
+    - compression: refer `import h5py; help(h5py.File.create_dataset)`
+          and `from h5py._hl import dataset; help(dataset.make_new_dset)`.
+    """
+    import h5py
+
+    if isinstance(model, dict):
+        weights_dict = model
+    else:
+        model_layers = model.layers[layer_start:layer_end]
+        weights_dict = {}
+        for layer in model_layers:
+            weight_values = layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()
+            weight_names = [ww.name for ww in layer.weights]
+            weights_dict[layer.name] = dict(zip(weight_names, weight_values))
+
+    with h5py.File(filepath, "w") as h5_file:
+        save_attributes_to_hdf5_group(h5_file, "layer_names", [layer.encode("utf8") for layer in weights_dict])
+        h5_file.attrs["backend"] = backend.backend().encode("utf8")
+        for layer, wws in weights_dict.items():
+            layer_group = h5_file.create_group(layer)
+            weight_names = [ww.encode("utf8") for ww in wws]
+            weight_values = list(wws.values())
+            # save_subset_weights_to_hdf5_group(layer_group, weight_names, weight_values, compression=compression)
+
+            save_attributes_to_hdf5_group(layer_group, "weight_names", weight_names)
+            for name, val in zip(weight_names, weight_values):
+                param_dset = layer_group.create_dataset(name, val.shape, dtype=val.dtype, compression=compression, chunks=True)
+                if not val.shape:
+                    # scalar
+                    param_dset[()] = val
+                else:
+                    param_dset[:] = val
 
 
 """ Convert PyTorch weights """

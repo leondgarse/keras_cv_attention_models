@@ -1,10 +1,9 @@
 from keras_cv_attention_models.swin_transformer_v2.swin_transformer_v2 import (
     ExpLogitScale,
-    PairWiseRelativePositionalEmbedding,
     MlpPairwisePositionalEmbedding,
-    shifted_window_attention,
     WindowAttentionMask,
     window_mhsa_with_pair_wise_positional_embedding,
+    shifted_window_attention,
     SwinTransformerV2,
     SwinTransformerV2Tiny_window8,
     SwinTransformerV2Tiny_window16,
@@ -113,44 +112,25 @@ Examples:
 # {'divide_scale_1/weight:0': TensorShape([1, 32, 32, 1])}
 """
 
-PairWiseRelativePositionalEmbedding.__doc__ = __head_doc__ + """
-Pair Wise Relative Positional Embedding layer.
-No weight, just need to wrapper a layer, or will not in model structure.
-
-input: `[batch * window_patch, window_height, window_width, channel]`.
-output:
-    relative_log_coords `[(2 * window_height - 1) * (2 * window_width - 1), 2]`.
-    relative_position_index `[window_height * window_width, window_height * window_width]`
-
-Args:
-  pos_scale: If pretrained weights are from different input_shape or window_size, pos_scale is previous actually using window_size.
-      Default -1 for using `[height, width]` from input_shape.
-
-Examples:
->>> from keras_cv_attention_models import attention_layers
->>> aa = attention_layers.PairWiseRelativePositionalEmbedding()
->>> relative_log_coords, relative_position_index = aa(tf.ones([1 * 9, 4, 4, 192]))
->>> print(f"{relative_log_coords.shape = }, {relative_position_index.shape = }")
-# relative_log_coords.shape = TensorShape([49, 2]), relative_position_index.shape = TensorShape([16, 16])
->>> print(f"{tf.gather(relative_log_coords, relative_position_index).shape = }")
-# tf.gather(relative_log_coords, relative_position_index).shape = TensorShape([16, 16, 2])
-"""
-
 MlpPairwisePositionalEmbedding.__doc__ = __head_doc__ + """
 MLP Pair Wise Relative Positional Embedding layer.
 
 use_absolute_pos=True input: `[batch, height, width, channel]` or `[batch, height * width, channel]`.
 use_absolute_pos=True output: input + `[1, height, width, channel]` or `[1, height * width, channel]`.
-use_absolute_pos=False input: `[batch, num_heads, hh * ww, hh * ww]`.
-use_absolute_pos=False output: input + `[1, num_heads, hh * ww, hh * ww]`.
+use_absolute_pos=False input: `[batch, num_heads, height * width, height * width]`.
+use_absolute_pos=False output: input + `[1, num_heads, height * width, height * width]`.
 
 Args:
-  hidden_dim:
-  attn_height:
-  attn_width:
+  hidden_dim: hidden dimension for innner MLP dense output.
+  attn_height: input attention height controling initialized coords height. Default `-1` for using
+      `inputs.shape[1]` if `use_absolute_pos=True and len(inputs.shape) == 4` else `sqrt(inputs.shape[-2])`.
+  attn_width: input attention height controling initialized coords height. Default `-1` for using
+      `inputs.shape[2]` if `use_absolute_pos=True and len(inputs.shape) == 4` else `inputs.shape[-2] // attn_height`.
   pos_scale: If pretrained weights are from different input_shape or window_size, pos_scale is previous actually using window_size.
-      Default -1 for using `[height, width]` from input_shape.
-  use_absolute_pos:
+      Default -1 for using `[height, width]`.
+  use_absolute_pos: boolena value if using absolute or relative positional embedding.
+      - `False` for using coordinates in shape `[2 * height - 1, 2 * width - 1]` and index in shape `[height * width, height * width]`.
+      - `True` for using coordinates in shape `[height, width, 2]` if `len(inputs.sahpe) == 4` else `[height * width, 2]`.
 
 Examples:
 >>> from keras_cv_attention_models import attention_layers
@@ -161,6 +141,8 @@ Examples:
 # {'mlp_pairwise_positional_embedding_2/hidden_weight:0': TensorShape([2, 512]),
 #  'mlp_pairwise_positional_embedding_2/hidden_bias:0': TensorShape([512]),
 #  'mlp_pairwise_positional_embedding_2/out:0': TensorShape([512, 4])}
+>>> print(f"{aa.coords.shape = }, {aa.relative_position_index.shape = }")
+# aa.coords.shape = TensorShape([169, 2]), aa.relative_position_index.shape = TensorShape([49, 49])
 """
 
 WindowAttentionMask.__doc__ = __head_doc__ + """

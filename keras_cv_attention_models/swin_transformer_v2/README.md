@@ -4,6 +4,7 @@
 ## Summary
   - Keras implementation of [Github microsoft/Swin-Transformer](https://github.com/microsoft/Swin-Transformer). Paper [PDF 2111.09883 Swin Transformer V2: Scaling Up Capacity and Resolution](https://arxiv.org/pdf/2111.09883.pdf).
   - Model weights reloaded from [Github microsoft/Swin-Transformer](https://github.com/microsoft/Swin-Transformer). `SwinTransformerV2Tiny_ns` and `SwinTransformerV2Small_ns` ported from [Github timm/swin_transformer_v2_cr](https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/swin_transformer_v2_cr.py).
+  - **SwinV2 positional embedding is changed from `PairWiseRelativePositionalEmbedding -> mlp_block` to `MlpPairwisePositionalEmbedding` layer, follow `FasterViT` with a `switch_to_deploy` function, since `kecam > 1.3.18`. If needs to port previous self trained weights, try `kecam.model_surgery.swin_convert_pos_emb_mlp_to_MlpPairwisePositionalEmbedding_weights`.**
 ***
 
 ## Models

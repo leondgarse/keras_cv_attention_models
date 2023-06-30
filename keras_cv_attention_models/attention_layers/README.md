@@ -12,7 +12,7 @@
   - **MultiHeadPositionalEmbedding** from `levit`. Positional embedding shape is `[height * width, num_heads]`.
   - **MultiHeadRelativePositionalKernelBias** from `nat`. Positional embedding shape is `[num_heads, (2 * kernel_size - 1) * (2 * kernel_size - 1)]`. It's designed as depending on `num_heads` and `kernel_size`, not on `input_shape`.
   - **MultiHeadRelativePositionalEmbedding** from `beit`. Positional embedding shape is `[num_heads, (2 * height - 1) * (2 * width - 1)]`.
-  - **PairWiseRelativePositionalEmbedding** from `swin_transformer_v2`. No weight for this layer, returns a `log` encoded bias depending on input `[height, width]`.
+  - **MlpPairwisePositionalEmbedding** from `swin_transformer_v2`. Use a `log` encoded bias depending on input `[height, width]`, then apply -> mlp -> add with attention.
   - **PositionalEmbedding** from `volo`. Positional embedding shape is `[1, height, width, channel]`, then adds directly with input.
   - **PositionalEncodingFourier** from `edgenext`. Layer weight shape depends on parameter `filters` and input channel dimension only, and using `sin` / `cos` encoded distances.
   - **PositionalEncodingFourierRot** from `eva02`. Applying `sin` / `cos` encoded distances, with shape `pos_sin = pos_cos = [attn_height * attn_width, channels]`, on height / width / channel dimension. Also using `rot` defined as `stack([-inputs[..., 1::2], inputs[..., ::2]], -1).reshape(inputs.shape)`. Then applying positional encoding by `inputs * pos_cos + rot * pos_sin`.
@@ -34,7 +34,7 @@
   - **shifted_window_attention** from `swin_transformer_v2`. `window_mhsa_with_pair_wise_positional_embedding` with `window_partition` process ahead and `window_reverse` process after. Also supports window shift.
   - **split_attention_conv2d** from `resnest`. Generating `attention_scores` using grouped `Conv2D`.
   - **window_attention** from `davit`. Typical MHSA with `window_partition` process ahead and `window_reverse` process after.
-  - **window_mhsa_with_pair_wise_positional_embedding** from `swin_transformer_v2`. Generating `attention_scores` by calculating cosine similarity between `query` and `key`, and applying `PairWiseRelativePositionalEmbedding`.
+  - **window_mhsa_with_pair_wise_positional_embedding** from `swin_transformer_v2`. Generating `attention_scores` by calculating cosine similarity between `query` and `key`, and applying `MlpPairwisePositionalEmbedding`.
   - **cascaded_mhsa_with_multi_head_position** from `efficientvit`. Cascaded calling flow performing multi head attention. Also using `Conv2D + BatchNorm` for `query` / `key` / `value` / `output`, and an additional `DepthwiseConv2D` on `query` with `kernel_size`.
 ## Usage Examples
   - **RelativePositionalEmbedding**

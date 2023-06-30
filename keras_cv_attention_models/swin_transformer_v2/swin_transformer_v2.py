@@ -15,17 +15,17 @@ from keras_cv_attention_models.attention_layers import (
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
-    "swin_transformer_v2_base_window12": {"imagenet21k": {192: "b68add0f06aeede5d4dd10cd26855f36"}},
-    "swin_transformer_v2_base_window16": {"imagenet": {256: "a7bfb9ae0733807baa702d05eb8feab8"}, "imagenet22k": {256: "1caba96ed702d467e650465503033c85"}},
-    "swin_transformer_v2_base_window24": {"imagenet22k": {384: "acd467e1d8555e15542c8254bdae1b72"}},
-    "swin_transformer_v2_base_window8": {"imagenet": {256: "15454d9f6ba2ccca940f9c45b6935af6"}},
-    "swin_transformer_v2_large_window12": {"imagenet21k": {192: "ace20b0d634eb92989ece52e300440d5"}},
-    "swin_transformer_v2_large_window16": {"imagenet22k": {256: "151bb82a138f956613ce4b9885bfdd18"}},
-    "swin_transformer_v2_large_window24": {"imagenet22k": {384: "04fa3b195e5201c2d1068d1e19c8a0c5"}},
-    "swin_transformer_v2_small_window16": {"imagenet": {256: "3b2ca43d1927cca1b414b60e1044a84d"}},
-    "swin_transformer_v2_small_window8": {"imagenet": {256: "0a8468bd9acdf2056fc401e9f5067f97"}},
-    "swin_transformer_v2_tiny_window16": {"imagenet": {256: "37ce8c5f514c2249ef10d9c3acc37d29"}},
-    "swin_transformer_v2_tiny_window8": {"imagenet": {256: "9317f155e37e4081a09d290ca99bf7cd"}},
+    "swin_transformer_v2_base_window12": {"imagenet21k": {192: "0747958b4a891370b8caf538b0c6cf1f"}},
+    "swin_transformer_v2_base_window16": {"imagenet": {256: "ac5c965069f4452da28169955e8b0444"}, "imagenet22k": {256: "059b9cc52d036b329345a46c82ee9077"}},
+    "swin_transformer_v2_base_window24": {"imagenet22k": {384: "809935e83475c252a96dc6107dccd84f"}},
+    "swin_transformer_v2_base_window8": {"imagenet": {256: "28ecbbcc6bfb539896bb9ef025df444c"}},
+    "swin_transformer_v2_large_window12": {"imagenet21k": {192: "7f3c92eea3295d61e9d5881a7a935da1"}},
+    "swin_transformer_v2_large_window16": {"imagenet22k": {256: "8a124dcd6104596bd8fc362f14b87088"}},
+    "swin_transformer_v2_large_window24": {"imagenet22k": {384: "c8782f2a1874ca2979c350a8c2c72c39"}},
+    "swin_transformer_v2_small_window16": {"imagenet": {256: "89be9ca9b104fb802331120700497bb0"}},
+    "swin_transformer_v2_small_window8": {"imagenet": {256: "2736f7ed872130ee59f86e4982d91de0"}},
+    "swin_transformer_v2_tiny_window16": {"imagenet": {256: "95d9754a574ff667aad929f1e49f4d1f"}},
+    "swin_transformer_v2_tiny_window8": {"imagenet": {256: "97ece5f8d8012d6d40797df063a5f02b"}},
 }
 
 
@@ -60,90 +60,6 @@ class ExpLogitScale(layers.Layer):
 
 
 @backend.register_keras_serializable(package="kecam")
-class PairWiseRelativePositionalEmbedding(layers.Layer):
-    def __init__(self, pos_scale=-1, **kwargs):
-        # No weight, just need to wrapper a layer, or will not in model structure
-        super().__init__(**kwargs)
-        self.pos_scale = pos_scale
-        self.use_layer_as_module = True
-
-    def build(self, input_shape):
-        # input_shape: [batch * window_patch, window_height, window_width, channel]
-        height, width = input_shape[1], input_shape[2]  # [12, 15]
-        hh, ww = np.meshgrid(range(-height + 1, height), range(-width + 1, width), indexing="ij")
-        coords = np.stack([hh, ww], axis=-1).astype("float32")
-        if self.pos_scale == -1:
-            pos_scale = [height, width]
-        else:
-            # If pretrined weights are from different input_shape or window_size, pos_scale is previous actually using window_size
-            pos_scale = self.pos_scale if isinstance(self.pos_scale, (list, tuple)) else [self.pos_scale, self.pos_scale]
-        coords = coords * 8 / [float(pos_scale[0] - 1), float(pos_scale[1] - 1)]  # [23, 29, 2], normalize to -8, 8
-        # torch.sign(relative_coords_table) * torch.log2(torch.abs(relative_coords_table) + 1.0) / math.log2(8)
-        relative_log_coords = np.sign(coords) * np.log(1.0 + np.abs(coords)) / (np.log(2.0) * 3.0)
-        relative_log_coords = np.reshape(relative_log_coords, [-1, 2])  # [23 * 29, 2]
-        if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("relative_log_coords", functional.convert_to_tensor(relative_log_coords, dtype=self.compute_dtype), persistent=False)
-        else:
-            self.relative_log_coords = functional.convert_to_tensor(relative_log_coords, dtype=self.compute_dtype)
-        self.height, self.width = height, width  # For reload with shape mismatched
-        super().build(input_shape)
-
-    def call(self, inputs, **kwargs):
-        return self.relative_log_coords
-
-    def get_config(self):
-        base_config = super().get_config()
-        base_config.update({"pos_scale": self.pos_scale})
-        return base_config
-
-    def compute_output_shape(self, input_shape):
-        return [(2 * self.height - 1) * (2 * self.width - 1), 2]
-
-
-@backend.register_keras_serializable(package="kecam")
-class PairWiseRelativePositionalEmbeddingGather(layers.Layer):
-    def __init__(self, window_height=-1, **kwargs):
-        # No weight, just need to wrapper a layer, or will not in model structure
-        super().__init__(**kwargs)
-        self.window_height = window_height
-        self.use_layer_as_module = True
-
-    def build(self, input_shape):
-        # input_shape: [(2 * window_height - 1) * (2 * window_width - 1), num_heads]
-        height = self.window_height if self.window_height > 0 else int(np.sqrt(input_shape[0]) + 1) // 2
-        width = ((input_shape[0] // (2 * height - 1)) + 1) // 2
-
-        hh, ww = np.meshgrid(range(height), range(width))
-        coords = np.stack([hh, ww], axis=-1).astype("float32")  # [15, 12, 2]
-        coords_flatten = np.reshape(coords, [-1, 2])  # [180, 2]
-        relative_coords = coords_flatten[:, None, :] - coords_flatten[None, :, :]  # [180, 180, 2]
-        # relative_coords = tf.reshape(relative_coords, [-1, 2])  # [196 * 196, 2]
-
-        relative_coords_hh = relative_coords[:, :, 0] + height - 1
-        relative_coords_ww = (relative_coords[:, :, 1] + width - 1) * (2 * height - 1)
-        relative_coords_hhww = np.stack([relative_coords_hh, relative_coords_ww], axis=-1)
-        relative_position_index = np.sum(relative_coords_hhww, axis=-1)  # [180, 180]
-        if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("relative_position_index", functional.convert_to_tensor(relative_position_index, dtype="int64"), persistent=False)
-        else:
-            self.relative_position_index = functional.convert_to_tensor(relative_position_index, dtype="int64")
-        self.height, self.width, self.num_heads = height, width, input_shape[-1]
-        super().build(input_shape)
-
-    def call(self, inputs, **kwargs):
-        # return self.relative_position_index
-        return functional.gather(inputs, self.relative_position_index)  # [hh * ww, hh * ww, num_heads]
-
-    def get_config(self):
-        base_config = super().get_config()
-        base_config.update({"window_height": self.window_height})
-        return base_config
-
-    def compute_output_shape(self, input_shape):
-        return [self.height * self.width, self.height * self.width, self.num_heads]
-
-
-@backend.register_keras_serializable(package="kecam")
 class MlpPairwisePositionalEmbedding(layers.Layer):
     def __init__(self, hidden_dim=512, attn_height=-1, attn_width=-1, pos_scale=-1, use_absolute_pos=False, **kwargs):
         # No weight, just need to wrapper a layer, or will not in model structure
@@ -151,7 +67,7 @@ class MlpPairwisePositionalEmbedding(layers.Layer):
         self.hidden_dim, self.attn_height, self.attn_width, self.pos_scale = hidden_dim, attn_height, attn_width, pos_scale
         self.use_absolute_pos = use_absolute_pos
 
-    def _build_absolute_index_(self):
+    def _build_absolute_coords_(self):
         hh, ww = np.meshgrid(range(0, self.height), range(0, self.width), indexing="ij")
         coords = np.stack([hh, ww], axis=-1).astype("float32")
         coords = coords / [self.height // 2, self.width // 2] - 1
@@ -204,7 +120,7 @@ class MlpPairwisePositionalEmbedding(layers.Layer):
             else:
                 self.height, self.width = input_shape[1:-1]
 
-            self._build_absolute_index_()
+            self._build_absolute_coords_()
             out_shape = [self.hidden_dim, input_shape[-1]]
         else:
             # input_shape: [batch, num_heads, hh * ww, hh * ww]
@@ -331,11 +247,12 @@ def window_mhsa_with_pair_wise_positional_embedding(
     inputs, num_heads=4, key_dim=0, meta_hidden_dim=512, mask=None, pos_scale=-1, out_bias=True, qv_bias=True, attn_dropout=0, out_dropout=0, name=None
 ):
     input_channel = inputs.shape[-1]
+    height, width = inputs.shape[1:-1]
     key_dim = key_dim if key_dim > 0 else input_channel // num_heads
     qk_out = key_dim * num_heads
 
-    qkv = layers.Dense(qk_out * 3, use_bias=False, name=name and name + "qkv")(inputs)
-    qkv = functional.reshape(qkv, [-1, qkv.shape[1] * qkv.shape[2], qkv.shape[-1]])
+    qkv = functional.reshape(inputs, [-1, height * width, inputs.shape[-1]])
+    qkv = layers.Dense(qk_out * 3, use_bias=False, name=name and name + "qkv")(qkv)
     query, key, value = functional.split(qkv, 3, axis=-1)
     if qv_bias:
         query = BiasLayer(name=name and name + "query_bias")(query)
@@ -348,19 +265,7 @@ def window_mhsa_with_pair_wise_positional_embedding(
     norm_query, norm_key = functional.l2_normalize(query, axis=-1, epsilon=1e-6), functional.l2_normalize(key, axis=-2, epsilon=1e-6)
     attn = functional.matmul(norm_query, norm_key)  # [batch, num_heads, hh * ww, hh * ww]
     attn = ExpLogitScale(axis=1, name=name and name + "scale")(attn)  # axis=1 is head dimension
-
-    # PairWiseRelativePositionalEmbedding -> mlp -> add with attn
-    pos_coords = PairWiseRelativePositionalEmbedding(pos_scale=pos_scale, name=name and name + "pos_emb")(inputs)
-    relative_position_bias = layers.Dense(meta_hidden_dim, use_bias=True, name=name and name + "meta_dense_1")(pos_coords)
-    relative_position_bias = layers.Activation("relu")(relative_position_bias)
-    relative_position_bias = layers.Dense(num_heads, use_bias=False, name=name and name + "meta_dense_2")(relative_position_bias)
-
-    # relative_position_bias = functional.gather(relative_position_bias, pos_index)  # [hh * ww, hh * ww, num_heads]
-    relative_position_bias = PairWiseRelativePositionalEmbeddingGather(window_height=inputs.shape[1], name=name and name + "pos_gather")(relative_position_bias)
-    relative_position_bias = functional.sigmoid(relative_position_bias) * 16.0
-    relative_position_bias = functional.expand_dims(functional.transpose(relative_position_bias, [2, 0, 1]), 0)  # [1, num_heads, hh * ww, hh * ww]
-    attn = attn + relative_position_bias
-    # attn = MlpPairwisePositionalEmbedding(pos_scale=pos_scale, attn_height=inputs.shape[1], name=name and name + "pos_emb")(attn)
+    attn = MlpPairwisePositionalEmbedding(pos_scale=pos_scale, attn_height=height, name=name and name + "pos_emb")(attn)
 
     if mask is not None:
         attn = mask(attn)
@@ -370,7 +275,7 @@ def window_mhsa_with_pair_wise_positional_embedding(
         attention_scores = layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
     attention_output = functional.matmul(attention_scores, value)
     attention_output = functional.transpose(attention_output, perm=[0, 2, 1, 3])
-    attention_output = functional.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * key_dim])
+    attention_output = functional.reshape(attention_output, [-1, height, width, num_heads * key_dim])
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
     # [batch, hh, ww, num_heads * vv_dim] * [num_heads * vv_dim, out] --> [batch, hh, ww, out]

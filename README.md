@@ -1,6 +1,8 @@
 # ___Keras_cv_attention_models___
 ***
 - **coco_train_script.py is under testing. Still struggling for this...**
+- **SwinV2 positional embedding is changed from `PairWiseRelativePositionalEmbedding -> mlp_block` to `MlpPairwisePositionalEmbedding` layer, follow `FasterViT` with a `switch_to_deploy` function, since `kecam > 1.3.18`. If needs to port previous self trained weights, try `kecam.model_surgery.swin_convert_pos_emb_mlp_to_MlpPairwisePositionalEmbedding_weights`.**
+
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [___>>>> Roadmap and todo list <<<<___](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)

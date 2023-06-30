@@ -324,12 +324,15 @@ def get_pyramide_feature_layers(model, match_reg="^stack_?(\\d+).*output.*$"):
     """Pick all stack output layers"""
     import re
 
+    if hasattr(model, "extract_features"):
+        return model.extract_features()
+
     dd = {}
     pre_stack, pre_output_shape = 0, model.input_shape[1:]
     for ii in model.layers:
         cur_name = ii.name
-        if cur_name.startswith("pre_output") and ii.output_shape[1:] == pre_output_shape:
-            cur_name = "stack_{}".format(pre_stack) + cur_name  # For Swin
+        # if cur_name.startswith("pre_output") and ii.output_shape[1:] == pre_output_shape:
+        #     cur_name = "stack_{}".format(pre_stack) + cur_name  # For Swin
 
         matched = re.match(match_reg, cur_name)
         if matched is not None:
@@ -799,3 +802,40 @@ def export_onnx(model, filepath=None, fuse_conv_bn=True, batch_size=None, simpli
         model.export_onnx(filepath=filepath, simplify=simplify, **kwargs)
     else:
         _tf_export_onnx_(model, filepath=filepath, fuse_conv_bn=fuse_conv_bn, batch_size=batch_size, simplify=simplify, **kwargs)
+
+
+""" Convert previous weights to new version """
+
+
+def swin_convert_pos_emb_mlp_to_MlpPairwisePositionalEmbedding_weights(source_file, save_path):
+    """
+    Convert previous kecam <= 1.3.18 Swinv2 weights using PairWiseRelativePositionalEmbedding -> mlp_block
+    to MlpPairwisePositionalEmbedding layer.
+
+    Example:
+    >>> from keras_cv_attention_models.model_surgery import swin_convert_pos_emb_mlp_to_MlpPairwisePositionalEmbedding_weights
+    >>> source_file = os.path.expanduser("~/.keras/models/swin_transformer_v2_tiny_window16_256_imagenet.h5")
+    >>> target_file = "swin_transformer_v2_tiny_window16_256_imagenet_modified.h5"
+    >>> swin_convert_pos_emb_mlp_to_MlpPairwisePositionalEmbedding_weights(source_file, target_file)
+    >>> # Saved to: swin_transformer_v2_tiny_window16_256_imagenet_modified.h5
+    # Test
+    >>> from keras_cv_attention_models import test_images, swin_transformer_v2
+    >>> mm = swin_transformer_v2.SwinTransformerV2Tiny_window16(pretrained=target_file)
+    >>> mm.decode_predictions(mm(mm.preprocess_input(test_images.cat())))
+    """
+    from keras_cv_attention_models import download_and_load
+
+    bb = download_and_load.read_h5_weights(source_file, only_valid_weights=False)
+    layer_names = list(bb.keys())
+
+    pos_emb_weight_names = ["hidden_weight:0", "hidden_bias:0", "out:0"]
+    for layer_name in layer_names:
+        if layer_name.endswith("_pos_emb"):
+            print("Layer:", layer_name)
+            dense_1 = list(bb.pop(layer_name.replace('pos_emb', "meta_dense_1")).values())
+            dense_2 = list(bb.pop(layer_name.replace('pos_emb', "meta_dense_2")).values())
+            weight_names = [layer_name + "/" + ii for ii in pos_emb_weight_names]
+            print("    weight_names:", weight_names, "weight shapes:", [ii.shape for ii in dense_1 + dense_2])
+            bb[layer_name] = dict(zip(weight_names, dense_1 + dense_2))
+    download_and_load.save_weights_to_hdf5_file(save_path, bb)
+    print(">>>> Saved to:", save_path)

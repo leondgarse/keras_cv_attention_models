@@ -26,4 +26,5 @@ from keras_cv_attention_models.model_surgery.model_surgery import (
     replace_add_with_drop_connect,
     replace_add_with_stochastic_depth,
     replace_stochastic_depth_with_add,
+    swin_convert_pos_emb_mlp_to_MlpPairwisePositionalEmbedding_weights,
 )
