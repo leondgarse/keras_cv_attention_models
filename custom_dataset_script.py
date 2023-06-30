@@ -10,8 +10,8 @@ IMAGE_SUFFIX = ["*.jpg", "*.jpeg", "*.png"]
 
 def walk_through_image_folder(data_path, depth=2, image_classes_rule=None):
     if not os.path.exists(data_path):
-        print(">>>> [Error] data_path not exists, data_path:", data_path)
-        return [], []
+        raise FileNotFoundError(f"data_path={data_path} not exists, data_path:")
+        # return [] if image_classes_rule is None else ([], [])
 
     image_base = os.path.join(data_path, "*") if depth == 2 else data_path
     image_names = []
@@ -82,7 +82,7 @@ def build_recognition_dataset_json(train_path, test_path=None, test_split=0.0, s
 def match_detection_labels_dir(image_names, label_path):
     xxs, yys = [], []
     for image_name in tqdm(image_names, "Matching image name with label"):
-        # print(image_name)
+        # print(f"{label_path = }, {image_name = }")
         yy = glob(os.path.join(label_path, os.path.splitext(os.path.basename(image_name))[0] + ".*"))
         if len(yy) == 0:
             print(">>>> Found none label for:", image_name)

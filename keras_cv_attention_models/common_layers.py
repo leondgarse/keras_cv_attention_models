@@ -676,10 +676,13 @@ class PreprocessInput:
         return images
 
 
-def add_pre_post_process(model, rescale_mode="tf", input_shape=None, post_process=None):
+def add_pre_post_process(model, rescale_mode="tf", input_shape=None, post_process=None, featrues=None):
     from keras_cv_attention_models.imagenet.eval_func import decode_predictions
 
     input_shape = model.input_shape[1:] if input_shape is None else input_shape
     model.preprocess_input = PreprocessInput(input_shape, rescale_mode=rescale_mode)
     model.decode_predictions = decode_predictions if post_process is None else post_process
     model.rescale_mode = rescale_mode
+
+    if featrues is not None:
+        model.extract_features = lambda: features

@@ -105,8 +105,10 @@ def unroll(inputs, strides=[2, 2, 2]):
     # return functional.reshape(nn, [-1, height * width, channels])
 
 
-def reroll(inputs, height=-1):
+def reroll(inputs, strides, height=-1):
     pass
+    # for ii in range(strides):
+    #     inputs = functional.reshape(inputs, ii, ii, inputs.shape[1:])
 
 
 def Hiera(
@@ -163,6 +165,7 @@ def Hiera(
             )
             global_block_id += 1
         height, width = height // stride, width // stride  # [TODO] reroll
+
     nn = functional.reshape(nn, [-1, height, width, nn.shape[-1]])
     nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last -> channels_first
 
