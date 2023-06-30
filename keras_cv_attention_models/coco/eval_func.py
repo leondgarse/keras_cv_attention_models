@@ -257,7 +257,7 @@ def init_eval_dataset(
 
     # dataset = data.detection_dataset_from_custom_json(data_name) if data_name.endswith(".json") else tfds.load(data_name)
     if data_name.endswith(".json"):
-        dataset, _, num_classes = detection_dataset_from_custom_json(data_name, with_info=True)
+        dataset, _, num_classes = data.detection_dataset_from_custom_json(data_name, with_info=True)
     else:
         dataset, info = tfds.load(data_name, with_info=True)
         num_classes = info.features["objects"]["label"].num_classes
