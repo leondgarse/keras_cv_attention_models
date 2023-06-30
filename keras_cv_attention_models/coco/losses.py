@@ -164,6 +164,7 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         use_object_scores=True,  # False for YOLOV8, True for YOLOX
         regression_len=4,  # 64 fro YOLOV8, 4 for YOLOX
         use_ciou=False,  # False for YOLOX, True for YOLOV8
+        class_weight=None,  # list value informat like `[0.2, 0.3, 0.5, ...]` indicates weights for different classes. Must be same length with `num_classes`.
         epsilon=1e-6,
         label_smoothing=0.0,
         from_logits=False,
@@ -192,6 +193,20 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         )
         self.class_acc = tf.Variable(0, dtype="float32", trainable=False)
         # self.class_acc = tf.Variable(0, dtype="float32", trainable=False, aggregation=tf.VariableAggregation.MEAN)
+
+        if class_weight is not None:
+            self.class_weight = tf.convert_to_tensor(class_weight, dtype="float32")
+            self.__class_loss_with_class_weight__ = tf.keras.losses.BinaryCrossentropy(reduction="none")
+        else:
+            self.class_weight = None
+
+    def __class_loss__(self, labels_true, labels_pred):
+        if self.class_weight is None:
+            return tf.reduce_sum(K.binary_crossentropy(labels_true, labels_pred))
+        else:
+            sampel_weight = tf.gather(self.class_weight, tf.argmax(labels_true, axis=-1))
+            num_classes = tf.cast(labels_pred.shape[-1], "float32")
+            return tf.reduce_sum(self.__class_loss_with_class_weight__(labels_true, labels_pred, sampel_weight)) * num_classes
 
     def __iou_loss__(self, bboxes_trues, pred_top_left, pred_bottom_right, pred_hw):
         # bboxes_trues: [[top, left, bottom, right]]
@@ -242,7 +257,8 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
         # bbox_labels_pred_valid = tf.gather(bbox_labels_pred, object_true_idx)
         bbox_labels_pred_valid = tf.gather_nd(bbox_labels_pred, object_true_idx_nd)
         if self.use_object_scores:
-            bboxes_pred, labels_pred, object_pred = tf.split(bbox_labels_pred_valid, [self.regression_len, -1, 1], axis=-1)
+            bboxes_pred, labels_pred, _ = tf.split(bbox_labels_pred_valid, [self.regression_len, -1, 1], axis=-1)
+            object_pred = bbox_labels_pred[:, -1]
         else:
             bboxes_pred, labels_pred = tf.split(bbox_labels_pred_valid, [self.regression_len, -1], axis=-1)
         # bboxes_true.set_shape(bboxes_pred.shape)
@@ -257,7 +273,8 @@ class AnchorFreeLoss(tf.keras.losses.Loss):
 
         if self.label_smoothing > 0:
             labels_true = labels_true * (1.0 - self.label_smoothing) + 0.5 * self.label_smoothing
-        class_loss = tf.reduce_sum(K.binary_crossentropy(labels_true, labels_pred))
+        # class_loss = tf.reduce_sum(K.binary_crossentropy(labels_true, labels_pred))
+        class_loss = self.__class_loss__(labels_true, labels_pred)
         bbox_loss = tf.reduce_sum(self.__iou_loss__(bboxes_true, bboxes_pred_top_left, bboxes_pred_bottom_right, bboxes_pred_hw))
 
         object_loss = tf.reduce_sum(K.binary_crossentropy(tf.cast(object_true, object_pred.dtype), object_pred)) if self.use_object_scores else 0.0
@@ -491,6 +508,7 @@ class YOLOV8Loss(AnchorFreeLoss):
         use_object_scores=False,  # False for YOLOV8, True for YOLOX
         regression_len=64,  # 64 fro YOLOV8, 4 for YOLOX
         use_ciou=True,  # False for YOLOX, True for YOLOV8
+        class_weight=None,  # list value informat like `[0.2, 0.3, 0.5, ...]` indicates weights for different classes. Must be same length with `num_classes`.
         epsilon=1e-6,
         label_smoothing=0.0,
         from_logits=False,
@@ -508,6 +526,7 @@ class YOLOV8Loss(AnchorFreeLoss):
             use_object_scores=use_object_scores,
             regression_len=regression_len,
             use_ciou=use_ciou,
+            class_weight=class_weight,
             epsilon=epsilon,
             label_smoothing=label_smoothing,
             from_logits=from_logits,
