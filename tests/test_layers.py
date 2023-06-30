@@ -261,6 +261,16 @@ def test_MultiHeadRelativePositionalKernelBias():
     assert aa(tf.ones(input_shape)).shape == input_shape
 
 
+def test_MlpPairwisePositionalEmbedding():
+    aa = attention_layers.MlpPairwisePositionalEmbedding(attn_height=4)
+    input_shape = [2, 8, 4 * 7, 4 * 7]
+    assert aa(tf.ones(input_shape)).shape == input_shape
+
+    aa = attention_layers.MlpPairwisePositionalEmbedding(use_absolute_pos=True)
+    input_shape = [2, 16, 49, 8]
+    assert aa(tf.ones(input_shape)).shape == input_shape
+
+
 def test_neighborhood_attention():
     input_shape = [2, 28, 32, 192]
     out = attention_layers.neighborhood_attention(tf.ones(input_shape))
@@ -277,18 +287,6 @@ def test_outlook_attention_simple():
     input_shape = [2, 28, 28, 192]
     out = attention_layers.outlook_attention_simple(tf.ones(input_shape), embed_dim=192, num_heads=4)
     assert out.shape == input_shape
-
-
-def test_PairWiseRelativePositionalEmbedding():
-    aa = attention_layers.PairWiseRelativePositionalEmbedding()
-    window_patch, window_height, window_width, channel = 9, 5, 3, 23
-    input_shape = [window_patch, window_height, window_width, channel]
-    coords_shape = [(2 * window_height - 1) * (2 * window_width - 1), 2]
-    pos_emb_shape = [window_height * window_width, window_height * window_width, 2]
-    relative_log_coords = aa(tf.ones(input_shape))
-    relative_position_bias = attention_layers.PairWiseRelativePositionalEmbeddingGather(window_height=window_height)(relative_log_coords)
-    assert relative_log_coords.shape == coords_shape
-    assert relative_position_bias.shape == pos_emb_shape
 
 
 def test_phase_aware_token_mixing():
