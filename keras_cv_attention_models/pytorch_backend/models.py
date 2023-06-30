@@ -5,7 +5,6 @@ from torch import nn
 from contextlib import nullcontext
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.pytorch_backend import layers
-from keras_cv_attention_models.download_and_load import load_weights_from_hdf5_file, save_weights_to_hdf5_file
 
 
 class Model(nn.Module):
@@ -230,9 +229,13 @@ class Model(nn.Module):
         return self.__layers__[layer_name]
 
     def load_weights(self, filepath, by_name=True, skip_mismatch=False):
+        from keras_cv_attention_models.download_and_load import load_weights_from_hdf5_file
+
         load_weights_from_hdf5_file(filepath, self, skip_mismatch=skip_mismatch, debug=self.debug)
 
     def save_weights(self, filepath=None, **kwargs):
+        from keras_cv_attention_models.download_and_load import save_weights_to_hdf5_file
+
         save_weights_to_hdf5_file(filepath if filepath else self.name + ".h5", self, **kwargs)
 
     def summary(self, input_shape=None, **kwargs):
