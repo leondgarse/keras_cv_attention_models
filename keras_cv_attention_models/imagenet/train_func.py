@@ -230,7 +230,9 @@ def compile_model(model, optimizer, lr_base, weight_decay, loss, loss_weights=No
 
 
 # @tf.function(jit_compile=True)
-def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoch=0, lr_scheduler=None, basic_save_name=None, init_callbacks=[], logs="auto"):
+def train(
+    compiled_model, epochs, train_dataset, test_dataset=None, initial_epoch=0, lr_scheduler=None, basic_save_name=None, init_callbacks=[], logs="auto", **kwargs
+):
     if compiled_model.compiled_loss is None:
         print(">>>> Error: Model NOT compiled.")
         return None
@@ -277,6 +279,7 @@ def train(compiled_model, epochs, train_dataset, test_dataset=None, initial_epoc
         validation_data=test_dataset,
         use_multiprocessing=True,
         workers=8,
+        **kwargs,
     )
 
     if logs is not None:

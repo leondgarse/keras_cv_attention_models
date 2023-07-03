@@ -267,10 +267,18 @@ def run_training_by_args(args):
         print(">>>> COCO AP eval start_epoch: {}, frequency: {}".format(start_epoch, frequency))
         coco_ap_eval = eval_func.COCOEvalCallback(args.data_name, start_epoch=start_epoch, frequency=frequency, **kw)
 
-        init_callbacks = [coco_ap_eval]
-        test_dataset = None  # COCO eval using coco_ap_eval callback, set `validation_data` for `model.fit` to None
+        other_fit_kwargs = {}  # Set custom ones for `model.fit`
         latest_save, hist = train(
-            model, epochs, train_dataset, test_dataset, args.initial_epoch, lr_scheduler, args.basic_save_name, init_callbacks, logs=args.tensorboard_logs
+            compiled_model=model,
+            epochs=epochs,
+            train_dataset=train_dataset,
+            test_dataset=None,  # COCO eval using coco_ap_eval callback, set `validation_data` for `model.fit` to None
+            initial_epoch=args.initial_epoch,
+            lr_scheduler=lr_scheduler,
+            basic_save_name=args.basic_save_name,
+            init_callbacks=[coco_ap_eval],
+            logs=args.tensorboard_logs,
+            **other_fit_kwargs,
         )
     return model, latest_save, hist
 
