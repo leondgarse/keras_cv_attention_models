@@ -98,7 +98,9 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
 
     train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path, batch_size=batch_size, imgsz=imgsz, rect_val=rect_val)
     device = next(model.parameters()).device  # get model device
-    compute_loss = losses.Loss(device=device)
+    num_classes = getattr(model, "num_classes", model.output_shape - 64)
+    print(">>>> num_classes =", num_classes)
+    compute_loss = losses.Loss(device=device, nc=num_classes)
     optimizer = build_optimizer(model, name=optimizer_name)
     ema = ModelEMA(model)
     # lf = lambda x: (x * (1 - 0.01) / warmup_epochs + 0.01) if x < warmup_epochs else ((1 - x / epochs) * (1.0 - 0.01) + 0.01)  # linear

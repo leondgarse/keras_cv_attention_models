@@ -392,9 +392,12 @@
     ```
   - **[Experimental] Training using PyTorch backend**, currently using `ultralytics` dataset and validator process. The parameter `rect_val=False` means using fixed data shape `[640, 640]` for validator, or will by dynamic.
     ```py
+    !pip install ultralytics
+
     import os, sys
     os.environ["KECAM_BACKEND"] = "torch"
-    sys.path.append(os.path.expanduser("~/workspace/ultralytics/"))
+    sys.setrecursionlimit(65536)
+    # sys.path.append(os.path.expanduser("~/workspace/ultralytics/"))
 
     from keras_cv_attention_models.yolov8 import train, yolov8, torch_wrapper
     from keras_cv_attention_models import efficientnet

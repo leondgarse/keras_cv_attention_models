@@ -30,8 +30,8 @@ class Detect(nn.Module):
         self.input_shape, self.input_height, self.input_width = [None, 3, *train_input_shape], train_input_shape[0], train_input_shape[1]
         self.feature_sizes, self.feature_lens = self.get_feature_sizes(train_input_shape)
 
-        output_shape = model.output_shape
-        self.num_classes = output_shape[-1] - self.reg_max * 4
+        self.output_shape = model.output_shape
+        self.num_classes = self.output_shape[-1] - self.reg_max * 4
         self.names = {ii: str(ii) for ii in range(self.num_classes)}
 
         # self.dfl = DFL(self.reg_max) if self.reg_max > 1 else nn.Identity()

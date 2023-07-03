@@ -25,7 +25,8 @@ def to_data_loader(data, cfg, imgsz=640, mode="train", batch_size=16, rect_val=F
         single_cls=False,
         stride=32,
         pad=pad,
-        names=data["names"]
+        data=data,
+        # data=data,
         # classes=cfg.classes,
     )
 
