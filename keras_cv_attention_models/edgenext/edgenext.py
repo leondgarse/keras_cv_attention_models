@@ -14,6 +14,11 @@ from keras_cv_attention_models.attention_layers import (
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
+    "edgenext_base": {
+        "imagenet": {256: "9492ab3b407aabe84cead0bded7f7dd7"},
+        "usi": {256: "9d93a7524eda4701b2364540a2a44c8a"},
+        "imagenet21k-ft1k": {256: "d82a6f8cfd1e85cb16b0d6ced189eb1e"},
+    },
     "edgenext_small": {"imagenet": {256: "0234641a703283de1cb0d935bb0325e4"}, "usi": {256: "c237761b5bd5c32041d6b758186a0716"}},
     "edgenext_x_small": {"imagenet": {256: "472df7659422c7feffbec8012a0f6fa4"}},
     "edgenext_xx_small": {"imagenet": {256: "4190ba28c7caa2fe73215448f8abebd6"}},
@@ -241,3 +246,11 @@ def EdgeNeXt_Small(input_shape=(256, 256, 3), num_classes=1000, classifier_activ
     out_channels = [48, 96, 160, 304]
     num_heads = 8
     return EdgeNeXt(**locals(), model_name="edgenext_small", **kwargs)
+
+
+@register_model
+def EdgeNeXt_Base(input_shape=(256, 256, 3), num_classes=1000, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 3, 9, 3]
+    out_channels = [80, 160, 288, 584]
+    num_heads = 8
+    return EdgeNeXt(**locals(), model_name="edgenext_base", **kwargs)

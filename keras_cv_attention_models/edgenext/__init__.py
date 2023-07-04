@@ -3,6 +3,7 @@ from keras_cv_attention_models.edgenext.edgenext import (
     EdgeNeXt_XX_Small,
     EdgeNeXt_X_Small,
     EdgeNeXt_Small,
+    EdgeNeXt_Base,
     PositionalEncodingFourier,
     cross_covariance_attention,
 )
@@ -59,6 +60,7 @@ Args:
 
 EdgeNeXt_X_Small.__doc__ = EdgeNeXt_XX_Small.__doc__
 EdgeNeXt_Small.__doc__ = EdgeNeXt_XX_Small.__doc__
+EdgeNeXt_Base.__doc__ = EdgeNeXt_XX_Small.__doc__
 
 PositionalEncodingFourier.__doc__ = __head_doc__ + """
 Positional Encoding Fourier layer.

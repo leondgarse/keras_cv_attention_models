@@ -14,6 +14,9 @@
   | EdgeNeXt_X_Small  | 2.34M  | 547M   | 256   | 74.96    | [edgenext_x_small_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_x_small_256_imagenet.h5) |
   | EdgeNeXt_Small    | 5.59M  | 1.27G  | 256   | 79.41    | [edgenext_small_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_imagenet.h5) |
   | - usi             | 5.59M  | 1.27G  | 256   | 81.07    | [edgenext_small_256_usi.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_usi.h5) |
+  | EdgeNeXt_Base     | 18.5M  | 3.86G  | 256   | 82.47    | [edgenext_small_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_base_256_imagenet.h5) |
+  | - usi             | 18.5M  | 3.86G  | 256   | 83.31    | [edgenext_small_256_usi.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_base_256_usi.h5) |
+  | - 21k_ft1k        | 18.5M  | 3.86G  | 256   | 83.68    | [edgenext_small_256_usi.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_base_256_imagenet-ft1k.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import edgenext

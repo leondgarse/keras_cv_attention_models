@@ -773,6 +773,9 @@
   | [EdgeNeXt_X_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_x_small_256_imagenet.h5)  | 2.34M  | 547M   | 256   | 74.96    | 614.657 qps  |
   | [EdgeNeXt_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_imagenet.h5)    | 5.59M  | 1.27G  | 256   | 79.41    | 564.425 qps  |
   | - [usi](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_usi.h5)             | 5.59M  | 1.27G  | 256   | 81.07    | 564.425 qps  |
+  | [EdgeNeXt_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_base_256_imagenet.h5)     | 18.5M  | 3.86G  | 256   | 82.47    | |
+  | - [usi](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_base_256_usi.h5)             | 18.5M  | 3.86G  | 256   | 83.31    | |
+  | - [21k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_base_256_imagenet-ft1k.h5)        | 18.5M  | 3.86G  | 256   | 83.68    | |
 ## EfficientFormer
   - [Keras EfficientFormer](keras_cv_attention_models/efficientformer) is for [PDF 2206.01191 EfficientFormer: Vision Transformers at MobileNet Speed](https://arxiv.org/pdf/2206.01191.pdf).
 
