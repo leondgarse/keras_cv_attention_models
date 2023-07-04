@@ -13,6 +13,7 @@ from keras_cv_attention_models.attention_layers import (
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
+    "efficientvit_b0": {"imagenet": {224: "dd0104843abccee903d93c7a5f5d3174"}},
     "efficientvit_b1": {
         "imagenet": {224: "4fac7e85f4528276fafb5bb92e3f694f", 256: "f62ff918d3805a01dd63e8c684410d19", 288: "423077ad1a76d1b3904577a3b15d0670"}
     },
@@ -153,6 +154,15 @@ def EfficientViT_B(
     add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "efficientvit", pretrained)
     return model
+
+
+@register_model
+def EfficientViT_B0(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    out_channels = [16, 32, 64, 128]
+    num_blocks = [2, 2, 3, 3]
+    stem_width = 8
+    output_filters = [1024, 1280]
+    return EfficientViT_B(**locals(), model_name="efficientvit_b0", **kwargs)
 
 
 @register_model
