@@ -61,7 +61,7 @@ PRETRAINED_DICT = {
 def global_response_normalize(inputs, axis="auto", name=None):
     axis = (-1 if backend.image_data_format() == "channels_last" else 1) if axis == "auto" else axis
     num_dims = len(inputs.shape)
-    axis = num_dims + axis if axis < 0 else axis
+    axis = (num_dims + axis) if axis < 0 else axis
     nn = functional.norm(inputs, axis=[ii for ii in range(1, num_dims) if ii != axis], keepdims=True)
     nn = nn / (functional.reduce_mean(nn, axis=axis, keepdims=True) + 1e-6)
     nn = ChannelAffine(use_bias=True, weight_init_value=0, axis=axis, name=name and name + "gamma")(inputs * nn)

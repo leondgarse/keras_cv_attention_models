@@ -73,7 +73,10 @@ if __name__ == "__main__":
     for gpu in gpus:
         tf.config.experimental.set_memory_growth(gpu, True)
 
-    import tensorflow_addons as tfa
+    try:
+        import tensorflow_addons as tfa
+    except:
+        pass
     import keras_cv_attention_models
     import sys
 

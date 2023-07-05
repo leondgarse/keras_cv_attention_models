@@ -842,6 +842,7 @@
 
   | Model           | Params | FLOPs | Input | Top1 Acc | T4 Inference |
   | --------------- | ------ | ----- | ----- | -------- | ------------ |
+  | [EfficientViT_B0](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b0_224_imagenet.h5) | 3.41M  | 0.12G | 224   | 71.6 ?   |   |
   | [EfficientViT_B1](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b1_224_imagenet.h5) | 9.10M  | 0.58G | 224   | 79.4     | 943.587 qps  |
   | - [256](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b1_256_imagenet.h5)           | 9.10M  | 0.78G | 256   | 79.9     | 840.844 qps  |
   | - [288](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b1_288_imagenet.h5)            | 9.10M  | 1.03G | 288   | 80.4     | 943.587 qps  |

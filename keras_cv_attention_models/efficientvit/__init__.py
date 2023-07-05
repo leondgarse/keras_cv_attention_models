@@ -90,6 +90,7 @@ Args:
 Model architectures:
   | Model           | Params | FLOPs | Input | Top1 Acc |
   | --------------- | ------ | ----- | ----- | -------- |
+  | EfficientViT_B0 | 3.41M  | 0.12G | 224   | 71.6 ?   |
   | EfficientViT_B1 | 9.10M  | 0.58G | 224   | 79.4     |
   | EfficientViT_B1 | 9.10M  | 0.78G | 256   | 79.9     |
   | EfficientViT_B1 | 9.10M  | 1.03G | 288   | 80.4     |

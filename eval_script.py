@@ -44,7 +44,10 @@ if __name__ == "__main__":
     for gpu in gpus:
         tf.config.experimental.set_memory_growth(gpu, True)
 
-    import tensorflow_addons as tfa
+    try:
+        import tensorflow_addons as tfa
+    except:
+        pass
     import keras_cv_attention_models
     import sys
 
@@ -63,8 +66,11 @@ if __name__ == "__main__":
     elif args.model_path.endswith(".onnx"):
         model = args.model_path
     else:  # model_path like: volo.VOLO_d1
-        model = args.model_path.strip().split(".")
-        model_class = getattr(getattr(keras_cv_attention_models, model[0]), model[1])
+        model_name = args.model_path.strip().split(".")
+        if len(model_name) == 1:
+            model_class = getattr(keras_cv_attention_models.models, model_name[0])(num_classes=num_classes, pretrained=pretrained, **kwargs)
+        else:
+            model_class = getattr(getattr(keras_cv_attention_models, model_name[0]), model_name[1])
         model_kwargs = json.loads(args.additional_model_kwargs) if args.additional_model_kwargs else {}
         if input_shape:
             model_kwargs.update({"input_shape": input_shape})
