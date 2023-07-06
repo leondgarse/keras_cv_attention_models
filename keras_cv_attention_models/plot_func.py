@@ -173,13 +173,26 @@ def tensorboard_parallel_coordinates_plot(dataframe, metrics_name, metrics_displ
 """ Plot model summary """
 
 
-def plot_model_summary(plot_series, x_label, y_label="acc_metrics", model_table="model_summary.csv", allow_extras=None, ax=None):
+def plot_model_summary(
+    plot_series, x_labell="inference_qps", y_label="acc_metrics", model_table="model_summary.csv", allow_extras=None, log_scale_x=False, ax=None
+):
     """
+    Args:
+      x_label: string value from column name in `model_table`, x axis values.
+      y_label: string value from column name in `model_table`, y axis values.
+      model_table: a csv file path or loaded pands dataframe.
+      allow_extras: list value for allowing plotting data with extra pretrained. Default Noen for plotting imagenet pretrained only.
+      log_scale_x: boolean value if setting x scale in log distribution.
+      ax: plotting on specific matplotlib ax. Default None for creating new figure.
+
+    Example
     >>> from keras_cv_attention_models import plot_func
     >>> plot_series = ["efficientvit_b", "efficientvit_m", "efficientnet", "efficientnetv2"]
     >>> plot_func.plot_model_summary(plot_series, x_label='inference_qps', model_table="model_summary.csv", allow_extras=None)
     """
     import matplotlib.pyplot as plt
+
+    markers = ["o", "v", "^", "<", ">", "1", "2", "3", "4", "8", "s", "p", "*", "h", "H", "+", "x", "X", "D", "d"]
 
     if isinstance(model_table, str):
         import pandas as pd
@@ -197,6 +210,7 @@ def plot_model_summary(plot_series, x_label, y_label="acc_metrics", model_table=
     plot_series = None if plot_series is None else [ii.lower() for ii in plot_series]
     gather_extras = []
     allow_extras = [] if allow_extras is None else allow_extras
+    min_value_x, max_value_x = 1e9, 0
     for name, group in dd.groupby(dd["series"]):
         if plot_series is not None and name.lower() not in plot_series:
             continue
@@ -208,13 +222,23 @@ def plot_model_summary(plot_series, x_label, y_label="acc_metrics", model_table=
         group = group[extra_condition]
         xx = group[x_label].values
         yy = group[y_label].values
-        plt.scatter(xx, yy, label=name)
+        plt.scatter(xx, yy, label=name, marker=markers[0])
         plt.plot(xx, yy)
         for _, cur in group.iterrows():
             # print(cur)
             extra = "" if str(cur["extra"]) == "nan" else ("," + cur["extra"])
             text = cur["model"][len(name) :] + extra
-            plt.text(cur[x_label], cur[y_label], text, fontsize=9)
+            plt.text(cur[x_label], cur[y_label], text[1:] if text.startswith("_") else text, fontsize=9)
+        min_value_x = min(xx.min(), min_value_x)
+        max_value_x = max(xx.max(), max_value_x)
+        markers = markers[1:] + markers[:1]  # Roll markers
+    if log_scale_x:
+        # print(f"{min_value_x = }, {max_value_x = }")
+        plt.xscale("log")
+        min_value_x_log, max_value_x_log = np.log(min_value_x) / np.log(10), np.log(max_value_x) / np.log(10)
+        ticks = [10**ii for ii in np.arange(min_value_x_log, max_value_x_log, (max_value_x_log - min_value_x_log) / 10)]
+        plt.xticks(ticks, labels=["{:.2f}".format(ii) for ii in ticks])
+
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.legend()

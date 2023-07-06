@@ -234,14 +234,15 @@
     - `extra` means if any extra training info.
     ```py
     from keras_cv_attention_models import plot_func
-    plot_series = ["efficientvit_b", "efficientvit_m", "efficientnet", "efficientnetv2"]
     plot_series = [
-        "efficientnetv2", 'tinynet', 'lcnet', 'mobilenetv3', 'fasternet', 'fastervit',
-        'inceptionnext', 'efficientvit_m', 'mobilevit', 'convnextv2',
+        "efficientnetv2", 'tinynet', 'lcnet', 'mobilenetv3', 'fasternet', 'fastervit', 'ghostnet',
+        'inceptionnext', 'efficientvit_b', 'mobilevit', 'convnextv2', 'efficientvit_m', 'hiera',
     ]
-    plot_func.plot_model_summary(plot_series, x_label='inference_qps', model_table="model_summary.csv")
+    plot_func.plot_model_summary(
+        plot_series, x_label='inference_qps', model_table="model_summary.csv", log_scale_x=True, allow_extras=['mae_in1k_ft1k']
+    )
     ```
-    ![model_summary](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/7bc679a2-f013-4096-bb1d-e4fc7723ff24)
+    ![model_summary](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/9e05bd2d-fb8e-4adf-a19c-aaa8a2b15425)
   - **Code format** is using `line-length=160`:
     ```sh
     find ./* -name "*.py" | grep -v __init__ | xargs -I {} black -l 160 {}
