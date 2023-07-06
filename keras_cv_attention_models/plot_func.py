@@ -174,7 +174,7 @@ def tensorboard_parallel_coordinates_plot(dataframe, metrics_name, metrics_displ
 
 
 def plot_model_summary(
-    plot_series, x_labell="inference_qps", y_label="acc_metrics", model_table="model_summary.csv", allow_extras=None, log_scale_x=False, ax=None
+    plot_series, x_label="inference_qps", y_label="acc_metrics", model_table="model_summary.csv", allow_extras=None, log_scale_x=False, ax=None
 ):
     """
     Args:
