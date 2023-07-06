@@ -599,22 +599,22 @@
 
   | Model                   | Params | FLOPs | Input | Top1 Acc | T4 Inference |
   | ----------------------- | ------ | ----- | ----- | -------- | ------------ |
-  | [CAFormerS18](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s18_224_imagenet.h5)             | 26M    | 4.1G  | 224   | 83.6     | 323.017 qps  |
-  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s18_384_imagenet.h5)                   | 26M    | 13.4G | 384   | 85.0     | 166.164 qps  |
-  | - [21k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s18_224_imagenet21k-ft1k.h5)      | 26M    | 4.1G  | 224   | 84.1     | 323.017 qps  |
-  | - [21k_ft1k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s18_384_imagenet21k-ft1k.h5) | 26M    | 13.4G | 384   | 85.4     | 166.164 qps  |
-  | [CAFormerS36](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s36_224_imagenet.h5)             | 39M    | 8.0G  | 224   | 84.5     | 189.589 qps  |
-  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s36_384_imagenet.h5)                   | 39M    | 26.0G | 384   | 85.7     | 93.585 qps   |
-  | - [21k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s36_224_imagenet21k-ft1k.h5)      | 39M    | 8.0G  | 224   | 85.8     | 189.589 qps  |
-  | - [21k_ft1k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s36_384_imagenet21k-ft1k.h5) | 39M    | 26.0G | 384   | 86.9     | 93.585 qps   |
-  | [CAFormerM36](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_m36_224_imagenet.h5)             | 56M    | 13.2G | 224   | 85.2     | 138.995 qps  |
-  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_m36_384_imagenet.h5)                   | 56M    | 42.0G | 384   | 86.2     | 64.0702 qps  |
-  | - [21k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_m36_224_imagenet21k-ft1k.h5)      | 56M    | 13.2G | 224   | 86.6     | 138.995 qps  |
-  | - [21k_ft1k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_m36_384_imagenet21k-ft1k.h5) | 56M    | 42.0G | 384   | 87.5     | 64.0702 qps  |
-  | [CAFormerB36](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_b36_224_imagenet.h5)             | 99M    | 23.2G | 224   | 85.5     | 103.68 qps   |
-  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_b36_384_imagenet.h5)                   | 99M    | 72.2G | 384   | 86.4     | 43.3929 qps  |
-  | - [21k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_b36_224_imagenet21k-ft1k.h5)      | 99M    | 23.2G | 224   | 87.4     | 103.68 qps   |
-  | - [21k_ft1k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_b36_384_imagenet21k-ft1k.h5) | 99M    | 72.2G | 384   | 88.1     | 43.3929 qps  |
+  | [CAFormerS18](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s18_224_imagenet.h5)             | 26M    | 4.1G  | 224   | 83.6     | 399.127 qps  |
+  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s18_384_imagenet.h5)                   | 26M    | 13.4G | 384   | 85.0     | 181.993 qps  |
+  | - [21k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s18_224_imagenet21k-ft1k.h5)      | 26M    | 4.1G  | 224   | 84.1     | 399.127 qps  |
+  | - [21k_ft1k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s18_384_imagenet21k-ft1k.h5) | 26M    | 13.4G | 384   | 85.4     | 181.993 qps  |
+  | [CAFormerS36](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s36_224_imagenet.h5)             | 39M    | 8.0G  | 224   | 84.5     | 204.328 qps  |
+  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s36_384_imagenet.h5)                   | 39M    | 26.0G | 384   | 85.7     | 102.04 qps   |
+  | - [21k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s36_224_imagenet21k-ft1k.h5)      | 39M    | 8.0G  | 224   | 85.8     | 204.328 qps  |
+  | - [21k_ft1k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_s36_384_imagenet21k-ft1k.h5) | 39M    | 26.0G | 384   | 86.9     | 102.04 qps   |
+  | [CAFormerM36](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_m36_224_imagenet.h5)             | 56M    | 13.2G | 224   | 85.2     | 162.257 qps  |
+  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_m36_384_imagenet.h5)                   | 56M    | 42.0G | 384   | 86.2     | 65.6188 qps  |
+  | - [21k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_m36_224_imagenet21k-ft1k.h5)      | 56M    | 13.2G | 224   | 86.6     | 162.257 qps  |
+  | - [21k_ft1k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_m36_384_imagenet21k-ft1k.h5) | 56M    | 42.0G | 384   | 87.5     | 65.6188 qps  |
+  | [CAFormerB36](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_b36_224_imagenet.h5)             | 99M    | 23.2G | 224   | 85.5     | 116.865 qps  |
+  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_b36_384_imagenet.h5)                   | 99M    | 72.2G | 384   | 86.4     | 50.0244 qps  |
+  | - [21k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_b36_224_imagenet21k-ft1k.h5)      | 99M    | 23.2G | 224   | 87.4     | 116.865 qps  |
+  | - [21k_ft1k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/caformer/caformer_b36_384_imagenet21k-ft1k.h5) | 99M    | 72.2G | 384   | 88.1     | 50.0244 qps  |
 
   | Model                   | Params | FLOPs | Input | Top1 Acc | T4 Inference |
   | ----------------------- | ------ | ----- | ----- | -------- | ------------ |
@@ -769,21 +769,21 @@
 
   | Model             | Params | FLOPs  | Input | Top1 Acc | T4 Inference |
   | ----------------- | ------ | ------ | ----- | -------- | ------------ |
-  | [EdgeNeXt_XX_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_xx_small_256_imagenet.h5) | 1.33M  | 266M   | 256   | 71.23    | 897.966 qps  |
-  | [EdgeNeXt_X_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_x_small_256_imagenet.h5)  | 2.34M  | 547M   | 256   | 74.96    | 614.657 qps  |
-  | [EdgeNeXt_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_imagenet.h5)    | 5.59M  | 1.27G  | 256   | 79.41    | 564.425 qps  |
-  | - [usi](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_usi.h5)             | 5.59M  | 1.27G  | 256   | 81.07    | 564.425 qps  |
-  | [EdgeNeXt_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_base_256_imagenet.h5)     | 18.5M  | 3.86G  | 256   | 82.47    | |
-  | - [usi](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_base_256_usi.h5)             | 18.5M  | 3.86G  | 256   | 83.31    | |
-  | - [21k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_base_256_imagenet-ft1k.h5)        | 18.5M  | 3.86G  | 256   | 83.68    | |
+  | [EdgeNeXt_XX_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_xx_small_256_imagenet.h5) | 1.33M  | 266M   | 256   | 71.23    | 902.957 qps  |
+  | [EdgeNeXt_X_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_x_small_256_imagenet.h5)  | 2.34M  | 547M   | 256   | 74.96    | 638.346 qps  |
+  | [EdgeNeXt_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_imagenet.h5)    | 5.59M  | 1.27G  | 256   | 79.41    | 536.762 qps  |
+  | - [usi](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_small_256_usi.h5)             | 5.59M  | 1.27G  | 256   | 81.07    | 536.762 qps  |
+  | [EdgeNeXt_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_base_256_imagenet.h5)     | 18.5M  | 3.86G  | 256   | 82.47    | 383.461 qps  |
+  | - [usi](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_base_256_usi.h5)             | 18.5M  | 3.86G  | 256   | 83.31    | 383.461 qps  |
+  | - [21k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/edgenext/edgenext_base_256_imagenet-ft1k.h5)        | 18.5M  | 3.86G  | 256   | 83.68    | 383.461 qps  |
 ## EfficientFormer
   - [Keras EfficientFormer](keras_cv_attention_models/efficientformer) is for [PDF 2206.01191 EfficientFormer: Vision Transformers at MobileNet Speed](https://arxiv.org/pdf/2206.01191.pdf).
 
   | Model                      | Params | FLOPs | Input | Top1 Acc | T4 Inference |
   | -------------------------- | ------ | ----- | ----- | -------- | ------------ |
-  | [EfficientFormerL1, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l1_224_imagenet.h5) | 12.3M  | 1.31G | 224   | 79.2     | 1153.09 qps  |
-  | [EfficientFormerL3, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l3_224_imagenet.h5) | 31.4M  | 3.95G | 224   | 82.4     | 488.419 qps  |
-  | [EfficientFormerL7, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l7_224_imagenet.h5) | 74.4M  | 9.79G | 224   | 83.3     | 202.329 qps  |
+  | [EfficientFormerL1, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l1_224_imagenet.h5) | 12.3M  | 1.31G | 224   | 79.2     | 1214.22 qps  |
+  | [EfficientFormerL3, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l3_224_imagenet.h5) | 31.4M  | 3.95G | 224   | 82.4     | 596.705 qps  |
+  | [EfficientFormerL7, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/efficientformer_l7_224_imagenet.h5) | 74.4M  | 9.79G | 224   | 83.3     | 298.434 qps  |
 ## EfficientFormerV2
   - [Keras EfficientFormer](keras_cv_attention_models/efficientformer) includes implementation of [PDF 2212.08059 Rethinking Vision Transformers for MobileNet Size and Speed](https://arxiv.org/pdf/2212.08059.pdf).
 
@@ -842,22 +842,22 @@
 
   | Model           | Params | FLOPs | Input | Top1 Acc | T4 Inference |
   | --------------- | ------ | ----- | ----- | -------- | ------------ |
-  | [EfficientViT_B0](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b0_224_imagenet.h5) | 3.41M  | 0.12G | 224   | 71.6 ?   |   |
+  | [EfficientViT_B0](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b0_224_imagenet.h5) | 3.41M  | 0.12G | 224   | 71.6 ?   | 1581.76 qps  |
   | [EfficientViT_B1](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b1_224_imagenet.h5) | 9.10M  | 0.58G | 224   | 79.4     | 943.587 qps  |
   | - [256](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b1_256_imagenet.h5)           | 9.10M  | 0.78G | 256   | 79.9     | 840.844 qps  |
-  | - [288](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b1_288_imagenet.h5)            | 9.10M  | 1.03G | 288   | 80.4     | 943.587 qps  |
+  | - [288](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b1_288_imagenet.h5)            | 9.10M  | 1.03G | 288   | 80.4     | 680.088 qps  |
   | [EfficientViT_B2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b2_224_imagenet.h5) | 24.33M | 1.68G | 224   | 82.1     | 583.295 qps  |
   | - [256](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b2_256_imagenet.h5)            | 24.33M | 2.25G | 256   | 82.7     | 507.187 qps  |
-  | - [288](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b2_288_imagenet.h5)            | 24.33M | 2.92G | 288   | 83.1     | 583.295 qps  |
+  | - [288](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b2_288_imagenet.h5)            | 24.33M | 2.92G | 288   | 83.1     | 419.93 qps   |
   | [EfficientViT_B3](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_224_imagenet.h5) | 48.65M | 4.14G | 224   | 83.5     | 329.764 qps  |
   | - [256](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_256_imagenet.h5)            | 48.65M | 5.51G | 256   | 83.8     | 288.605 qps  |
-  | - [288](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_288_imagenet.h5)            | 48.65M | 7.14G | 288   | 84.2     | 329.764 qps  |
+  | - [288](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_288_imagenet.h5)            | 48.65M | 7.14G | 288   | 84.2     | 229.992 qps  |
 ## EfficientViT_M
   - [Keras EfficientViT_M](keras_cv_attention_models/efficientvit) is for Paper [PDF 2305.07027 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/pdf/2305.07027.pdf).
 
   | Model           | Params | FLOPs | Input | Top1 Acc | T4 Inference |
   | --------------- | ------ | ----- | ----- | -------- | ------------ |
-  | [EfficientViT_M0](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_m0_224_imagenet.h5) | 2.35M  | 79.4M | 224   | 63.2     | 749.888 qps  |
+  | [EfficientViT_M0](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_m0_224_imagenet.h5) | 2.35M  | 79.4M | 224   | 63.2     | 814.522 qps  |
   | [EfficientViT_M1](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_m1_224_imagenet.h5) | 2.98M  | 167M  | 224   | 68.4     | 948.041 qps  |
   | [EfficientViT_M2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_m2_224_imagenet.h5) | 4.19M  | 201M  | 224   | 70.8     | 906.286 qps  |
   | [EfficientViT_M3](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_m3_224_imagenet.h5) | 6.90M  | 263M  | 224   | 73.4     | 758.086 qps  |
@@ -1097,20 +1097,20 @@
 
   | Model               | Params | FLOPs   | Input | Top1 Acc | T4 Inference |
   | ------------------- | ------ | ------- | ----- | -------- | ------------ |
-  | [MobileNetV3Small050](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_small_050_imagenet.h5) | 1.29M  | 24.92M  | 224   | 57.89    | 2299.52 qps  |
-  | [MobileNetV3Small075](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_small_075_imagenet.h5) | 2.04M  | 44.35M  | 224   | 65.24    | 2213.75 qps  |
-  | [MobileNetV3Small100](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_small_100_imagenet.h5) | 2.54M  | 57.62M  | 224   | 67.66    | 2425.67 qps  |
-  | [MobileNetV3Large075](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_large_075_imagenet.h5) | 3.99M  | 156.30M | 224   | 73.44    | 1692.87 qps  |
-  | [MobileNetV3Large100](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_large_100_imagenet.h5) | 5.48M  | 218.73M | 224   | 75.77    | 1616.44 qps  |
-  | - [miil](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_large_100_mill.h5)              | 5.48M  | 218.73M | 224   | 77.92    | 1616.44 qps  |
+  | [MobileNetV3Small050](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_small_050_imagenet.h5) | 1.29M  | 24.92M  | 224   | 57.89    | 2458.28 qps  |
+  | [MobileNetV3Small075](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_small_075_imagenet.h5) | 2.04M  | 44.35M  | 224   | 65.24    | 2286.44 qps  |
+  | [MobileNetV3Small100](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_small_100_imagenet.h5) | 2.54M  | 57.62M  | 224   | 67.66    | 2058.06 qps  |
+  | [MobileNetV3Large075](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_large_075_imagenet.h5) | 3.99M  | 156.30M | 224   | 73.44    | 1643.78 qps  |
+  | [MobileNetV3Large100](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_large_100_imagenet.h5) | 5.48M  | 218.73M | 224   | 75.77    | 1629.44 qps  |
+  | - [miil](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilenetv3_family/mobilenetv3_large_100_mill.h5)              | 5.48M  | 218.73M | 224   | 77.92    | 1629.44 qps  |
 ## MobileViT
   - [Keras MobileViT](keras_cv_attention_models/mobilevit) is for [PDF 2110.02178 MOBILEVIT: LIGHT-WEIGHT, GENERAL-PURPOSE, AND MOBILE-FRIENDLY VISION TRANSFORMER](https://arxiv.org/pdf/2110.02178.pdf).
 
   | Model         | Params | FLOPs | Input | Top1 Acc | T4 Inference |
   | ------------- | ------ | ----- | ----- | -------- | ------------ |
-  | [MobileViT_XXS](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_xxs_imagenet.h5) | 1.3M   | 0.42G | 256   | 69.0     | 1275.59 qps  |
-  | [MobileViT_XS](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_xs_imagenet.h5)  | 2.3M   | 1.05G | 256   | 74.7     | 907.075 qps  |
-  | [MobileViT_S](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_s_imagenet.h5)   | 5.6M   | 2.03G | 256   | 78.3     | 638.484 qps  |
+  | [MobileViT_XXS](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_xxs_imagenet.h5) | 1.3M   | 0.42G | 256   | 69.0     | 1319.43 qps  |
+  | [MobileViT_XS](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_xs_imagenet.h5)  | 2.3M   | 1.05G | 256   | 74.7     | 1019.57 qps  |
+  | [MobileViT_S](https://github.com/leondgarse/keras_cv_attention_models/releases/download/mobilevit/mobilevit_s_imagenet.h5)   | 5.6M   | 2.03G | 256   | 78.3     | 790.943 qps  |
 ## MobileViT_V2
   - [Keras MobileViT_V2](keras_cv_attention_models/mobilevit) is for [PDF 2206.02680 Separable Self-attention for Mobile Vision Transformers](https://arxiv.org/pdf/2206.02680.pdf).
 
@@ -1296,18 +1296,18 @@
 
   | Model                | Params | FLOPs  | Input | Top1 Acc | T4 Inference |
   | -------------------- | ------ | ------ | ----- | -------- | ------------ |
-  | [UniformerSmall32, token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_32_224_token_label.h5) | 22M    | 3.66G  | 224   | 83.4     | 386.174 qps  |
-  | [UniformerSmall64](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_64_224_imagenet.h5)     | 22M    | 3.66G  | 224   | 82.9     | 383.905 qps  |
-  | - [token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_64_224_token_label.h5)     | 22M    | 3.66G  | 224   | 83.4     | 383.905 qps  |
-  | [UniformerSmallPlus32](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_32_224_imagenet.h5) | 24M    | 4.24G  | 224   | 83.4     | 365.977 qps  |
-  | - [token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_32_224_token_label.h5)     | 24M    | 4.24G  | 224   | 83.9     | 365.977 qps  |
-  | [UniformerSmallPlus64](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_64_224_imagenet.h5) | 24M    | 4.23G  | 224   | 83.4     | 363.282 qps  |
-  | - [token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_64_224_token_label.h5)     | 24M    | 4.23G  | 224   | 83.6     | 363.282 qps  |
-  | [UniformerBase32, token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_32_224_token_label.h5)  | 50M    | 8.32G  | 224   | 85.1     | 170.071 qps  |
-  | [UniformerBase64](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_imagenet.h5)      | 50M    | 8.31G  | 224   | 83.8     | 168.736 qps  |
-  | - [token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_token_label.h5)     | 50M    | 8.31G  | 224   | 84.8     | 168.736 qps  |
-  | [UniformerLarge64, token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_224_token_label.h5) | 100M   | 19.79G | 224   | 85.6     | 95.5517 qps  |
-  | - [token_label, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_384_token_label.h5)            | 100M   | 63.11G | 384   | 86.3     | 50.0455 qps  |
+  | [UniformerSmall32, token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_32_224_token_label.h5) | 22M    | 3.66G  | 224   | 83.4     | 577.334 qps  |
+  | [UniformerSmall64](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_64_224_imagenet.h5)     | 22M    | 3.66G  | 224   | 82.9     | 562.794 qps  |
+  | - [token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_64_224_token_label.h5)     | 22M    | 3.66G  | 224   | 83.4     | 562.794 qps  |
+  | [UniformerSmallPlus32](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_32_224_imagenet.h5) | 24M    | 4.24G  | 224   | 83.4     | 546.82 qps   |
+  | - [token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_32_224_token_label.h5)     | 24M    | 4.24G  | 224   | 83.9     | 546.82 qps   |
+  | [UniformerSmallPlus64](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_64_224_imagenet.h5) | 24M    | 4.23G  | 224   | 83.4     | 538.193 qps  |
+  | - [token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_small_plus_64_224_token_label.h5)     | 24M    | 4.23G  | 224   | 83.6     | 538.193 qps  |
+  | [UniformerBase32, token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_32_224_token_label.h5)  | 50M    | 8.32G  | 224   | 85.1     | 272.485 qps  |
+  | [UniformerBase64](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_imagenet.h5)      | 50M    | 8.31G  | 224   | 83.8     | 286.963 qps  |
+  | - [token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_base_64_224_token_label.h5)     | 50M    | 8.31G  | 224   | 84.8     | 286.963 qps  |
+  | [UniformerLarge64, token_label](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_224_token_label.h5) | 100M   | 19.79G | 224   | 85.6     | 154.761 qps  |
+  | - [token_label, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/uniformer/uniformer_large_64_384_token_label.h5)            | 100M   | 63.11G | 384   | 86.3     | 75.3487 qps  |
 ## VanillaNet
   - [Keras VanillaNet](keras_cv_attention_models/vanillanet) is for [PDF 2305.12972 VanillaNet: the Power of Minimalism in Deep Learning](https://arxiv.org/pdf/2305.12972.pdf).
 
@@ -1450,8 +1450,8 @@
 
   | Model            | Params  | FLOPs   | vocab_size | LAMBADA PPL | T4 Inference |
   | ---------------- | ------- | ------- | ---------- | ----------- | ------------ |
-  | [GPT2_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_base_webtext.h5)        | 163.04M | 146.42G | 50257      | 35.13       | 30.6871 qps  |
-  | [GPT2_Medium](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_medium_webtext.h5)      | 406.29M | 415.07G | 50257      | 15.60       | 17.2073 qps  |
+  | [GPT2_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_base_webtext.h5)        | 163.04M | 146.42G | 50257      | 35.13       | 51.4483 qps  |
+  | [GPT2_Medium](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_medium_webtext.h5)      | 406.29M | 415.07G | 50257      | 15.60       | 21.756 qps   |
   | [GPT2_Large](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_large_webtext.h5)       | 838.36M | 890.28G | 50257      | 10.87       |              |
   | [GPT2_XLarge](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_xlarge_webtext.1.h5), [+.2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_xlarge_webtext.2.h5) | 1.638B  | 1758.3G | 50257      | 8.63        |              |
 ***
