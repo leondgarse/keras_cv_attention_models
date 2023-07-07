@@ -27,7 +27,10 @@ import tensorflow as tf
 from typing import Any, Dict, List, Optional, Text, Tuple, Union
 
 # from tensorflow.python.keras.layers.preprocessing import image_preprocessing as image_ops
-from keras.layers.preprocessing import image_preprocessing as image_ops
+try:
+    from keras.layers.preprocessing import image_preprocessing as image_ops
+except:
+    from keras.src.layers.preprocessing import image_preprocessing as image_ops  # TF >= 2.13.0
 
 # This signifies the max integer that the controller RNN could predict for the
 # augmentation scheme.
