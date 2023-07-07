@@ -62,7 +62,15 @@ def global_response_normalize(inputs, axis="auto", name=None):
     axis = (-1 if backend.image_data_format() == "channels_last" else 1) if axis == "auto" else axis
     num_dims = len(inputs.shape)
     axis = (num_dims + axis) if axis < 0 else axis
-    nn = functional.norm(inputs, axis=[ii for ii in range(1, num_dims) if ii != axis], keepdims=True)
+    if backend.backend() == "pytorch":
+        nn = functional.norm(inputs, axis=[ii for ii in range(1, num_dims) if ii != axis], keepdims=True)
+    else:
+        # An ugly work around for `tf.norm` run into `loss=nan`
+        # nn = functional.norm(inputs, axis=[ii for ii in range(1, num_dims) if ii != axis], keepdims=True)
+        norm_sacle = functional.cast(functional.shape(inputs)[1] * functional.shape(inputs)[2], inputs.dtype) ** 0.5
+        # nn = functional.reduce_sum(functional.sqare(inputs / norm_sacle), axis=[ii for ii in range(1, num_dims) if ii != axis], keepdims=True)
+        nn = functional.reduce_mean(functional.sqare(inputs), axis=[ii for ii in range(1, num_dims) if ii != axis], keepdims=True)
+        nn = functional.sqrt(nn) * norm_sacle
     nn = nn / (functional.reduce_mean(nn, axis=axis, keepdims=True) + 1e-6)
     nn = ChannelAffine(use_bias=True, weight_init_value=0, axis=axis, name=name and name + "gamma")(inputs * nn)
     return nn + inputs
@@ -146,9 +154,7 @@ def ConvNeXt(
             nn = layers.Dense(output_num_filters, use_bias=True, name="head_pre_dense")(nn)
             nn = activation_by_name(nn, activation=activation, name="head_pre_")
         head_init = HeadInitializer(scale=head_init_scale)
-        nn = layers.Dense(
-            num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=head_init, name="predictions"
-        )(nn)
+        nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, name="predictions")(nn)
 
     model = models.Model(inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="torch")

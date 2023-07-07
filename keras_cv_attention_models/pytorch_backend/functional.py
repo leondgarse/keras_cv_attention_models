@@ -330,6 +330,10 @@ def sqrt(inputs, name=None):
     return wrapper(torch.sqrt, inputs, name=name)
 
 
+def square(inputs, name=None):
+    return wrapper(torch.square, inputs, name=name)
+
+
 def squeeze(inputs, axis, name=None):
     return wrapper(partial(torch.squeeze, dim=axis), inputs, name=name)
 

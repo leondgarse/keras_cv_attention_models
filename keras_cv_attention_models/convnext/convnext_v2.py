@@ -9,6 +9,8 @@ def ConvNeXtV2(
     layer_scale_init_value=0,  # 1e-6 for v1, 0 for v2
     use_grn=True,  # False for v1, True for v2
     head_init_scale=1.0,
+    layer_norm_epsilon=1e-6,  # 1e-5 for ConvNeXtXXlarge, 1e-6 for others
+    output_num_filters=-1,  # If apply additional dense + activation before output dense, <0 for not using
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",
