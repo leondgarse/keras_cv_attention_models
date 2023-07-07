@@ -243,16 +243,33 @@
     )
     ```
     ![model_summary](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/9e05bd2d-fb8e-4adf-a19c-aaa8a2b15425)
+
+    **Note the log distribution for x axis.**
   - **Code format** is using `line-length=160`:
     ```sh
     find ./* -name "*.py" | grep -v __init__ | xargs -I {} black -l 160 {}
     ```
 ## T4 Inference
-  - [Colab trtexec.ipynb](https://colab.research.google.com/drive/1xLwfvbZNqadkdAZu9b0UzOrETLo657oc?usp=drive_link).
   - **T4 Inference** in the model tables are tested using `trtexec` on `Tesla T4` with `CUDA=12.0.1-1, Driver=525.60.13`. All models are exported as ONNX using PyTorch backend, using `batch_szie=1` only. **Note: this data is for reference only, and vary in different batch sizes or benchmark tools or platforms or implementations**.
-  ```sh
-  # Basic trtexec command
-  trtexec --onnx=ConvFormerS18.onnx --fp16 --allowGPUFallback --useSpinWait # --useCudaGraph
+  - All results are tested using colab [trtexec.ipynb](https://colab.research.google.com/drive/1xLwfvbZNqadkdAZu9b0UzOrETLo657oc?usp=drive_link). Thus reproducible by any others.
+  ```py
+  os.environ["KECAM_BACKEND"] = "torch"
+
+  from keras_cv_attention_models import convnext, test_images, imagenet
+  # >>>> Using PyTorch backend
+  mm = convnext.ConvNeXtTiny()
+  mm.export_onnx(simplify=True)
+  # Exported onnx: convnext_tiny.onnx
+  # Running onnxsim.simplify...
+  # Exported simplified onnx: convnext_tiny.onnx
+
+  # Onnx run test
+  tt = imagenet.eval_func.ONNXModelInterf('convnext_tiny.onnx')
+  print(mm.decode_predictions(tt(mm.preprocess_input(test_images.cat()))))
+  # [[('n02124075', 'Egyptian_cat', 0.880507), ('n02123045', 'tabby', 0.0047998047), ...]]
+
+  """ Run trtexec benchmark """
+  !trtexec --onnx=convnext_tiny.onnx --fp16 --allowGPUFallback --useSpinWait --useCudaGraph
   ```
 ## Layers
   - [attention_layers](keras_cv_attention_models/attention_layers) is `__init__.py` only, which imports core layers defined in model architectures. Like `RelativePositionalEmbedding` from `botnet`, `outlook_attention` from `volo`, and many other `Positional Embedding Layers` / `Attention Blocks`.
