@@ -68,8 +68,8 @@ def global_response_normalize(inputs, axis="auto", name=None):
         # An ugly work around for `tf.norm` run into `loss=nan`
         # nn = functional.norm(inputs, axis=[ii for ii in range(1, num_dims) if ii != axis], keepdims=True)
         norm_sacle = functional.cast(functional.shape(inputs)[1] * functional.shape(inputs)[2], inputs.dtype) ** 0.5
-        # nn = functional.reduce_sum(functional.sqare(inputs / norm_sacle), axis=[ii for ii in range(1, num_dims) if ii != axis], keepdims=True)
-        nn = functional.reduce_mean(functional.sqare(inputs), axis=[ii for ii in range(1, num_dims) if ii != axis], keepdims=True)
+        # nn = functional.reduce_sum(functional.square(inputs / norm_sacle), axis=[ii for ii in range(1, num_dims) if ii != axis], keepdims=True)
+        nn = functional.reduce_mean(functional.square(inputs), axis=[ii for ii in range(1, num_dims) if ii != axis], keepdims=True)
         nn = functional.sqrt(nn) * norm_sacle
     nn = nn / (functional.reduce_mean(nn, axis=axis, keepdims=True) + 1e-6)
     nn = ChannelAffine(use_bias=True, weight_init_value=0, axis=axis, name=name and name + "gamma")(inputs * nn)
