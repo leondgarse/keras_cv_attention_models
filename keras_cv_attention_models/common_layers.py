@@ -644,7 +644,8 @@ class PreprocessInput:
             channel_axis, channel_dim = min(enumerate(input_shape), key=lambda xx: xx[1])  # Assume the smallest value is the channel dimension
             self.input_shape = [dim for axis, dim in enumerate(input_shape) if axis != channel_axis]
 
-    def set_rescale_mode(self, rescale_mode):
+    @staticmethod
+    def init_mean_std_by_rescale_mode(rescale_mode):
         if isinstance(rescale_mode, (list, tuple)):  # Specific mean and std
             mean, std = rescale_mode
         elif rescale_mode == "torch":
@@ -661,7 +662,11 @@ class PreprocessInput:
             mean, std = 0, 255.0  # [0, 255] -> [0, 1]
         else:
             mean, std = 0, 1  # raw inputs [0, 255]
-        self.mean, self.std, self.rescale_mode = mean, std, rescale_mode
+        return mean, std
+
+    def set_rescale_mode(self, rescale_mode):
+        self.mean, self.std = self.init_mean_std_by_rescale_mode(rescale_mode)
+        self.rescale_mode = rescale_mode
 
     def __call__(self, image, resize_method="bilinear", resize_antialias=False, input_shape=None):
         if input_shape is not None:

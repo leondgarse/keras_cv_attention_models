@@ -196,8 +196,8 @@ def decode_predictions(preds, top=5):
             url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/imagenet21k_class_index.json"
             file_hash = "a07173727548feaea3cc855ed6341a4f"
 
-        index_file = os.path.join(os.path.expanduser("~/.keras/datasets"), os.path.basename(url))
-        print(">>>> Trying to load index file:", index_file)
+        class_index_path = os.path.join(os.path.expanduser("~/.keras/datasets"), os.path.basename(url))
+        print(">>>> Trying to load index file:", class_index_path)
         class_index_path = get_file(origin=url, file_hash=file_hash)
         with open(class_index_path) as ff:
             if is_imagenet:

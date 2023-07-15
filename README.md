@@ -242,9 +242,7 @@
         plot_series, model_table="model_summary.csv", log_scale_x=True, allow_extras=['mae_in1k_ft1k']
     )
     ```
-    ![model_summary](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/9e05bd2d-fb8e-4adf-a19c-aaa8a2b15425)
-
-    **Note the log distribution for x axis.**
+    ![model_summary](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/be2d5abf-7642-4a9d-a293-9b2375058a8e)
   - **Code format** is using `line-length=160`:
     ```sh
     find ./* -name "*.py" | grep -v __init__ | xargs -I {} black -l 160 {}
