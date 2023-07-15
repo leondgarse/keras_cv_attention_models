@@ -93,7 +93,7 @@ ExpLogitScale.__doc__ = __head_doc__ + """
 Apply `inputs / tf.maximum(scale, min_value)` on given axis.
 
 Args:
-  axis: list or int number, specific axis apply scaling.
+  axis: list or int number, specific axis apply scaling. Set `axis=None` for scaler `weight_shape=()`.
   init_value: weight init value. Actual using is `tf.math.log(init_value)`.
   max_value: limit scaled max value.
 
