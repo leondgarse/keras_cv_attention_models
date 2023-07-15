@@ -1,3 +1,4 @@
+import os
 import tensorflow as tf
 from tensorflow import keras
 
@@ -214,7 +215,7 @@ def apply_mixup_cutmix(train_dataset, mixup_alpha, cutmix_alpha, switch_prob=0.5
     return train_dataset.map(mix_func, num_parallel_calls=tf.data.AUTOTUNE)
 
 
-class RandomProcessDatapoint:
+class RandomProcessImage:
     def __init__(
         self,
         target_shape=(224, 224),
@@ -269,8 +270,8 @@ class RandomProcessDatapoint:
 
             self.token_label_align = token_label.TokenLabelAlign(num_classes=num_classes, target_num_pathes=token_label_target_patches)
 
-    def __call__(self, datapoint, token_label=None):
-        image = datapoint["image"]
+    def __call__(self, image, token_label=None):
+        # image = datapoint["image"]
         if len(image.shape) < 2:
             image = tf_imread(image)
         channel = image.shape[-1]
@@ -297,16 +298,16 @@ class RandomProcessDatapoint:
         image = tf.cast(image, tf.float32)
         image.set_shape([*self.target_shape[:2], channel])
 
-        label = datapoint["label"]
+        # label = datapoint["label"]
         if self.use_token_label and token_label is not None:
             token_label = self.token_label_align(token_label, flip_left_right, scale_hh, scale_ww, crop_hh, crop_ww)
-            return image, label, token_label
+            return image, token_label
         else:
-            return image, label
+            return image
 
 
-def evaluation_process_crop_resize(datapoint, target_shape=(224, 224), central_crop=1.0, resize_method="bilinear", antialias=False):
-    image = datapoint["image"]
+def evaluation_process_crop_resize(image, target_shape=(224, 224), central_crop=1.0, resize_method="bilinear", antialias=False):
+    # image = datapoint["image"]
     if len(image.shape) < 3:
         image = tf_imread(image)
     if central_crop > 0:  # Do not crop if central_crop == -1
@@ -316,13 +317,12 @@ def evaluation_process_crop_resize(datapoint, target_shape=(224, 224), central_c
         y, x = (height - crop_size) // 2, (width - crop_size) // 2
         image = tf.image.crop_to_bounding_box(image, y, x, crop_size, crop_size)
     image = tf.image.resize(image, target_shape, method=resize_method, antialias=antialias)
-    label = datapoint["label"]
-    return image, label
+    return image
 
 
 # Not using
-def evaluation_process_resize_crop(datapoint, target_shape=(224, 224), central_crop=1.0, resize_method="bilinear", antialias=False):
-    image = datapoint["image"]
+def evaluation_process_resize_crop(image, target_shape=(224, 224), central_crop=1.0, resize_method="bilinear", antialias=False):
+    # image = datapoint["image"]
     if len(image.shape) < 3:
         image = tf_imread(image)
     shape = tf.shape(image)
@@ -335,12 +335,10 @@ def evaluation_process_resize_crop(datapoint, target_shape=(224, 224), central_c
 
     y, x = (hh_scale - target_shape[0]) // 2, (ww_scale - target_shape[1]) // 2
     image = tf.image.crop_to_bounding_box(image, y, x, target_shape[0], target_shape[1])
-
-    label = datapoint["label"]
-    return image, label
+    return image
 
 
-def recognition_dataset_from_custom_json(data_path, with_info=False):
+def recognition_dataset_from_custom_json(data_path, with_info=False, caption_tokenizer=None):
     import json
 
     with open(data_path, "r") as ff:
@@ -348,12 +346,28 @@ def recognition_dataset_from_custom_json(data_path, with_info=False):
 
     test_key = "validation" if "validation" in aa else "test"
     train, test, info = aa["train"], aa[test_key], aa["info"]
-    total_images, num_classes = len(train), info["num_classes"]
+    total_images, num_classes = len(train), info.get("num_classes", 0)
+
+    if "base_path" in info:
+        base_path = info["base_path"]
+        for ii in train:
+            ii["image"] = os.path.join(base_path, ii["image"])
+        for ii in test:
+            ii["image"] = os.path.join(base_path, ii["image"])
     num_channels = tf_imread(aa["train"][0]["image"]).shape[-1]
 
-    output_signature = {"image": tf.TensorSpec(shape=(), dtype=tf.string), "label": tf.TensorSpec(shape=(), dtype=tf.int64)}
-    train_ds = tf.data.Dataset.from_generator(lambda: (ii for ii in train), output_signature=output_signature)
-    test_ds = tf.data.Dataset.from_generator(lambda: (ii for ii in test), output_signature=output_signature)
+    is_caption = False if caption_tokenizer is None else True
+    if is_caption:
+        context_length = caption_tokenizer.context_length
+        output_signature = {"image": tf.TensorSpec(shape=(), dtype=tf.string), "caption": tf.TensorSpec(shape=(context_length,), dtype=tf.int64)}
+        train_gen = lambda: ({"image": ii['image'], "caption": caption_tokenizer(ii['caption'])} for ii in train)
+        test_gen = lambda: ({"image": ii['image'], "caption": caption_tokenizer(ii['caption'])} for ii in test)
+    else:
+        output_signature = {"image": tf.TensorSpec(shape=(), dtype=tf.string), "label": tf.TensorSpec(shape=(), dtype=tf.int64)}
+        train_gen = lambda: (ii for ii in train)
+        test_gen = lambda: (ii for ii in test)
+    train_ds = tf.data.Dataset.from_generator(train_gen, output_signature=output_signature)
+    test_ds = tf.data.Dataset.from_generator(test_gen, output_signature=output_signature)
 
     options = tf.data.Options()
     options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
@@ -423,6 +437,7 @@ def init_dataset(
     token_label_target_patches=-1,
     teacher_model=None,
     teacher_model_input_shape=-1,  # -1 means same with input_shape
+    caption_tokenizer=None,
     **augment_kwargs,  # Too many...
 ):
     import tensorflow_datasets as tfds
@@ -432,26 +447,24 @@ def init_dataset(
     use_token_label = False if token_label_file is None else True
     use_distill = False if teacher_model is None else True
     teacher_model_input_shape = input_shape if teacher_model_input_shape == -1 else teacher_model_input_shape
+    is_caption = False if caption_tokenizer is None else True
 
     if data_name.endswith(".json"):
-        dataset, total_images, num_classes, num_channels = recognition_dataset_from_custom_json(data_name, with_info=True)
+        dataset, total_images, num_classes, num_channels = recognition_dataset_from_custom_json(data_name, with_info=True, caption_tokenizer=caption_tokenizer)
     else:
         dataset, info = tfds.load(data_name, with_info=True, try_gcs=is_tpu)
-        num_classes = info.features["label"].num_classes
+        num_classes = 0 if is_caption else info.features["label"].num_classes
         num_channels = info.features["image"].shape[-1]
         total_images = info.splits["train"].num_examples
     steps_per_epoch = int(tf.math.ceil(total_images / float(batch_size)))
 
     if info_only:
         return total_images, num_classes, steps_per_epoch, num_channels  # return num_channels in case it's not 3
-
-    """ Train dataset """
-    train_dataset = dataset["train"]
-    if use_token_label:
-        train_dataset = build_token_label_dataset(train_dataset, token_label_file)
-
+    mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     AUTOTUNE = tf.data.AUTOTUNE
-    train_pre_batch = RandomProcessDatapoint(
+
+    """ Train dataset functions """
+    train_image_func = RandomProcessImage(
         target_shape=teacher_model_input_shape if use_distill else input_shape,
         central_crop=-1,  # Resize directly w/o crop, if random_crop_min not in (0, 1)
         random_crop_min=random_crop_min,
@@ -466,19 +479,31 @@ def init_dataset(
         num_classes=num_classes,
         **augment_kwargs,
     )
+
+    if is_caption:
+        train_pre_batch = lambda data_point: (train_image_func(data_point['image']), data_point['caption'])
+        fake_label = tf.zeros([batch_size])
+        train_post_batch = lambda xx, caption: (((xx - mean) / std, caption), fake_label)
+    elif use_token_label:
+        train_pre_batch = lambda data_point: (*train_image_func(data_point['image']), data_point['label'])
+        train_post_batch = lambda xx, token_label, yy: ((xx - mean) / std, tf.one_hot(yy, num_classes), token_label)
+    else:
+        train_pre_batch = lambda data_point: (train_image_func(data_point['image']), data_point['label'])
+        train_post_batch = lambda xx, yy: ((xx - mean) / std, tf.one_hot(yy, num_classes))
+
+    """ Train dataset """
+    train_dataset = dataset["train"]
+    if use_token_label:
+        train_dataset = build_token_label_dataset(train_dataset, token_label_file)
     if use_shuffle:
         train_dataset = train_dataset.shuffle(buffer_size, seed=seed)
-    train_dataset = train_dataset.map(train_pre_batch, num_parallel_calls=AUTOTUNE).batch(batch_size, drop_remainder=is_tpu)
-
-    mean, std = init_mean_std_by_rescale_mode(rescale_mode)
-    if use_token_label:
-        train_post_batch = lambda xx, yy, token_label: ((xx - mean) / std, tf.one_hot(yy, num_classes), token_label)
-    else:
-        train_post_batch = lambda xx, yy: ((xx - mean) / std, tf.one_hot(yy, num_classes))
-    train_dataset = train_dataset.map(train_post_batch, num_parallel_calls=AUTOTUNE)
+    train_dataset = train_dataset.map(train_pre_batch, num_parallel_calls=AUTOTUNE)
+    train_dataset = train_dataset.batch(batch_size, drop_remainder=is_tpu).map(train_post_batch, num_parallel_calls=AUTOTUNE)
     train_dataset = apply_mixup_cutmix(train_dataset, mixup_alpha, cutmix_alpha, switch_prob=0.5)
 
-    if use_token_label:
+    if is_caption:
+        pass  # Just skip others
+    elif use_token_label:
         train_dataset = train_dataset.map(lambda xx, yy, token_label: (xx, (yy, token_label)))
     elif use_distill:
         print(">>>> KLDivergence teacher model provided.")
@@ -491,17 +516,23 @@ def init_dataset(
     test_dataset = dataset.get("validation", dataset.get("test", None))
     if test_dataset is not None:
         # test_pre_batch = lambda xx: evaluation_process_resize_crop(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)  # timm
-        test_pre_batch = lambda xx: evaluation_process_crop_resize(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)
-        test_dataset = test_dataset.map(test_pre_batch, num_parallel_calls=AUTOTUNE)
-        # Have to drop_remainder also for test set...
-        test_dataset = test_dataset.batch(batch_size, drop_remainder=is_tpu)
-        if use_token_label:
+        # test_image_func = lambda xx: evaluation_process_crop_resize(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)
+        test_pre_batch = lambda data_point: (
+            evaluation_process_crop_resize(data_point['image'], input_shape[:2], eval_central_crop, resize_method, resize_antialias),
+            data_point['caption' if is_caption else 'label'],
+        )
+        if is_caption:
+            test_post_batch = lambda xx, caption: (((xx - mean) / std, caption), 0)
+        elif use_token_label:
             test_post_batch = lambda xx, yy: ((xx - mean) / std, (tf.one_hot(yy, num_classes), None))  # just give None on token_label data position
         elif use_distill:
             test_post_batch = lambda xx, yy: ((xx - mean) / std, (tf.one_hot(yy, num_classes), None))
         else:
             test_post_batch = lambda xx, yy: ((xx - mean) / std, tf.one_hot(yy, num_classes))
-        test_dataset = test_dataset.map(test_post_batch)
+
+        test_dataset = test_dataset.map(test_pre_batch, num_parallel_calls=AUTOTUNE)
+        # Have to drop_remainder also for test set...
+        test_dataset = test_dataset.batch(batch_size, drop_remainder=is_tpu).map(test_post_batch)
     return train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
 
 
@@ -509,29 +540,34 @@ def init_dataset(
 
 
 def show_batch_sample(dataset, rescale_mode="tf", rows=-1, base_size=3):
-    from keras_cv_attention_models import visualizing
+    from keras_cv_attention_models import plot_func
     from keras_cv_attention_models.imagenet.eval_func import decode_predictions
 
     if isinstance(dataset, (list, tuple)):
         images, labels = dataset
-    elif isinstance(dataset.element_spec[1], tuple):
+    elif isinstance(dataset.element_spec[0], tuple):  # caption datasets
+        (images, labels), _ = dataset.as_numpy_iterator().next()
+    elif isinstance(dataset.element_spec[1], tuple):  # token_label datasets
         images, (labels, token_label) = dataset.as_numpy_iterator().next()
     else:
         images, labels = dataset.as_numpy_iterator().next()
+
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     mean, std = (mean.numpy(), std.numpy()) if hasattr(mean, "numpy") else (mean, std)
     images = (images * std + mean) / 255
 
-    if tf.shape(labels)[-1] == 1000:
+    if isinstance(labels[0], str):
+        pass  # caption datasets
+    elif tf.shape(labels)[-1] == 1000:
         labels = [ii[0][1] for ii in decode_predictions(labels, top=1)]
     elif tf.rank(labels[0]) == 1:
         labels = tf.argmax(labels, axis=-1).numpy()  # If 2 dimension
-    ax, _ = visualizing.stack_and_plot_images(images, texts=labels, rows=rows, ax=None, base_size=base_size)
+    ax, _ = plot_func.stack_and_plot_images(images, texts=labels, rows=rows, ax=None, base_size=base_size)
     return ax
 
 
 def show_token_label_patches_single(image, token_label, rescale_mode="tf", top_k=3, resize_patch_shape=(160, 160)):
-    from keras_cv_attention_models import visualizing
+    from keras_cv_attention_models import plot_func
 
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     mean, std = (mean.numpy(), std.numpy()) if hasattr(mean, "numpy") else (mean, std)
@@ -553,4 +589,4 @@ def show_token_label_patches_single(image, token_label, rescale_mode="tf", top_k
             scores = ",".join(["{:.1f}".format(ii * 100) for ii in token_label_scores[hh_id, ww_id]])
             classes = ",".join(["{:d}".format(ii) for ii in token_label_classes[hh_id, ww_id].astype("int")])
             labels.append(classes + "\n" + scores)
-    visualizing.stack_and_plot_images(image_pathes, labels)
+    plot_func.stack_and_plot_images(image_pathes, labels)
