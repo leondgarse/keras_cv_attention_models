@@ -41,7 +41,7 @@ def down_sample_matrix_axis_0(dd, target, method="avg"):
         return dd
     rate = int(np.sqrt(dd.shape[0] // target))
     hh = ww = int(np.sqrt(dd.shape[0]))
-    dd = dd.reshape(1, hh, ww, -1)
+    dd = dd[:hh * ww].reshape(1, hh, ww, -1)
     if rate == 0:  # Upsample
         hh = ww = int(np.sqrt(target))
         dd = tf.image.resize(dd, [hh, ww]).numpy()
@@ -57,14 +57,14 @@ def down_sample_matrix_axis_0(dd, target, method="avg"):
 
 def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto", rows=-1, base_size=3):
     import matplotlib.pyplot as plt
+    from keras_cv_attention_models.common_layers import PreprocessInput
 
     if rescale_mode.lower() == "auto":
         rescale_mode = getattr(model, "rescale_mode", "torch")
         print(">>>> rescale_mode:", rescale_mode)
 
     if isinstance(model, tf.keras.models.Model):
-        imm_inputs = tf.keras.applications.imagenet_utils.preprocess_input(image, mode=rescale_mode)
-        imm_inputs = tf.expand_dims(tf.image.resize(imm_inputs, model.input_shape[1:3]), 0)
+        imm_inputs = PreprocessInput(input_shape=model.input_shape[1:3], rescale_mode=rescale_mode)(image)
         try:
             pred = model(imm_inputs).numpy()
             if model.layers[-1].activation.__name__ != "softmax":
@@ -72,13 +72,15 @@ def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto
             print(">>>> Prediction:", tf.keras.applications.imagenet_utils.decode_predictions(pred)[0])
         except:
             pass
-        bb = tf.keras.models.Model(model.inputs[0], [ii.output for ii in model.layers if ii.name.endswith("attention_scores")])
+        outputs = [ii.output for ii in model.layers if ii.name.endswith("attention_scores") and "channel_attn_attention_scores" not in ii.name]
+        bb = tf.keras.models.Model(model.inputs[0], outputs)
         attn_scores = bb(imm_inputs)
         layer_name_title = "\nLayer name: {} --> {}".format(bb.output_names[-1], bb.output_names[0])
     else:
         attn_scores = model
         layer_name_title = ""
         assert attn_type != "auto"
+    print(">>>> attn_scores:", {name: out.shape.as_list() for name, out in zip(bb.output_names, attn_scores)})
 
     attn_type = attn_type.lower()
     check_type_is = lambda tt: (tt in model.name.lower()) if attn_type == "auto" else (attn_type.startswith(tt))
@@ -89,23 +91,24 @@ def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto
         mask = [(ii / ii.sum()) for ii in mask]
         cum_mask = [matmul_prod(mask[: ii + 1])[0] for ii in range(len(mask))]
         mask = [ii[0] for ii in mask]
-    elif check_type_is("levit"):
-        # levit attn_score [batch, num_heads, q_blocks, k_blocks]
-        print(">>>> Attention type: levit")
-        mask = [np.array(ii)[0].mean(0) for ii in attn_scores][::-1]
-        cum_mask = [matmul_prod(mask[: ii + 1]).mean(0) for ii in range(len(mask))]
-        mask = [ii.mean(0) for ii in mask]
-    elif check_type_is("bot"):
+    elif check_type_is("mobilevit_v2"):
+        # mobilevit_v2 attn_score [batch, patch_size * patch_size, patch_hh * patch_ww, 1]
+        print(">>>> Attention type: mobilevit_v2")
+        mask = [np.array(ii)[0].mean((0)) for ii in attn_scores if len(ii.shape) == 4][::-1]
+        cum_mask = [down_sample_matrix_axis_0(mask[ii], mask[-1].shape[0]) for ii in range(len(mask) - 1)] + [mask[-1]]
+        cum_mask = [np.prod(np.stack(cum_mask[: ii + 1]), axis=0).mean(-1) for ii in range(len(cum_mask))]
+        mask = [ii.mean(-1) for ii in mask]
+    elif check_type_is("bot") or check_type_is("cmt") or check_type_is("mobilevit"):
         # bot attn_score [batch, num_heads, hh * ww, hh * ww]
-        print(">>>> Attention type: bot")
+        print(">>>> Attention type: bot / cmt / mobilevit")
         mask = [np.array(ii)[0].mean((0)) for ii in attn_scores if len(ii.shape) == 4][::-1]
         mask = [clip_max_value_matrix(ii) for ii in mask]  # Or it will be too dark.
         cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], "avg") for ii in range(1, len(mask))]
         cum_mask = [matmul_prod(cum_mask[: ii + 1]).mean(0) for ii in range(len(cum_mask))]
         mask = [ii.mean(0) for ii in mask]
-    elif check_type_is("coatnet") or check_type_is("cmt") or check_type_is("uniformer") or check_type_is("swin"):
-        # bot attn_score [batch, num_heads, hh * ww, hh * ww]
-        print(">>>> Attention type: coatnet / cmt / uniformer / swin")
+    elif check_type_is("coatnet") or check_type_is("uniformer") or check_type_is("swin") or check_type_is("davit"):
+        # coatnet attn_score [batch, num_heads, hh * ww, hh * ww]
+        print(">>>> Attention type: coatnet / uniformer / swin / davit")
         mask = [np.array(ii)[0].mean((0)) for ii in attn_scores if len(ii.shape) == 4][::-1]
         downsample_method = "swin" if check_type_is("swin") else "max"
         cum_mask = [mask[0]] + [down_sample_matrix_axis_0(mask[ii], mask[ii - 1].shape[1], downsample_method) for ii in range(1, len(mask))]
@@ -120,6 +123,12 @@ def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto
         cum_mask = [down_sample_matrix_axis_0(mask[ii], target_shape, "max") for ii in range(len(mask))]
         cum_mask = [ii[:, 0] for ii in cum_mask]
         mask = [ii[:, 0] for ii in mask]
+    elif check_type_is("levit"):
+        # levit attn_score [batch, num_heads, q_blocks, k_blocks]
+        print(">>>> Attention type: levit")
+        mask = [np.array(ii)[0].mean(0) for ii in attn_scores][::-1]
+        cum_mask = [matmul_prod(mask[: ii + 1]).mean(0) for ii in range(len(mask))]
+        mask = [ii.mean(0) for ii in mask]
     elif check_type_is("halo"):
         # halo attn_score [batch, num_heads, hh, ww, query_block * query_block, kv_kernel * kv_kernel]
         print(">>>> Attention type: halo")
