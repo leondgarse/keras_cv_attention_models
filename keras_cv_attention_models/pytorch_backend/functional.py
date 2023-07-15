@@ -5,6 +5,7 @@ from functools import partial
 from keras_cv_attention_models.pytorch_backend.layers import (
     _ZeroPadding,
     _ResizeDynamic,
+    _GatherND,
     Add,
     Concatenate,
     GraphNode,
@@ -14,8 +15,11 @@ from keras_cv_attention_models.pytorch_backend.layers import (
 )
 
 
-def wrapper(func, inputs, name=None):
-    return Lambda(func, name=name)(inputs) if isinstance(inputs, GraphNode) or (isinstance(inputs, list) and isinstance(inputs[0], GraphNode)) else func(inputs)
+def wrapper(func, inputs, output_shape=None, name=None):
+    if isinstance(inputs, GraphNode) or (isinstance(inputs, list) and isinstance(inputs[0], GraphNode)):
+        return Lambda(func, output_shape=output_shape, name=name)(inputs)
+    else:
+        return func(inputs)
 
 
 def abs(inputs, name=None):
@@ -23,7 +27,9 @@ def abs(inputs, name=None):
 
 
 def argmax(inputs, axis=None, output_type="int64", name=None):
-    return wrapper(partial(torch.argmax, dim=axis), inputs, name=name)
+    axis = 0 if axis is None else (len(inputs.shape) + axis if axis < 0 else axis)
+    output_shape = [ii for id, ii in enumerate(inputs.shape) if id != axis]
+    return wrapper(partial(torch.argmax, dim=axis), inputs, output_shape=output_shape, name=name)
 
 
 def assign(parameter, data):
@@ -123,7 +129,10 @@ def gather_nd(inputs, indices, batch_dims=0, name=None):
     # """Defaults axis=None means the first non-batch dimension"""
     # return inputs[indices.tolist()]  # .contiguous()
     # print(indices.shape[0])
-    return inputs[indices.T.tolist()] if indices.shape[0] > 1 else inputs[tuple(indices[0].tolist())]  # .contiguous()
+    if isinstance(inputs, GraphNode) or isinstance(indices, GraphNode):
+        return _GatherND(batch_dims=batch_dims, name=name)([inputs, indices])
+    else:
+        return inputs[indices.T.tolist()] if len(indices.shape) > 1 else inputs[tuple(indices.tolist())]  # .contiguous()
 
 
 def gelu(inputs, approximate=False, name=None):
@@ -208,7 +217,11 @@ def pow(inputs, exponent, name=None):
 def range(start, limit=None, delta=1, dtype=None, name="range"):
     if limit is None:
         start, limit = 0, start
-    return torch.arange(start=start, end=limit, step=delta, dtype=dtype and getattr(torch, dtype))
+    dtype = dtype and (getattr(torch, dtype) if isinstance(dtype, str) else dtype)
+    if isinstance(limit, Shape) and (None in limit or -1 in limit):
+        return wrapper(lambda limit: torch.arange(start=start, end=limit, step=delta, dtype=dtype), limit, output_shape=[None], name=name)
+    else:
+        return torch.arange(start=start, end=limit, step=delta, dtype=dtype)
 
 
 def reduce_max(inputs, axis=None, keepdims=False, name=None):

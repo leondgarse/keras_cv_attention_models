@@ -76,6 +76,7 @@ class GraphNode:
         self.name = "graphnode_{}".format(self.num_instances) if name is None else name
         self.pre_nodes, self.pre_node_names, self.next_nodes, self.next_node_names = [], [], [], []
         self.module = lambda xx: xx
+        self.dtype = torch.get_default_dtype()
         self.__count__()
 
     def __repr__(self):
@@ -194,16 +195,16 @@ class Shape(GraphNode):
         return self.input_node.shape[self.index_expr]
 
     def __value__(self):
-        return [-1 if ii is None else ii for ii in self.input_node.shape[self.index_expr]] if self.is_slice else self.input_node.shape[self.index_expr]
+        return [-1 if ii is None else ii for ii in self.input_node.shape[self.index_expr]] if self.is_slice else (self.input_node.shape[self.index_expr], )
 
     def __len__(self):
-        return len(self.__value__()) if self.is_slice else 1
+        return len(self.__value__())  # if self.is_slice else 1
 
     def __int__(self):
-        return int(self.__value__())
+        return int(self.__value__()[0])
 
     def __iter__(self):
-        return (ii for ii in self.__value__())
+        return (ii for ii in self.__value__())   # if self.is_slice else (self.__value__(),)
 
     def __repr__(self):
         return str(self.__value__())
@@ -345,8 +346,9 @@ class Layer(nn.Module):
 
 
 class Lambda(Layer):
-    def __init__(self, func, **kwargs):
+    def __init__(self, func, output_shape=None, **kwargs):
         self.module = func
+        self.__output_shape__ = output_shape
         super().__init__(**kwargs)
 
     def build(self, input_shape: torch.Size):
@@ -355,10 +357,13 @@ class Lambda(Layer):
 
     def get_config(self):
         config = super().get_config()
-        config.update({"func": self.module})
+        config.update({"func": self.module, "output_shape": self.__output_shape__})
         return config
 
     def compute_output_shape(self, input_shape):
+        if self.__output_shape__ is not None:
+            return self.__output_shape__
+
         # print(self.module, input_shape)
         input_shapes = [input_shape] if isinstance(input_shape[0], int) or input_shape[0] is None else input_shape
         # print(input_shapes)
@@ -1167,6 +1172,53 @@ class SeparableConv2D(Conv):
 
 
 """ Layers with no weights """
+
+
+
+class _GatherND(Layer):
+    """Works like `tf.gather_nd`
+    Resize supporting dynamic size.
+    >>> import torch
+    >>> from keras_cv_attention_models.pytorch_backend import layers
+    >>> print(layers._GatherND(batch_dims=0)([layers.Input([3, 4]), torch.arange(2)[:, None]]).shape)
+    >>> # [2, 3, 4]
+    >>> aa = torch.arange(12).reshape([3, 4, 1])
+    >>> print(layers._GatherND(batch_dims=1)([aa, torch.arange(3)[:, None]]).shape)
+    >>> # torch.Size([3, 1])
+    """
+
+    def __init__(self, batch_dims=0, **kwargs):
+        self.batch_dims = batch_dims
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        assert len(input_shape) == 2, "Input should be in format [inputs, indices]"
+        input_shape, indices_shape = input_shape[0], input_shape[1]
+
+        if len(indices_shape) > 1:
+            assert len(input_shape) >= self.batch_dims + indices_shape[-1], f"Provided input_shape={input_shape} length should be larger than indices_shape[-1]={indices_shape[-1]} + batch_dims={self.batch_dims}"
+        if self.batch_dims > 0:
+            assert self.batch_dims < len(indices_shape), f"Argument `batch_dims` = {self.batch_dims} must be less than rank(`indices`) = {len(indices_shape)}"
+
+        if len(indices_shape) > 1 and self.batch_dims > 0:
+            self.module = lambda inputs: inputs[0][[torch.arange(inputs[0].shape[ii]) for ii in range(self.batch_dims)] + inputs[1].T.tolist()]
+            self.gathered_indices = list(range(self.batch_dims, self.batch_dims + indices_shape[-1]))
+        elif len(indices_shape) > 1:
+            self.module = lambda inputs: inputs[0][inputs[1].T.tolist()]
+            self.gathered_indices = list(range(indices_shape[-1]))
+        else:  # Gather on batch dimension
+            self.module = lambda inputs: inputs[0][tuple(inputs[1].tolist())]  # .contiguous()
+            self.gathered_indices = [0]
+        super().build(input_shape)
+
+    def compute_output_shape(self, input_shape):
+        batch_dimension = input_shape[1][0] if 0 in self.gathered_indices else None
+        return [batch_dimension] + [ii for id, ii in enumerate(input_shape[0][1:], start=1) if id not in self.gathered_indices]
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"batch_dims": self.batch_dims})
+        return config
 
 
 class _DropPath(nn.Module):
