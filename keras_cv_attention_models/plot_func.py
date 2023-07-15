@@ -131,6 +131,31 @@ def show_image_with_bboxes(
 
 
 def tensorboard_parallel_coordinates_plot(dataframe, metrics_name, metrics_display_name=None, skip_columns=[], log_dir="logs/hparam_tuning"):
+    """
+    Simmilar results with: [Visualize the results in TensorBoard's HParams plugin](https://www.tensorflow.org/tensorboard/hyperparameter_tuning_with_hparams#4_visualize_the_results_in_tensorboards_hparams_plugin).
+
+    Wrapped function just plotting ignoring training in the tutorial.
+    The logic is using `metrics_name` specified key as metrics, using other columns as `HParams`.
+    For any other detail, refer original tutorial.
+
+    Example:
+    >>> import pandas as pd
+    >>> aotnet50_imagnet_results = {
+    >>>     "optimizer": ["lamb", "lamb", "adamw", "adamw", "adamw"],
+    >>>     "rescale_mode": ["torch", "tf", "torch", "torch", "torch"],
+    >>>     "lr_base": [8e-3, 8e-3, 4e-3, 4e-3, 8e-3],
+    >>>     "weight_decay": [0.05, 0.05, 0.05, 0.02, 0.02],
+    >>>     "accuracy": [78.48, 78.31, 77.92, 78.06, 78.27],
+    >>> }
+    >>> aa = pd.DataFrame(aotnet50_imagnet_results)
+
+    >>> from keras_cv_attention_models import plot_func
+    >>> plot_func.tensorboard_parallel_coordinates_plot(aa, 'accuracy', log_dir="logs/aotnet50_imagnet_results")
+    >>> # >>>> Start tensorboard by: ! tensorboard --logdir logs/aotnet50_imagnet_results
+    >>> # >>>> Then select `HPARAMS` -> `PARALLEL COORDINATES VIEW`
+
+    >>> ! tensorboard --logdir logs/aotnet50_imagnet_results
+    """
     import os
     import pandas as pd
     import tensorflow as tf
@@ -178,21 +203,42 @@ def plot_model_summary(
 ):
     """
     Args:
-      x_label: string value from column name in `model_table`, x axis values.
-      y_label: string value from column name in `model_table`, y axis values.
-      model_table: a csv file path or loaded pands dataframe.
-      allow_extras: list value for allowing plotting data with extra pretrained. Default Noen for plotting imagenet pretrained only.
+      plot_series: list value for filtering itmes by model_table "series" column.
+      x_label: string value from column names in `model_table`, x axis values.
+      y_label: string value from column names in `model_table`, y axis values.
+      model_table: a csv file path or loaded pandas DataFrame.
+          If DataFrame, columns ["series", "model"] and [x_label, y_label] are required.
+          "series" means which model series this model belongs to, and "model" is the actual model name.
+      allow_extras: list value for allowing plotting data with extra pretrained.
+          Default None for plotting imagenet without any extra pretrained only.
+          Special string value "all" for allowing all extras.
       log_scale_x: boolean value if setting x scale in log distribution.
-      ax: plotting on specific matplotlib ax. Default None for creating new figure.
+      ax: plotting on specific matplotlib ax. Default None for creating a new figure.
 
     Example
     >>> from keras_cv_attention_models import plot_func
-    >>> plot_series = ["efficientvit_b", "efficientvit_m", "efficientnet", "efficientnetv2"]
+    >>> plot_series = ["convnextv2", "efficientnetv2", "efficientvit_b", "fasternet", "fastervit"]
     >>> plot_func.plot_model_summary(plot_series, x_label='inference_qps', model_table="model_summary.csv", allow_extras=None)
+    >>> plt.savefig('foo.png', dpi=150)  # Save if needed, with dpi speficified
+
+    # Using custom DataFrame
+    >>> from keras_cv_attention_models import plot_func
+    >>> dd = pd.DataFrame({
+    >>>     "series": ['Res', 'Res', 'Res', 'Res', 'Trans', 'Trans', 'Trans', 'cc'],
+    >>>     'model': ['res50', 'res101', 'res201', 'aa4', 'trans_tiny', 'trans_small', 'trans_big', 'cc1'],
+    >>>     'test_key': [0.2, 0.3, 0.5, 0.55, 0.1, 0.3, 0.4, 0.2],
+    >>>     'valuable': [0.8, 0.92, 0.93, 0.96, 0.71, 0.74, 0.85, 0.98],
+    >>> })
+    >>> plot_func.plot_model_summary(plot_series=['Res', 'trans'], x_label='test_key', y_label='valuable', model_table=dd)
     """
+    import matplotlib
     import matplotlib.pyplot as plt
 
-    markers = ["o", "v", "^", "<", ">", "1", "2", "3", "4", "8", "s", "p", "*", "h", "H", "+", "x", "X", "D", "d"]
+    # ('o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'h', 'H', 'D', 'd', 'P', 'X'), excluded ["1", "2", "3", "4", "+", "x", '.', ',', '|', '_']
+    markers = matplotlib.markers.MarkerStyle.filled_markers
+    fontsize = 9
+    pre_x_labelsize, pre_y_labelsize = matplotlib.rcParams["xtick.labelsize"], matplotlib.rcParams["ytick.labelsize"]
+    matplotlib.rcParams["xtick.labelsize"], matplotlib.rcParams["ytick.labelsize"] = fontsize, fontsize
 
     if isinstance(model_table, str):
         import pandas as pd
@@ -207,44 +253,51 @@ def plot_model_summary(
     if ax is None:
         fig, ax = plt.subplots()
 
+    has_extra = 'extra' in dd.columns
     plot_series = None if plot_series is None else [ii.lower() for ii in plot_series]
     gather_extras = []
     allow_extras = [] if allow_extras is None else allow_extras
-    min_value_x, max_value_x = 1e9, 0
+    marker_id = 0
     for name, group in dd.groupby(dd["series"]):
         if plot_series is not None and name.lower() not in plot_series:
             continue
 
-        gather_extras.extend(group["extra"].values)
-        extra_condition = group["extra"].isnull()
-        if allow_extras:
-            extra_condition = np.logical_or(extra_condition, [ii in allow_extras for ii in group["extra"]])
-        group = group[extra_condition]
+        if has_extra and allow_extras != "all":
+            gather_extras.extend(group["extra"].values)
+            extra_condition = group["extra"].isnull()
+            if allow_extras:
+                extra_condition = np.logical_or(extra_condition, [ii in allow_extras for ii in group["extra"]])
+            group = group[extra_condition]
         xx = group[x_label].values
         yy = group[y_label].values
-        plt.scatter(xx, yy, label=name, marker=markers[0])
-        plt.plot(xx, yy)
+        if len(xx) == 0 or len(yy) == 0:
+            print("Empty or all filtered for series", name)
+            continue
+
+        ax.plot(xx, yy)
+        ax.scatter(xx, yy, label=name, marker=markers[marker_id])
+        marker_id += 1
         for _, cur in group.iterrows():
             # print(cur)
-            extra = "" if str(cur["extra"]) == "nan" else ("," + cur["extra"])
-            text = cur["model"][len(name) :] + extra
-            plt.text(cur[x_label], cur[y_label], text[1:] if text.startswith("_") else text, fontsize=9)
-        min_value_x = min(xx.min(), min_value_x)
-        max_value_x = max(xx.max(), max_value_x)
-        markers = markers[1:] + markers[:1]  # Roll markers
+            text = cur["model"][len(name) :]
+            if has_extra and str(cur["extra"]) != "nan":
+                text += "," + cur["extra"]
+            ax.text(cur[x_label], cur[y_label], text[1:] if text.startswith("_") else text, fontsize=fontsize)
     if log_scale_x:
+        ax.set_xscale("log")
+        min_value_x, max_value_x = ax.get_xlim()
         # print(f"{min_value_x = }, {max_value_x = }")
-        plt.xscale("log")
-        min_value_x_log, max_value_x_log = np.log(min_value_x) / np.log(10), np.log(max_value_x) / np.log(10)
+        min_value_x_log, max_value_x_log = np.log(max(min_value_x, 1e-3)) / np.log(10), np.log(max_value_x) / np.log(10)
         ticks = [10**ii for ii in np.arange(min_value_x_log, max_value_x_log, (max_value_x_log - min_value_x_log) / 10)]
-        plt.xticks(ticks, labels=["{:.2f}".format(ii) for ii in ticks])
+        ax.set_xticks(ticks, labels=["{:.3f}".format(ii) for ii in ticks], fontsize=fontsize)
 
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
-    plt.legend()
-    plt.grid(True)
+    ax.set_xlabel(x_label + " (log distribution)" if log_scale_x else "", fontsize=fontsize + 1)
+    ax.set_ylabel(y_label, fontsize=fontsize + 1)
+    ax.legend(fontsize=fontsize)
+    ax.grid(True)
+    matplotlib.rcParams["xtick.labelsize"], matplotlib.rcParams["ytick.labelsize"] = pre_x_labelsize, pre_y_labelsize
+
     plt.tight_layout()
-
     plt.show()
     other_extras = [ii for ii in set(gather_extras) - set(allow_extras) if isinstance(ii, str)]
     if len(other_extras) > 0:
