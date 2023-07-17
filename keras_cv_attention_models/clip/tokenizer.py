@@ -7,24 +7,23 @@ import os
 
 import html
 from functools import lru_cache
-from typing import Union, List
 
 import ftfy
 import regex as re
 import numpy as np
 
-# https://stackoverflow.com/q/62691279
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-DEFAULT_SOT = "<|start_of_text|>"
-DEFAULT_EOT = "<|end_of_text|>"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"  # https://stackoverflow.com/q/62691279
+
+DEFAULT_SOT = "<|startoftext|>"
+DEFAULT_EOT = "<|endoftext|>"
 
 # optional keys: {"limit_vocab_size": None, "sot": DEFAULT_SOT, "eot": DEFAULT_EOT}
 BUILDIN_TOKENIZERS = {
     # [???] limit_vocab_size = 49152-256-2 == 48894 for original bpe vocab, why this number?
-    "bpe": {"path": "bpe_simple_vocab_16e6.txt", "file_hash": "f83f3e2479df59e7cd1597baa03f34c8", "limit_vocab_size": 48894},
+    "clip": {"path": "bpe_simple_vocab_16e6.txt", "file_hash": "f83f3e2479df59e7cd1597baa03f34c8", "limit_vocab_size": 48894},
     # "<|start_of_text|>" not exists in original gpt vocab, using sot == eot here
-    "gpt2": {"path": "gpt2_tokenizer.txt", "file_hash": "150fdad3c88ee8f9607ac1808ad2d321", "sot": "<|end_of_text|>", "eot": "<|end_of_text|>"},
+    "gpt2": {"path": "gpt2_tokenizer.txt", "file_hash": "150fdad3c88ee8f9607ac1808ad2d321", "sot": DEFAULT_EOT, "eot": DEFAULT_EOT},
 }
 
 
@@ -39,6 +38,7 @@ def bytes_to_unicode():
     To avoid that, we want lookup tables between utf-8 bytes and unicode strings.
     And avoids mapping to whitespace/control characters the bpe code barfs on.
     """
+    # Without [0, 32], [127, 160]
     bs = list(range(ord("!"), ord("~")+1))+list(range(ord("¡"), ord("¬")+1))+list(range(ord("®"), ord("ÿ")+1))
     cs = bs[:]
     n = 0
@@ -89,7 +89,7 @@ class Tokenizer(object):
         self.vocab_size = len(vocab)
 
         self.all_special_ids = [self.encoder[t] for t in special_tokens]
-        self.sot_token_id, self.eot_token_id = self.encoder[self.sot], self.encoder[self.eot]
+        self.sot_token, self.eot_token = self.encoder[self.sot], self.encoder[self.eot]
         self.context_length = context_length
 
     def _init_byte_vacab_(self):
@@ -185,7 +185,8 @@ class Tokenizer(object):
     def __call__(self, inputs):
         if isinstance(inputs, str) or isinstance(inputs, bytes):
             inputs = inputs.decode() if hasattr(inputs, "decode") else inputs
-            tokens = [self.sot_token_id] + self.encode(inputs)[:self.context_length - 2] + [self.eot_token_id]
+            tokens = [self.sot_token] + self.encode(inputs)[:self.context_length - 2] + [self.eot_token]
+            # print(f"{tokens = }")
             return np.pad(tokens, [0, self.context_length - len(tokens)])
         else:
             inputs = inputs.detach() if hasattr(inputs, "detach") else inputs
@@ -193,12 +194,15 @@ class Tokenizer(object):
             inputs = inputs.numpy() if hasattr(inputs, "numpy") else inputs
 
             inputs = list(inputs)
-            start = 1 if inputs[0] == self.sot_token_id else 0
-            end = inputs.index(self.eot_token_id) if self.eot_token_id in inputs else None
-            return self.decode(inputs[start:end])
+            inputs = inputs[1 if inputs[0] == self.sot_token else 0:]
+            inputs = inputs[:inputs.index(self.eot_token) if self.eot_token in inputs else None]
+            return self.decode(inputs)
 
 
 class GPT2Tokenizer(Tokenizer):
+    def __init__(self, name_or_path="gpt2", special_tokens=None, limit_vocab_size="auto", context_length=77):
+        super().__init__(name_or_path, special_tokens, limit_vocab_size, context_length)
+
     def _init_byte_vacab_(self):
         return list(self.byte_encoder.values())
 
@@ -214,11 +218,35 @@ class GPT2Tokenizer(Tokenizer):
         return bpe_tokens
 
 
+class TikToken(Tokenizer):
+    """OpenAI  tiktoken wrapper"""
+    def __init__(self, encoding_name='gpt2', context_length=77):
+        import tiktoken
+
+        if encoding_name not in tiktoken.list_encoding_names():
+            raise ValueError("[Error] encoding_name should be one of {}".format(tiktoken.list_encoding_names()))
+
+        self.tokenizer = tiktoken.get_encoding(encoding_name)
+        self.sot = self.eot = "<|endoftext|>"
+        self.sot_token = self.eot_token = self.tokenizer.encode(self.eot, allowed_special={self.eot})[0]
+        self.vocab_size = self.tokenizer.n_vocab
+        self.name = self.encoding_name = encoding_name
+
+        self.context_length = context_length
+
+    def encode(self, text):
+        text = whitespace_clean(basic_clean(text)).lower()
+        return self.tokenizer.encode(text)
+
+    def decode(self, tokens):
+        return self.tokenizer.decode(tokens)
+
+
 class HuggingFaceTokenizer:
     """HuggingFace tokenizer wrapper"""
-
     def __init__(self, tokenizer_name: str):
         from transformers import AutoTokenizer
+
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 
         self.context_length = 77
@@ -226,7 +254,7 @@ class HuggingFaceTokenizer:
     def save_pretrained(self, dest):
         self.tokenizer.save_pretrained(dest)
 
-    def __call__(self, texts: Union[str, List[str]], context_length: int = 77):
+    def __call__(self, texts, context_length: int = 77):
         # same cleaning as for default tokenizer, except lowercasing
         # adding lower (for case-sensitive tokenizers) will make it more robust but less sensitive to nuance
         if isinstance(texts, str):
