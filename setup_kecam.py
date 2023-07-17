@@ -45,7 +45,7 @@ setup(
     keywords="tensorflow keras cv attention pretrained models kecam",
     packages=find_packages(exclude=["tests"]) + ["keras_cv_attention_models.pytorch_backend"],
     include_package_data=True,
-    install_requires=["h5py", "pillow", "tqdm", "ftfy"],  # ftfy required for language models
+    install_requires=["h5py", "pillow", "tqdm", "ftfy", "regex"],  # ftfy and regex required for language models
     python_requires=">=3.6",
     license="Apache 2.0",
 )
