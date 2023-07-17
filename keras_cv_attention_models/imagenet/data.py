@@ -345,7 +345,7 @@ def recognition_dataset_from_custom_json(data_path, with_info=False, caption_tok
         aa = json.load(ff)
 
     test_key = "validation" if "validation" in aa else "test"
-    train, test, info = aa["train"], aa[test_key], aa["info"]
+    train, test, info = aa["train"], aa[test_key], aa.get("info", {})
     total_images, num_classes = len(train), info.get("num_classes", 0)
 
     if "base_path" in info:
@@ -444,6 +444,7 @@ def init_dataset(
 
     # print(">>>> Dataset args:", locals())
     is_tpu = True if len(tf.config.list_logical_devices("TPU")) > 0 else False  # Set True for try_gcs and drop_remainder
+    try_gcs, drop_remainder = is_tpu, is_tpu
     use_token_label = False if token_label_file is None else True
     use_distill = False if teacher_model is None else True
     teacher_model_input_shape = input_shape if teacher_model_input_shape == -1 else teacher_model_input_shape
@@ -452,7 +453,7 @@ def init_dataset(
     if data_name.endswith(".json"):
         dataset, total_images, num_classes, num_channels = recognition_dataset_from_custom_json(data_name, with_info=True, caption_tokenizer=caption_tokenizer)
     else:
-        dataset, info = tfds.load(data_name, with_info=True, try_gcs=is_tpu)
+        dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)
         num_classes = 0 if is_caption else info.features["label"].num_classes
         num_channels = info.features["image"].shape[-1]
         total_images = info.splits["train"].num_examples
@@ -482,8 +483,9 @@ def init_dataset(
 
     if is_caption:
         train_pre_batch = lambda data_point: (train_image_func(data_point['image']), data_point['caption'])
-        fake_label = tf.zeros([batch_size])
-        train_post_batch = lambda xx, caption: (((xx - mean) / std, caption), fake_label)
+        y_true = tf.range(batch_size)
+        train_post_batch = lambda xx, caption: (((xx - mean) / std, caption), y_true)
+        drop_remainder = True  # Also set drop_remainder for using fixed y_true
     elif use_token_label:
         train_pre_batch = lambda data_point: (*train_image_func(data_point['image']), data_point['label'])
         train_post_batch = lambda xx, token_label, yy: ((xx - mean) / std, tf.one_hot(yy, num_classes), token_label)
@@ -498,7 +500,7 @@ def init_dataset(
     if use_shuffle:
         train_dataset = train_dataset.shuffle(buffer_size, seed=seed)
     train_dataset = train_dataset.map(train_pre_batch, num_parallel_calls=AUTOTUNE)
-    train_dataset = train_dataset.batch(batch_size, drop_remainder=is_tpu).map(train_post_batch, num_parallel_calls=AUTOTUNE)
+    train_dataset = train_dataset.batch(batch_size, drop_remainder=drop_remainder).map(train_post_batch, num_parallel_calls=AUTOTUNE)
     train_dataset = apply_mixup_cutmix(train_dataset, mixup_alpha, cutmix_alpha, switch_prob=0.5)
 
     if is_caption:
@@ -532,7 +534,7 @@ def init_dataset(
 
         test_dataset = test_dataset.map(test_pre_batch, num_parallel_calls=AUTOTUNE)
         # Have to drop_remainder also for test set...
-        test_dataset = test_dataset.batch(batch_size, drop_remainder=is_tpu).map(test_post_batch)
+        test_dataset = test_dataset.batch(batch_size, drop_remainder=drop_remainder).map(test_post_batch)
     return train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
 
 

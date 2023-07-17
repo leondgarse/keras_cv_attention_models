@@ -47,6 +47,7 @@ setup(
     include_package_data=True,
     install_requires=[
         "pillow",
+        "ftfy",  # ftfy required for language models
         # "tensorflow-macos;platform_system=='Darwin'",  # [???]
         "tensorflow;platform_system!='Darwin'",
         # "tensorflow-addons;platform_machine!='aarch64' and platform_machine!='aarch32'",  # [deprecated]

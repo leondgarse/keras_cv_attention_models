@@ -8,7 +8,7 @@ import os
 import html
 from functools import lru_cache
 
-import ftfy
+import ftfy  # fixes text for you
 import regex as re
 import numpy as np
 
@@ -18,43 +18,13 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"  # https://stackoverflow.com/q/62
 DEFAULT_SOT = "<|startoftext|>"
 DEFAULT_EOT = "<|endoftext|>"
 
-# optional keys: {"limit_vocab_size": None, "sot": DEFAULT_SOT, "eot": DEFAULT_EOT}
+# optional keys: {"limit_vocab_size": None, "sot": DEFAULT_SOT, "eot": DEFAULT_EOT, "is_space_first": False}
 BUILDIN_TOKENIZERS = {
     # [???] limit_vocab_size = 49152-256-2 == 48894 for original bpe vocab, why this number?
     "clip": {"path": "bpe_simple_vocab_16e6.txt", "file_hash": "f83f3e2479df59e7cd1597baa03f34c8", "limit_vocab_size": 48894},
     # "<|start_of_text|>" not exists in original gpt vocab, using sot == eot here
-    "gpt2": {"path": "gpt2_tokenizer.txt", "file_hash": "150fdad3c88ee8f9607ac1808ad2d321", "sot": DEFAULT_EOT, "eot": DEFAULT_EOT},
+    "gpt2": {"path": "gpt2_tokenizer.txt", "file_hash": "150fdad3c88ee8f9607ac1808ad2d321", "sot": DEFAULT_EOT, "eot": DEFAULT_EOT, "is_space_first": True},
 }
-
-
-@lru_cache()
-def bytes_to_unicode():
-    """
-    Returns list of utf-8 byte and a corresponding list of unicode strings.
-    The reversible bpe codes work on unicode strings.
-    This means you need a large # of unicode characters in your vocab if you want to avoid UNKs.
-    When you're at something like a 10B token dataset you end up needing around 5K for decent coverage.
-    This is a significant percentage of your normal, say, 32K bpe vocab.
-    To avoid that, we want lookup tables between utf-8 bytes and unicode strings.
-    And avoids mapping to whitespace/control characters the bpe code barfs on.
-    """
-    # Without [0, 32], [127, 160]
-    bs = list(range(ord("!"), ord("~")+1))+list(range(ord("¡"), ord("¬")+1))+list(range(ord("®"), ord("ÿ")+1))
-    cs = bs[:]
-    n = 0
-    for b in range(2**8):
-        if b not in bs:
-            bs.append(b)
-            cs.append(2**8+n)
-            n += 1
-    cs = [chr(n) for n in cs]
-    return dict(zip(bs, cs))
-
-
-def get_pairs(word):
-    """Return set of symbol pairs in a word. get_pairs('hello') -> {('e', 'l'), ('h', 'e'), ('l', 'l'), ('l', 'o')}"""
-    return set([(pre, cur) for pre, cur in zip(word[:-1], word[1:])])
-
 
 def basic_clean(text):
     text = ftfy.fix_text(text)
@@ -66,13 +36,13 @@ def whitespace_clean(text):
     return re.sub(r'\s+', ' ', text).strip()
 
 
-class Tokenizer(object):
+class SimpleTokenizer(object):
     def __init__(self, name_or_path="clip", special_tokens=None, limit_vocab_size="auto", context_length=77):
-        self.byte_encoder = bytes_to_unicode()
+        self.byte_encoder = self.bytes_to_unicode()
         self.byte_decoder = {vv: kk for kk, vv in self.byte_encoder.items()}
         byte_vocab = self._init_byte_vacab_()  # Different from gpt2 and clip
 
-        tokens, self.sot, self.eot = self._init_tokenizer_from_file_(name_or_path, limit_vocab_size)
+        tokens, self.sot, self.eot, self.is_space_first = self._init_tokenizer_from_file_(name_or_path, limit_vocab_size)
         tokens_split = [ii.split() for ii in tokens if len(ii) != 0]  # exclude empty one from gpt2
         self.bpe_ranks = {tuple(ii): id for id, ii in enumerate(tokens_split)}
         token_vocab = [''.join(ii) for ii in tokens_split]
@@ -101,17 +71,18 @@ class Tokenizer(object):
             from keras_cv_attention_models.backend import get_file
 
             config = BUILDIN_TOKENIZERS[name_or_path]
-            path, file_hash, sot, eot = config["path"], config["file_hash"], config.get("sot", DEFAULT_SOT), config.get("eot", DEFAULT_EOT)
+            path, file_hash = config["path"], config["file_hash"]
+            sot, eot, is_space_first = config.get("sot", DEFAULT_SOT), config.get("eot", DEFAULT_EOT), config.get("is_space_first", False)
             limit_vocab_size = config.get("limit_vocab_size", None) if limit_vocab_size == "auto" else limit_vocab_size
 
             url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/{}".format(path)
             tokenizer_file = os.path.join(os.path.expanduser("~/.keras/datasets"), path)
-            print(">>>> Trying to tokenizer file:", tokenizer_file)
+            print(">>>> Load tokenizer from file:", tokenizer_file)
             tokenizer_file = get_file(origin=url, file_hash=file_hash)
         else:
             tokenizer_file = name_or_path
             limit_vocab_size = None if limit_vocab_size == "auto" else limit_vocab_size
-            sot, eot = DEFAULT_SOT, DEFAULT_EOT
+            sot, eot, is_space_first = DEFAULT_SOT, DEFAULT_EOT, False
 
         if tokenizer_file.endswith(".gz") or tokenizer_file.endswith(".zip"):
             import gzip
@@ -123,23 +94,51 @@ class Tokenizer(object):
                 tokens = ff.read().split("\n")[1:]  # exclude first line
         if limit_vocab_size:
             tokens = tokens[:limit_vocab_size]
-        return tokens, sot, eot
+        return tokens, sot, eot, is_space_first
 
-    def bpe(self, token, is_first_token=False, is_space_first=False):
-        if token in self.cache:
-            return self.cache[token]
-        if is_space_first:
+    @staticmethod
+    @lru_cache()
+    def bytes_to_unicode():
+        """
+        Returns list of utf-8 byte and a corresponding list of unicode strings.
+        The reversible bpe codes work on unicode strings.
+        This means you need a large # of unicode characters in your vocab if you want to avoid UNKs.
+        When you're at something like a 10B token dataset you end up needing around 5K for decent coverage.
+        This is a significant percentage of your normal, say, 32K bpe vocab.
+        To avoid that, we want lookup tables between utf-8 bytes and unicode strings.
+        And avoids mapping to whitespace/control characters the bpe code barfs on.
+        """
+        # Without [0, 32], [127, 160]
+        bs = list(range(ord("!"), ord("~")+1))+list(range(ord("¡"), ord("¬")+1))+list(range(ord("®"), ord("ÿ")+1))
+        additional = [b for b in range(2**8) if b not in bs]
+        cs = bs + [ii for ii in range(2**8, 2**8 + len(additional))]
+        return dict(zip(bs + additional, [chr(ii) for ii in cs]))
+
+    @staticmethod
+    def _get_pairs_(word):
+        """Return set of symbol pairs in a word. get_pairs('hello') -> {('e', 'l'), ('h', 'e'), ('l', 'l'), ('l', 'o')}"""
+        return set([(pre, cur) for pre, cur in zip(word[:-1], word[1:])])
+
+    def bpe(self, token, is_first_token=False):
+        token_with_space = ('</w>' + token) if self.is_space_first and not is_first_token else (token + '</w>')
+        if token_with_space in self.encoder:
+            # self.cache[token_with_space] = token_with_space
+            return token_with_space
+        if token_with_space in self.cache:
+            return self.cache[token_with_space]
+
+        if self.is_space_first:
             word = tuple(token) if is_first_token else (('</w>' + token[0],) + tuple(token[1:]))  # gpt2 one
         else:
             word = tuple(token[:-1]) + ( token[-1] + '</w>',)  # clip one
-        pairs = get_pairs(word)
 
+        pairs = self._get_pairs_(word)
         if not pairs:
-            return ('</w>' + token) if is_space_first else (token + '</w>')
+            return token_with_space
 
+        # print(f"{pairs = }")
         cur = word
         while len(cur) > 1:
-            # print(f"{pairs = }")
             bigram = min(pairs, key = lambda pair: self.bpe_ranks.get(pair, float('inf')))
             if bigram not in self.bpe_ranks:
                 break
@@ -161,9 +160,9 @@ class Tokenizer(object):
                     new_word.append(cur[0])
                     cur = cur[1:]
             cur = tuple(new_word)
-            pairs = get_pairs(cur)
+            pairs = self._get_pairs_(cur)
 
-        word = ' '.join(tuple(new_word))
+        word = ' '.join(cur)
         # print(f"{word = }")
         self.cache[token] = word
         return word
@@ -171,10 +170,12 @@ class Tokenizer(object):
     def encode(self, text):
         bpe_tokens = []
         text = whitespace_clean(basic_clean(text)).lower()
+        is_first_token = True
         for token in re.findall(self.pat, text):
             token = ''.join(self.byte_encoder[b] for b in token.encode('utf-8'))
             # print(f"{token = }")
-            bpe_tokens.extend(self.encoder[bpe_token] for bpe_token in self.bpe(token).split(' '))
+            bpe_tokens.extend(self.encoder[bpe_token] for bpe_token in self.bpe(token, is_first_token=is_first_token).split(' '))
+            is_first_token = False
         return bpe_tokens
 
     def decode(self, tokens):
@@ -199,26 +200,15 @@ class Tokenizer(object):
             return self.decode(inputs)
 
 
-class GPT2Tokenizer(Tokenizer):
+class GPT2Tokenizer(SimpleTokenizer):
     def __init__(self, name_or_path="gpt2", special_tokens=None, limit_vocab_size="auto", context_length=77):
         super().__init__(name_or_path, special_tokens, limit_vocab_size, context_length)
 
     def _init_byte_vacab_(self):
         return list(self.byte_encoder.values())
 
-    def encode(self, text):
-        bpe_tokens = []
-        text = whitespace_clean(basic_clean(text)).lower()
-        is_first_token = True
-        for token in re.findall(self.pat, text):
-            token = ''.join(self.byte_encoder[b] for b in token.encode('utf-8'))
-            # print(f"{token = }")
-            bpe_tokens.extend(self.encoder[bpe_token] for bpe_token in self.bpe(token, is_first_token=is_first_token, is_space_first=True).split(' '))
-            is_first_token = False
-        return bpe_tokens
 
-
-class TikToken(Tokenizer):
+class TikToken(SimpleTokenizer):
     """OpenAI  tiktoken wrapper"""
     def __init__(self, encoding_name='gpt2', context_length=77):
         import tiktoken

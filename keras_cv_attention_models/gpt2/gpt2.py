@@ -179,21 +179,22 @@ class RunPrediction:
         exp_inputs = np.exp(inputs - np.max(inputs, axis=axis))
         return exp_inputs / np.sum(exp_inputs, keepdims=True, axis=axis)
 
-    def __call__(self, inputs, num_samples=1, max_new_tokens=100, temperature=0.8, top_k=200):
+    def __call__(self, inputs, num_samples=1, max_new_tokens=500, temperature=0.8, top_k=200, eof="<|endoftext|>"):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
 
         Args:
-          num_samples = 1  # number of samples to draw
-          max_new_tokens = 100  # number of tokens generated in each sample
-          temperature = 0.8  # 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions
-          top_k = 200  # retain only the top_k most likely tokens, clamp others to have 0 probability
+          num_samples: number of samples to draw.
+          max_new_tokens: number of tokens generated in each sample.
+          temperature: 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions.
+          top_k: retain only the top_k most likely tokens, clamp others to have 0 probability.
+          eof: stop iteration once meet this output. Set None to disable.
         """
-        import tiktoken
+        from keras_cv_attention_models.clip.tokenizer import GPT2Tokenizer
 
-        enc = tiktoken.get_encoding("gpt2")
+        enc = GPT2Tokenizer()
         start_ids = np.array(enc.encode(inputs))
 
         max_block_size = self.model.get_layer("pos_idx").block_size
@@ -201,6 +202,7 @@ class RunPrediction:
         vocab_indexes = np.arange(vocab_size)
         for k in range(num_samples):
             inputs_idxes = start_ids
+            print(enc.decode(inputs_idxes.tolist()), end='', flush=True)
             for _ in range(max_new_tokens):
                 # if the sequence context is growing too long we must crop it at block_size
                 idx_cond = inputs_idxes if inputs_idxes.shape[-1] <= max_block_size else inputs_idxes[-max_block_size:]
@@ -220,8 +222,12 @@ class RunPrediction:
                 probs = self.softmax_numpy(logits, axis=-1)
                 multinomial_pick = np.array([np.random.choice(vocab_indexes, p=prob) for prob in probs])
                 inputs_idxes = np.concatenate([inputs_idxes, multinomial_pick], axis=-1)
-            print(enc.decode(inputs_idxes.tolist()))
-            print("---------------")
+
+                next_word = enc.decode(inputs_idxes[-1:].tolist())
+                if next_word == eof:
+                    break
+                print(next_word, end='', flush=True)
+            print("\n---------------")
 
 
 def load_weights_from_huggingface(model, save_name=None, save_path=".", force=False):
