@@ -360,8 +360,8 @@ def recognition_dataset_from_custom_json(data_path, with_info=False, caption_tok
     if is_caption:
         context_length = caption_tokenizer.context_length
         output_signature = {"image": tf.TensorSpec(shape=(), dtype=tf.string), "caption": tf.TensorSpec(shape=(context_length,), dtype=tf.int64)}
-        train_gen = lambda: ({"image": ii['image'], "caption": caption_tokenizer(ii['caption'])} for ii in train)
-        test_gen = lambda: ({"image": ii['image'], "caption": caption_tokenizer(ii['caption'])} for ii in test)
+        train_gen = lambda: ({"image": ii["image"], "caption": caption_tokenizer(ii["caption"])} for ii in train)
+        test_gen = lambda: ({"image": ii["image"], "caption": caption_tokenizer(ii["caption"])} for ii in test)
     else:
         output_signature = {"image": tf.TensorSpec(shape=(), dtype=tf.string), "label": tf.TensorSpec(shape=(), dtype=tf.int64)}
         train_gen = lambda: (ii for ii in train)
@@ -482,15 +482,15 @@ def init_dataset(
     )
 
     if is_caption:
-        train_pre_batch = lambda data_point: (train_image_func(data_point['image']), data_point['caption'])
+        train_pre_batch = lambda data_point: (train_image_func(data_point["image"]), data_point["caption"])
         y_true = tf.range(batch_size)
         train_post_batch = lambda xx, caption: (((xx - mean) / std, caption), y_true)
         drop_remainder = True  # Also set drop_remainder for using fixed y_true
     elif use_token_label:
-        train_pre_batch = lambda data_point: (*train_image_func(data_point['image']), data_point['label'])
+        train_pre_batch = lambda data_point: (*train_image_func(data_point["image"]), data_point["label"])
         train_post_batch = lambda xx, token_label, yy: ((xx - mean) / std, tf.one_hot(yy, num_classes), token_label)
     else:
-        train_pre_batch = lambda data_point: (train_image_func(data_point['image']), data_point['label'])
+        train_pre_batch = lambda data_point: (train_image_func(data_point["image"]), data_point["label"])
         train_post_batch = lambda xx, yy: ((xx - mean) / std, tf.one_hot(yy, num_classes))
 
     """ Train dataset """
@@ -520,8 +520,8 @@ def init_dataset(
         # test_pre_batch = lambda xx: evaluation_process_resize_crop(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)  # timm
         # test_image_func = lambda xx: evaluation_process_crop_resize(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)
         test_pre_batch = lambda data_point: (
-            evaluation_process_crop_resize(data_point['image'], input_shape[:2], eval_central_crop, resize_method, resize_antialias),
-            data_point['caption' if is_caption else 'label'],
+            evaluation_process_crop_resize(data_point["image"], input_shape[:2], eval_central_crop, resize_method, resize_antialias),
+            data_point["caption" if is_caption else "label"],
         )
         if is_caption:
             test_post_batch = lambda xx, caption: (((xx - mean) / std, caption), 0)

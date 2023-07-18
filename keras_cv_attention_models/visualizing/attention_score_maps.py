@@ -41,7 +41,7 @@ def down_sample_matrix_axis_0(dd, target, method="avg"):
         return dd
     rate = int(np.sqrt(dd.shape[0] // target))
     hh = ww = int(np.sqrt(dd.shape[0]))
-    dd = dd[:hh * ww].reshape(1, hh, ww, -1)
+    dd = dd[: hh * ww].reshape(1, hh, ww, -1)
     if rate == 0:  # Upsample
         hh = ww = int(np.sqrt(target))
         dd = tf.image.resize(dd, [hh, ww]).numpy()

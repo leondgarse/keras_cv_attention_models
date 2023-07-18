@@ -253,7 +253,7 @@ def plot_model_summary(
     if ax is None:
         fig, ax = plt.subplots()
 
-    has_extra = 'extra' in dd.columns
+    has_extra = "extra" in dd.columns
     plot_series = None if plot_series is None else [ii.lower() for ii in plot_series]
     gather_extras = []
     allow_extras = [] if allow_extras is None else allow_extras

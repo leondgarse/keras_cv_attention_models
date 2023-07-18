@@ -202,7 +202,7 @@ class RunPrediction:
         vocab_indexes = np.arange(vocab_size)
         for k in range(num_samples):
             inputs_idxes = start_ids
-            print(enc.decode(inputs_idxes.tolist()), end='', flush=True)
+            print(enc.decode(inputs_idxes.tolist()), end="", flush=True)
             for _ in range(max_new_tokens):
                 # if the sequence context is growing too long we must crop it at block_size
                 idx_cond = inputs_idxes if inputs_idxes.shape[-1] <= max_block_size else inputs_idxes[-max_block_size:]
@@ -226,7 +226,7 @@ class RunPrediction:
                 next_word = enc.decode(inputs_idxes[-1:].tolist())
                 if next_word == eof:
                     break
-                print(next_word, end='', flush=True)
+                print(next_word, end="", flush=True)
             print("\n---------------")
 
 

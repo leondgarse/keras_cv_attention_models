@@ -195,7 +195,7 @@ class Shape(GraphNode):
         return self.input_node.shape[self.index_expr]
 
     def __value__(self):
-        return [-1 if ii is None else ii for ii in self.input_node.shape[self.index_expr]] if self.is_slice else (self.input_node.shape[self.index_expr], )
+        return [-1 if ii is None else ii for ii in self.input_node.shape[self.index_expr]] if self.is_slice else (self.input_node.shape[self.index_expr],)
 
     def __len__(self):
         return len(self.__value__())  # if self.is_slice else 1
@@ -204,7 +204,7 @@ class Shape(GraphNode):
         return int(self.__value__()[0])
 
     def __iter__(self):
-        return (ii for ii in self.__value__())   # if self.is_slice else (self.__value__(),)
+        return (ii for ii in self.__value__())  # if self.is_slice else (self.__value__(),)
 
     def __repr__(self):
         return str(self.__value__())
@@ -1174,7 +1174,6 @@ class SeparableConv2D(Conv):
 """ Layers with no weights """
 
 
-
 class _GatherND(Layer):
     """Works like `tf.gather_nd`
     Resize supporting dynamic size.
@@ -1196,7 +1195,9 @@ class _GatherND(Layer):
         input_shape, indices_shape = input_shape[0], input_shape[1]
 
         if len(indices_shape) > 1:
-            assert len(input_shape) >= self.batch_dims + indices_shape[-1], f"Provided input_shape={input_shape} length should be larger than indices_shape[-1]={indices_shape[-1]} + batch_dims={self.batch_dims}"
+            assert (
+                len(input_shape) >= self.batch_dims + indices_shape[-1]
+            ), f"Provided input_shape={input_shape} length should be larger than indices_shape[-1]={indices_shape[-1]} + batch_dims={self.batch_dims}"
         if self.batch_dims > 0:
             assert self.batch_dims < len(indices_shape), f"Argument `batch_dims` = {self.batch_dims} must be less than rank(`indices`) = {len(indices_shape)}"
 

@@ -1,7 +1,8 @@
 import math
 import tensorflow as tf
 
-def clip_loss(y_true, y_pred) :
+
+def clip_loss(y_true, y_pred):
     # normalized features
     half_split = y_pred.shape[-1] // 2
     text_latents, image_latents = y_pred[:, :half_split], y_pred[:, half_split:]

@@ -8,9 +8,13 @@ import os
 import html
 from functools import lru_cache
 
-import ftfy  # fixes text for you
-import regex as re
 import numpy as np
+
+try:
+    import ftfy  # fixes text for you
+    import regex as re
+except:
+    pass
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"  # https://stackoverflow.com/q/62691279
@@ -26,6 +30,7 @@ BUILDIN_TOKENIZERS = {
     "gpt2": {"path": "gpt2_tokenizer.txt", "file_hash": "150fdad3c88ee8f9607ac1808ad2d321", "sot": DEFAULT_EOT, "eot": DEFAULT_EOT, "is_space_first": True},
 }
 
+
 def basic_clean(text):
     text = ftfy.fix_text(text)
     text = html.unescape(html.unescape(text))
@@ -33,7 +38,7 @@ def basic_clean(text):
 
 
 def whitespace_clean(text):
-    return re.sub(r'\s+', ' ', text).strip()
+    return re.sub(r"\s+", " ", text).strip()
 
 
 class SimpleTokenizer(object):
@@ -45,11 +50,11 @@ class SimpleTokenizer(object):
         tokens, self.sot, self.eot, self.is_space_first = self._init_tokenizer_from_file_(name_or_path, limit_vocab_size)
         tokens_split = [ii.split() for ii in tokens if len(ii) != 0]  # exclude empty one from gpt2
         self.bpe_ranks = {tuple(ii): id for id, ii in enumerate(tokens_split)}
-        token_vocab = [''.join(ii) for ii in tokens_split]
+        token_vocab = ["".join(ii) for ii in tokens_split]
         vocab = [ii for ii in byte_vocab if ii not in token_vocab] + token_vocab  # filter basic byte_vocab from provided token_vocab
 
         special_tokens = list(set([self.sot, self.eot])) + (special_tokens if special_tokens else [])
-        self.cache = {t:t for t in special_tokens}
+        self.cache = {t: t for t in special_tokens}
         special_regex = "|".join([ii.replace("|", "\|") for ii in special_tokens])
         self.pat = re.compile(special_regex + r"""|'s|'t|'re|'ve|'m|'ll|'d|[\p{L}]+|[\p{N}]|[^\s\p{L}\p{N}]+""", re.IGNORECASE)
         vocab.extend(special_tokens)
@@ -63,7 +68,7 @@ class SimpleTokenizer(object):
         self.context_length = context_length
 
     def _init_byte_vacab_(self):
-        return list(self.byte_encoder.values()) + [vv + '</w>' for vv in self.byte_encoder.values()]
+        return list(self.byte_encoder.values()) + [vv + "</w>" for vv in self.byte_encoder.values()]
 
     def _init_tokenizer_from_file_(self, name_or_path, limit_vocab_size):
         name_or_path = name_or_path.lower()
@@ -88,7 +93,7 @@ class SimpleTokenizer(object):
             import gzip
 
             with gzip.open(tokenizer_file) as ff:
-                tokens = ff.read().decode("utf-8").split('\n')
+                tokens = ff.read().decode("utf-8").split("\n")
         else:
             with open(tokenizer_file) as ff:
                 tokens = ff.read().split("\n")[1:]  # exclude first line
@@ -109,7 +114,7 @@ class SimpleTokenizer(object):
         And avoids mapping to whitespace/control characters the bpe code barfs on.
         """
         # Without [0, 32], [127, 160]
-        bs = list(range(ord("!"), ord("~")+1))+list(range(ord("¡"), ord("¬")+1))+list(range(ord("®"), ord("ÿ")+1))
+        bs = list(range(ord("!"), ord("~") + 1)) + list(range(ord("¡"), ord("¬") + 1)) + list(range(ord("®"), ord("ÿ") + 1))
         additional = [b for b in range(2**8) if b not in bs]
         cs = bs + [ii for ii in range(2**8, 2**8 + len(additional))]
         return dict(zip(bs + additional, [chr(ii) for ii in cs]))
@@ -120,7 +125,7 @@ class SimpleTokenizer(object):
         return set([(pre, cur) for pre, cur in zip(word[:-1], word[1:])])
 
     def bpe(self, token, is_first_token=False):
-        token_with_space = ('</w>' + token) if self.is_space_first and not is_first_token else (token + '</w>')
+        token_with_space = (token if is_first_token else ("</w>" + token)) if self.is_space_first else (token + "</w>")
         if token_with_space in self.encoder:
             # self.cache[token_with_space] = token_with_space
             return token_with_space
@@ -128,9 +133,9 @@ class SimpleTokenizer(object):
             return self.cache[token_with_space]
 
         if self.is_space_first:
-            word = tuple(token) if is_first_token else (('</w>' + token[0],) + tuple(token[1:]))  # gpt2 one
+            word = tuple(token) if is_first_token else (("</w>" + token[0],) + tuple(token[1:]))  # gpt2 one
         else:
-            word = tuple(token[:-1]) + ( token[-1] + '</w>',)  # clip one
+            word = tuple(token[:-1]) + (token[-1] + "</w>",)  # clip one
 
         pairs = self._get_pairs_(word)
         if not pairs:
@@ -139,7 +144,7 @@ class SimpleTokenizer(object):
         # print(f"{pairs = }")
         cur = word
         while len(cur) > 1:
-            bigram = min(pairs, key = lambda pair: self.bpe_ranks.get(pair, float('inf')))
+            bigram = min(pairs, key=lambda pair: self.bpe_ranks.get(pair, float("inf")))
             if bigram not in self.bpe_ranks:
                 break
             first, second = bigram
@@ -162,7 +167,7 @@ class SimpleTokenizer(object):
             cur = tuple(new_word)
             pairs = self._get_pairs_(cur)
 
-        word = ' '.join(cur)
+        word = " ".join(cur)
         # print(f"{word = }")
         self.cache[token] = word
         return word
@@ -172,21 +177,21 @@ class SimpleTokenizer(object):
         text = whitespace_clean(basic_clean(text)).lower()
         is_first_token = True
         for token in re.findall(self.pat, text):
-            token = ''.join(self.byte_encoder[b] for b in token.encode('utf-8'))
+            token = "".join(self.byte_encoder[b] for b in token.encode("utf-8"))
             # print(f"{token = }")
-            bpe_tokens.extend(self.encoder[bpe_token] for bpe_token in self.bpe(token, is_first_token=is_first_token).split(' '))
+            bpe_tokens.extend(self.encoder[bpe_token] for bpe_token in self.bpe(token, is_first_token=is_first_token).split(" "))
             is_first_token = False
         return bpe_tokens
 
     def decode(self, tokens):
-        text = ''.join([self.decoder[token] for token in tokens])
-        text = bytearray([self.byte_decoder[c] for c in text]).decode('utf-8', errors="replace").replace('</w>', ' ')
+        text = "".join([self.decoder[token] for token in tokens])
+        text = bytearray([self.byte_decoder[c] for c in text]).decode("utf-8", errors="replace").replace("</w>", " ")
         return text
 
     def __call__(self, inputs):
         if isinstance(inputs, str) or isinstance(inputs, bytes):
             inputs = inputs.decode() if hasattr(inputs, "decode") else inputs
-            tokens = [self.sot_token] + self.encode(inputs)[:self.context_length - 2] + [self.eot_token]
+            tokens = [self.sot_token] + self.encode(inputs)[: self.context_length - 2] + [self.eot_token]
             # print(f"{tokens = }")
             return np.pad(tokens, [0, self.context_length - len(tokens)])
         else:
@@ -195,8 +200,8 @@ class SimpleTokenizer(object):
             inputs = inputs.numpy() if hasattr(inputs, "numpy") else inputs
 
             inputs = list(inputs)
-            inputs = inputs[1 if inputs[0] == self.sot_token else 0:]
-            inputs = inputs[:inputs.index(self.eot_token) if self.eot_token in inputs else None]
+            inputs = inputs[1 if inputs[0] == self.sot_token else 0 :]
+            inputs = inputs[: inputs.index(self.eot_token) if self.eot_token in inputs else None]
             return self.decode(inputs)
 
 
@@ -210,7 +215,8 @@ class GPT2Tokenizer(SimpleTokenizer):
 
 class TikToken(SimpleTokenizer):
     """OpenAI  tiktoken wrapper"""
-    def __init__(self, encoding_name='gpt2', context_length=77):
+
+    def __init__(self, encoding_name="gpt2", context_length=77):
         import tiktoken
 
         if encoding_name not in tiktoken.list_encoding_names():
@@ -234,6 +240,7 @@ class TikToken(SimpleTokenizer):
 
 class HuggingFaceTokenizer:
     """HuggingFace tokenizer wrapper"""
+
     def __init__(self, tokenizer_name: str):
         from transformers import AutoTokenizer
 
@@ -252,9 +259,9 @@ class HuggingFaceTokenizer:
         texts = [whitespace_clean(basic_clean(text)) for text in texts]
         input_ids = self.tokenizer(
             texts,
-            return_tensors='pt',
+            return_tensors="pt",
             max_length=context_length,
-            padding='max_length',
+            padding="max_length",
             truncation=True,
         ).input_ids
         return input_ids
