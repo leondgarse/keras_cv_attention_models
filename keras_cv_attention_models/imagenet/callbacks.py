@@ -201,14 +201,21 @@ class MyCheckpoint(keras.callbacks.Callback):
 
     def __init__(self, basic_save_name, monitor="val_acc", mode="auto", save_path="checkpoints"):
         super(MyCheckpoint, self).__init__()
+        try:
+            is_tf2_13 = int(tf.__version__.split(".")[0]) >= 2 and int(tf.__version__.split(".")[1]) >= 13
+        except:
+            is_tf2_13 = False
+        self.suffix = ".keras" if is_tf2_13 else ".h5"
+
         self.basic_save_name, self.mode, self.save_path = basic_save_name, mode, save_path
         self.__init_monitor_strategy__(monitor)
 
     def __init_monitor_strategy__(self, monitor):
+
         self.monitor = monitor
-        self.monitor_save = os.path.join(self.save_path, self.basic_save_name + "_epoch_{}_" + monitor + "_{}.h5")
+        self.monitor_save = os.path.join(self.save_path, self.basic_save_name + "_epoch_{}_" + monitor + "_{}" + self.suffix)
         self.monitor_save_re = self.monitor_save.format("*", "*")
-        self.latest_save = os.path.join(self.save_path, self.basic_save_name + "_latest.h5")
+        self.latest_save = os.path.join(self.save_path, self.basic_save_name + "_latest" + self.suffix)
         self.is_better = (lambda cur, pre: cur <= pre) if self.mode == "min" or "loss" in monitor else (lambda cur, pre: cur >= pre)
         self.pre_best = 1e5 if self.mode == "min" or "loss" in monitor else -1e5
 
