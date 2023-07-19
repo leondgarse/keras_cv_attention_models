@@ -492,7 +492,7 @@ def show_batch_sample(
     dataset, rescale_mode="torch", rows=-1, label_font_size=8, base_size=3, anchors_mode="efficientdet", indices_2_labels=None, **anchor_kwargs
 ):
     import matplotlib.pyplot as plt
-    from keras_cv_attention_models.plot_func import get_plot_cols_rows
+    from keras_cv_attention_models.plot_func import get_plot_cols_rows, show_image_with_bboxes
 
     if isinstance(dataset, (list, tuple)):
         images, labels = dataset
