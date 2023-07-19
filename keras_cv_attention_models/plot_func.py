@@ -126,6 +126,50 @@ def show_image_with_bboxes(
         plt.show()
     return ax
 
+""" Show clip results """
+
+
+def show_images_with_texts(images, texts, similarity, ax=None, base_size=8, title=None):
+    """
+    Copied and modified from: https://github.com/mlfoundations/open_clip/blob/main/docs/Interacting_with_open_clip.ipynb
+
+    Examples:
+    >>> from keras_cv_attention_models import test_images, plot_func
+    >>> images = [test_images.dog(), test_images.cat(), test_images.dog_cat()] * 3
+    >>> texts = ["dog", "cat", "dog_cat"] * 3
+    >>> similarity = np.random.uniform(size=[9, 9])
+    >>> _ = plot_func.show_images_with_texts(images, texts, similarity)
+    """
+    import matplotlib.pyplot as plt
+
+    if ax is None:
+        _, ax = plt.subplots(1, 1, figsize=(base_size * 1.4, base_size))  # Wider one
+    font_size = 9 * 8 / base_size
+    yticks_size = 10 * 8 / base_size
+
+    count = similarity.shape[0]
+    ax.imshow(similarity, vmin=0.1, vmax=0.3)
+    ax.set_yticks(range(count), texts, fontsize=yticks_size)
+    ax.set_xticks([])
+    for i, image in enumerate(images):
+        ax.imshow(image, extent=(i - 0.5, i + 0.5, -1.6, -0.6), origin="lower")
+    for x in range(similarity.shape[1]):
+        for y in range(similarity.shape[0]):
+            ax.text(x, y, f"{similarity[y, x]:.2f}", ha="center", va="center", size=font_size)
+
+    for side in ["left", "top", "right", "bottom"]:
+      plt.gca().spines[side].set_visible(False)
+
+    ax.set_xlim([-0.5, count - 0.5])
+    ax.set_ylim([count + 0.5, -2])
+    ax.grid(False)
+
+    if title:
+        ax.title(title)
+    plt.tight_layout()
+    # plt.show()
+    return ax
+
 
 """ tensorboard_parallel_coordinates_plot """
 
@@ -138,7 +182,7 @@ def tensorboard_parallel_coordinates_plot(dataframe, metrics_name, metrics_displ
     The logic is using `metrics_name` specified key as metrics, using other columns as `HParams`.
     For any other detail, refer original tutorial.
 
-    Example:
+    Examples:
     >>> import pandas as pd
     >>> aotnet50_imagnet_results = {
     >>>     "optimizer": ["lamb", "lamb", "adamw", "adamw", "adamw"],
@@ -215,7 +259,7 @@ def plot_model_summary(
       log_scale_x: boolean value if setting x scale in log distribution.
       ax: plotting on specific matplotlib ax. Default None for creating a new figure.
 
-    Example
+    Examples:
     >>> from keras_cv_attention_models import plot_func
     >>> plot_series = ["convnextv2", "efficientnetv2", "efficientvit_b", "fasternet", "fastervit"]
     >>> plot_func.plot_model_summary(plot_series, x_label='inference_qps', model_table="model_summary.csv", allow_extras=None)
