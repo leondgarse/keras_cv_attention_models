@@ -540,7 +540,7 @@ class ClassAccuracyWithBbox(tf.keras.metrics.Metric):
         cls_pred_valid = tf.argmax(tf.gather_nd(y_pred[:, :, 4:], pick), axis=-1)
         cls_acc = tf.reduce_mean(tf.cast(cls_true_valid == cls_pred_valid, "float32"))
         # tf.assert_less(cls_acc, 1.1)
-        self.cls_acc.assign_add(self.loss_calss_with_acc.cls_acc)
+        self.cls_acc.assign_add(cls_acc)
         self.count.assign_add(1.0)
 
 

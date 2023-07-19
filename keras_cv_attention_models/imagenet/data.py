@@ -358,6 +358,9 @@ def recognition_dataset_from_custom_json(data_path, with_info=False, caption_tok
 
     is_caption = False if caption_tokenizer is None else True
     if is_caption:
+        # from tqdm import tqdm
+        # train = [{"image": ii["image"], "caption": caption_tokenizer(ii["caption"])} for ii in tqdm(train, "Tokenizing train caption")]
+        # test = [{"image": ii["image"], "caption": caption_tokenizer(ii["caption"])} for ii in tqdm(test, "Tokenizing test caption")]
         context_length = caption_tokenizer.context_length
         output_signature = {"image": tf.TensorSpec(shape=(), dtype=tf.string), "caption": tf.TensorSpec(shape=(context_length,), dtype=tf.int64)}
         train_gen = lambda: ({"image": ii["image"], "caption": caption_tokenizer(ii["caption"])} for ii in train)
@@ -483,7 +486,7 @@ def init_dataset(
 
     if is_caption:
         train_pre_batch = lambda data_point: (train_image_func(data_point["image"]), data_point["caption"])
-        y_true = tf.range(batch_size)
+        y_true = tf.eye(batch_size)  # equal to tf.one_hot(tf.range(batch_size), batch_size)
         train_post_batch = lambda xx, caption: (((xx - mean) / std, caption), y_true)
         drop_remainder = True  # Also set drop_remainder for using fixed y_true
     elif use_token_label:
@@ -524,7 +527,7 @@ def init_dataset(
             data_point["caption" if is_caption else "label"],
         )
         if is_caption:
-            test_post_batch = lambda xx, caption: (((xx - mean) / std, caption), 0)
+            test_post_batch = lambda xx, caption: (((xx - mean) / std, caption), y_true)
         elif use_token_label:
             test_post_batch = lambda xx, yy: ((xx - mean) / std, (tf.one_hot(yy, num_classes), None))  # just give None on token_label data position
         elif use_distill:
