@@ -32,7 +32,7 @@ class RunPrediction:
     def reset(self, softmax_scale=10, formatter="a {}", rescale_mode="tf"):
         self.formatter, self.text_labels, self.text_features = formatter, None, None
         self.softmax_scale = softmax_scale
-        self._init_image_model_preprocess_input_(rescale_mode)
+        self.init_image_model_preprocess_input(rescale_mode)
 
     def init_image_model_preprocess_input(self, rescale_mode):
         if hasattr(self.image_model, "preprocess_input"):
