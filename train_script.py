@@ -103,7 +103,7 @@ def parse_arguments(argv):
         "--teacher_model",
         type=str,
         default=None,
-        help="Could be: 1. Saved h5 model path. 2. Model name defined in this repo, format [sub_dir].[model_name] like regnet.RegNetZD8. 3. timm model like timm.models.resmlp_12_224",
+        help="Could be: 1. Saved h5 model path. 2. Model from this repo, [sub_dir].[model_name] like regnet.RegNetZD8. 3. timm model timm.models.resmlp_12_224",
     )
     dt_group.add_argument("--teacher_model_pretrained", type=str, default="imagenet", help="Teacher model pretrained weight, if not built from h5")
     dt_group.add_argument("--teacher_model_input_shape", type=int, default=-1, help="Teacher model input_shape, -1 for same with `input_shape`")

@@ -126,30 +126,33 @@ def show_image_with_bboxes(
         plt.show()
     return ax
 
+
 """ Show clip results """
 
 
-def show_images_with_texts(images, texts, similarity, ax=None, base_size=8, title=None):
+def show_images_texts_similarity(images, texts, similarity, ax=None, base_size=8, title=None):
     """
     Copied and modified from: https://github.com/mlfoundations/open_clip/blob/main/docs/Interacting_with_open_clip.ipynb
+
+    Args:
+      similarity: in shape `[texts.shape[0], images.shape[0]]`
 
     Examples:
     >>> from keras_cv_attention_models import test_images, plot_func
     >>> images = [test_images.dog(), test_images.cat(), test_images.dog_cat()] * 3
-    >>> texts = ["dog", "cat", "dog_cat"] * 3
-    >>> similarity = np.random.uniform(size=[9, 9])
-    >>> _ = plot_func.show_images_with_texts(images, texts, similarity)
+    >>> texts = ["dog", "cat", "dog_cat"]
+    >>> similarity = np.random.uniform(size=[3, 9])
+    >>> _ = plot_func.show_images_texts_similarity(images, texts, similarity)
     """
     import matplotlib.pyplot as plt
 
     if ax is None:
         _, ax = plt.subplots(1, 1, figsize=(base_size * 1.4, base_size))  # Wider one
-    font_size = 9 * 8 / base_size
-    yticks_size = 10 * 8 / base_size
+    font_size = 9 * base_size / 8
+    yticks_size = 10 * base_size / 8
 
-    count = similarity.shape[0]
     ax.imshow(similarity, vmin=0.1, vmax=0.3)
-    ax.set_yticks(range(count), texts, fontsize=yticks_size)
+    ax.set_yticks(range(similarity.shape[0]), texts, fontsize=yticks_size)
     ax.set_xticks([])
     for i, image in enumerate(images):
         ax.imshow(image, extent=(i - 0.5, i + 0.5, -1.6, -0.6), origin="lower")
@@ -160,12 +163,12 @@ def show_images_with_texts(images, texts, similarity, ax=None, base_size=8, titl
     for side in ["left", "top", "right", "bottom"]:
       plt.gca().spines[side].set_visible(False)
 
-    ax.set_xlim([-0.5, count - 0.5])
-    ax.set_ylim([count + 0.5, -2])
+    ax.set_xlim([-0.5, similarity.shape[1] - 0.5])
+    ax.set_ylim([similarity.shape[0] + 0.5, -2])
     ax.grid(False)
 
     if title:
-        ax.title(title)
+        ax.set_title(title)
     plt.tight_layout()
     # plt.show()
     return ax
