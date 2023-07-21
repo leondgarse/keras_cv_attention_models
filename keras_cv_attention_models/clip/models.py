@@ -25,26 +25,30 @@ def convert_to_clip_model(image_model, text_model, caption_tokenizer=None):
 
 
 class RunPrediction:
-    def __init__(self, image_model, text_model, caption_tokenizer, softmax_scale=100, formatter="a photo of a {}", rescale_mode="tf"):
+    def __init__(self, image_model, text_model, caption_tokenizer, softmax_scale=10, formatter="a {}", rescale_mode="tf"):
         self.image_model, self.text_model, self.caption_tokenizer = image_model, text_model, caption_tokenizer
+        self.reset(softmax_scale=softmax_scale, formatter=formatter, rescale_mode=rescale_mode)
+
+    def reset(self, softmax_scale=10, formatter="a {}", rescale_mode="tf"):
         self.formatter, self.text_labels, self.text_features = formatter, None, None
         self.softmax_scale = softmax_scale
-        self._init_image_model_preprocess_input_()
+        self._init_image_model_preprocess_input_(rescale_mode)
 
-    def _init_image_model_preprocess_input_(self):
+    def init_image_model_preprocess_input(self, rescale_mode):
         if hasattr(self.image_model, "preprocess_input"):
-            self.image_model.preprocess_input.set_rescale_mode(self.rescale_mode)
+            self.image_model.preprocess_input.set_rescale_mode(rescale_mode)
         else:
             from keras_cv_attention_models.attention_layers import PreprocessInput
 
             self.image_model.preprocess_input = PreprocessInput(self.image_model.input_shape[1:], rescale_mode=rescale_mode)
+        self.rescale_mode = rescale_mode
 
     def _if_init_text_features_(self, text_labels):
         if text_labels is None and self.text_labels is None:
             raise ValueError("[Error] text_labels has to be provided for the first time call. Format like ['cat', 'dog', ...]")
 
         if text_labels is not None:
-            self.text_labels = [self.formatter.format(ii) for ii in text_labels]
+            self.text_labels = text_labels if self.formatter is None else [self.formatter.format(ii) for ii in text_labels]
 
         if text_labels is not None or self.text_features is None:
             text_features = functional.stack([self.caption_tokenizer(ii) for ii in self.text_labels])
@@ -56,4 +60,4 @@ class RunPrediction:
 
         image_features = self.image_model(self.image_model.preprocess_input(image))
         image_features /= functional.norm(image_features, axis=-1, keepdims=True)
-        return functional.softmax(self.softmax_scale * self.text_features @ functional.transpose(image_features))
+        return functional.softmax(self.softmax_scale * image_features @ functional.transpose(self.text_features))

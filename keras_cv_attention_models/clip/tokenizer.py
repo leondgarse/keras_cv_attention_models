@@ -10,11 +10,8 @@ from functools import lru_cache
 
 import numpy as np
 
-try:
-    import ftfy  # fixes text for you
-    import regex as re
-except:
-    pass
+import ftfy  # fixes text for you
+import regex as re
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"  # https://stackoverflow.com/q/62691279

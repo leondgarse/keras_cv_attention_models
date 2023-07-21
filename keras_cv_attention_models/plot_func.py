@@ -135,13 +135,13 @@ def show_images_texts_similarity(images, texts, similarity, ax=None, base_size=8
     Copied and modified from: https://github.com/mlfoundations/open_clip/blob/main/docs/Interacting_with_open_clip.ipynb
 
     Args:
-      similarity: in shape `[texts.shape[0], images.shape[0]]`
+      similarity: in shape `[images.shape[0], texts.shape[0]]`
 
     Examples:
     >>> from keras_cv_attention_models import test_images, plot_func
     >>> images = [test_images.dog(), test_images.cat(), test_images.dog_cat()] * 3
     >>> texts = ["dog", "cat", "dog_cat"]
-    >>> similarity = np.random.uniform(size=[3, 9])
+    >>> similarity = np.random.uniform(size=[9, 3])
     >>> _ = plot_func.show_images_texts_similarity(images, texts, similarity)
     """
     import matplotlib.pyplot as plt
@@ -151,20 +151,24 @@ def show_images_texts_similarity(images, texts, similarity, ax=None, base_size=8
     font_size = 9 * base_size / 8
     yticks_size = 10 * base_size / 8
 
-    ax.imshow(similarity, vmin=0.1, vmax=0.3)
-    ax.set_yticks(range(similarity.shape[0]), texts, fontsize=yticks_size)
+    similarity = similarity.detach() if hasattr(similarity, "detach") else similarity
+    similarity = similarity.numpy() if hasattr(similarity, "numpy") else similarity
+    num_images, num_texts = similarity.shape[0], similarity.shape[1]
+
+    ax.imshow(similarity.T, vmin=0.1, vmax=0.3)
+    ax.set_yticks(range(num_texts), texts, fontsize=yticks_size)
     ax.set_xticks([])
-    for i, image in enumerate(images):
-        ax.imshow(image, extent=(i - 0.5, i + 0.5, -1.6, -0.6), origin="lower")
-    for x in range(similarity.shape[1]):
-        for y in range(similarity.shape[0]):
-            ax.text(x, y, f"{similarity[y, x]:.2f}", ha="center", va="center", size=font_size)
+    for ii, image in enumerate(images):
+        ax.imshow(image, extent=(ii - 0.5, ii + 0.5, -1.6, -0.6), origin="lower")
+    for xx in range(num_images):
+        for yy in range(num_texts):
+            ax.text(xx, yy, f"{similarity[xx, yy]:.2f}", ha="center", va="center", size=font_size)
 
     for side in ["left", "top", "right", "bottom"]:
       plt.gca().spines[side].set_visible(False)
 
-    ax.set_xlim([-0.5, similarity.shape[1] - 0.5])
-    ax.set_ylim([similarity.shape[0] + 0.5, -2])
+    ax.set_xlim([-0.5, num_images - 0.5])
+    ax.set_ylim([num_texts + 0.5, -2])
     ax.grid(False)
 
     if title:
