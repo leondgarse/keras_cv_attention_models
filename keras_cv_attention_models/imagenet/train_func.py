@@ -168,14 +168,18 @@ def init_model(model=None, input_shape=(224, 224, 3), num_classes=1000, pretrain
 
     if input_shape != -1:
         kwargs.update({"input_shape": input_shape})  # Use model default input_shape if not specified
+    if num_classes != -1:
+        kwargs.update({"num_classes": num_classes})  # Use model default input_shape if not specified
+    if pretrained != "default":
+        kwargs.update({"pretrained": pretrained})  # Use model default input_shape if not specified
     print(">>>> init_model kwargs:", kwargs)
 
     model_name = model.strip().split(".")
     if len(model_name) == 1:
-        model = getattr(keras_cv_attention_models.models, model_name[0])(num_classes=num_classes, pretrained=pretrained, **kwargs)
+        model = getattr(keras_cv_attention_models.models, model_name[0])(**kwargs)
     else:
         model_class = getattr(getattr(keras_cv_attention_models, model_name[0]), model_name[1])
-        model = model_class(num_classes=num_classes, pretrained=pretrained, **kwargs)
+        model = model_class(**kwargs)
     print(">>>> Built model name:", model.name)
 
     if model_name[0] == "aotnet" and pretrained is not None and pretrained.endswith(".h5"):

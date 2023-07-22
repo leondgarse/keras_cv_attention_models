@@ -1,3 +1,4 @@
+import os
 import tensorflow as tf
 from tensorflow import keras
 from keras_cv_attention_models.imagenet.data import init_mean_std_by_rescale_mode, tf_imread, random_crop_and_resize_image
@@ -366,10 +367,20 @@ def detection_dataset_from_custom_json(data_path, with_info=False):
 
     with open(data_path, "r") as ff:
         aa = json.load(ff)
-
     test_key = "validation" if "validation" in aa else "test"
-    train, test, info = aa["train"], aa[test_key], aa["info"]
-    total_images, num_classes = len(train), info["num_classes"]
+    train, test, info = aa["train"], aa[test_key], aa.get("info", {})
+    total_images, num_classes = len(train), info.get("num_classes", 0)
+    if num_classes <= 0:
+        num_classes = max([max([int(jj) for jj in ii["objects"]["label"]]) for ii in train]) + 1
+        print(">>>> Using max value from train as num_classes:", num_classes)
+
+    if "base_path" in info:
+        base_path = info["base_path"]
+        for ii in train:
+            ii["image"] = os.path.join(base_path, ii["image"])
+        for ii in test:
+            ii["image"] = os.path.join(base_path, ii["image"])
+
     objects_signature = {"bbox": tf.TensorSpec(shape=(None, 4), dtype=tf.float32), "label": tf.TensorSpec(shape=(None,), dtype=tf.int64)}
     output_signature = {"image": tf.TensorSpec(shape=(), dtype=tf.string), "objects": objects_signature}
     train_ds = tf.data.Dataset.from_generator(lambda: (ii for ii in train), output_signature=output_signature)

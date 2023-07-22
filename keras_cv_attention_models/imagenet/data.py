@@ -338,15 +338,39 @@ def evaluation_process_resize_crop(image, target_shape=(224, 224), central_crop=
     return image
 
 
-def recognition_dataset_from_custom_json(data_path, with_info=False, caption_tokenizer=None):
-    import json
+def init_from_json_or_csv_or_tsv(data_path, is_caption):
+    if data_path.endswith(".json"):
+        import json
 
-    with open(data_path, "r") as ff:
-        aa = json.load(ff)
+        with open(data_path, "r") as ff:
+            aa = json.load(ff)
+        test_key = "validation" if "validation" in aa else "test"
+        train, test, info = aa["train"], aa[test_key], aa.get("info", {})
+    else:
+        import csv
 
-    test_key = "validation" if "validation" in aa else "test"
-    train, test, info = aa["train"], aa[test_key], aa.get("info", {})
+        delimiter = "\t" if data_path.endswith(".tsv") else ","
+        label_key = "caption" if is_caption else "label"
+        train, test, info, is_train = [], [], {}, True
+        with open(data_path) as ff:
+            for ii in csv.reader(ff, delimiter=delimiter):
+                if ii[0] in ["base_path", "num_classes"]:  # special keys for info
+                    info[ii[0]] = ii[1]
+                    continue
+
+                if ii[0] == "TEST":  # Use this as indicator for start of test set
+                    is_train = False
+                if is_train:
+                    train.append({"image": ii[0], label_key: ii[1]})
+                else:
+                    test.append({"image": ii[0], label_key: ii[1]})
+        test_key = "test"
+
+    """ Construct more info """
     total_images, num_classes = len(train), info.get("num_classes", 0)
+    if not is_caption and num_classes <= 0 and "label" in train[0] and isinstance(train[0]["label"], int):
+        num_classes = max([ii["label"] for ii in train]) + 1
+        print(">>>> Using max value from train as num_classes:", num_classes)
 
     if "base_path" in info:
         base_path = info["base_path"]
@@ -354,9 +378,14 @@ def recognition_dataset_from_custom_json(data_path, with_info=False, caption_tok
             ii["image"] = os.path.join(base_path, ii["image"])
         for ii in test:
             ii["image"] = os.path.join(base_path, ii["image"])
-    num_channels = tf_imread(aa["train"][0]["image"]).shape[-1]
+    num_channels = tf_imread(train[0]["image"]).shape[-1]
+    return (train, test, info, test_key), (total_images, num_classes, num_channels)
 
+
+def build_custom_dataset(data_path, with_info=False, info_only=False, caption_tokenizer=None):
     is_caption = False if caption_tokenizer is None else True
+    (train, test, info, test_key), (total_images, num_classes, num_channels) = init_from_json_or_csv_or_tsv(data_path, is_caption)
+
     if is_caption:
         # from tqdm import tqdm
         # train = [{"image": ii["image"], "caption": caption_tokenizer(ii["caption"])} for ii in tqdm(train, "Tokenizing train caption")]
@@ -453,17 +482,20 @@ def init_dataset(
     teacher_model_input_shape = input_shape if teacher_model_input_shape == -1 else teacher_model_input_shape
     is_caption = False if caption_tokenizer is None else True
 
-    if data_name.endswith(".json"):
-        dataset, total_images, num_classes, num_channels = recognition_dataset_from_custom_json(data_name, with_info=True, caption_tokenizer=caption_tokenizer)
+    if data_name.endswith(".json") or data_name.endswith(".tsv"):
+        if info_only:
+            _, (total_images, num_classes, num_channels) = init_from_json_or_csv_or_tsv(data_name, is_caption)
+        else:
+            dataset, total_images, num_classes, num_channels = build_custom_dataset(data_name, with_info=True, caption_tokenizer=caption_tokenizer)
     else:
         dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)
         num_classes = 0 if is_caption else info.features["label"].num_classes
         num_channels = info.features["image"].shape[-1]
         total_images = info.splits["train"].num_examples
     steps_per_epoch = int(tf.math.ceil(total_images / float(batch_size)))
-
     if info_only:
         return total_images, num_classes, steps_per_epoch, num_channels  # return num_channels in case it's not 3
+
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     AUTOTUNE = tf.data.AUTOTUNE
 
@@ -504,7 +536,9 @@ def init_dataset(
         train_dataset = train_dataset.shuffle(buffer_size, seed=seed)
     train_dataset = train_dataset.map(train_pre_batch, num_parallel_calls=AUTOTUNE)
     train_dataset = train_dataset.batch(batch_size, drop_remainder=drop_remainder).map(train_post_batch, num_parallel_calls=AUTOTUNE)
-    train_dataset = apply_mixup_cutmix(train_dataset, mixup_alpha, cutmix_alpha, switch_prob=0.5)
+
+    if not is_caption:
+        train_dataset = apply_mixup_cutmix(train_dataset, mixup_alpha, cutmix_alpha, switch_prob=0.5)
 
     if is_caption:
         pass  # Just skip others
@@ -544,7 +578,7 @@ def init_dataset(
 """ Show """
 
 
-def show_batch_sample(dataset, rescale_mode="tf", rows=-1, base_size=3):
+def show_batch_sample(dataset, rescale_mode="tf", rows=-1, caption_tokenizer=None, base_size=3):
     from keras_cv_attention_models import plot_func
     from keras_cv_attention_models.imagenet.eval_func import decode_predictions
 
@@ -556,6 +590,9 @@ def show_batch_sample(dataset, rescale_mode="tf", rows=-1, base_size=3):
         images, (labels, token_label) = dataset.as_numpy_iterator().next()
     else:
         images, labels = dataset.as_numpy_iterator().next()
+
+    if caption_tokenizer is not None:
+        labels = [caption_tokenizer(ii) for ii in labels]
 
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     mean, std = (mean.numpy(), std.numpy()) if hasattr(mean, "numpy") else (mean, std)

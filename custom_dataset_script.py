@@ -49,7 +49,8 @@ class ImageClassesRule_map:
 
 def build_recognition_dataset_json(train_path, test_path=None, test_split=0.0, save_name=None):
     if save_name is None:
-        save_name = os.path.basename(os.path.dirname(train_path)) + ".json"
+        split_name = train_path.split(os.sep)
+        save_name = (split_name[0] if len(split_name) == 1 else split_name[-2]) + ".json"
     elif not save_name.endswith(".json"):
         save_name += ".json"
     # print(f">>>> {train_path = }, {test_path = }, {test_split = }, {save_name = }")
@@ -57,22 +58,116 @@ def build_recognition_dataset_json(train_path, test_path=None, test_split=0.0, s
     x_train, y_train = walk_through_image_folder(train_path, image_classes_rule=image_classes_rule)
     if test_path is not None:
         x_test, y_test = walk_through_image_folder(test_path, image_classes_rule=image_classes_rule)
-    else:
+    elif test_split > 0:
         from sklearn.model_selection import train_test_split
 
         x_train, x_test, y_train, y_test = train_test_split(x_train, y_train, test_size=test_split, random_state=42)
+    else:
+        x_test, y_test = [], []
 
-    x_train = [os.path.abspath(ii) for ii in x_train]
-    x_test = [os.path.abspath(ii) for ii in x_test]
+    # x_train = [os.path.abspath(ii) for ii in x_train]
+    # x_test = [os.path.abspath(ii) for ii in x_test]
     train = [{"image": ii, "label": jj} for ii, jj in zip(x_train, y_train)]
     test = [{"image": ii, "label": jj} for ii, jj in zip(x_test, y_test)]
     num_classes = len(image_classes_rule.indices_2_labels)
-    info = {"num_classes": num_classes}
+    info = {"num_classes": num_classes, "base_path": os.path.abspath(".")}
 
     print(">>>> total_train_samples: {}, total_test_samples: {}, num_classes: {}".format(len(train), len(test), num_classes))
 
     with open(save_name, "w") as ff:
-        json.dump({"train": train, "test": test, "indices_2_labels": image_classes_rule.indices_2_labels, "info": info}, ff, indent=2)
+        json.dump({"info": info, "train": train, "test": test, "indices_2_labels": image_classes_rule.indices_2_labels}, ff, indent=2)
+    return save_name
+
+
+""" Caption dataset """
+
+def read_captions_from_json_or_tsv(caption_file):
+    """Parse caption_file to list of dict value. Add here for reading and parsing custom format files.
+    Return format: [
+        {"image": "aa.jpg", "caption": "foo goo"},
+        {"image": "aa.jpg", "caption": "goo koo"},
+        {"image": "bb.jpg", "caption": "foo koo"},
+    ]
+    """
+    if caption_file.endswith(".json"):
+        with open(caption_file) as ff:
+            captions_dict = json.load(ff)
+    else:
+        # import pandas as pd
+        # aa = pd.read_table(caption_file, header=None, sep='\t', names=['image', 'caption'])
+        # captions_dict = [{'image': ii, 'caption': jj} for ii, jj in zip(aa['image'].values, aa['caption'].values)]
+        import csv
+
+        delimiter = "\t"
+        with open(caption_file) as ff:
+            captions_dict = [{'image': ii[0].split("#")[0], 'caption': ii[1]} for ii in csv.reader(ff, delimiter=delimiter)]
+    return captions_dict
+
+
+def match_captions(images, captions_dict):
+    if "images" in captions_dict and "annotations" in captions_dict:  # COCO caption format
+        image_dict = {ii['id']: ii['file_name'] for ii in captions_dict['images']}
+        caption_image_name_map = {}
+        for ii in captions_dict['annotations']:
+            caption_image_name_map.setdefault(image_dict[ii['image_id']], []).append(ii['caption'])
+    elif isinstance(captions_dict, list) and "image" in captions_dict[0] and "caption" in captions_dict[0]:
+        caption_image_name_map = {}
+        for ii in captions_dict:
+            caption_image_name_map.setdefault(os.path.basename(ii['image']), []).append(ii['caption'])
+
+    gathered_images, gathered_captions = [], []
+    for ii in images:
+        captions = caption_image_name_map.get(os.path.basename(ii), [])
+        gathered_captions.extend(captions)
+        gathered_images.extend([ii] * len(captions))
+    return gathered_images, gathered_captions
+
+
+def build_caption_dataset(train_image_path, train_captions, test_image_path=None, test_captions=None, test_split=0.0, save_format="json", save_name=None):
+    surfix = ".json" if save_format == "json" else ".tsv"
+    if save_name is None:
+        split_name = train_image_path.split(os.sep)
+        save_name = (split_name[0] if len(split_name) == 1 else split_name[-2]) + surfix
+    elif not save_name.endswith(surfix):
+        save_name += surfix
+    # print(f">>>> {train_image_path = }, {test_image_path = }, {test_split = }, {save_name = }")
+
+    x_train = walk_through_image_folder(train_image_path, depth=1)
+    train_captions = read_captions_from_json_or_tsv(train_captions)
+    x_train, y_train = match_captions(x_train, train_captions.get("train", train_captions) if isinstance(train_captions, dict) else train_captions)
+
+    """ Read or split test data """
+    if test_captions is not None:
+        test_captions_dict = read_captions_from_json_or_tsv(test_captions)
+    else:
+        test_captions_dict = train_captions.get("test", train_captions) if isinstance(train_captions, dict) else train_captions
+
+    if test_image_path is not None:
+        x_test = walk_through_image_folder(test_image_path, depth=1)
+        x_test, y_test = match_captions(x_test, test_captions_dict)
+    elif test_split > 0:
+        from sklearn.model_selection import train_test_split
+
+        x_train, x_test, y_train, y_test = train_test_split(x_train, y_train, test_size=test_split, random_state=42)
+    else:
+        x_test, y_test = [], []
+
+    """ Save """
+    info = {"base_path": os.path.abspath(".")}
+    print(">>>> total_train_samples: {}, total_test_samples: {}".format(len(x_train), len(x_test)))
+    if save_format == "json":
+        train = [{"image": ii, "caption": jj } for ii, jj in zip(x_train, y_train)]
+        test = [{"image": ii, "caption": jj } for ii, jj in zip(x_test, y_test)]
+        with open(save_name, "w") as ff:
+            json.dump({"info": info, "train": train, "test": test}, ff, indent=2)
+    else:
+        aa = ["\t".join([kk, vv]) for kk, vv in info.items()]  # A special key for keeping some info in tsv
+        aa += ['\t'.join([image, caption.replace('\t', ' ').replace('\n', '')]) for image, caption in zip(x_train, y_train)]
+        aa += ["TEST\tTEST"]  # Using as an indicator for start of test set
+        aa += ['\t'.join([image, caption.replace('\t', ' ').replace('\n', '')]) for image, caption in zip(x_test, y_test)]
+        with open(save_name, 'w') as ff:
+            ff.write('\n'.join(aa))
+
     return save_name
 
 
@@ -103,7 +198,7 @@ def match_detection_labels_coco_annotation(image_names, label_path, target_ids=N
 
     image_info_dict = {ii["id"]: ii for ii in aa["images"]}
     rrs = {}
-    for ii in aa["annotations"]:
+    for ii in tqdm(aa["annotations"], "Checking annotations"):
         if target_ids is not None and ii["category_id"] not in target_ids:
             continue
 
@@ -171,6 +266,8 @@ def build_detection_dataset_json(
 ):
     if save_name is None:
         save_name = os.path.basename(os.path.dirname(train_image_path)) + ".json"
+        split_name = train_image_path.split(os.sep)
+        save_name = (split_name[0] if len(split_name) == 1 else split_name[-2]) + ".json"
     elif not save_name.endswith(".json"):
         save_name += ".json"
 
@@ -183,14 +280,16 @@ def build_detection_dataset_json(
         x_test = walk_through_image_folder(test_image_path, depth=1)
         test_label_path = train_label_path if test_label_path is None else test_label_path
         x_test, y_test, _ = match_detection_labels(x_test, test_label_path)
-    else:
+    elif test_split > 0:
         from sklearn.model_selection import train_test_split
 
         x_train, x_test, y_train, y_test = train_test_split(x_train, y_train, test_size=test_split, random_state=42)
+    else:
+        x_test, y_test = [], []
 
     """ Read bbox + label data """
-    x_train = [os.path.abspath(ii) for ii in x_train]
-    x_test = [os.path.abspath(ii) for ii in x_test]
+    # x_train = [os.path.abspath(ii) for ii in x_train]
+    # x_test = [os.path.abspath(ii) for ii in x_test]
     train = [{"image": ii, "objects": jj if isinstance(jj, dict) else read_coco_objects(jj)} for ii, jj in zip(x_train, y_train)]
     test = [{"image": ii, "objects": jj if isinstance(jj, dict) else read_coco_objects(jj)} for ii, jj in zip(x_test, y_test)]
     # num_classes = max([max(ii["objects"]["label"]) for ii in train]) + 1
@@ -217,11 +316,11 @@ def build_detection_dataset_json(
     test = [{"image": ii["image"], "objects": convert_bbox_labels(ii["objects"], label_convert_func, bbox_source_format)} for ii in test]
 
     """ Write target json file """
-    info = {"num_classes": num_classes}
+    info = {"num_classes": num_classes, "base_path": os.path.abspath(".")}
     print(">>>> total_train_samples: {}, total_test_samples: {}, num_classes: {}".format(len(train), len(test), num_classes))
 
     with open(save_name, "w") as ff:
-        json.dump({"train": train, "test": test, "indices_2_labels": indices_2_labels, "info": info}, ff, indent=2)
+        json.dump({"info": info, "train": train, "test": test, "indices_2_labels": indices_2_labels}, ff, indent=2)
     return save_name
 
 
@@ -238,25 +337,42 @@ def parse_arguments(argv):
     }
     BBOX_FORMAT_STR = ", ".join([kk + " -> " + vv for kk, vv in BBOX_FORMAT.items()])
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--train_images", required=True, type=str, help="Train images path")
-    parser.add_argument("--test_images", type=str, default=None, help="Test images path")
-    parser.add_argument("--test_split", type=float, default=0, help="Test split if `test_images` is None")
+    description = "Refer https://github.com/leondgarse/keras_cv_attention_models/discussions/52 for mroe detail usage"
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=description)
+    parser.add_argument("-i", "--train_images", required=True, type=str, help="Train images path")
+    parser.add_argument("-I", "--test_images", type=str, default=None, help="Test images path")
+    parser.add_argument("-p", "--test_split", type=float, default=0, help="Test split if `test_images` is None")
+    parser.add_argument("-s", "--save_name", type=str, default=None, help="Target json file save name")
     # parser.add_argument("--is_int_label", action="store_true", help="[Recognition] convert label by int, or will be sorted and enumerated label")
-    parser.add_argument(
-        "--train_labels", type=str, default=None, help="[Detection] train bbox + label path, can be directory or COCO format annotation json file"
+
+    det_group = parser.add_argument_group("Detection dataset arguments")
+    det_group.add_argument(
+        "-l", "--train_labels", type=str, default=None, help="[Detection] train bbox + label path, can be directory or COCO format annotation json file"
     )
-    parser.add_argument(
+    det_group.add_argument(
+        "-L",
         "--test_labels",
         type=str,
         default=None,
-        help="[Detection] test bbox + label path. None for same with `train_labels`, can be directory or COCO format annotation json file",
+        help="[Detection] test bbox + label path. None for using `train_labels`, can be directory or COCO format annotation json file",
     )
-    parser.add_argument("--bbox_source_format", type=str, default="yxyx", help="[Detection] Bbox source format: " + BBOX_FORMAT_STR)
-    parser.add_argument("-s", "--save_name", type=str, default=None, help="Target json file save name")
+    det_group.add_argument("-b", "--bbox_source_format", type=str, default="yxyx", help="[Detection] Bbox source format: " + BBOX_FORMAT_STR)
+
+    cap_group = parser.add_argument_group("Caption dataset arguments")
+    cap_group.add_argument(
+        "-c", "--train_captions", type=str, default=None, help="[Caption] json/tsv file matching image names with captions, can also be COCO caption format one"
+    )
+    cap_group.add_argument(
+        "-C",
+        "--test_captions",
+        type=str,
+        default=None,
+        help="[Caption] json file matching image names with captions, can be COCO caption format one. None for using `train_captions`",
+    )
+    cap_group.add_argument("-f", "--save_format", type=str, default="json", help="[Caption] one of [json, tsv], tsv file could be like half smaller")
 
     args = parser.parse_known_args(argv)[0]
-    assert args.test_images or args.test_split
+    # assert args.test_images or args.test_split
     assert args.bbox_source_format in BBOX_FORMAT
 
     while args.train_images.endswith(os.sep):
@@ -275,10 +391,14 @@ if __name__ == "__main__":
     import sys
 
     args = parse_arguments(sys.argv[1:])
-    if args.train_labels is None:
-        save_name = build_recognition_dataset_json(args.train_images, args.test_images, args.test_split, args.save_name)
-    else:
+    if args.train_captions is not None:
+        save_name = build_caption_dataset(
+            args.train_images, args.train_captions, args.test_images, args.test_captions, args.test_split, args.save_format, args.save_name
+        )
+    elif args.train_labels is not None:
         save_name = build_detection_dataset_json(
             args.train_images, args.train_labels, args.test_images, args.test_labels, args.test_split, args.bbox_source_format, args.save_name
         )
+    else:
+        save_name = build_recognition_dataset_json(args.train_images, args.test_images, args.test_split, args.save_name)
     print(">>>> Saved to:", save_name)

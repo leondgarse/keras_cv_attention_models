@@ -4,14 +4,9 @@ Copied from https://github.com/mlfoundations/open_clip/blob/main/src/open_clip/t
 Copied from https://github.com/openai/CLIP. Originally MIT License, Copyright (c) 2021 OpenAI.
 """
 import os
-
 import html
 from functools import lru_cache
-
 import numpy as np
-
-import ftfy  # fixes text for you
-import regex as re
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"  # https://stackoverflow.com/q/62691279
@@ -28,18 +23,13 @@ BUILDIN_TOKENIZERS = {
 }
 
 
-def basic_clean(text):
-    text = ftfy.fix_text(text)
-    text = html.unescape(html.unescape(text))
-    return text.strip()
-
-
-def whitespace_clean(text):
-    return re.sub(r"\s+", " ", text).strip()
-
-
 class SimpleTokenizer(object):
     def __init__(self, name_or_path="clip", special_tokens=None, limit_vocab_size="auto", context_length=77):
+        import ftfy  # fixes text for you, importing here avoiding additional requirements if not needed
+        import regex
+
+        self.ftfy, self.regex = ftfy, regex
+
         self.byte_encoder = self.bytes_to_unicode()
         self.byte_decoder = {vv: kk for kk, vv in self.byte_encoder.items()}
         byte_vocab = self._init_byte_vacab_()  # Different from gpt2 and clip
@@ -53,7 +43,7 @@ class SimpleTokenizer(object):
         special_tokens = list(set([self.sot, self.eot])) + (special_tokens if special_tokens else [])
         self.cache = {t: t for t in special_tokens}
         special_regex = "|".join([ii.replace("|", "\|") for ii in special_tokens])
-        self.pat = re.compile(special_regex + r"""|'s|'t|'re|'ve|'m|'ll|'d|[\p{L}]+|[\p{N}]|[^\s\p{L}\p{N}]+""", re.IGNORECASE)
+        self.pat = regex.compile(special_regex + r"""|'s|'t|'re|'ve|'m|'ll|'d|[\p{L}]+|[\p{N}]|[^\s\p{L}\p{N}]+""", regex.IGNORECASE)
         vocab.extend(special_tokens)
 
         self.decoder = dict(enumerate(vocab))
@@ -169,11 +159,17 @@ class SimpleTokenizer(object):
         self.cache[token] = word
         return word
 
+
+    def text_clean(self, text):
+        text = self.ftfy.fix_text(text)
+        text = html.unescape(html.unescape(text))
+        return self.regex.sub(r"\s+", " ", text.strip()).strip()
+
     def encode(self, text):
         bpe_tokens = []
-        text = whitespace_clean(basic_clean(text)).lower()
+        text = self.text_clean(text).lower()
         is_first_token = True
-        for token in re.findall(self.pat, text):
+        for token in self.regex.findall(self.pat, text):
             token = "".join(self.byte_encoder[b] for b in token.encode("utf-8"))
             # print(f"{token = }")
             bpe_tokens.extend(self.encoder[bpe_token] for bpe_token in self.bpe(token, is_first_token=is_first_token).split(" "))
@@ -215,6 +211,10 @@ class TikToken(SimpleTokenizer):
 
     def __init__(self, encoding_name="gpt2", context_length=77):
         import tiktoken
+        import ftfy  # fixes text for you, importing here avoiding additional requirements if not needed
+        import regex
+
+        self.ftfy, self.regex = ftfy, regex
 
         if encoding_name not in tiktoken.list_encoding_names():
             raise ValueError("[Error] encoding_name should be one of {}".format(tiktoken.list_encoding_names()))
@@ -228,7 +228,7 @@ class TikToken(SimpleTokenizer):
         self.context_length = context_length
 
     def encode(self, text):
-        text = whitespace_clean(basic_clean(text)).lower()
+        text = self.text_clean(text).lower()
         return self.tokenizer.encode(text)
 
     def decode(self, tokens):
