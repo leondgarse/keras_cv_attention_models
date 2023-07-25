@@ -14,6 +14,7 @@ from keras_cv_attention_models.beit.dinov2 import DINOv2, DINOv2_ViT_Small14, DI
 from keras_cv_attention_models.beit.eva import EVA, EvaLargePatch14, EvaGiantPatch14
 from keras_cv_attention_models.beit.eva02 import EVA02, EVA02TinyPatch14, EVA02SmallPatch14, EVA02BasePatch14, EVA02LargePatch14
 from keras_cv_attention_models.beit.flexivit import FlexiViT, FlexiViTSmall, FlexiViTBase, FlexiViTLarge
+from keras_cv_attention_models.beit.meta_transformer import MetaTransformer, MetaTransformerBasePatch16, MetaTransformerLargePatch14
 
 __beit_head_doc__ = """
 Keras implementation of [beit](https://github.com/microsoft/unilm/tree/master/beit).

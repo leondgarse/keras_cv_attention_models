@@ -40,6 +40,7 @@ PRETRAINED_DICT = {
     "flexivit_small": {"imagenet": {240: "efb73a97d099a491b69ebfaf8a337df8"}},
     "flexivit_base": {"imagenet": {240: "dac627debb194928db01e1b9b7a548fd"}},
     "flexivit_large": {"imagenet": {240: "6faa953227d2ef1df6758f8eb7234490"}},
+    "meta_transformer_base_patch16": {"laion_2b": {384: "5daafcdef0895ab292b39173331c12c3"}},
 }
 
 
@@ -166,10 +167,10 @@ class MultiHeadRelativePositionalEmbedding(layers.Layer):
             self.relative_position_index = functional.convert_to_tensor(relative_position_index, dtype="int64")
         super().build(attn_shape)
 
-    def call(self, attention_scores, **kwargs):
-        pos_emb = functional.gather(self.relative_position_bias_table, self.relative_position_index, axis=1)
-        # tf.print(pos_emb.shape, attention_scores.shape)
-        return attention_scores + pos_emb
+    def call(self, inputs, **kwargs):
+        pos_emb = functional.gather(self.relative_position_bias_table, self.relative_position_index[: inputs.shape[2], : inputs.shape[3]], axis=1)
+        # tf.print(pos_emb.shape, inputs.shape)
+        return inputs + pos_emb
 
     def get_config(self):
         base_config = super().get_config()
@@ -243,7 +244,8 @@ def scaled_dot_product_attention(query, key, value, output_shape, pos_emb=None, 
     # output = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([attention_scores, value])
     attention_output = attention_scores @ value
     output = functional.transpose(attention_output, perm=[0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
-    output = functional.reshape(output, [-1, *blocks, np.prod(output.shape[1:]) // np.prod(blocks)])  # [batch, q_blocks, channel * attn_ratio]
+    # output = functional.reshape(output, [-1, *blocks, np.prod(output.shape[1:]) // np.prod(blocks)])  # [batch, q_blocks, channel * attn_ratio]
+    output = layers.Reshape([*blocks, np.prod(output.shape[2:])])(output) if -1 in blocks else layers.Reshape([*blocks, -1])(output)
 
     if out_weight:
         # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
@@ -258,27 +260,27 @@ def qkv_to_multi_head_channels_last_format(query, key, value, num_heads, data_fo
     if data_format == "channels_last":
         if query is not None:
             # query [batch, hh, ww, channel] -> [batch, num_heads, hh * ww, key_dim]
-            query = functional.reshape(query, [-1, np.prod(query.shape[1:-1]), num_heads, query.shape[-1] // num_heads])
+            query = layers.Reshape([-1, num_heads, query.shape[-1] // num_heads])(query)
             query = functional.transpose(query, [0, 2, 1, 3])
         if key is not None:
             # key [batch, hh, ww, channel] -> [batch, num_heads, key_dim, hh * ww]
-            key = functional.reshape(key, [-1, np.prod(key.shape[1:-1]), num_heads, key.shape[-1] // num_heads])
+            key = layers.Reshape([-1, num_heads, key.shape[-1] // num_heads])(key)
             key = functional.transpose(key, [0, 2, 3, 1])
         if value is not None:
             # value [batch, hh, ww, channel] -> [batch, num_heads, hh * ww, vv_dim]
-            value = functional.reshape(value, [-1, np.prod(value.shape[1:-1]), num_heads, value.shape[-1] // num_heads])
+            value = layers.Reshape([-1, num_heads, value.shape[-1] // num_heads])(value)
             value = functional.transpose(value, [0, 2, 1, 3])
     else:
         if query is not None:
             # query [batch, channel, hh, ww] -> [batch, num_heads, hh * ww, key_dim]
-            query = functional.reshape(query, [-1, num_heads, query.shape[1] // num_heads, np.prod(query.shape[2:])])
+            query = layers.Reshape([num_heads, query.shape[1] // num_heads, -1])(query)
             query = functional.transpose(query, [0, 1, 3, 2])
         if key is not None:
             # key [batch, channel, hh, ww] -> [batch, num_heads, key_dim, hh * ww]
-            key = functional.reshape(key, [-1, num_heads, key.shape[1] // num_heads, np.prod(key.shape[2:])])
+            key = layers.Reshape([num_heads, key.shape[1] // num_heads, -1])(key)
         if value is not None:
             # value [batch, channel, hh, ww] -> [batch, num_heads, hh * ww, vv_dim]
-            value = functional.reshape(value, [-1, num_heads, value.shape[1] // num_heads, np.prod(value.shape[2:])])
+            value = layers.Reshape([num_heads, value.shape[1] // num_heads, -1])(value)
             value = functional.transpose(value, [0, 1, 3, 2])
     # print(f">>>> {query.shape = }, {key.shape = }, {value.shape = }, {num_heads = }, {data_format = }")
     return query, key, value
@@ -327,7 +329,7 @@ def attention_block(
     query, key, value = qkv_to_multi_head_channels_last_format(query, key, value, num_heads, data_format="channels_last")
 
     pos_emb = MultiHeadRelativePositionalEmbedding(attn_height=attn_height, name=name and name + "pos_emb") if use_pos_emb else None
-    output_shape = [-1, bb, emded_dim]
+    output_shape = [-1, -1, emded_dim]
     return scaled_dot_product_attention(query, key, value, output_shape, pos_emb, out_weight, out_bias, dropout=attn_dropout, name=name)
 
 
@@ -429,6 +431,8 @@ def Beit(
     embed_dim=768,
     num_heads=12,
     patch_size=16,
+    use_patch_bias=True,  # False for MetaTransFormer, True for others
+    use_pre_norm=False,  # True for MetaTransFormer, False for others
     attn_key_dim=0,  # [Attention args]
     attn_qv_bias=True,  # Default False for Vit, True for Beit, if True and attn_qkv_bias being False, will add BiasLayer for query and key.
     attn_qkv_bias=False,  # True for Vit, False for Beit, if True, will just use bias in qkv_dense, and set qv_bias False.
@@ -461,7 +465,7 @@ def Beit(
 
     """ forward_embeddings """
     # nn = conv2d_no_bias(inputs, embed_dim, patch_size, strides=patch_size, padding="valid", use_bias=True, name="stem_")
-    nn = PatchConv2DWithResampleWeights(embed_dim, patch_size, strides=patch_size, padding="valid", use_bias=True, name="stem_conv")(inputs)
+    nn = PatchConv2DWithResampleWeights(embed_dim, patch_size, strides=patch_size, padding="valid", use_bias=use_patch_bias, name="stem_conv")(inputs)
     nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
     patch_height = nn.shape[1]
     nn = layers.Reshape([-1, nn.shape[-1]])(nn)
@@ -475,6 +479,7 @@ def Beit(
         nn = ClassToken(name="cls_token")(nn)
     else:  # Beit and BeitV2
         nn = ClassToken(name="cls_token")(nn)
+    nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="pre_ln")(nn) if use_pre_norm else nn
 
     """ Attention MLP body """
     attn_params = {
