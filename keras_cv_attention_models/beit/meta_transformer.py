@@ -26,7 +26,7 @@ def MetaTransformerBasePatch16(
     num_heads = 12
     patch_size = kwargs.pop("patch_size", 16)
     force_reload_mismatch = patch_size != 16  # If patch_size not match, force reload pos_emb and stem_conv weights
-    return MetaTransformer(**locals(), model_name="meta_transformer_base_patch14", **kwargs)
+    return MetaTransformer(**locals(), model_name="meta_transformer_base_patch16", **kwargs)
 
 
 @register_model

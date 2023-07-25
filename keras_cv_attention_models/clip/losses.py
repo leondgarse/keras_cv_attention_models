@@ -2,6 +2,7 @@ import math
 import tensorflow as tf
 
 
+@tf.keras.utils.register_keras_serializable(package="kecamLoss")
 def clip_loss(y_true, y_pred):
     # normalized features
     # half_split = y_pred.shape[-1] // 2

@@ -235,9 +235,9 @@ def split_model_to_head_body_tail_by_blocks(model):
             break
     print(">>>> Split model to head + body + tail by blocks, body_start_layer: {}, body_end_layer: {}".format(body_start_layer.name, body_end_layer.name))
 
-    head_model = models.Model(model.input, body_start_layer.input, name=model.name + "_head")
+    head_model = models.Model(model.inputs[0], body_start_layer.input, name=model.name + "_head")
     body_model = models.Model(body_start_layer.input, body_end_layer.output, name=model.name + "_body")
-    tail_model = models.Model(body_end_layer.output, model.output, name=model.name + "_tail")
+    tail_model = models.Model(body_end_layer.output, model.outputs[0], name=model.name + "_tail")
     return head_model, body_model, tail_model
 
 
