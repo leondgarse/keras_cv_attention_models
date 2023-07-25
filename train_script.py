@@ -31,8 +31,9 @@ def parse_arguments(argv):
         "--pretrained",
         type=str,
         default=None,
-        help="""If build model with pretrained weights. Mostly used is one of [imagenet, imagenet21k]. Or specified h5 file for build model -> restore weights.
-                This will drop model optimizer, used for `progressive_train_script.py`. Relatively, `restore_path` is used for restore from break point""",
+        help="""If build model with pretrained weights. Set "default" for model preset value. Mostly used is one of [imagenet, imagenet21k].
+                Or specified h5 file for build model -> restore weights. This will drop model optimizer, used for `progressive_train_script.py`.
+                Relatively, `restore_path` is used for restore from break point""",
     )
     parser.add_argument(
         "--additional_model_kwargs", type=str, default=None, help="Json format model kwargs like '{\"drop_connect_rate\": 0.05}'. Note all quote marks"
@@ -86,8 +87,8 @@ def parse_arguments(argv):
     ds_group.add_argument("--magnitude", type=int, default=6, help="Randaug magnitude value")
     ds_group.add_argument("--num_layers", type=int, default=2, help="Number of randaug applied sequentially to an image. Usually best in [1, 3]")
     ds_group.add_argument("--random_crop_min", type=float, default=0.08, help="Random crop min value for RRC. Set 1 to disable RRC")
-    ds_group.add_argument("--mixup_alpha", type=float, default=0.1, help="Mixup alpha value")
-    ds_group.add_argument("--cutmix_alpha", type=float, default=1.0, help="Cutmix alpha value")
+    ds_group.add_argument("--mixup_alpha", type=float, default=0.1, help="Mixup alpha value. Force 0 for Clip training")
+    ds_group.add_argument("--cutmix_alpha", type=float, default=1.0, help="Cutmix alpha value. Force 0 for Clip training")
     ds_group.add_argument("--random_erasing_prob", type=float, default=0, help="Random erasing prob, can be used to replace cutout. Set 0 to disable")
     ds_group.add_argument("--eval_central_crop", type=float, default=0.95, help="Evaluation central crop fraction. Set 1 to disable")
     ds_group.add_argument("--rescale_mode", type=str, default="torch", help="Rescale mode, one of [tf, torch]")
@@ -105,7 +106,9 @@ def parse_arguments(argv):
         default=None,
         help="Could be: 1. Saved h5 model path. 2. Model from this repo, [sub_dir].[model_name] like regnet.RegNetZD8. 3. timm model timm.models.resmlp_12_224",
     )
-    dt_group.add_argument("--teacher_model_pretrained", type=str, default="imagenet", help="Teacher model pretrained weight, if not built from h5")
+    dt_group.add_argument(
+        "--teacher_model_pretrained", type=str, default="default", help="Teacher model pretrained weight, default 'default' for using model preset value"
+    )
     dt_group.add_argument("--teacher_model_input_shape", type=int, default=-1, help="Teacher model input_shape, -1 for same with `input_shape`")
     dt_group.add_argument("--distill_temperature", type=float, default=10, help="Temperature for DistillKLDivergenceLoss")
     dt_group.add_argument("--distill_loss_weight", type=float, default=1, help="Distill loss weight if `teacher_model` is not None")
@@ -113,7 +116,13 @@ def parse_arguments(argv):
     """ Clip parameters """
     clip_group = parser.add_argument_group("Clip arguments")
     clip_group.add_argument(
-        "--text_model", type=str, default=None, help="Could be: 1. Saved h5 model path. 2. Model from this repo, gpt2.[model_name] like gpt2.GPT2_Base",
+        "--text_model",
+        type=str,
+        default=None,
+        help="Could be h5 model path, or model from this repo `gpt2.[model_name]` like gpt2.GPT2_Base. Special value 'image_model' for build from image_model",
+    )
+    dt_group.add_argument(
+        "--text_model_pretrained", type=str, default="default", help="Text model pretrained weight, default 'default' for using model preset value"
     )
     clip_group.add_argument(
         "--text_model_additional_kwargs", type=str, default=None, help="Json format model kwargs like '{\"drop_connect_rate\": 0.05}'. Note all quote marks"
@@ -124,9 +133,7 @@ def parse_arguments(argv):
         default="GPT2Tokenizer",
         help="One of ['GPT2Tokenizer', 'SimpleTokenizer'], or tiktoken one ['gpt2', 'r50k_base', 'p50k_base', 'cl100k_base']",
     )
-    clip_group.add_argument(
-        "--latents_len", type=int, default=512, help="hidden dimension of `image_latents` and `text_latents` before calculating similarity"
-    )
+    clip_group.add_argument("--latents_dim", type=int, default=512, help="hidden dimension of `image_latents` and `text_latents` before calculating similarity")
 
     args = parser.parse_known_args(argv)[0]
 
@@ -180,21 +187,23 @@ def run_training_by_args(args):
         model = args.model if args.restore_path is None else args.restore_path
         if is_clip_train:
             args.additional_model_kwargs.update({"classifier_activation": None})
-        model = train_func.init_model(model, input_shape, args.latents_len if is_clip_train else num_classes, args.pretrained, **args.additional_model_kwargs)
+        model = train_func.init_model(model, input_shape, args.latents_dim if is_clip_train else num_classes, args.pretrained, **args.additional_model_kwargs)
         model = train_func.model_post_process(model, args.freeze_backbone, args.freeze_norm_layers, use_token_label)
-        if args.summary:
-            model.summary()
 
         teacher_model, caption_tokenizer = None, None
         if is_clip_train:
             from keras_cv_attention_models import clip
 
-            caption_tokenizer = (getattr(clip, args.tokenizer)() if hasattr(clip, args.tokenizer) else clip.TikToken(args.tokenizer)) if is_clip_train else None
+            caption_tokenizer = getattr(clip, args.tokenizer)() if hasattr(clip, args.tokenizer) else clip.TikToken(args.tokenizer)
             if args.restore_path is None:  # Skip build if restore
                 print(">>>> [Build text model]")
-                text_model = train_func.init_model(
-                    args.text_model, input_shape=-1, num_classes=-1, pretrained="default", include_top=False, **args.text_model_additional_kwargs
-                )
+                if args.text_model == "image_model":
+                    text_model = None  # Single tower, build text_model from image model
+                else:
+                    args.text_model_additional_kwargs.update({"include_top": False})
+                    text_model = train_func.init_model(
+                        args.text_model, input_shape=-1, num_classes=-1, pretrained=args.text_model_pretrained, **args.text_model_additional_kwargs
+                    )
                 model, image_model, text_model = clip.convert_to_clip_model(model, text_model, caption_tokenizer=caption_tokenizer)
             print(">>>> model.input_shape: {}, model.output_shape {}".format(model.input_shape, model.output_shape))
         elif use_teacher_model:
@@ -204,6 +213,8 @@ def run_training_by_args(args):
             )
             model, teacher_model = train_func.init_distill_model(model, teacher_model)
 
+        if args.summary:
+            model.summary()
     token_label_target_patches = model.output_shape[-1][1:-1] if use_token_label else -1
 
     train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = data.init_dataset(

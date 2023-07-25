@@ -4,6 +4,7 @@ from keras_cv_attention_models.model_surgery.model_surgery import (
     add_l2_regularizer_2_model,
     align_pyramide_feature_output_by_image_data_format,
     change_model_input_shape,
+    convert_to_dynamic_input_shape,
     convert_extract_patches_to_conv,
     convert_gelu_to_approximate,
     convert_gelu_and_extract_patches_for_tflite,  # [Deprecated], use convert_gelu_to_approximate -> convert_extract_patches_to_conv instead
@@ -26,5 +27,6 @@ from keras_cv_attention_models.model_surgery.model_surgery import (
     replace_add_with_drop_connect,
     replace_add_with_stochastic_depth,
     replace_stochastic_depth_with_add,
+    split_model_to_head_body_tail_by_blocks,
     swin_convert_pos_emb_mlp_to_MlpPairwisePositionalEmbedding_weights,
 )

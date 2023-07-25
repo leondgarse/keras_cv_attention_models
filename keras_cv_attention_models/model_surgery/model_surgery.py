@@ -177,11 +177,12 @@ def change_model_input_shape(model, new_input_shape):
     import json
     import os
 
-    if model.input_shape[1:-1] == new_input_shape[:2]:
+    new_input_shape = [None, *new_input_shape[: len(model.input_shape) - 2], model.input_shape[-1]]
+    if list(model.input_shape) == new_input_shape:
         return model
 
     aa = json.loads(model.to_json())
-    aa["config"]["layers"][0]["config"]["batch_input_shape"] = [None, *new_input_shape[:2], 3]
+    aa["config"]["layers"][0]["config"]["batch_input_shape"] = new_input_shape
     bb = models.model_from_json(json.dumps(aa))
     temp_name = "__change_model_input_shape_temp__.h5"
     model.save_weights(temp_name)
@@ -189,6 +190,55 @@ def change_model_input_shape(model, new_input_shape):
     os.remove(temp_name)
     print(">>>> Changed model input shape from {} to {}".format(model.input_shape, bb.input_shape))
     return bb
+
+
+def convert_to_dynamic_input_shape(model):
+    def __convert_to_dynamic_input_shape__(layer):
+        if hasattr(layer, "load_resized_weights"):
+            aa = layer.__class__.from_config(layer.get_config())
+            # aa.build(layer.input_shape)  # [???] Error when saving ValueError: Unable to create dataset (name already exists)
+            _ = aa(initializers.zeros()([1, *layer.input_shape[1:]]))
+            aa.set_weights(layer.get_weights())
+            return aa
+        else:
+            return layer
+
+    input_shape = [None] * (len(model.input_shape) - 2) + list(model.input_shape)[-1:]
+    bb = models.clone_model(model, layers.Input(input_shape), clone_function=__convert_to_dynamic_input_shape__)
+    print(">>>> Changed model input shape from {} to {}".format(model.input_shape, bb.input_shape))
+    return bb
+
+
+# Not using
+def find_layer_name_nested(layers, layer_name_cond, reverse=False):
+    layers = layers[::-1] if reverse else layers
+    for ii in layers:
+        if layer_name_cond(ii.name):
+            return ii
+        if hasattr(ii, "layers"):  # nested
+            found_layer = find_layer_name_nested(ii.layers, layer_name_cond, reverse=reverse)
+            if found_layer is not None:
+                return ii  # Return nested block
+    return None
+
+
+def split_model_to_head_body_tail_by_blocks(model):
+    for ii in model.layers:
+        if "stack" in ii.name or "block" in ii.name:
+            body_start_layer = ii
+            break
+    assert body_start_layer is not None, "None layer with name containing 'stack' or 'block' found"
+
+    for ii in model.layers[::-1]:
+        if "stack" in ii.name or "block" in ii.name:
+            body_end_layer = ii
+            break
+    print(">>>> Split model to head + body + tail by blocks, body_start_layer: {}, body_end_layer: {}".format(body_start_layer.name, body_end_layer.name))
+
+    head_model = models.Model(model.input, body_start_layer.input, name=model.name + "_head")
+    body_model = models.Model(body_start_layer.input, body_end_layer.output, name=model.name + "_body")
+    tail_model = models.Model(body_end_layer.output, model.output, name=model.name + "_tail")
+    return head_model, body_model, tail_model
 
 
 def replace_add_with_stochastic_depth(model, survivals=(1, 0.8)):
