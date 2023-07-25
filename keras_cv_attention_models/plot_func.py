@@ -165,7 +165,7 @@ def show_images_texts_similarity(images, texts, similarity, ax=None, base_size=8
             ax.text(xx, yy, f"{similarity[xx, yy]:.2f}", ha="center", va="center", size=font_size)
 
     for side in ["left", "top", "right", "bottom"]:
-      plt.gca().spines[side].set_visible(False)
+        plt.gca().spines[side].set_visible(False)
 
     ax.set_xlim([-0.5, num_images - 0.5])
     ax.set_ylim([num_texts + 0.5, -2])
@@ -218,6 +218,8 @@ def plot_and_peak_scatter(ax, source_array, peak_method, label, skip_first=0, co
 
 
 def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["bottom"], skip_first=0, pred_curve=0):
+    import os
+    import json
     import matplotlib as mpl
     import matplotlib.pyplot as plt
 

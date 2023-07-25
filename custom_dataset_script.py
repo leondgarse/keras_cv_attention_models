@@ -81,6 +81,7 @@ def build_recognition_dataset_json(train_path, test_path=None, test_split=0.0, s
 
 """ Caption dataset """
 
+
 def read_captions_from_json_or_tsv(caption_file):
     """Parse caption_file to list of dict value. Add here for reading and parsing custom format files.
     Return format: [
@@ -100,20 +101,20 @@ def read_captions_from_json_or_tsv(caption_file):
 
         delimiter = "\t"
         with open(caption_file) as ff:
-            captions_dict = [{'image': ii[0].split("#")[0], 'caption': ii[1]} for ii in csv.reader(ff, delimiter=delimiter)]
+            captions_dict = [{"image": ii[0].split("#")[0], "caption": ii[1]} for ii in csv.reader(ff, delimiter=delimiter)]
     return captions_dict
 
 
 def match_captions(images, captions_dict):
     if "images" in captions_dict and "annotations" in captions_dict:  # COCO caption format
-        image_dict = {ii['id']: ii['file_name'] for ii in captions_dict['images']}
+        image_dict = {ii["id"]: ii["file_name"] for ii in captions_dict["images"]}
         caption_image_name_map = {}
-        for ii in captions_dict['annotations']:
-            caption_image_name_map.setdefault(image_dict[ii['image_id']], []).append(ii['caption'])
+        for ii in captions_dict["annotations"]:
+            caption_image_name_map.setdefault(image_dict[ii["image_id"]], []).append(ii["caption"])
     elif isinstance(captions_dict, list) and "image" in captions_dict[0] and "caption" in captions_dict[0]:
         caption_image_name_map = {}
         for ii in captions_dict:
-            caption_image_name_map.setdefault(os.path.basename(ii['image']), []).append(ii['caption'])
+            caption_image_name_map.setdefault(os.path.basename(ii["image"]), []).append(ii["caption"])
 
     gathered_images, gathered_captions = [], []
     for ii in images:
@@ -156,17 +157,17 @@ def build_caption_dataset(train_image_path, train_captions, test_image_path=None
     info = {"base_path": os.path.abspath(".")}
     print(">>>> total_train_samples: {}, total_test_samples: {}".format(len(x_train), len(x_test)))
     if save_format == "json":
-        train = [{"image": ii, "caption": jj } for ii, jj in zip(x_train, y_train)]
-        test = [{"image": ii, "caption": jj } for ii, jj in zip(x_test, y_test)]
+        train = [{"image": ii, "caption": jj} for ii, jj in zip(x_train, y_train)]
+        test = [{"image": ii, "caption": jj} for ii, jj in zip(x_test, y_test)]
         with open(save_name, "w") as ff:
             json.dump({"info": info, "train": train, "test": test}, ff, indent=2)
     else:
         aa = ["\t".join([kk, vv]) for kk, vv in info.items()]  # A special key for keeping some info in tsv
-        aa += ['\t'.join([image, caption.replace('\t', ' ').replace('\n', '')]) for image, caption in zip(x_train, y_train)]
+        aa += ["\t".join([image, caption.replace("\t", " ").replace("\n", "")]) for image, caption in zip(x_train, y_train)]
         aa += ["TEST\tTEST"]  # Using as an indicator for start of test set
-        aa += ['\t'.join([image, caption.replace('\t', ' ').replace('\n', '')]) for image, caption in zip(x_test, y_test)]
-        with open(save_name, 'w') as ff:
-            ff.write('\n'.join(aa))
+        aa += ["\t".join([image, caption.replace("\t", " ").replace("\n", "")]) for image, caption in zip(x_test, y_test)]
+        with open(save_name, "w") as ff:
+            ff.write("\n".join(aa))
 
     return save_name
 

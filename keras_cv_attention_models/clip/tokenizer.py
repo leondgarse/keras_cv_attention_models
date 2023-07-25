@@ -159,7 +159,6 @@ class SimpleTokenizer(object):
         self.cache[token] = word
         return word
 
-
     def text_clean(self, text):
         text = self.ftfy.fix_text(text)
         text = html.unescape(html.unescape(text))
