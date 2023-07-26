@@ -21,7 +21,7 @@
 - **Train using `train_script.py`** by specifying `--text_model` a text model and `--data_name` a caption dataset.
   ```sh
   CUDA_VISIBLE_DEVICES=1 python train_script.py -m BeitBasePatch16 --text_model GPT2_Base -d datasets/coco_dog_cat/captions.json \
-  -i 160 -b 4 --optimizer adam --weight_decay 0.1 --lr_base_512 0.002 --lr_warmup 1e-5 --lr_decay_steps 14 \
+  -i 160 -b 32 --optimizer adam --weight_decay 0.1 --lr_base_512 0.002 --lr_warmup 1e-5 --lr_decay_steps 14 \
   --lr_warmup_steps 2 --lr_cooldown_steps 2 --random_crop_min 0.8 --rescale_mode tf --magnitude 0 \
   --pretrained default -s gpt2_beit_clip_test
   ```

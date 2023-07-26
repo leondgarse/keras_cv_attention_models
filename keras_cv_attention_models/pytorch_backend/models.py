@@ -239,10 +239,20 @@ class Model(nn.Module):
         save_weights_to_hdf5_file(filepath if filepath else self.name + ".h5", self, **kwargs)
 
     def summary(self, input_shape=None, **kwargs):
-        from torchsummary import summary
+        from torchinfo import summary
 
-        input_shape = self.input_shape[1:] if input_shape is None else input_shape[-3:]
-        summary(self, tuple(input_shape))
+        input_shape = list(self.input_shape if input_shape is None else input_shape)
+        if len(input_shape) == len(self.input_shape) - 1:
+            input_shape = [1] + input_shape
+        assert len(input_shape) == len(self.input_shape), "provided input_shape={} not match with self.input_shape={} rank".format(input_shape, self.input_shape)
+
+        if input_shape[0] is None or input_shape[0] == -1:
+            input_shape[0] = 1  # Set batch_size 1
+        input_shape = None if None in input_shape else input_shape
+        dtype = self.inputs[0].dtype or torch.get_default_dtype()
+        dtype = getattr(torch, dtype) if isinstance(dtype, str) else dtype
+        print(">>>> input_shape:", input_shape, "dtype:", dtype)
+        print(summary(self, input_size=input_shape, dtypes=[dtype], **kwargs))
 
     def count_params(self):
         total_params = sum([np.prod(ii.shape) for ii in self.state_dict().values() if len(ii.shape) != 0])
