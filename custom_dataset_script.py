@@ -75,7 +75,7 @@ def build_recognition_dataset_json(train_path, test_path=None, test_split=0.0, s
     print(">>>> total_train_samples: {}, total_test_samples: {}, num_classes: {}".format(len(train), len(test), num_classes))
 
     with open(save_name, "w") as ff:
-        json.dump({"info": info, "train": train, "test": test, "indices_2_labels": image_classes_rule.indices_2_labels}, ff, indent=2)
+        json.dump({"info": info, "indices_2_labels": image_classes_rule.indices_2_labels, "train": train, "test": test}, ff, indent=2)
     return save_name
 
 
@@ -321,7 +321,7 @@ def build_detection_dataset_json(
     print(">>>> total_train_samples: {}, total_test_samples: {}, num_classes: {}".format(len(train), len(test), num_classes))
 
     with open(save_name, "w") as ff:
-        json.dump({"info": info, "train": train, "test": test, "indices_2_labels": indices_2_labels}, ff, indent=2)
+        json.dump({"info": info, "indices_2_labels": indices_2_labels, "train": train, "test": test}, ff, indent=2)
     return save_name
 
 
