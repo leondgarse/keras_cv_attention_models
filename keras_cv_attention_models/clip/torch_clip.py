@@ -28,9 +28,6 @@ else:
     global_context = torch.amp.autocast(device_type=device_type, dtype=torch.float16)
 
 
-""" data """
-
-
 class CsvDataset(Dataset):
     def __init__(self, input_filename, tokenizer, image_size=224, sep="\t"):
         df = pd.read_csv(input_filename, header=None, sep=sep, names=["image", "caption"])
@@ -90,9 +87,6 @@ def build_dataset(data_path, caption_tokenizer=None, batch_size=64, image_size=2
     return dataloader
 
 
-""" model """
-
-
 class CLIP(nn.Module):
     def __init__(self, image_model, text_model):
         super().__init__()
@@ -114,21 +108,19 @@ class CLIP(nn.Module):
         return image_features, text_features, self.logit_scale.exp()
 
 
-def build_model(image_model="FlexiViTBase", text_model="GPT2_Base", latents_dim=512, image_input_shape=(224, 224, 3)):
+def build_model(image_model="FlexiViTBase", text_model="GPT2_Base", latents_dim=512, image_input_shape=(224, 224, 3), image_pretrained=None):
     text_model = getattr(kecam.models, text_model)(include_top=False)
     text_inputs = text_model.inputs[0]
     text_outputs = text_model.outputs[0]
     text_outputs = kecam.clip.models.text_model_index_header(text_inputs, text_outputs, latents_dim)
     text_model = kecam.backend.models.Model(text_inputs, text_outputs, name=text_model.name)
     # text_model(torch.ones([1, 77], dtype=torch.long)).shape
-    image_model = getattr(kecam.models, image_model)(input_shape=image_input_shape, num_classes=latents_dim, classifier_activation=None)
+    kwargs = {} if image_pretrained == "default" else {"pretrained": image_pretrained}
+    image_model = getattr(kecam.models, image_model)(input_shape=image_input_shape, num_classes=latents_dim, classifier_activation=None, **kwargs)
 
     model = CLIP(image_model, text_model)
     # print({ii:jj.shape for ii , jj in model.named_parameters()})
     return model, image_model, text_model
-
-
-""" optimizer """
 
 
 def build_optimizer(model, lr=1e-3, wd=0.2, beta1=0.9, beta2=0.98, eps=1.0e-6):
@@ -140,9 +132,6 @@ def build_optimizer(model, lr=1e-3, wd=0.2, beta1=0.9, beta2=0.98, eps=1.0e-6):
     ]
     optimizer = optim.AdamW(params, lr=lr, betas=(beta1, beta2), eps=eps)
     return optimizer
-
-
-""" lr """
 
 
 def cosine_lr(optimizer, total_steps, base_lr=1e-3, warmup_steps=10000):
@@ -157,18 +146,12 @@ def cosine_lr(optimizer, total_steps, base_lr=1e-3, warmup_steps=10000):
     return _lr_adjuster
 
 
-""" loss """
-
-
 def clip_loss(image_features, text_features, logit_scale):
     logits_per_image = logit_scale * image_features @ text_features.T
     logits_per_text = logit_scale * text_features @ image_features.T
 
     labels = torch.arange(logits_per_image.shape[0], device=image_features.device, dtype=torch.long)
     return (F.cross_entropy(logits_per_image, labels) + F.cross_entropy(logits_per_text, labels)) / 2
-
-
-""" train """
 
 
 def train_one_epoch(model, optimizer, dataloader, loss, scheduler, cur_epoch, grad_clip_norm=10.0):
@@ -217,7 +200,8 @@ if __name__ == "__main__":
     train_dataloader = build_dataset(args.data_path, image_size=args.input_shape, batch_size=args.batch_size)
     print(">>>> Data:", [ii.shape for ii in next(iter(train_dataloader))])
 
-    model, image_model, text_model = build_model(args.image_model, args.text_model, image_input_shape=(3, args.input_shape, args.input_shape))
+    image_input_shape = (3, args.input_shape, args.input_shape)
+    model, image_model, text_model = build_model(args.image_model, args.text_model, image_input_shape=image_input_shape, image_pretrained=args.pretrained)
     print(">>>> image_model name: {}, input_shape: {}, output_shape: {}".format(image_model.name, image_model.input_shape, image_model.output_shape))
     print(">>>> text_model name: {}, input_shape: {}, output_shape: {}".format(text_model.name, text_model.input_shape, text_model.output_shape))
     model.to(device=global_device)
@@ -227,7 +211,8 @@ if __name__ == "__main__":
     optimizer = build_optimizer(model)
 
     total_steps = train_dataloader.num_batches * args.epochs
-    scheduler = cosine_lr(optimizer, total_steps=total_steps)
+    warmup_steps = train_dataloader.num_batches * 3
+    scheduler = cosine_lr(optimizer, total_steps=total_steps, warmup_steps=warmup_steps)
 
     start_epoch = 0
     for epoch in range(start_epoch, args.epochs):
