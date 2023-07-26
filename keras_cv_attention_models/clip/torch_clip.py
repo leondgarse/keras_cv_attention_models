@@ -110,13 +110,13 @@ class CLIP(nn.Module):
 def build_model(image_model="FlexiViTBase", text_model="GPT2_Base", latents_dim=512, image_input_shape=(224, 224, 3), image_pretrained=None):
     if isinstance(image_model, str):
         model_split = image_model.split(".")
-        image_model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam, model_split[0])
+        image_model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam.models, model_split[0])
         kwargs = {} if image_pretrained == "default" else {"pretrained": image_pretrained}
         image_model = image_model_class(input_shape=image_input_shape, num_classes=latents_dim, classifier_activation=None, **kwargs)
 
-    if isinstance(image_model, str):
-        model_split = image_model.split(".")
-        text_model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam, model_split[0])
+    if isinstance(text_model, str):
+        model_split = text_model.split(".")
+        text_model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam.models, model_split[0])
         text_model = text_model_class(include_top=False)
         text_inputs = text_model.inputs[0]
         text_outputs = text_model.outputs[0]
