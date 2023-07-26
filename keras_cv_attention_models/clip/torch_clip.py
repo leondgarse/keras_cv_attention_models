@@ -15,7 +15,6 @@ from torchvision.transforms import Normalize, Compose, RandomResizedCrop, Interp
 
 os.environ["KECAM_BACKEND"] = "torch"
 import kecam
-from keras_cv_attention_models import clip, models, backend
 
 # Always 0, no matter CUDA_VISIBLE_DEVICES
 global_device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
@@ -53,16 +52,17 @@ class CsvDataset(Dataset):
             ]
         )
         self.tokenizer = tokenizer
+        self.context_length = self.tokenizer.context_length
 
-    def tokenize(self, texts, context_length: int = 77):
+    def tokenize(self, texts):
         if isinstance(texts, str):
             texts = [texts]
         all_tokens = [[self.tokenizer.sot_token] + self.tokenizer.encode(text) + [self.tokenizer.eot_token] for text in texts]
-        result = torch.zeros(len(all_tokens), context_length, dtype=torch.long)
+        result = torch.zeros(len(all_tokens), self.context_length, dtype=torch.long)
 
         for i, tokens in enumerate(all_tokens):
-            if len(tokens) > context_length:
-                tokens = tokens[:context_length]  # Truncate
+            if len(tokens) > self.context_length:
+                tokens = tokens[:self.context_length]  # Truncate
                 tokens[-1] = eot_token
             result[i, : len(tokens)] = torch.tensor(tokens)
         return result
@@ -76,8 +76,7 @@ class CsvDataset(Dataset):
         return images, texts
 
 
-def build_dataset(data_path, caption_tokenizer=None, batch_size=64, image_size=224, num_workers=8):
-    caption_tokenizer = kecam.clip.SimpleTokenizer() if caption_tokenizer is None else caption_tokenizer
+def build_dataset(data_path, caption_tokenizer, batch_size=64, image_size=224, num_workers=8):
     dataset = CsvDataset(data_path, image_size=image_size, tokenizer=caption_tokenizer)
     num_samples = len(dataset)
 
@@ -184,7 +183,7 @@ def train_one_epoch(model, optimizer, dataloader, loss, scheduler, cur_epoch, gr
         process_bar.refresh()
 
 
-if __name__ == "__main__":
+def parse_arguments():
     import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -195,15 +194,27 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--epochs", type=int, default=30, help="Total epochs")
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights. Set 'default' for model preset value")
     parser.add_argument("--text_model", type=str, default="GPT2_Base", help="model from this repo `gpt2.[model_name]` like gpt2.GPT2_Base")
-    args = parser.parse_known_args()[0]
+    parser.add_argument(
+        "--tokenizer",
+        type=str,
+        default="GPT2Tokenizer",
+        help="One of ['GPT2Tokenizer', 'SimpleTokenizer'], or tiktoken one ['gpt2', 'r50k_base', 'p50k_base', 'cl100k_base']"
+    )
+    return parser.parse_known_args()[0]
 
-    train_dataloader = build_dataset(args.data_path, image_size=args.input_shape, batch_size=args.batch_size)
+
+if __name__ == "__main__":
+    args = parse_arguments()
+
+    caption_tokenizer = getattr(kecam.clip, args.tokenizer)() if hasattr(kecam.clip, args.tokenizer) else kecam.clip.TikToken(args.tokenizer)
+    train_dataloader = build_dataset(args.data_path, caption_tokenizer=caption_tokenizer, image_size=args.input_shape, batch_size=args.batch_size)
     print(">>>> Data:", [ii.shape for ii in next(iter(train_dataloader))])
 
     image_input_shape = (3, args.input_shape, args.input_shape)
     model, image_model, text_model = build_model(args.image_model, args.text_model, image_input_shape=image_input_shape, image_pretrained=args.pretrained)
     print(">>>> image_model name: {}, input_shape: {}, output_shape: {}".format(image_model.name, image_model.input_shape, image_model.output_shape))
     print(">>>> text_model name: {}, input_shape: {}, output_shape: {}".format(text_model.name, text_model.input_shape, text_model.output_shape))
+
     model.to(device=global_device)
     if hasattr(torch, "compile") and torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 6:
         model = torch.compile(model)
