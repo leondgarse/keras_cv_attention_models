@@ -108,14 +108,21 @@ class CLIP(nn.Module):
 
 
 def build_model(image_model="FlexiViTBase", text_model="GPT2_Base", latents_dim=512, image_input_shape=(224, 224, 3), image_pretrained=None):
-    text_model = getattr(kecam.models, text_model)(include_top=False)
-    text_inputs = text_model.inputs[0]
-    text_outputs = text_model.outputs[0]
-    text_outputs = kecam.clip.models.text_model_index_header(text_inputs, text_outputs, latents_dim)
-    text_model = kecam.backend.models.Model(text_inputs, text_outputs, name=text_model.name)
+    if isinstance(image_model, str):
+        model_split = image_model.split(".")
+        image_model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam, model_split[0])
+        kwargs = {} if image_pretrained == "default" else {"pretrained": image_pretrained}
+        image_model = image_model_class(input_shape=image_input_shape, num_classes=latents_dim, classifier_activation=None, **kwargs)
+
+    if isinstance(image_model, str):
+        model_split = image_model.split(".")
+        text_model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam, model_split[0])
+        text_model = text_model_class(include_top=False)
+        text_inputs = text_model.inputs[0]
+        text_outputs = text_model.outputs[0]
+        text_outputs = kecam.clip.models.text_model_index_header(text_inputs, text_outputs, latents_dim)
+        text_model = kecam.backend.models.Model(text_inputs, text_outputs, name=text_model.name)
     # text_model(torch.ones([1, 77], dtype=torch.long)).shape
-    kwargs = {} if image_pretrained == "default" else {"pretrained": image_pretrained}
-    image_model = getattr(kecam.models, image_model)(input_shape=image_input_shape, num_classes=latents_dim, classifier_activation=None, **kwargs)
 
     model = CLIP(image_model, text_model)
     # print({ii:jj.shape for ii , jj in model.named_parameters()})
@@ -189,7 +196,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-d", "--data_path", type=str, default="datasets/coco_dog_cat/captions.tsv", help="tsv format dataset path")
     parser.add_argument("-i", "--input_shape", type=int, default=224, help="Image model input shape")
-    parser.add_argument("-m", "--image_model", type=str, default="FlexiViTBase", help="Model name in format [sub_dir].[model_name]")
+    parser.add_argument("-m", "--image_model", type=str, default="FlexiViTBase", help="Model name in format [sub_dir].[model_name] like beit.BeitBasePatch16")
     parser.add_argument("-b", "--batch_size", type=int, default=32, help="Batch size")
     parser.add_argument("-e", "--epochs", type=int, default=30, help="Total epochs")
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights. Set 'default' for model preset value")
