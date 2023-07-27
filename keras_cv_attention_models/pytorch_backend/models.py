@@ -45,11 +45,14 @@ class Model(nn.Module):
     def __init__(self, inputs, outputs, name=None, **kwargs):
         super().__init__()
         self.name = "model_{}".format(self.num_instances) if name == None else name
+        self.nodes = None
 
+        self.output = outputs
         self.outputs = outputs if isinstance(outputs, (list, tuple)) else [outputs]
         self.output_shape = [tuple(ii.shape) for ii in self.outputs] if isinstance(outputs, (list, tuple)) else tuple(outputs.shape)
         self.output_names = [ii.name for ii in self.outputs]
 
+        self.input = inputs
         self.inputs = inputs if isinstance(inputs, (list, tuple)) else [inputs]
         self.input_shape = [tuple(ii.shape) for ii in self.inputs] if isinstance(inputs, (list, tuple)) else tuple(inputs.shape)
         self.input_names = [ii.name for ii in self.inputs]
@@ -61,13 +64,11 @@ class Model(nn.Module):
 
         # Add compile and fit
         self.trainer = Trainer(model=self)
-        self._dataset_gen_ = self.trainer._dataset_gen_
         self.compile = self.trainer.compile
         self.fit = self.trainer.fit
 
         # Add summary, export_onnx, export_pth
         self.exporter = Exporter(model=self)
-        self._create_fake_input_data_ = self.exporter._create_fake_input_data_
         self.summary = self.exporter.summary
         self.export_onnx = self.exporter.export_onnx
         self.export_pth = self.exporter.export_pth
@@ -105,6 +106,9 @@ class Model(nn.Module):
         self.forward_pipeline, self.intra_nodes_ref, self.__layers__ = forward_pipeline, intra_nodes_ref, layers
 
     def forward(self, inputs, **kwargs):
+        if isinstance(inputs, layers.GraphNode) or (isinstance(inputs, (list, tuple)) and any([isinstance(ii, layers.GraphNode) for ii in inputs])):
+            return self.graphnode_forward(inputs)
+
         # print(' -> '.join([ii.name for ii in self.forward_pipeline]))
         if isinstance(inputs, (list, tuple)):  # Multi inputs in list or tuple format
             intra_nodes = {kk: [vv] * self.intra_nodes_ref[kk] for kk, vv in zip(self.input_names, inputs)}
@@ -132,6 +136,25 @@ class Model(nn.Module):
                 print("     output.shape:", np.shape(output))
                 print("     intra_nodes:", {kk: len(vv) for kk, vv in intra_nodes.items() if len(vv) > 0})
         return [intra_nodes[ii][0] for ii in self.output_names] if self.num_outputs != 1 else intra_nodes[self.output_names[0]][0]
+
+    def graphnode_forward(self, inputs):
+        self.input_shape = [() if isinstance(ii, (int, float)) else ii.shape for ii in inputs] if isinstance(inputs, (list, tuple)) else inputs.shape
+        cur_node = layers.GraphNode(self.output_shape, name=self.name if self.nodes is None else (self.name + "_{}".format(len(self.nodes))))
+        cur_node.callable = self
+        cur_node.layer = self
+        cur_node.set_pre_nodes(inputs)
+
+        inputs = inputs if isinstance(inputs, (list, tuple)) else [inputs]
+        for ii in inputs:
+            if isinstance(ii, layers.GraphNode):
+                ii.set_next_nodes(cur_node)
+
+        if self.nodes is None:
+            self.nodes = [cur_node]
+            self.node = cur_node
+        else:
+            self.nodes.append(cur_node)
+        return cur_node
 
     @property
     def layers(self):
@@ -170,8 +193,9 @@ class Model(nn.Module):
 
 
 class Trainer:
-    def __init__(self, model):
+    def __init__(self, model, input_shape=None):
         self.model = model
+        self.input_shape = getattr(self.model, "input_shape") if input_shape is None else input_shape
 
     def compile(self, optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, grad_accumulate=1, grad_max_norm=-1, **kwargs):
         self.optimizer = getattr(torch.optim, optimizer)(self.model.parameters()) if isinstance(optimizer, str) else optimizer
@@ -209,11 +233,11 @@ class Trainer:
                 if isinstance(xx, (list, tuple)):
                     xx = [self._convert_data_(ii) for ii in xx]
                 else:
-                    xx = slf._convert_data_(xx)
+                    xx = self._convert_data_(xx)
                 if isinstance(yy, (list, tuple)):
                     yy = [self._convert_data_(ii) for ii in yy]
                 else:
-                    yy = slf._convert_data_(yy)
+                    yy = self._convert_data_(yy)
 
                 with self.global_context:
                     out = self.model(xx)
@@ -253,7 +277,7 @@ class Trainer:
 
         if hasattr(x, "element_spec"):  # TF datsets
             data_shape = x.element_spec[0].shape
-            if self.model.input_shape is not None and data_shape[-1] == self.model.input_shape[1]:
+            if self.input_shape is not None and data_shape[-1] == self.input_shape[1]:
                 perm = [0, len(data_shape) - 1] + list(range(1, len(data_shape) - 1))  # [0, 3, 1, 2]
                 train_dataset = ((xx.transpose(perm), yy) for xx, yy in x.as_numpy_iterator())
             else:
@@ -277,21 +301,26 @@ class Trainer:
 
 
 class Exporter:
-    def __init__(self, model):
+    def __init__(self, model, input_shapes=None, input_dtypes=None, input_names=None, output_names=None, name=None):
         self.model = model
+        self.name = name or getattr(model, "name", "model")
+        self.input_names = input_names or getattr(model, "input_names", None)
+        self.output_names = output_names or getattr(model, "output_names", None)
+
+        self.input_shapes = input_shapes or ([ii.shape for ii in model.inputs] if hasattr(model, "inputs") else None)
+        self.input_dtypes = input_dtypes or ([ii.dtype for ii in model.inputs] if hasattr(model, "inputs") else None)
 
     def _create_fake_input_data_(self, input_shape=None, batch_size=1):
-        input_shape = self.model.input_shape if input_shape is None else input_shape
+        input_shape = self.input_shapes if input_shape is None else input_shape
         input_shapes = input_shape if isinstance(input_shape[0], (list, tuple)) else [input_shape]  # Convert to list of input_shpae
-        model_inputs = self.model.inputs
-        assert len(input_shapes) == len(model_inputs), "provided input_shape: {} not matching model.inputs: {} in length".format(input_shape, model_inputs)
+        assert len(input_shapes) == len(self.input_shapes), "input_shape={} length not matching self.input_shapes={}".format(input_shape, self.input_shapes)
 
         input_datas = []
-        for input_shape, model_input in zip(input_shapes, model_inputs):
+        for input_shape, model_input_shape, model_input_dtype in zip(input_shapes, self.input_shapes, self.input_dtypes):
             input_shape = list(input_shape).copy()
-            if len(input_shape) == len(model_input.shape) - 1:
+            if len(input_shape) == len(model_input_shape) - 1:
                 input_shape = [batch_size] + input_shape
-            assert len(input_shape) == len(model_input.shape), "provided input_shape={} not match with input={} in rank".format(input_shape, model_input.shape)
+            assert len(input_shape) == len(model_input_shape), "input_shape={} rank not match with input={}".format(input_shape, model_input_shape)
 
             if input_shape[0] is None or input_shape[0] == -1:
                 input_shape[0] = batch_size
@@ -299,7 +328,7 @@ class Exporter:
                 print("[WARNING] dynamic shape value in input_shape={}, set to 32".format(input_shape))
                 input_shape = [32 if ii is None or ii == -1 else ii for ii in input_shape]
 
-            dtype = model_input.dtype or torch.get_default_dtype()
+            dtype = model_input_dtype or torch.get_default_dtype()
             dtype = getattr(torch, dtype) if isinstance(dtype, str) else dtype
             input_datas.append(torch.ones(input_shape, dtype=dtype))
         print(">>>> input_shape: {}, dtype: {}".format([ii.shape for ii in input_datas], [ii.dtype for ii in input_datas]))
@@ -309,20 +338,20 @@ class Exporter:
         from torchinfo import summary
 
         input_datas = self._create_fake_input_data_(input_shape)
-        print(summary(self.model, input_data=input_datas if len(self.model.inputs) == 1 else [input_datas], **kwargs))
+        print(summary(self.model, input_data=input_datas if len(self.input_shapes) == 1 else [input_datas], **kwargs))
 
-    def export_onnx(self, filepath=None, input_shape=None, batch_size=1, simplify=False, **kwargs):
+    def export_onnx(self, filepath=None, input_shape=None, batch_size=1, simplify=False, input_names=None, output_names=None, **kwargs):
         input_datas = self._create_fake_input_data_(input_shape, batch_size=batch_size)
 
         dynamic_axes = kwargs.pop("dynamic_axes", None)
-        input_names = kwargs.pop("input_names", self.model.input_names)
-        output_names = kwargs.pop("output_names", self.model.output_names)
+        input_names = input_names or self.input_names
+        output_names = output_names or self.output_names
         if dynamic_axes is None and (batch_size is None or batch_size == -1):
             print("Set dynamic batch size")
             dynamic_axes = {ii: {0: "-1"} for ii in input_names}
             dynamic_axes.update({ii: {0: "-1"} for ii in output_names})
 
-        filepath = (self.model.name + ".onnx") if filepath is None else (filepath if filepath.endswith(".onnx") else (filepath + ".onnx"))
+        filepath = (self.name + ".onnx") if filepath is None else (filepath if filepath.endswith(".onnx") else (filepath + ".onnx"))
         torch.onnx.export(self.model, input_datas, filepath, input_names=input_names, output_names=output_names, dynamic_axes=dynamic_axes, **kwargs)
         print("Exported onnx:", filepath)
 
@@ -342,7 +371,7 @@ class Exporter:
     def export_pth(self, filepath=None, input_shape=None, batch_size=1, **kwargs):
         input_datas = self._create_fake_input_data_(input_shape, batch_size=batch_size)
 
-        traced_cell = torch.jit.trace(self.model, example_inputs=input_datas if len(self.model.inputs) == 1 else [input_datas])
-        filepath = (self.model.name + ".pth") if filepath is None else (filepath if filepath.endswith(".pth") else (filepath + ".pth"))
+        traced_cell = torch.jit.trace(self.model, example_inputs=input_datas if len(self.input_shapes) == 1 else [input_datas])
+        filepath = (self.name + ".pth") if filepath is None else (filepath if filepath.endswith(".pth") else (filepath + ".pth"))
         torch.jit.save(traced_cell, filepath, **kwargs)
         print("Exported pth:", filepath)
