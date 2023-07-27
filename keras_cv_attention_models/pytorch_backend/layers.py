@@ -81,8 +81,8 @@ class GraphNode:
 
     def __repr__(self):
         # return ",".join(for kk, vv in zip())
-        rr = "{}:\n  nodes in: {}".format(self.name, {ii.name: ii.shape for ii in self.pre_nodes})
-        rr = "{}:\n  nodes out: {}".format(self.name, {ii.name: ii.shape for ii in self.next_nodes})
+        rr = "{}:\n  pre_nodes: {}".format(self.name, {ii.name: ii.shape for ii in self.pre_nodes})
+        rr += "\n  next_nodes: {}".format({ii.name: ii.shape for ii in self.next_nodes})
         if hasattr(self, "layer") and hasattr(self.layer, "output_shape"):
             rr += "\n  out: {}".format(self.layer.output_shape)
         return rr
@@ -215,7 +215,7 @@ class Input(GraphNode):
         shape = [None, *shape]
         name = "input_{}".format(self.num_instances) if name is None else name
         super().__init__(shape, name=name)
-        self.dtype = dtype
+        self.dtype = torch.get_default_dtype() if dtype is None else dtype
 
 
 class Layer(nn.Module):
@@ -274,6 +274,8 @@ class Layer(nn.Module):
             for ii in inputs:
                 if isinstance(ii, GraphNode):
                     ii.set_next_nodes(cur_node)
+            self.inputs = inputs
+            self.input = inputs[0] if len(inputs) == 1 else inputs
 
             if self.nodes is None:
                 self.outputs = self.nodes = [cur_node]
@@ -405,6 +407,15 @@ class Activation(Layer):
         config = super().get_config()
         config.update({"activation": self.activation})
         return config
+
+
+class Identity(Layer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.module = torch.nn.Identity()
+        super().build(input_shape)
 
 
 """ Merge Layers """
@@ -1392,29 +1403,39 @@ class Reshape(Layer):
         num_unknown_dim = sum([ii == -1 for ii in self.target_shape])
         assert num_unknown_dim < 2, "At most one unknown dimension in output_shape: {}".format(self.target_shape)
 
-        if any([ii is None or ii == -1 for ii in input_shape[1:]]):  # Dynamic input_shape
-            if num_unknown_dim > 0:
-                knwon_target_dim = -1 * np.prod(self.target_shape)
-                self.module = partial(
-                    lambda inputs: inputs.contiguous().view(
-                        [inputs.shape[0]] + [inputs.shape[1:].numel() // knwon_target_dim if ii == -1 else ii for ii in self.target_shape]
-                    )
-                )
-            else:
-                self.module = partial(lambda inputs: inputs.contiguous().view([inputs.shape[0], *self.target_shape]))
-        else:
+        if all([ii is not None and ii != -1 for ii in input_shape[1:]]) and num_unknown_dim == 0:  # Static input_shape
             total_size = np.prod(input_shape[1:])
-            if num_unknown_dim > 0:
-                unknown_dim = total_size // (-1 * np.prod(self.target_shape))
-                self.target_shape = [unknown_dim if ii == -1 else ii for ii in self.target_shape]
             assert total_size == np.prod(self.target_shape), "Total size of new array must be unchanged, {} -> {}".format(input_shape, self.target_shape)
-            self.module = partial(lambda inputs: inputs.contiguous().view([-1, *self.target_shape]))
+        self.module = partial(lambda inputs: inputs.contiguous().view([inputs.shape[0], *self.target_shape]))
+        #     if num_unknown_dim > 0:
+        #         # known_target_dim = -1 * np.prod(self.target_shape)
+        #         self.module = partial(lambda inputs: inputs.contiguous().view([inputs.shape[0]] + self.target_shape))
+        #                 # [inputs.shape[0]] + [inputs.shape[1:].numel() // known_target_dim if ii == -1 else ii for ii in self.target_shape]))
+        #     else:
+        #         self.module = partial(lambda inputs: inputs.contiguous().view([inputs.shape[0], *self.target_shape]))
+        # else:
+        #     total_size = np.prod(input_shape[1:])
+        #     if num_unknown_dim > 0:
+        #         unknown_dim = total_size // (-1 * np.prod(self.target_shape))
+        #         target_shape = [unknown_dim if ii == -1 else ii for ii in self.target_shape]
+        #         self.module = partial(lambda inputs: inputs.contiguous().view([inputs.shape[0], *self.target_shape]))
+        #     else:
+        #         target_shape = self.target_shape
+        #         self.module = partial(lambda inputs: inputs.contiguous().view([-1, *self.target_shape]))
+        #     assert total_size == np.prod(target_shape), "Total size of new array must be unchanged, {} -> {}".format(input_shape, self.target_shape)
 
         # self.module = partial(torch.reshape, shape=[-1, *self.target_shape])
         super().build(input_shape)
 
     def compute_output_shape(self, input_shape):
-        return [input_shape[0]] + [None if ii == -1 else ii for ii in self.target_shape]
+        num_unknown_dim = sum([ii == -1 for ii in self.target_shape])
+        if all([ii is not None and ii != -1 for ii in input_shape[1:]]) and num_unknown_dim == 1:  # Static input_shape
+            total_size = np.prod(input_shape[1:])
+            unknown_dim = total_size // (-1 * np.prod(self.target_shape))
+            target_shape = [unknown_dim if ii == -1 else ii for ii in self.target_shape]
+        else:
+            target_shape = self.target_shape
+        return [input_shape[0]] + [None if ii == -1 else ii for ii in target_shape]
 
     def get_config(self):
         config = super().get_config()
