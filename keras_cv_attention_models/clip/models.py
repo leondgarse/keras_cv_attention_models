@@ -56,7 +56,6 @@ def split_to_image_text_model(model):
 
 
 def build_text_model_from_image_model(image_model, vocab_size=50257, text_dropout=0):
-    """Not works for PyTorch backend"""
     from keras_cv_attention_models import model_surgery
 
     head_model, body_model, tail_model = model_surgery.split_model_to_head_body_tail_by_blocks(image_model)
@@ -67,9 +66,9 @@ def build_text_model_from_image_model(image_model, vocab_size=50257, text_dropou
     image_output = tail_model(image_body_output)
     image_model = models.Model(image_input, image_output)  # Or models.Sequential([head_model, body_model, tail_model])
 
-    body_input_rank = len(body_model.input.shape)
+    body_input_rank = len(body_model.inputs[0].shape)
     assert body_input_rank == 3, "input for body has to be rank 3, got input_layer: {}, rank: {}".format(body_start_layer.name, body_input_rank)
-    max_block_size, embedding_size = head_model.output.shape[1], body_model.input.shape[-1]
+    max_block_size, embedding_size = head_model.outputs[0].shape[1], body_model.inputs[0].shape[-1]
 
     text_input = layers.Input([None], dtype="int64")
     pos_idx = attention_layers.PositionalIndex(block_size=max_block_size, name="pos_idx")(text_input)
@@ -79,7 +78,7 @@ def build_text_model_from_image_model(image_model, vocab_size=50257, text_dropou
     text_head_output = layers.Dropout(dropout)(text_head_output) if text_dropout > 0 else text_head_output
 
     text_body_output = body_model(text_head_output)
-    text_output = text_model_index_header(text_input, text_body_output, latents_dim=image_model.output.shape[-1])
+    text_output = text_model_index_header(text_input, text_body_output, latents_dim=image_model.outputs[0].shape[-1])
     text_model = models.Model(text_input, text_output)
     return image_model, text_model
 

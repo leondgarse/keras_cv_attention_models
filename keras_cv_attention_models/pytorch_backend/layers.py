@@ -282,7 +282,7 @@ class Layer(nn.Module):
                 self.output = self.node = cur_node
             else:
                 self.nodes.append(cur_node)
-                self.outputs.append(cur_node)
+                self.output = self.node = self.outputs = self.nodes
             return cur_node
         else:
             return self.call(inputs, **kwargs)
