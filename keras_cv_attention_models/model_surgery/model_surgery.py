@@ -193,6 +193,9 @@ def change_model_input_shape(model, new_input_shape):
 
 
 def convert_to_dynamic_input_shape(model):
+    if not backend.is_tensorflow_backend:
+        return model  # Do nothing for pytorch model
+
     def __convert_to_dynamic_input_shape__(layer):
         if hasattr(layer, "load_resized_weights"):
             aa = layer.__class__.from_config(layer.get_config())

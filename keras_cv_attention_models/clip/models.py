@@ -11,6 +11,15 @@ def text_model_index_header(text_input, text_output, latents_dim):
 
 
 def convert_to_clip_model(image_model, text_model=None, caption_tokenizer=None):
+    """
+    >>> import tensorflow as tf  # Or import torch for PyTroch backend
+    >>> from keras_cv_attention_models import clip, gpt2, beit
+    >>> image_model = beit.ViT(num_classes=512, classifier_activation=None)
+    >>> text_model = gpt2.GPT2_Base(include_top=False)
+    >>> caption_tokenizer = clip.SimpleTokenizer()
+    >>> model, image_model, text_model = clip.convert_to_clip_model(image_model, text_model, caption_tokenizer)
+    >>> model.run_prediction(tf.ones([1, 224, 224, 3]), ['cat', 'dog'])
+    """
     if text_model is None:
         print(">>>> Build text_model from image_model")
         kwargs = {"vocab_size": caption_tokenizer.vocab_size} if caption_tokenizer is not None and hasattr(caption_tokenizer, "vocab_size") else {}
@@ -47,7 +56,7 @@ def split_to_image_text_model(model):
 
 
 def build_text_model_from_image_model(image_model, vocab_size=50257, text_dropout=0):
-    """Caution, not re-enterable, can only be called once"""
+    """Not works for PyTorch backend"""
     from keras_cv_attention_models import model_surgery
 
     head_model, body_model, tail_model = model_surgery.split_model_to_head_body_tail_by_blocks(image_model)
@@ -100,7 +109,7 @@ class RunPrediction:
             self.text_labels = text_labels if self.formatter is None else [self.formatter.format(ii) for ii in text_labels]
 
         if text_labels is not None or self.text_features is None:
-            text_features = functional.stack([self.caption_tokenizer(ii) for ii in self.text_labels])
+            text_features = functional.stack([functional.convert_to_tensor(self.caption_tokenizer(ii), dtype="int64") for ii in self.text_labels])
             text_features = self.text_model(text_features)
             self.text_features = text_features / functional.norm(text_features, axis=-1, keepdims=True)
 

@@ -152,8 +152,8 @@ def log(inputs, name=None):
     return wrapper(partial(torch.log), inputs, name=name)
 
 
-def matmul(xx, yy, name=None):
-    return wrapper(lambda inputs: torch.matmul(inputs[0], inputs[1]), [xx, yy], name=name)
+def matmul(xx, yy, transpose_a=False, transpose_b=False, name=None):
+    return wrapper(lambda inputs: torch.matmul(inputs[0].T if transpose_a else inputs[0], inputs[1].T if transpose_b else inputs[1]), [xx, yy], name=name)
 
 
 def moments(inputs, axes, shift=None, keepdims=False, name=None):
@@ -308,7 +308,7 @@ def sin(inputs, name=None):
 
 
 def softmax(inputs, axis=None, name=None):
-    return wrapper(partial(torch.softmax, dim=axis), inputs, name=name)
+    return wrapper(partial(torch.softmax, dim=-1 if axis is None else axis), inputs, name=name)
 
 
 def softplus(inputs, name=None):
@@ -347,11 +347,11 @@ def square(inputs, name=None):
     return wrapper(torch.square, inputs, name=name)
 
 
-def squeeze(inputs, axis, name=None):
+def squeeze(inputs, axis=None, name=None):
     return wrapper(partial(torch.squeeze, dim=axis), inputs, name=name)
 
 
-def stack(inputs, axis, name=None):
+def stack(inputs, axis=0, name=None):
     return wrapper(partial(torch.stack, dim=axis), inputs, name=name)
 
 
@@ -368,10 +368,10 @@ def top_k(inputs, k=1, sorted=True, name=None):
 
 
 def transpose(inputs, perm=None, conjugate=False, name=None):
-    return wrapper(partial(torch.permute, dims=perm), inputs, name=name)
+    return wrapper(lambda xx: xx.T, inputs, name=name) if perm is None else wrapper(partial(torch.permute, dims=perm), inputs, name=name)
 
 
-def unstack(inputs, axis, name=None):
+def unstack(inputs, axis=0, name=None):
     axis = len(inputs.shape) + axis if axis < 0 else axis
     axis_shape = inputs.shape[axis]
     assert axis_shape is not None
