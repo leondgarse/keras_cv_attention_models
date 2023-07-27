@@ -62,7 +62,7 @@ class CsvDataset(Dataset):
 
         for i, tokens in enumerate(all_tokens):
             if len(tokens) > self.context_length:
-                tokens = tokens[:self.context_length]  # Truncate
+                tokens = tokens[: self.context_length]  # Truncate
                 tokens[-1] = eot_token
             result[i, : len(tokens)] = torch.tensor(tokens)
         return result
@@ -86,6 +86,20 @@ def build_dataset(data_path, caption_tokenizer, batch_size=64, image_size=224, n
     return dataloader
 
 
+class CLIP(nn.Module):
+    def __init__(self, image_model, text_model):
+        super().__init__()
+        self.image_model, self.text_model = image_model, text_model
+        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
+
+    def forward(self, inputs):
+        image, text = inputs
+        image_features = F.normalize(self.image_model(image), dim=-1)
+        text_features = F.normalize(self.text_model(text), dim=-1)
+        similarity = self.logit_scale.exp() * image_features @ text_features.T
+        return similarity
+
+
 def build_model(
     image_model="FlexiViTBase", text_model="GPT2_Base", image_input_shape=(224, 224, 3), image_pretrained=None, text_pretrained=None, latents_dim=512
 ):
@@ -100,9 +114,14 @@ def build_model(
         text_model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam.models, model_split[0])
         kwargs = {} if text_pretrained == "default" else {"pretrained": text_pretrained}
         text_model = text_model_class(include_top=False, **kwargs)
+        text_inputs = text_model.inputs[0]
+        text_outputs = text_model.outputs[0]
+        text_outputs = kecam.clip.models.text_model_index_header(text_inputs, text_outputs, latents_dim)
+        text_model = kecam.backend.models.Model(text_inputs, text_outputs, name=text_model.name)
     # text_model(torch.ones([1, 77], dtype=torch.long)).shape
-
-    return kecam.clip.convert_to_clip_model(image_model, text_model)
+    model = CLIP(image_model, text_model)
+    return model, image_model, text_model
+    # return kecam.clip.convert_to_clip_model(image_model, text_model)
 
 
 def build_optimizer(model, lr=1e-3, weight_decay=0.2, beta1=0.9, beta2=0.98, eps=1.0e-6):
@@ -119,8 +138,9 @@ def build_optimizer(model, lr=1e-3, weight_decay=0.2, beta1=0.9, beta2=0.98, eps
 def cosine_lr(optimizer, total_steps, base_lr=1e-3, warmup_steps=10000):
     def _lr_adjuster(step):
         if step < warmup_steps:
-            return base_lr * (step + 1) / warmup_steps
-        lr = 0.5 * (1 + np.cos(np.pi * (step - warmup_steps) / (total_steps - warmup_steps))) * base_lr
+            lr = base_lr * (step + 1) / warmup_steps
+        else:
+            lr = 0.5 * (1 + np.cos(np.pi * (step - warmup_steps) / (total_steps - warmup_steps))) * base_lr
         for param_group in optimizer.param_groups:
             param_group["lr"] = lr
         return lr
@@ -155,6 +175,8 @@ def train_one_epoch(model, optimizer, dataloader, loss, scheduler, cur_epoch, gr
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm, norm_type=2.0)
         global_scaler.step(optimizer)
         global_scaler.update()
+        with torch.no_grad():
+            model.logit_scale.clamp_(0, math.log(100))  # clamp to 4.6052 == ln(100)
 
         process_bar.desc = " - loss: {:.4f}".format(losses)
         process_bar.refresh()
@@ -182,7 +204,7 @@ def parse_arguments():
         "--tokenizer",
         type=str,
         default="GPT2Tokenizer",
-        help="One of ['GPT2Tokenizer', 'SimpleTokenizer'], or tiktoken one ['gpt2', 'r50k_base', 'p50k_base', 'cl100k_base']"
+        help="One of ['GPT2Tokenizer', 'SimpleTokenizer'], or tiktoken one ['gpt2', 'r50k_base', 'p50k_base', 'cl100k_base']",
     )
 
     lr_wd = parser.add_argument_group("Learning rate, weight decay arguments")
@@ -208,7 +230,6 @@ if __name__ == "__main__":
     model.to(device=global_device)
     if hasattr(torch, "compile") and torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 6:
         model = torch.compile(model)
-    # Always 0, no matter CUDA_VISIBLE_DEVICES
     optimizer = build_optimizer(model, lr=args.lr, weight_decay=args.weight_decay)
 
     total_steps = train_dataloader.num_batches * args.epochs
@@ -219,5 +240,5 @@ if __name__ == "__main__":
         print("Epoch {}/{}".format(epoch + 1, args.epochs))
         train_one_epoch(model, optimizer, train_dataloader, clip_loss, scheduler, epoch)
         print()
-        model.image_model.save_weights(args.basic_save_name + "_image_model.h5")
-        model.text_model.save_weights(args.basic_save_name + "_text_model.h5")
+        image_model.save_weights(args.basic_save_name + "_image_model.h5")
+        text_model.save_weights(args.basic_save_name + "_text_model.h5")
