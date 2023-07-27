@@ -60,16 +60,15 @@ def init_lr_scheduler(lr_base, lr_decay_steps, lr_min=1e-5, lr_decay_on_batch=Fa
     return lr_scheduler, lr_total_epochs
 
 
-def _init_tf_buildin_optimizer_(optimizer_class, lr_base, weight_decay, no_weight_decay, momentum=0.9):
+def _init_tf_buildin_optimizer_(optimizer_class, lr_base, weight_decay, no_weight_decay, momentum=0.9, **kwargs):
     import inspect
 
-    default_kwargs = {}
     is_weight_decay_supported = "weight_decay" in inspect.signature(optimizer_class).parameters  # > TF1.11
     if is_weight_decay_supported:
-        default_kwargs.update({"weight_decay": weight_decay})
+        kwargs.update({"weight_decay": weight_decay})
     if "momentum" in inspect.signature(optimizer_class).parameters:  # SGD / RMSprop
-        default_kwargs.update({"momentum": momentum})
-    optimizer = optimizer_class(learning_rate=lr_base, **default_kwargs)
+        kwargs.update({"momentum": momentum})
+    optimizer = optimizer_class(learning_rate=lr_base, **kwargs)
 
     if is_weight_decay_supported:
         optimizer.exclude_from_weight_decay(var_names=no_weight_decay)
@@ -78,11 +77,21 @@ def _init_tf_buildin_optimizer_(optimizer_class, lr_base, weight_decay, no_weigh
 
 def init_optimizer(optimizer, lr_base, weight_decay, momentum=0.9):
     optimizer = optimizer.lower()
-    buildin_optimizers = {"sgd": keras.optimizers.SGD, "rmsprop": keras.optimizers.RMSprop, "adam": keras.optimizers.Adam}
+    buildin_optimizers = {
+        # key: (class, kwargs)
+        "sgd": (keras.optimizers.SGD, {}),
+        "rmsprop": (keras.optimizers.RMSprop, {}),
+        "adam": (keras.optimizers.Adam, {}),
+        "custom": (keras.optimizers.AdamW, {"beta_1": 0.9, "beta_2": 0.98, "epsilon": 1e-6}),  # For clip
+    }
+    if hasattr(keras.optimizers, 'AdamW'):
+        buildin_optimizers.update({"adamw": (keras.optimizers.AdamW, {})})
     # norm_weights = ["bn/gamma", "bn/beta", "ln/gamma", "ln/beta", "/positional_embedding", "/bias"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
     no_weight_decay = ["/gamma", "/beta", "/bias", "/positional_embedding", "/no_weight_decay"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
+
     if optimizer in buildin_optimizers:
-        optimizer = _init_tf_buildin_optimizer_(buildin_optimizers[optimizer], lr_base, weight_decay, no_weight_decay, momentum)
+        optimizer_class, kwargs = buildin_optimizers[optimizer]
+        optimizer = _init_tf_buildin_optimizer_(optimizer_class, lr_base, weight_decay, no_weight_decay, momentum, **kwargs)
     elif optimizer == "lamb":
         import tensorflow_addons as tfa
 
