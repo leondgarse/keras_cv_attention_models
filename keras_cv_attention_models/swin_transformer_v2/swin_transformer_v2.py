@@ -47,7 +47,7 @@ class ExpLogitScale(layers.Layer):
                 weight_shape[ii] = input_shape[ii]
 
         initializer = initializers.constant(math.log(self.init_value))
-        self.scale = self.add_weight(name="weight", shape=weight_shape, initializer=initializer, trainable=True)
+        self.scale = self.add_weight(name="gamma", shape=weight_shape, initializer=initializer, trainable=True)
         # self.__max_value__ = functional.convert_to_tensor(float(math.log(self.max_value)))
         self.__max_value__ = float(math.log(self.max_value))
         super().build(input_shape)
