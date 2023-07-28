@@ -31,15 +31,15 @@ def convert_to_clip_model(image_model, text_model=None, caption_tokenizer=None):
     # image_output = layers.Dense(latents_dim, use_bias=False, dtype="float32", name="image_latents")(image_output)
     if text_model.output_names[0] != "text_latents":
         text_output = text_model_index_header(text_input, text_output, latents_dim=image_output.shape[-1])
-        text_model = models.Model(text_input, text_output)
+        text_model = models.Model(text_input, text_output, name=text_model.name)
 
     # Return similarity directly for avoiding re-calculating in metrics again
-    text_latents = attention_layers.ExpLogitScale(axis=None, init_value=math.log(1 / 0.07), dtype="float32", name="temperature")(text_output)
-    text_latents = text_latents / functional.norm(text_latents, ord="euclidean", axis=-1, keepdims=True)
+    text_latents = text_output / functional.norm(text_output, ord="euclidean", axis=-1, keepdims=True)
+    text_latents = attention_layers.ExpLogitScale(axis=None, init_value=math.log(1 / 0.07), dtype="float32", name="temperature")(text_latents)
 
     image_latents = layers.Identity(dtype="float32", name="image_latents")(image_output)  # Give a name for locating this layer in split
     image_latents = image_latents / functional.norm(image_latents, ord="euclidean", axis=-1, keepdims=True)
-    similarity = functional.matmul(text_latents, image_latents, transpose_b=True)
+    similarity = functional.matmul(image_latents, text_latents, transpose_b=True)
 
     model = models.Model([image_input, text_input], similarity)
     model.run_prediction = RunPrediction(image_model, text_model, caption_tokenizer=caption_tokenizer)

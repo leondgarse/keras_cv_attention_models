@@ -126,7 +126,7 @@ def build_model(
 
 def build_optimizer(model, lr=1e-3, weight_decay=0.2, beta1=0.9, beta2=0.98, eps=1.0e-6):
     named_parameters = list(model.named_parameters())
-    exclude = lambda name, param: param.ndim < 2 or any([ii in name for ii in ["bn", "ln", "bias", "logit_scale", "class_tokens"]])
+    exclude = lambda name, param: param.ndim < 2 or any([ii in name for ii in ["bn", "ln", "bias", "logit_scale"]])
     params = [
         {"params": [param for name, param in named_parameters if exclude(name, param) and param.requires_grad], "weight_decay": 0.0},
         {"params": [param for name, param in named_parameters if not exclude(name, param) and param.requires_grad], "weight_decay": weight_decay},
@@ -150,13 +150,25 @@ def cosine_lr(optimizer, total_steps, base_lr=1e-3, warmup_steps=10000):
 
 def clip_loss(labels, similarity):
     labels = torch.arange(similarity.shape[0], device=similarity.device, dtype=torch.long)
-    return (F.cross_entropy(similarity, labels) + F.cross_entropy(similarity.T, labels)) / 2
+    acc = (torch.argmax(similarity, axis=-1) == labels).float().mean()
+    return (F.cross_entropy(similarity, labels) + F.cross_entropy(similarity.T, labels)) / 2, acc
+
+
+class AverageMeter:
+    def __init__(self):
+        self.val, self.count = 0, 0
+
+    def __call__(self, val):
+        self.val += val
+        self.count += 1
+        return self.val / self.count
 
 
 def train_one_epoch(model, optimizer, dataloader, loss, scheduler, cur_epoch, grad_clip_norm=10.0):
     model.train()
     bar_format = "{n_fmt}/{total_fmt} [{bar:30}] - ETA: {elapsed}<{remaining} {rate_fmt}{postfix}{desc}"
     process_bar = tqdm(enumerate(dataloader), total=dataloader.num_batches, bar_format=bar_format, ascii=".>>=")
+    loss_metrics, acc_metrics = AverageMeter(), AverageMeter()
     for id, ((images, texts), labels) in process_bar:
         step = dataloader.num_batches * cur_epoch + id
         scheduler(step)
@@ -167,7 +179,7 @@ def train_one_epoch(model, optimizer, dataloader, loss, scheduler, cur_epoch, gr
 
         with global_context:
             similarity = model([images, texts])
-            losses = loss(labels, similarity)
+            losses, acc = loss(labels, similarity)
         global_scaler.scale(losses).backward()
 
         if grad_clip_norm > 0:
@@ -178,7 +190,7 @@ def train_one_epoch(model, optimizer, dataloader, loss, scheduler, cur_epoch, gr
         with torch.no_grad():
             model.logit_scale.clamp_(0, math.log(100))  # clamp to 4.6052 == ln(100)
 
-        process_bar.desc = " - loss: {:.4f}".format(losses)
+        process_bar.desc = " - loss: {:.4f} - acc: {:.4f}".format(loss_metrics(losses), acc_metrics(acc))
         process_bar.refresh()
 
 

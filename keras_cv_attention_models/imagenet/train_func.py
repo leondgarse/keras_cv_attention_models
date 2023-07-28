@@ -84,7 +84,7 @@ def init_optimizer(optimizer, lr_base, weight_decay, momentum=0.9):
         "adam": (keras.optimizers.Adam, {}),
         "custom": (keras.optimizers.AdamW, {"beta_1": 0.9, "beta_2": 0.98, "epsilon": 1e-6}),  # For clip
     }
-    if hasattr(keras.optimizers, 'AdamW'):
+    if hasattr(keras.optimizers, "AdamW"):
         buildin_optimizers.update({"adamw": (keras.optimizers.AdamW, {})})
     # norm_weights = ["bn/gamma", "bn/beta", "ln/gamma", "ln/beta", "/positional_embedding", "/bias"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
     no_weight_decay = ["/gamma", "/beta", "/bias", "/positional_embedding", "/no_weight_decay"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights

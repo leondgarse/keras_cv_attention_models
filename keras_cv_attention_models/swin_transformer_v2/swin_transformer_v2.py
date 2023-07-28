@@ -37,7 +37,7 @@ class ExpLogitScale(layers.Layer):
 
     def build(self, input_shape):
         if self.axis is None:
-            weight_shape = ()
+            weight_shape = (1,)
         elif self.axis == -1 or self.axis == len(input_shape) - 1:
             weight_shape = (input_shape[-1],)
         else:

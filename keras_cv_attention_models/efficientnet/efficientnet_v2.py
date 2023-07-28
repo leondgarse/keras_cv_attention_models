@@ -44,7 +44,6 @@ FILE_HASH_DICT = {
     "edgetpu-large": {"imagenet": "e92d2a9f12611d10e1b8843ab43d578c"},
     "edgetpu-medium": {"imagenet": "40a682a333496501d49f060c51e9858f"},
     "edgetpu-small": {"imagenet": "89ec826f3682f52ec4ba73775dfb963b"},
-
 }
 
 
