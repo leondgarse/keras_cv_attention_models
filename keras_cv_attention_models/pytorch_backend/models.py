@@ -218,27 +218,26 @@ class Trainer:
     def fit(
         self, x=None, y=None, batch_size=None, epochs=1, verbose="auto", callbacks=None, validation_data=None, initial_epoch=0, steps_per_epoch=None, **kwargs
     ):
-        bar_format = "{n_fmt}/{total_fmt} [{bar:30}] - ETA: {elapsed}<{remaining} {rate_fmt}{postfix}{desc}"
+        [ii.set_model(self) for ii in callbacks if ii.model is None]
+        callbacks = callbacks + self.metrics  # Handle together
+        hists = {"lr": [], "loss": [], "acc": [], "val_loss": [], "val_acc": []}
 
+        bar_format = "{n_fmt}/{total_fmt} [{bar:30}] - ETA: {elapsed}<{remaining} {rate_fmt}{postfix}{desc}"
         for epoch in range(initial_epoch, epochs):
+            logs = {"lr": 0, "loss": 0, "acc": 0, "val_loss": 0, "val_acc": 0}
             print("Epoch {}/{}".format(epoch + 1, epochs))
             self.model.train()
-
-            train_dataset, total = self._dataset_gen_(x, y, batch_size=batch_size)
             self.optimizer.zero_grad()
-            passed_batches = 0
-            process_bar = tqdm(enumerate(train_dataset), total=total, bar_format=bar_format, ascii=".>>=")
-            mean_loss = 0.0
-            for batch, (xx, yy) in process_bar:
-                if isinstance(xx, (list, tuple)):
-                    xx = [self._convert_data_(ii) for ii in xx]
-                else:
-                    xx = self._convert_data_(xx)
-                if isinstance(yy, (list, tuple)):
-                    yy = [self._convert_data_(ii) for ii in yy]
-                else:
-                    yy = self._convert_data_(yy)
 
+            mean_loss, passed_batches = 0.0, 0
+            train_dataset, total = self._dataset_gen_(x, y, batch_size=batch_size)
+            process_bar = tqdm(enumerate(train_dataset), total=total, bar_format=bar_format, ascii=".>>=")
+            [ii.on_epoch_begin(self, epoch, logs) for ii in callbacks]
+            for batch, (xx, yy) in process_bar:
+                [ii.on_train_batch_begin(self, batch, logs) for ii in callbacks]
+
+                xx = [self._convert_data_(ii) for ii in xx] if isinstance(xx, (list, tuple)) else self._convert_data_(xx)
+                yy = [self._convert_data_(ii) for ii in yy] if isinstance(yy, (list, tuple)) else self._convert_data_(yy)
                 with self.global_context:
                     out = self.model(xx)
                     loss = self.loss(out, yy)
@@ -258,10 +257,17 @@ class Trainer:
                 mean_loss = (mean_loss * batch + loss) / (batch + 1)
                 process_bar.desc = " - loss: {:.4f}".format(mean_loss)  # process_bar.set_description automatically add a : on the tail
                 process_bar.refresh()
+                [ii.on_train_batch_end(self, batch, logs) for ii in callbacks]
+            [ii.on_epoch_end(self, epoch, logs) for ii in callbacks]
             print()
 
             if validation_data is not None:
+                [ii.on_test_batch_begin(self, epoch, logs) for ii in callbacks]
                 val_dataset, total = self._dataset_gen_(validation_data, batch_size=batch_size)
+                [ii.on_test_batch_end(self, epoch, logs) for ii in callbacks]
+
+            for kk in hists:
+                hists[kk].append(logs[kk])
 
     def _convert_data_(self, data):
         if isinstance(data, np.ndarray):

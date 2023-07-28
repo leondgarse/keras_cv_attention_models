@@ -384,7 +384,7 @@ def keras_reload_from_torch_model(
     from keras_cv_attention_models.common_layers import PreprocessInput
     from keras_cv_attention_models.imagenet.eval_func import decode_predictions
 
-    input_shape = input_shape[:2] if keras_model is None else keras_model.input_shape[1:-1]
+    input_shape = input_shape[:2] if keras_model is None or None in keras_model.input_shape[1:] else keras_model.input_shape[1:-1]
     if isinstance(torch_model, str):
         print(">>>> Reload Torch weight file:", torch_model)
         torch_model = torch.load(torch_model, map_location=torch.device("cpu"))
