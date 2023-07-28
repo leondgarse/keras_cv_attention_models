@@ -52,6 +52,14 @@
   | EfficientNetV1B7               | 66.3M  | 38.13G  | 600   | 85.2     | [effv1-b7-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-b7-imagenet.h5)           |
   | - NoisyStudent                 | 66.3M  | 38.13G  | 600   | 86.9     | [effv1-b7-noisy_student.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-b7-noisy_student.h5) |
   | EfficientNetV1L2, NoisyStudent | 480.3M | 477.98G | 800   | 88.4     | [effv1-l2-noisy_student.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-l2-noisy_student.h5) |
+
+  - **EfficientNetEdgeTPU** weights ported from timm.
+
+  | V1 Model                       | Params | FLOPs   | Input | Top1 Acc | Download |
+  | ------------------------------ | ------ | ------- | ----- | -------- | -------- |
+  | EfficientNetEdgeTPUSmall       | 5.49M  | 1.79G   | 224   | 78.07    | [edgetpu-small-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetedgetpu-small-imagenet.h5)           |
+  | EfficientNetEdgeTPUMedium      | 6.90M  | 3.01G   | 240   | 79.25    | [edgetpu-medium-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetedgetpu-medium-imagenet.h5)          |
+  | EfficientNetEdgeTPULarge       | 10.59M | 7.94G   | 300   | 81.32    | [edgetpu-large-imagenet.h5](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetedgetpu-large-imagenet.h5)           |
 ## Usage
   - **Define model and load pretrained weights** Parameter `pretrained` is added in value `[None, "imagenet", "imagenet21k", "imagenet21k-ft1k"]`, default is `imagenet`. Model input value should be in range `[-1, 1]`.
     ```py

@@ -28,6 +28,12 @@ from keras_cv_attention_models.efficientnet.efficientnet_v1 import (
     EfficientNetV1Lite3,
     EfficientNetV1Lite4,
 )
+from keras_cv_attention_models.efficientnet.efficientnet_edgetpu import (
+    EfficientNetEdgeTPU,
+    EfficientNetEdgeTPUSmall,
+    EfficientNetEdgeTPUMedium,
+    EfficientNetEdgeTPULarge,
+)
 
 __v2_head_doc__ = """
 Keras implementation of [Official efficientnetv2](https://github.com/google/automl/tree/master/efficientnetv2).
@@ -55,7 +61,6 @@ __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels. Set `
       Default `False`.
   pretrained: value in {pretrained}.
       Will try to download and load pre-trained model weights if not None.
-      Save path is `~/.keras/models/efficientnetv2/`.
 
 Returns:
     A `keras.Model` instance.
@@ -138,7 +143,6 @@ Paper [PDF 1911.04252 Self-training with Noisy Student improves ImageNet classif
 
 EfficientNetV1.__doc__ = __v1_head_doc__ + """
 Args:
-  model_type: is the pre-defined model, value in ["b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "l2"].
   model_name: string, model name.
 """ + __tail_doc__.format(pretrained=[None, "imagenet", "noisy_student"]) + """
 Model architectures:
@@ -209,3 +213,26 @@ EfficientNetV1Lite1.__doc__ = __v1_lite_default_doc__.format(train_config="| Eff
 EfficientNetV1Lite2.__doc__ = __v1_lite_default_doc__.format(train_config="| EfficientNetV1Lite2 | 448              | 0.3     | 0.2               |")
 EfficientNetV1Lite3.__doc__ = __v1_lite_default_doc__.format(train_config="| EfficientNetV1Lite3 | 512              | 0.3     | 0.2               |")
 EfficientNetV1Lite4.__doc__ = __v1_lite_default_doc__.format(train_config="| EfficientNetV1Lite4 | 640              | 0.4     | 0.2               |")
+
+__edge_tpu_head_doc__ = """
+Keras implementation of [Github tensorflow/tpu/efficientnet/edgetpu](https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet/edgetpu).
+"""
+
+EfficientNetEdgeTPU.__doc__ = __edge_tpu_head_doc__ + """
+Args:
+  model_name: string, model name.
+""" + __tail_doc__.format(pretrained=[None, "imagenet"]) + """
+Model architectures:
+  | Edge TPU Model              | Params | FLOPs   | Input | Top1 Acc |
+  | --------------------------- | ------ | ------- | ----- | -------- |
+  | EfficientNetEdgeTPUSmall    | 5.49M  | 1.79G   | 224   | 78.07    |
+  | EfficientNetEdgeTPUMedium   | 6.90M  | 3.01G   | 240   | 79.25    |
+  | EfficientNetEdgeTPULarge    | 10.59M | 7.94G   | 300   | 81.32    |
+"""
+
+EfficientNetEdgeTPUSmall.__doc__ = __edge_tpu_head_doc__ + """
+Args:
+""" + __tail_doc__.format(pretrained=[None, "imagenet"])
+
+EfficientNetEdgeTPUMedium.__doc__ = EfficientNetEdgeTPUSmall.__doc__
+EfficientNetEdgeTPULarge.__doc__ = EfficientNetEdgeTPUSmall.__doc__

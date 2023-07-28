@@ -108,6 +108,8 @@ def EfficientNetV1L2(input_shape=(800, 800, 3), num_classes=1000, dropout=0.5, c
     output_conv_filter = kwargs.pop("output_conv_filter", output_conv_filter)
     return EfficientNetV1(**locals(), model_name="efficientnet_v1-l2", **kwargs)
 
+""" EfficientNetV1Lite models from EfficientDet """
+
 
 # https://github.com/google/automl/tree/master/efficientdet/backbone/efficientnet_lite_builder.py
 @register_model

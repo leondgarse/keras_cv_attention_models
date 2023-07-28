@@ -41,6 +41,10 @@ FILE_HASH_DICT = {
     "v1-b6": {"noisy_student": "20dd18b0df60cd7c0387c8af47bd96f8", "imagenet": "da13735af8209f675d7d7d03a54bfa27"},
     "v1-b7": {"noisy_student": "7f6f6dd4e8105e32432607ad28cfad0f", "imagenet": "d9c22b5b030d1e4f4c3a96dbf5f21ce6"},
     "v1-l2": {"noisy_student": "5fedc721febfca4b08b03d1f18a4a3ca"},
+    "edgetpu-large": {"imagenet": "e92d2a9f12611d10e1b8843ab43d578c"},
+    "edgetpu-medium": {"imagenet": "40a682a333496501d49f060c51e9858f"},
+    "edgetpu-small": {"imagenet": "89ec826f3682f52ec4ba73775dfb963b"},
+
 }
 
 
@@ -117,6 +121,7 @@ def EfficientNetV2(
     strides=[1, 2, 2, 2, 1, 2],
     se_ratios=[0, 0, 0, 0.25, 0.25, 0.25],
     is_fused="auto",  # True if se_ratio == 0 else False
+    use_shortcuts=True,  # Force shortcut usage for each stack
     first_conv_filter=32,
     output_conv_filter=1280,
     kernel_sizes=3,
@@ -168,6 +173,7 @@ def EfficientNetV2(
     pre_out = stem_width
     global_block_id = 0
     total_blocks = sum(depthes)
+    se_ratios = se_ratios if isinstance(se_ratios, (list, tuple)) else ([se_ratios] * len(depthes))
     kernel_sizes = kernel_sizes if isinstance(kernel_sizes, (list, tuple)) else ([kernel_sizes] * len(depthes))
     for id, (expand, out_channel, depth, stride, se_ratio, kernel_size) in enumerate(zip(expands, out_channels, depthes, strides, se_ratios, kernel_sizes)):
         out = make_divisible(out_channel, 8)
@@ -175,10 +181,11 @@ def EfficientNetV2(
             cur_is_fused = True if se_ratio == 0 else False
         else:
             cur_is_fused = is_fused[id] if isinstance(is_fused, (list, tuple)) else is_fused
+        cur_use_shortcuts = use_shortcuts[id] if isinstance(use_shortcuts, (list, tuple)) else use_shortcuts
         for block_id in range(depth):
             name = "stack_{}_block{}_".format(id, block_id)
             stride = stride if block_id == 0 else 1
-            shortcut = True if out == pre_out and stride == 1 else False
+            shortcut = cur_use_shortcuts if out == pre_out and stride == 1 else False
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             nn = inverted_residual_block(
                 nn, out, stride, expand, shortcut, kernel_size, block_drop_rate, se_ratio, cur_is_fused, **blocks_kwargs, activation=activation, name=name
@@ -218,7 +225,7 @@ def reload_model_weights(model, pretrained="imagenet"):
         print(">>>> No pretrained available, model will be randomly initialized")
         return
 
-    if model_type.startswith("v1"):
+    if model_type.startswith("v1") or model_type.startswith("edgetpu"):
         pre_url = "https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnet{}-{}.h5"
     else:
         pre_url = "https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnet{}-{}.h5"
@@ -227,7 +234,7 @@ def reload_model_weights(model, pretrained="imagenet"):
     file_hash = FILE_HASH_DICT[model_type][pre_tt]
 
     try:
-        pretrained_model = backend.get_file(file_name, url, cache_subdir="models/efficientnetv2", file_hash=file_hash)
+        pretrained_model = backend.get_file(file_name, url, cache_subdir="models", file_hash=file_hash)
     except:
         print("[Error] will not load weights, url not found or download failed:", url)
         return
