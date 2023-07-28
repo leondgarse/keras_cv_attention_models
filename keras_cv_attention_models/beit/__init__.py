@@ -51,6 +51,11 @@ Keras implementation of [Github google-research/vision_transformer](https://gith
 Paper [PDF 2010.11929 An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale](https://arxiv.org/pdf/2010.11929.pdf).
 """
 
+__meta_transformer_head_doc__ = """
+Keras implementation of [Github invictus717/MetaTransformer](https://github.com/invictus717/MetaTransformer).
+Paper [PDF 2307.10802 Meta-Transformer: A Unified Framework for Multimodal Learning](https://arxiv.org/abs/2307.10802).
+"""
+
 __tail_doc__ = """  patch_size: stem patch size. Default {patch_size}.
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
@@ -169,6 +174,14 @@ Model architectures:
 
 ViT.__doc__ = __vit_head_doc__ + __class_tail_doc__.format(patch_size=16)
 
+MetaTransformer.__doc__ = __meta_transformer_head_doc__ + __class_tail_doc__.format(patch_size=16) + """
+Model architectures:
+  | Model                                 | Params  | FLOPs  | Input | Top1 Acc |
+  | ------------------------------------- | ------- | ------ | ----- | -------- |
+  | MetaTransformerBasePatch16, laion_2b  | 86.86M  | 55.73G | 384   | 85.4     |
+  | MetaTransformerLargePatch14, laion_2b | 304.53M | 191.6G | 336   | 88.1     |
+"""
+
 __model_tail_doc__ = """
 Args:
 """ + __tail_doc__
@@ -195,6 +208,9 @@ EVA02LargePatch14.__doc__ = EVA02TinyPatch14.__doc__
 FlexiViTSmall.__doc__ = __flexivit_head_doc__ + __model_tail_doc__.format(patch_size=16)
 FlexiViTBase.__doc__ = FlexiViTSmall.__doc__
 FlexiViTLarge.__doc__ = FlexiViTSmall.__doc__
+
+MetaTransformerBasePatch16.__doc__ = __meta_transformer_head_doc__ + __model_tail_doc__.format(patch_size=16)
+MetaTransformerLargePatch14.__doc__ = __meta_transformer_head_doc__ + __model_tail_doc__.format(patch_size=14)
 
 MultiHeadRelativePositionalEmbedding.__doc__ = __beit_head_doc__ + """
 Multi Head Relative Positional Embedding layer.

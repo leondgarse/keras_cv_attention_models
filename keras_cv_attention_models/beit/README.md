@@ -1,4 +1,4 @@
-# ___Keras BeiT / BeitV2 / ViT / FlexiViT / EVA / EVA02 / DINOv2___
+# ___Keras BeiT / BeitV2 / ViT / FlexiViT / EVA / EVA02 / DINOv2 / MetaTransFormer___
 ***
 
 ## Summary
@@ -8,6 +8,7 @@
   - EVA Paper [PDF 2211.07636 EVA: Exploring the Limits of Masked Visual Representation Learning at Scale](https://arxiv.org/pdf/2211.07636.pdf). Model weights reloaded from [Github baaivision/EVA](https://github.com/baaivision/EVA).
   - EVA02 Paper [PDF 2303.11331 EVA: EVA-02: A Visual Representation for Neon Genesis](https://arxiv.org/pdf/2303.11331.pdf). Model weights reloaded from [Github baaivision/EVA/EVA-02](https://github.com/baaivision/EVA/tree/master/EVA-02).
   - FlexiViT Paper [PDF 2212.08013 FlexiViT: One Model for All Patch Sizes](https://arxiv.org/pdf/2212.08013.pdf). Model weights reloaded from [Github google-research/big_vision](https://github.com/google-research/big_vision/tree/main/big_vision/configs/proj/flexivit).
+  - MetaTransFormer Paper [PDF 2307.10802 Meta-Transformer: A Unified Framework for Multimodal Learning](https://arxiv.org/abs/2307.10802). Model weights reloaded from [Github invictus717/MetaTransformer](https://github.com/invictus717/MetaTransformer). **Note: image model weights for transformer blocks are same with the multi tasks one**
 ***
 
 ## Beit Models
@@ -57,6 +58,11 @@
   | FlexiViTSmall | 22.06M  | 5.36G  | 240   | 82.53    | [flexivit_small_240.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/flexivit_small_240_imagenet.h5) |
   | FlexiViTBase  | 86.59M  | 20.33G | 240   | 84.66    | [flexivit_base_240.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/flexivit_base_240_imagenet.h5) |
   | FlexiViTLarge | 304.47M | 71.09G | 240   | 85.64    | [flexivit_large_240.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/flexivit_large_240_imagenet.h5) |
+## MetaTransFormer models
+  | Model                                 | Params  | FLOPs  | Input | Top1 Acc | Download |
+  | ------------------------------------- | ------- | ------ | ----- | -------- | -------- |
+  | MetaTransformerBasePatch16, laion_2b  | 86.86M  | 55.73G | 384   | 85.4     | [meta_transformer_base_patch16.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/meta_transformer_base_patch16_384_laion_2b.h5) |
+  | MetaTransformerLargePatch14, laion_2b | 304.53M | 191.6G | 336   | 88.1     | [meta_transformer_large_patch14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/meta_transformer_large_patch14_336_laion_2b.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import beit

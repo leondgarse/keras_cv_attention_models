@@ -41,6 +41,7 @@ PRETRAINED_DICT = {
     "flexivit_base": {"imagenet": {240: "dac627debb194928db01e1b9b7a548fd"}},
     "flexivit_large": {"imagenet": {240: "6faa953227d2ef1df6758f8eb7234490"}},
     "meta_transformer_base_patch16": {"laion_2b": {384: "5daafcdef0895ab292b39173331c12c3"}},
+    "meta_transformer_large_patch14": {"laion_2b": {336: "f3a4444bf823ccbaab6e586d9915ffb1"}},
 }
 
 

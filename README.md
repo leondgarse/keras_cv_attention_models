@@ -35,6 +35,7 @@
   - [EfficientFormer](#efficientformer)
   - [EfficientFormerV2](#efficientformerv2)
   - [EfficientNet](#efficientnet)
+  - [EfficientNetEdgeTPU](#efficientnetedgetpu)
   - [EfficientNetV2](#efficientnetv2)
   - [EfficientViT_B](#efficientvit_b)
   - [EfficientViT_M](#efficientvit_m)
@@ -57,6 +58,7 @@
   - [LCNet](#lcnet)
   - [LeViT](#levit)
   - [MaxViT](#maxvit)
+  - [MetaTransFormer](#metatransformer)
   - [MLP mixer](#mlp-mixer)
   - [MobileNetV3](#mobilenetv3)
   - [MobileViT](#mobilevit)
@@ -812,7 +814,7 @@
 ## EfficientNet
   - [Keras EfficientNet](keras_cv_attention_models/efficientnet) includes implementation of [PDF 1911.04252 Self-training with Noisy Student improves ImageNet classification](https://arxiv.org/pdf/1911.04252.pdf).
 
-  | V1 Model                       | Params | FLOPs   | Input | Top1 Acc | T4 Inference |
+  | Model                          | Params | FLOPs   | Input | Top1 Acc | T4 Inference |
   | ------------------------------ | ------ | ------- | ----- | -------- | ------------ |
   | [EfficientNetV1B0](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-b0-imagenet.h5)               | 5.3M   | 0.39G   | 224   | 77.6     | 1129.93 qps  |
   | - [NoisyStudent](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-b0-noisy_student.h5)                 | 5.3M   | 0.39G   | 224   | 78.8     | 1129.93 qps  |
@@ -831,10 +833,18 @@
   | [EfficientNetV1B7](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-b7-imagenet.h5)               | 66.3M  | 38.13G  | 600   | 85.2     | 52.6616 qps  |
   | - [NoisyStudent](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-b7-noisy_student.h5)                 | 66.3M  | 38.13G  | 600   | 86.9     | 52.6616 qps  |
   | [EfficientNetV1L2, NoisyStudent](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetv1-l2-noisy_student.h5) | 480.3M | 477.98G | 800   | 88.4     |              |
+## EfficientNetEdgeTPU
+  - [Keras EfficientNetEdgeTPU](keras_cv_attention_models/efficientnet) includes implementation of [PDF 1911.04252 Self-training with Noisy Student improves ImageNet classification](https://arxiv.org/pdf/1911.04252.pdf).
+
+  | Model                          | Params | FLOPs   | Input | Top1 Acc | T4 Inference |
+  | ------------------------------ | ------ | ------- | ----- | -------- | ------------ |
+  | [EfficientNetEdgeTPUSmall](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetedgetpu-small-imagenet.h5)       | 5.49M  | 1.79G   | 224   | 78.07    |            |
+  | [EfficientNetEdgeTPUMedium](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetedgetpu-medium-imagenet.h5)      | 6.90M  | 3.01G   | 240   | 79.25    |            |
+  | [EfficientNetEdgeTPULarge](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetedgetpu-large-imagenet.h5)       | 10.59M | 7.94G   | 300   | 81.32    |            |
 ## EfficientNetV2
   - [Keras EfficientNet](keras_cv_attention_models/efficientnet) includes implementation of [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298).
 
-  | V2 Model                   | Params | FLOPs  | Input | Top1 Acc | T4 Inference |
+  | Model                      | Params | FLOPs  | Input | Top1 Acc | T4 Inference |
   | -------------------------- | ------ | ------ | ----- | -------- | ------------ |
   | [EfficientNetV2B0](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b0-imagenet.h5)           | 7.1M   | 0.72G  | 224   | 78.7     | 1109.84 qps  |
   | - [21k_ft1k](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv2_pretrained/efficientnetv2-b0-21k-ft1k.h5)         | 7.1M   | 0.72G  | 224   | 77.55?   | 1109.84 qps  |
@@ -1087,6 +1097,13 @@
   | [MaxViT_XLarge, imagenet21k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_xlarge_224_imagenet21k.h5) | 507M   | 97.7G  | 224   |          |              |
   | - [21k_ft1k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_xlarge_384_imagenet21k-ft1k.h5)    | 475M   | 293.7G | 384   | 88.51    |              |
   | - [21k_ft1k, 512](https://github.com/leondgarse/keras_cv_attention_models/releases/download/maxvit/maxvit_xlarge_512_imagenet21k-ft1k.h5)    | 475M   | 535.2G | 512   | 88.70    |              |
+## MetaTransFormer
+  - [Keras MetaTransFormer](keras_cv_attention_models/beit) includes models from [PDF 2307.10802 Meta-Transformer: A Unified Framework for Multimodal Learning](https://arxiv.org/abs/2307.10802).
+
+  | Model                                 | Params  | FLOPs  | Input | Top1 Acc | T4 Inference |
+  | ------------------------------------- | ------- | ------ | ----- | -------- | ------------ |
+  | [MetaTransformerBasePatch16, laion_2b](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/meta_transformer_base_patch16_384_laion_2b.h5)  | 86.86M  | 55.73G | 384   | 85.4     |  |
+  | [MetaTransformerLargePatch14, laion_2b](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/meta_transformer_large_patch14_336_laion_2b.h5) | 304.53M | 191.6G | 336   | 88.1     |  |
 ## MLP mixer
   - [Keras MLP mixer](keras_cv_attention_models/mlp_family#mlp-mixer) includes implementation of [PDF 2105.01601 MLP-Mixer: An all-MLP Architecture for Vision](https://arxiv.org/pdf/2105.01601.pdf).
 

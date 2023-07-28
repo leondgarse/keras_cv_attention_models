@@ -31,7 +31,7 @@ def MetaTransformerBasePatch16(
 
 @register_model
 def MetaTransformerLargePatch14(
-    input_shape=(384, 384, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="laion_2b", **kwargs
+    input_shape=(336, 336, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="laion_2b", **kwargs
 ):
     depth = 24
     embed_dim = 1024
