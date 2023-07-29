@@ -4,13 +4,17 @@ from tqdm import tqdm
 from torch import nn
 from contextlib import nullcontext
 from keras_cv_attention_models import backend
-from keras_cv_attention_models.pytorch_backend import layers
+from keras_cv_attention_models.pytorch_backend import layers, callbacks, metrics
 
 
 class Model(nn.Module):
     """
+    Examples:
+    # Build custom model
+    >>> os.environ["KECAM_BACKEND"] = "torch"
+    >>> import torch
     >>> from keras_cv_attention_models.pytorch_backend import layers, models
-    >>> inputs = layers.Input([3, 224, 224])
+    >>> inputs = layers.Input([3, 32, 32])
     >>> pre = layers.Conv2D(32, 3, padding="SAME", name="deep_pre_conv")(inputs)
     >>> deep_1 = layers.Conv2D(32, 3, padding="SAME", name="deep_1_1_conv")(pre)
     >>> deep_1 = layers.Conv2D(32, 3, padding="SAME", name="deep_1_2_conv")(deep_1)
@@ -18,22 +22,31 @@ class Model(nn.Module):
     >>> deep = layers.Add(name="deep_add")([deep_1, deep_2])
     >>> short = layers.Conv2D(32, 3, padding="SAME", name="short_conv")(inputs)
     >>> outputs = layers.Add(name="outputs")([short, deep])
+    >>> outputs = layers.GlobalAveragePooling2D()(outputs)
+    >>> outputs = layers.Dense(10)(outputs)
     >>> mm = models.Model(inputs, outputs)
-    >>> print(mm(torch.ones([1, 3, 224, 224])).shape)
-    >>> # torch.Size([1, 32, 224, 224])
+    >>> print(mm(torch.ones([1, 3, 32, 32])).shape)
+    >>> # torch.Size([1, 10])
     >>> mm.summary()
 
+    # Compile and fit
+    >>> loss = lambda y_true, y_pred: (y_true.float() - y_pred.float()).abs().mean()
+    >>> mm.compile(loss=loss, metrics='acc')
+    >>> xx, yy = torch.rand([1000, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[1000]), 10)
+    >>> mm.fit(xx, yy, epochs=2)
+
+    # Run buildin model
     >>> from keras_cv_attention_models.mlp_family import mlp_mixer
     >>> mm = mlp_mixer.MLPMixerB16(input_shape=(3, 224, 224))
-    >>> >>>> Load pretrained from: /home/leondgarse/.keras/models/mlp_mixer_b16_imagenet.h5
+    >>> # >>>> Load pretrained from: /home/leondgarse/.keras/models/mlp_mixer_b16_imagenet.h5
     >>> from PIL import Image
     >>> from skimage.data import chelsea # Chelsea the cat
     >>> from keras_cv_attention_models.imagenet import decode_predictions
     >>> imm = Image.fromarray(chelsea()).resize(mm.input_shape[2:])
     >>> pred = mm(torch.from_numpy(np.array(imm)).permute([2, 0, 1])[None] / 255)
-    >>> decode_predictions(pred.detach())
-
-    >>> mm.decode_predictions(mm(mm.preprocess_input(chelsea())))
+    >>> print(decode_predictions(pred.detach()))
+    >>> # or just use preset preprocess_input
+    >>> print(mm.decode_predictions(mm(mm.preprocess_input(chelsea()))))
     """
 
     num_instances = 0  # Count instances
@@ -74,7 +87,7 @@ class Model(nn.Module):
         self.export_pth = self.exporter.export_pth
 
     def create_forward_pipeline(self, **kwargs):
-        forward_pipeline, layers, outputs = [], {}, []
+        forward_pipeline, all_layers, outputs = [], {}, []
         dfs_queue = []
         intra_nodes_ref = {}  # node names, and how many times they should be used
         for ii in self.inputs:
@@ -88,14 +101,14 @@ class Model(nn.Module):
             if cur_node.name in intra_nodes_ref:
                 raise ValueError("All nodes name should be unique: cur_node: {}, intra_nodes_ref: {}".format(cur_node.name, list(intra_nodes_ref.keys())))
 
-            # `set` is used here in case current node outputs multi times to next node, like `layers.Add()([inputs, inputs])`.
+            # `set` is used here in case current node outputs multi times to next node, like `all_layers.Add()([inputs, inputs])`.
             # dfs_queue.extend(list(set(cur_node.next_nodes)))
             dfs_queue.extend([ii for ii in cur_node.next_nodes if ii not in dfs_queue])
             # print(f"{dfs_queue = }")
 
             forward_pipeline.append(cur_node)
             setattr(self, cur_node.name.replace(".", "_"), cur_node.callable)
-            layers[cur_node.layer.name] = cur_node.layer
+            all_layers[cur_node.layer.name] = cur_node.layer
 
             # print(f"{cur_node.name = }, {len(cur_node.next_nodes) = }")
             intra_nodes_ref[cur_node.name] = len(cur_node.next_nodes)
@@ -103,7 +116,7 @@ class Model(nn.Module):
                 intra_nodes_ref[cur_node.name] = intra_nodes_ref.get(cur_node.name, 0) + 1
             if all([ii in intra_nodes_ref for ii in self.output_names]):
                 break
-        self.forward_pipeline, self.intra_nodes_ref, self.__layers__ = forward_pipeline, intra_nodes_ref, layers
+        self.forward_pipeline, self.intra_nodes_ref, self.__layers__ = forward_pipeline, intra_nodes_ref, all_layers
 
     def forward(self, inputs, **kwargs):
         if isinstance(inputs, layers.GraphNode) or (isinstance(inputs, (list, tuple)) and any([isinstance(ii, layers.GraphNode) for ii in inputs])):
@@ -193,17 +206,72 @@ class Model(nn.Module):
 
 
 class Trainer:
-    def __init__(self, model, input_shape=None):
+    """
+    Examples:
+    # compile and fit on buildin models
+    >>> os.environ["KECAM_BACKEND"] = "torch"
+    >>> import torch
+    >>> from keras_cv_attention_models import aotnet
+    >>> mm = aotnet.AotNet50(num_classes=10, input_shape=(32, 32, 3))
+    >>> loss = lambda y_true, y_pred: (y_true.float() - y_pred.float()).abs().mean()
+    >>> mm.compile(loss=loss, metrics='acc')
+    >>> xx, yy = torch.rand([256, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[256]), 10)
+    >>> mm.fit(xx, yy, epochs=2)
+
+    # compile and fit on custom models
+    >>> os.environ["KECAM_BACKEND"] = "torch"
+    >>> import torch
+    >>> from keras_cv_attention_models.backend import layers, models
+    >>> inputs = layers.Input([3, 32, 32])
+    >>> nn = layers.Conv2D(32, 3, 2, padding='same')(inputs)
+    >>> nn = layers.GlobalAveragePooling2D()(nn)
+    >>> nn = layers.Dense(10)(nn)
+    >>> mm = models.Model(inputs, nn)
+    >>> mm.summary()
+    >>> loss = lambda y_true, y_pred: (y_true.float() - y_pred.float()).abs().mean()
+    >>> mm.compile(optimizer="AdamW", loss=loss, metrics='acc')
+    >>> xx, yy = torch.rand([1000, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[1000]), 10)
+    >>> mm.fit(xx, yy, epochs=2)
+
+    # compile and fit on raw torch models
+    >>> os.environ["KECAM_BACKEND"] = "torch"
+    >>> import torch
+    >>> from keras_cv_attention_models.backend import models
+    >>> torch_model = torch.nn.Sequential(
+    >>>     torch.nn.Conv2d(3, 32, 3, 2, 1), torch.nn.AdaptiveAvgPool2d(1), torch.nn.Flatten(), torch.nn.Linear(32, 10)
+    >>> )
+    >>> mm = models.Trainer(torch_model)
+    >>> loss = lambda y_true, y_pred: (y_true.float() - y_pred.float()).abs().mean()
+    >>> mm.compile(optimizer=torch.optim.SGD(torch_model.parameters(), lr=0.1), loss=loss, metrics='acc')
+    >>> xx, yy = torch.rand([1000, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[1000]), 10)
+    >>> mm.fit(xx, yy, batch_size=64, epochs=2)
+    """
+
+    def __init__(self, model, input_shape=None, output_names={}):
         self.model = model
-        self.input_shape = getattr(self.model, "input_shape") if input_shape is None else input_shape
+        self.input_shape = getattr(self.model, "input_shape", None) if input_shape is None else input_shape
+        self.output_names = getattr(self.model, "output_names", None) if output_names is None else output_names
+
+    def init_metrics(self, cur_metrics=None):
+        if cur_metrics is None:
+            metrics_names, cur_metrics = [], []
+        elif isinstance(cur_metrics, str):
+            metrics_names, cur_metrics = [cur_metrics], [cur_metrics]
+        elif isinstance(cur_metrics, (list, tuple)):
+            metrics_names, cur_metrics = [ii if isinstance(ii, str) else ii.name for ii in cur_metrics], list(cur_metrics)
+        elif isinstance(cur_metrics, dict):
+            metrics_names, cur_metrics = list(cur_metrics.keys()), list(cur_metrics.values())
+            # [TODO] match metrics_names with self.output_names
+        else:
+            metrics_names, cur_metrics = [cur_metrics.name], [cur_metrics]
+        cur_metrics = [metrics.BUILDIN_METRICS[ii]() if isinstance(ii, str) else ii for ii in cur_metrics]
+        return metrics_names, cur_metrics
 
     def compile(self, optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, grad_accumulate=1, grad_max_norm=-1, **kwargs):
         self.optimizer = getattr(torch.optim, optimizer)(self.model.parameters()) if isinstance(optimizer, str) else optimizer
         self.loss = torch.functional.F.cross_entropy if loss is None else loss
         self.loss_weights, self.grad_accumulate, self.grad_max_norm = loss_weights, grad_accumulate, grad_max_norm
-
-        self.metrics = {} if metrics is None else (metrics if isinstance(metrics, dict) else {ii.__name__: ii for ii in metrics})
-        self.metrics.update({"loss": self.loss})
+        self.metrics_names, self.metrics = self.init_metrics(metrics)
 
         device = next(self.model.parameters()).device
         device_type = device.type
@@ -216,23 +284,25 @@ class Trainer:
         self.device, self.device_type, self.scaler, self.global_context = device, device_type, scaler, global_context
 
     def fit(
-        self, x=None, y=None, batch_size=None, epochs=1, verbose="auto", callbacks=None, validation_data=None, initial_epoch=0, steps_per_epoch=None, **kwargs
+        self, x=None, y=None, batch_size=32, epochs=1, verbose="auto", callbacks=None, validation_data=None, initial_epoch=0, steps_per_epoch=None, **kwargs
     ):
+        callbacks = callbacks or []
         [ii.set_model(self) for ii in callbacks if ii.model is None]
-        callbacks = callbacks + self.metrics  # Handle together
-        hists = {"lr": [], "loss": [], "acc": [], "val_loss": [], "val_acc": []}
+        self.hists = {"loss": []}
 
         bar_format = "{n_fmt}/{total_fmt} [{bar:30}] - ETA: {elapsed}<{remaining} {rate_fmt}{postfix}{desc}"
         for epoch in range(initial_epoch, epochs):
-            logs = {"lr": 0, "loss": 0, "acc": 0, "val_loss": 0, "val_acc": 0}
             print("Epoch {}/{}".format(epoch + 1, epochs))
+            logs = {}  # Can be used as global value between different callbacks
+            [ii.on_epoch_begin(self, epoch, logs) for ii in callbacks]
+            [ii.reset_state() for ii in self.metrics]
+
             self.model.train()
             self.optimizer.zero_grad()
 
-            mean_loss, passed_batches = 0.0, 0
+            avg_loss, accumulate_passed_batches = 0.0, 0
             train_dataset, total = self._dataset_gen_(x, y, batch_size=batch_size)
             process_bar = tqdm(enumerate(train_dataset), total=total, bar_format=bar_format, ascii=".>>=")
-            [ii.on_epoch_begin(self, epoch, logs) for ii in callbacks]
             for batch, (xx, yy) in process_bar:
                 [ii.on_train_batch_begin(self, batch, logs) for ii in callbacks]
 
@@ -241,33 +311,42 @@ class Trainer:
                 with self.global_context:
                     out = self.model(xx)
                     loss = self.loss(out, yy)
-
                 self.scaler.scale(loss).backward()
 
-                passed_batches += 1
-                if passed_batches >= self.grad_accumulate:
+                accumulate_passed_batches += 1
+                if accumulate_passed_batches >= self.grad_accumulate:
                     self.scaler.unscale_(self.optimizer)
                     if self.grad_max_norm > 0:
                         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.grad_max_norm)  # clip gradients
                     self.scaler.step(self.optimizer)  # self.optimizer.step()
                     self.scaler.update()
                     self.optimizer.zero_grad()
-                    passed_batches = 0
+                    accumulate_passed_batches = 0
                 # print(">>>> Epoch {}, batch: {}, loss: {:.4f}".format(epoch, batch, loss.item()))
-                mean_loss = (mean_loss * batch + loss) / (batch + 1)
-                process_bar.desc = " - loss: {:.4f}".format(mean_loss)  # process_bar.set_description automatically add a : on the tail
+                avg_loss += loss
+                process_bar.desc = " - loss: {:.4f}".format(avg_loss / (batch + 1))  # process_bar.set_description automatically add a : on the tail
+
+                if isinstance(yy, (list, tuple)):
+                    [[ii.update_state(cur_out, cur_yy) for ii in self.metrics] for cur_out, cur_yy in zip(out, yy)]
+                else:
+                    [ii.update_state(out, yy) for ii in self.metrics]
+                metrics_desc = [" - {}: {:.4f}".format(name, metric.result()) for name, metric in zip(self.metrics_names, self.metrics)]
+                process_bar.desc += "".join(metrics_desc)
                 process_bar.refresh()
+
                 [ii.on_train_batch_end(self, batch, logs) for ii in callbacks]
             [ii.on_epoch_end(self, epoch, logs) for ii in callbacks]
-            print()
+            self.hists["loss"].append((avg_loss.item() if hasattr(avg_loss, "item") else avg_loss) / (batch + 1))
+            for name, metric in zip(self.metrics_names, self.metrics):
+                metric_result = metric.result()
+                self.hists.setdefault(name, []).append(metric_result.item() if hasattr(metric_result, "item") else metric_result)
 
             if validation_data is not None:
-                [ii.on_test_batch_begin(self, epoch, logs) for ii in callbacks]
+                [ii.on_test_begin(self, epoch, logs) for ii in callbacks]
                 val_dataset, total = self._dataset_gen_(validation_data, batch_size=batch_size)
-                [ii.on_test_batch_end(self, epoch, logs) for ii in callbacks]
+                [ii.on_test_end(self, epoch, logs) for ii in callbacks]
 
-            for kk in hists:
-                hists[kk].append(logs[kk])
+            print()
 
     def _convert_data_(self, data):
         if isinstance(data, np.ndarray):
@@ -277,19 +356,22 @@ class Trainer:
             data = data.pin_memory().to(self.device, non_blocking=True)
         return data
 
-    def _dataset_gen_(self, x=None, y=None, batch_size=None):
+    def _dataset_gen_(self, x=None, y=None, batch_size=32):
         if isinstance(x, (list, tuple)) and len(x) == 2 and y is None:
-            x, y = x[0], x[1]
+            xx, yy = x[0], x[1]
+        else:
+            xx, yy = x, y
 
-        if hasattr(x, "element_spec"):  # TF datsets
-            data_shape = x.element_spec[0].shape
+        if hasattr(xx, "element_spec"):  # TF datsets
+            data_shape = xx.element_spec[0].shape
             if self.input_shape is not None and data_shape[-1] == self.input_shape[1]:
                 perm = [0, len(data_shape) - 1] + list(range(1, len(data_shape) - 1))  # [0, 3, 1, 2]
-                train_dataset = ((xx.transpose(perm), yy) for xx, yy in x.as_numpy_iterator())
+                train_dataset = ((ii.transpose(perm), jj) for ii, jj in xx.as_numpy_iterator())
             else:
-                train_dataset = x.as_numpy_iterator()
-        elif isinstance(x, np.ndarray) or isinstance(x, torch.Tensor):
-            assert y is not None
+                train_dataset = xx.as_numpy_iterator()
+            total = len(xx)
+        elif isinstance(xx, np.ndarray) or isinstance(xx, torch.Tensor):
+            assert yy is not None
             num_batches = xx.shape[0] if batch_size is None else int(np.ceil(xx.shape[0] / batch_size))
 
             def _convert_tensor(data, id):
@@ -299,10 +381,11 @@ class Trainer:
                 cur = cur.long() if cur.dtype == torch.int32 else cur
                 return cur
 
-            train_dataset = ((_convert_tensor(x, id), _convert_tensor(y, id)) for id in range(num_batches))
+            train_dataset = ((_convert_tensor(xx, id), _convert_tensor(yy, id)) for id in range(num_batches))
+            total = num_batches
         else:  # generator or torch.utils.data.DataLoader
-            train_dataset = x
-        total = len(x) if hasattr(x, "__len__") else None
+            train_dataset = xx
+            total = len(xx)
         return train_dataset, total
 
 
