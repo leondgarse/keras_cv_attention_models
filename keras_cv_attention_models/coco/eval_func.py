@@ -351,9 +351,10 @@ def to_coco_annotation(json_path):
 
     # int conversion just in case key is str
     categories = {int(kk): vv for kk, vv in aa["indices_2_labels"].items()} if "indices_2_labels" in aa else {}
+    base_path = aa.get("info", {}).get("base_path", None)
     annotations, images, image_id_map = [], [], {}
     for image_id, ii in enumerate(aa.get("validation", aa.get("test", []))):
-        width, height = Image.open(ii["image"]).size  # For decoding bboxes, not actually openning images
+        width, height = Image.open(os.path.join(base_path, ii["image"]) if base_path else ii["image"]).size  # For decoding bboxes, not actually openning images
         for bb, label in zip(ii["objects"]["bbox"], ii["objects"]["label"]):
             # bb [top, left, bottom, right] in [0, 1] -> [left, top, bbox_width, bbox_height] with actual coordinates
             top = bb[0] * height

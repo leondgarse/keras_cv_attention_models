@@ -838,9 +838,9 @@
 
   | Model                          | Params | FLOPs   | Input | Top1 Acc | T4 Inference |
   | ------------------------------ | ------ | ------- | ----- | -------- | ------------ |
-  | [EfficientNetEdgeTPUSmall](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetedgetpu-small-imagenet.h5)       | 5.49M  | 1.79G   | 224   | 78.07    |            |
-  | [EfficientNetEdgeTPUMedium](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetedgetpu-medium-imagenet.h5)      | 6.90M  | 3.01G   | 240   | 79.25    |            |
-  | [EfficientNetEdgeTPULarge](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetedgetpu-large-imagenet.h5)       | 10.59M | 7.94G   | 300   | 81.32    |            |
+  | [EfficientNetEdgeTPUSmall](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetedgetpu-small-imagenet.h5)       | 5.49M  | 1.79G   | 224   | 78.07    | 1459.38 qps  |
+  | [EfficientNetEdgeTPUMedium](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetedgetpu-medium-imagenet.h5)      | 6.90M  | 3.01G   | 240   | 79.25    | 1028.95 qps  |
+  | [EfficientNetEdgeTPULarge](https://github.com/leondgarse/keras_efficientnet_v2/releases/download/effnetv1_pretrained/efficientnetedgetpu-large-imagenet.h5)       | 10.59M | 7.94G   | 300   | 81.32    | 527.034 qps  |
 ## EfficientNetV2
   - [Keras EfficientNet](keras_cv_attention_models/efficientnet) includes implementation of [PDF 2104.00298 EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298).
 
@@ -1102,8 +1102,8 @@
 
   | Model                                 | Params  | FLOPs  | Input | Top1 Acc | T4 Inference |
   | ------------------------------------- | ------- | ------ | ----- | -------- | ------------ |
-  | [MetaTransformerBasePatch16, laion_2b](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/meta_transformer_base_patch16_384_laion_2b.h5)  | 86.86M  | 55.73G | 384   | 85.4     |  |
-  | [MetaTransformerLargePatch14, laion_2b](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/meta_transformer_large_patch14_336_laion_2b.h5) | 304.53M | 191.6G | 336   | 88.1     |  |
+  | [MetaTransformerBasePatch16, laion_2b](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/meta_transformer_base_patch16_384_laion_2b.h5)  | 86.86M  | 55.73G | 384   | 85.4     | 150.731 qps  |
+  | [MetaTransformerLargePatch14, laion_2b](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/meta_transformer_large_patch14_336_laion_2b.h5) | 304.53M | 191.6G | 336   | 88.1     | 50.1536 qps |
 ## MLP mixer
   - [Keras MLP mixer](keras_cv_attention_models/mlp_family#mlp-mixer) includes implementation of [PDF 2105.01601 MLP-Mixer: An all-MLP Architecture for Vision](https://arxiv.org/pdf/2105.01601.pdf).
 

@@ -162,6 +162,9 @@ EfficientNetV1B6,43.0,19.29,528,86.4,88.0369,Recognition,EfficientNet,NoisyStude
 EfficientNetV1B7,66.3,38.13,600,85.2,52.6616,Recognition,EfficientNet,
 EfficientNetV1B7,66.3,38.13,600,86.9,52.6616,Recognition,EfficientNet,NoisyStudent
 EfficientNetV1L2,480.3,477.98,800,88.4,,Recognition,EfficientNet,NoisyStudent
+EfficientNetEdgeTPUSmall,5.49,1.79,224,78.07,1459.38,Recognition,EfficientNetEdgeTPU,
+EfficientNetEdgeTPUMedium,6.9,3.01,240,79.25,1028.95,Recognition,EfficientNetEdgeTPU,
+EfficientNetEdgeTPULarge,10.59,7.94,300,81.32,527.034,Recognition,EfficientNetEdgeTPU,
 EfficientNetV2B0,7.1,0.72,224,78.7,1109.84,Recognition,EfficientNetV2,
 EfficientNetV2B0,7.1,0.72,224,77.55,1109.84,Recognition,EfficientNetV2,21k_ft1k
 EfficientNetV2B1,8.1,1.21,240,79.8,842.372,Recognition,EfficientNetV2,
@@ -308,6 +311,8 @@ MaxViT_Large,212.0,245.4,512,88.46,13.063,Recognition,MaxViT,21k_ft1k
 MaxViT_XLarge,507.0,97.7,224,,,Recognition,MaxViT,imagenet21k
 MaxViT_XLarge,475.0,293.7,384,88.51,,Recognition,MaxViT,21k_ft1k
 MaxViT_XLarge,475.0,535.2,512,88.7,,Recognition,MaxViT,21k_ft1k
+MetaTransformerBasePatch16,86.86,55.73,384,85.4,150.731,Recognition,MetaTransFormer,laion_2b
+MetaTransformerLargePatch14,304.53,191.6,336,88.1,50.1536,Recognition,MetaTransFormer,laion_2b
 MLPMixerS32,19.1,1.01,224,68.7,488.839,Recognition,MLP,JFT
 MLPMixerS16,18.5,3.79,224,73.83,451.962,Recognition,MLP,JFT
 MLPMixerB32,60.3,3.25,224,75.53,247.629,Recognition,MLP,JFT
