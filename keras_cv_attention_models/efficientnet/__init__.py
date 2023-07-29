@@ -228,11 +228,24 @@ Model architectures:
   | EfficientNetEdgeTPUSmall    | 5.49M  | 1.79G   | 224   | 78.07    |
   | EfficientNetEdgeTPUMedium   | 6.90M  | 3.01G   | 240   | 79.25    |
   | EfficientNetEdgeTPULarge    | 10.59M | 7.94G   | 300   | 81.32    |
+
+Training configures:
+  | Model                     | Input resolution | Dropout | Drop connect rate |
+  | ------------------------- | ---------------- | ------- | ----------------- |
+  | EfficientNetEdgeTPUSmall  | 224              | 0.2     | 0.2               |
+  | EfficientNetEdgeTPUMedium | 240              | 0.2     | 0.2               |
+  | EfficientNetEdgeTPULarge  | 300              | 0.3     | 0.2               |
 """
 
-EfficientNetEdgeTPUSmall.__doc__ = __edge_tpu_head_doc__ + """
+__edge_tpu_default_doc__ = __edge_tpu_head_doc__ + """
 Args:
-""" + __tail_doc__.format(pretrained=[None, "imagenet"])
+""" + __tail_doc__.format(pretrained=[None, "imagenet"]) + """
+Training configures: `Eval size` is used as the default model `input_shape`.
+  | Model                     | Input resolution | Dropout | Drop connect rate |
+  | ------------------------- | ---------------- | ------- | ----------------- |
+  {train_config}
+"""
 
-EfficientNetEdgeTPUMedium.__doc__ = EfficientNetEdgeTPUSmall.__doc__
-EfficientNetEdgeTPULarge.__doc__ = EfficientNetEdgeTPUSmall.__doc__
+EfficientNetEdgeTPUSmall.__doc__ = __edge_tpu_default_doc__.format(train_config="| EfficientNetEdgeTPUSmall  | 224              | 0.2     | 0.2               |")
+EfficientNetEdgeTPUMedium.__doc__ = __edge_tpu_default_doc__.format(train_config="| EfficientNetEdgeTPUMedium | 240              | 0.2     | 0.2               |")
+EfficientNetEdgeTPULarge.__doc__ = __edge_tpu_default_doc__.format(train_config="| EfficientNetEdgeTPULarge  | 300              | 0.2     | 0.3               |")

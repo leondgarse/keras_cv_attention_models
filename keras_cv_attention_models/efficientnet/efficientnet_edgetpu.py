@@ -30,7 +30,7 @@ def EfficientNetEdgeTPU(
     use_shortcuts=[False, False, True, True, True, True, True],
     is_fused=[True, True, True, True, False, False, False],
     is_torch_mode=True,
-    drop_connect_rate=0,
+    drop_connect_rate=0.2,
     pretrained="imagenet",
     activation="relu",
     model_name="EfficientNetEdgeTPU",
@@ -42,18 +42,18 @@ def EfficientNetEdgeTPU(
 
 
 @register_model
-def EfficientNetEdgeTPUSmall(input_shape=(224, 224, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def EfficientNetEdgeTPUSmall(input_shape=(224, 224, 3), num_classes=1000, dropout=0.2, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.0, 1.0)
     return EfficientNetEdgeTPU(**locals(), model_name="efficientnet_edgetpu-small", **kwargs)
 
 
 @register_model
-def EfficientNetEdgeTPUMedium(input_shape=(240, 240, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def EfficientNetEdgeTPUMedium(input_shape=(240, 240, 3), num_classes=1000, dropout=0.2, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.0, 1.1)
     return EfficientNetEdgeTPU(**locals(), model_name="efficientnet_edgetpu-medium", **kwargs)
 
 
 @register_model
-def EfficientNetEdgeTPULarge(input_shape=(300, 300, 3), num_classes=1000, activation="relu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def EfficientNetEdgeTPULarge(input_shape=(300, 300, 3), num_classes=1000, dropout=0.3, classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels, depthes, first_conv_filter, output_conv_filter = get_expanded_width_depth(1.2, 1.4)
     return EfficientNetEdgeTPU(**locals(), model_name="efficientnet_edgetpu-large", **kwargs)
