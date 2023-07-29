@@ -75,19 +75,21 @@
   deep = layers.Add(name="deep_add")([deep_1, deep_2])
   short = layers.Conv2D(32, kernel_size=3, padding="SAME", name="short_conv")(inputs)
   outputs = layers.Add(name="outputs")([short, deep])
+  outputs = layers.GlobalAveragePooling2D()(outputs)
+  outputs = layers.Dense(10)(outputs)
   mm = models.Model(inputs, outputs)
   mm.summary()
 
   import torch
   print(mm(torch.ones([1, 3, 224, 224])).shape)
-  # torch.Size([1, 32, 224, 224])
+  # torch.Size([1, 10])
 
   # Save load test
   mm.save_weights("aa.h5")
   mm.load_weights('aa.h5')
   ```
-## Simple training
-  - It can be either typical PyTorch training process or a simple version of `compile` + 'fit'.
+## Simple compile fit training
+  - It can be either typical PyTorch training process or a simple version of `compile` + `fit`.
   ```py
   import os
   os.environ['KECAM_BACKEND'] = 'torch'
@@ -104,11 +106,11 @@
   mm = mobilenetv3.MobileNetV3Large100(input_shape=input_shape, num_classes=num_classes, classifier_activation=None, pretrained=None)
   if torch.cuda.is_available():
       _ = mm.to("cuda")
-  if hasattr(torch, "compile"):
+  if hasattr(torch, "compile") and torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 6:
       mm = torch.compile(mm)
 
   """ Simple compile + fit """
-  mm.compile(optimizer="AdamW")
+  mm.compile(optimizer="AdamW", metrics='acc')
   mm.fit(train_dataset, epochs=10)
   ```
   Or use typical PyTorch training process
@@ -146,5 +148,20 @@
           scaler.step(optimizer)
           scaler.update()
           print(">>>> Epoch {}, batch: {}, loss: {:.4f}".format(epoch, batch, loss.item()))
+  ```
+## Compile fit on raw PyTorch model
+  - `kecam.pytorch_backend.models.Trainer` can be used as a wrapper for raw PyTorch model, supporting `compile` + `fit` training.
+  ```py
+  os.environ["KECAM_BACKEND"] = "torch"
+  import torch
+  from keras_cv_attention_models.backend import models
+  torch_model = torch.nn.Sequential(
+      torch.nn.Conv2d(3, 32, 3, 2, 1), torch.nn.AdaptiveAvgPool2d(1), torch.nn.Flatten(), torch.nn.Linear(32, 10)
+  )
+  mm = models.Trainer(torch_model)
+  xx, yy = torch.rand([1000, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[1000]), 10).float()
+  loss = torch.functional.F.mse_loss
+  mm.compile(optimizer=torch.optim.SGD(torch_model.parameters(), lr=0.1), loss=loss, metrics='acc')
+  mm.fit(xx, yy, batch_size=64, epochs=2)
   ```
 ***

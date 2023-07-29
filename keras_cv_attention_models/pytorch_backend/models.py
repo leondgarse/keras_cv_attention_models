@@ -30,9 +30,8 @@ class Model(nn.Module):
     >>> mm.summary()
 
     # Compile and fit
-    >>> loss = lambda y_true, y_pred: (y_true.float() - y_pred.float()).abs().mean()
-    >>> mm.compile(loss=loss, metrics='acc')
-    >>> xx, yy = torch.rand([1000, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[1000]), 10)
+    >>> xx, yy = torch.rand([1000, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[1000]), 10).float()
+    >>> mm.compile(loss=loss, metrics='acc')  # Using default cross_entropy loss
     >>> mm.fit(xx, yy, epochs=2)
 
     # Run buildin model
@@ -213,9 +212,8 @@ class Trainer:
     >>> import torch
     >>> from keras_cv_attention_models import aotnet
     >>> mm = aotnet.AotNet50(num_classes=10, input_shape=(32, 32, 3))
-    >>> loss = lambda y_true, y_pred: (y_true.float() - y_pred.float()).abs().mean()
-    >>> mm.compile(loss=loss, metrics='acc')
-    >>> xx, yy = torch.rand([256, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[256]), 10)
+    >>> mm.compile(metrics='acc')  # Using default cross_entropy loss
+    >>> xx, yy = torch.rand([256, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[256]), 10).float()
     >>> mm.fit(xx, yy, epochs=2)
 
     # compile and fit on custom models
@@ -228,9 +226,9 @@ class Trainer:
     >>> nn = layers.Dense(10)(nn)
     >>> mm = models.Model(inputs, nn)
     >>> mm.summary()
-    >>> loss = lambda y_true, y_pred: (y_true.float() - y_pred.float()).abs().mean()
+    >>> xx, yy = torch.rand([1000, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[1000]), 10).float()
+    >>> loss = lambda y_pred, y_true: (y_true - y_pred.float()).abs().mean()
     >>> mm.compile(optimizer="AdamW", loss=loss, metrics='acc')
-    >>> xx, yy = torch.rand([1000, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[1000]), 10)
     >>> mm.fit(xx, yy, epochs=2)
 
     # compile and fit on raw torch models
@@ -241,9 +239,9 @@ class Trainer:
     >>>     torch.nn.Conv2d(3, 32, 3, 2, 1), torch.nn.AdaptiveAvgPool2d(1), torch.nn.Flatten(), torch.nn.Linear(32, 10)
     >>> )
     >>> mm = models.Trainer(torch_model)
-    >>> loss = lambda y_true, y_pred: (y_true.float() - y_pred.float()).abs().mean()
+    >>> xx, yy = torch.rand([1000, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[1000]), 10).float()
+    >>> loss = torch.functional.F.mse_loss
     >>> mm.compile(optimizer=torch.optim.SGD(torch_model.parameters(), lr=0.1), loss=loss, metrics='acc')
-    >>> xx, yy = torch.rand([1000, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[1000]), 10)
     >>> mm.fit(xx, yy, batch_size=64, epochs=2)
     """
 
