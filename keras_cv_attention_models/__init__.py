@@ -49,6 +49,7 @@ from keras_cv_attention_models import moganet
 from keras_cv_attention_models import nat
 from keras_cv_attention_models.nat import dinat
 from keras_cv_attention_models import pvt
+from keras_cv_attention_models import repvit
 from keras_cv_attention_models import tinyvit
 from keras_cv_attention_models import resnest
 from keras_cv_attention_models import resnet_family

@@ -429,6 +429,41 @@ def get_global_avg_pool_layer_id(model):
     return header_layer_id
 
 
+def get_layer_as_inputs_count_from_mode_json(model):
+    # dd = {}
+    # for ii in cc.layers:
+    #     layer_inputs = ii.input if isinstance(ii.input, (list, tuple)) else [ii.input]
+    #     for layer_input in layer_inputs:
+    #         dd[layer_input.node.layer.name] = dd.get(layer_input.node.layer.name, 0) + 1
+    if isinstance(model, dict):
+        model_config = model
+    else:
+        import json
+
+        model_config = json.loads(model.to_json())
+
+    dd = {}
+    is_inbound_elem = lambda xx: isinstance(xx, list) and isinstance(xx[0], str)
+    for layer in model_config["config"]["layers"]:
+        # print(layer['inbound_nodes'])
+        for ii in layer["inbound_nodes"]:
+            # print(ii)
+            # single input layer: [[['stack4_block2_1_conv', 0, 0, {}]]]
+            # multi input layer: 'inbound_nodes': [['stack4_block2_1_conv', 0, 0, {'y': ['stack4_block2_1_short', 0, 0], 'name': None}]]}
+            if is_inbound_elem(ii):
+                dd[ii[0]] = dd.get(ii[0], 0) + 1
+                for kk, vv in ii[3].items():
+                    if is_inbound_elem(vv):
+                        dd[vv[0]] = dd.get(vv[0], 0) + 1
+            elif isinstance(ii, list) and isinstance(ii[0], list):
+                for jj in ii:
+                    dd[jj[0]] = dd.get(jj[0], 0) + 1
+                    for kk, vv in jj[3].items():
+                        if is_inbound_elem(vv):
+                            dd[vv[0]] = dd.get(vv[0], 0) + 1
+    return dd
+
+
 def get_flops(model):
     if backend.is_tensorflow_backend:
         # https://github.com/tensorflow/tensorflow/issues/32809#issuecomment-849439287
@@ -507,14 +542,6 @@ def convert_mixed_float16_to_float32(model):
 
 
 def fuse_layer_single_input(model, fuse_layer_condition, pre_layer_condition=None, layer_config_process=None, layer_weight_process=None, verbose=0):
-    """
-    Convert model by fusing Conv + batchnorm
-
-    Exampls:
-    >>> from keras_cv_attention_models import model_surgery
-    >>> mm = keras.applications.ResNet50()
-    >>> bb = model_surgery.convert_to_fused_conv_bn_model(mm)
-    """
     import json
 
     pre_layer_condition = (lambda layer: True) if pre_layer_condition is None else pre_layer_condition
@@ -530,6 +557,7 @@ def fuse_layer_single_input(model, fuse_layer_condition, pre_layer_condition=Non
                 pre_fused_layers.append(input_node[0])
                 fused_layers.append(layer["name"])
     if verbose > 0:
+        print(">>>> pre_fused_layers =", pre_fused_layers, "fused_layers =", fused_layers)
         print(">>>> len(pre_fused_layers) =", len(pre_fused_layers), "len(fused_layers) =", len(fused_layers))
         print()
         # len(fuse_convs) = 53, len(fuse_bns) = 53
@@ -552,6 +580,9 @@ def fuse_layer_single_input(model, fuse_layer_condition, pre_layer_condition=Non
 
         for ii in layer["inbound_nodes"]:
             # print(ii)
+            # single input layer: [[['stack4_block2_1_conv', 0, 0, {}]]]
+            # multi input layer: 'inbound_nodes': [['stack4_block2_1_conv', 0, 0, {'y': ['stack4_block2_1_short', 0, 0], 'name': None}]]}
+            # multi_input layer: 'inbound_nodes': [[['stack1_block1_1_conv', 0, 0, {}], ['stem_1_conv', 0, 0, {}], ['stem_2_conv', 0, 0, {}]]]}
             if is_inbound_elem(ii):
                 # print(">>>> Replace inbound_nodes: {}, {} --> {}".format(layer["name"], ii[0], fused_bn_dict[ii[0]]))
                 ii[0] = fused_layers_dict.get(ii[0], ii[0])
@@ -583,22 +614,57 @@ def fuse_layer_single_input(model, fuse_layer_condition, pre_layer_condition=Non
     return new_model
 
 
-def fuse_conv_bn_weights(conv_layer, bn_layer):
-    # BatchNormalization returns: gamma * (batch - self.moving_mean) / sqrt(self.moving_var + epsilon) + beta
-    # --> conv_w_new = gamma * conv_w / np.sqrt(var + epsilon)
-    # --> conv_b_new = gamma * (conv_b - mean) / sqrt(var + epsilon) + beta
-    batch_std = functional.sqrt(bn_layer.moving_variance + bn_layer.epsilon)
-    if isinstance(conv_layer, layers.DepthwiseConv2D):
-        ww = functional.transpose(conv_layer.depthwise_kernel, [0, 1, 3, 2]) * bn_layer.gamma / batch_std
-        ww = functional.transpose(ww, [0, 1, 3, 2])
-    else:
-        ww = conv_layer.kernel * bn_layer.gamma / batch_std
+def fuse_bn_dense_weights(bn_layer, dense_layer):
+    """
+    https://github.com/THU-MIG/RepViT/blob/main/model/repvit.py#L168
+    Convert model by fusing batchnorm + dense
 
-    if conv_layer.use_bias:
-        bias = bn_layer.gamma * (conv_layer.bias - bn_layer.moving_mean) / batch_std + bn_layer.beta
-    else:
-        bias = bn_layer.gamma * (-1 * bn_layer.moving_mean) / batch_std + bn_layer.beta
-    return [ww, bias]
+    Exampls:
+    >>> from keras_cv_attention_models.model_surgery import model_surgery
+    >>> ii = tf.random.uniform([1, 32, 32, 3])
+    >>> mm = keras.models.Sequential([keras.layers.Input([32, 32, 3]), keras.layers.BatchNormalization(), keras.layers.Dense(10)])
+    >>> aa = keras.layers.Dense(10)
+    >>> aa.build([None, 32, 32, 3])
+    >>> aa.set_weights(model_surgery.fuse_bn_dense_weights(mm.layers[0], mm.layers[1]))
+    >>> print(f"{np.allclose(mm(ii), aa(ii), atol=1e-5) = }")
+    """
+    # BatchNormalization returns: gamma * (batch - self.moving_mean) / sqrt(self.moving_var + epsilon) + beta
+    # BN -> Dense = (gamma * (batch - self.moving_mean) / sqrt(self.moving_var + epsilon)) @ ww + beta @ ww + bb
+    # --> gamma / sqrt(self.moving_var + epsilon) @ ww * batch + beta @ ww + bb - gamma * self.moving_mean / sqrt(self.moving_var + epsilon) @ ww
+    # --> new_ww = gamma / sqrt(self.moving_var + epsilon) @ ww
+    # --> new_bias = beta @ ww + bb - self.moving_mean @ new_ww
+    ww = dense_layer.kernel
+    bb = dense_layer.bias if dense_layer.use_bias else 0
+    batch_std = functional.sqrt(bn_layer.moving_variance + bn_layer.epsilon)
+
+    # ww: [in, out], bb: [out], beta, gamma, moving_mean, moving_variance: [in]
+    # -> new_ww: [in, out], new_bias: [out]
+    new_ww = ww * (bn_layer.gamma / batch_std)[:, None]
+    new_bias = bn_layer.beta[None, :] @ ww + bb - bn_layer.moving_mean[None, :] @ new_ww
+    return [new_ww, new_bias[0]]
+
+
+def fuse_conv_bn_weights(conv_layer, bn_layer):
+    """
+    Convert model by fusing Conv + batchnorm
+
+    Exampls:
+    >>> from keras_cv_attention_models import model_surgery
+    >>> mm = keras.applications.ResNet50()
+    >>> bb = model_surgery.convert_to_fused_conv_bn_model(mm)
+    """
+    # BatchNormalization returns: gamma * (batch - self.moving_mean) / sqrt(self.moving_var + epsilon) + beta
+    # --> new_ww = gamma * conv_w / np.sqrt(var + epsilon)
+    # --> new_bb = gamma * (conv_b - mean) / sqrt(var + epsilon) + beta
+    batch_std = functional.sqrt(bn_layer.moving_variance + bn_layer.epsilon)
+
+    ww = functional.transpose(conv_layer.depthwise_kernel, [0, 1, 3, 2]) if isinstance(conv_layer, layers.DepthwiseConv2D) else conv_layer.kernel
+    bb = conv_layer.bias if conv_layer.use_bias else 0
+
+    new_ww = ww * bn_layer.gamma / batch_std
+    new_ww = functional.transpose(new_ww, [0, 1, 3, 2]) if isinstance(conv_layer, layers.DepthwiseConv2D) else new_ww
+    new_bb = bn_layer.gamma * (bb - bn_layer.moving_mean) / batch_std + bn_layer.beta
+    return [new_ww, new_bb]
     # cc = conv_layer.get_config()
     # cc["use_bias"] = True
     # fused_conv_bn = conv_layer.__class__.from_config(cc)
@@ -648,8 +714,9 @@ def fuse_sequential_conv_strict(model, verbose=0):
     >>> mm = keras.applications.ResNet50()
     >>> bb = model_surgery.convert_to_fused_conv_bn_model(mm)
     """
+    layer_as_inputs_count = get_layer_as_inputs_count_from_mode_json(model)
     fuse_layer_condition = lambda layer: layer["class_name"] == "Conv2D" and max(layer["config"]["kernel_size"]) == 1
-    pre_layer_condition = lambda layer: layer.get("class_name") in ["Conv2D"]
+    pre_layer_condition = lambda layer: layer.get("class_name") in ["Conv2D"] and layer_as_inputs_count[layer["name"]] == 1  # pre layer has only 1 output
 
     def layer_config_process(pre_layer_config, fused_layer_config):
         pre_layer_config["filters"] = fused_layer_config["filters"]
@@ -686,6 +753,80 @@ def fuse_sequential_conv_strict(model, verbose=0):
         layer_weight_process=layer_weight_process,
         verbose=verbose,
     )
+
+
+def fuse_reparam_blocks(model, key='REPARAM', verbose=0):
+    bb = convert_to_fused_conv_bn_model(model)
+    reparam_layer_dict = {ii.name: ii for ii in bb.layers if key in ii.name and len(ii.weights) > 0}  # Only layers with weights
+    fuse_layers = []
+    for layer in bb.layers:
+        if key in layer.name and hasattr(layer, 'kernel_size') and tuple(layer.kernel_size) != (1, 1):
+            reparameter_layer_name_prefix = layer.name.split(key)[0] + key
+            kernel_1_layers = [vv for kk, vv in reparam_layer_dict.items() if kk.startswith(reparameter_layer_name_prefix) and kk != layer.name]
+            if len(kernel_1_layers) != 1:
+                print(">>>> [WARNING] Needs exactly 1 layer match with layer {}, got {}".format(layer.name, [ii.name for ii in kernel_1_layers]))
+                continue
+            kernel_1_layer = kernel_1_layers[0]
+            if verbose > 0:
+                print(">>>> layer.name:", layer.name)
+            output_layer_input = model.get_layer(reparameter_layer_name_prefix + "_out").input
+            if isinstance(output_layer_input, (list, tuple)) and len(output_layer_input) == 3:
+                if isinstance(kernel_1_layer, layers.DepthwiseConv2D):
+                    identity_branch_weight = 1
+                    identity_branch_msg = ", identity_branch 1"
+                elif layer.groups == 1:  # Conv2D without groups
+                    identity_branch_weight = np.eye(layer.filters, dtype='float32')
+                    identity_branch_msg = ", identity_branch (eye) {}".format(identity_branch_weight.shape)
+                else:  # Conv2D with groups, https://github.com/Deci-AI/super-gradients/blob/master/src/super_gradients/modules/qarepvgg_block.py#L135
+                    identity_branch_weight = np.zeros([layer.filters, layer.filters, 1, 1], dtype='float32')
+                    group_interval = layer.filters // layer.groups
+                    for ii in range(layer.filters):
+                        identity_branch_weight[ii, ii % group_interval] = 1.0
+                    identity_branch_msg = ", identity_branch (groups={}) {}".format(layer.groups, identity_branch_weight.shape)
+            else:
+                identity_branch_weight = 0
+                identity_branch_msg = ""
+
+            kernel_1_layer_weights = kernel_1_layer.get_weights()
+            kernel_1_ww, kernel_1_bb = kernel_1_layer_weights if len(kernel_1_layer_weights) == 2 else (kernel_1_layer_weights[0], 0)
+            pad = [(ii - 1) // 2 for ii in layer.kernel_size]  # (3, 3) -> (1, 1)
+            kernel_1_ww = functional.pad(kernel_1_ww + identity_branch_weight, [[pad[0], pad[0]], [pad[1], pad[1]], [0, 0], [0, 0]])
+
+            layer_weights = layer.get_weights()
+            if len(layer_weights) != 2 and len(kernel_1_layer_weights) == 2:
+                print(">>>> [WARNING] layer {} needs to be use_bias=True while kernel 1 branch is use_bias=True".format(layer.name))
+                continue
+            if verbose > 0:
+                print(">>>> Fuse layer weights: {} <- {}".format(layer.name, kernel_1_layer.name, identity_branch_weight) + identity_branch_msg)
+            if len(layer_weights) == 2:
+                layer.set_weights([layer_weights[0] + kernel_1_ww, layer_weights[1] + kernel_1_bb])
+            else:
+                layer.set_weights([layer_weights[0] + kernel_1_ww])
+            fuse_layers.append(kernel_1_layer.name)
+            fuse_layers.append(reparameter_layer_name_prefix + "_out")
+
+    cc = remove_layer_single_input(bb, remove_layer_condition=lambda layer: layer["name"] in fuse_layers)
+    return cc
+
+
+def fuse_distill_head(model, head="head", distill_head="distill_head", head_bn="head_bn", distill_head_bn="distill_head_bn"):
+    distill_head = model.get_layer(distill_head)
+    if distill_head_bn is not None:
+        distill_head_bn = model.get_layer(distill_head_bn)
+        distill_ww, distill_bb = fuse_bn_dense_weights(distill_head_bn, distill_head)
+    else:
+        distill_ww, distill_bb = distill_head.get_weights()
+
+    head = model.get_layer(head)
+    if head_bn is not None:
+        head_bn = model.get_layer(head_bn)
+        head_ww, head_bb = fuse_bn_dense_weights(head_bn, head)
+    else:
+        head_ww, head_bb = head.get_weights()
+    head.set_weights([(distill_ww + head_ww) / 2, (distill_bb + head_bb) / 2])
+    if head_bn is not None:
+        model = remove_layer_single_input(model, remove_layer_condition=lambda layer: layer["name"] in [head_bn.name])
+    return models.Model(model.inputs, model.get_layer(head.name).output)
 
 
 def convert_to_deploy(model):
