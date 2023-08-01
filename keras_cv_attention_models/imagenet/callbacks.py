@@ -1,13 +1,14 @@
 import os
 import json
 import numpy as np
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
+from keras_cv_attention_models.backend import functional, callbacks
 
 
-class CosineLrScheduler(keras.callbacks.Callback):
+class CosineLrScheduler(callbacks.Callback):
     def __init__(self, lr_base, first_restart_step, steps_per_epoch=-1, m_mul=0.5, t_mul=2.0, lr_min=1e-5, lr_warmup=-1, warmup_steps=0, cooldown_steps=0):
+        from tensorflow import keras
+        from tensorflow.keras import backend as K
+
         super(CosineLrScheduler, self).__init__()
         self.lr_base, self.m_mul, self.t_mul, self.lr_min, self.steps_per_epoch = lr_base, m_mul, t_mul, lr_min, steps_per_epoch
         self.first_restart_step, self.warmup_steps, self.cooldown_steps, self.lr_warmup = first_restart_step, warmup_steps, cooldown_steps, lr_warmup
@@ -15,6 +16,7 @@ class CosineLrScheduler(keras.callbacks.Callback):
         self.is_built = False
         if steps_per_epoch != -1:
             self.build(steps_per_epoch)
+        self.set_value = K.set_value
 
     def build(self, steps_per_epoch=-1):
         # print(">>>> steps_per_epoch:", steps_per_epoch)
@@ -66,14 +68,17 @@ class CosineLrScheduler(keras.callbacks.Callback):
             lr = self.schedule(global_iterNum - self.previous_cooldown_steps)
 
         if self.model is not None:
-            K.set_value(self.model.optimizer.lr, lr)
+            self.set_value(self.model.optimizer.lr, lr)
         if iterNum == 0:
             print("\nLearning rate for iter {} is {}, global_iterNum is {}".format(self.cur_epoch + 1, lr, global_iterNum))
         return lr
 
 
-class CosineLrSchedulerEpoch(keras.callbacks.Callback):
+class CosineLrSchedulerEpoch(callbacks.Callback):
     def __init__(self, lr_base, first_restart_step, m_mul=0.5, t_mul=2.0, lr_min=1e-6, lr_warmup=-1, warmup_steps=0, cooldown_steps=0):
+        from tensorflow import keras
+        from tensorflow.keras import backend as K
+
         super(CosineLrSchedulerEpoch, self).__init__()
         self.warmup_steps, self.cooldown_steps, self.lr_min = warmup_steps, cooldown_steps, lr_min
 
@@ -89,6 +94,7 @@ class CosineLrSchedulerEpoch(keras.callbacks.Callback):
         if warmup_steps != 0:
             self.lr_warmup = lr_warmup if lr_warmup > 0 else lr_min
             self.warmup_lr_func = lambda ii: self.lr_warmup + (lr_base - self.lr_warmup) * ii / warmup_steps
+        self.set_value = K.set_value
 
     def on_epoch_begin(self, epoch, logs=None):
         if epoch < self.warmup_steps:
@@ -104,7 +110,7 @@ class CosineLrSchedulerEpoch(keras.callbacks.Callback):
             lr = self.schedule(epoch)
 
         if self.model is not None:
-            K.set_value(self.model.optimizer.lr, lr)
+            self.set_value(self.model.optimizer.lr, lr)
 
         print("\nLearning rate for iter {} is {}".format(epoch + 1, lr))
         return lr
@@ -131,8 +137,10 @@ def exp_scheduler(epoch, lr_base=0.1, decay_step=1, decay_rate=0.9, lr_min=0, wa
     return lr
 
 
-class OptimizerWeightDecay(keras.callbacks.Callback):
+class OptimizerWeightDecay(callbacks.Callback):
     def __init__(self, lr_base, wd_base, is_lr_on_batch=False):
+        from tensorflow.keras import backend as K
+
         super(OptimizerWeightDecay, self).__init__()
         self.wd_m = wd_base / lr_base
         self.lr_base, self.wd_base = lr_base, wd_base
@@ -143,17 +151,19 @@ class OptimizerWeightDecay(keras.callbacks.Callback):
         else:
             self.on_epoch_begin = self.__update_wd__
 
+        self.get_value, self.set_value = K.get_value, K.set_value
+
     def __update_wd__(self, step, log=None):
         if self.model is not None:
-            wd = self.wd_m * K.get_value(self.model.optimizer.lr)
+            wd = self.wd_m * self.get_value(self.model.optimizer.lr)
             # wd = self.wd_base * K.get_value(self.model.optimizer.lr)
-            K.set_value(self.model.optimizer.weight_decay, wd)
+            self.set_value(self.model.optimizer.weight_decay, wd)
         # wd = self.model.optimizer.weight_decay
         if not self.is_lr_on_batch or step == 0:
             print("Weight decay is {}".format(wd))
 
 
-class MyHistory(keras.callbacks.Callback):
+class MyHistory(callbacks.Callback):
     def __init__(self, initial_file=None):
         super(MyHistory, self).__init__()
         if initial_file and os.path.exists(initial_file):
@@ -176,7 +186,7 @@ class MyHistory(keras.callbacks.Callback):
             self.history.setdefault(k, []).append(float(v))
 
         if len(self.model.losses) != 0:  # Has regular_loss
-            regular_loss = K.sum(self.model.losses).numpy()
+            regular_loss = functional.reduce_sum(self.model.losses).numpy()
             self.history.setdefault("regular_loss", []).append(float(regular_loss))
             self.history["loss"][-1] -= regular_loss
             if "val_loss" in self.history:
@@ -196,7 +206,7 @@ class MyHistory(keras.callbacks.Callback):
         print("}")
 
 
-class MyCheckpoint(keras.callbacks.Callback):
+class MyCheckpoint(callbacks.Callback):
     """Save latest and best one"""
 
     def __init__(self, basic_save_name, monitor="val_acc", mode="auto", save_path="checkpoints"):
@@ -212,16 +222,19 @@ class MyCheckpoint(keras.callbacks.Callback):
         self.__init_monitor_strategy__(monitor)
 
     def __init_monitor_strategy__(self, monitor):
+        import re
 
         self.monitor = monitor
-        self.monitor_save = os.path.join(self.save_path, self.basic_save_name + "_epoch_{}_" + monitor + "_{}" + self.suffix)
-        self.monitor_save_re = self.monitor_save.format("*", "*")
+        monitor_save_name = self.basic_save_name + "_epoch_{}_" + monitor + "_{}" + self.suffix
+        self.monitor_save_re = re.compile(monitor_save_name.format("\d*", "[\d\.]*"))
+        self.monitor_save = os.path.join(self.save_path, monitor_save_name)
         self.latest_save = os.path.join(self.save_path, self.basic_save_name + "_latest" + self.suffix)
         self.is_better = (lambda cur, pre: cur <= pre) if self.mode == "min" or "loss" in monitor else (lambda cur, pre: cur >= pre)
         self.pre_best = 1e5 if self.mode == "min" or "loss" in monitor else -1e5
 
     def on_epoch_end(self, epoch, logs={}):
         # tf.print(">>>> Save latest to:", self.latest_save)
+        # print(">>>> logs:", logs)
         if self.model is not None:
             self.model.save(self.latest_save)
         if self.monitor is not None and self.monitor not in logs:
@@ -238,11 +251,12 @@ class MyCheckpoint(keras.callbacks.Callback):
         cur_monitor_val = logs.get(self.monitor, self.pre_best)
         if self.monitor is not None and self.is_better(cur_monitor_val, self.pre_best):
             self.pre_best = cur_monitor_val
-            pre_monitor_saves = tf.io.gfile.glob(self.monitor_save_re)
+            # pre_monitor_saves = tf.io.gfile.glob(self.monitor_save_re)
+            pre_monitor_saves = [ii for ii in os.listdir(self.save_path) if self.monitor_save_re.match(ii)]
             # tf.print(">>>> pre_monitor_saves:", pre_monitor_saves)
             if len(pre_monitor_saves) != 0:
-                os.remove(pre_monitor_saves[0])
+                os.remove(os.path.join(self.save_path, pre_monitor_saves[0]))
             monitor_save = self.monitor_save.format(epoch + 1, "{:.4f}".format(cur_monitor_val))
-            tf.print("\n>>>> Save best to:", monitor_save)
+            print("\n>>>> Save best to:", monitor_save)
             if self.model is not None:
                 self.model.save(monitor_save)
