@@ -149,19 +149,4 @@
           scaler.update()
           print(">>>> Epoch {}, batch: {}, loss: {:.4f}".format(epoch, batch, loss.item()))
   ```
-## Compile fit on raw PyTorch model
-  - `kecam.pytorch_backend.models.Trainer` can be used as a wrapper for raw PyTorch model, supporting `compile` + `fit` training.
-  ```py
-  os.environ["KECAM_BACKEND"] = "torch"
-  import torch
-  from keras_cv_attention_models.backend import models
-  torch_model = torch.nn.Sequential(
-      torch.nn.Conv2d(3, 32, 3, 2, 1), torch.nn.AdaptiveAvgPool2d(1), torch.nn.Flatten(), torch.nn.Linear(32, 10)
-  )
-  mm = models.Trainer(torch_model)
-  xx, yy = torch.rand([1000, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[1000]), 10).float()
-  loss = torch.functional.F.mse_loss
-  mm.compile(optimizer=torch.optim.SGD(torch_model.parameters(), lr=0.1), loss=loss, metrics='acc')
-  mm.fit(xx, yy, batch_size=64, epochs=2)
-  ```
 ***
