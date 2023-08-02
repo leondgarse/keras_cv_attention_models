@@ -40,7 +40,7 @@
   print(mm.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.85765785), ('n02123045', 'tabby', 0.015630195), ...]
   ```
-  **Switch to deploy** by calling `model.switch_to_deploy()`, will replace all positional embedding layers with a single bias one. **Note: when running inference using `ONNX`, `onnxsim` will automatically converting it to a single `Add`, no need to call this manually**.
+  **Switch to deploy** by calling `model.switch_to_deploy()`, will replace all positional embedding layers with a single bias one. Also applying `convert_to_fused_conv_bn_model` that fusing `Conv2D->BatchNorm`. **Note: when running inference using `ONNX`, `onnxsim` will automatically converting it to a single `Add`, no need to call this manually**.
   ```py
   from keras_cv_attention_models import fastervit, test_images, model_surgery
 
@@ -49,10 +49,10 @@
   # Total params: 31,408,168 | Trainable params: 31,404,840 | Non-trainable params:3,328
   preds = mm(mm.preprocess_input(test_images.cat()))
 
-  _ = mm.switch_to_deploy()
-  model_surgery.count_params(mm)
-  # Total params: 28,382,248 | Trainable params: 28,378,920 | Non-trainable params:3,328
-  preds_deploy = mm(mm.preprocess_input(test_images.cat()))
+  bb = mm.switch_to_deploy()
+  model_surgery.count_params(bb)
+  # Total params: 28,377,768 | Trainable params: 28,376,744 | Non-trainable params:1,024
+  preds_deploy = bb(bb.preprocess_input(test_images.cat()))
 
   print(f"{np.allclose(preds, preds_deploy) = }")
   # np.allclose(preds, preds_deploy) = True

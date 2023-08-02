@@ -13,6 +13,7 @@ from keras_cv_attention_models.model_surgery.model_surgery import (
     convert_mixed_float16_to_float32,
     convert_to_fused_conv_bn_model,
     convert_to_token_label_model,
+    convert_layers_to_deploy_inplace,
     count_params,
     export_onnx,
     fuse_sequential_conv_strict,

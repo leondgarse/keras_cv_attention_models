@@ -248,7 +248,7 @@ def LeViT(
     drop_connect_rate=0,
     dropout=0,
     classifier_activation=None,
-    use_distillation=True,
+    use_distillation=False,
     pretrained="imagenet",
     model_name="levit",
     kwargs=None,
@@ -291,25 +291,35 @@ def LeViT(
             out = [out, distill]
 
     model = models.Model(inputs, out, name=model_name)
-    add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "levit", pretrained, MultiHeadPositionalEmbedding)
+    add_pre_post_process(model, rescale_mode="torch")
+    model.switch_to_deploy = lambda: switch_to_deploy(model)
     return model
 
 
+def switch_to_deploy(model):
+    from keras_cv_attention_models.model_surgery.model_surgery import fuse_reparam_blocks, convert_to_fused_conv_bn_model, fuse_distill_head
+
+    new_model = fuse_distill_head(model)
+    new_model = convert_to_fused_conv_bn_model(new_model)
+    add_pre_post_process(new_model, rescale_mode=model.preprocess_input.rescale_mode, post_process=model.decode_predictions)
+    return new_model
+
+
 @register_model
-def LeViT128S(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True, classifier_activation=None, pretrained="imagenet", **kwargs):
+def LeViT128S(input_shape=(224, 224, 3), num_classes=1000, use_distillation=False, classifier_activation=None, pretrained="imagenet", **kwargs):
     return LeViT(**locals(), model_name="levit128s", **kwargs)
 
 
 @register_model
-def LeViT128(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True, classifier_activation=None, pretrained="imagenet", **kwargs):
+def LeViT128(input_shape=(224, 224, 3), num_classes=1000, use_distillation=False, classifier_activation=None, pretrained="imagenet", **kwargs):
     num_heads = [4, 8, 12]
     depthes = [4, 4, 4]
     return LeViT(**locals(), model_name="levit128", **kwargs)
 
 
 @register_model
-def LeViT192(input_shape=(224, 224, 3), num_classes=1000, use_distillation=True, classifier_activation=None, pretrained="imagenet", **kwargs):
+def LeViT192(input_shape=(224, 224, 3), num_classes=1000, use_distillation=False, classifier_activation=None, pretrained="imagenet", **kwargs):
     patch_channel = 192
     out_channels = [288, 384, 384]
     num_heads = [3, 5, 6]

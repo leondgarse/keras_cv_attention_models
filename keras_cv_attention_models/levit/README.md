@@ -17,9 +17,7 @@
   from keras_cv_attention_models import levit
 
   # Will download and load pretrained imagenet weights.
-  mm = levit.LeViT128(pretrained="imagenet", use_distillation=True, classifier_activation=None)
-  print(mm.output_names, mm.output_shape)
-  # ['head', 'distill_head'] [(None, 1000), (None, 1000)]
+  mm = levit.LeViT128(pretrained="imagenet", use_distillation=False, classifier_activation='softmax')
 
   # Run prediction
   import tensorflow as tf
@@ -27,21 +25,29 @@
   from skimage.data import chelsea
   imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
   pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0))
-  pred = tf.nn.softmax((pred[0] + pred[1]) / 2).numpy()
-  print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.962495), ('n02123159', 'tiger_cat', 0.008833298), ...]
+  print(keras.applications.imagenet_utils.decode_predictions(pred.numpy())[0])
+  # [('n02124075', 'Egyptian_cat', 0.6907343), ('n02123159', 'tiger_cat', 0.019873397), ...]
   ```
-  set `use_distillation=False` for output only one head.
+  set `use_distillation=True` for adding an additional `BatchNorm->Dense` distill_head block, will also load distill head weights.
   ```py
-  mm = levit.LeViT192(use_distillation=False, classifier_activation="softmax")
+  from keras_cv_attention_models import levit, test_images
+  from keras_cv_attention_models.backend import functional
+
+  mm = levit.LeViT192(use_distillation=True, classifier_activation=None)
   print(mm.output_names, mm.output_shape)
-  # ['head'] (None, 1000)
+  # ['head', 'distill_head'] [(None, 1000), (None, 1000)]
+
+  # Run prediction
+  preds = mm(mm.preprocess_input(test_images.cat()))
+  preds = functional.softmax((preds[0] + preds[1]) / 2)
+  print(mm.decode_predictions(preds))
+  # [('n02124075', 'Egyptian_cat', 0.9727874), ('n02123045', 'tabby', 0.0082716895), ...]
   ```
   **Change input resolution**
   ```py
   from keras_cv_attention_models import levit
   # Will download and load pretrained imagenet weights.
-  mm = levit.LeViT256(input_shape=(292, 213, 3), pretrained="imagenet", use_distillation=True, classifier_activation=None)
+  mm = levit.LeViT256(input_shape=(292, 213, 3), pretrained="imagenet", use_distillation=False, classifier_activation='softmax')
   # >>>> Load pretrained from: ~/.keras/models/levit256_imagenet.h5
   # WARNING:tensorflow:Skipping loading of weights for layer stack1_block1_attn_pos due to mismatch in shape ((266, 4) vs (196, 4)).
   # ...
@@ -49,12 +55,27 @@
   # >>>> Reload layer: stack1_block1_attn_pos
   # ...
 
-  from skimage.data import chelsea
-  imm = keras.applications.imagenet_utils.preprocess_input(chelsea(), mode='torch') # Chelsea the cat
-  pred = mm(tf.expand_dims(tf.image.resize(imm, mm.input_shape[1:3]), 0))
-  pred = tf.nn.softmax((pred[0] + pred[1]) / 2).numpy()
-  print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
-  # [('n02124075', 'Egyptian_cat', 0.8671425), ('n02123159', 'tiger_cat', 0.06060877), ...]
+  # Run prediction
+  preds = mm(mm.preprocess_input(test_images.cat()))
+  print(mm.decode_predictions(preds))
+  # [('n02124075', 'Egyptian_cat', 0.6302801), ('n02123045', 'tabby', 0.008385201), ...]
+  ```
+  **Switch to deploy** by calling `model.switch_to_deploy()`, will fuse distillation header `BatchNorm->Dense` and preciction header `BatchNorm->Dense` into a single `Dense` layer. Also applying `convert_to_fused_conv_bn_model` that fusing `Conv2D->BatchNorm`.
+  ```py
+  from keras_cv_attention_models import levit, test_images, model_surgery
+
+  mm = levit.LeViT128(pretrained="imagenet", use_distillation=True, classifier_activation=None)
+  model_surgery.count_params(mm)
+  # Total params: 9,262,544 | Trainable params: 9,213,936 | Non-trainable params:48,608
+  preds = mm(mm.preprocess_input(test_images.cat()))
+
+  bb = mm.switch_to_deploy()
+  model_surgery.count_params(bb)
+  # Total params: 8,873,752 | Trainable params: 8,827,160 | Non-trainable params:46,592
+  preds_deploy = bb(bb.preprocess_input(test_images.cat()))
+
+  print(f"{np.allclose(tf.reduce_mean(preds, axis=0), preds_deploy, atol=1e-5) = }")
+  # np.allclose(tf.reduce_mean(preds, axis=0), preds_deploy, atol=1e-5) = True
   ```
 ## Verification with PyTorch version
   ```py

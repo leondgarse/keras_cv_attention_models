@@ -756,10 +756,11 @@ def fuse_sequential_conv_strict(model, verbose=0):
 
 
 def fuse_reparam_blocks(model, key='REPARAM', verbose=0):
-    bb = convert_to_fused_conv_bn_model(model)
-    reparam_layer_dict = {ii.name: ii for ii in bb.layers if key in ii.name and len(ii.weights) > 0}  # Only layers with weights
+    # model = convert_to_fused_conv_bn_model(model)
+    reparam_layer_dict = {ii.name: ii for ii in model.layers if key in ii.name and len(ii.weights) > 0}  # Only layers with weights
     fuse_layers = []
-    for layer in bb.layers:
+    fused_reparam_weights = {}  # Record fused weights first, then set_weights after new model built
+    for layer in model.layers:
         if key in layer.name and hasattr(layer, 'kernel_size') and tuple(layer.kernel_size) != (1, 1):
             reparameter_layer_name_prefix = layer.name.split(key)[0] + key
             kernel_1_layers = [vv for kk, vv in reparam_layer_dict.items() if kk.startswith(reparameter_layer_name_prefix) and kk != layer.name]
@@ -799,37 +800,48 @@ def fuse_reparam_blocks(model, key='REPARAM', verbose=0):
             if verbose > 0:
                 print(">>>> Fuse layer weights: {} <- {}".format(layer.name, kernel_1_layer.name, identity_branch_weight) + identity_branch_msg)
             if len(layer_weights) == 2:
-                layer.set_weights([layer_weights[0] + kernel_1_ww, layer_weights[1] + kernel_1_bb])
+                # layer.set_weights([layer_weights[0] + kernel_1_ww, layer_weights[1] + kernel_1_bb])
+                fused_reparam_weights[layer.name] = [layer_weights[0] + kernel_1_ww, layer_weights[1] + kernel_1_bb]
             else:
-                layer.set_weights([layer_weights[0] + kernel_1_ww])
+                # layer.set_weights([layer_weights[0] + kernel_1_ww])
+                fused_reparam_weights[layer.name] = [layer_weights[0] + kernel_1_ww]
             fuse_layers.append(kernel_1_layer.name)
             fuse_layers.append(reparameter_layer_name_prefix + "_out")
 
-    cc = remove_layer_single_input(bb, remove_layer_condition=lambda layer: layer["name"] in fuse_layers)
+    cc = remove_layer_single_input(model, remove_layer_condition=lambda layer: layer["name"] in fuse_layers)
+    for ii in cc.layers:
+        if ii.name in fused_reparam_weights:
+            if verbose > 0:
+                print(">>>> set_weights layer.name:", ii.name)
+            ii.set_weights(fused_reparam_weights[ii.name])
     return cc
 
 
 def fuse_distill_head(model, head="head", distill_head="distill_head", head_bn="head_bn", distill_head_bn="distill_head_bn"):
-    distill_head = model.get_layer(distill_head)
-    if distill_head_bn is not None:
-        distill_head_bn = model.get_layer(distill_head_bn)
-        distill_ww, distill_bb = fuse_bn_dense_weights(distill_head_bn, distill_head)
-    else:
-        distill_ww, distill_bb = distill_head.get_weights()
-
     head = model.get_layer(head)
     if head_bn is not None:
         head_bn = model.get_layer(head_bn)
         head_ww, head_bb = fuse_bn_dense_weights(head_bn, head)
     else:
         head_ww, head_bb = head.get_weights()
-    head.set_weights([(distill_ww + head_ww) / 2, (distill_bb + head_bb) / 2])
+
+    if distill_head in model.output_names:
+        distill_head = model.get_layer(distill_head)
+        if distill_head_bn is not None:
+            distill_head_bn = model.get_layer(distill_head_bn)
+            distill_ww, distill_bb = fuse_bn_dense_weights(distill_head_bn, distill_head)
+        else:
+            distill_ww, distill_bb = distill_head.get_weights()
+        head_ww, head_bb = (distill_ww + head_ww) / 2, (distill_bb + head_bb) / 2
+
     if head_bn is not None:
         model = remove_layer_single_input(model, remove_layer_condition=lambda layer: layer["name"] in [head_bn.name])
-    return models.Model(model.inputs, model.get_layer(head.name).output)
+    model = models.Model(model.inputs, model.get_layer(head.name).output)
+    model.get_layer(head.name).set_weights([head_ww, head_bb])
+    return model
 
 
-def convert_to_deploy(model):
+def convert_layers_to_deploy_inplace(model):
     for ii in model.layers:
         if hasattr(ii, "switch_to_deploy"):
             ii.switch_to_deploy()

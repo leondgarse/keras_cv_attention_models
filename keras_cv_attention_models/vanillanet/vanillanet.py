@@ -118,6 +118,7 @@ def switch_to_deploy(model):
     remove_layer_condition = lambda layer: layer["class_name"] == "LeakyReLU" and layer["config"]["alpha"] == 1
     new_model = model_surgery.remove_layer_single_input(new_model, remove_layer_condition=remove_layer_condition)
     new_model = model_surgery.fuse_sequential_conv_strict(new_model)
+    add_pre_post_process(new_model, rescale_mode=model.preprocess_input.rescale_mode, post_process=model.decode_predictions)
     return new_model
 
 
