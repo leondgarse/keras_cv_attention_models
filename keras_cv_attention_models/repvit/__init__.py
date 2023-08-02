@@ -2,8 +2,8 @@ from keras_cv_attention_models.repvit.repvit import RepViT, RepViT_M1, RepViT_M2
 
 
 __head_doc__ = """
-Keras implementation of [Github facebookresearch/LeViT](https://github.com/facebookresearch/LeViT).
-Paper [PDF 2104.01136 LeViT: a Vision Transformer in ConvNet’s Clothing for Faster Inference](https://arxiv.org/pdf/2104.01136.pdf).
+Keras implementation of [Github THU-MIG/RepViT](https://github.com/THU-MIG/RepViT).
+Paper [PDF 2307.09283 RepViT: Revisiting Mobile CNN From ViT Perspective](https://arxiv.org/pdf/2307.09283.pdf).
 """
 
 __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
@@ -29,24 +29,21 @@ Returns:
 
 RepViT.__doc__ = __head_doc__ + """
 Args:
-  patch_channel: channel dimension output for `path_stem`.
+  num_blocks: number of block for each stack.
   out_channels: output channels for each stack.
-  num_heads: heads number for transformer blocks in each stack.
-  depthes: number of block for each stack.
-  key_dims: key dimension for transformer blocks in each stack.
-  attn_ratios: `value` channel dimension expansion for transformer blocks in each stack.
-  mlp_ratios: dimension expansion ration for `mlp_block` in each stack.
-  strides: strides for each stack.
+  stem_width: channel dimension output for stem block, default -1 for using out_channels[0].
+  se_ratio: float value for se_ratio for each stack, will use `se_module` every other block in each stack if > 0.
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
   | Model                   | Params | FLOPs | Input | Top1 Acc |
   | ----------------------- | ------ | ----- | ----- | -------- |
-  | LeViT128S, distillation | 7.8M   | 0.31G | 224   | 76.6     |
-  | LeViT128, distillation  | 9.2M   | 0.41G | 224   | 78.6     |
-  | LeViT192, distillation  | 11M    | 0.66G | 224   | 80.0     |
-  | LeViT256, distillation  | 19M    | 1.13G | 224   | 81.6     |
-  | LeViT384, distillation  | 39M    | 2.36G | 224   | 82.6     |
+  | RepViT_M1, distillation | 5.10M  | 0.82G | 224   | 78.5     |
+  | - switch_to_deploy      | 5.07M  | 0.82G | 224   | 78.5     |
+  | RepViT_M2, distillation | 8.28M  | 1.35G | 224   | 80.6     |
+  | - switch_to_deploy      | 8.25M  | 1.35G | 224   | 80.6     |
+  | RepViT_M3, distillation | 10.2M  | 1.87G | 224   | 81.4     |
+  | - switch_to_deploy      | 10.12M | 1.87G | 224   | 81.4     |
 """
 
 RepViT_M1.__doc__ = __head_doc__ + """

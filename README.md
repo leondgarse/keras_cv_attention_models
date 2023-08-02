@@ -69,6 +69,7 @@
   - [PVT_V2](#pvt_v2)
   - [RegNetY](#regnety)
   - [RegNetZ](#regnetz)
+  - [RepViT](#repvit)
   - [ResMLP](#resmlp)
   - [ResNeSt](#resnest)
   - [ResNetD](#resnetd)
@@ -1246,6 +1247,17 @@
   | [RegNetZD8](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d8_imagenet.h5)      | 23.37M | 3.95G | 256   | 83.5     | 460.021 qps  |
   | [RegNetZD8_EVO](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_d8_evo_imagenet.h5)  | 23.46M | 4.61G | 256   | 83.42    |              |
   | [RegNetZE8](https://github.com/leondgarse/keras_cv_attention_models/releases/download/resnet_family/regnetz_e8_imagenet.h5)      | 57.70M | 9.88G | 256   | 84.5     | 274.97 qps   |
+## RepViT
+  - [Keras RepViT](keras_cv_attention_models/repvit) is for [PDF 2307.09283 RepViT: Revisiting Mobile CNN From ViT Perspective](https://arxiv.org/pdf/2307.09283.pdf).
+
+  | Model          | Params | FLOPs | Input | Top1 Acc | T4 Inference |
+  | -------------- | ------ | ----- | ----- | -------- | ------------ |
+  | [RepViT_M1, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m1_imagenet.h5) | 5.10M  | 0.82G | 224   | 78.5     |  |
+  | - switch_to_deploy      | 5.07M  | 0.82G | 224   | 78.5     |          |
+  | [RepViT_M2, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m2_imagenet.h5) | 8.28M  | 1.35G | 224   | 80.6     |  |
+  | - switch_to_deploy      | 8.25M  | 1.35G | 224   | 80.6     |          |
+  | [RepViT_M3, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m3_imagenet.h5) | 10.2M  | 1.87G | 224   | 81.4     |  |
+  | - switch_to_deploy      | 10.12M | 1.87G | 224   | 81.4     |          |
 ## ResMLP
   - [Keras ResMLP](keras_cv_attention_models/mlp_family#resmlp) includes implementation of [PDF 2105.03404 ResMLP: Feedforward networks for image classification with data-efficient training](https://arxiv.org/pdf/2105.03404.pdf).
 
