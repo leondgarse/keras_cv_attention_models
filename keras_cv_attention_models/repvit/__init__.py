@@ -1,4 +1,4 @@
-from keras_cv_attention_models.repvit.repvit import RepViT, RepViT_M1, RepViT_M2, RepViT_M3
+from keras_cv_attention_models.repvit.repvit import RepViT, RepViT_M1, RepViT_M2, RepViT_M3, switch_to_deploy
 
 
 __head_doc__ = """

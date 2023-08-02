@@ -16,6 +16,7 @@ from keras_cv_attention_models.swin_transformer_v2.swin_transformer_v2 import (
     SwinTransformerV2Large_window12,
     SwinTransformerV2Large_window16,
     SwinTransformerV2Large_window24,
+    switch_to_deploy,
 )
 from keras_cv_attention_models.swin_transformer_v2.swin_transformer_v2_timm import SwinTransformerV2Tiny_ns, SwinTransformerV2Small_ns
 

@@ -74,8 +74,8 @@
   # Total params: 8,873,752 | Trainable params: 8,827,160 | Non-trainable params:46,592
   preds_deploy = bb(bb.preprocess_input(test_images.cat()))
 
-  print(f"{np.allclose(tf.reduce_mean(preds, axis=0), preds_deploy, atol=1e-5) = }")
-  # np.allclose(tf.reduce_mean(preds, axis=0), preds_deploy, atol=1e-5) = True
+  print(f"{np.allclose((preds[0] + preds[1]) / 2, preds_deploy, atol=1e-5) = }")
+  # np.allclose((preds[0] + preds[1]) / 2, preds_deploy, atol=1e-5) = True
   ```
 ## Verification with PyTorch version
   ```py

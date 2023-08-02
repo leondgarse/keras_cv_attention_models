@@ -8,6 +8,7 @@ from keras_cv_attention_models.levit.levit import (
     MultiHeadPositionalEmbedding,
     mhsa_with_multi_head_position_and_strides,
     mhsa_with_multi_head_position,
+    switch_to_deploy,
 )
 
 

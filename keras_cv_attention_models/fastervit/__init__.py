@@ -1,4 +1,14 @@
-from keras_cv_attention_models.fastervit.fastervit import FasterViT, FasterViT0, FasterViT1, FasterViT2, FasterViT3, FasterViT4, FasterViT5, FasterViT6
+from keras_cv_attention_models.fastervit.fastervit import (
+    FasterViT,
+    FasterViT0,
+    FasterViT1,
+    FasterViT2,
+    FasterViT3,
+    FasterViT4,
+    FasterViT5,
+    FasterViT6,
+    switch_to_deploy,
+)
 
 __head_doc__ = """
 Keras implementation of [Github NVlabs/FasterViT](https://github.com/NVlabs/FasterViT).

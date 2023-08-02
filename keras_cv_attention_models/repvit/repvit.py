@@ -24,11 +24,12 @@ PRETRAINED_DICT = {
 
 
 def rep_vgg_depthwise(inputs, kernel_size=3, strides=1, name=""):
-    dw_1 = depthwise_conv2d_no_bias(inputs, kernel_size=kernel_size, strides=strides, padding="same", name=name+"REPARAM_1_")
+    dw_1 = depthwise_conv2d_no_bias(inputs, kernel_size=kernel_size, strides=strides, padding="same", name=name + "REPARAM_1_")
     dw_1 = batchnorm_with_activation(dw_1, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "REPARAM_1_")
-    dw_2 = depthwise_conv2d_no_bias(inputs, 1, name=name+"REPARAM_2_")
+    dw_2 = depthwise_conv2d_no_bias(inputs, 1, name=name + "REPARAM_2_")
     dw_2 = batchnorm_with_activation(dw_2, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "REPARAM_2_")
     return layers.Add(name=name + "REPARAM_out")([dw_1, dw_2, inputs])
+
 
 def dwconv_bn_conv_bn(inputs, out_channel, kernel_size=1, strides=1, name=""):
     nn = depthwise_conv2d_no_bias(inputs, kernel_size, strides=strides, padding="same", name=name + "1_")
@@ -36,6 +37,7 @@ def dwconv_bn_conv_bn(inputs, out_channel, kernel_size=1, strides=1, name=""):
     nn = conv2d_no_bias(nn, out_channel, name=name + "2_")
     nn = batchnorm_with_activation(nn, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "2_")
     return nn
+
 
 def conv_bn_act_conv_bn(inputs, hidden_channel, out_channel, use_residual=True, kernel_size=1, strides=1, drop_rate=0, activation="gelu", name=""):
     nn = conv2d_no_bias(inputs, hidden_channel, kernel_size, strides=strides, padding="same", name=name + "1_")
@@ -116,7 +118,7 @@ def RepViT(
 def switch_to_deploy(model):
     from keras_cv_attention_models.model_surgery.model_surgery import fuse_reparam_blocks, convert_to_fused_conv_bn_model, fuse_distill_head
 
-    new_model = fuse_distill_head(model)
+    new_model = fuse_distill_head(model) if "head" in model.output_names else model
     new_model = fuse_reparam_blocks(convert_to_fused_conv_bn_model(new_model))
     add_pre_post_process(new_model, rescale_mode=model.preprocess_input.rescale_mode, post_process=model.decode_predictions)
     return new_model

@@ -254,9 +254,9 @@ def FasterViT(
 
 
 def switch_to_deploy(model):
-    from keras_cv_attention_models.model_surgery.model_surgery import convert_layers_to_deploy_inplace, convert_to_fused_conv_bn_model
+    from keras_cv_attention_models.model_surgery.model_surgery import convert_layers_to_deploy_inplace
 
-    new_model = convert_layers_to_deploy_inplace(convert_to_fused_conv_bn_model(model))
+    new_model = convert_layers_to_deploy_inplace(model)
     add_pre_post_process(new_model, rescale_mode=model.preprocess_input.rescale_mode, post_process=model.decode_predictions)
     return new_model
 

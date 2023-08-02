@@ -300,7 +300,7 @@ def LeViT(
 def switch_to_deploy(model):
     from keras_cv_attention_models.model_surgery.model_surgery import fuse_reparam_blocks, convert_to_fused_conv_bn_model, fuse_distill_head
 
-    new_model = fuse_distill_head(model)
+    new_model = fuse_distill_head(model) if "head" in model.output_names else model
     new_model = convert_to_fused_conv_bn_model(new_model)
     add_pre_post_process(new_model, rescale_mode=model.preprocess_input.rescale_mode, post_process=model.decode_predictions)
     return new_model

@@ -40,9 +40,7 @@ class _Trainer_(object):
             global_context = torch.amp.autocast(device_type=device_type, dtype=torch.float16)
         self.device, self.device_type, self.scaler, self.global_context = device, device_type, scaler, global_context
 
-    def fit(
-        self, x=None, y=None, batch_size=32, epochs=1, callbacks=None, validation_data=None, initial_epoch=0, validation_batch_size=None, **kwargs
-    ):
+    def fit(self, x=None, y=None, batch_size=32, epochs=1, callbacks=None, validation_data=None, initial_epoch=0, validation_batch_size=None, **kwargs):
         callbacks = callbacks or []
         [ii.set_model(self) for ii in callbacks if ii is None]
         self.hists = {"loss": []}
@@ -118,7 +116,7 @@ class _Trainer_(object):
             [ii.on_epoch_end(epoch, epoch_logs) for ii in callbacks]
             print()
 
-    def evaluate(self, x=None, y=None, batch_size=None, verbose='auto', callbacks=None, **kwargs):
+    def evaluate(self, x=None, y=None, batch_size=None, verbose="auto", callbacks=None, **kwargs):
         callbacks = callbacks or []
         epoch_logs = {}  # Can be used as global value between different callbacks
         [ii.set_model(self) for ii in callbacks if ii.model is None]
@@ -307,6 +305,7 @@ class Model(nn.Module, _Trainer_, _Exporter_):
     >>> # or just use preset preprocess_input
     >>> print(mm.decode_predictions(mm(mm.preprocess_input(chelsea()))))
     """
+
     num_instances = 0  # Count instances
 
     @classmethod
@@ -444,9 +443,9 @@ class Model(nn.Module, _Trainer_, _Exporter_):
         if filepath.endswith("h5"):
             self.load_weights(filepath, **kwargs)
         else:
-            weights = torch.load(filepath, map_location=torch.device('cpu'), **kwargs)
+            weights = torch.load(filepath, map_location=torch.device("cpu"), **kwargs)
             weights = weights.state_dict() if hasattr(weights.state_dict) else weights
-            self.load_state_dict(weights.get('state_dict', weights.get('model', weights)))
+            self.load_state_dict(weights.get("state_dict", weights.get("model", weights)))
 
     def save(self, filepath=None, **kwargs):
         if filepath.endswith("h5"):
@@ -482,6 +481,7 @@ class Sequential(Model):
     >>> print(mm(torch.ones([1, 3, 32, 32])).shape)
     >>> # torch.Size([1, 10])
     """
+
     def __init__(self, sequence_layers=None, name=None, **kwargs):
         self.sequence_layers, self.name, self.kwargs = sequence_layers, name, kwargs
         if isinstance(sequence_layers[0], layers.Input):

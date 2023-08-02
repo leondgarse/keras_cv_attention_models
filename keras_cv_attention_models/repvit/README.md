@@ -54,7 +54,7 @@
   print(mm(np.ones([1, 32, 526, 3])).shape)
   # (1, 1, 17, 384)
   ```
-  **Switch to deploy** by calling `model.switch_to_deploy()`, will fuse distillation header `BatchNorm-> Dense` and preciction header `BatchNorm-> Dense` into a single `Dense` layer. Also applying `convert_to_fused_conv_bn_model` that fusing `Conv2D->BatchNorm`.
+  **Switch to deploy** by calling `model.switch_to_deploy()`, will fuse reparameter block into a single `Conv2D` layer, and fuse distillation header `BatchNorm-> Dense` and preciction header `BatchNorm-> Dense` into a single `Dense` layer. Also applying `convert_to_fused_conv_bn_model` that fusing `Conv2D->BatchNorm`.
   ```py
   from keras_cv_attention_models import repvit, test_images, model_surgery
 
@@ -68,8 +68,8 @@
   # Total params: 5,067,056 | Trainable params: 5,067,056 | Non-trainable params:0
   preds_deploy = bb(bb.preprocess_input(test_images.cat()))
 
-  print(f"{np.allclose(tf.reduce_mean(preds, axis=0), preds_deploy, atol=1e-5) = }")
-  # np.allclose(tf.reduce_mean(preds, axis=0), preds_deploy, atol=1e-5) = True
+  print(f"{np.allclose((preds[0] + preds[1]) / 2, preds_deploy, atol=1e-5) = }")
+  # np.allclose((preds[0] + preds[1]) / 2, preds_deploy, atol=1e-5) = True
   ```
   **Using PyTorch backend** by set `KECAM_BACKEND='torch'` environment variable.
   ```py

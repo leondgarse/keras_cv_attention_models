@@ -755,13 +755,13 @@ def fuse_sequential_conv_strict(model, verbose=0):
     )
 
 
-def fuse_reparam_blocks(model, key='REPARAM', verbose=0):
+def fuse_reparam_blocks(model, key="REPARAM", verbose=0):
     # model = convert_to_fused_conv_bn_model(model)
     reparam_layer_dict = {ii.name: ii for ii in model.layers if key in ii.name and len(ii.weights) > 0}  # Only layers with weights
     fuse_layers = []
     fused_reparam_weights = {}  # Record fused weights first, then set_weights after new model built
     for layer in model.layers:
-        if key in layer.name and hasattr(layer, 'kernel_size') and tuple(layer.kernel_size) != (1, 1):
+        if key in layer.name and hasattr(layer, "kernel_size") and tuple(layer.kernel_size) != (1, 1):
             reparameter_layer_name_prefix = layer.name.split(key)[0] + key
             kernel_1_layers = [vv for kk, vv in reparam_layer_dict.items() if kk.startswith(reparameter_layer_name_prefix) and kk != layer.name]
             if len(kernel_1_layers) != 1:
@@ -776,10 +776,10 @@ def fuse_reparam_blocks(model, key='REPARAM', verbose=0):
                     identity_branch_weight = 1
                     identity_branch_msg = ", identity_branch 1"
                 elif layer.groups == 1:  # Conv2D without groups
-                    identity_branch_weight = np.eye(layer.filters, dtype='float32')
+                    identity_branch_weight = np.eye(layer.filters, dtype="float32")
                     identity_branch_msg = ", identity_branch (eye) {}".format(identity_branch_weight.shape)
                 else:  # Conv2D with groups, https://github.com/Deci-AI/super-gradients/blob/master/src/super_gradients/modules/qarepvgg_block.py#L135
-                    identity_branch_weight = np.zeros([layer.filters, layer.filters, 1, 1], dtype='float32')
+                    identity_branch_weight = np.zeros([layer.filters, layer.filters, 1, 1], dtype="float32")
                     group_interval = layer.filters // layer.groups
                     for ii in range(layer.filters):
                         identity_branch_weight[ii, ii % group_interval] = 1.0

@@ -9,6 +9,8 @@ from keras_cv_attention_models.vanillanet.vanillanet import (
     VanillaNet11,
     VanillaNet12,
     VanillaNet13,
+    set_leaky_relu_alpha,
+    switch_to_deploy,
 )
 __head_doc__ = """
 Keras implementation of [Github huawei-noah/VanillaNet](https://github.com/huawei-noah/VanillaNet).
