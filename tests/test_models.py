@@ -287,7 +287,7 @@ def test_EdgeNeXt_XX_Small_new_shape_predict():
 
 
 def test_EfficientFormerL1_new_shape_predict():
-    mm = keras_cv_attention_models.efficientformer.EfficientFormerL1(input_shape=(192, 113, 3), pretrained="imagenet")
+    mm = keras_cv_attention_models.efficientformer.EfficientFormerL1(input_shape=(192, 113, 3), use_distillation=True, pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat()))
     pred = (pred[0] + pred[1]) / 2
     out = mm.decode_predictions(pred)[0][0]
@@ -296,7 +296,7 @@ def test_EfficientFormerL1_new_shape_predict():
 
 
 def test_EfficientFormerV2S0_new_shape_predict():
-    mm = keras_cv_attention_models.efficientformer.EfficientFormerV2S0(input_shape=(192, 113, 3), pretrained="imagenet")
+    mm = keras_cv_attention_models.efficientformer.EfficientFormerV2S0(input_shape=(192, 113, 3), use_distillation=True, pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat()))
     pred = (pred[0] + pred[1]) / 2
     out = mm.decode_predictions(pred)[0][0]

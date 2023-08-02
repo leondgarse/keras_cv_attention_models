@@ -60,7 +60,7 @@
   print(mm.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.6302801), ('n02123045', 'tabby', 0.008385201), ...]
   ```
-  **Switch to deploy** by calling `model.switch_to_deploy()`, will fuse distillation header `BatchNorm->Dense` and preciction header `BatchNorm->Dense` into a single `Dense` layer. Also applying `convert_to_fused_conv_bn_model` that fusing `Conv2D->BatchNorm`.
+  **Switch to deploy** by calling `model.switch_to_deploy()`, will fuse distillation header `BatchNorm->Dense` and preciction header `BatchNorm->Dense` into a single `Dense` layer.
   ```py
   from keras_cv_attention_models import levit, test_images, model_surgery
 
@@ -71,7 +71,7 @@
 
   bb = mm.switch_to_deploy()
   model_surgery.count_params(bb)
-  # Total params: 8,873,752 | Trainable params: 8,827,160 | Non-trainable params:46,592
+  # Total params: 8,874,472 | Trainable params: 8,827,400 | Non-trainable params:47,072
   preds_deploy = bb(bb.preprocess_input(test_images.cat()))
 
   print(f"{np.allclose((preds[0] + preds[1]) / 2, preds_deploy, atol=1e-5) = }")

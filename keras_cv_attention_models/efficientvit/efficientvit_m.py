@@ -188,10 +188,20 @@ def EfficientViT_M(
         out = nn
 
     model = models.Model(inputs, out, name=model_name)
-    add_pre_post_process(model, rescale_mode="torch")
     max_shape = max(input_shape[:2] if image_data_format() == "channels_last" else input_shape[1:])  # Relaod mismatch only if all shape < 7 * 32 = 224
     reload_model_weights(model, PRETRAINED_DICT, "efficientvit", pretrained, MultiHeadPositionalEmbedding if window_size != 7 or max_shape < 224 else None)
+
+    add_pre_post_process(model, rescale_mode="torch")
+    model.switch_to_deploy = lambda: switch_to_deploy(model)
     return model
+
+
+def switch_to_deploy(model):
+    from keras_cv_attention_models.model_surgery.model_surgery import fuse_distill_head
+
+    new_model = fuse_distill_head(model, head_bn="pre_output_bn", distill_head_bn="distill_output_bn") if "head" in model.output_names else model
+    add_pre_post_process(new_model, rescale_mode=model.preprocess_input.rescale_mode, post_process=model.decode_predictions)
+    return new_model
 
 
 @register_model

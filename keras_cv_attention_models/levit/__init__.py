@@ -29,7 +29,7 @@ __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like 
   classifier_activation: A `str` or callable. The activation function to use on the "top" layer if `num_classes > 0`.
       Set `classifier_activation=None` to return the logits of the "top" layer.
       Default is `None`.
-  use_distillation: Boolean value if output `distill_head`. Default `True`.
+  use_distillation: Boolean value if output `distill_head`. Default `False`.
   pretrained: one of `None` (random initialization) or 'imagenet' (pre-training on ImageNet).
       Will try to download and load pre-trained model weights if not None.
   **kwargs: other parameters if available.

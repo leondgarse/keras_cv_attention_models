@@ -166,7 +166,7 @@ def EfficientFormerV2(
     activation="gelu",
     drop_connect_rate=0,
     classifier_activation=None,
-    use_distillation=True,
+    use_distillation=False,
     dropout=0,
     pretrained=None,
     model_name="efficientformer_v2",
@@ -221,18 +221,28 @@ def EfficientFormerV2(
         out = nn
 
     model = models.Model(inputs, out, name=model_name)
-    add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "efficientformer", pretrained, MultiHeadPositionalEmbedding)
+
+    add_pre_post_process(model, rescale_mode="torch")
+    model.switch_to_deploy = lambda: switch_to_deploy(model)
     return model
 
 
+def switch_to_deploy(model):
+    from keras_cv_attention_models.model_surgery.model_surgery import fuse_distill_head
+
+    new_model = fuse_distill_head(model, head_bn="pre_output_bn", distill_head_bn="pre_output_bn") if "head" in model.output_names else model
+    add_pre_post_process(new_model, rescale_mode=model.preprocess_input.rescale_mode, post_process=model.decode_predictions)
+    return new_model
+
+
 @register_model
-def EfficientFormerV2S0(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
+def EfficientFormerV2S0(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=False, pretrained="imagenet", **kwargs):
     return EfficientFormerV2(**locals(), model_name="efficientformer_v2_s0", **kwargs)
 
 
 @register_model
-def EfficientFormerV2S1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
+def EfficientFormerV2S1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=False, pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 9, 6]
     out_channels = [32, 48, 120, 224]
     mlp_ratios = [4, 4, [4, 4, 3, 3, 3, 3, 4, 4, 4], [4, 4, 3, 3, 4, 4]]
@@ -240,7 +250,7 @@ def EfficientFormerV2S1(input_shape=(224, 224, 3), num_classes=1000, activation=
 
 
 @register_model
-def EfficientFormerV2S2(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
+def EfficientFormerV2S2(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=False, pretrained="imagenet", **kwargs):
     num_blocks = [4, 4, 12, 8]
     out_channels = [32, 64, 144, 288]
     mlp_ratios = [4, 4, [4, 4, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4], [4, 4, 3, 3, 3, 3, 4, 4]]
@@ -249,7 +259,7 @@ def EfficientFormerV2S2(input_shape=(224, 224, 3), num_classes=1000, activation=
 
 
 @register_model
-def EfficientFormerV2L(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
+def EfficientFormerV2L(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=False, pretrained="imagenet", **kwargs):
     num_blocks = [5, 5, 15, 10]
     out_channels = [40, 80, 192, 384]
     mlp_ratios = [4, 4, [4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4], [4, 4, 4, 3, 3, 3, 3, 4, 4, 4]]

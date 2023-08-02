@@ -61,7 +61,7 @@ def EfficientFormer(
     activation="gelu",
     drop_connect_rate=0,
     classifier_activation=None,
-    use_distillation=True,
+    use_distillation=False,
     dropout=0,
     pretrained=None,
     model_name="efficientformer",
@@ -128,18 +128,28 @@ def EfficientFormer(
         out = nn
 
     model = models.Model(inputs, out, name=model_name)
-    add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "efficientformer", pretrained, MultiHeadPositionalEmbedding)
+
+    add_pre_post_process(model, rescale_mode="torch")
+    model.switch_to_deploy = lambda: switch_to_deploy(model)
     return model
 
 
+def switch_to_deploy(model):
+    from keras_cv_attention_models.model_surgery.model_surgery import fuse_distill_head
+
+    new_model = fuse_distill_head(model, head_bn=None, distill_head_bn=None) if "head" in model.output_names else model
+    add_pre_post_process(new_model, rescale_mode=model.preprocess_input.rescale_mode, post_process=model.decode_predictions)
+    return new_model
+
+
 @register_model
-def EfficientFormerL1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
+def EfficientFormerL1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=False, pretrained="imagenet", **kwargs):
     return EfficientFormer(**locals(), model_name="efficientformer_l1", **kwargs)
 
 
 @register_model
-def EfficientFormerL3(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
+def EfficientFormerL3(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=False, pretrained="imagenet", **kwargs):
     num_blocks = [4, 4, 12, 6]
     out_channels = [64, 128, 320, 512]
     num_attn_blocks_each_stack = [0, 0, 0, 4]
@@ -147,7 +157,7 @@ def EfficientFormerL3(input_shape=(224, 224, 3), num_classes=1000, activation="g
 
 
 @register_model
-def EfficientFormerL7(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=True, pretrained="imagenet", **kwargs):
+def EfficientFormerL7(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", use_distillation=False, pretrained="imagenet", **kwargs):
     num_blocks = [6, 6, 18, 8]
     out_channels = [96, 192, 384, 768]
     num_attn_blocks_each_stack = [0, 0, 0, 8]
