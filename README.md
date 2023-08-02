@@ -2,6 +2,7 @@
 ***
 - **coco_train_script.py is under testing. Still struggling for this...**
 - **SwinV2 positional embedding is changed from `PairWiseRelativePositionalEmbedding -> mlp_block` to `MlpPairwisePositionalEmbedding` layer, follow `FasterViT` with a `switch_to_deploy` function, since `kecam > 1.3.18`. If needs to port previous self trained weights, try `kecam.model_surgery.swin_convert_pos_emb_mlp_to_MlpPairwisePositionalEmbedding_weights`.**
+- **LeViT changed default using `use_distillation=False`, and a function `switch_to_deploy` is added for fusing distill head since `kecam > 1.3.18`.**
 
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 

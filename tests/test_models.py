@@ -440,7 +440,7 @@ def test_LCNet050_dynamic_predict():
 
 
 def test_LeViT128S_predict():
-    mm = keras_cv_attention_models.levit.LeViT128S(pretrained="imagenet")
+    mm = keras_cv_attention_models.levit.LeViT128S(use_distillation=True, pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat()))
     pred = (pred[0] + pred[1]) / 2
     out = mm.decode_predictions(pred)[0][0]
@@ -449,7 +449,7 @@ def test_LeViT128S_predict():
 
 
 def test_LeViT128S_new_shape_predict():
-    mm = keras_cv_attention_models.levit.LeViT128S(input_shape=(292, 213, 3), pretrained="imagenet")
+    mm = keras_cv_attention_models.levit.LeViT128S(use_distillation=True, input_shape=(292, 213, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat()))
     pred = (pred[0] + pred[1]) / 2
     out = mm.decode_predictions(pred)[0][0]
