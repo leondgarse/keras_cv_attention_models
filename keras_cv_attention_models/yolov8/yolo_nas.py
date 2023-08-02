@@ -4,15 +4,15 @@ from keras_cv_attention_models.attention_layers import add_pre_post_process
 from keras_cv_attention_models import model_surgery
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.coco import eval_func, anchors_func
-from keras_cv_attention_models.yolov8.yolov8 import YOLOV8Backbone, conv_bn, csp_with_2_conv, yolov8_head
+from keras_cv_attention_models.yolov8.yolov8 import YOLOV8Backbone, conv_bn, csp_with_2_conv, yolov8_head, switch_to_deploy
 
 PRETRAINED_DICT = {
     "yolo_nas_l": {"coco": "cea25dd86e8e4aa1fd82b7e1288fa583"},
     "yolo_nas_m": {"coco": "16cbc4683b51894334b0264def1593a2"},
     "yolo_nas_s": {"coco": "283395afacb7ca5ea597d2e48dd19329"},
-    "yolo_nas_l_before_reparam": {"coco": "0ba1ec65e511a5ec72b24e4883ef3506"},
-    "yolo_nas_m_before_reparam": {"coco": "23fce210caa6dbabedd01157e0425665"},
-    "yolo_nas_s_before_reparam": {"coco": "cddabb917fd349e0fe6b345537ddd156"},
+    "yolo_nas_l_before_reparam": {"coco": "a22ce5b0a036cf27a9e32fc80f09c373"},
+    "yolo_nas_m_before_reparam": {"coco": "d093634fc5af38da0e763512ac829da4"},
+    "yolo_nas_s_before_reparam": {"coco": "8c41ba972fc1bc66810c8f5ee15e404e"},
 }
 
 
@@ -96,7 +96,7 @@ def YOLO_NAS(
     use_alpha=True,
     # use_bias=True,  # Actually used for reloading reparametered conv weights
     header_depth=1,
-    use_reparam_conv=False,  # Use rep_vgg_conv_bn instead of conv_bn block in all csp_blocks.
+    use_reparam_conv=True,  # Use rep_vgg_conv_bn instead of conv_bn block in all csp_blocks.
     csp_parallel_mode=False,
     paf_parallel_mode=False,
     paf_output_channels=[64, 128, 256],
@@ -150,6 +150,7 @@ def YOLO_NAS(
         backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale, regression_len=regression_len
     )
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
+    model.switch_to_deploy = lambda: switch_to_deploy(model)
     return model
 
 
@@ -159,7 +160,7 @@ def YOLO_NAS_S(
     freeze_backbone=False,
     num_classes=80,
     backbone=None,
-    use_reparam_conv=False,
+    use_reparam_conv=True,
     classifier_activation="sigmoid",
     pretrained="coco",
     **kwargs
@@ -173,7 +174,7 @@ def YOLO_NAS_M(
     freeze_backbone=False,
     num_classes=80,
     backbone=None,
-    use_reparam_conv=False,
+    use_reparam_conv=True,
     classifier_activation="sigmoid",
     pretrained="coco",
     **kwargs
@@ -192,7 +193,7 @@ def YOLO_NAS_L(
     freeze_backbone=False,
     num_classes=80,
     backbone=None,
-    use_reparam_conv=False,
+    use_reparam_conv=True,
     classifier_activation="sigmoid",
     pretrained="coco",
     **kwargs

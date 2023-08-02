@@ -12,6 +12,7 @@ from keras_cv_attention_models.yolov8.yolov8 import (
     YOLOV8_M_CLS,
     YOLOV8_L_CLS,
     YOLOV8_X_CLS,
+    switch_to_deploy,
 )
 from keras_cv_attention_models.yolov8.yolo_nas import YOLO_NAS, YOLO_NAS_S, YOLO_NAS_M, YOLO_NAS_L
 
@@ -85,14 +86,14 @@ Model architectures:
   | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         |
   | YOLOV8_X6 | 97.42M | 522.6G | 1280  | 56.7 ?      |         |
 
-  | Model                   | Params | FLOPs  | Input | COCO val AP | test AP |
-  | ----------------------- | ------ | ------ | ----- | ----------- | ------- |
-  | YOLO_NAS_S              | 12.18M | 15.92G | 640   | 47.5        |         |
-  | - use_reparam_conv=True | 12.88M | 16.96G | 640   | 47.5        |         |
-  | YOLO_NAS_M              | 31.92M | 43.91G | 640   | 51.55       |         |
-  | - use_reparam_conv=True | 33.86M | 47.12G | 640   | 51.55       |         |
-  | YOLO_NAS_L              | 42.02M | 59.95G | 640   | 52.22       |         |
-  | - use_reparam_conv=True | 44.53M | 64.53G | 640   | 52.22       |         |
+  | Model                    | Params | FLOPs  | Input | COCO val AP | test AP |
+  | ------------------------ | ------ | ------ | ----- | ----------- | ------- |
+  | YOLO_NAS_S               | 12.88M | 16.96G | 640   | 47.5        |         |
+  | - use_reparam_conv=False | 12.18M | 15.92G | 640   | 47.5        |         |
+  | YOLO_NAS_M               | 33.86M | 47.12G | 640   | 51.55       |         |
+  | - use_reparam_conv=False | 31.92M | 43.91G | 640   | 51.55       |         |
+  | YOLO_NAS_L               | 44.53M | 64.53G | 640   | 52.22       |         |
+  | - use_reparam_conv=False | 42.02M | 59.95G | 640   | 52.22       |         |
 """
 
 YOLOV8_N.__doc__ = __head_doc__ + __detector_head_doc__ + __detector_tail_doc__

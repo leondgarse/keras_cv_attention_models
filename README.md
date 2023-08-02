@@ -3,6 +3,7 @@
 - **coco_train_script.py is under testing. Still struggling for this...**
 - **SwinV2 positional embedding is changed from `PairWiseRelativePositionalEmbedding -> mlp_block` to `MlpPairwisePositionalEmbedding` layer, follow `FasterViT` with a `switch_to_deploy` function, since `kecam > 1.3.18`. If needs to port previous self trained weights, try `kecam.model_surgery.swin_convert_pos_emb_mlp_to_MlpPairwisePositionalEmbedding_weights`.**
 - **LeViT changed default using `use_distillation=False`, and a function `switch_to_deploy` is added for fusing distill head since `kecam > 1.3.18`.**
+- **YOLO_NAS changed default using `use_reparam_conv=True`, and a function `switch_to_deploy` is added for fusing reparam blocks since `kecam > 1.3.18`.**
 
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
@@ -1448,12 +1449,12 @@
 
   | Model                   | Params | FLOPs  | Input | COCO val AP | test AP | T4 Inference |
   | ----------------------- | ------ | ------ | ----- | ----------- | ------- | ------------ |
-  | [YOLO_NAS_S](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_s_coco.h5)              | 12.18M | 15.92G | 640   | 47.5        |         | 345.595 qps  |
-  | - [use_reparam_conv=True](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_s_before_reparam_coco.h5) | 12.88M | 16.96G | 640   | 47.5        |         | 240.087 qps  |
-  | [YOLO_NAS_M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_m_coco.h5)              | 31.92M | 43.91G | 640   | 51.55       |         | 167.935 qps  |
-  | - [use_reparam_conv=True](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_m_before_reparam_coco.h5) | 33.86M | 47.12G | 640   | 51.55       |         | 128.96 qps   |
-  | [YOLO_NAS_L](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_coco.h5)              | 42.02M | 59.95G | 640   | 52.22       |         | 131.11 qps   |
-  | - [use_reparam_conv=True](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_before_reparam_coco.h5) | 44.53M | 64.53G | 640   | 52.22       |         | 98.6069 qps  |
+  | [YOLO_NAS_S](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_s_before_reparam_coco.h5) | 12.88M | 16.96G | 640   | 47.5        |         | 240.087 qps  |
+  | - [use_reparam_conv=False](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_s_coco.h5)  | 12.18M | 15.92G | 640   | 47.5        |         | 345.595 qps  |
+  | [YOLO_NAS_M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_m_before_reparam_coco.h5) | 33.86M | 47.12G | 640   | 51.55       |         | 128.96 qps   |
+  | - [use_reparam_conv=False](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_m_coco.h5)  | 31.92M | 43.91G | 640   | 51.55       |         | 167.935 qps  |
+  | [YOLO_NAS_L](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_before_reparam_coco.h5) | 44.53M | 64.53G | 640   | 52.22       |         | 98.6069 qps  |
+  | - [use_reparam_conv=False](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_coco.h5)  | 42.02M | 59.95G | 640   | 52.22       |         | 131.11 qps   |
 ## YOLOR
   - [Keras YOLOR](keras_cv_attention_models/yolor) includes implementation of [Paper 2105.04206 You Only Learn One Representation: Unified Network for Multiple Tasks](https://arxiv.org/pdf/2105.04206.pdf).
 
@@ -1482,11 +1483,11 @@
 
   | Model     | Params | FLOPs  | Input | COCO val AP | test AP | T4 Inference |
   | --------- | ------ | ------ | ----- | ----------- | ------- | ------------ |
-  | [YOLOV8_N](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_n_coco.h5)  | 3.16M  | 4.39G  | 640   | 37.3        |         | 614.042 qps  |
-  | [YOLOV8_S](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_s_coco.h5)  | 11.17M | 14.33G | 640   | 44.9        |         | 349.528 qps  |
-  | [YOLOV8_M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_m_coco.h5)  | 25.90M | 39.52G | 640   | 50.2        |         | 160.212 qps  |
-  | [YOLOV8_L](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_coco.h5)  | 43.69M | 82.65G | 640   | 52.9        |         | 104.452 qps  |
-  | [YOLOV8_X](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_coco.h5)  | 68.23M | 129.0G | 640   | 53.9        |         | 66.0428 qps  |
+  | [YOLOV8_N](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_n_coco.h5)   | 3.16M  | 4.39G  | 640   | 37.3        |         | 614.042 qps  |
+  | [YOLOV8_S](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_s_coco.h5)   | 11.17M | 14.33G | 640   | 44.9        |         | 349.528 qps  |
+  | [YOLOV8_M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_m_coco.h5)   | 25.90M | 39.52G | 640   | 50.2        |         | 160.212 qps  |
+  | [YOLOV8_L](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_coco.h5)   | 43.69M | 82.65G | 640   | 52.9        |         | 104.452 qps  |
+  | [YOLOV8_X](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_coco.h5)   | 68.23M | 129.0G | 640   | 53.9        |         | 66.0428 qps  |
   | [YOLOV8_X6](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x6_coco.h5) | 97.42M | 522.6G | 1280  | 56.7 ?      |         | 17.4368 qps  |
 ## YOLOX
   - [Keras YOLOX](keras_cv_attention_models/yolox) includes implementation of [Paper 2107.08430 YOLOX: Exceeding YOLO Series in 2021](https://arxiv.org/pdf/2107.08430.pdf).

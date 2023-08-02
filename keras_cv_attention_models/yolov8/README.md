@@ -23,14 +23,14 @@
   | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         | [yolov8_x_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_coco.h5) |
   | YOLOV8_X6 | 97.42M | 522.6G | 1280  | 56.7 ?      |         | [yolov8_x6_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x6_coco.h5) |
 
-  | Model                   | Params | FLOPs  | Input | COCO val AP | test AP | Download |
-  | ----------------------- | ------ | ------ | ----- | ----------- | ------- | -------- |
-  | YOLO_NAS_S              | 12.18M | 15.92G | 640   | 47.5        |         | [yolo_nas_s_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_s_coco.h5) |
-  | - use_reparam_conv=True | 12.88M | 16.96G | 640   | 47.5        |         | [s_before_reparam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_s_before_reparam_coco.h5) |
-  | YOLO_NAS_M              | 31.92M | 43.91G | 640   | 51.55       |         | [yolo_nas_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_m_coco.h5) |
-  | - use_reparam_conv=True | 33.86M | 47.12G | 640   | 51.55       |         | [m_before_reparam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_m_before_reparam_coco.h5) |
-  | YOLO_NAS_L              | 42.02M | 59.95G | 640   | 52.22       |         | [yolo_nas_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_coco.h5) |
-  | - use_reparam_conv=True | 44.53M | 64.53G | 640   | 52.22       |         | [l_before_reparam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_before_reparam_coco.h5) |
+  | Model                    | Params | FLOPs  | Input | COCO val AP | test AP | Download |
+  | ------------------------ | ------ | ------ | ----- | ----------- | ------- | -------- |
+  | YOLO_NAS_S               | 12.88M | 16.96G | 640   | 47.5        |         | [s_before_reparam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_s_before_reparam_coco.h5) |
+  | - use_reparam_conv=False | 12.18M | 15.92G | 640   | 47.5        |         | [yolo_nas_s_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_s_coco.h5) |
+  | YOLO_NAS_M               | 33.86M | 47.12G | 640   | 51.55       |         | [m_before_reparam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_m_before_reparam_coco.h5) |
+  | - use_reparam_conv=False | 31.92M | 43.91G | 640   | 51.55       |         | [yolo_nas_m_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_m_coco.h5) |
+  | YOLO_NAS_L               | 44.53M | 64.53G | 640   | 52.22       |         | [l_before_reparam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_before_reparam_coco.h5) |
+  | - use_reparam_conv=False | 42.02M | 59.95G | 640   | 52.22       |         | [yolo_nas_l_coco.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolo_nas_l_coco.h5) |
 ## Classification Models
   | Model        | Params | FLOPs@640 | FLOPs@224 | Input | Top1 Acc | Download |
   | ------------ | ------ | --------- | --------- | ----- | -------- | -------- |
@@ -79,6 +79,23 @@
     data.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=80)
     ```
     ![yolov8_s_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/230587610-8a276623-2ec9-49f1-a678-998b913a0739.png)
+  - **Switch to deploy** by calling `model.switch_to_deploy()` if using `use_reparam_conv=True`. Will fuse reparameter block into a single `Conv2D` layer. Also applying `convert_to_fused_conv_bn_model` that fusing `Conv2D->BatchNorm`.
+    ```py
+    from keras_cv_attention_models import yolov8, test_images, model_surgery
+
+    mm = yolov8.YOLO_NAS_S(use_reparam_conv=True)
+    model_surgery.count_params(mm)
+    # Total params: 12,911,584.0 | Trainable params: 12,878,304.0 | Non-trainable params:33,280.0
+    preds = mm(mm.preprocess_input(test_images.dog_cat()))
+
+    bb = mm.switch_to_deploy()
+    model_surgery.count_params(bb)
+    # Total params: 12,167,600.0 | Trainable params: 12,167,600.0 | Non-trainable params:0.0
+    preds_deploy = bb(bb.preprocess_input(test_images.dog_cat()))
+
+    print(f"{np.allclose(preds, preds_deploy, atol=1e-3) = }")
+    # np.allclose(preds, preds_deploy, atol=1e-3) = True
+    ```
   - **Classification model**
     ```py
     from keras_cv_attention_models.yolov8 import yolov8

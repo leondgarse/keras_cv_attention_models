@@ -40,13 +40,14 @@ def conv_bn(inputs, output_channel, kernel_size=1, strides=1, use_bias=False, ac
 
 
 def reparam_conv_bn(inputs, output_channel, kernel_size=3, strides=1, use_bias=False, use_identity=True, activation="swish", name=""):
-    branch_3x3 = conv2d_no_bias(inputs, output_channel, 3, strides, use_bias=False, padding="SAME", name=name)
+    branch_3x3 = conv2d_no_bias(inputs, output_channel, 3, strides, use_bias=False, padding="SAME", name=name + "REPARAM_k3_")
     branch_3x3 = batchnorm_with_activation(branch_3x3, activation=None, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name + "REPARAM_k3_")
 
     branch_1x1 = conv2d_no_bias(inputs, output_channel, 1, strides, use_bias=use_bias, padding="VALID", name=name + "REPARAM_k1_")
     # branch_1x1 = batchnorm_with_activation(branch_1x1, activation=None, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name + "REPARAM_k1_")
 
-    out = (branch_3x3 + branch_1x1 + inputs) if use_identity else (branch_3x3 + branch_1x1)
+    # out = (branch_3x3 + branch_1x1 + inputs) if use_identity else (branch_3x3 + branch_1x1)
+    out = layers.Add(name=name + "REPARAM_out")([branch_3x3, branch_1x1, inputs] if use_identity else [branch_3x3, branch_1x1])
     return batchnorm_with_activation(out, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name)
 
 
@@ -340,7 +341,26 @@ def YOLOV8(
         backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale, regression_len=regression_len
     )
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
+    model.switch_to_deploy = lambda: switch_to_deploy(model)
     return model
+
+
+def switch_to_deploy(model):
+    from keras_cv_attention_models.model_surgery.model_surgery import fuse_reparam_blocks, convert_to_fused_conv_bn_model
+
+    new_model = convert_to_fused_conv_bn_model(fuse_reparam_blocks(convert_to_fused_conv_bn_model(model)))
+
+    # Has to create a new one, or will `ValueError: Unable to create group (name already exists)` when saving
+    post_process = eval_func.DecodePredictions(
+        input_shape=model.decode_predictions.__input_shape__,
+        pyramid_levels=model.decode_predictions.pyramid_levels,
+        anchors_mode=model.decode_predictions.anchors_mode,
+        use_object_scores=model.decode_predictions.use_object_scores,
+        anchor_scale=model.decode_predictions.anchor_scale,
+        regression_len=model.decode_predictions.regression_len,
+    )
+    add_pre_post_process(new_model, rescale_mode=model.preprocess_input.rescale_mode, post_process=post_process)
+    return new_model
 
 
 @register_model
