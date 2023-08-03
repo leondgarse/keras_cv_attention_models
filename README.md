@@ -1254,12 +1254,12 @@
 
   | Model          | Params | FLOPs | Input | Top1 Acc | T4 Inference |
   | -------------- | ------ | ----- | ----- | -------- | ------------ |
-  | [RepViT_M1, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m1_imagenet.h5) | 5.10M  | 0.82G | 224   | 78.5     |  |
-  | - switch_to_deploy      | 5.07M  | 0.82G | 224   | 78.5     |          |
-  | [RepViT_M2, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m2_imagenet.h5) | 8.28M  | 1.35G | 224   | 80.6     |  |
-  | - switch_to_deploy      | 8.25M  | 1.35G | 224   | 80.6     |          |
-  | [RepViT_M3, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m3_imagenet.h5) | 10.2M  | 1.87G | 224   | 81.4     |  |
-  | - switch_to_deploy      | 10.12M | 1.87G | 224   | 81.4     |          |
+  | [RepViT_M1, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m1_imagenet.h5) | 5.10M  | 0.82G | 224   | 78.5     | 966.72 qps  |
+  | - deploy=True, distill      | 5.07M  | 0.82G | 224   | 78.5     | 1157.8 qps  |
+  | [RepViT_M2, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m2_imagenet.h5) | 8.28M  | 1.35G | 224   | 80.6     | 846.682 qps  |
+  | - deploy=True, distill      | 8.25M  | 1.35G | 224   | 80.6     | 1027.5 qps  |
+  | [RepViT_M3, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m3_imagenet.h5) | 10.2M  | 1.87G | 224   | 81.4     | 583.381 qps  |
+  | - deploy=True, distill      | 10.12M | 1.87G | 224   | 81.4     | 748.154 qps |
 ## ResMLP
   - [Keras ResMLP](keras_cv_attention_models/mlp_family#resmlp) includes implementation of [PDF 2105.03404 ResMLP: Feedforward networks for image classification with data-efficient training](https://arxiv.org/pdf/2105.03404.pdf).
 

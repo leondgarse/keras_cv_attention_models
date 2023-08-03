@@ -9,11 +9,11 @@
   | Model                   | Params | FLOPs | Input | Top1 Acc | Download |
   | ----------------------- | ------ | ----- | ----- | -------- | -------- |
   | RepViT_M1, distillation | 5.10M  | 0.82G | 224   | 78.5     | [repvit_m1_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m1_imagenet.h5) |
-  | - switch_to_deploy      | 5.07M  | 0.82G | 224   | 78.5     |          |
+  | - deploy=True           | 5.07M  | 0.82G | 224   | 78.5     |          |
   | RepViT_M2, distillation | 8.28M  | 1.35G | 224   | 80.6     | [repvit_m2_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m2_imagenet.h5) |
-  | - switch_to_deploy      | 8.25M  | 1.35G | 224   | 80.6     |          |
+  | - deploy=True           | 8.25M  | 1.35G | 224   | 80.6     |          |
   | RepViT_M3, distillation | 10.2M  | 1.87G | 224   | 81.4     | [repvit_m3_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m3_imagenet.h5) |
-  | - switch_to_deploy      | 10.12M | 1.87G | 224   | 81.4     |          |
+  | - deploy=True           | 10.12M | 1.87G | 224   | 81.4     |          |
 ## Usage
   ```py
   from keras_cv_attention_models import repvit, test_images
@@ -63,6 +63,7 @@
   # Total params: 5,533,776 | Trainable params: 5,485,248 | Non-trainable params:48,528
   preds = mm(mm.preprocess_input(test_images.cat()))
 
+  """ switch_to_deploy """
   bb = mm.switch_to_deploy()
   model_surgery.count_params(bb)
   # Total params: 5,067,056 | Trainable params: 5,067,056 | Non-trainable params:0
@@ -70,6 +71,13 @@
 
   print(f"{np.allclose((preds[0] + preds[1]) / 2, preds_deploy, atol=1e-5) = }")
   # np.allclose((preds[0] + preds[1]) / 2, preds_deploy, atol=1e-5) = True
+
+  """ save and load weights using deploy=True """
+  bb.save("aa.h5")
+  cc = repvit.RepViT_M1(pretrained=None, deploy=True, classifier_activation=None)
+  cc.load_weights("aa.h5")
+  print(f"{np.allclose(preds_deploy, cc(cc.preprocess_input(test_images.cat())), atol=1e-7) = }")
+  # np.allclose(preds_deploy, cc(cc.preprocess_input(test_images.cat())), atol=1e-7) = True
   ```
   **Using PyTorch backend** by set `KECAM_BACKEND='torch'` environment variable.
   ```py

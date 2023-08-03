@@ -7,6 +7,7 @@ Paper [PDF 2307.09283 RepViT: Revisiting Mobile CNN From ViT Perspective](https:
 """
 
 __tail_doc__ = """  input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
+  deploy: boolean value if build a fused model. **Evaluation only, not good for training**.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default `hard_swish`.
   drop_connect_rate: is used for [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382).
@@ -39,11 +40,11 @@ Model architectures:
   | Model                   | Params | FLOPs | Input | Top1 Acc |
   | ----------------------- | ------ | ----- | ----- | -------- |
   | RepViT_M1, distillation | 5.10M  | 0.82G | 224   | 78.5     |
-  | - switch_to_deploy      | 5.07M  | 0.82G | 224   | 78.5     |
+  | - deploy=True           | 5.07M  | 0.82G | 224   | 78.5     |
   | RepViT_M2, distillation | 8.28M  | 1.35G | 224   | 80.6     |
-  | - switch_to_deploy      | 8.25M  | 1.35G | 224   | 80.6     |
+  | - deploy=True           | 8.25M  | 1.35G | 224   | 80.6     |
   | RepViT_M3, distillation | 10.2M  | 1.87G | 224   | 81.4     |
-  | - switch_to_deploy      | 10.12M | 1.87G | 224   | 81.4     |
+  | - deploy=True           | 10.12M | 1.87G | 224   | 81.4     |
 """
 
 RepViT_M1.__doc__ = __head_doc__ + """

@@ -61,7 +61,7 @@ def RepViT(
     stem_width=-1,
     se_ratio=0.25,  # will use `se_module` every other block in each stack if > 0
     input_shape=(224, 224, 3),
-    deploy=False,  # For test
+    deploy=False,  # build model with rep_vgg_depthwise/conv+bn/distill_head all being fused
     num_classes=1000,
     activation="gelu",
     drop_connect_rate=0,
@@ -140,19 +140,25 @@ def switch_to_deploy(model):
 
 
 @register_model
-def RepViT_M1(input_shape=(224, 224, 3), num_classes=1000, use_distillation=False, classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    return RepViT(**locals(), model_name="repvit_m1", **kwargs)
+def RepViT_M1(
+    input_shape=(224, 224, 3), num_classes=1000, deploy=False, use_distillation=False, classifier_activation="softmax", pretrained="imagenet", **kwargs
+):
+    return RepViT(**locals(), model_name="repvit_m1" + ("_deploy" if deploy else ""), **kwargs)
 
 
 @register_model
-def RepViT_M2(input_shape=(224, 224, 3), num_classes=1000, use_distillation=False, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def RepViT_M2(
+    input_shape=(224, 224, 3), num_classes=1000, deploy=False, use_distillation=False, classifier_activation="softmax", pretrained="imagenet", **kwargs
+):
     num_blocks = [3, 3, 13, 2]
     out_channels = [64, 128, 256, 512]
-    return RepViT(**locals(), model_name="repvit_m2", **kwargs)
+    return RepViT(**locals(), model_name="repvit_m2" + ("_deploy" if deploy else ""), **kwargs)
 
 
 @register_model
-def RepViT_M3(input_shape=(224, 224, 3), num_classes=1000, use_distillation=False, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def RepViT_M3(
+    input_shape=(224, 224, 3), num_classes=1000, deploy=False, use_distillation=False, classifier_activation="softmax", pretrained="imagenet", **kwargs
+):
     num_blocks = [5, 5, 19, 2]
     out_channels = [64, 128, 256, 512]
-    return RepViT(**locals(), model_name="repvit_m3", **kwargs)
+    return RepViT(**locals(), model_name="repvit_m3" + ("_deploy" if deploy else ""), **kwargs)
