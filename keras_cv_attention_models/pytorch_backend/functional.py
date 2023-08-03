@@ -290,6 +290,10 @@ def resize(inputs, size, method="bilinear", preserve_aspect_ratio=False, antiali
             return F.interpolate(inputs, size=list(size), mode=method, antialias=antialias)
 
 
+def rsqrt(inputs, name=None):
+    return wrapper(torch.rsqrt, inputs, name=name)
+
+
 def shape(inputs):
     return Shape(inputs) if isinstance(inputs, GraphNode) else inputs.shape
     # return inputs.shape

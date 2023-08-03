@@ -3,63 +3,76 @@ from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional
 from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.download_and_load import reload_model_weights
+from keras_cv_attention_models.attention_layers import activation_by_name, CausalMask
 
 
 PRETRAINED_DICT = {
-    "gpt2_base": {"webtext": "0426da02ebc343d8523f5c80bb5f2eab"},
-    "gpt2_large": {"webtext": "fcbca87c1d32ff4cdd70c8b9f47c7824"},
-    "gpt2_medium": {"webtext": "cd2284a909af2894617df5fb6f8b91e5"},
-    "gpt2_xlarge": {"webtext": ["18f8e5c068a09fdde70e5716e1b62e3f", "c8c0c2e39732d9f8e482e860cb6f8058"]},
+    "": {"": ["", ""]},
 }
 
-
-@backend.register_keras_serializable(package="kecam/gpt2")
-class PositionalIndex(layers.Layer):
-    def __init__(self, block_size=1024, **kwargs):
+# @backend.register_keras_serializable(package="kecam/llama2")
+class PositionalEncodingFourierRot1D(layers.Layer):
+    def __init__(self, max_block_size, temperature=1e4, **kwargs):
         super().__init__(**kwargs)
-        self.block_size = block_size
-        self.use_layer_as_module = True
+        self.temperature, self.max_block_size = float(temperature), max_block_size
 
     def build(self, input_shape):
-        pos_idx = np.arange(0, self.block_size, dtype="int64")[None]
+        # input: `[batch, ..., attn_height * attn_width, num_heads, channels // num_heads // 2, 2]`.
+        # print(input_shape)
+        self.channels = input_shape[-2] * input_shape[-1]
+        pos_filters = self.channels // 2
+        dim_t = self.temperature ** (np.arange(pos_filters, dtype="float32") / pos_filters)  # (filters,)
+        grid = np.expand_dims(np.arange(self.max_block_size, dtype="float32"), -1) / dim_t
+        pos_sin, pos_cos = np.expand_dims(np.sin(grid), -2), np.expand_dims(np.cos(grid), -2)
+        # print(f"{pos_sin.shape = }, {pos_cos.shape = }, {height = }, {width = }, {self.channels = }")
+
         if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("pos_idx", functional.convert_to_tensor(pos_idx, dtype="int64"), persistent=False)
+            self.register_buffer("pos_sin", functional.convert_to_tensor(pos_sin, dtype=self.compute_dtype), persistent=False)
+            self.register_buffer("pos_cos", functional.convert_to_tensor(pos_cos, dtype=self.compute_dtype), persistent=False)
         else:
-            self.pos_idx = functional.convert_to_tensor(pos_idx, dtype="int64")
+            self.pos_sin = functional.convert_to_tensor(pos_sin, dtype=self.compute_dtype)
+            self.pos_cos = functional.convert_to_tensor(pos_cos, dtype=self.compute_dtype)
         super().build(input_shape)
 
-    def call(self, inputs):
-        # print(inputs.shape)
-        return self.pos_idx[:, : inputs.shape[-1]]
+    def call(self, inputs, **kwargs):
+        left, right = functional.unstack(inputs, axis=-1)
+        pos_cos, pos_sin = self.pos_cos[:left.shape[-3]], self.pos_sin[:left.shape[-3]]
+        out = functional.stack([left * pos_cos - right * pos_sin, right * pos_cos + left * pos_sin], axis=-1)
+        return out
 
     def get_config(self):
         base_config = super().get_config()
-        base_config.update({"block_size": self.block_size})
+        base_config.update({"temperature": self.temperature, "max_block_size": self.max_block_size})
         return base_config
 
 
-@backend.register_keras_serializable(package="kecam/gpt2")
-class CausalMask(layers.Layer):
-    def __init__(self, block_size, **kwargs):
+# @backend.register_keras_serializable(package="kecam/llama2")
+class RMSNorm(layers.Layer):
+    def __init__(self, epsilon=1e-5, **kwargs):
         super().__init__(**kwargs)
-        self.block_size = block_size
-        self.use_layer_as_module = True
+        self.epsilon = epsilon
 
     def build(self, input_shape):
-        causal_mask = (1 - np.tri(self.block_size).astype("float32")[None, None]) * -1e10
-        if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("causal_mask", functional.convert_to_tensor(causal_mask, dtype=self.compute_dtype), persistent=False)
-        else:
-            self.causal_mask = functional.convert_to_tensor(causal_mask, dtype=self.compute_dtype)
+        self.gamma = self.add_weight(name="gamma", shape=(input_shape[-1],), initializer="ones", trainable=True)
         super().build(input_shape)
 
     def call(self, inputs):
-        return inputs + self.causal_mask[:, :, : inputs.shape[2], : inputs.shape[3]]
+        norm = inputs * functional.rsqrt(functional.reduce_mean(inputs ** 2, keepdims=True, axis=-1) + self.epsilon)
+        return norm * self.gamma
 
     def get_config(self):
         base_config = super().get_config()
-        base_config.update({"block_size": self.block_size})
+        base_config.update({"epsilon": self.epsilon})
         return base_config
+
+
+def apply_positional_encoding_rotary(inputs, pos_emb_layer, with_cls_token=True):
+    """ Reshape is separate out from PositionalEncodingFourierRot1D for using dynamic reshape """
+    num_heads = inputs.shape[-2]
+    nn = layers.Reshape([-1, num_heads, inputs.shape[-1] // 2, 2])(inputs)
+    nn = pos_emb_layer(nn)
+    out = layers.Reshape([-1, num_heads, inputs.shape[-1]])(nn)
+    return out
 
 
 def causal_self_attention(inputs, block_size, num_heads, use_bias, dropout, name=""):
@@ -67,10 +80,20 @@ def causal_self_attention(inputs, block_size, num_heads, use_bias, dropout, name
     key_dim = input_channels // num_heads
     qq_scale = 1.0 / (float(key_dim) ** 0.5)
 
-    qkv = layers.Dense(3 * input_channels, use_bias=use_bias, name=name + "qkv")(inputs)
-    query, key, value = functional.split(qkv, 3, axis=-1)
-    query = functional.transpose(layers.Reshape([-1, num_heads, key_dim])(query), [0, 2, 1, 3])
-    key = functional.transpose(layers.Reshape([-1, num_heads, key_dim])(key), [0, 2, 3, 1])
+    query = layers.Dense(input_channels, use_bias=use_bias, name=name + "xq")(inputs)
+    key = layers.Dense(input_channels, use_bias=use_bias, name=name + "xk")(inputs)
+    value = layers.Dense(input_channels, use_bias=use_bias, name=name + "xv")(inputs)
+
+    # Create a new one every time, as there's no weights for this layer
+    rope = PositionalEncodingFourierRot1D(max_block_size=block_size, name=name + "rope")
+    query = layers.Reshape([-1, num_heads, key_dim])(query)
+    query = apply_positional_encoding_rotary(query, rope)
+    query = functional.transpose(query, [0, 2, 1, 3])
+
+    key = layers.Reshape([-1, num_heads, key_dim])(key)
+    key = apply_positional_encoding_rotary(key, rope)
+    key = functional.transpose(key, [0, 2, 3, 1])
+
     value = functional.transpose(layers.Reshape([-1, num_heads, key_dim])(value), [0, 2, 1, 3])
 
     attn = (query @ key) * qq_scale
@@ -80,53 +103,56 @@ def causal_self_attention(inputs, block_size, num_heads, use_bias, dropout, name
 
     output = functional.transpose(attn_out, perm=[0, 2, 1, 3])
     output = layers.Reshape([-1, input_channels])(output)
-    output = layers.Dense(input_channels, use_bias=use_bias, name=name + "attn_out")(output)
+    output = layers.Dense(input_channels, use_bias=use_bias, name=name + "xo")(output)
     output = layers.Dropout(dropout)(output)
     return output
 
 
-def attention_mlp_block(inputs, block_size, num_heads, use_bias, dropout, activation="gelu/app", name=""):
+def attention_fft_block(inputs, block_size, num_heads, use_bias, dropout, activation="swish", name=""):
     input_channels = inputs.shape[-1]
-    attn = layers.LayerNormalization(axis=-1, name=name + "attn_ln")(inputs)
-    attn = causal_self_attention(attn, block_size, num_heads, use_bias, dropout, name=name + "attn.")
+    attn = RMSNorm(name=name + "attention_norm")(inputs)
+    attn = causal_self_attention(attn, block_size, num_heads, use_bias, dropout, name=name + "attention_")
     attn_out = inputs + attn
 
-    mlp = layers.LayerNormalization(axis=-1, name=name + "mlp_ln")(attn_out)
-    mlp = layers.Dense(4 * input_channels, use_bias=use_bias, name=name + "mlp.0")(mlp)
-    mlp = functional.gelu(mlp, approximate=True, name=name + "mlp.1") if activation == "gelu/app" else layers.Activation(activation, name=name + "mlp.1")(mlp)
-    mlp = layers.Dense(input_channels, use_bias=use_bias, name=name + "mlp.2")(mlp)
-    mlp = layers.Dropout(dropout)(mlp)
+    multiple_of = 256
+    hidden_dim = 2 * 4 * input_channels // 3
+    hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
 
-    return layers.Add(name=name + "output")([attn_out, mlp])
+    fft = RMSNorm(name=name + "ffn_norm")(attn_out)
+    fft_1 = layers.Dense(hidden_dim, use_bias=use_bias, name=name + "feed_forward_w1")(fft)
+    fft_1 = activation_by_name(fft_1, activation=activation, name=name + "feed_forward_w1_")
+    fft_3 = layers.Dense(hidden_dim, use_bias=use_bias, name=name + "feed_forward_w3")(fft)
+    fft = fft_1 * fft_3
+    fft = layers.Dense(input_channels, use_bias=use_bias, name=name + "feed_forward_w2")(fft)
+    fft = layers.Dropout(dropout)(fft)
+
+    return layers.Add(name=name + "output")([attn_out, fft])
 
 
-def GPT2(
+def Llama2(
     num_blocks=12,
     embedding_size=768,
     num_heads=12,
-    block_use_bias=True,
+    block_use_bias=False,
     vocab_size=50304,
-    max_block_size=1024,
+    max_block_size=2048,
     include_top=True,
     dropout=0.0,
-    activation="gelu/app",
+    activation="swish",
     pretrained=None,
-    model_name="gpt2",
+    model_name="llama2",
     kwargs=None,
 ):
     inputs = layers.Input([None], dtype="int64")
-    pos_idx = PositionalIndex(block_size=max_block_size, name="pos_idx")(inputs)
-
-    tok_emb = layers.Embedding(vocab_size, embedding_size, name="wte")(inputs)
-    pos_emb = layers.Embedding(max_block_size, embedding_size, name="wpe")(pos_idx)
-    nn = layers.Dropout(dropout)(tok_emb + pos_emb)
+    tok_emb = layers.Embedding(vocab_size, embedding_size, name="tok_embeddings")(inputs)
+    nn = layers.Dropout(dropout)(tok_emb)
 
     for block_id in range(num_blocks):
-        nn = attention_mlp_block(nn, max_block_size, num_heads, block_use_bias, dropout, activation=activation, name="blocks.{}.".format(block_id))
-    nn = layers.LayerNormalization(axis=-1, name="ln_f")(nn)
+        nn = attention_fft_block(nn, max_block_size, num_heads, block_use_bias, dropout, activation, name="blocks_{}_".format(block_id))
+    nn = RMSNorm(name="norm")(nn)
 
     if include_top:
-        nn = layers.Dense(vocab_size, use_bias=False, name="lm_head")(nn)
+        nn = layers.Dense(vocab_size, use_bias=False, name="output")(nn)
 
     model = models.Model(inputs, nn, name=model_name)
     model.max_block_size = max_block_size  # or model.get_layer('pos_idx').block_size
@@ -134,37 +160,16 @@ def GPT2(
     if pretrained == "huggingface":
         load_weights_from_huggingface(model, save_path="~/.keras/models")
     else:
-        reload_model_weights(model, PRETRAINED_DICT, "gpt2", pretrained)
+        reload_model_weights(model, PRETRAINED_DICT, "llama2", pretrained)
     return model
 
 
 @register_model
-def GPT2_Base(max_block_size=1024, vocab_size=50257, include_top=True, activation="gelu/app", pretrained="webtext", **kwargs):
-    return GPT2(**locals(), **kwargs, model_name="gpt2_base")
-
-
-@register_model
-def GPT2_Medium(max_block_size=1024, vocab_size=50257, include_top=True, activation="gelu/app", pretrained="webtext", **kwargs):
-    num_blocks = 24
-    embedding_size = 1024
-    num_heads = 16
-    return GPT2(**locals(), **kwargs, model_name="gpt2_medium")
-
-
-@register_model
-def GPT2_Large(max_block_size=1024, vocab_size=50257, include_top=True, activation="gelu/app", pretrained="webtext", **kwargs):
-    num_blocks = 36
-    embedding_size = 1280
-    num_heads = 20
-    return GPT2(**locals(), **kwargs, model_name="gpt2_large")
-
-
-@register_model
-def GPT2_XLarge(max_block_size=1024, vocab_size=50257, include_top=True, activation="gelu/app", pretrained="webtext", **kwargs):
-    num_blocks = 48
-    embedding_size = 1600
-    num_heads = 25
-    return GPT2(**locals(), **kwargs, model_name="gpt2_xlarge")
+def Llama2_7B(max_block_size=2048, vocab_size=50257, include_top=True, activation="swish", pretrained="webtext", **kwargs):
+    num_blocks = 32
+    embedding_size = 4096
+    num_heads = 32
+    return Llama2(**locals(), **kwargs, model_name="llama2_7b")
 
 
 """ Load weights and run prediction functions """
@@ -288,7 +293,7 @@ def load_weights_from_huggingface(model, save_name=None, save_path=".", force=Fa
 
 
 if __name__ == "__test__":
-    from keras_cv_attention_models import gpt2
+    from keras_cv_attention_models import llama2
 
-    mm = gpt2.GPT2_Base()
+    mm = llama2.Llama2()
     mm.run_prediction("hello world")
