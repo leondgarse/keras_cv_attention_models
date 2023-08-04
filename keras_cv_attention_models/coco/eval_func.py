@@ -478,7 +478,7 @@ class COCOEvalCallback(callbacks.Callback):
         self.built = True
 
     def on_epoch_end(self, epoch=0, logs=None):
-        if backend.is_tensorflow_backend:
+        if backend.backend() == "tensorflow":
             from tensorflow.io.gfile import glob
         else:
             from glob2 import glob

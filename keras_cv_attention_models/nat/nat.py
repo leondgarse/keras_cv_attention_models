@@ -93,9 +93,9 @@ def replicate_padding(inputs, kernel_size=1, dilation_rate=1):
     padded = (kernel_size - 1) // 2
     dilation_rate = dilation_rate if isinstance(dilation_rate, (list, tuple)) else (dilation_rate, dilation_rate)
 
-    if backend.backend() == "pytorch" and max(dilation_rate) == 1:  # NAT
+    if backend.backend() == "torch" and max(dilation_rate) == 1:  # NAT
         out = functional.pad(inputs, paddings=[[padded, padded], [padded, padded], [0, 0]], mode="replicate")
-    elif backend.backend() == "pytorch":  # DiNAT
+    elif backend.backend() == "torch":  # DiNAT
         paddings = [[dilation_rate[0], dilation_rate[0]], [dilation_rate[1], dilation_rate[1]], [0, 0]]
         out = inputs
         for _ in range(padded):
@@ -142,11 +142,11 @@ def neighborhood_attention(
 
     # key_value: [batch, height - (kernel_size - 1), width - (kernel_size - 1), kernel_size, kernel_size, key + value]
     # print(f"{key_value.shape = }, {window_size = }")
-    if backend.backend() == "pytorch":
-        key_value = functional.extract_patches(key_value, sizes=kernel_size, strides=1, rates=dilation_rate, padding="VALID", compressed=True)
+    if backend.backend() == "torch":
+        key_value = functional.extract_patches(key_value, sizes=kernel_size, strides=1, rates=dilation_rate, padding="valid", compressed=True)
         key_value = replicate_padding(key_value, kernel_size=kernel_size, dilation_rate=dilation_rate)  # Keep it here, as the input shape is different
     else:
-        key_value = CompatibleExtractPatches(sizes=kernel_size, strides=1, rates=dilation_rate, padding="VALID", compressed=False)(key_value)
+        key_value = CompatibleExtractPatches(sizes=kernel_size, strides=1, rates=dilation_rate, padding="valid", compressed=False)(key_value)
         key_value = replicate_padding(key_value, kernel_size=kernel_size, dilation_rate=dilation_rate)
     # print(f"After pad {key_value.shape = }")
 
@@ -218,8 +218,8 @@ def NAT(
     input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
     stem_width = stem_width if stem_width > 0 else out_channels[0]
-    nn = conv2d_no_bias(inputs, stem_width // 2, kernel_size=3, strides=2, use_bias=True, padding="SAME", name="stem_1_")
-    nn = conv2d_no_bias(nn, stem_width, kernel_size=3, strides=2, use_bias=True, padding="SAME", name="stem_2_")
+    nn = conv2d_no_bias(inputs, stem_width // 2, kernel_size=3, strides=2, use_bias=True, padding="same", name="stem_1_")
+    nn = conv2d_no_bias(nn, stem_width, kernel_size=3, strides=2, use_bias=True, padding="same", name="stem_2_")
     nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
     nn = layer_norm(nn, axis=-1, name="stem_")
 
@@ -231,7 +231,7 @@ def NAT(
         if stack_id > 0:
             ds_name = stack_name + "downsample_"
             nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last -> channels_first
-            nn = conv2d_no_bias(nn, out_channel, kernel_size=3, strides=2, padding="SAME", name=ds_name)
+            nn = conv2d_no_bias(nn, out_channel, kernel_size=3, strides=2, padding="same", name=ds_name)
             nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
             nn = layer_norm(nn, axis=-1, name=ds_name)
         for block_id in range(num_block):

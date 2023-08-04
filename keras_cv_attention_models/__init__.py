@@ -25,6 +25,7 @@ from keras_cv_attention_models import gcvit
 from keras_cv_attention_models import ghostnet
 from keras_cv_attention_models import ghostnet as ghostnetv2  # Will be removed
 from keras_cv_attention_models import gpt2
+from keras_cv_attention_models import llama2
 from keras_cv_attention_models import halonet
 from keras_cv_attention_models import hiera
 from keras_cv_attention_models import hornet

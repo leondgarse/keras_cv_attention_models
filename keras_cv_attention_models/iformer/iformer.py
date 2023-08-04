@@ -52,7 +52,7 @@ def conv_high_frequency_mixer(inputs, activation="gelu", name=""):
 
 def pool_high_frequency_mixer(inputs, activation="gelu", name=""):
     channel_axis = -1 if image_data_format() == "channels_last" else 1
-    nn = layers.MaxPool2D(3, strides=1, padding="SAME", name=name + "max")(inputs)
+    nn = layers.MaxPool2D(3, strides=1, padding="same", name=name + "max")(inputs)
     nn = conv2d_no_bias(nn, inputs.shape[channel_axis] * 2, kernel_size=1, use_bias=True, name=name)
     nn = activation_by_name(nn, activation=activation, name=name)
     return nn

@@ -34,7 +34,7 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
 
     """ attention """
     # [1, 14, 14, 192]
-    pool_padding = "VALID" if height % strides == 0 and width % strides == 0 else "SAME"
+    pool_padding = "valid" if height % strides == 0 and width % strides == 0 else "same"
     attn = inputs if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(inputs)  # channels_last -> channels_first
     attn = layers.AvgPool2D(pool_size=strides, strides=strides, padding=pool_padding)(attn)
     attn = attn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(attn)  # channels_first -> channels_last
@@ -49,11 +49,11 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
 
     """ unfold """
     # [1, 14, 14, 1728] if compressed else [1, 14, 14, 3, 3, 192]
-    if backend.backend() == "pytorch":
-        patches = functional.extract_patches(vv, sizes=kernel_size, strides=strides, padding="SAME")
+    if backend.backend() == "torch":
+        patches = functional.extract_patches(vv, sizes=kernel_size, strides=strides, padding="same")
     else:
-        # patches = functional.extract_patches(pad_vv, patch_kernel, patch_strides, [1, 1, 1, 1], padding="VALID")
-        patches = CompatibleExtractPatches(kernel_size, strides, padding="SAME", compressed=False, name=name)(vv)
+        # patches = functional.extract_patches(pad_vv, patch_kernel, patch_strides, [1, 1, 1, 1], padding="valid")
+        patches = CompatibleExtractPatches(kernel_size, strides, padding="same", compressed=False, name=name)(vv)
 
     """ matmul """
     # mm = einops.rearrange(patches, 'D H W (k h p) -> D H W h k p', h=num_head, k=kernel_size * kernel_size)
@@ -73,7 +73,7 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
 
     """ fold """
     # [1, 28, 28, 192]
-    output = fold_by_conv2d_transpose(mm, inputs.shape[1:], kernel_size, strides, padding="SAME", compressed=False, name=name)
+    output = fold_by_conv2d_transpose(mm, inputs.shape[1:], kernel_size, strides, padding="same", compressed=False, name=name)
 
     # output = UnfoldMatmulFold((height, width, embed_dim), kernel_size, padding, strides)([vv, attention_weights])
     output = layers.Dense(embed_dim, use_bias=True, name=name + "out")(output)
@@ -102,7 +102,7 @@ def outlook_attention_simple(inputs, embed_dim, num_heads=6, kernel_size=3, attn
     vv = functional.transpose(vv, [0, 1, 3, 5, 2, 4, 6])
     vv = functional.reshape(vv, [-1, hh, ww, num_heads, kernel_size * kernel_size, key_dim])  # [1, 14, 14, 6, 4, 32]
 
-    # attn = layers.AvgPool2D(pool_size=3, strides=2, padding='SAME')(inputs)
+    # attn = layers.AvgPool2D(pool_size=3, strides=2, padding='same')(inputs)
     attn = layers.AvgPool2D(pool_size=kernel_size, strides=kernel_size)(inputs)
     attn = layers.Dense(kernel_size**4 * num_heads, use_bias=True, name=name + "attn")(attn) * qk_scale
     attn = functional.reshape(attn, [-1, hh, ww, num_heads, kernel_size * kernel_size, kernel_size * kernel_size])  # [1, 14, 14, 6, 4, 4]
@@ -279,7 +279,7 @@ class ClassToken(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
-        if backend.backend() == "pytorch":
+        if backend.backend() == "torch":
             class_tokens = self.class_tokens.expand(inputs.shape[0], -1, -1)
         else:
             class_tokens = functional.repeat(self.class_tokens, functional.shape(inputs)[0], axis=0)

@@ -55,11 +55,11 @@ def cot_attention(inputs, kernel_size=3, strides=1, downsample_first=True, activ
     # y2 = (ww.unsqueeze(2) * x2.unsqueeze(1)).sum(-3).view(-1, filters, height, width)
     # sizes, patch_strides = [1, kernel_size, kernel_size, 1], [1, 1, 1, 1]
     # embed = layers.ZeroPadding2D(padding=kernel_size // 2, name=name and name + "embed_pad")(embed)
-    # embed = functional.extract_patches(embed, sizes=sizes, strides=patch_strides, rates=(1, 1, 1, 1), padding="VALID")
-    if backend.backend() == "pytorch":
-        embed = functional.extract_patches(embed, sizes=kernel_size, strides=1, padding="SAME", data_format=image_data_format())
+    # embed = functional.extract_patches(embed, sizes=sizes, strides=patch_strides, rates=(1, 1, 1, 1), padding="valid")
+    if backend.backend() == "torch":
+        embed = functional.extract_patches(embed, sizes=kernel_size, strides=1, padding="same", data_format=image_data_format())
     else:
-        embed = CompatibleExtractPatches(sizes=kernel_size, strides=1, padding="SAME", name=name and name + "patchs_")(embed)
+        embed = CompatibleExtractPatches(sizes=kernel_size, strides=1, padding="same", name=name and name + "patchs_")(embed)
 
     if image_data_format() == "channels_last":
         embed_ww = functional.reshape(embed_ww, (-1, height, width, filters // reduction, kernel_size * kernel_size))

@@ -124,7 +124,7 @@ def inverted_residual_feed_forward(inputs, expansion=4, activation="gelu", name=
     expanded = conv2d_no_bias(inputs, int(in_channel * expansion), kernel_size=1, use_bias=True, name=name + "1_")
     expanded = batchnorm_with_activation(expanded, activation=activation, act_first=True, name=name + "1_")
 
-    dw = depthwise_conv2d_no_bias(expanded, kernel_size=3, padding="SAME", use_bias=True, name=name)
+    dw = depthwise_conv2d_no_bias(expanded, kernel_size=3, padding="same", use_bias=True, name=name)
     dw = layers.Add(name=name + "dw_add")([expanded, dw])
     dw = batchnorm_with_activation(dw, activation=activation, act_first=True, name=name + "2_")
 
@@ -138,7 +138,7 @@ def cmt_block(
 ):
     """X0 = LPU(Xi), X1 = LMHSA(LN(X0)) + X0, X2 = IRFFN(LN(X1)) + X1"""
     """ Local Perception Unit, LPU(X) = DWConv(X) + X """
-    lpu = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="SAME", use_bias=True, name=name)
+    lpu = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="same", use_bias=True, name=name)
     # lpu = batchnorm_with_activation(lpu, activation=activation, name=name + "lpu_", act_first=True)
     lpu_out = layers.Add(name=name + "lpu_out")([inputs, lpu])
 

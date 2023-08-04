@@ -37,7 +37,7 @@ def attn_block(inputs, num_heads=8, key_dim=32, attn_height=-1, attn_ratio=4, ml
 def conv_block(inputs, mlp_ratio=4, layer_scale=0, drop_rate=0, activation="gelu", name=""):
     input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
 
-    nn = layers.AvgPool2D(pool_size=3, strides=1, padding="SAME")(inputs)  # count_include_pad=False [ ??? ]
+    nn = layers.AvgPool2D(pool_size=3, strides=1, padding="same")(inputs)  # count_include_pad=False [ ??? ]
     nn = nn - inputs
     attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "attn_")
 
@@ -85,7 +85,7 @@ def EfficientFormer(
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id > 0:
             ds_name = stack_name + "downsample_"
-            nn = conv2d_no_bias(nn, out_channel, kernel_size=3, strides=2, use_bias=True, padding="SAME", name=ds_name)
+            nn = conv2d_no_bias(nn, out_channel, kernel_size=3, strides=2, use_bias=True, padding="same", name=ds_name)
             nn = batchnorm_with_activation(nn, activation=None, name=ds_name)
 
         cur_mlp_ratios = mlp_ratios[stack_id] if isinstance(mlp_ratios, (list, tuple)) else mlp_ratios

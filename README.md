@@ -18,6 +18,7 @@
   - [Visualizing](#visualizing)
   - [TFLite Conversion](#tflite-conversion)
   - [Using PyTorch as backend](#using-pytorch-as-backend)
+  - [Using keras core as backend](#using-keras-core-as-backend)
 - [Recognition Models](#recognition-models)
   - [AotNet](#aotnet)
   - [BEiT](#beit)
@@ -539,6 +540,7 @@
     - Note: `input_shape` will auto fit image data format. Given `input_shape=(224, 224, 3)` or `input_shape=(3, 224, 224)`, will both set to `(3, 224, 224)` if `channels_first`.
     - Note: model is default set to `eval` mode.
     ```py
+    os.environ['KECAM_BACKEND'] = 'torch'
     from keras_cv_attention_models import res_mlp
     mm = res_mlp.ResMLP12()
     # >>>> Load pretrained from: ~/.keras/models/resmlp12_imagenet.h5
@@ -580,6 +582,23 @@
     loss = lambda y_pred, y_true: (y_true - y_pred.float()).abs().mean()
     mm.compile(optimizer="AdamW", loss=loss, metrics='acc', grad_accumulate=4)
     mm.fit(xx, yy, epochs=2, batch_size=4)
+    ```
+## Using keras core as backend
+  - **[Experimental] Set os environment `export KECAM_BACKEND='keras_core'` to enable this keras_core backend.**
+  - `keras-core` supports tensorflow / torch / jax backends, by editting `~/.keras/keras.json` `"backend"` value.
+  - Currently only part models like `CovNeXt` / `EfficientNet` / `EfficientViT_B` / `GPViT` / `VanillaNet` / `PVT_V2` / `RepViT`, `mlp_family` / `resnet_family` / `mobilenetv3_family` models and `GPT2` supported.
+  - **Basic model build and prediction**.
+    ```py
+    os.environ['KECAM_BACKEND'] = 'keras_core'
+    from keras_cv_attention_models import gpt2
+    # Using TensorFlow backend  <-- Note: this line is printed only when using keras_core as backend
+
+    mm = gpt2.GPT2_Base()
+    # >>>> Load pretrained from: ~/.keras/models/gpt2_base_webtext.h5
+    mm.run_prediction('hello world')
+    # >>>> Load tokenizer from file: ~/.keras/datasets/gpt2_tokenizer.txt
+    # hello world.
+    # "We had a lot of great players on this team ...
     ```
 ***
 

@@ -24,13 +24,13 @@ PRETRAINED_DICT = {
 
 
 def decoupled_fully_connected_attention_block(inputs, out_channel, name=""):
-    # nn = layers.AvgPool2D(pool_size=2, strides=2, padding="SAME")(inputs)
+    # nn = layers.AvgPool2D(pool_size=2, strides=2, padding="same")(inputs)
     nn = layers.AvgPool2D(pool_size=2, strides=2)(inputs)
     nn = conv2d_no_bias(nn, out_channel, name=name + "1_")
     nn = batchnorm_with_activation(nn, activation=None, name=name + "1_")
-    nn = depthwise_conv2d_no_bias(nn, (1, 5), padding="SAME", name=name + "2_")
+    nn = depthwise_conv2d_no_bias(nn, (1, 5), padding="same", name=name + "2_")
     nn = batchnorm_with_activation(nn, activation=None, name=name + "2_")
-    nn = depthwise_conv2d_no_bias(nn, (5, 1), padding="SAME", name=name + "3_")
+    nn = depthwise_conv2d_no_bias(nn, (5, 1), padding="same", name=name + "3_")
     nn = batchnorm_with_activation(nn, activation=None, name=name + "3_")
     nn = activation_by_name(nn, "sigmoid", name=name)
     # print(f"{nn.shape = }, {nn.shape = }")
@@ -51,8 +51,8 @@ def ghost_module(inputs, out_channel, use_dfc_block=False, activation="relu", na
     primary_conv = batchnorm_with_activation(primary_conv, activation=activation, name=name + "prim_")
 
     # hidden_channel_cheap = int(out_channel - hidden_channel_prim)
-    # cheap_conv = conv2d_no_bias(primary_conv, hidden_channel_cheap, kernel_size=3, padding="SAME", groups=hidden_channel_prim, name=name + "cheap_")
-    cheap_conv = depthwise_conv2d_no_bias(primary_conv, kernel_size=3, padding="SAME", name=name + "cheap_")
+    # cheap_conv = conv2d_no_bias(primary_conv, hidden_channel_cheap, kernel_size=3, padding="same", groups=hidden_channel_prim, name=name + "cheap_")
+    cheap_conv = depthwise_conv2d_no_bias(primary_conv, kernel_size=3, padding="same", name=name + "cheap_")
     cheap_conv = batchnorm_with_activation(cheap_conv, activation=activation, name=name + "cheap_")
     ghost_out = layers.Concatenate()([primary_conv, cheap_conv])
 

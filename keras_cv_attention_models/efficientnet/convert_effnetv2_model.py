@@ -126,7 +126,7 @@ class SE(tf.keras.layers.Layer):
     def call(self, inputs):
         h_axis, w_axis = [2, 3] if self._data_format == "channels_first" else [1, 2]
         if self._local_pooling:
-            se_tensor = tf.nn.avg_pool(inputs, ksize=[1, inputs.shape[h_axis], inputs.shape[w_axis], 1], strides=[1, 1, 1, 1], padding="VALID")
+            se_tensor = tf.nn.avg_pool(inputs, ksize=[1, inputs.shape[h_axis], inputs.shape[w_axis], 1], strides=[1, 1, 1, 1], padding="valid")
         else:
             se_tensor = tf.reduce_mean(inputs, [h_axis, w_axis], keepdims=True)
         se_tensor = self._se_expand(self._act(self._se_reduce(se_tensor)))
@@ -444,7 +444,7 @@ class Head(tf.keras.layers.Layer):
         if self._mconfig.local_pooling:
             shape = outputs.get_shape().as_list()
             kernel_size = [1, shape[self.h_axis], shape[self.w_axis], 1]
-            outputs = tf.nn.avg_pool(outputs, ksize=kernel_size, strides=[1, 1, 1, 1], padding="VALID")
+            outputs = tf.nn.avg_pool(outputs, ksize=kernel_size, strides=[1, 1, 1, 1], padding="valid")
             self.endpoints["pooled_features"] = outputs
             if self._dropout:
                 outputs = self._dropout(outputs, training=training)

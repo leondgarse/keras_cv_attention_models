@@ -42,7 +42,7 @@ def tiny_vit_block(inputs, window_size=7, num_heads=4, mlp_ratio=4, layer_scale=
     nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last, channels_first
     attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "attn_")
 
-    pre_mlp = depthwise_conv2d_no_bias(attn_out, kernel_size=3, strides=1, padding="SAME", name=name + "pre_mlp_")
+    pre_mlp = depthwise_conv2d_no_bias(attn_out, kernel_size=3, strides=1, padding="same", name=name + "pre_mlp_")
     pre_mlp = batchnorm_with_activation(pre_mlp, activation=None, name=name + "pre_mlp_")
 
     """ MLP """
@@ -79,9 +79,9 @@ def TinyViT(
     inputs = layers.Input(input_shape)
 
     """ Stem """
-    nn = conv2d_no_bias(inputs, out_channels[0] // 2, kernel_size=3, strides=2, padding="SAME", name="stem_1_")
+    nn = conv2d_no_bias(inputs, out_channels[0] // 2, kernel_size=3, strides=2, padding="same", name="stem_1_")
     nn = batchnorm_with_activation(nn, activation=activation, name="stem_1_")
-    nn = conv2d_no_bias(nn, out_channels[0], kernel_size=3, strides=2, padding="SAME", name="stem_2_")
+    nn = conv2d_no_bias(nn, out_channels[0], kernel_size=3, strides=2, padding="same", name="stem_2_")
     nn = batchnorm_with_activation(nn, activation=None, name="stem_2_")
 
     inverted_residual_block_kwargs = {

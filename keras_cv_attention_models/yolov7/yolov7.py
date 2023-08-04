@@ -29,7 +29,7 @@ BATCH_NORM_MOMENTUM = 0.97
 
 def conv_bn(inputs, output_channel, kernel_size=1, strides=1, activation="swish", name=""):
     # print(f">>>> {inputs.shape = }, {output_channel = }, {kernel_size = }, {strides = }")
-    nn = conv2d_no_bias(inputs, output_channel, kernel_size, strides, padding="SAME", name=name)
+    nn = conv2d_no_bias(inputs, output_channel, kernel_size, strides, padding="same", name=name)
     return batchnorm_with_activation(nn, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name)
 
 
@@ -64,7 +64,7 @@ def csp_downsample(inputs, ratio=0.5, activation="swish", name=""):
     input_channel = inputs.shape[channel_axis]
     hidden_ratio, out_ratio = ratio if isinstance(ratio, (list, tuple)) else (ratio, ratio)
     hidden_channel, out_channel = int(input_channel * hidden_ratio), int(input_channel * out_ratio)
-    pool_branch = layers.MaxPool2D(pool_size=2, strides=2, padding="SAME", name=name + "pool")(inputs)
+    pool_branch = layers.MaxPool2D(pool_size=2, strides=2, padding="same", name=name + "pool")(inputs)
     if out_channel == 0:
         nn = pool_branch  # Maxpool only
     else:
@@ -87,7 +87,7 @@ def res_spatial_pyramid_pooling(inputs, depth=2, expansion=0.5, pool_sizes=(5, 9
     if depth > 1:  # depth = 1 for yolov7_tiny
         deep = conv_bn(deep, hidden_channels, kernel_size=3, activation=activation, name=name + "pre_2_")
         deep = conv_bn(deep, hidden_channels, kernel_size=1, activation=activation, name=name + "pre_3_")
-    pp = [layers.MaxPool2D(pool_size=ii, strides=1, padding="SAME")(deep) for ii in pool_sizes]
+    pp = [layers.MaxPool2D(pool_size=ii, strides=1, padding="same")(deep) for ii in pool_sizes]
     deep = functional.concat([deep, *pp], axis=channel_axis)  # yolov7 SPPCSPC concat, different from yolor
     for id in range(depth - 1):  # First one is `pre`
         deep = conv_bn(deep, hidden_channels, kernel_size=1, activation=activation, name=name + "post_{}_".format(id * 2 + 1))

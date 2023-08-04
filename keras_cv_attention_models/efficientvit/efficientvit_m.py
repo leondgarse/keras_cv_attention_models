@@ -44,7 +44,7 @@ def cascaded_mhsa_with_multi_head_position(inputs, num_heads=4, key_dim=-1, kern
         qkv = batchnorm_with_activation(qkv, activation=None, name=cur_name and cur_name + "qkv_")
         qq, kk, vv = functional.split(qkv, [key_dim, key_dim, value_dim], axis=channel_axis)
 
-        qq = depthwise_conv2d_no_bias(qq, kernel_size=kernel_size, padding="SAME", name=cur_name and cur_name + "query_")
+        qq = depthwise_conv2d_no_bias(qq, kernel_size=kernel_size, padding="same", name=cur_name and cur_name + "query_")
         qq = batchnorm_with_activation(qq, activation=None, name=cur_name and cur_name + "query_")
 
         if image_data_format() == "channels_last":
@@ -80,7 +80,7 @@ def cascaded_mhsa_with_multi_head_position(inputs, num_heads=4, key_dim=-1, kern
 
 def res_depthwise_ffn(inputs, mlp_ratio=2, drop_rate=0, activation="relu", name=""):
     input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
-    dw = depthwise_conv2d_no_bias(inputs, kernel_size=3, strides=1, padding="SAME", name=name + "dw_")
+    dw = depthwise_conv2d_no_bias(inputs, kernel_size=3, strides=1, padding="same", name=name + "dw_")
     dw = batchnorm_with_activation(dw, activation=None, zero_gamma=True, name=name + "dw_")
     dw = inputs + drop_block(dw, drop_rate)
 
@@ -109,12 +109,12 @@ def attn_block(inputs, window_size=7, num_heads=4, key_dim=16, kernel_sizes=5, m
 
 def down_sample_block(inputs, out_channel, hiddem_raio=4, activation="relu", name=""):
     input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
-    nn = conv2d_no_bias(inputs, input_channel * hiddem_raio, kernel_size=1, strides=1, padding="SAME", name=name)
+    nn = conv2d_no_bias(inputs, input_channel * hiddem_raio, kernel_size=1, strides=1, padding="same", name=name)
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "pw_")
-    nn = depthwise_conv2d_no_bias(nn, kernel_size=3, strides=2, padding="SAME", name=name)
+    nn = depthwise_conv2d_no_bias(nn, kernel_size=3, strides=2, padding="same", name=name)
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "dw_")
     nn = se_module(nn, activation=activation, name=name + "se_")
-    nn = conv2d_no_bias(nn, out_channel, kernel_size=1, strides=1, padding="SAME", name=name + "out_")
+    nn = conv2d_no_bias(nn, out_channel, kernel_size=1, strides=1, padding="same", name=name + "out_")
     nn = batchnorm_with_activation(nn, activation=None, name=name + "out_")
     return nn
 

@@ -20,19 +20,19 @@ def quad_block(inputs, filters, groups_div=32, strides=1, conv_shortcut=False, e
         shortcut = inputs
 
     if groups != 1:  # Edge block
-        nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="VALID", name=name + "1_")
+        nn = conv2d_no_bias(inputs, filters, 1, strides=1, padding="valid", name=name + "1_")
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "1_")
     else:
         nn = inputs
 
-    nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", groups=groups, name=name + "groups_")
+    nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="same", groups=groups, name=name + "groups_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "2_")
 
     if extra_conv:
-        nn = conv2d_no_bias(nn, filters, 3, strides=1, padding="SAME", groups=groups, name=name + "extra_groups_")
+        nn = conv2d_no_bias(nn, filters, 3, strides=1, padding="same", groups=groups, name=name + "extra_groups_")
         nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, name=name + "extra_2_")
 
-    nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="VALID", name=name + "3_")
+    nn = conv2d_no_bias(nn, expanded_filter, 1, strides=1, padding="valid", name=name + "3_")
     nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "3_")
 
     # print(">>>> shortcut:", shortcut.shape, "nn:", nn.shape)

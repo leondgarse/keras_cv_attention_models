@@ -26,7 +26,7 @@ def upsample_merge(inputs, csp_depth=2, expansion=0.5, parallel_mode=False, use_
     channels = high.shape[channel_axis]
 
     fpn_out = conv_bn(low, channels, activation=activation, name=name + "fpn_")
-    low = layers.Conv2DTranspose(channels, kernel_size=2, strides=2, padding="VALID", name=name + "up_conv_transpose")(fpn_out)
+    low = layers.Conv2DTranspose(channels, kernel_size=2, strides=2, padding="valid", name=name + "up_conv_transpose")(fpn_out)
 
     middle = conv_bn(middle, channels, activation=activation, name=name + "middle_")
     high = conv_bn(high, channels, activation=activation, name=name + "high_")

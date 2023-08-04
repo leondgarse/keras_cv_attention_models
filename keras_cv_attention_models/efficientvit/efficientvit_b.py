@@ -76,10 +76,10 @@ def lite_mhsa(inputs, num_heads=8, key_dim=16, sr_ratio=5, qkv_bias=False, out_s
     attention_output = query_key @ value / (scale + 1e-15)
 
     if image_data_format() == "channels_last":
-        output = functional.transpose(attention_output, perm=[0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
+        output = functional.transpose(attention_output, [0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
         output = functional.reshape(output, [-1, height, width, output.shape[2] * output.shape[3]])
     else:
-        output = functional.transpose(attention_output, perm=[0, 1, 3, 2])  # [batch, num_heads, key_dim * attn_ratio, q_blocks]
+        output = functional.transpose(attention_output, [0, 1, 3, 2])  # [batch, num_heads, key_dim * attn_ratio, q_blocks]
         output = functional.reshape(output, [-1, output.shape[1] * output.shape[2], height, width])
     output = conv2d_no_bias(output, out_shape, use_bias=out_bias, name=name and name + "out_")
     output = batchnorm_with_activation(output, activation=None, name=name and name + "out_")

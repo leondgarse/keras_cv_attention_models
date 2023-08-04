@@ -50,7 +50,7 @@ def bottle_in_linear_out_block(inputs, out_channel, strides=1, expand_ratio=4, u
     hidden_dim = int(input_channel * expand_ratio)
     deep = conv2d_no_bias(inputs, hidden_dim, kernel_size=1, strides=1, name=name + "deep_1_")
     deep = batchnorm_with_activation(deep, activation=activation, name=name + "deep_1_")
-    deep = depthwise_conv2d_no_bias(deep, kernel_size=3, strides=strides, padding="SAME", name=name + "deep_2_")
+    deep = depthwise_conv2d_no_bias(deep, kernel_size=3, strides=strides, padding="same", name=name + "deep_2_")
     deep = batchnorm_with_activation(deep, activation=activation, name=name + "deep_2_")
     deep = conv2d_no_bias(deep, out_channel, kernel_size=1, strides=1, name=name + "deep_3_")
     deep = batchnorm_with_activation(deep, activation=None, name=name + "deep_3_")
@@ -137,9 +137,9 @@ def transformer_pre_process(inputs, out_channel, patch_size=2, resize_first=Fals
             nn = functional.resize(nn, [patch_hh * patch_size, patch_ww * patch_size], method="bilinear")
 
     if use_depthwise:  # V2
-        nn = depthwise_conv2d_no_bias(nn, kernel_size=3, strides=1, padding="SAME", name=name + "pre_1_")
+        nn = depthwise_conv2d_no_bias(nn, kernel_size=3, strides=1, padding="same", name=name + "pre_1_")
     else:  # V1
-        nn = conv2d_no_bias(nn, nn.shape[channel_axis], kernel_size=3, strides=1, padding="SAME", name=name + "pre_1_")
+        nn = conv2d_no_bias(nn, nn.shape[channel_axis], kernel_size=3, strides=1, padding="same", name=name + "pre_1_")
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "pre_1_")
     nn = conv2d_no_bias(nn, out_channel, kernel_size=1, strides=1, name=name + "pre_2_")
 
@@ -203,7 +203,7 @@ def transformer_post_process(inputs, pre_attn, out_channel, patch_size=2, patch_
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "post_1_")
     if pre_attn is not None:  # V1
         nn = functional.concat([pre_attn, nn], axis=channel_axis)
-        nn = conv2d_no_bias(nn, out_channel, kernel_size=3, strides=1, padding="SAME", name=name + "post_2_")
+        nn = conv2d_no_bias(nn, out_channel, kernel_size=3, strides=1, padding="same", name=name + "post_2_")
         nn = batchnorm_with_activation(nn, activation=activation, name=name + "post_2_")
     return layers.Activation("linear", name=name + "output")(nn)  # Identity, Just need a name here
 

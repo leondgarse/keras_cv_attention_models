@@ -105,10 +105,10 @@ def conv_mhsa_with_multi_head_position(
     # attention_output = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([attention_scores, value])
     attention_output = attention_scores @ value
     if is_channels_last():
-        attention_output = functional.transpose(attention_output, perm=[0, 2, 1, 3])
+        attention_output = functional.transpose(attention_output, [0, 2, 1, 3])
         attention_output = functional.reshape(attention_output, [-1, query_height, query_width, num_heads * value_dim])
     else:
-        attention_output = functional.transpose(attention_output, perm=[0, 1, 3, 2])
+        attention_output = functional.transpose(attention_output, [0, 1, 3, 2])
         attention_output = functional.reshape(attention_output, [-1, num_heads * value_dim, query_height, query_width])
     attention_output += vv_local
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
@@ -142,7 +142,7 @@ def mlp_block_with_additional_depthwise_conv(inputs, hidden_dim, output_channel=
 
 
 def down_sample_block(inputs, out_channel, use_attn=False, activation="gelu", name=""):
-    conv_branch = conv2d_no_bias(inputs, out_channel, kernel_size=3, strides=2, use_bias=True, padding="SAME", name=name)
+    conv_branch = conv2d_no_bias(inputs, out_channel, kernel_size=3, strides=2, use_bias=True, padding="same", name=name)
     conv_branch = batchnorm_with_activation(conv_branch, activation=None, name=name)
     if use_attn:
         fixed_kwargs = {"num_heads": 8, "key_dim": 16, "strides": 1, "attn_ratio": 4, "use_local_global_query": True, "use_talking_head": False}

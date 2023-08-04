@@ -41,7 +41,7 @@ class ReluWeightedSum(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs):
-        if backend.backend() == "pytorch":
+        if backend.backend() == "torch":
             # [???] Or will Type Error: Type 'tensor(float)' of input parameter (onnx::ReduceSum_1256) of operator (ReduceSum)
             gain = self.gain.relu()
             gain = gain / (gain.sum() + self.__epsilon__)
@@ -82,9 +82,9 @@ def resample_fuse(inputs, output_channel, use_weighted_sum=True, interpolation="
         nn = layers.Add(name=name + "sum")(inputs)
     nn = activation_by_name(nn, activation, name=name)
     if use_sep_conv:
-        nn = layers.SeparableConv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=name + "sepconv")(nn)
+        nn = layers.SeparableConv2D(output_channel, kernel_size=3, padding="same", use_bias=True, name=name + "sepconv")(nn)
     else:
-        nn = layers.Conv2D(output_channel, kernel_size=3, padding="SAME", use_bias=True, name=name + "conv")(nn)
+        nn = layers.Conv2D(output_channel, kernel_size=3, padding="same", use_bias=True, name=name + "conv")(nn)
     nn = layers.BatchNormalization(epsilon=BATCH_NORM_EPSILON, name=name + "bn")(nn)
     return nn
 
@@ -107,7 +107,7 @@ def bi_fpn(features, output_channel, use_weighted_sum=True, use_sep_conv=True, i
     up_features = up_features[1:-1][::-1]  # [p4_up, p5_up, p6_up]
     for id, feature in enumerate(features[1:]):
         cur_name = name + "p{}_out_".format(len(features) - 1 + id)
-        down_feature = layers.MaxPool2D(pool_size=3, strides=2, padding="SAME", name=cur_name + "max_down")(out_features[-1])
+        down_feature = layers.MaxPool2D(pool_size=3, strides=2, padding="same", name=cur_name + "max_down")(out_features[-1])
         fusion_feature = [feature, down_feature] if id == len(up_features) else [feature, up_features[id], down_feature]
         out_feature = resample_fuse(fusion_feature, output_channel, use_weighted_sum, use_sep_conv=use_sep_conv, activation=activation, name=cur_name)
         out_features.append(out_feature)
@@ -119,10 +119,10 @@ def det_header_pre(features, filters, depth, use_sep_conv=True, activation="swis
     # print(f">>>> det_header_pre: {[ii.shape for ii in features] = }")
     if use_sep_conv:
         names = [name + "{}_sepconv".format(id + 1) for id in range(depth)]
-        convs = [layers.SeparableConv2D(filters, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(depth)]
+        convs = [layers.SeparableConv2D(filters, kernel_size=3, padding="same", use_bias=True, name=names[id]) for id in range(depth)]
     else:
         names = [name + "{}_conv".format(id + 1) for id in range(depth)]
-        convs = [layers.Conv2D(filters, kernel_size=3, padding="SAME", use_bias=True, name=names[id]) for id in range(depth)]
+        convs = [layers.Conv2D(filters, kernel_size=3, padding="same", use_bias=True, name=names[id]) for id in range(depth)]
 
     outputs = []
     for feature_id, feature in enumerate(features):
@@ -138,9 +138,9 @@ def det_header_pre(features, filters, depth, use_sep_conv=True, activation="swis
 
 def det_header_post(inputs, classes=80, anchors=9, bias_init="zeros", use_sep_conv=True, head_activation="sigmoid", name=""):
     if use_sep_conv:
-        header_conv = layers.SeparableConv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "head")
+        header_conv = layers.SeparableConv2D(classes * anchors, kernel_size=3, padding="same", bias_initializer=bias_init, name=name + "head")
     else:
-        header_conv = layers.Conv2D(classes * anchors, kernel_size=3, padding="SAME", bias_initializer=bias_init, name=name + "conv_head")
+        header_conv = layers.Conv2D(classes * anchors, kernel_size=3, padding="same", bias_initializer=bias_init, name=name + "conv_head")
     outputs = [header_conv(ii) for ii in inputs]
     outputs = outputs if image_data_format() == "channels_last" else [layers.Permute([2, 3, 1])(ii) for ii in outputs]
     outputs = [layers.Reshape([-1, classes])(ii) for ii in outputs]
@@ -191,7 +191,7 @@ def EfficientDet(
     for id in range(additional_features):
         cur_name = "p{}_p{}_".format(id + 5, id + 6)
         additional_feature = align_feature_channel(fpn_features[-1], num_channels, name=cur_name)
-        additional_feature = layers.MaxPool2D(pool_size=3, strides=2, padding="SAME", name=cur_name + "max_down")(additional_feature)
+        additional_feature = layers.MaxPool2D(pool_size=3, strides=2, padding="same", name=cur_name + "max_down")(additional_feature)
         fpn_features.append(additional_feature)
 
     # Bi-FPN

@@ -1,5 +1,5 @@
 from keras_cv_attention_models import backend
-from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.backend import layers, models, functional, initializers, image_data_format
 from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     add_with_layer_scale_and_drop_block,
@@ -32,12 +32,12 @@ PRETRAINED_DICT = {
 class PureWeigths(layers.Layer):
     """Just return a weights with specific shape"""
 
-    def __init__(self, shape, **kwargs):
+    def __init__(self, shape, initializer="glorot_uniform", **kwargs):
         super().__init__(**kwargs)
-        self.shape = shape
+        self.shape, self.initializer = shape, initializer
 
     def build(self, input_shape):
-        self.gain = self.add_weight(name="gain", shape=self.shape, trainable=True)
+        self.gain = self.add_weight(name="gain", initializer=self.initializer, shape=self.shape, trainable=True)
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
@@ -117,7 +117,7 @@ def light_group_attention(inputs, num_heads=4, key_dim=0, num_group_token=0, use
     input_channel = inputs.shape[-1]
     key_dim = key_dim if key_dim > 0 else input_channel // num_heads
 
-    query = PureWeigths(shape=[1, num_group_token, input_channel], name=name + "query")(inputs)
+    query = PureWeigths(shape=[1, num_group_token, input_channel], initializer=initializers.truncated_normal(stddev=0.2), name=name + "query")(inputs)
     query = layer_norm(query, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "query_")
     key_value = layer_norm(inputs, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "key_value_") if use_key_value_norm else inputs
     key = layers.Dense(key_value.shape[-1], use_bias=qkv_bias, name=name and name + "key")(key_value)

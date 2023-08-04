@@ -39,7 +39,7 @@ def compute_conv_output_size(input_shape, kernel_size, strides=1, padding="valid
     dilation_rate = dilation_rate if isinstance(dilation_rate, (list, tuple)) else [dilation_rate] * len(size)
     strides = strides if isinstance(strides, (list, tuple)) else [strides] * len(size)
     dilated_filter_size = [kk + (kk - 1) * (dd - 1) for kk, dd in zip(kernel_size, dilation_rate)]
-    if (isinstance(padding, str) and padding.upper() == "VALID") or (isinstance(padding, (list, tuple)) and max(padding) == 0) or padding == 0:
+    if (isinstance(padding, str) and padding.lower() == "valid") or (isinstance(padding, (list, tuple)) and max(padding) == 0) or padding == 0:
         size = [None if ii is None else (ii - jj + 1) for ii, jj in zip(size, dilated_filter_size)]
     size = [None if ii is None else ((ii + jj - 1) // jj) for ii, jj in zip(size, strides)]
     return size
@@ -575,7 +575,7 @@ class _Reshape(nn.Module):
 
 
 class _SamePadding(nn.Module):
-    """Perform SAME padding like TF"""
+    """Perform same padding like TF"""
 
     def __init__(self, kernel_size, strides, dilation_rate=1, ndims=2, value=0):
         super().__init__()
@@ -633,7 +633,7 @@ class _ZeroPadding(Layer):
 
 
 class _BaseConvPool(Layer):
-    def __init__(self, kernel_size=1, strides=1, padding="VALID", dilation_rate=1, padding_value=0, **kwargs):
+    def __init__(self, kernel_size=1, strides=1, padding="valid", dilation_rate=1, padding_value=0, **kwargs):
         self.kernel_size, self.dilation_rate, self.strides, self.padding, self.padding_value = kernel_size, dilation_rate, strides, padding, padding_value
         super().__init__(**kwargs)
 
@@ -648,21 +648,21 @@ class _BaseConvPool(Layer):
 
         # elif isinstance(self.padding, str):
         if isinstance(self.padding, str):
-            self._pad = [0] * num_dims  # Alo set to 0 for "SAME" if input_shape[-1] is None, will apply TF like same padding later.
-            padding = self.padding.upper()
+            self._pad = [0] * num_dims  # Alo set to 0 for "same" if input_shape[-1] is None, will apply TF like same padding later.
+            padding = self.padding.lower()
         else:  # int or list or tuple with specific value
             self._pad = self.padding if isinstance(self.padding, (list, tuple)) else [self.padding] * num_dims
             padding = self.padding
 
-        if None not in input_shape[2:] and padding == "SAME":
+        if None not in input_shape[2:] and padding == "same":
             pad = [tf_same_pad(*args) for args in zip(input_shape[2:], self.kernel_size, self.strides, self.dilation_rate)]
             half_pad = [pp // 2 for pp in pad]
             if all([ii == 2 * jj for ii, jj in zip(pad, half_pad)]):
                 self._pad = half_pad  # Using module pad directly, avoid applying additional `_SamePadding` layer
-                padding = "VALID"
+                padding = "valid"
 
         module = self.build_module(input_shape)
-        if max(self.kernel_size) > 0 and padding == "SAME":
+        if max(self.kernel_size) > 0 and padding == "same":
             # TF like same padding
             same_padding = _SamePadding(self.kernel_size, strides=self.strides, dilation_rate=self.dilation_rate, ndims=num_dims, value=self.padding_value)
             if None not in input_shape[1:]:
@@ -689,7 +689,7 @@ class Conv(_BaseConvPool):
         filters,
         kernel_size=1,
         strides=1,
-        padding="VALID",
+        padding="valid",
         dilation_rate=1,
         use_bias=True,
         groups=1,
@@ -903,7 +903,7 @@ class Conv3DTranspose(ConvTranspose):
 
 
 class DepthwiseConv2D(Conv):
-    def __init__(self, kernel_size=1, strides=1, padding="VALID", dilation_rate=(1, 1), use_bias=True, depthwise_initializer="glorot_uniform", **kwargs):
+    def __init__(self, kernel_size=1, strides=1, padding="valid", dilation_rate=(1, 1), use_bias=True, depthwise_initializer="glorot_uniform", **kwargs):
         filters, groups = -1, -1
         super().__init__(filters, kernel_size, strides, padding, dilation_rate, use_bias, groups, depthwise_initializer, **kwargs)
 
@@ -1123,7 +1123,7 @@ class SeparableConv2D(Conv):
         filters,
         kernel_size=1,
         strides=1,
-        padding="VALID",
+        padding="valid",
         dilation_rate=1,
         use_bias=True,
         pointwise_initializer=None,
@@ -1289,7 +1289,7 @@ class Flatten(Layer):
 
 
 class _Pooling2D(_BaseConvPool):
-    def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", reduce="mean", **kwargs):
+    def __init__(self, pool_size=(2, 2), strides=1, padding="valid", reduce="mean", **kwargs):
         super().__init__(kernel_size=pool_size, strides=strides, padding=padding, dilation_rate=(1, 1), **kwargs)
         self.pool_size = pool_size if isinstance(pool_size, (list, tuple)) else [pool_size, pool_size]
         self.reduce = reduce
@@ -1314,12 +1314,12 @@ class _Pooling2D(_BaseConvPool):
 
 
 class AvgPool2D(_Pooling2D):
-    def __init__(self, pool_size=(2, 2), strides=1, padding="VALID", **kwargs):
+    def __init__(self, pool_size=(2, 2), strides=1, padding="valid", **kwargs):
         super().__init__(pool_size=pool_size, strides=strides, padding=padding, reduce=kwargs.pop("reduce", "mean"), **kwargs)
 
 
 class MaxPool2D(_Pooling2D):
-    def __init__(self, pool_size=(2, 2), strides=None, padding="VALID", **kwargs):
+    def __init__(self, pool_size=(2, 2), strides=None, padding="valid", **kwargs):
         strides = strides or pool_size
         super().__init__(pool_size=pool_size, strides=strides, padding=padding, reduce=kwargs.pop("reduce", "max"), padding_value=-np.inf, **kwargs)
 

@@ -105,11 +105,11 @@ class ZeroInitGain(layers.Layer):
         return base_config
 
 
-def std_conv2d_with_init(inputs, filters, kernel_size, strides=1, padding="VALID", torch_padding=False, gamma=1.0, name=None, **kwargs):
+def std_conv2d_with_init(inputs, filters, kernel_size, strides=1, padding="valid", torch_padding=False, gamma=1.0, name=None, **kwargs):
     pad = max(kernel_size) // 2 if isinstance(kernel_size, (list, tuple)) else kernel_size // 2
-    if torch_padding and padding.upper() == "SAME" and pad != 0:
+    if torch_padding and padding.lower() == "same" and pad != 0:
         inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs)
-        padding = "VALID"
+        padding = "valid"
 
     return ScaledStandardizedConv2D(
         filters=filters,
@@ -152,7 +152,7 @@ def block(
 
     if strides > 1 or inputs.shape[-1] != filters:
         if strides > 1:
-            shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shorcut_down")(preact)
+            shortcut = layers.AvgPool2D(strides, strides=strides, padding="same", name=name + "shorcut_down")(preact)
         else:
             shortcut = preact
         shortcut = std_conv2d_with_init(shortcut, filters, 1, strides=1, gamma=conv_gamma, name=name + "shortcut_")
@@ -160,7 +160,7 @@ def block(
         shortcut = inputs
 
     groups = hidden_filter // group_size
-    conv_params_3 = {"kernel_size": 3, "padding": "SAME", "torch_padding": torch_padding, "gamma": conv_gamma}
+    conv_params_3 = {"kernel_size": 3, "padding": "same", "torch_padding": torch_padding, "gamma": conv_gamma}
     deep = std_conv2d_with_init(preact, hidden_filter, 1, strides=1, gamma=conv_gamma, name=name + "deep_1_")
     deep = activation_by_name_with_gamma(deep, activation, gamma=act_gamma, name=name + "deep_1_")
     deep = std_conv2d_with_init(deep, hidden_filter, strides=strides, **conv_params_3, groups=groups, name=name + "deep_2_")
@@ -194,7 +194,7 @@ def stack(inputs, blocks, filters, betas=1.0, strides=2, stack_drop=0, block_par
 
 
 def stem(inputs, stem_width, activation="gelu", torch_padding=False, conv_gamma=1.0, act_gamma=1.0, name=""):
-    conv_params = {"kernel_size": 3, "padding": "SAME", "torch_padding": torch_padding, "gamma": conv_gamma}
+    conv_params = {"kernel_size": 3, "padding": "same", "torch_padding": torch_padding, "gamma": conv_gamma}
     nn = std_conv2d_with_init(inputs, stem_width // 8, strides=2, **conv_params, name=name + "1_")
     nn = activation_by_name_with_gamma(nn, activation, gamma=act_gamma, name=name + "1_")
     nn = std_conv2d_with_init(nn, stem_width // 4, strides=1, **conv_params, name=name + "2_")

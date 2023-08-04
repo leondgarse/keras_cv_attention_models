@@ -73,11 +73,11 @@ def attn_block(
         nn = attention_layers.outlook_attention(nn, filters, **attn_params, name=name + "outlook_")
         need_downsaple = True
     # elif attn_type == "groups_conv":  # ResNeXt like
-    #     nn = conv2d_no_bias(nn, filters, **attn_params, strides=strides, padding="SAME", name=name + "GC_")
+    #     nn = conv2d_no_bias(nn, filters, **attn_params, strides=strides, padding="same", name=name + "GC_")
     else:  # ResNet and `groups > 1` for ResNeXt like
         groups = groups if group_size == 0 else filters // group_size
         conv_name = (name + "GC_") if groups > 1 else name
-        nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="SAME", groups=groups, name=conv_name)
+        nn = conv2d_no_bias(nn, filters, 3, strides=strides, padding="same", groups=groups, name=conv_name)
 
     # if strides != 1 and (nn.shape[1] == inputs.shape[1] or nn.shape[2] == inputs.shape[2]):  # Downsample
     if strides != 1 and need_downsaple:  # Downsample
@@ -101,7 +101,7 @@ def conv_shortcut_branch(inputs, filters, preact=False, strides=1, shortcut_type
         return None
 
     if strides > 1 and shortcut_type == "avg":
-        shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_down")(inputs)
+        shortcut = layers.AvgPool2D(strides, strides=strides, padding="same", name=name + "shortcut_down")(inputs)
         strides = 1
     elif strides > 1 and shortcut_type == "anti_alias":
         shortcut = anti_alias_downsample(inputs, kernel_size=3, strides=2, name=name + "shortcut_down")
@@ -119,17 +119,17 @@ def deep_branch(
 ):
     hidden_filter = int(filters * hidden_channel_ratio)
     if use_3x3_kernel:
-        nn = conv2d_no_bias(inputs, hidden_filter, 3, strides=1, padding="SAME", name=name + "deep_1_")  # Using strides=1 for not changing input shape
-        # nn = conv2d_no_bias(inputs, hidden_filter, 3, strides=strides, padding="SAME", name=name + "1_")
+        nn = conv2d_no_bias(inputs, hidden_filter, 3, strides=1, padding="same", name=name + "deep_1_")  # Using strides=1 for not changing input shape
+        # nn = conv2d_no_bias(inputs, hidden_filter, 3, strides=strides, padding="same", name=name + "1_")
         # strides = 1
     else:
-        nn = conv2d_no_bias(inputs, hidden_filter, 1, strides=1, padding="VALID", name=name + "deep_1_")
+        nn = conv2d_no_bias(inputs, hidden_filter, 1, strides=1, padding="valid", name=name + "deep_1_")
     nn = batchnorm_with_activation(nn, zero_gamma=False, **bn_act_params, name=name + "deep_1_")
     # bn_after_attn = False if use_3x3_kernel else bn_after_attn
     nn = attn_block(nn, hidden_filter, strides, **attn_block_params, **bn_act_params, bn_after_attn=bn_after_attn, name=name + "deep_2_")
 
     if not use_3x3_kernel:
-        nn = conv2d_no_bias(nn, filters, 1, strides=1, padding="VALID", name=name + "deep_3_")
+        nn = conv2d_no_bias(nn, filters, 1, strides=1, padding="valid", name=name + "deep_3_")
     return nn
 
 
@@ -174,7 +174,7 @@ def aot_block(
         # short_act = activation if attn_block_params["attn_type"] == "bot" else None
         shortcut = conv_shortcut_branch(pre_inputs, filters, preact, strides, shortcut_type, bn_params, name=name)  # activation=None
     else:
-        shortcut = layers.MaxPool2D(strides, strides=strides, padding="SAME")(inputs) if strides > 1 else inputs
+        shortcut = layers.MaxPool2D(strides, strides=strides, padding="same")(inputs) if strides > 1 else inputs
 
     deep = deep_branch(pre_inputs, filters, strides, hidden_channel_ratio, use_3x3_kernel, bn_after_attn, bn_act_params, attn_block_params, name=name)
 

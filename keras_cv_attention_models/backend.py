@@ -1,6 +1,13 @@
 import os
 
-is_tensorflow_backend = "torch" not in os.getenv("KECAM_BACKEND", "tensorflow").lower()
+is_tensorflow_backend, is_torch_backend, is_keras_core_backend = False, False, False
+if "tensorflow" in os.getenv("KECAM_BACKEND", "tensorflow").lower():
+    is_tensorflow_backend = True
+elif "torch" in os.getenv("KECAM_BACKEND", "tensorflow").lower():
+    is_torch_backend = True
+else:
+    is_keras_core_backend = True
+
 if is_tensorflow_backend:
     try:
         import tensorflow as tf
@@ -19,25 +26,36 @@ if is_tensorflow_backend:
     from tensorflow.keras import layers, models, initializers, callbacks, metrics
     from tensorflow.keras.utils import register_keras_serializable, get_file
     from keras_cv_attention_models import tf_functional as functional
-else:
+elif is_torch_backend:
     from keras_cv_attention_models.pytorch_backend import layers, models, functional, initializers, callbacks, metrics
     from keras_cv_attention_models.pytorch_backend.utils import register_keras_serializable, get_file
 
     print(">>>> Using PyTorch backend")
+else:
+    import keras_core
+    from keras_core import layers, models, initializers, callbacks, metrics
+    from keras_core.utils import register_keras_serializable, get_file
+
+    # from keras_core import ops as functional
+    from keras_cv_attention_models import keras_core_functional as functional
 
 
 def backend():
     if is_tensorflow_backend:
         return tf.keras.backend.backend()
+    elif is_torch_backend:
+        return "torch"
     else:
-        return "pytorch"
+        return keras_core.backend.backend()
 
 
 def image_data_format():
     if is_tensorflow_backend:
         return tf.keras.backend.image_data_format()
-    else:
+    elif is_torch_backend:
         return "channels_first"
+    else:
+        return keras_core.backend.image_data_format()
 
 
 __is_channels_last__ = image_data_format() == "channels_last"
@@ -85,6 +103,8 @@ def align_input_shape_by_image_data_format(input_shape):
 def in_train_phase(train_phase, eval_phase, training=None):
     if is_tensorflow_backend:
         return tf.keras.backend.in_train_phase(train_phase, eval_phase, training=training)
+    elif is_torch_backend:
+        return train_phase if training else eval_phase  # [TODO]
     else:
         return train_phase if training else eval_phase  # [TODO]
 

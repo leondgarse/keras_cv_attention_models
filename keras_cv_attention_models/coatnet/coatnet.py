@@ -92,7 +92,7 @@ def res_MBConv(
     preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, name=name + "preact_")
 
     if conv_short_cut:
-        shortcut = layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
+        shortcut = layers.MaxPool2D(strides, strides=strides, padding="same", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
         shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shortcut_")
         # shortcut = batchnorm_with_activation(shortcut, activation=activation, zero_gamma=False, name=name + "shortcut_")
     else:
@@ -133,7 +133,7 @@ def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, head_dimens
     preact = layer_norm(inputs, name=name + "preact_")
 
     if conv_short_cut:
-        shortcut = layers.MaxPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
+        shortcut = layers.MaxPool2D(strides, strides=strides, padding="same", name=name + "shortcut_pool")(inputs) if strides > 1 else inputs
         shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, name=name + "shortcut_")
         # shortcut = batchnorm_with_activation(shortcut, activation=activation, zero_gamma=False, name=name + "shortcut_")
     else:
@@ -142,7 +142,7 @@ def res_mhsa(inputs, output_channel, conv_short_cut=True, strides=1, head_dimens
     nn = preact
     if strides != 1:  # Downsample
         # nn = layers.ZeroPadding2D(padding=1, name=name + "pad")(nn)
-        nn = layers.MaxPool2D(pool_size=2, strides=strides, padding="SAME", name=name + "pool")(nn)
+        nn = layers.MaxPool2D(pool_size=2, strides=strides, padding="same", name=name + "pool")(nn)
     num_heads = nn.shape[-1 if image_data_format() == "channels_last" else 1] // head_dimension
     nn = mhsa_with_multi_head_relative_position_embedding(nn, num_heads=num_heads, key_dim=head_dimension, out_shape=output_channel, name=name + "mhsa_")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)

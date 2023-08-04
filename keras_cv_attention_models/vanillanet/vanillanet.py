@@ -31,7 +31,7 @@ BATCH_NORM_EPSILON = 1e-6
 
 def activation_depthwise_conv_bn(inputs, kernel_size=7, deploy=False, activation="relu", name=""):
     nn = activation_by_name(inputs, activation=activation, name=name)
-    nn = depthwise_conv2d_no_bias(nn, kernel_size=kernel_size, use_bias=deploy, padding="SAME", name=name)
+    nn = depthwise_conv2d_no_bias(nn, kernel_size=kernel_size, use_bias=deploy, padding="same", name=name)
     if not deploy:
         nn = batchnorm_with_activation(nn, epsilon=BATCH_NORM_EPSILON, activation=None, name=name)
     return nn

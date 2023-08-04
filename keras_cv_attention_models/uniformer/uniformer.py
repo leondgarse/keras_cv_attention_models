@@ -63,7 +63,7 @@ def multi_head_self_attention(
 def attn_block(
     inputs, out_channel, num_heads=0, qkv_bias=True, mlp_ratio=4, mlp_drop_rate=0, attn_drop_rate=0, drop_rate=0, gamma=-1, activation="gelu", name=""
 ):
-    pos_emb = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="SAME", use_bias=True, name=name + "pos_emb_")
+    pos_emb = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="same", use_bias=True, name=name + "pos_emb_")
     pos_out = layers.Add()([inputs, pos_emb])
 
     # print(f">>>> {is_conv = }, {num_heads = }")
@@ -83,12 +83,12 @@ def attn_block(
 
 
 def conv_block(inputs, out_channel, mlp_ratio=4, mlp_drop_rate=0, drop_rate=0, gamma=-1, activation="gelu", name=""):
-    pos_emb = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="SAME", use_bias=True, name=name + "pos_emb_")
+    pos_emb = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="same", use_bias=True, name=name + "pos_emb_")
     pos_out = layers.Add()([inputs, pos_emb])
 
     attn = layers.BatchNormalization(momentum=BATCH_NORM_DECAY, epsilon=BATCH_NORM_EPSILON, name=name + "attn_bn")(pos_out)
     attn = conv2d_no_bias(attn, out_channel, 1, use_bias=True, name=name + "attn_1_")
-    attn = depthwise_conv2d_no_bias(attn, kernel_size=5, padding="SAME", use_bias=True, name=name + "attn_")
+    attn = depthwise_conv2d_no_bias(attn, kernel_size=5, padding="same", use_bias=True, name=name + "attn_")
     attn = conv2d_no_bias(attn, out_channel, 1, use_bias=True, name=name + "attn_2_")
     attn_out = add_with_layer_scale_and_drop_block(pos_out, attn, layer_scale=gamma, drop_rate=drop_rate, name=name + "1_")
 

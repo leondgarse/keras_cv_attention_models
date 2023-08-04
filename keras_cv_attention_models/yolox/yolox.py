@@ -31,10 +31,10 @@ BATCH_NORM_MOMENTUM = 0.97
 def conv_dw_pw_block(inputs, filters, kernel_size=1, strides=1, use_depthwise_conv=False, activation="swish", name=""):
     nn = inputs
     if use_depthwise_conv:
-        nn = depthwise_conv2d_no_bias(nn, kernel_size, strides, padding="SAME", name=name)
+        nn = depthwise_conv2d_no_bias(nn, kernel_size, strides, padding="same", name=name)
         nn = batchnorm_with_activation(nn, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name + "dw_")
         kernel_size, strides = 1, 1
-    nn = conv2d_no_bias(nn, filters, kernel_size, strides, padding="SAME", name=name)
+    nn = conv2d_no_bias(nn, filters, kernel_size, strides, padding="same", name=name)
     nn = batchnorm_with_activation(nn, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name)
     return nn
 
@@ -68,7 +68,7 @@ def spatial_pyramid_pooling(inputs, pool_sizes=(5, 9, 13), activation="swish", n
     channel_axis = -1 if image_data_format() == "channels_last" else 1
     input_channels = inputs.shape[channel_axis]
     nn = conv_dw_pw_block(inputs, input_channels // 2, kernel_size=1, activation=activation, name=name + "1_")
-    pp = [layers.MaxPool2D(pool_size=ii, strides=1, padding="SAME")(nn) for ii in pool_sizes]
+    pp = [layers.MaxPool2D(pool_size=ii, strides=1, padding="same")(nn) for ii in pool_sizes]
     nn = functional.concat([nn, *pp], axis=channel_axis)
     nn = conv_dw_pw_block(nn, input_channels, kernel_size=1, activation=activation, name=name + "2_")
     return nn

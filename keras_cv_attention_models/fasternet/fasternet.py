@@ -28,7 +28,7 @@ def block(inputs, mlp_ratio=2, partial_conv_ratio=0.25, layer_scale=1e-6, drop_r
     conv_branch_channels = int(input_channel * partial_conv_ratio)
 
     conv_branch, non_conv_branch = functional.split(inputs, [conv_branch_channels, -1], axis=channel_axis)
-    conv_branch = conv2d_no_bias(conv_branch, conv_branch_channels, kernel_size=3, strides=1, padding="SAME", name=name + "partial")
+    conv_branch = conv2d_no_bias(conv_branch, conv_branch_channels, kernel_size=3, strides=1, padding="same", name=name + "partial")
     nn = functional.concat([conv_branch, non_conv_branch], axis=channel_axis)
 
     mlp = conv2d_no_bias(nn, int(input_channel * mlp_ratio), kernel_size=1, name=name + "mlp_1_")
@@ -62,7 +62,7 @@ def FasterNet(
     inputs = layers.Input(input_shape)
 
     """ Stem """
-    nn = conv2d_no_bias(inputs, embed_dim, kernel_size=patch_size, strides=patch_size, padding="VALID", name="stem_")
+    nn = conv2d_no_bias(inputs, embed_dim, kernel_size=patch_size, strides=patch_size, padding="valid", name="stem_")
     nn = batchnorm_with_activation(nn, activation=None, name="stem_")
 
     """ Blocks """

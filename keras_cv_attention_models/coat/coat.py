@@ -29,7 +29,7 @@ class ConvPositionalEncoding:
         self.width = (input_shape[1] - 1) // self.height
 
         self.channel = input_shape[-1]
-        self.dconv = layers.DepthwiseConv2D(self.kernel_size, strides=1, padding="VALID", name=self.name and self.name + "depth_conv")
+        self.dconv = layers.DepthwiseConv2D(self.kernel_size, strides=1, padding="valid", name=self.name and self.name + "depth_conv")
 
     def __call__(self, inputs, **kwargs):
         if not self.built:
@@ -64,7 +64,7 @@ class ConvRelativePositionalEncoding:
         self.pads = []
         for id, (head_split, kernel_size) in enumerate(zip(self.head_splits, self.head_kernel_size)):
             name = self.name and self.name + "depth_conv_" + str(id + 1)
-            dconv = layers.DepthwiseConv2D(kernel_size, strides=1, padding="VALID", name=name)
+            dconv = layers.DepthwiseConv2D(kernel_size, strides=1, padding="valid", name=name)
             if image_data_format() == "channels_last":
                 pad = [[0, 0], [kernel_size // 2, kernel_size // 2], [kernel_size // 2, kernel_size // 2], [0, 0]]
             else:

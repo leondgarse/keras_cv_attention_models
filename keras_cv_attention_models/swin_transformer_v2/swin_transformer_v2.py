@@ -63,11 +63,11 @@ class ExpLogitScale(layers.Layer):
 
 @backend.register_keras_serializable(package="kecam")
 class MlpPairwisePositionalEmbedding(layers.Layer):
-    def __init__(self, hidden_dim=512, attn_height=-1, attn_width=-1, pos_scale=-1, use_absolute_pos=False, **kwargs):
+    def __init__(self, hidden_dim=512, attn_height=-1, attn_width=-1, pos_scale=-1, use_absolute_pos=False, is_deploy_mode=False, **kwargs):
         # No weight, just need to wrapper a layer, or will not in model structure
         super().__init__(**kwargs)
         self.hidden_dim, self.attn_height, self.attn_width, self.pos_scale = hidden_dim, attn_height, attn_width, pos_scale
-        self.use_absolute_pos = use_absolute_pos
+        self.use_absolute_pos, self.is_deploy_mode = use_absolute_pos, is_deploy_mode
 
     def _build_absolute_coords_(self):
         hh, ww = np.meshgrid(range(0, self.height), range(0, self.width), indexing="ij")
@@ -113,6 +113,11 @@ class MlpPairwisePositionalEmbedding(layers.Layer):
             self.coords = functional.convert_to_tensor(coords, dtype=self.compute_dtype)
 
     def build(self, input_shape):
+        if self.is_deploy_mode:
+            self.deploy_bias = self.add_weight(name="deploy_bias", shape=[1, *input_shape[1:]], initializer="zeros", trainable=False)
+            super().build(input_shape)
+            return
+
         if self.use_absolute_pos:
             # input_shape: [batch, height, width, channel] or [batch, height * width, channel]
             self.is_compressed = len(input_shape) == 3
@@ -136,9 +141,9 @@ class MlpPairwisePositionalEmbedding(layers.Layer):
             self._build_relative_index_()
             out_shape = [self.hidden_dim, self.num_heads]
 
-        self.hidden_weight = self.add_weight(name="hidden_weight", shape=[2, self.hidden_dim], trainable=True)
-        self.hidden_bias = self.add_weight(name="hidden_bias", shape=[self.hidden_dim], initializer="zeros", trainable=True)
-        self.out = self.add_weight(name="out", shape=out_shape, trainable=True)
+        self.hidden_weight = self.add_weight(name="hidden_weight", initializer="glorot_uniform", shape=[2, self.hidden_dim], trainable=True)
+        self.hidden_bias = self.add_weight(name="hidden_bias", initializer="zeros", shape=[self.hidden_dim], trainable=True)
+        self.out = self.add_weight(name="out", initializer="glorot_uniform", shape=out_shape, trainable=True)
 
         self.is_deploy_mode = False
         super().build(input_shape)
@@ -167,6 +172,7 @@ class MlpPairwisePositionalEmbedding(layers.Layer):
                 "attn_width": self.attn_width,
                 "pos_scale": self.pos_scale,
                 "use_absolute_pos": self.use_absolute_pos,
+                "is_deploy_mode": self.is_deploy_mode,
             }
         )
         return base_config
@@ -177,10 +183,8 @@ class MlpPairwisePositionalEmbedding(layers.Layer):
         delattr(self, "hidden_bias")
         delattr(self, "out")
 
-        if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("deploy_bias", deploy_bias.detach(), persistent=False)
-        else:
-            self.deploy_bias = functional.convert_to_tensor(deploy_bias, dtype=self.compute_dtype)
+        # add as weights so can be saved to h5 and loaded back
+        self.deploy_bias = self.add_weight(name="deploy_bias", shape=deploy_bias.shape, initializer=initializers.Constant(deploy_bias), trainable=False)
         self.is_deploy_mode = True
 
 

@@ -84,7 +84,7 @@ Args:
   sizes: could be `tf.image.extract_patches` sizes format `[1, 3, 3, 1]`, or `Conv2D` kernel_size format `3`.
   strides: could be `tf.image.extract_patches` strides format `[1, 2, 2, 1]`, or `Conv2D` strides format `2`.
   rates: could be `tf.image.extract_patches` rates format `[1, 1, 1, 1]`, or `Conv2D` dilation_rate format `1`.
-  padding: "VALID" or "SAME", will perform padding in PyTorch way if "SAME".
+  padding: "valid" or "same", will perform padding in PyTorch way if "same".
   compressed: boolean value if compress extracted `height_kernel`, `width_kernel`, `channel` into 1 dimension.
   force_conv: force using `Conv2D` instead of `tf.image.extract_patches`.
 
@@ -102,7 +102,7 @@ Examples:
 >>> cc(aa).shape  # init run
 >>> %timeit cc(aa)
 # 772 µs ± 6.71 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
->>> %timeit tf.image.extract_patches(aa, [1, 3, 3, 1], [1, 2, 2, 1], [1, 1, 1, 1], padding='SAME')
+>>> %timeit tf.image.extract_patches(aa, [1, 3, 3, 1], [1, 2, 2, 1], [1, 1, 1, 1], padding='same')
 # 108 µs ± 153 ns per loop (mean ± std. dev. of 7 runs, 10000 loops each)
 """
 
@@ -120,7 +120,7 @@ Args:
   kernel_size: same as `Conv2DTranspose` kernel_size. Default `3`.
   strides: same as `Conv2DTranspose` strides. Default `2`.
   dilation_rate: same as `Conv2DTranspose` dilation_rate. Default `1`.
-  padding: "VALID" or "SAME", indicates if `patches` is generated from a padded input. Default "SAME".
+  padding: "valid" or "same", indicates if `patches` is generated from a padded input. Default "same".
   compressed: boolean value if `patches` last dimension is a compressed of `height_kernel`, `width_kernel`, `channel`.
       Default "auto" means auto judge from `patches` shape length.
 
@@ -147,7 +147,7 @@ Examples:
 >>> # ==== TF extract_patches ====
 >>> pad = kernel_size // 2
 >>> pad_inputs = tf.pad(inputs, [[0, 0], [pad, pad], [pad, pad], [0, 0]])
->>> patches = tf.image.extract_patches(pad_inputs, [1, kernel_size, kernel_size, 1], [1, strides, strides, 1], [1, 1, 1, 1], padding='VALID')
+>>> patches = tf.image.extract_patches(pad_inputs, [1, kernel_size, kernel_size, 1], [1, strides, strides, 1], [1, 1, 1, 1], padding='valid')
 >>> print(f"{np.allclose(tf_patches, patches) = }")
 # np.allclose(tf_patches, patches) = True
 """

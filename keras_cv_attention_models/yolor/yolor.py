@@ -32,10 +32,10 @@ BATCH_NORM_MOMENTUM = 0.97
 def conv_dw_pw_block(inputs, filters, kernel_size=1, strides=1, use_depthwise_conv=False, activation="swish", name=""):
     nn = inputs
     if use_depthwise_conv:
-        nn = depthwise_conv2d_no_bias(nn, kernel_size, strides, padding="SAME", name=name)
+        nn = depthwise_conv2d_no_bias(nn, kernel_size, strides, padding="same", name=name)
         nn = batchnorm_with_activation(nn, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name + "dw_")
         kernel_size, strides = 1, 1
-    nn = conv2d_no_bias(nn, filters, kernel_size, strides, padding="SAME", name=name)
+    nn = conv2d_no_bias(nn, filters, kernel_size, strides, padding="same", name=name)
     nn = batchnorm_with_activation(nn, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name)
     return nn
 
@@ -89,7 +89,7 @@ def res_spatial_pyramid_pooling(inputs, depth, expansion=0.5, pool_sizes=(5, 9, 
     deep = conv_dw_pw_block(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "pre_1_")
     deep = conv_dw_pw_block(deep, hidden_channels, kernel_size=3, activation=activation, name=name + "pre_2_")
     deep = conv_dw_pw_block(deep, hidden_channels, kernel_size=1, activation=activation, name=name + "pre_3_")
-    pp = [layers.MaxPool2D(pool_size=ii, strides=1, padding="SAME")(deep) for ii in pool_sizes]
+    pp = [layers.MaxPool2D(pool_size=ii, strides=1, padding="same")(deep) for ii in pool_sizes]
     deep = functional.concat([deep, *pp][::-1], axis=channel_axis)  # yolor_csp.cfg, SSP concat layers=-1,-3,-5,-6
     for id in range(depth - 1):  # First one is `pre`
         deep = conv_dw_pw_block(deep, hidden_channels, kernel_size=1, activation=activation, name=name + "post_{}_".format(id * 2 + 1))
@@ -124,7 +124,7 @@ def focus_stem(inputs, filters, kernel_size=3, strides=1, padding="valid", activ
 def csp_conv_downsample(inputs, filters, strides=2, activation="swish", name=""):
     # DownC: https://github.com/WongKinYiu/yolor/blob/paper/models/common.py#L584
     channel_axis = -1 if image_data_format() == "channels_last" else 1
-    max_down = layers.MaxPool2D(strides, strides=strides, padding="SAME")(inputs)
+    max_down = layers.MaxPool2D(strides, strides=strides, padding="same")(inputs)
     max_down = conv_dw_pw_block(max_down, filters // 2, activation=activation, name=name + "max_down_")
     conv_down = conv_dw_pw_block(inputs, inputs.shape[channel_axis], activation=activation, name=name + "conv_down_1_")
     conv_down = conv_dw_pw_block(conv_down, filters // 2, kernel_size=3, strides=strides, activation=activation, name=name + "conv_down_2_")

@@ -46,11 +46,11 @@ def down_sample_matrix_axis_0(dd, target, method="avg"):
         hh = ww = int(np.sqrt(target))
         dd = tf.image.resize(dd, [hh, ww]).numpy()
     elif "avg" in method.lower():
-        dd = tf.nn.avg_pool(dd, rate, rate, "VALID").numpy()
+        dd = tf.nn.avg_pool(dd, rate, rate, "valid").numpy()
     elif "swin" in method.lower():
         dd = dd.reshape(1, hh // 2, 2, ww // 2, 2, -1).transpose(0, 1, 3, 4, 2, 5)
     else:
-        dd = tf.nn.max_pool(dd, rate, rate, "VALID").numpy()
+        dd = tf.nn.max_pool(dd, rate, rate, "valid").numpy()
     dd = dd.reshape(-1, dd.shape[-1])
     return dd
 
@@ -142,7 +142,7 @@ def plot_attention_score_maps(model, image, rescale_mode="auto", attn_type="auto
         hhs = [(jj - ii) // 2 for ii, jj in zip(qqs, vvs)]  # halo_size
         tt = [rearrange(ii, "hh ww (hb wb) cc -> (hh hb) (ww wb) cc", hb=qq, wb=qq) for ii, qq in zip(mask, qqs)]
         tt = [tf.expand_dims(tf.pad(ii, [[hh, hh], [hh, hh], [0, 0]]), 0) for ii, hh in zip(tt, hhs)]
-        tt = [CompatibleExtractPatches(vv, qq, padding="VALID", compressed=False)(ii).numpy()[0] for ii, vv, qq in zip(tt, vvs, qqs)]
+        tt = [CompatibleExtractPatches(vv, qq, padding="valid", compressed=False)(ii).numpy()[0] for ii, vv, qq in zip(tt, vvs, qqs)]
         tt = [rearrange(ii, "hh ww hb wb cc -> hh ww (hb wb) cc").mean((0, 1)) for ii in tt]
         # tt = [tf.reduce_max(rearrange(ii, "hh ww hb wb cc -> hh ww (hb wb) cc"), axis=(0, 1)).numpy() for ii in tt]
         cum_mask = [matmul_prod(tt[: ii + 1]).mean(0) for ii in range(len(tt))]

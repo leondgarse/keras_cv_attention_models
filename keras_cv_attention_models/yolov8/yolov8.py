@@ -35,15 +35,15 @@ BATCH_NORM_MOMENTUM = 0.97
 
 def conv_bn(inputs, output_channel, kernel_size=1, strides=1, use_bias=False, activation="swish", name=""):
     # print(f">>>> {inputs.shape = }, {output_channel = }, {kernel_size = }, {strides = }")
-    nn = conv2d_no_bias(inputs, output_channel, kernel_size, strides, use_bias=use_bias, padding="SAME", name=name)
+    nn = conv2d_no_bias(inputs, output_channel, kernel_size, strides, use_bias=use_bias, padding="same", name=name)
     return batchnorm_with_activation(nn, activation=activation, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name)
 
 
 def reparam_conv_bn(inputs, output_channel, kernel_size=3, strides=1, use_bias=False, use_identity=True, activation="swish", name=""):
-    branch_3x3 = conv2d_no_bias(inputs, output_channel, 3, strides, use_bias=False, padding="SAME", name=name + "REPARAM_k3_")
+    branch_3x3 = conv2d_no_bias(inputs, output_channel, 3, strides, use_bias=False, padding="same", name=name + "REPARAM_k3_")
     branch_3x3 = batchnorm_with_activation(branch_3x3, activation=None, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name + "REPARAM_k3_")
 
-    branch_1x1 = conv2d_no_bias(inputs, output_channel, 1, strides, use_bias=use_bias, padding="VALID", name=name + "REPARAM_k1_")
+    branch_1x1 = conv2d_no_bias(inputs, output_channel, 1, strides, use_bias=use_bias, padding="valid", name=name + "REPARAM_k1_")
     # branch_1x1 = batchnorm_with_activation(branch_1x1, activation=None, epsilon=BATCH_NORM_EPSILON, momentum=BATCH_NORM_MOMENTUM, name=name + "REPARAM_k1_")
 
     # out = (branch_3x3 + branch_1x1 + inputs) if use_identity else (branch_3x3 + branch_1x1)
@@ -102,9 +102,9 @@ def spatial_pyramid_pooling_fast(inputs, pool_size=5, activation="swish", name="
     hidden_channels = int(input_channels // 2)
 
     nn = conv_bn(inputs, hidden_channels, kernel_size=1, activation=activation, name=name + "pre_")
-    pool_1 = layers.MaxPool2D(pool_size=pool_size, strides=1, padding="SAME")(nn)
-    pool_2 = layers.MaxPool2D(pool_size=pool_size, strides=1, padding="SAME")(pool_1)
-    pool_3 = layers.MaxPool2D(pool_size=pool_size, strides=1, padding="SAME")(pool_2)
+    pool_1 = layers.MaxPool2D(pool_size=pool_size, strides=1, padding="same")(nn)
+    pool_2 = layers.MaxPool2D(pool_size=pool_size, strides=1, padding="same")(pool_1)
+    pool_3 = layers.MaxPool2D(pool_size=pool_size, strides=1, padding="same")(pool_2)
 
     out = functional.concat([nn, pool_1, pool_2, pool_3], axis=channel_axis)
     out = conv_bn(out, input_channels, kernel_size=1, activation=activation, name=name + "output_")

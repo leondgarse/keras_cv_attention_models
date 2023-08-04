@@ -39,7 +39,7 @@ def phase_aware_token_mixing(inputs, out_channel=-1, qkv_bias=False, output_drop
     height_cos = layers.Multiply()([height, functional.cos(theta_h)])
     height_sin = layers.Multiply()([height, functional.sin(theta_h)])
     height = layers.Concatenate(axis=-1 if backend.image_data_format() == "channels_last" else 1)([height_cos, height_sin])
-    height = conv2d_no_bias(height, out_channel, kernel_size=(1, 7), padding="SAME", groups=out_channel, use_bias=False, name=name and name + "height_down_")
+    height = conv2d_no_bias(height, out_channel, kernel_size=(1, 7), padding="same", groups=out_channel, use_bias=False, name=name and name + "height_down_")
 
     theta_w = conv2d_no_bias(inputs, out_channel, kernel_size=1, use_bias=True, name=name and name + "theta_w_")
     theta_w = batchnorm_with_activation(theta_w, activation="relu", name=name and name + "theta_w_")  # Fixed as relu [ ??? ]
@@ -48,7 +48,7 @@ def phase_aware_token_mixing(inputs, out_channel=-1, qkv_bias=False, output_drop
     width_cos = layers.Multiply()([width, functional.cos(theta_w)])
     width_sin = layers.Multiply()([width, functional.sin(theta_w)])
     width = layers.Concatenate(axis=-1 if backend.image_data_format() == "channels_last" else 1)([width_cos, width_sin])
-    width = conv2d_no_bias(width, out_channel, kernel_size=(7, 1), padding="SAME", groups=out_channel, use_bias=False, name=name and name + "width_down_")
+    width = conv2d_no_bias(width, out_channel, kernel_size=(7, 1), padding="same", groups=out_channel, use_bias=False, name=name and name + "width_down_")
 
     channel = conv2d_no_bias(inputs, out_channel, kernel_size=1, use_bias=qkv_bias, name=name and name + "channel_")
 

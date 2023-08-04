@@ -83,7 +83,7 @@ def MLPMixer(
     input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
 
-    nn = layers.Conv2D(stem_width, kernel_size=patch_size, strides=patch_size, padding="VALID", name="stem")(inputs)
+    nn = layers.Conv2D(stem_width, kernel_size=patch_size, strides=patch_size, padding="valid", name="stem")(inputs)
     new_shape = [nn.shape[1] * nn.shape[2], stem_width] if backend.image_data_format() == "channels_last" else [stem_width, nn.shape[2] * nn.shape[3]]
     nn = layers.Reshape(new_shape)(nn)
 

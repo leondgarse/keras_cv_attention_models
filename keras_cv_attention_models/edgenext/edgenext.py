@@ -53,8 +53,8 @@ class PositionalEncodingFourier(layers.Layer):
         else:
             self.positional_embedding = functional.convert_to_tensor(positional_embedding, dtype=self.compute_dtype)
 
-        self.token_projection_ww = self.add_weight(name="ww", shape=(self.filters * 2, channels), trainable=True)
-        self.token_projection_bb = self.add_weight(name="bb", shape=(channels,), trainable=True)
+        self.token_projection_ww = self.add_weight(name="ww", initializer="glorot_uniform", shape=(self.filters * 2, channels), trainable=True)
+        self.token_projection_bb = self.add_weight(name="bb", initializer="zeros", shape=(channels,), trainable=True)
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
@@ -99,7 +99,7 @@ def cross_covariance_attention(inputs, num_heads=4, key_dim=0, qkv_bias=True, ou
         attention_scores = layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
     # [batch, num_heads, key_dim, key_dim] * [batch, num_heads, key_dim, hh * ww] -> [batch, num_heads, key_dim, hh * ww]
     attention_output = functional.matmul(attention_scores, value)
-    attention_output = functional.transpose(attention_output, perm=[0, 3, 1, 2])  # [batch, hh * ww, num_heads, key_dim]
+    attention_output = functional.transpose(attention_output, [0, 3, 1, 2])  # [batch, hh * ww, num_heads, key_dim]
     attention_output = functional.reshape(attention_output, [-1, *input_blocks, num_heads * key_dim])  # [batch, hh, ww, num_heads * key_dim]
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
@@ -124,7 +124,7 @@ def split_depthwise_transpose_attention(
     gathered_result = []
     for id, ii in enumerate(spx):
         sp = ii if id == 0 else (sp + ii)
-        sp = depthwise_conv2d_no_bias(sp, kernel_size=3, padding="SAME", use_bias=True, name=name + "spx_{}_".format(id + 1))
+        sp = depthwise_conv2d_no_bias(sp, kernel_size=3, padding="same", use_bias=True, name=name + "spx_{}_".format(id + 1))
         gathered_result.append(sp)
     gathered_result.append(remainder)
     attn = functional.concat(gathered_result, axis=channel_axis)
@@ -151,7 +151,7 @@ def split_depthwise_transpose_attention(
 
 
 def conv_encoder(inputs, mlp_ratio=4, kernel_size=7, layer_scale=1e-6, drop_rate=0, activation="gelu", name=""):
-    nn = depthwise_conv2d_no_bias(inputs, kernel_size, use_bias=True, padding="SAME", name=name)
+    nn = depthwise_conv2d_no_bias(inputs, kernel_size, use_bias=True, padding="same", name=name)
     nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
     nn = norm_inverted_bottleneck(nn, mlp_ratio, layer_scale, drop_rate, activation=activation, name=name)
     nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last -> channels_first
@@ -186,7 +186,7 @@ def EdgeNeXt(
     input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
     stem_width = stem_width if stem_width > 0 else out_channels[0]
-    nn = conv2d_no_bias(inputs, stem_width, kernel_size=stem_patch_size, strides=stem_patch_size, use_bias=True, padding="VALID", name="stem_")
+    nn = conv2d_no_bias(inputs, stem_width, kernel_size=stem_patch_size, strides=stem_patch_size, use_bias=True, padding="valid", name="stem_")
     nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="stem_")
 
     """ stages """
@@ -198,7 +198,7 @@ def EdgeNeXt(
             ds_name = stack_name + "downsample_"
             nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name=ds_name)
             # Set use_torch_padding=False, as kernel_size == 2, otherwise shape will be enlarged by 1
-            nn = conv2d_no_bias(nn, out_channel, kernel_size=2, strides=2, use_bias=True, padding="VALID", name=ds_name)
+            nn = conv2d_no_bias(nn, out_channel, kernel_size=2, strides=2, use_bias=True, padding="valid", name=ds_name)
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks

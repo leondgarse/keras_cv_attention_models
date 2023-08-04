@@ -50,7 +50,7 @@ def multi_head_self_attention_channel(
     # value = [batch, num_heads, key_dim, hh * ww], attention_output = [batch, num_heads, key_dim, hh * ww]
     # attention_output = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([attention_scores, value])
     attention_output = attention_scores @ value
-    attention_output = functional.transpose(attention_output, perm=[0, 3, 1, 2])  # [batch, hh * ww, num_heads, key_dim]
+    attention_output = functional.transpose(attention_output, [0, 3, 1, 2])  # [batch, hh * ww, num_heads, key_dim]
     attention_output = functional.reshape(attention_output, [-1, *input_blocks, num_heads * key_dim])
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 
@@ -172,7 +172,7 @@ def window_attention(inputs, window_size, num_heads=4, is_grid=False, attention_
 
 
 def conv_positional_encoding(inputs, kernel_size=3, use_norm=False, activation="gelu", name=""):
-    nn = depthwise_conv2d_no_bias(inputs, kernel_size, padding="SAME", use_bias=True, name=name)
+    nn = depthwise_conv2d_no_bias(inputs, kernel_size, padding="same", use_bias=True, name=name)
     if use_norm:
         nn = layer_norm(nn, name=name)
     if activation is not None:
@@ -229,7 +229,7 @@ def DaViT(
     input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
     stem_width = stem_width if stem_width > 0 else out_channels[0]
-    nn = conv2d_no_bias(inputs, stem_width, kernel_size=7, strides=stem_patch_size, use_bias=True, padding="SAME", name="stem_")
+    nn = conv2d_no_bias(inputs, stem_width, kernel_size=7, strides=stem_patch_size, use_bias=True, padding="same", name="stem_")
     nn = layer_norm(nn, name="stem_")
     # window_size = [input_shape[0] // window_ratio, input_shape[1] // window_ratio]
     window_size = [int(math.ceil(input_shape[0] / window_ratio)), int(math.ceil(input_shape[1] / window_ratio))]
@@ -244,7 +244,7 @@ def DaViT(
             ds_name = stack_name + "downsample_"
             nn = layer_norm(nn, name=ds_name)
             # Set use_torch_padding=False, as kernel_size == 2, otherwise shape will be enlarged by 1
-            nn = conv2d_no_bias(nn, out_channel, kernel_size=2, strides=2, use_bias=True, padding="SAME", use_torch_padding=False, name=ds_name)
+            nn = conv2d_no_bias(nn, out_channel, kernel_size=2, strides=2, use_bias=True, padding="same", use_torch_padding=False, name=ds_name)
         for block_id in range(num_block):
             block_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks

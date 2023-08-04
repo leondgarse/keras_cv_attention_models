@@ -62,11 +62,11 @@ def halo_attention(
     key_value = key_value if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(key_value)  # channels_first -> channels_last
     kv_padded = functional.pad(key_value, [[0, 0], [halo_size, halo_size], [halo_size, halo_size], [0, 0]])
     # kv_inp = [batch, hh, ww, kv_kernel * kv_kernel * (key_dim + out_shape)]
-    if backend.backend() == "pytorch":
-        kv_inp = functional.extract_patches(kv_padded, sizes=kv_kernel, strides=block_size, padding="VALID")
+    if backend.backend() == "torch":
+        kv_inp = functional.extract_patches(kv_padded, sizes=kv_kernel, strides=block_size, padding="valid")
     else:
-        # kv_inp = tf.image.extract_patches(kv_padded, sizes=sizes, strides=strides, rates=[1, 1, 1, 1], padding="VALID")
-        kv_inp = CompatibleExtractPatches(sizes=kv_kernel, strides=block_size, padding="VALID")(kv_padded)
+        # kv_inp = tf.image.extract_patches(kv_padded, sizes=sizes, strides=strides, rates=[1, 1, 1, 1], padding="valid")
+        kv_inp = CompatibleExtractPatches(sizes=kv_kernel, strides=block_size, padding="valid")(kv_padded)
     # kv_inp = rearrange(kv_inp, "B h w (hb wb hd c) -> B hd h w (hb wb) c", hb=kv_kernel, wb=kv_kernel, hd=num_heads)
     _, hh_kk, ww_kk, cc = kv_inp.shape
     cc_kk = cc // num_heads // kv_kernel // kv_kernel

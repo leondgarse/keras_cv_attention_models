@@ -85,10 +85,10 @@ def extract_feature(inputs, strides=2, activation="gelu", name=""):
     nn = se_module(nn, divisor=1, use_bias=False, activation=activation, use_conv=False, name=name + "extract_se_")
     nn = conv2d_no_bias(nn, input_channel, kernel_size=1, name=name + "extract_")
     nn = inputs + nn
-    return layers.MaxPool2D(pool_size=3, strides=strides, padding="SAME", name=name + "extract_maxpool")(nn) if strides > 1 else nn
+    return layers.MaxPool2D(pool_size=3, strides=strides, padding="same", name=name + "extract_maxpool")(nn) if strides > 1 else nn
     # if strides > 1:
     #     nn = tf.pad(nn, [[0, 0], [1, 1], [1, 1], [0, 0]])
-    #     nn = layers.MaxPool2D(pool_size=3, strides=strides, padding="VALID", name=name + "extract_maxpool")(nn)
+    #     nn = layers.MaxPool2D(pool_size=3, strides=strides, padding="valid", name=name + "extract_maxpool")(nn)
     # return nn
 
 
@@ -115,7 +115,7 @@ def GCViT(
     # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
     input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
-    nn = conv2d_no_bias(inputs, embed_dim, kernel_size=3, strides=2, use_bias=True, padding="SAME", name="stem_conv")
+    nn = conv2d_no_bias(inputs, embed_dim, kernel_size=3, strides=2, use_bias=True, padding="same", name="stem_conv")
     nn = down_sample(nn, name="stem_")
     height_axis, width_axis = (1, 2) if image_data_format() == "channels_last" else (2, 3)
 

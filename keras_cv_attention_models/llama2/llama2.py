@@ -36,7 +36,7 @@ class PositionalEncodingFourierRot1D(layers.Layer):
 
     def call(self, inputs, **kwargs):
         left, right = functional.unstack(inputs, axis=-1)
-        pos_cos, pos_sin = self.pos_cos[:left.shape[-3]], self.pos_sin[:left.shape[-3]]
+        pos_cos, pos_sin = self.pos_cos[: left.shape[-3]], self.pos_sin[: left.shape[-3]]
         out = functional.stack([left * pos_cos - right * pos_sin, right * pos_cos + left * pos_sin], axis=-1)
         return out
 
@@ -57,7 +57,7 @@ class RMSNorm(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs):
-        norm = inputs * functional.rsqrt(functional.reduce_mean(inputs ** 2, keepdims=True, axis=-1) + self.epsilon)
+        norm = inputs * functional.rsqrt(functional.reduce_mean(inputs**2, keepdims=True, axis=-1) + self.epsilon)
         return norm * self.gamma
 
     def get_config(self):
@@ -67,7 +67,7 @@ class RMSNorm(layers.Layer):
 
 
 def apply_positional_encoding_rotary(inputs, pos_emb_layer, with_cls_token=True):
-    """ Reshape is separate out from PositionalEncodingFourierRot1D for using dynamic reshape """
+    """Reshape is separated out from PositionalEncodingFourierRot1D for setting as dynamic"""
     num_heads = inputs.shape[-2]
     nn = layers.Reshape([-1, num_heads, inputs.shape[-1] // 2, 2])(inputs)
     nn = pos_emb_layer(nn)

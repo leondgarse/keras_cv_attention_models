@@ -38,7 +38,7 @@ def get_feature_sizes(input_shape, pyramid_levels=[3, 7]):
     feature_sizes = [input_shape[:2]]
     for _ in range(max(pyramid_levels)):
         pre_feat_size = feature_sizes[-1]
-        feature_sizes.append(((pre_feat_size[0] - 1) // 2 + 1, (pre_feat_size[1] - 1) // 2 + 1))  # ceil mode, like padding="SAME" downsampling
+        feature_sizes.append(((pre_feat_size[0] - 1) // 2 + 1, (pre_feat_size[1] - 1) // 2 + 1))  # ceil mode, like padding="same" downsampling
     return feature_sizes
 
 

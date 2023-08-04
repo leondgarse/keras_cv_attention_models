@@ -68,12 +68,12 @@
   ```py
   from keras_cv_attention_models.pytorch_backend import layers, models
   inputs = layers.Input([3, 224, 224])
-  pre = layers.Conv2D(32, kernel_size=3, padding="SAME", name="deep_pre_conv")(inputs)
-  deep_1 = layers.Conv2D(32, kernel_size=3, padding="SAME", name="deep_1_1_conv")(pre)
-  deep_1 = layers.Conv2D(32, kernel_size=3, padding="SAME", name="deep_1_2_conv")(deep_1)
-  deep_2 = layers.Conv2D(32, kernel_size=3, padding="SAME", name="deep_2_conv")(pre)
+  pre = layers.Conv2D(32, kernel_size=3, padding="same", name="deep_pre_conv")(inputs)
+  deep_1 = layers.Conv2D(32, kernel_size=3, padding="same", name="deep_1_1_conv")(pre)
+  deep_1 = layers.Conv2D(32, kernel_size=3, padding="same", name="deep_1_2_conv")(deep_1)
+  deep_2 = layers.Conv2D(32, kernel_size=3, padding="same", name="deep_2_conv")(pre)
   deep = layers.Add(name="deep_add")([deep_1, deep_2])
-  short = layers.Conv2D(32, kernel_size=3, padding="SAME", name="short_conv")(inputs)
+  short = layers.Conv2D(32, kernel_size=3, padding="same", name="short_conv")(inputs)
   outputs = layers.Add(name="outputs")([short, deep])
   outputs = layers.GlobalAveragePooling2D()(outputs)
   outputs = layers.Dense(10)(outputs)

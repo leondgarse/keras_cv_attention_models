@@ -73,7 +73,7 @@ def moga_block(inputs, mlp_ratio=4, layer_scale=0, drop_rate=0, attn_activation=
     """ MLP proj 1 """
     nn = batchnorm_with_activation(attn_out, activation=None, name=name + "mlp_")
     nn = conv2d_no_bias(nn, input_channel * mlp_ratio, use_bias=True, name=name + "mlp_1_")
-    nn = depthwise_conv2d_no_bias(nn, kernel_size=3, padding="SAME", use_bias=True, name=name + "mlp_2_")
+    nn = depthwise_conv2d_no_bias(nn, kernel_size=3, padding="same", use_bias=True, name=name + "mlp_2_")
     nn = activation_by_name(nn, activation=activation, name=name + "mlp_")
     # drop
 
@@ -106,9 +106,9 @@ def MogaNet(
     inputs = layers.Input(input_shape)
 
     """ Stem """
-    nn = conv2d_no_bias(inputs, out_channels[0] // 2, kernel_size=3, strides=2, padding="SAME", use_bias=True, name="stem_1_")
+    nn = conv2d_no_bias(inputs, out_channels[0] // 2, kernel_size=3, strides=2, padding="same", use_bias=True, name="stem_1_")
     nn = batchnorm_with_activation(nn, activation=activation, name="stem_1_")
-    nn = conv2d_no_bias(nn, out_channels[0], kernel_size=3, strides=2, padding="SAME", use_bias=True, name="stem_2_")
+    nn = conv2d_no_bias(nn, out_channels[0], kernel_size=3, strides=2, padding="same", use_bias=True, name="stem_2_")
     nn = batchnorm_with_activation(nn, activation=None, name="stem_2_")
 
     """ stacks """

@@ -30,9 +30,9 @@ def inception_dwconv2d(inputs, square_kernel_size=3, band_kernel_size=11, branch
     split_size = int(input_channel * branch_ratio)
     nn_short, nn_hw, nn_ww, nn_hh = functional.split(inputs, [-1, split_size, split_size, split_size], axis=channel_axis)
 
-    nn_hw = depthwise_conv2d_no_bias(nn_hw, kernel_size=square_kernel_size, padding="SAME", use_bias=True, name=name + "hw_")
-    nn_ww = depthwise_conv2d_no_bias(nn_ww, kernel_size=(1, band_kernel_size), padding="SAME", use_bias=True, name=name + "ww_")
-    nn_hh = depthwise_conv2d_no_bias(nn_hh, kernel_size=(band_kernel_size, 1), padding="SAME", use_bias=True, name=name + "hh_")
+    nn_hw = depthwise_conv2d_no_bias(nn_hw, kernel_size=square_kernel_size, padding="same", use_bias=True, name=name + "hw_")
+    nn_ww = depthwise_conv2d_no_bias(nn_ww, kernel_size=(1, band_kernel_size), padding="same", use_bias=True, name=name + "ww_")
+    nn_hh = depthwise_conv2d_no_bias(nn_hh, kernel_size=(band_kernel_size, 1), padding="same", use_bias=True, name=name + "hh_")
 
     out = functional.concat([nn_short, nn_hw, nn_ww, nn_hh], axis=channel_axis)
     return out

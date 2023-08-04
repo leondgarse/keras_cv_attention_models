@@ -37,10 +37,10 @@ PRETRAINED_DICT = {
 def res_conv_bn_block(inputs, layer_scale=0, drop_rate=0, activation="gelu", name=""):
     input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
 
-    nn = conv2d_no_bias(inputs, input_channel, kernel_size=3, use_bias=True, padding="SAME", name=name + "1_")  # epsilon=1e-5
+    nn = conv2d_no_bias(inputs, input_channel, kernel_size=3, use_bias=True, padding="same", name=name + "1_")  # epsilon=1e-5
     nn = batchnorm_with_activation(nn, activation=activation, name=name + "1_")
 
-    nn = conv2d_no_bias(nn, input_channel, kernel_size=3, use_bias=True, padding="SAME", name=name + "2_")
+    nn = conv2d_no_bias(nn, input_channel, kernel_size=3, use_bias=True, padding="same", name=name + "2_")
     nn = batchnorm_with_activation(nn, activation=None, name=name + "2_")  # epsilon=1e-5
     nn = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name)
     return nn
@@ -143,7 +143,7 @@ def global_carrier_tokens(inputs, window_size=(7, 7), token_size=2, name=""):
     strides = [input_size[0] // outputs[0], input_size[1] // outputs[1]]
     pool_size = [input_size[0] - (outputs[0] - 1) * strides[0], input_size[1] - (outputs[1] - 1) * strides[1]]
 
-    nn = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="SAME", use_bias=True, name=name)
+    nn = depthwise_conv2d_no_bias(inputs, kernel_size=3, padding="same", use_bias=True, name=name)
     nn = layers.AvgPool2D(pool_size=pool_size, strides=strides)(nn)
     # print(f"[global_carrier_tokens] {inputs.shape = }, {outputs = }, {pool_size = }, {strides = }, {nn.shape = }")
     # nn = window_partition(nn, token_size, token_size)

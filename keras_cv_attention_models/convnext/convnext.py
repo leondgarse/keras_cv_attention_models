@@ -62,7 +62,7 @@ def global_response_normalize(inputs, axis="auto", name=None):
     axis = (-1 if backend.image_data_format() == "channels_last" else 1) if axis == "auto" else axis
     num_dims = len(inputs.shape)
     axis = (num_dims + axis) if axis < 0 else axis
-    if backend.backend() == "pytorch":
+    if backend.backend() == "torch":
         nn = functional.norm(inputs, axis=[ii for ii in range(1, num_dims) if ii != axis], keepdims=True)
     else:
         # An ugly work around for `tf.norm` run into `loss=nan`
@@ -87,7 +87,7 @@ def add_with_layer_scale_and_drop_block(short, deep, layer_scale=0, residual_sca
 
 
 def block(inputs, output_channel, layer_scale_init_value=1e-6, use_grn=False, layer_norm_epsilon=1e-6, drop_rate=0, activation="gelu", name=""):
-    nn = depthwise_conv2d_no_bias(inputs, kernel_size=7, padding="SAME", use_bias=True, name=name)
+    nn = depthwise_conv2d_no_bias(inputs, kernel_size=7, padding="same", use_bias=True, name=name)
     nn = layer_norm(nn, epsilon=layer_norm_epsilon, name=name)
 
     nn = nn if backend.image_data_format() == "channels_last" else layers.Permute((2, 3, 1), name=name + "permute_pre")(nn)
@@ -127,7 +127,7 @@ def ConvNeXt(
 
     """ Stem """
     stem_width = stem_width if stem_width > 0 else out_channels[0]
-    nn = conv2d_no_bias(inputs, stem_width, kernel_size=4, strides=4, padding="VALID", use_bias=True, name="stem_")
+    nn = conv2d_no_bias(inputs, stem_width, kernel_size=4, strides=4, padding="valid", use_bias=True, name="stem_")
     nn = layer_norm(nn, epsilon=layer_norm_epsilon, name="stem_")
 
     """ Blocks """

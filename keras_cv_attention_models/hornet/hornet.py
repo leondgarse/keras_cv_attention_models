@@ -54,7 +54,7 @@ def global_local_filter(inputs, name=None):
     _, height, width, channel = inputs.shape
     nn = layer_norm(inputs, name=name and name + "pre_")
     dw, fft = functional.split(nn, 2, axis=-1)
-    dw = depthwise_conv2d_no_bias(dw, 3, padding="SAME", use_bias=False, name=name)
+    dw = depthwise_conv2d_no_bias(dw, 3, padding="same", use_bias=False, name=name)
 
     # fft = tf.py_function(lambda xx: np.fft.rfft2(xx, axes=(1, 2), norm='ortho'), [fft], Tout=tf.complex128)
     # np.fft.rfft2(aa, axes=[1, 2]) ==> tf.transpose(tf.signal.rfft2d(tf.transpose(aa, [0, 3, 1, 2])), [0, 2, 3, 1])
@@ -92,7 +92,7 @@ def gnconv(inputs, use_global_local_filter=False, dw_kernel_size=7, gn_split=3, 
     if use_global_local_filter:
         dw_list = global_local_filter(dw_list, name=name and name + "gf_")
     else:
-        dw_list = depthwise_conv2d_no_bias(dw_list, kernel_size=dw_kernel_size, padding="SAME", use_bias=True, name=name and name + "list_")
+        dw_list = depthwise_conv2d_no_bias(dw_list, kernel_size=dw_kernel_size, padding="same", use_bias=True, name=name and name + "list_")
     dw_list *= scale
 
     dw_list = functional.split(dw_list, split_dims, axis=channel_axis)

@@ -72,7 +72,7 @@ def expand_dims(inputs, axis, name=None):
     return wrapper(partial(torch.unsqueeze, dim=axis), inputs, name=name)
 
 
-def extract_patches(inputs, sizes=1, strides=1, rates=1, padding="VALID", data_format="channels_last", compressed=True, name=None):
+def extract_patches(inputs, sizes=1, strides=1, rates=1, padding="valid", data_format="channels_last", compressed=True, name=None):
     """
     tf.image.extract_patches -> out shape [batch, patch_height, patch_width, kernel_size * kernel_szie * channel]
     torch.functional.F.unfold -> out shape [batch, channel * kernel_size * kernel_szie, patch_height * patch_width]
@@ -85,7 +85,7 @@ def extract_patches(inputs, sizes=1, strides=1, rates=1, padding="VALID", data_f
     >>> image[:, :, 1] += 128 # G
     >>> image[:, :, 2] += 256 # B
     >>> aa = np.expand_dims(image.astype("float32"), 0)
-    >>> tf_out = tf.image.extract_patches(aa, sizes=[1, kernel_size, kernel_size, 1], strides=[1, 2, 2, 1], rates=[1, 1, 1, 1], padding='VALID')
+    >>> tf_out = tf.image.extract_patches(aa, sizes=[1, kernel_size, kernel_size, 1], strides=[1, 2, 2, 1], rates=[1, 1, 1, 1], padding='valid')
     >>> torch_out = functional.extract_patches(torch.from_numpy(image[None].astype('float32')), kernel_size, 2)
     >>> print(f"{np.allclose(tf_out, torch_out.detach()) = }")
     """
@@ -97,8 +97,8 @@ def extract_patches(inputs, sizes=1, strides=1, rates=1, padding="VALID", data_f
     # dilation_rate can be 2 different values, used in DiNAT
     dilation_rate = (rates if len(rates) == 2 else rates[1:3]) if isinstance(rates, (list, tuple)) else (rates, rates)
 
-    padding = padding.upper()
-    pad_value = kernel_size // 2 if padding == "SAME" else 0
+    padding = padding.lower()
+    pad_value = kernel_size // 2 if padding == "same" else 0
     unfold = torch.nn.Unfold(kernel_size=kernel_size, dilation=dilation_rate, padding=pad_value, stride=strides)
     patch_size = compute_conv_output_size((height, width), kernel_size, strides, padding, dilation_rate=dilation_rate)
     if data_format == "channels_first":

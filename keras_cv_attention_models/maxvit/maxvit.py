@@ -46,7 +46,7 @@ def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion
         use_torch_padding, epsilon, momentum = False, 0.001, 0.99
 
     if strides > 1:
-        shortcut = layers.AvgPool2D(strides, strides=strides, padding="SAME", name=name + "shortcut_pool")(inputs)
+        shortcut = layers.AvgPool2D(strides, strides=strides, padding="same", name=name + "shortcut_pool")(inputs)
         shortcut = conv2d_no_bias(shortcut, output_channel, 1, strides=1, use_bias=True, name=name + "shortcut_") if conv_short_cut else shortcut
     else:
         shortcut = inputs
@@ -55,7 +55,7 @@ def res_MBConv(inputs, output_channel, conv_short_cut=True, strides=1, expansion
     preact = batchnorm_with_activation(inputs, activation=None, zero_gamma=False, epsilon=epsilon, momentum=momentum, name=name + "preact_")
     nn = conv2d_no_bias(preact, output_channel * expansion, 1, strides=1, padding="same", name=name + "expand_")
     nn = batchnorm_with_activation(nn, activation=activation, epsilon=epsilon, momentum=momentum, name=name + "expand_")
-    nn = depthwise_conv2d_no_bias(nn, 3, strides=strides, padding="SAME", use_torch_padding=use_torch_padding, name=name + "MB_")
+    nn = depthwise_conv2d_no_bias(nn, 3, strides=strides, padding="same", use_torch_padding=use_torch_padding, name=name + "MB_")
     nn = batchnorm_with_activation(nn, activation=activation, zero_gamma=False, epsilon=epsilon, momentum=momentum, name=name + "MB_dw_")
     if se_ratio:
         nn = se_module(nn, se_ratio=se_ratio / expansion, activation="swish", name=name + "se/")

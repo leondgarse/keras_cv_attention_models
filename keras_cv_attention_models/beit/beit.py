@@ -244,7 +244,7 @@ def scaled_dot_product_attention(query, key, value, output_shape, pos_emb=None, 
     # output = functional.matmul(attention_scores, value)    # [batch, num_heads, q_blocks, key_dim * attn_ratio]
     # output = layers.Lambda(lambda xx: functional.matmul(xx[0], xx[1]))([attention_scores, value])
     attention_output = attention_scores @ value
-    output = functional.transpose(attention_output, perm=[0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
+    output = functional.transpose(attention_output, [0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
     # output = functional.reshape(output, [-1, *blocks, np.prod(output.shape[1:]) // np.prod(blocks)])  # [batch, q_blocks, channel * attn_ratio]
     output = layers.Reshape([*blocks, np.prod(output.shape[2:])])(output) if -1 in blocks else layers.Reshape([*blocks, -1])(output)
 

@@ -78,7 +78,7 @@ def causal_self_attention(inputs, block_size, num_heads, use_bias, dropout, name
     attn = layers.Softmax(axis=-1, name=name + "attention_scores")(attn)
     attn_out = attn @ value
 
-    output = functional.transpose(attn_out, perm=[0, 2, 1, 3])
+    output = functional.transpose(attn_out, [0, 2, 1, 3])
     output = layers.Reshape([-1, input_channels])(output)
     output = layers.Dense(input_channels, use_bias=use_bias, name=name + "attn_out")(output)
     output = layers.Dropout(dropout)(output)
@@ -93,7 +93,7 @@ def attention_mlp_block(inputs, block_size, num_heads, use_bias, dropout, activa
 
     mlp = layers.LayerNormalization(axis=-1, name=name + "mlp_ln")(attn_out)
     mlp = layers.Dense(4 * input_channels, use_bias=use_bias, name=name + "mlp.0")(mlp)
-    mlp = functional.gelu(mlp, approximate=True, name=name + "mlp.1") if activation == "gelu/app" else layers.Activation(activation, name=name + "mlp.1")(mlp)
+    mlp = functional.gelu(mlp, approximate=True) if activation == "gelu/app" else layers.Activation(activation, name=name)(mlp)
     mlp = layers.Dense(input_channels, use_bias=use_bias, name=name + "mlp.2")(mlp)
     mlp = layers.Dropout(dropout)(mlp)
 

@@ -84,7 +84,7 @@ def activation_by_name(inputs, activation="relu", name=None):
         return layers.PReLU(shared_axes=shared_axes, alpha_initializer=initializers.Constant(0.25), name=layer_name)(inputs)
     elif activation_lower.startswith("gelu/app"):
         # gelu/approximate
-        return functional.gelu(inputs, approximate=True, name=layer_name)
+        return functional.gelu(inputs, approximate=True)
     elif activation_lower.startswith("gelu/linear"):
         return gelu_linear(inputs)
     elif activation_lower.startswith("leaky_relu/"):
@@ -265,26 +265,26 @@ def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, axis="auto", name=
     return GroupNormalization(groups=groups, axis=norm_axis, epsilon=epsilon, name=name and name + "group_norm")(inputs)
 
 
-def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", use_bias=False, groups=1, use_torch_padding=True, name=None, **kwargs):
+def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="valid", use_bias=False, groups=1, use_torch_padding=True, name=None, **kwargs):
     """Typical Conv2D with `use_bias` default as `False` and fixed padding"""
     kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else (kernel_size, kernel_size)
     if isinstance(padding, str):
-        padding = padding.upper()
-        pad = (kernel_size[0] // 2, kernel_size[1] // 2) if use_torch_padding and padding == "SAME" else (0, 0)
+        padding = padding.lower()
+        pad = (kernel_size[0] // 2, kernel_size[1] // 2) if use_torch_padding and padding == "same" else (0, 0)
     else:  # int or list or tuple with specific value
         pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
-        padding = "SAME" if max(pad) > 0 else "VALID"
+        padding = "same" if max(pad) > 0 else "valid"
 
-    if use_torch_padding and backend.is_tensorflow_backend and padding == "SAME":
+    if use_torch_padding and backend.backend() == "tensorflow" and padding == "same":
         inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs) if max(pad) > 0 else inputs
-        padding = "VALID"
+        padding = "valid"
 
     groups = max(1, groups)
     return layers.Conv2D(
         filters,
         kernel_size,
         strides=strides,
-        padding="VALID" if padding == "VALID" else (pad if use_torch_padding else "SAME"),
+        padding="valid" if padding == "valid" else (pad if use_torch_padding else "same"),
         use_bias=use_bias,
         groups=groups,
         name=name and name + "conv",
@@ -292,24 +292,24 @@ def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="VALID", u
     )(inputs)
 
 
-def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="VALID", use_bias=False, use_torch_padding=True, name=None, **kwargs):
+def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="valid", use_bias=False, use_torch_padding=True, name=None, **kwargs):
     """Typical DepthwiseConv2D with `use_bias` default as `False` and fixed padding"""
     kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else (kernel_size, kernel_size)
     if isinstance(padding, str):
-        padding = padding.upper()
-        pad = (kernel_size[0] // 2, kernel_size[1] // 2) if use_torch_padding and padding == "SAME" else (0, 0)
+        padding = padding.lower()
+        pad = (kernel_size[0] // 2, kernel_size[1] // 2) if use_torch_padding and padding == "same" else (0, 0)
     else:  # int or list or tuple with specific value
         pad = padding if isinstance(padding, (list, tuple)) else (padding, padding)
-        padding = "SAME" if max(pad) > 0 else "VALID"
+        padding = "same" if max(pad) > 0 else "valid"
 
-    if use_torch_padding and backend.is_tensorflow_backend and padding == "SAME":
+    if use_torch_padding and backend.backend() == "tensorflow" and padding == "same":
         inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs) if max(pad) > 0 else inputs
-        padding = "VALID"
+        padding = "valid"
 
     return layers.DepthwiseConv2D(
         kernel_size,
         strides=strides,
-        padding="VALID" if padding == "VALID" else (pad if use_torch_padding else "SAME"),
+        padding="valid" if padding == "valid" else (pad if use_torch_padding else "same"),
         use_bias=use_bias,
         name=name and name + "dw_conv",
         **kwargs,
@@ -404,7 +404,7 @@ def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
     nn = functional.pad(nn, [[0, 0], [pad, pad]])
     nn = functional.expand_dims(nn, channel_axis)
 
-    nn = layers.Conv1D(1, kernel_size=kernel_size, strides=1, padding="VALID", use_bias=False, name=name and name + "conv1d")(nn)
+    nn = layers.Conv1D(1, kernel_size=kernel_size, strides=1, padding="valid", use_bias=False, name=name and name + "conv1d")(nn)
     nn = functional.squeeze(nn, axis=channel_axis)
     nn = activation_by_name(nn, activation="sigmoid", name=name)
     nn = nn[:, None, None] if image_data_format() == "channels_last" else nn[:, :, None, None]
@@ -414,8 +414,10 @@ def eca_module(inputs, gamma=2.0, beta=1.0, name=None, **kwargs):
 
 def drop_connect_rates_split(num_blocks, start=0.0, end=0.0):
     """split drop connect rate in range `(start, end)` according to `num_blocks`"""
-    drop_connect_rates = functional.split(functional.linspace(start, end, sum(num_blocks)), num_blocks)
-    return [ii.numpy().tolist() for ii in drop_connect_rates]
+    # drop_connect_rates = functional.split(functional.linspace(start, end, sum(num_blocks)), num_blocks)
+    cum_split = [sum(num_blocks[: id + 1]) for id, _ in enumerate(num_blocks[:-1])]
+    drop_connect_rates = np.split(np.linspace(start, end, sum(num_blocks)), cum_split)
+    return [ii.tolist() for ii in drop_connect_rates]
 
 
 def drop_block(inputs, drop_rate=0, name=None):
@@ -462,12 +464,12 @@ def __anti_alias_downsample_initializer__(weight_shape, dtype="float32"):
     return functional.convert_to_tensor(ww, dtype=dtype)
 
 
-def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="SAME", trainable=False, name=None):
+def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="same", trainable=False, name=None):
     """DepthwiseConv2D performing anti-aliasing downsample, arxiv: https://arxiv.org/pdf/1904.11486.pdf"""
     return layers.DepthwiseConv2D(
         kernel_size=kernel_size,
         strides=strides,
-        padding="SAME",
+        padding="same",
         use_bias=False,
         trainable=trainable,
         depthwise_initializer=__anti_alias_downsample_initializer__,
@@ -496,7 +498,7 @@ def __unfold_filters_initializer__(weight_shape, dtype="float32"):
     return functional.convert_to_tensor(ww)
 
 
-def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=2, dilation_rate=1, padding="SAME", compressed="auto", name=None):
+def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=2, dilation_rate=1, padding="same", compressed="auto", name=None):
     paded = kernel_size // 2 if padding else 0
     if compressed == "auto":
         compressed = True if len(patches.shape) == 4 else False
@@ -517,7 +519,7 @@ def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=
         kernel_size=kernel_size,
         strides=strides,
         dilation_rate=dilation_rate,
-        padding="VALID",
+        padding="valid",
         output_padding=paded,
         use_bias=False,
         trainable=False,
@@ -537,7 +539,7 @@ def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=
 
 @backend.register_keras_serializable(package="kecamCommon")
 class CompatibleExtractPatches(layers.Layer):
-    def __init__(self, sizes=3, strides=2, rates=1, padding="SAME", compressed=True, force_conv=False, **kwargs):
+    def __init__(self, sizes=3, strides=2, rates=1, padding="same", compressed=True, force_conv=False, **kwargs):
         super().__init__(**kwargs)
         self.sizes, self.strides, self.rates, self.padding = sizes, strides, rates, padding
         self.compressed, self.force_conv = compressed, force_conv
@@ -560,7 +562,7 @@ class CompatibleExtractPatches(layers.Layer):
 
     def build(self, input_shape):
         _, self.height, self.width, self.channel = input_shape
-        if self.padding.upper() == "SAME":
+        if self.padding.lower() == "same":
             pad_value = self.kernel_size // 2
             self.pad_value_list = [[0, 0], [pad_value, pad_value], [pad_value, pad_value], [0, 0]]
             self.height, self.width = self.height + pad_value * 2, self.width + pad_value * 2
@@ -574,7 +576,7 @@ class CompatibleExtractPatches(layers.Layer):
                 kernel_size=self.kernel_size,
                 strides=self.strides,
                 dilation_rate=self.dilation_rate,
-                padding="VALID",
+                padding="valid",
                 use_bias=False,
                 trainable=False,
                 kernel_initializer=__unfold_filters_initializer__,
@@ -606,7 +608,7 @@ class CompatibleExtractPatches(layers.Layer):
             else:
                 out = functional.reshape(out, [-1, conv_rr.shape[1], conv_rr.shape[2], self.kernel_size, self.kernel_size, self.channel])
         else:
-            out = functional.extract_patches(inputs, self._sizes_, self._strides_, self._rates_, "VALID")
+            out = functional.extract_patches(inputs, self._sizes_, self._strides_, self._rates_, "VALID")  # must be upper word VALID/SAME
             if not self.compressed:
                 # [batch, hh, ww, kernel, kernel, channnel]
                 out = functional.reshape(out, [-1, out.shape[1], out.shape[2], self.kernel_size, self.kernel_size, self.channel])
