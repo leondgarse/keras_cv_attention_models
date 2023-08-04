@@ -1,0 +1,41 @@
+from keras_cv_attention_models.llama2.llama2 import Llama2, Llama2_7B, RunPrediction, PositionalEncodingFourierRot1D, RMSNorm
+
+__head_doc__ = """
+Keras implementation of [Github openai/gpt-2](https://github.com/openai/gpt-2).
+Paper [Language Models are Unsupervised Multitask Learners](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf).
+"""
+
+__tail_doc__ = """  vocab_size: model vocab size.
+  max_block_size: number of tokens generated in each sample.
+  include_top: boolena value if including output Dense head layer. Set false to exclude the head layer.
+  dropout: float value for drop out rate for Embedding layer and attention blocks.
+  activation: activation used in whole model, default `gelu/app`.
+  pretrained: None or one of ["webtext", "huggingface"].
+      - if "webtext", will try to download and load ported weights if available.
+      - if "huggingface", will try converting and loading weights from huggingface `transformers` pacakge.
+      - if None, will initialize model with ranbdom weights.
+
+Returns:
+    A `keras.Model` instance.
+"""
+
+Llama2.__doc__ = __head_doc__ + """
+Args:
+  num_blocks: .
+  embedding_size: .
+  num_heads: .
+  block_use_bias: .
+  model_name: string, model name.
+""" + __tail_doc__ + """
+Model architectures:
+  | Model       | Params  | FLOPs   | vocab_size | LAMBADA PPL |
+  | ------------| ------- | ------- | ---------- | ----------- |
+  | GPT2_Base   | 163.04M | 146.42G | 50257      | 35.13       |
+  | GPT2_Medium | 406.29M | 415.07G | 50257      | 15.60       |
+  | GPT2_Large  | 838.36M | 890.28G | 50257      | 10.87       |
+  | GPT2_XLarge | 1.638B  | 1758.3G | 50257      | 8.63        |
+"""
+
+Llama2_7B.__doc__ = __head_doc__ + """
+Args:
+""" + __tail_doc__

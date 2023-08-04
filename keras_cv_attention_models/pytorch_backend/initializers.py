@@ -63,7 +63,10 @@ class Constant(Initializer):
         super().__init__(seed=None)
 
     def __call__(self, shape, dtype=None, **kwargs):
-        return torch.nn.init.constant_(torch.empty(shape), val=self.value)
+        if hasattr(self.value, "shape") and tuple(self.value.shape) == tuple(shape):
+            return self.value
+        else:
+            return torch.nn.init.constant_(torch.empty(shape), val=self.value)
 
     def get_config(self):
         return {"value": self.value}
