@@ -1544,7 +1544,7 @@
   | [LLaMA2_15M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_15m_tiny_stories.h5)  | 24.41M | 4.06G  | 32000      | 1.072    |  |
   | [LLaMA2_42M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_42m_tiny_stories.h5)  | 58.17M | 50.7G  | 32000      | 0.847    |  |
   | [LLaMA2_110M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_110m_tiny_stories.h5) | 134.1M | 130.2G | 32000      | 0.760    |  |
-  | LLaMA2_7B   | 6.74G  | 14.54T | 32000      |          |  |
+  | LLaMA2_7B   | 6.74B  | 14.54T | 32000      |          |  |
 ***
 
 # Licenses
