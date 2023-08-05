@@ -586,11 +586,11 @@
     ```
 ## Using keras core as backend
   - **[Experimental] Set os environment `export KECAM_BACKEND='keras_core'` to enable this keras_core backend.**
-  - `keras-core` supports tensorflow / torch / jax backends, by editting `~/.keras/keras.json` `"backend"` value.
+  - `keras-core` has its own backends, supporting tensorflow / torch / jax, by editting `~/.keras/keras.json` `"backend"` value.
   - Currently most recognition models except `HaloNet` / `BotNet` supported, also `GPT2` / `LLaMA2` supported.
   - **Basic model build and prediction**.
     ```py
-    !pip install sentencepiece
+    !pip install sentencepiece  # required for llama2 tokenizer
     os.environ['KECAM_BACKEND'] = 'keras_core'
     from keras_cv_attention_models import llama2
     # Using TensorFlow backend  <-- Note: this line is printed only when using keras_core as backend
@@ -1544,6 +1544,7 @@
   | [LLaMA2_15M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_15m_tiny_stories.h5)  | 24.41M | 4.06G  | 32000      | 1.072    |  |
   | [LLaMA2_42M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_42m_tiny_stories.h5)  | 58.17M | 50.7G  | 32000      | 0.847    |  |
   | [LLaMA2_110M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_110m_tiny_stories.h5) | 134.1M | 130.2G | 32000      | 0.760    |  |
+  | LLaMA2_7B   | 6.74G  | 14.54T | 32000      |          |  |
 ***
 
 # Licenses

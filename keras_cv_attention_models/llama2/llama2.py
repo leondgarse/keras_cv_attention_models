@@ -162,7 +162,7 @@ def LLaMA2(
     model = models.Model(inputs, nn, name=model_name)
     model.max_block_size = max_block_size  # or model.get_layer('pos_idx').block_size
     model.run_prediction = RunPrediction(model, tokenizer="SentencePieceTokenizer")
-    if pretrained.endswith(".pt") or pretrained.endswith(".pth"):
+    if pretrained is not None and (pretrained.endswith(".pt") or pretrained.endswith(".pth")):
         load_weights_from_pytorch(model, source_pt_path=pretrained, save_path="~/.keras/models")
     else:
         reload_model_weights(model, PRETRAINED_DICT, "llama2", pretrained)
@@ -194,7 +194,7 @@ def LLaMA2_110M(max_block_size=1024, vocab_size=32000, include_top=True, activat
 
 
 @register_model
-def LLaMA2_7B(max_block_size=2048, vocab_size=50257, include_top=True, activation="swish", pretrained=None, **kwargs):
+def LLaMA2_7B(max_block_size=2048, vocab_size=32000, include_top=True, activation="swish", pretrained=None, **kwargs):
     num_blocks = 32
     embedding_size = 4096
     hidden_divisible = 256

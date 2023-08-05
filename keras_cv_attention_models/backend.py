@@ -17,6 +17,7 @@ if is_tensorflow_backend:
             import torch
 
             is_tensorflow_backend = False
+            is_torch_backend = True
         except ModuleNotFoundError as ee:
             raise ModuleNotFoundError("Neither tensorflow nor torch found")
 
@@ -41,6 +42,7 @@ else:
 
 
 def backend():
+    """backend() value can still be "torch" for `keras_core` backend, even `is_torch_backend` is False"""
     if is_tensorflow_backend:
         return tf.keras.backend.backend()
     elif is_torch_backend:
