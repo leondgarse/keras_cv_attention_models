@@ -171,15 +171,24 @@ def GPT2_XLarge(max_block_size=1024, vocab_size=50257, include_top=True, activat
 
 
 class RunPrediction:
-    def __init__(self, model):
-        self.model = model
+    def __init__(self, model, tokenizer="GPT2Tokenizer"):
+        self.model, self.tokenizer, self.built = model, tokenizer, False
+
+    def build(self):
+        from keras_cv_attention_models.clip import tokenizer
+
+        self.tokenizer = getattr(tokenizer, self.tokenizer)()
+        self.max_block_size = self.model.max_block_size
+        self.vocab_size = self.model.output_shape[-1]
+        self.vocab_indexes = np.arange(self.vocab_size)
+        self.built = True
 
     @staticmethod
     def softmax_numpy(inputs, axis=-1):
         exp_inputs = np.exp(inputs - np.max(inputs, axis=axis))
         return exp_inputs / np.sum(exp_inputs, keepdims=True, axis=axis)
 
-    def __call__(self, inputs, num_samples=1, max_new_tokens=500, temperature=0.8, top_k=200, eof="<|endoftext|>"):
+    def __call__(self, inputs, num_samples=1, max_new_tokens=500, temperature=0.8, top_k=200, stop_at_eot=True):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
@@ -190,43 +199,40 @@ class RunPrediction:
           max_new_tokens: number of tokens generated in each sample.
           temperature: 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions.
           top_k: retain only the top_k most likely tokens, clamp others to have 0 probability.
-          eof: stop iteration once meet this output. Set None to disable.
+          stop_at_eot: boolean value if stop at eot_token output.
         """
-        from keras_cv_attention_models.clip.tokenizer import GPT2Tokenizer
+        if not self.built:
+            self.build()
 
-        enc = GPT2Tokenizer()
-        start_ids = np.array(enc.encode(inputs))
-
-        max_block_size = self.model.get_layer("pos_idx").block_size
-        vocab_size = self.model.output_shape[-1]
-        vocab_indexes = np.arange(vocab_size)
+        start_ids = np.array(self.tokenizer.encode(inputs, add_sot=True))
         for k in range(num_samples):
             inputs_idxes = start_ids
-            print(enc.decode(inputs_idxes.tolist()), end="", flush=True)
+            print(self.tokenizer.decode(inputs_idxes.tolist()), end="", flush=True)
             for _ in range(max_new_tokens):
                 # if the sequence context is growing too long we must crop it at block_size
-                idx_cond = inputs_idxes if inputs_idxes.shape[-1] <= max_block_size else inputs_idxes[-max_block_size:]
+                idx_cond = inputs_idxes if inputs_idxes.shape[-1] <= self.max_block_size else inputs_idxes[-self.max_block_size :]
                 # forward the model to get the logits for the index in the sequence
                 logits = self.model(functional.convert_to_tensor(idx_cond, dtype="int64")[None])
                 # pluck the logits at the final step and scale by desired temperature
                 logits = logits[:, -1, :] / temperature
-                logits = logits.detach().cpu().numpy() if hasattr(logits, "detach") else logits.numpy()
+                logits = logits.detach().cpu() if hasattr(logits, "detach") else logits
+                logits = logits.numpy() if hasattr(logits, "numpy") else np.array(logits)  # np.array is for JAX
 
                 if top_k is not None:
                     # optionally crop the logits to only the top k options
-                    threshold_pos = min(top_k, vocab_size)
+                    threshold_pos = min(top_k, self.vocab_size)
                     logits_threshold = np.sort(logits)[:, -threshold_pos]
                     logits[logits < logits_threshold[:, None]] = -float("Inf")
 
                 # sample from the distribution
                 probs = self.softmax_numpy(logits, axis=-1)
-                multinomial_pick = np.array([np.random.choice(vocab_indexes, p=prob) for prob in probs])
+                multinomial_pick = np.array([np.random.choice(self.vocab_indexes, p=prob) for prob in probs])
                 inputs_idxes = np.concatenate([inputs_idxes, multinomial_pick], axis=-1)
-
-                next_word = enc.decode(inputs_idxes[-1:].tolist())
-                if next_word == eof:
-                    break
+                next_word = self.tokenizer.decode(inputs_idxes[-1:].tolist())
                 print(next_word, end="", flush=True)
+
+                if stop_at_eot and multinomial_pick == self.tokenizer.eot_token or multinomial_pick == self.tokenizer.sot_token:
+                    break
             print("\n---------------")
 
 
@@ -273,7 +279,7 @@ def load_weights_from_huggingface(model, save_name=None, save_path=".", force=Fa
         print(">>>> Load {} weights from {}".format(target_name, source_name))
         target_layer = model.get_layer(target_name)
         source_weights = stacked_state_dict[source_name]
-        print("    Target: {}, Source: {}".format([ii.shape for ii in source_weights], [ii.shape for ii in target_layer.get_weights()]))
+        print("    Source: {}, Target: {}".format([ii.shape for ii in source_weights], [ii.shape for ii in target_layer.get_weights()]))
 
         if hasattr(target_layer, "set_weights_channels_last"):
             target_layer.set_weights_channels_last(source_weights)  # Kecam PyTorch backend

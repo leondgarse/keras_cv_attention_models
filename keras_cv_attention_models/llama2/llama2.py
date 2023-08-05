@@ -4,13 +4,17 @@ from keras_cv_attention_models.backend import layers, models, functional
 from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.attention_layers import activation_by_name, CausalMask
+from keras_cv_attention_models.gpt2.gpt2 import RunPrediction
 
 
 PRETRAINED_DICT = {
-    "": {"": ["", ""]},
+    "llama2_110m": {"tiny_stories": "00a82a7649e9b29af65b500fa4ceceb8"},
+    "llama2_15m": {"tiny_stories": "a8db53783fa9e31ecb821f1fd9f7d966"},
+    "llama2_42m": {"tiny_stories": "580bdbf3c8ddf8f907c07dbafe526dfe"},
 }
 
-# @backend.register_keras_serializable(package="kecam/llama2")
+
+@backend.register_keras_serializable(package="kecam/llama2")
 class PositionalEncodingFourierRot1D(layers.Layer):
     def __init__(self, max_block_size, temperature=1e4, **kwargs):
         super().__init__(**kwargs)
@@ -46,7 +50,7 @@ class PositionalEncodingFourierRot1D(layers.Layer):
         return base_config
 
 
-# @backend.register_keras_serializable(package="kecam/llama2")
+@backend.register_keras_serializable(package="kecam/llama2")
 class RMSNorm(layers.Layer):
     def __init__(self, epsilon=1e-5, **kwargs):
         super().__init__(**kwargs)
@@ -75,14 +79,14 @@ def apply_positional_encoding_rotary(inputs, pos_emb_layer, with_cls_token=True)
     return out
 
 
-def causal_self_attention(inputs, block_size, num_heads, use_bias, dropout, name=""):
+def causal_self_attention(inputs, block_size, num_heads, use_bias=False, dropout=0, name=""):
     input_channels = inputs.shape[-1]
     key_dim = input_channels // num_heads
     qq_scale = 1.0 / (float(key_dim) ** 0.5)
 
-    query = layers.Dense(input_channels, use_bias=use_bias, name=name + "xq")(inputs)
-    key = layers.Dense(input_channels, use_bias=use_bias, name=name + "xk")(inputs)
-    value = layers.Dense(input_channels, use_bias=use_bias, name=name + "xv")(inputs)
+    query = layers.Dense(input_channels, use_bias=use_bias, name=name + "wq")(inputs)
+    key = layers.Dense(input_channels, use_bias=use_bias, name=name + "wk")(inputs)
+    value = layers.Dense(input_channels, use_bias=use_bias, name=name + "wv")(inputs)
 
     # Create a new one every time, as there's no weights for this layer
     rope = PositionalEncodingFourierRot1D(max_block_size=block_size, name=name + "rope")
@@ -101,37 +105,38 @@ def causal_self_attention(inputs, block_size, num_heads, use_bias, dropout, name
     attn = layers.Softmax(axis=-1, name=name + "attention_scores")(attn)
     attn_out = attn @ value
 
-    output = functional.transpose(attn_out, perm=[0, 2, 1, 3])
+    output = functional.transpose(attn_out, [0, 2, 1, 3])
     output = layers.Reshape([-1, input_channels])(output)
-    output = layers.Dense(input_channels, use_bias=use_bias, name=name + "xo")(output)
+    output = layers.Dense(input_channels, use_bias=use_bias, name=name + "wo")(output)
     output = layers.Dropout(dropout)(output)
     return output
 
 
-def attention_fft_block(inputs, block_size, num_heads, use_bias, dropout, activation="swish", name=""):
+def attention_fft_block(inputs, block_size, num_heads, hidden_divisible=32, use_bias=False, dropout=0, activation="swish", name=""):
     input_channels = inputs.shape[-1]
     attn = RMSNorm(name=name + "attention_norm")(inputs)
-    attn = causal_self_attention(attn, block_size, num_heads, use_bias, dropout, name=name + "attention_")
+    attn = causal_self_attention(attn, block_size, num_heads, use_bias, dropout, name=name + "attention.")
     attn_out = inputs + attn
 
-    multiple_of = 256
     hidden_dim = 2 * 4 * input_channels // 3
-    hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
+    hidden_dim = hidden_divisible * ((hidden_dim + hidden_divisible - 1) // hidden_divisible)
+    # print(f"{input_channels = }, {hidden_divisible = }, {hidden_dim = }")
 
     fft = RMSNorm(name=name + "ffn_norm")(attn_out)
-    fft_1 = layers.Dense(hidden_dim, use_bias=use_bias, name=name + "feed_forward_w1")(fft)
-    fft_1 = activation_by_name(fft_1, activation=activation, name=name + "feed_forward_w1_")
-    fft_3 = layers.Dense(hidden_dim, use_bias=use_bias, name=name + "feed_forward_w3")(fft)
+    fft_1 = layers.Dense(hidden_dim, use_bias=use_bias, name=name + "feed_forward.w1")(fft)
+    fft_1 = activation_by_name(fft_1, activation=activation, name=name + "feed_forward.w1.")
+    fft_3 = layers.Dense(hidden_dim, use_bias=use_bias, name=name + "feed_forward.w3")(fft)
     fft = fft_1 * fft_3
-    fft = layers.Dense(input_channels, use_bias=use_bias, name=name + "feed_forward_w2")(fft)
+    fft = layers.Dense(input_channels, use_bias=use_bias, name=name + "feed_forward.w2")(fft)
     fft = layers.Dropout(dropout)(fft)
 
     return layers.Add(name=name + "output")([attn_out, fft])
 
 
-def Llama2(
+def LLaMA2(
     num_blocks=12,
     embedding_size=768,
+    hidden_divisible=32,
     num_heads=12,
     block_use_bias=False,
     vocab_size=50304,
@@ -148,7 +153,7 @@ def Llama2(
     nn = layers.Dropout(dropout)(tok_emb)
 
     for block_id in range(num_blocks):
-        nn = attention_fft_block(nn, max_block_size, num_heads, block_use_bias, dropout, activation, name="blocks_{}_".format(block_id))
+        nn = attention_fft_block(nn, max_block_size, num_heads, hidden_divisible, block_use_bias, dropout, activation, name="blocks.{}.".format(block_id))
     nn = RMSNorm(name="norm")(nn)
 
     if include_top:
@@ -156,94 +161,51 @@ def Llama2(
 
     model = models.Model(inputs, nn, name=model_name)
     model.max_block_size = max_block_size  # or model.get_layer('pos_idx').block_size
-    model.run_prediction = RunPrediction(model)
-    if pretrained == "huggingface":
-        load_weights_from_huggingface(model, save_path="~/.keras/models")
+    model.run_prediction = RunPrediction(model, tokenizer="SentencePieceTokenizer")
+    if pretrained.endswith(".pt") or pretrained.endswith(".pth"):
+        load_weights_from_pytorch(model, source_pt_path=pretrained, save_path="~/.keras/models")
     else:
         reload_model_weights(model, PRETRAINED_DICT, "llama2", pretrained)
     return model
 
 
 @register_model
-def Llama2_7B(max_block_size=2048, vocab_size=50257, include_top=True, activation="swish", pretrained="webtext", **kwargs):
+def LLaMA2_15M(max_block_size=256, vocab_size=32000, include_top=True, activation="swish", pretrained="tiny_stories", **kwargs):
+    num_blocks = 6
+    embedding_size = 288
+    num_heads = 6
+    return LLaMA2(**locals(), **kwargs, model_name="llama2_15m")
+
+
+@register_model
+def LLaMA2_42M(max_block_size=1024, vocab_size=32000, include_top=True, activation="swish", pretrained="tiny_stories", **kwargs):
+    num_blocks = 8
+    embedding_size = 512
+    num_heads = 8
+    return LLaMA2(**locals(), **kwargs, model_name="llama2_42m")
+
+
+@register_model
+def LLaMA2_110M(max_block_size=1024, vocab_size=32000, include_top=True, activation="swish", pretrained="tiny_stories", **kwargs):
+    num_blocks = 12
+    embedding_size = 768
+    num_heads = 12
+    return LLaMA2(**locals(), **kwargs, model_name="llama2_110m")
+
+
+@register_model
+def LLaMA2_7B(max_block_size=2048, vocab_size=50257, include_top=True, activation="swish", pretrained=None, **kwargs):
     num_blocks = 32
     embedding_size = 4096
+    hidden_divisible = 256
     num_heads = 32
-    return Llama2(**locals(), **kwargs, model_name="llama2_7b")
+    return LLaMA2(**locals(), **kwargs, model_name="llama2_7b")
 
 
-""" Load weights and run prediction functions """
-
-
-class RunPrediction:
-    def __init__(self, model):
-        self.model = model
-
-    @staticmethod
-    def softmax_numpy(inputs, axis=-1):
-        exp_inputs = np.exp(inputs - np.max(inputs, axis=axis))
-        return exp_inputs / np.sum(exp_inputs, keepdims=True, axis=axis)
-
-    def __call__(self, inputs, num_samples=1, max_new_tokens=500, temperature=0.8, top_k=200, eof="<|endoftext|>"):
-        """
-        Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
-        the sequence max_new_tokens times, feeding the predictions back into the model each time.
-        Most likely you'll want to make sure to be in model.eval() mode of operation for this.
-
-        Args:
-          num_samples: number of samples to draw.
-          max_new_tokens: number of tokens generated in each sample.
-          temperature: 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions.
-          top_k: retain only the top_k most likely tokens, clamp others to have 0 probability.
-          eof: stop iteration once meet this output. Set None to disable.
-        """
-        from keras_cv_attention_models.clip.tokenizer import GPT2Tokenizer
-
-        enc = GPT2Tokenizer()
-        start_ids = np.array(enc.encode(inputs))
-
-        max_block_size = self.model.get_layer("pos_idx").block_size
-        vocab_size = self.model.output_shape[-1]
-        vocab_indexes = np.arange(vocab_size)
-        for k in range(num_samples):
-            inputs_idxes = start_ids
-            print(enc.decode(inputs_idxes.tolist()), end="", flush=True)
-            for _ in range(max_new_tokens):
-                # if the sequence context is growing too long we must crop it at block_size
-                idx_cond = inputs_idxes if inputs_idxes.shape[-1] <= max_block_size else inputs_idxes[-max_block_size:]
-                # forward the model to get the logits for the index in the sequence
-                logits = self.model(functional.convert_to_tensor(idx_cond, dtype="int64")[None])
-                # pluck the logits at the final step and scale by desired temperature
-                logits = logits[:, -1, :] / temperature
-                logits = logits.detach().cpu().numpy() if hasattr(logits, "detach") else logits.numpy()
-
-                if top_k is not None:
-                    # optionally crop the logits to only the top k options
-                    threshold_pos = min(top_k, vocab_size)
-                    logits_threshold = np.sort(logits)[:, -threshold_pos]
-                    logits[logits < logits_threshold[:, None]] = -float("Inf")
-
-                # sample from the distribution
-                probs = self.softmax_numpy(logits, axis=-1)
-                multinomial_pick = np.array([np.random.choice(vocab_indexes, p=prob) for prob in probs])
-                inputs_idxes = np.concatenate([inputs_idxes, multinomial_pick], axis=-1)
-
-                next_word = enc.decode(inputs_idxes[-1:].tolist())
-                if next_word == eof:
-                    break
-                print(next_word, end="", flush=True)
-            print("\n---------------")
-
-
-def load_weights_from_huggingface(model, save_name=None, save_path=".", force=False):
+def load_weights_from_pytorch(model, source_pt_path, save_name=None, save_path=".", force=False):
     import os
 
-    model_type_map = {"gpt2_base": "gpt2", "gpt2_medium": "gpt2-medium", "gpt2_large": "gpt2-large", "gpt2_xlarge": "gpt2-xl"}
-    if model.name not in model_type_map:
-        print("No pretrained available, model will be randomly initialized.")
-        return
-
-    pretrained = "huggingface"
+    pretrained = os.path.splitext(os.path.basename(source_pt_path))[0]
     save_name = save_name if save_name is not None else "{}_{}.h5".format(model.name, pretrained)
     save_path = os.path.join(os.path.expanduser(save_path), save_name)
     if not force and os.path.exists(save_path):
@@ -251,17 +213,17 @@ def load_weights_from_huggingface(model, save_name=None, save_path=".", force=Fa
         model.load_weights(save_path)
         return
     else:
-        print("Convert and load weights from huggingface")
+        print("Convert and load weights from", source_pt_path)
 
-    from transformers import GPT2LMHeadModel
+    import torch
 
-    model_type = model_type_map[model.name]
-    source_state_dict = GPT2LMHeadModel.from_pretrained(model_type).state_dict()
+    source_state_dict = torch.load(source_pt_path, map_location=torch.device("cpu"))
+    source_state_dict = source_state_dict.get("state_dict", source_state_dict.get("model", source_state_dict))
 
     """ state_dict_stack_by_layer """
     stacked_state_dict = {}
     for kk, vv in source_state_dict.items():
-        if kk.endswith(".attn.bias") or kk.endswith(".attn.masked_bias") or kk.endswith(".num_batches_tracked"):
+        if kk.endswith(".attn.bias") or kk.endswith(".attn.masked_bias"):
             continue
 
         split_kk = kk.split(".")
@@ -270,15 +232,17 @@ def load_weights_from_huggingface(model, save_name=None, save_path=".", force=Fa
         # split_kk[-1] in ["weight", "bias", "running_mean", "running_var", "gain"]
         layer_name = ".".join(split_kk[:-1])
         stacked_state_dict.setdefault(layer_name, []).append(vv)
-    stacked_state_dict["lm_head"] = [ii.T for ii in stacked_state_dict["lm_head"]]
 
     """ keras_reload_stacked_state_dict """
     target_names = [ii.name for ii in model.layers if len(ii.weights) != 0]
-    for target_name, source_name in zip(target_names, stacked_state_dict.keys()):
+    for target_name in target_names:
+        source_name = target_name.replace("blocks.", "layers.")
         print(">>>> Load {} weights from {}".format(target_name, source_name))
         target_layer = model.get_layer(target_name)
         source_weights = stacked_state_dict[source_name]
-        print("    Target: {}, Source: {}".format([ii.shape for ii in source_weights], [ii.shape for ii in target_layer.get_weights()]))
+        if isinstance(target_layer, layers.Dense):
+            source_weights = [ii.T for ii in source_weights]
+        print("    Source: {}, Target: {}".format([ii.shape for ii in source_weights], [ii.shape for ii in target_layer.get_weights()]))
 
         if hasattr(target_layer, "set_weights_channels_last"):
             target_layer.set_weights_channels_last(source_weights)  # Kecam PyTorch backend
@@ -295,5 +259,5 @@ def load_weights_from_huggingface(model, save_name=None, save_path=".", force=Fa
 if __name__ == "__test__":
     from keras_cv_attention_models import llama2
 
-    mm = llama2.Llama2()
-    mm.run_prediction("hello world")
+    mm = llama2.LLaMA2_42M()
+    mm.run_prediction("As evening fell, a maiden stood at the edge of a wood. In her hands,", num_samples=3)

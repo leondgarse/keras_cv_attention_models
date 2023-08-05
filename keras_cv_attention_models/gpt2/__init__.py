@@ -1,4 +1,14 @@
-from keras_cv_attention_models.gpt2.gpt2 import GPT2, GPT2_Base, GPT2_Medium, GPT2_Large, GPT2_XLarge, RunPrediction, PositionalIndex, CausalMask
+from keras_cv_attention_models.gpt2.gpt2 import (
+    GPT2,
+    GPT2_Base,
+    GPT2_Medium,
+    GPT2_Large,
+    GPT2_XLarge,
+    RunPrediction,
+    PositionalIndex,
+    CausalMask,
+    load_weights_from_huggingface,
+)
 
 __head_doc__ = """
 Keras implementation of [Github openai/gpt-2](https://github.com/openai/gpt-2).
@@ -21,10 +31,10 @@ Returns:
 
 GPT2.__doc__ = __head_doc__ + """
 Args:
-  num_blocks: .
-  embedding_size: .
-  num_heads: .
-  block_use_bias: .
+  num_blocks: num of `attention_mlp_block`s.
+  embedding_size: `attention_mlp_block` block embedding size.
+  num_heads: num of heads.
+  block_use_bias: boolean value if using bias for `attention_mlp_block` Dense layers.
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:

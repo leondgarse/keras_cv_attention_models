@@ -94,6 +94,7 @@
   - [YOLOX](#yolox)
 - [Language Models](#language-models)
   - [GPT2](#gpt2)
+  - [LLaMA2](#llama2)
 - [Licenses](#licenses)
 - [Citing](#citing)
 
@@ -586,19 +587,23 @@
 ## Using keras core as backend
   - **[Experimental] Set os environment `export KECAM_BACKEND='keras_core'` to enable this keras_core backend.**
   - `keras-core` supports tensorflow / torch / jax backends, by editting `~/.keras/keras.json` `"backend"` value.
-  - Currently only part models like `CovNeXt` / `EfficientNet` / `EfficientViT_B` / `GPViT` / `VanillaNet` / `PVT_V2` / `RepViT`, `mlp_family` / `resnet_family` / `mobilenetv3_family` models and `GPT2` supported.
+  - Currently most recognition models except `HaloNet` / `BotNet` supported, also `GPT2` / `LLaMA2` supported.
   - **Basic model build and prediction**.
     ```py
+    !pip install sentencepiece
     os.environ['KECAM_BACKEND'] = 'keras_core'
-    from keras_cv_attention_models import gpt2
+    from keras_cv_attention_models import llama2
     # Using TensorFlow backend  <-- Note: this line is printed only when using keras_core as backend
 
-    mm = gpt2.GPT2_Base()
-    # >>>> Load pretrained from: ~/.keras/models/gpt2_base_webtext.h5
-    mm.run_prediction('hello world')
-    # >>>> Load tokenizer from file: ~/.keras/datasets/gpt2_tokenizer.txt
-    # hello world.
-    # "We had a lot of great players on this team ...
+    mm = llama2.LLaMA2_42M()
+    # >>>> Load pretrained from: ~/.keras/models/llama2_42m_tiny_stories.h5
+    mm.run_prediction('As evening fell, a maiden stood at the edge of a wood. In her hands,')
+    # >>>> Load tokenizer from file: ~/.keras/datasets/llama_tokenizer.model
+    # <s>
+    # As evening fell, a maiden stood at the edge of a wood. In her hands, she held a beautiful diamond. Everyone was surprised to see it.
+    # "What is it?" one of the kids asked.
+    # "It's a diamond," the maiden said.
+    # ...
     ```
 ***
 
@@ -1531,6 +1536,14 @@
   | [GPT2_Medium](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_medium_webtext.h5)      | 406.29M | 415.07G | 50257      | 15.60       | 21.756 qps   |
   | [GPT2_Large](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_large_webtext.h5)       | 838.36M | 890.28G | 50257      | 10.87       |              |
   | [GPT2_XLarge](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_xlarge_webtext.1.h5), [+.2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_xlarge_webtext.2.h5) | 1.638B  | 1758.3G | 50257      | 8.63        |              |
+## LLaMA2
+  - [Keras LLaMA2](keras_cv_attention_models/llama2) includes implementation of [PDF 2307.09288 Llama 2: Open Foundation and Fine-Tuned Chat Models](https://arxiv.org/pdf/2307.09288.pdf). `tiny_stories` weights ported from [Github karpathy/llama2.c](https://github.com/karpathy/llama2.c).
+
+  | Model       | Params | FLOPs  | vocab_size | Val loss | T4 Inference |
+  | ----------- | ------ | ------ | ---------- | -------- | ------------ |
+  | [LLaMA2_15M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_15m_tiny_stories.h5)  | 24.41M | 4.06G  | 32000      | 1.072    |  |
+  | [LLaMA2_42M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_42m_tiny_stories.h5)  | 58.17M | 50.7G  | 32000      | 0.847    |  |
+  | [LLaMA2_110M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_110m_tiny_stories.h5) | 134.1M | 130.2G | 32000      | 0.760    |  |
 ***
 
 # Licenses

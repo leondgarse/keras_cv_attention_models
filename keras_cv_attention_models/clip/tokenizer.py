@@ -20,7 +20,21 @@ BUILDIN_TOKENIZERS = {
     "clip": {"path": "bpe_simple_vocab_16e6.txt", "file_hash": "f83f3e2479df59e7cd1597baa03f34c8", "limit_vocab_size": 48894},
     # "<|start_of_text|>" not exists in original gpt vocab, using sot == eot here
     "gpt2": {"path": "gpt2_tokenizer.txt", "file_hash": "150fdad3c88ee8f9607ac1808ad2d321", "sot": DEFAULT_EOT, "eot": DEFAULT_EOT, "is_space_first": True},
+    "llama": {"path": "llama_tokenizer.model", "file_hash": "eeec4125e9c7560836b4873b6f8e3025", "sot": "<s>", "eot": "</s>", "is_space_first": True},
+    "llama2": {"path": "llama_tokenizer.model", "file_hash": "eeec4125e9c7560836b4873b6f8e3025", "sot": "<s>", "eot": "</s>", "is_space_first": True},
 }
+
+
+def download_tokenizer_file(name):
+    from keras_cv_attention_models.backend import get_file
+
+    config = BUILDIN_TOKENIZERS[name]
+    path, file_hash = config["path"], config["file_hash"]
+
+    url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/{}".format(path)
+    tokenizer_file = os.path.join(os.path.expanduser("~/.keras/datasets"), path)
+    print(">>>> Load tokenizer from file:", tokenizer_file)
+    return get_file(origin=url, file_hash=file_hash)
 
 
 class SimpleTokenizer(object):
@@ -60,17 +74,11 @@ class SimpleTokenizer(object):
     def _init_tokenizer_from_file_(self, name_or_path, limit_vocab_size):
         name_or_path = name_or_path.lower()
         if name_or_path in BUILDIN_TOKENIZERS:
-            from keras_cv_attention_models.backend import get_file
+            tokenizer_file = download_tokenizer_file(name_or_path)
 
             config = BUILDIN_TOKENIZERS[name_or_path]
-            path, file_hash = config["path"], config["file_hash"]
             sot, eot, is_space_first = config.get("sot", DEFAULT_SOT), config.get("eot", DEFAULT_EOT), config.get("is_space_first", False)
             limit_vocab_size = config.get("limit_vocab_size", None) if limit_vocab_size == "auto" else limit_vocab_size
-
-            url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/{}".format(path)
-            tokenizer_file = os.path.join(os.path.expanduser("~/.keras/datasets"), path)
-            print(">>>> Load tokenizer from file:", tokenizer_file)
-            tokenizer_file = get_file(origin=url, file_hash=file_hash)
         else:
             tokenizer_file = name_or_path
             limit_vocab_size = None if limit_vocab_size == "auto" else limit_vocab_size
@@ -164,7 +172,7 @@ class SimpleTokenizer(object):
         text = html.unescape(html.unescape(text))
         return self.regex.sub(r"\s+", " ", text.strip()).strip()
 
-    def encode(self, text):
+    def encode(self, text, add_sot=False, add_eot=False):
         bpe_tokens = []
         text = self.text_clean(text).lower()
         is_first_token = True
@@ -173,6 +181,11 @@ class SimpleTokenizer(object):
             # print(f"{token = }")
             bpe_tokens.extend(self.encoder[bpe_token] for bpe_token in self.bpe(token, is_first_token=is_first_token).split(" "))
             is_first_token = False
+
+        if add_sot:
+            bpe_tokens = [self.sot_token] + bpe_tokens
+        if add_eot:
+            bpe_tokens = bpe_tokens + [self.sot_token]
         return bpe_tokens
 
     def decode(self, tokens):
@@ -190,8 +203,8 @@ class SimpleTokenizer(object):
             inputs = inputs.detach() if hasattr(inputs, "detach") else inputs
             inputs = inputs.cpu() if hasattr(inputs, "cpu") else inputs
             inputs = inputs.numpy() if hasattr(inputs, "numpy") else inputs
+            inputs = inputs.tolist() if hasattr(inputs, "tolist") else list(inputs)
 
-            inputs = list(inputs)
             inputs = inputs[1 if inputs[0] == self.sot_token else 0 :]
             inputs = inputs[: inputs.index(self.eot_token) if self.eot_token in inputs else None]
             return self.decode(inputs)
@@ -203,6 +216,69 @@ class GPT2Tokenizer(SimpleTokenizer):
 
     def _init_byte_vacab_(self):
         return list(self.byte_encoder.values())
+
+
+class SentencePieceTokenizer(SimpleTokenizer):
+    """
+    >>> from keras_cv_attention_models.clip import tokenizer
+    >>> ee = tokenizer.SentencePieceTokenizer()
+    >>> print(ee(ee('hello world')))
+    >>> #  hello world  <- An additional leading white space
+    >>> print(ee.decode(ee.encode('hello world', add_sot=True)))
+    >>> # hello world
+    """
+
+    def __init__(self, name_or_path="llama", context_length=77):
+        from sentencepiece import SentencePieceProcessor
+
+        self.name_or_path = download_tokenizer_file(name_or_path) if name_or_path in BUILDIN_TOKENIZERS else name_or_path
+        self.sp_model = SentencePieceProcessor(model_file=self.name_or_path)
+        assert self.sp_model.vocab_size() == self.sp_model.get_piece_size()
+        self.decoder, self.scores = self._build_vocab_dict_()
+
+        # BOS / EOS token IDs
+        self.vocab_size = self.sp_model.vocab_size()
+        self.sot_token, self.eot_token = self.sp_model.bos_id(), self.sp_model.eos_id()
+        self.pad_token = self.sp_model.pad_id()
+
+        self.sot = self.decoder[self.sot_token]
+        self.eot = self.decoder[self.eot_token]
+        self.context_length = context_length
+
+    def _build_vocab_dict_(self):
+        # https://github.com/karpathy/llama2.c/blob/master/tokenizer.py#L42-L61
+        decoder, scores = {}, {}
+        for id in range(self.sp_model.vocab_size()):
+            token = self.sp_model.id_to_piece(id)
+            score = self.sp_model.get_score(id)
+            if id == self.sp_model.bos_id():
+                token = "\n" + token + "\n"
+            elif id == self.sp_model.eos_id():
+                token = "\n" + token + "\n"
+            elif len(token) == 6 and token.startswith("<0x") and token.endswith(">"):
+                token = chr(int(token[3:5], 16))  # e.g. make '<0x01>' into '\x01'
+            token = token.replace("▁", " ")  # sentencepiece uses this character as whitespace
+            # token_byte = token.encode('utf-8') # bytes of this token, utf-8 encoded
+            decoder[id] = token
+            scores[id] = score
+        return decoder, scores
+
+    def encode(self, text, add_sot=False, add_eot=False):
+        tokens = self.sp_model.encode(text)
+        if add_sot:
+            tokens = [self.sot_token] + tokens
+        if add_eot:
+            tokens = tokens + [self.sot_token]
+        return tokens
+
+    def decode(self, tokens):
+        # Not using sp_model.decode, as leading space is omitted when decoding a single word. https://github.com/karpathy/llama2.c/pull/89
+        # return self.sp_model.decode(tokens)
+        if isinstance(tokens, (list, tuple)):
+            rr = "".join([self.decoder[int(ii)] for ii in tokens])
+            return (self.sot + rr[len(self.sot) + 1 :]) if tokens[0] == self.sot_token else rr
+        else:
+            return self.decoder[int(ii)]
 
 
 class TikToken(SimpleTokenizer):
@@ -226,9 +302,15 @@ class TikToken(SimpleTokenizer):
 
         self.context_length = context_length
 
-    def encode(self, text):
+    def encode(self, text, add_sot=False, add_eot=False):
         text = self.text_clean(text).lower()
-        return self.tokenizer.encode(text)
+        tokens = self.tokenizer.encode(text)
+
+        if add_sot:
+            tokens = [self.sot_token] + tokens
+        if add_eot:
+            tokens = tokens + [self.sot_token]
+        return tokens
 
     def decode(self, tokens):
         return self.tokenizer.decode(tokens)
