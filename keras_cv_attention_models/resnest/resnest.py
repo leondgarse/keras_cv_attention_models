@@ -16,7 +16,7 @@ PRETRAINED_DICT = {
 
 def rsoftmax(inputs, groups):
     if groups > 1:
-        nn = functional.reshape(inputs, [-1, groups, np.prod(inputs.shape[1:]) // groups])
+        nn = functional.reshape(inputs, [-1, groups, int(np.prod(inputs.shape[1:])) // groups])
         # nn = tf.transpose(nn, [0, 2, 1, 3])
         nn = functional.softmax(nn, axis=1)
         nn = functional.reshape(nn, [-1, *inputs.shape[1:]])

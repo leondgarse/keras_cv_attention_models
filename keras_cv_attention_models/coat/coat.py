@@ -107,14 +107,14 @@ def factor_attention_conv_relative_positional_encoding(inputs, shared_crpe=None,
     qk_scale = 1.0 / (float(key_dim) ** 0.5)
 
     qkv = layers.Dense(dim * 3, use_bias=qkv_bias, name=name + "qkv")(inputs)
-    qkv = layers.Reshape([blocks, 3, num_heads, key_dim])(qkv)
-    qq, kk, vv = functional.transpose(qkv, [2, 0, 3, 1, 4])  # [qkv, batch, num_heads, blocks, key_dim]
+    qq, kk, vv = functional.split(qkv, 3, axis=-1)
+    qq = functional.transpose(functional.reshape(qq, [-1, blocks, num_heads, key_dim]), [0, 2, 1, 3])
+    kk = functional.transpose(functional.reshape(kk, [-1, blocks, num_heads, key_dim]), [0, 2, 3, 1])
+    vv = functional.transpose(functional.reshape(vv, [-1, blocks, num_heads, key_dim]), [0, 2, 1, 3])
     # print(f">>>> {qkv.shape = }, {qq.shape = }, {kk.shape = }, {vv.shape = }")
 
     # Factorized attention.
-    # kk = tf.nn.softmax(kk, axis=2)  # On `blocks` dimension
-    kk = layers.Softmax(axis=2, name=name and name + "attention_scores")(kk)  # On `blocks` dimension
-    kk = functional.transpose(kk, [0, 1, 3, 2])
+    kk = layers.Softmax(axis=-1, name=name and name + "attention_scores")(kk)  # On `blocks` dimension
     factor_att = qq @ (kk @ vv)
 
     # Convolutional relative position encoding.

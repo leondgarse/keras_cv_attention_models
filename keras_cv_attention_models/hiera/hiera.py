@@ -134,7 +134,7 @@ def Hiera(
     # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
     input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
-    window_size_prod = np.prod(strides) ** 2  # Total downsample rates after stem
+    window_size_prod = int(np.prod(strides) ** 2)  # Total downsample rates after stem
 
     """ forward_embeddings """
     nn = conv2d_no_bias(inputs, embed_dim, 7, strides=4, padding="same", use_bias=True, name="stem_")
@@ -159,7 +159,7 @@ def Hiera(
             block_name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             strides_prod = (stride**2) if block_id == 0 else 1
-            cur_window_size_prod = (window_size_prod * strides_prod) if stack_use_window_attention[block_id] else -1
+            cur_window_size_prod = int(window_size_prod * strides_prod) if stack_use_window_attention[block_id] else -1
             nn = attention_mlp_block(
                 nn, cur_out_channels, cur_num_heads, cur_window_size_prod, strides_prod, mlp_ratio, block_drop_rate, activation=activation, name=block_name
             )

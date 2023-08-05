@@ -129,7 +129,7 @@ def mhsa_with_multi_head_position(
     qkv_dim = (attn_ratio + 1 + 1) * embed_dim
     qkv = layers.Dense(qkv_dim, use_bias=qkv_bias, name=name and name + "qkv")(inputs)
     qkv = batchnorm_with_activation(qkv, activation=None, axis=-1, name=name and name + "qkv_") if use_bn else qkv
-    qkv = functional.reshape(qkv, (-1, np.prod(qkv.shape[1:-1]), num_heads, qkv_dim // num_heads))
+    qkv = functional.reshape(qkv, (-1, int(np.prod(qkv.shape[1:-1])), num_heads, qkv_dim // num_heads))
     qq, kk, vv = functional.split(qkv, [key_dim, key_dim, key_dim * attn_ratio], axis=-1)
     qq, kk, vv = functional.transpose(qq, [0, 2, 1, 3]), functional.transpose(kk, [0, 2, 3, 1]), functional.transpose(vv, [0, 2, 1, 3])
 

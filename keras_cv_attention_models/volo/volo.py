@@ -49,7 +49,7 @@ def outlook_attention(inputs, embed_dim, num_heads=8, kernel_size=3, padding=1, 
 
     """ unfold """
     # [1, 14, 14, 1728] if compressed else [1, 14, 14, 3, 3, 192]
-    if backend.backend() == "torch":
+    if backend.is_torch_backend:
         patches = functional.extract_patches(vv, sizes=kernel_size, strides=strides, padding="same")
     else:
         # patches = functional.extract_patches(pad_vv, patch_kernel, patch_strides, [1, 1, 1, 1], padding="valid")
@@ -279,7 +279,7 @@ class ClassToken(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
-        if backend.backend() == "torch":
+        if backend.is_torch_backend:
             class_tokens = self.class_tokens.expand(inputs.shape[0], -1, -1)
         else:
             class_tokens = functional.repeat(self.class_tokens, functional.shape(inputs)[0], axis=0)

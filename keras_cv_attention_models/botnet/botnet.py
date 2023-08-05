@@ -132,8 +132,10 @@ class RelativePositionalEmbedding(layers.Layer):
     def show_pos_emb(self, base_size=4):
         import matplotlib.pyplot as plt
 
-        pos_emb_h = self.pos_emb_h.detach().numpy() if hasattr(self.pos_emb_h, "detach") else self.pos_emb_h.numpy()
-        pos_emb_w = self.pos_emb_w.detach().numpy() if hasattr(self.pos_emb_w, "detach") else self.pos_emb_w.numpy()
+        pos_emb_h = self.pos_emb_h.detach() if hasattr(self.pos_emb_h, "detach") else self.pos_emb_h
+        pos_emb_h = self.pos_emb_h.numpy() if hasattr(self.pos_emb_h, "numpy") else np.array(self.pos_emb_h)
+        pos_emb_w = self.pos_emb_w.detach() if hasattr(self.pos_emb_w, "detach") else self.pos_emb_w
+        pos_emb_w = self.pos_emb_w.numpy() if hasattr(self.pos_emb_w, "numpy") else np.array(self.pos_emb_w)
 
         fig, axes = plt.subplots(1, 3, figsize=(base_size * 3, base_size * 1))
         axes[0].imshow(pos_emb_h)

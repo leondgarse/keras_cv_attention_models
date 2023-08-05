@@ -11,7 +11,7 @@ def reload_model_weights(
 ):
     if not isinstance(pretrained, str):
         return
-    if pretrained.endswith(".h5"):
+    if pretrained.endswith(".h5") or pretrained.endswith(".keras"):
         print(">>>> Load pretrained from:", pretrained)
         # model.load_weights(pretrained, by_name=True, skip_mismatch=True)
         load_weights_with_mismatch(model, pretrained, mismatch_class, request_resolution=request_resolution, method=method)

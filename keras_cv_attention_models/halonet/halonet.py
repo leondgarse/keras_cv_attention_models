@@ -62,7 +62,7 @@ def halo_attention(
     key_value = key_value if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(key_value)  # channels_first -> channels_last
     kv_padded = functional.pad(key_value, [[0, 0], [halo_size, halo_size], [halo_size, halo_size], [0, 0]])
     # kv_inp = [batch, hh, ww, kv_kernel * kv_kernel * (key_dim + out_shape)]
-    if backend.backend() == "torch":
+    if backend.is_torch_backend:
         kv_inp = functional.extract_patches(kv_padded, sizes=kv_kernel, strides=block_size, padding="valid")
     else:
         # kv_inp = tf.image.extract_patches(kv_padded, sizes=sizes, strides=strides, rates=[1, 1, 1, 1], padding="valid")

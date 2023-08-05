@@ -354,7 +354,8 @@ def to_coco_annotation(json_path):
     base_path = aa.get("info", {}).get("base_path", None)
     annotations, images, image_id_map = [], [], {}
     for image_id, ii in enumerate(aa.get("validation", aa.get("test", []))):
-        width, height = Image.open(os.path.join(base_path, ii["image"]) if base_path else ii["image"]).size  # For decoding bboxes, not actually openning images
+        image_file = os.path.join(base_path, ii["image"]) if base_path else ii["image"]
+        width, height = Image.open(image_file).size  # For decoding bboxes, not actually openning images
         for bb, label in zip(ii["objects"]["bbox"], ii["objects"]["label"]):
             # bb [top, left, bottom, right] in [0, 1] -> [left, top, bbox_width, bbox_height] with actual coordinates
             top = bb[0] * height
@@ -368,8 +369,8 @@ def to_coco_annotation(json_path):
             annotations.append({"bbox": bb, "category_id": label, "image_id": image_id, "id": len(annotations), "iscrowd": 0, "area": area})
             if label not in categories:
                 categories[label] = str(len(categories))
-        images.append({"id": image_id, "file_name": ii["image"], "height": height, "width": width})
-        image_id_map[ii["image"]] = image_id
+        images.append({"id": image_id, "file_name": image_file, "height": height, "width": width})
+        image_id_map[image_file] = image_id
     categories = [{"id": kk, "name": vv} for kk, vv in categories.items()]
     return {"images": images, "annotations": annotations, "categories": categories}, image_id_map
 
@@ -450,6 +451,8 @@ class COCOEvalCallback(callbacks.Callback):
         self.built = False
 
     def build(self, input_shape, output_shape):
+        import re
+
         input_shape = (int(input_shape[1]), int(input_shape[2]))
         self.eval_dataset, self.num_classes = init_eval_dataset(input_shape=input_shape, **self.dataset_kwargs)
         regression_len = (output_shape[-1] - self.num_classes) // 4 * 4
@@ -469,8 +472,9 @@ class COCOEvalCallback(callbacks.Callback):
 
         # Training saving best
         if self.model_basic_save_name is not None:
-            self.monitor_save = os.path.join(self.save_path, self.model_basic_save_name + "_epoch_{}_" + self.item_key + "_{}.h5")
-            self.monitor_save_re = self.monitor_save.format("*", "*")
+            monitor_save_name = self.model_basic_save_name + "_epoch_{}_" + self.item_key + "_{}.h5"
+            self.monitor_save_re = re.compile(monitor_save_name.format("\d*", "[\d\.]*"))
+            self.monitor_save = os.path.join(self.save_path, monitor_save_name)
             self.is_better = lambda cur, pre: cur >= pre
             self.pre_best = -1e5
 
@@ -478,11 +482,6 @@ class COCOEvalCallback(callbacks.Callback):
         self.built = True
 
     def on_epoch_end(self, epoch=0, logs=None):
-        if backend.backend() == "tensorflow":
-            from tensorflow.io.gfile import glob
-        else:
-            from glob2 import glob
-
         if not self.built:
             if self.dataset_kwargs["rescale_mode"] == "auto":
                 self.dataset_kwargs["rescale_mode"] = getattr(self.model, "rescale_mode", "torch")
@@ -515,10 +514,11 @@ class COCOEvalCallback(callbacks.Callback):
         cur_ap = coco_eval.stats[0] if coco_eval is not None else 0
         if self.model_basic_save_name is not None and self.is_better(cur_ap, self.pre_best):
             self.pre_best = cur_ap
-            pre_monitor_saves = glob(self.monitor_save_re)
+            # pre_monitor_saves = glob(self.monitor_save_re)
+            pre_monitor_saves = [ii for ii in os.listdir(self.save_path) if self.monitor_save_re.match(ii)]
             # tf.print(">>>> pre_monitor_saves:", pre_monitor_saves)
             if len(pre_monitor_saves) != 0:
-                os.remove(pre_monitor_saves[0])
+                os.remove(os.path.join(self.save_path, pre_monitor_saves[0]))
             monitor_save = self.monitor_save.format(epoch + 1, "{:.4f}".format(cur_ap))
             print("\n>>>> Save best to:", monitor_save)
             if self.model is not None:

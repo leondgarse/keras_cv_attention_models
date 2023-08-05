@@ -83,7 +83,7 @@ def cross_covariance_attention(inputs, num_heads=4, key_dim=0, qkv_bias=True, ou
     key_dim = key_dim if key_dim > 0 else input_channel // num_heads
     qk_out = key_dim * num_heads
 
-    qkv = functional.reshape(inputs, [-1, np.prod(input_blocks), inputs.shape[-1]]) if len(inputs.shape) > 3 else inputs
+    qkv = functional.reshape(inputs, [-1, int(np.prod(input_blocks)), inputs.shape[-1]]) if len(inputs.shape) > 3 else inputs
     qkv = layers.Dense(qk_out * 3, use_bias=True, name=name and name + "qkv")(qkv)
     query, key, value = functional.split(qkv, 3, axis=-1)
     query = functional.transpose(functional.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  #  [batch, num_heads, key_dim, hh * ww]

@@ -110,6 +110,8 @@ def in_train_phase(train_phase, eval_phase, training=None):
 
 
 def numpy_image_resize(inputs, target_shape, method="bilinear", is_source_channels_last=True):
+    import numpy as np
+
     ndims = len(inputs.shape)
     if ndims < 2 or ndims > 4:
         raise ValueError("inputs with shape={}, ndims={} not supported, ndims must in [2, 4]".format(ipnuts.shape, ndims))
@@ -119,7 +121,8 @@ def numpy_image_resize(inputs, target_shape, method="bilinear", is_source_channe
         inputs = inputs if image_data_format() == "channels_last" else inputs.transpose([0, 3, 1, 2])
 
         inputs = functional.resize(inputs, target_shape, method=method)
-        inputs = inputs.detach().numpy() if hasattr(inputs, "detach") else inputs.numpy()
+        inputs = inputs.detach() if hasattr(inputs, "detach") else inputs
+        inputs = inputs.numpy() if hasattr(inputs, "numpy") else np.array(inputs)
 
         inputs = inputs if image_data_format() == "channels_last" else inputs.transpose([0, 2, 3, 1])
         inputs = inputs if ndims == 4 else (inputs[0] if ndims == 3 else inputs[0, :, :, 0])
@@ -128,7 +131,8 @@ def numpy_image_resize(inputs, target_shape, method="bilinear", is_source_channe
         inputs = inputs.transpose([0, 2, 3, 1]) if image_data_format() == "channels_last" else inputs
 
         inputs = functional.resize(inputs, target_shape, method=method)
-        inputs = inputs.detach().numpy() if hasattr(inputs, "detach") else inputs.numpy()
+        inputs = inputs.detach() if hasattr(inputs, "detach") else inputs
+        inputs = inputs.numpy() if hasattr(inputs, "numpy") else np.array(inputs)
 
         inputs = inputs.transpose([0, 3, 1, 2]) if image_data_format() == "channels_last" else inputs
         inputs = inputs if ndims == 4 else (inputs[0] if ndims == 3 else inputs[0, 0])

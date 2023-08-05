@@ -57,7 +57,7 @@ def attention_mlp_block(
         attn_width = inputs.shape[1] // attn_height
 
     if carrier_tokens is not None:
-        num_carrier_tokens = np.prod(carrier_tokens.shape[1:-1])
+        num_carrier_tokens = int(np.prod(carrier_tokens.shape[1:-1]))
         inputs = functional.concat([carrier_tokens, inputs], axis=1)
     # print(f"{attn_height = }, {attn_width = }")
 
@@ -104,7 +104,7 @@ def hierarchical_attention(
         ct_channels = carrier_tokens.shape[-1]
         ct_patch_height, ct_patch_width = carrier_tokens.shape[1] // token_size, carrier_tokens.shape[2] // token_size
         carrier_tokens = MlpPairwisePositionalEmbedding(pos_scale=pos_scale, use_absolute_pos=True, name=name + "hat_pos")(carrier_tokens)
-        carrier_tokens = functional.reshape(carrier_tokens, [-1, np.prod(carrier_tokens.shape[1:-1]), ct_channels])
+        carrier_tokens = functional.reshape(carrier_tokens, [-1, int(np.prod(carrier_tokens.shape[1:-1])), ct_channels])
         carrier_tokens, _, ct_gamma_layer = attention_mlp_block(carrier_tokens, **attn_kwargs, activation=activation, name=name + "hat_")
         # print(f"{carrier_tokens.shape = }")
         carrier_tokens = functional.reshape(carrier_tokens, [-1, token_size, ct_patch_width, token_size * ct_channels])

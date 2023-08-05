@@ -41,7 +41,7 @@ class ReluWeightedSum(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs):
-        if backend.backend() == "torch":
+        if backend.is_torch_backend:
             # [???] Or will Type Error: Type 'tensor(float)' of input parameter (onnx::ReduceSum_1256) of operator (ReduceSum)
             gain = self.gain.relu()
             gain = gain / (gain.sum() + self.__epsilon__)

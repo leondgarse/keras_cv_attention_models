@@ -35,7 +35,7 @@ def multi_head_self_attention_channel(
     out_shape = input_channel if out_shape is None or not out_weight else out_shape
     qkv_out = num_heads * key_dim
 
-    qkv = functional.reshape(inputs, [-1, np.prod(input_blocks), inputs.shape[-1]]) if len(inputs.shape) > 3 else inputs
+    qkv = functional.reshape(inputs, [-1, int(np.prod(input_blocks)), inputs.shape[-1]]) if len(inputs.shape) > 3 else inputs
     qkv = layers.Dense(qkv_out * 3, use_bias=qkv_bias, name=name and name + "qkv")(qkv)
     value, query, key = functional.split(qkv, 3, axis=-1)  # Matching weights from PyTorch
     query = functional.transpose(functional.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 3, 1])  # [batch, num_heads, key_dim, hh * ww]

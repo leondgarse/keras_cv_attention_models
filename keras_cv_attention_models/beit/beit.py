@@ -210,7 +210,8 @@ class MultiHeadRelativePositionalEmbedding(layers.Layer):
         # pos_emb = tf.gather(self.relative_position_bias_table, self.relative_position_index, axis=1).numpy()
         hh = ww = int(float(self.relative_position_bias_table.shape[1] - self.cls_token_pos_len) ** 0.5)
         pos_emb = self.relative_position_bias_table[:, : hh * ww]
-        pos_emb = pos_emb.detach().numpy() if hasattr(pos_emb, "detach") else pos_emb.numpy()
+        pos_emb = pos_emb.detach() if hasattr(pos_emb, "detach") else pos_emb
+        pos_emb = pos_emb.numpy() if hasattr(pos_emb, "numpy") else np.array(pos_emb)
         pos_emb = pos_emb.reshape((num_heads, hh, ww))
         cols = int(math.ceil(num_heads / rows))
         fig, axes = plt.subplots(rows, cols, figsize=(base_size * cols, base_size * rows))
@@ -246,7 +247,7 @@ def scaled_dot_product_attention(query, key, value, output_shape, pos_emb=None, 
     attention_output = attention_scores @ value
     output = functional.transpose(attention_output, [0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
     # output = functional.reshape(output, [-1, *blocks, np.prod(output.shape[1:]) // np.prod(blocks)])  # [batch, q_blocks, channel * attn_ratio]
-    output = layers.Reshape([*blocks, np.prod(output.shape[2:])])(output) if -1 in blocks else layers.Reshape([*blocks, -1])(output)
+    output = layers.Reshape([*blocks, int(np.prod(output.shape[2:]))])(output) if -1 in blocks else layers.Reshape([*blocks, -1])(output)
 
     if out_weight:
         # [batch, hh, ww, num_heads * key_dim] * [num_heads * key_dim, out] --> [batch, hh, ww, out]
@@ -304,7 +305,7 @@ def attention_block(
 ):
     _, bb, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
-    emded_dim = num_heads * key_dim
+    emded_dim = int(num_heads * key_dim)
     # print(f">>>> {bb = }, {cc = }, {emded_dim = }")
 
     # if qkv_bias, just use bias in qkv_dense, and set qv_bias False
@@ -414,7 +415,8 @@ class PatchConv2DWithResampleWeights(layers.Conv2D):
             basis_vec[np.unravel_index(idx, source_shape)] = 1.0
             vec = np.expand_dims(basis_vec, -1 if image_data_format() == "channels_last" else 0)
             vec = functional.resize(vec, target_shape, method=method)
-            vec = vec.detach().numpy() if hasattr(vec, "detach") else vec.numpy()
+            vec = vec.detach() if hasattr(vec, "detach") else vec
+            vec = vec.numpy() if hasattr(vec, "numpy") else np.array(vec)
             mat.append(vec.reshape(-1))
         resize_mat_pinv = np.linalg.pinv(np.stack(mat))
 

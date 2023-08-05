@@ -44,7 +44,7 @@ def multi_head_self_attention(
     qk_out = num_heads * key_dim
     vv_dim = out_shape // num_heads
 
-    qkv = functional.reshape(inputs, [-1, np.prod(blocks), inputs.shape[-1]]) if len(inputs.shape) > 3 else inputs
+    qkv = functional.reshape(inputs, [-1, int(np.prod(blocks)), inputs.shape[-1]]) if len(inputs.shape) > 3 else inputs
     qkv = layers.Dense(qk_out * 2 + out_shape, use_bias=qkv_bias, name=name and name + "qkv")(qkv)
     query, key, value = functional.split(qkv, [qk_out, qk_out, out_shape], axis=-1)
     query = functional.transpose(functional.reshape(query, [-1, query.shape[1], num_heads, key_dim]), [0, 2, 1, 3])  #  [batch, num_heads, hh * ww, key_dim]

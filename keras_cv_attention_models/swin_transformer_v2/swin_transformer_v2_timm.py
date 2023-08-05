@@ -167,7 +167,7 @@ def window_mhsa_with_pair_wise_positional_embedding(
     if attn_dropout > 0:
         attention_scores = layers.Dropout(attn_dropout, name=name and name + "attn_drop")(attention_scores)
     attention_output = functional.matmul(attention_scores, value)
-    attention_output = functional.transpose(attention_output, perm=[0, 2, 1, 3])
+    attention_output = functional.transpose(attention_output, [0, 2, 1, 3])
     attention_output = functional.reshape(attention_output, [-1, inputs.shape[1], inputs.shape[2], num_heads * key_dim])
     # print(f">>>> {attention_output.shape = }, {attention_scores.shape = }")
 

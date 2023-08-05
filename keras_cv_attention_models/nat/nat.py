@@ -93,9 +93,9 @@ def replicate_padding(inputs, kernel_size=1, dilation_rate=1):
     padded = (kernel_size - 1) // 2
     dilation_rate = dilation_rate if isinstance(dilation_rate, (list, tuple)) else (dilation_rate, dilation_rate)
 
-    if backend.backend() == "torch" and max(dilation_rate) == 1:  # NAT
+    if backend.is_torch_backend and max(dilation_rate) == 1:  # NAT
         out = functional.pad(inputs, paddings=[[padded, padded], [padded, padded], [0, 0]], mode="replicate")
-    elif backend.backend() == "torch":  # DiNAT
+    elif backend.is_torch_backend:  # DiNAT
         paddings = [[dilation_rate[0], dilation_rate[0]], [dilation_rate[1], dilation_rate[1]], [0, 0]]
         out = inputs
         for _ in range(padded):
@@ -142,7 +142,7 @@ def neighborhood_attention(
 
     # key_value: [batch, height - (kernel_size - 1), width - (kernel_size - 1), kernel_size, kernel_size, key + value]
     # print(f"{key_value.shape = }, {window_size = }")
-    if backend.backend() == "torch":
+    if backend.is_torch_backend:
         key_value = functional.extract_patches(key_value, sizes=kernel_size, strides=1, rates=dilation_rate, padding="valid", compressed=True)
         key_value = replicate_padding(key_value, kernel_size=kernel_size, dilation_rate=dilation_rate)  # Keep it here, as the input shape is different
     else:
