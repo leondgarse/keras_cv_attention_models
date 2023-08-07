@@ -177,7 +177,7 @@ class RunPrediction:
     def build(self):
         from keras_cv_attention_models.clip import tokenizer
 
-        self.tokenizer = getattr(tokenizer, self.tokenizer)()
+        self.tokenizer = getattr(tokenizer, self.tokenizer)() if isinstance(self.tokenizer, str) else self.tokenizer
         self.max_block_size = self.model.max_block_size
         self.vocab_size = self.model.output_shape[-1]
         self.vocab_indexes = np.arange(self.vocab_size)
@@ -203,6 +203,8 @@ class RunPrediction:
         """
         if not self.built:
             self.build()
+        if backend.is_torch_backend:
+            device = next(self.model.parameters()).device
 
         start_ids = np.array(self.tokenizer.encode(inputs, add_sot=True))
         for k in range(num_samples):
@@ -212,7 +214,10 @@ class RunPrediction:
                 # if the sequence context is growing too long we must crop it at block_size
                 idx_cond = inputs_idxes if inputs_idxes.shape[-1] <= self.max_block_size else inputs_idxes[-self.max_block_size :]
                 # forward the model to get the logits for the index in the sequence
-                logits = self.model(functional.convert_to_tensor(idx_cond, dtype="int64")[None])
+                cur_inputs = functional.convert_to_tensor(idx_cond, dtype="int64")[None]
+                if backend.is_torch_backend:
+                    cur_inputs.to(device)
+                logits = self.model(cur_inputs)
                 # pluck the logits at the final step and scale by desired temperature
                 logits = logits[:, -1, :] / temperature
                 logits = logits.detach().cpu() if hasattr(logits, "detach") else logits
