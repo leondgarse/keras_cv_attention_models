@@ -8,9 +8,9 @@ from keras_cv_attention_models.gpt2.gpt2 import RunPrediction
 
 
 PRETRAINED_DICT = {
-    "llama2_110m": {"tiny_stories": "00a82a7649e9b29af65b500fa4ceceb8"},
-    "llama2_15m": {"tiny_stories": "a8db53783fa9e31ecb821f1fd9f7d966"},
-    "llama2_42m": {"tiny_stories": "580bdbf3c8ddf8f907c07dbafe526dfe"},
+    "llama2_110m": {"tiny_stories": "92b530d129f5b3c70c190669cb48b5bb"},
+    "llama2_15m": {"tiny_stories": "b16894b3e40703d941e08b83767dd826"},
+    "llama2_42m": {"tiny_stories": "35d924a79d6f8b1e3dcb4af8a9ae6863"},
 }
 
 
@@ -84,9 +84,9 @@ def causal_self_attention(inputs, block_size, num_heads, use_bias=False, dropout
     key_dim = input_channels // num_heads
     qq_scale = 1.0 / (float(key_dim) ** 0.5)
 
-    query = layers.Dense(input_channels, use_bias=use_bias, name=name + "wq")(inputs)
-    key = layers.Dense(input_channels, use_bias=use_bias, name=name + "wk")(inputs)
-    value = layers.Dense(input_channels, use_bias=use_bias, name=name + "wv")(inputs)
+    query = layers.Dense(input_channels, use_bias=use_bias, name=name + "q_proj")(inputs)
+    key = layers.Dense(input_channels, use_bias=use_bias, name=name + "k_proj")(inputs)
+    value = layers.Dense(input_channels, use_bias=use_bias, name=name + "v_proj")(inputs)
 
     # Create a new one every time, as there's no weights for this layer
     rope = PositionalEncodingFourierRot1D(max_block_size=block_size, name=name + "rope")
@@ -107,27 +107,27 @@ def causal_self_attention(inputs, block_size, num_heads, use_bias=False, dropout
 
     output = functional.transpose(attn_out, [0, 2, 1, 3])
     output = layers.Reshape([-1, input_channels])(output)
-    output = layers.Dense(input_channels, use_bias=use_bias, name=name + "wo")(output)
+    output = layers.Dense(input_channels, use_bias=use_bias, name=name + "o_proj")(output)
     output = layers.Dropout(dropout)(output)
     return output
 
 
 def attention_fft_block(inputs, block_size, num_heads, hidden_divisible=32, use_bias=False, dropout=0, activation="swish", name=""):
     input_channels = inputs.shape[-1]
-    attn = RMSNorm(name=name + "attention_norm")(inputs)
-    attn = causal_self_attention(attn, block_size, num_heads, use_bias, dropout, name=name + "attention.")
+    attn = RMSNorm(name=name + "input_layernorm")(inputs)
+    attn = causal_self_attention(attn, block_size, num_heads, use_bias, dropout, name=name + "self_attn.")
     attn_out = inputs + attn
 
     hidden_dim = 2 * 4 * input_channels // 3
     hidden_dim = hidden_divisible * ((hidden_dim + hidden_divisible - 1) // hidden_divisible)
     # print(f"{input_channels = }, {hidden_divisible = }, {hidden_dim = }")
 
-    fft = RMSNorm(name=name + "ffn_norm")(attn_out)
-    fft_1 = layers.Dense(hidden_dim, use_bias=use_bias, name=name + "feed_forward.w1")(fft)
-    fft_1 = activation_by_name(fft_1, activation=activation, name=name + "feed_forward.w1.")
-    fft_3 = layers.Dense(hidden_dim, use_bias=use_bias, name=name + "feed_forward.w3")(fft)
+    fft = RMSNorm(name=name + "post_attention_layernorm")(attn_out)
+    fft_1 = layers.Dense(hidden_dim, use_bias=use_bias, name=name + "mlp.gate_proj")(fft)
+    fft_1 = activation_by_name(fft_1, activation=activation, name=name + "mlp.gate_proj.")
+    fft_3 = layers.Dense(hidden_dim, use_bias=use_bias, name=name + "mlp.up_proj")(fft)
     fft = fft_1 * fft_3
-    fft = layers.Dense(input_channels, use_bias=use_bias, name=name + "feed_forward.w2")(fft)
+    fft = layers.Dense(input_channels, use_bias=use_bias, name=name + "mlp.down_proj")(fft)
     fft = layers.Dropout(dropout)(fft)
 
     return layers.Add(name=name + "output")([attn_out, fft])
@@ -149,7 +149,7 @@ def LLaMA2(
     kwargs=None,
 ):
     inputs = layers.Input([None], dtype="int64")
-    tok_emb = layers.Embedding(vocab_size, embedding_size, name="tok_embeddings")(inputs)
+    tok_emb = layers.Embedding(vocab_size, embedding_size, name="embed_tokens")(inputs)
     nn = layers.Dropout(dropout)(tok_emb)
 
     for block_id in range(num_blocks):
@@ -157,15 +157,12 @@ def LLaMA2(
     nn = RMSNorm(name="norm")(nn)
 
     if include_top:
-        nn = layers.Dense(vocab_size, use_bias=False, name="output")(nn)
+        nn = layers.Dense(vocab_size, use_bias=False, name="lm_head")(nn)
 
     model = models.Model(inputs, nn, name=model_name)
     model.max_block_size = max_block_size  # or model.get_layer('pos_idx').block_size
     model.run_prediction = RunPrediction(model, tokenizer="SentencePieceTokenizer")
-    if pretrained is not None and (pretrained.endswith(".pt") or pretrained.endswith(".pth")):
-        load_weights_from_pytorch(model, source_pt_path=pretrained, save_path="~/.keras/models")
-    else:
-        reload_model_weights(model, PRETRAINED_DICT, "llama2", pretrained)
+    reload_model_weights(model, PRETRAINED_DICT, "llama2", pretrained)
     return model
 
 
@@ -202,58 +199,19 @@ def LLaMA2_7B(max_block_size=2048, vocab_size=32000, include_top=True, activatio
     return LLaMA2(**locals(), **kwargs, model_name="llama2_7b")
 
 
-def load_weights_from_pytorch(model, source_pt_path, save_name=None, save_path=".", force=False):
-    import os
+""" Convert pytorch weights to h5 """
 
-    pretrained = os.path.splitext(os.path.basename(source_pt_path))[0]
-    save_name = save_name if save_name is not None else "{}_{}.h5".format(model.name, pretrained)
-    save_path = os.path.join(os.path.expanduser(save_path), save_name)
-    if not force and os.path.exists(save_path):
-        print("Load previously saved model:", save_path)
-        model.load_weights(save_path)
-        return
-    else:
-        print("Convert and load weights from", source_pt_path)
 
-    import torch
+def convert_huggingface_weights_to_h5(source_pt_path, save_path="AUTO", name_convert_map={}, to_fp16=False):
+    from keras_cv_attention_models.download_and_load import convert_torch_weights_to_h5
 
-    source_state_dict = torch.load(source_pt_path, map_location=torch.device("cpu"))
-    source_state_dict = source_state_dict.get("state_dict", source_state_dict.get("model", source_state_dict))
-
-    """ state_dict_stack_by_layer """
-    stacked_state_dict = {}
-    for kk, vv in source_state_dict.items():
-        if kk.endswith(".attn.bias") or kk.endswith(".attn.masked_bias"):
-            continue
-
-        split_kk = kk.split(".")
-        vv = vv.numpy() if hasattr(vv, "numpy") else vv
-
-        # split_kk[-1] in ["weight", "bias", "running_mean", "running_var", "gain"]
-        layer_name = ".".join(split_kk[:-1])
-        stacked_state_dict.setdefault(layer_name, []).append(vv)
-
-    """ keras_reload_stacked_state_dict """
-    target_names = [ii.name for ii in model.layers if len(ii.weights) != 0]
-    for target_name in target_names:
-        source_name = target_name.replace("blocks.", "layers.")
-        print(">>>> Load {} weights from {}".format(target_name, source_name))
-        target_layer = model.get_layer(target_name)
-        source_weights = stacked_state_dict[source_name]
-        if isinstance(target_layer, layers.Dense):
-            source_weights = [ii.T for ii in source_weights]
-        print("    Source: {}, Target: {}".format([ii.shape for ii in source_weights], [ii.shape for ii in target_layer.get_weights()]))
-
-        if hasattr(target_layer, "set_weights_channels_last"):
-            target_layer.set_weights_channels_last(source_weights)  # Kecam PyTorch backend
-        else:
-            target_layer.set_weights(source_weights)
-
-    print(">>>> Save to:", save_path)
-    if hasattr(model, "save"):
-        model.save(save_path)
-    else:
-        model.save_weights(save_path)  # Kecam PyTorch backend
+    skip_weights = [".num_batches_tracked", ".inv_freq"]
+    name_convert_funcs = [
+        lambda name: name.replace("layers.", "blocks."),
+        lambda name: name[len("model.") :] if name.startswith("model.") else name,
+    ]
+    weight_convert_funcs = [lambda target_name, weight: weight.T if len(weight.shape) == 2 and "embed_tokens" not in target_name else weight]  # Dense weight
+    return convert_torch_weights_to_h5(source_pt_path, save_path, skip_weights, name_convert_funcs, name_convert_map, weight_convert_funcs, to_fp16)
 
 
 if __name__ == "__test__":

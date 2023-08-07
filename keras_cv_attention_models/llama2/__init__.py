@@ -7,7 +7,7 @@ from keras_cv_attention_models.llama2.llama2 import (
     RunPrediction,
     PositionalEncodingFourierRot1D,
     RMSNorm,
-    load_weights_from_pytorch,
+    convert_huggingface_weights_to_h5,
 )
 
 __head_doc__ = """

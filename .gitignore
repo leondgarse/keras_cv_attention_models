@@ -14,6 +14,8 @@ __pycache__
 *.log
 *.tar
 *.tar.gz
+*.bin
+*.keras
 .ipynb_checkpoints
 checkpoints
 datasets

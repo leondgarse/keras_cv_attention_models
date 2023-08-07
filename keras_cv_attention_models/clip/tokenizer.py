@@ -32,7 +32,7 @@ def download_tokenizer_file(name):
     path, file_hash = config["path"], config["file_hash"]
 
     url = "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/{}".format(path)
-    tokenizer_file = os.path.join(os.path.expanduser("~/.keras/datasets"), path)
+    tokenizer_file = os.path.join(os.path.expanduser("~"), ".keras", "datasets", path)
     print(">>>> Load tokenizer from file:", tokenizer_file)
     return get_file(origin=url, file_hash=file_hash)
 
@@ -258,8 +258,7 @@ class SentencePieceTokenizer(SimpleTokenizer):
             elif len(token) == 6 and token.startswith("<0x") and token.endswith(">"):
                 token = chr(int(token[3:5], 16))  # e.g. make '<0x01>' into '\x01'
             token = token.replace("▁", " ")  # sentencepiece uses this character as whitespace
-            # token_byte = token.encode('utf-8') # bytes of this token, utf-8 encoded
-            decoder[id] = token
+            decoder[id] = token  # .encode('utf-8') # bytes of this token, utf-8 encoded
             scores[id] = score
         return decoder, scores
 
@@ -271,14 +270,20 @@ class SentencePieceTokenizer(SimpleTokenizer):
             tokens = tokens + [self.sot_token]
         return tokens
 
+    # def decode_single(self, token):
+    #     return self.decoder[int(tokens)]
+
     def decode(self, tokens):
         # Not using sp_model.decode, as leading space is omitted when decoding a single word. https://github.com/karpathy/llama2.c/pull/89
         # return self.sp_model.decode(tokens)
-        if isinstance(tokens, (list, tuple)):
-            rr = "".join([self.decoder[int(ii)] for ii in tokens])
-            return (self.sot + rr[len(self.sot) + 1 :]) if tokens[0] == self.sot_token else rr
+        tokens = tokens.tolist() if hasattr(tokens, "tolist") else tokens
+        if isinstance(tokens, (list, tuple)) and len(tokens) > 1:
+            return self.sp_model.decode(tokens)
+            # rr = "".join([self.decoder[int(ii)] for ii in tokens])
+            # return (self.sot + rr[len(self.sot) + 1 :]) if tokens[0] == self.sot_token else rr
         else:
-            return self.decoder[int(ii)]
+            token = int(tokens[0]) if isinstance(tokens, (list, tuple)) else int(tokens)
+            return self.decoder[token]
 
 
 class TikToken(SimpleTokenizer):

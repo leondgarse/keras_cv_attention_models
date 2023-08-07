@@ -36,15 +36,30 @@
   print(f"{mm.output_shape = }")
   # mm.output_shape = (None, 1024, 512)
   ```
-  **Set `pretrained="xxx.pt"`** for converting and loading weights from saved specific `xxx.pt` file.
+## Convert weights
+- Manually downloading weights from [Huggingface meta-llama/Llama-2-7b-chat-hf](https://huggingface.co/meta-llama/Llama-2-7b-chat-hf) or [Huggingface LinkSoul/Chinese-Llama-2-7b](https://huggingface.co/LinkSoul/Chinese-Llama-2-7b), and convert to `h5` format. The benefit of saving h5 is that, it's like `npz` or `tfrecord`, weights can be loaded layer by layer without reading the entire file into memory.
   ```py
-  from keras_cv_attention_models import llama2
+  # Set to build model using pure float16 if using Tensorflow
+  policy = keras.mixed_precision.Policy("float16")
+  keras.mixed_precision.set_global_policy(policy)
 
-  mm = llama2.LLaMA2_42M(pretrained="stories42M.pt")
-  # Load and convert weights from huggingface
-  # >>>> Save to: ~/.keras/models/llama2_42m_stories42M.h5
-  mm.run_prediction("hello world", num_samples=1, max_new_tokens=100)
-  # hello world was excited for the day. It was a bright day with lots of fun things to do.
-  # ...
+  from keras_cv_attention_models import llama2
+  _ = llama2.convert_huggingface_weights_to_h5("pytorch_model-00001-of-00002.bin", to_fp16=True)
+  # >>>> Save to: pytorch_model-00001-of-00002.h5
+  _ = llama2.convert_huggingface_weights_to_h5("pytorch_model-00002-of-00002.bin", to_fp16=True)
+  # >>>> Save to: pytorch_model-00002-of-00002.h5
+  ```
+  Then load back into model.
+  ```py
+  mm = policy = keras.mixed_precision.Policy("float16")
+  keras.mixed_precision.set_global_policy(policy)
+
+  from keras_cv_attention_models import llama2
+  mm = llama2.LLaMA2_7B(pretrained=["pytorch_model-00001-of-00002.h5", "pytorch_model-00002-of-00002.h5"])
+  # >>>> Load pretrained from: pytorch_model-00001-of-00002.h5
+  # >>>> Load pretrained from: pytorch_model-00002-of-00002.h5
+  mm.save(mm.name + ".h5")  # mm.half().save(mm.name + ".h5") if using PyTorch backend
+
+  mm.run_prediction("Who's there?")
   ```
 ***

@@ -9,13 +9,15 @@ HDF5_OBJECT_HEADER_LIMIT = 64512
 def reload_model_weights(
     model, pretrained_dict, sub_release, pretrained="imagenet", mismatch_class=None, force_reload_mismatch=False, request_resolution=-1, method=None
 ):
-    if not isinstance(pretrained, str):
+    if not isinstance(pretrained, (str, list, tuple)):
         return
-    if pretrained.endswith(".h5") or pretrained.endswith(".keras"):
-        print(">>>> Load pretrained from:", pretrained)
-        # model.load_weights(pretrained, by_name=True, skip_mismatch=True)
-        load_weights_with_mismatch(model, pretrained, mismatch_class, request_resolution=request_resolution, method=method)
-        return pretrained
+    if isinstance(pretrained, (list, tuple)) or pretrained.endswith(".h5") or pretrained.endswith(".keras"):
+        pretraineds = pretrained if isinstance(pretrained, (list, tuple)) else [pretrained]
+        for pretrained in pretraineds:
+            print(">>>> Load pretrained from:", pretrained)
+            # model.load_weights(pretrained, by_name=True, skip_mismatch=True)
+            load_weights_with_mismatch(model, pretrained, mismatch_class, request_resolution=request_resolution, method=method)
+        return pretraineds
 
     file_hash = pretrained_dict.get(model.name, {}).get(pretrained, None)
     if file_hash is None:
@@ -99,7 +101,7 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_re
             pass
 
 
-""" Save / load h5 weights from keras.saving.legacy.hdf5_format, supports both TF and PyTorch model """
+""" Save / load h5 weights from keras.saving.legacy.hdf5_format, supports both TF and PyTorch model, and convert_torch_weights_to_h5 """
 
 
 def read_h5_weights(filepath, only_valid_weights=True):
@@ -185,20 +187,20 @@ def save_weights_to_hdf5_file(filepath, model, compression=None, layer_start=Non
     if isinstance(model, dict):
         weights_dict = model
     else:
-        model_layers = model.layers[layer_start:layer_end]
-        weights_dict = {}
-        for layer in model_layers:
-            weight_values = layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()
-            weight_names = [ww.name for ww in layer.weights]
-            weights_dict[layer.name] = dict(zip(weight_names, weight_values))
+        weights_dict = {layer.name: layer for layer in model_layers[layer_start:layer_end]}
 
     with h5py.File(filepath, "w") as h5_file:
-        save_attributes_to_hdf5_group(h5_file, "layer_names", [layer.encode("utf8") for layer in weights_dict])
+        save_attributes_to_hdf5_group(h5_file, "layer_names", [layer_name.encode("utf8") for layer_name in weights_dict])
         h5_file.attrs["backend"] = backend.backend().encode("utf8")
-        for layer, wws in weights_dict.items():
-            layer_group = h5_file.create_group(layer)
-            weight_names = [ww.encode("utf8") for ww in wws]
-            weight_values = list(wws.values())
+        for layer_name, layer_weights in weights_dict.items():
+            layer_group = h5_file.create_group(layer_name)
+            if isinstance(layer_weights, layers.Layer):
+                layer = layer_weights
+                weight_values = layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()
+                weight_names = [ww.name.encode("utf8") for ww in layer.weights]
+            else:
+                weight_names = [ww.encode("utf8") for ww in layer_weights]
+                weight_values = list(layer_weights.values())
             # save_subset_weights_to_hdf5_group(layer_group, weight_names, weight_values, compression=compression)
 
             save_attributes_to_hdf5_group(layer_group, "weight_names", weight_names)
@@ -209,6 +211,68 @@ def save_weights_to_hdf5_file(filepath, model, compression=None, layer_start=Non
                     param_dset[()] = val
                 else:
                     param_dset[:] = val
+
+
+def convert_torch_weights_to_h5(
+    source_pt_path,
+    save_path="AUTO",
+    skip_weights=["num_batches_tracked"],
+    name_convert_funcs=None,
+    name_convert_map=None,
+    weight_convert_funcs=None,
+    to_fp16=False,
+):
+    """
+    Examples:
+    # Save weights is torch pt -> convert to h5 -> load back
+    >>> os.environ['KECAM_BACKEND'] = 'torch'
+    >>> from keras_cv_attention_models import download_and_load, models
+    >>> mm = models.AotNet50()
+    >>> mm.save('test.pt')
+    >>> conv_func = lambda name, ww: ww.transpose([2, 3, 1, 0]) if name.endswith("conv.weight") else ww
+    >>> _ = download_and_load.convert_torch_weights_to_h5('test.pt', 'test.h5', weight_convert_funcs=[conv_func])
+    >>> mm.load("test.h5")
+    """
+    import os
+    import torch
+
+    source_state_dict = torch.load(source_pt_path, map_location=torch.device("cpu")) if isinstance(source_pt_path, str) else source_pt_path
+    source_state_dict = source_state_dict.get("state_dict", source_state_dict.get("model", source_state_dict))
+    name_convert_funcs = [] if name_convert_funcs is None else name_convert_funcs
+    name_convert_map = {} if name_convert_map is None else name_convert_map
+    weight_convert_funcs = [] if weight_convert_funcs is None else weight_convert_funcs
+    save_path = (os.path.splitext(source_pt_path)[0] + ".h5" if isinstance(source_pt_path, str) else "converted.h5") if save_path == "AUTO" else save_path
+
+    """ keras_reload_stacked_state_dict """
+    stacked_state_dict = {}
+    for source_name, source_weight in source_state_dict.items():
+        # target_name = source_name.replace("layers.", "blocks.")
+        # target_name = target_name[len("model."):] if target_name.startswith("model.") else target_name
+        if any([source_name.endswith(ii) for ii in skip_weights]):
+            continue
+        source_name_split = source_name.split(".")
+        source_layer_name, source_weight_name = ".".join(source_name_split[:-1]), source_name_split[-1]
+
+        target_layer_name = source_layer_name
+        for additional_name_func in name_convert_funcs:
+            target_layer_name = additional_name_func(target_layer_name)
+        for kk, vv in name_convert_map.items():
+            if kk in target_layer_name:
+                target_layer_name = target_layer_name.replace(kk, vv)
+        print(">>>> layer {} -> {}".format(source_layer_name, target_layer_name))
+
+        source_weight = source_weight.numpy() if hasattr(source_weight, "numpy") else source_weight
+        source_weight = source_weight.astype("float16") if to_fp16 else source_weight
+        for additional_weight_func in weight_convert_funcs:
+            # source_weight = [ii.T if len(ii) == 2 else ii for ii in source_weight]
+            source_weight = additional_weight_func(target_layer_name, source_weight)
+        print("    weight: {}, shape: {}".format(source_weight_name, source_weight.shape))
+        stacked_state_dict.setdefault(target_layer_name, {}).update({source_layer_name + "/" + source_weight_name: source_weight})
+
+    if save_path:
+        print(">>>> Save to:", save_path)
+        save_weights_to_hdf5_file(save_path, stacked_state_dict)
+    return stacked_state_dict
 
 
 """ Convert PyTorch weights """

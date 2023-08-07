@@ -451,7 +451,10 @@ class Model(nn.Module, _Trainer_, _Exporter_):
         if filepath.endswith("h5"):
             self.save_weights(filepath, **kwargs)
         else:
-            torch.save(self, filepath, **kwargs)
+            save_items = {"state_dict": self.state_dict()}
+            if hasattr(self, "optimizer"):
+                save_items.update({"optimizer": self.optimizer.state_dict()})
+            torch.save(save_items, filepath, **kwargs)
 
     def count_params(self):
         total_params = sum([np.prod(ii.shape) for ii in self.state_dict().values() if len(ii.shape) != 0])

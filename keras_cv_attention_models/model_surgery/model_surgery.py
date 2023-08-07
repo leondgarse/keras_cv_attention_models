@@ -1037,9 +1037,14 @@ def swin_convert_pos_emb_mlp_to_MlpPairwisePositionalEmbedding_weights(source_fi
     pos_emb_weight_names = ["hidden_weight:0", "hidden_bias:0", "out:0"]
     for layer_name in layer_names:
         if layer_name.endswith("_pos_emb"):
+            dense_1_name, dense_2_name = layer_name.replace("pos_emb", "meta_dense_1"), layer_name.replace("pos_emb", "meta_dense_2")
+            if dense_1_name not in bb or dense_2_name not in bb:
+                print("[WARNING] cannot match name {}, requires source weights containing {} and {}".format(layer_name, dense_1_name, dense_2_name))
+                continue
+
             print("Layer:", layer_name)
-            dense_1 = list(bb.pop(layer_name.replace("pos_emb", "meta_dense_1")).values())
-            dense_2 = list(bb.pop(layer_name.replace("pos_emb", "meta_dense_2")).values())
+            dense_1 = list(bb.pop(dense_1_name).values())
+            dense_2 = list(bb.pop(dense_2_name).values())
             weight_names = [layer_name + "/" + ii for ii in pos_emb_weight_names]
             print("    weight_names:", weight_names, "weight shapes:", [ii.shape for ii in dense_1 + dense_2])
             bb[layer_name] = dict(zip(weight_names, dense_1 + dense_2))
