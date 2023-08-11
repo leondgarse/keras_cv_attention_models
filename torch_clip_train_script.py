@@ -100,20 +100,16 @@ class CLIP(nn.Module):
         return similarity
 
 
-def build_model(
-    image_model="FlexiViTBase", text_model="GPT2_Base", image_input_shape=(224, 224, 3), image_pretrained=None, text_pretrained=None, latents_dim=512
-):
+def build_model(image_model="FlexiViTBase", text_model="GPT2_Base", latents_dim=512, image_model_kwargs={}, text_model_kwargs={}):
     if isinstance(image_model, str):
         model_split = image_model.split(".")
         image_model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam.models, model_split[0])
-        kwargs = {} if image_pretrained == "default" else {"pretrained": image_pretrained}
-        image_model = image_model_class(input_shape=image_input_shape, num_classes=latents_dim, classifier_activation=None, **kwargs)
+        image_model = image_model_class(num_classes=latents_dim, classifier_activation=None, **image_model_kwargs)
 
     if isinstance(text_model, str):
         model_split = text_model.split(".")
         text_model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam.models, model_split[0])
-        kwargs = {} if text_pretrained == "default" else {"pretrained": text_pretrained}
-        text_model = text_model_class(include_top=False, **kwargs)
+        text_model = text_model_class(include_top=False, **text_model_kwargs)
         text_inputs = text_model.inputs[0]
         text_outputs = text_model.outputs[0]
         text_outputs = kecam.clip.models.text_model_index_header(text_inputs, text_outputs, latents_dim)
@@ -234,13 +230,19 @@ if __name__ == "__main__":
     (image, text), labels = next(iter(train_dataloader))
     print(">>>> Data: image.shape: {}, text.shape: {}, labels.shape: {}".format(image.shape, text.shape, labels.shape))
 
-    image_input_shape = (3, args.input_shape, args.input_shape)
-    model, image_model, text_model = build_model(args.image_model, args.text_model, image_input_shape, args.image_model_pretrained, args.text_model_pretrained)
+    image_model_kwargs = {} if args.image_model_pretrained == "default" else {"pretrained": args.image_model_pretrained}
+    image_model_kwargs.update({"input_shape": (3, args.input_shape, args.input_shape)})
+    text_model_kwargs = {} if args.text_model_pretrained == "default" else {"pretrained": args.text_model_pretrained}
+    text_model_kwargs.update({"vocab_size": caption_tokenizer.vocab_size})
+    model, image_model, text_model = build_model(
+        args.image_model, args.text_model, latents_dim=512, image_model_kwargs=image_model_kwargs, text_model_kwargs=text_model_kwargs
+    )
     print(">>>> image_model name: {}, input_shape: {}, output_shape: {}".format(image_model.name, image_model.input_shape, image_model.output_shape))
     print(">>>> text_model name: {}, input_shape: {}, output_shape: {}".format(text_model.name, text_model.input_shape, text_model.output_shape))
 
     model.to(device=global_device)
     if hasattr(torch, "compile") and torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 6:
+        print(">>>> Calling torch.compile")
         model = torch.compile(model)
     optimizer = build_optimizer(model, lr=args.lr, weight_decay=args.weight_decay)
 

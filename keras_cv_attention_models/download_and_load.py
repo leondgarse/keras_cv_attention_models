@@ -187,7 +187,7 @@ def save_weights_to_hdf5_file(filepath, model, compression=None, layer_start=Non
     if isinstance(model, dict):
         weights_dict = model
     else:
-        weights_dict = {layer.name: layer for layer in model_layers[layer_start:layer_end]}
+        weights_dict = {layer.name: layer for layer in model.layers[layer_start:layer_end]}
 
     with h5py.File(filepath, "w") as h5_file:
         save_attributes_to_hdf5_group(h5_file, "layer_names", [layer_name.encode("utf8") for layer_name in weights_dict])
