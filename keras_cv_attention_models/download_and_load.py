@@ -111,40 +111,51 @@ def read_h5_weights(filepath, only_valid_weights=True):
         weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
         return {kk: {ww: np.array(vv[ww]) for ww in vv.attrs["weight_names"]} for kk, vv in weights.items() if not only_valid_weights or len(vv) > 0}
 
+def _load_layer_weights_nested_(model, weights, skip_mismatch=False, debug=False):
+    for layer in model.layers:
+        if len(layer.weights) == 0:
+            continue
+        if debug:
+            print(">>>> Load layer weights:", layer.name, [ii.name for ii in layer.weights])
+        if layer.name not in weights:
+            if debug:
+                print("Warning: {} not exists in provided h5 weights".format(layer.name))
+            continue
+
+        ss = weights[layer.name]
+        if hasattr(layer, "layers"):  # nested
+            dd = {}
+            for weight_name in ss.attrs['weight_names']:
+                dd.setdefault("/".join(weight_name.split("/")[:-1]), []).append(ss[weight_name])
+            _load_layer_weights_nested_(layer, dd, skip_mismatch=skip_mismatch, debug=debug)
+            continue
+
+        if hasattr(ss, "attrs"):
+            ss = [np.array(ss[ww]) for ww in ss.attrs["weight_names"]]
+        else:
+            ss = [np.array(ww) for ww in ss]
+
+        source_shape, target_shape = [ii.shape for ii in ss], [list(ii.shape) for ii in layer.weights]
+        if debug:
+            print("     [Before transpose] required weights: {}, provided: {}".format(target_shape, source_shape))
+        if skip_mismatch and (len(source_shape) != len(target_shape) or any([np.prod(ii) != np.prod(jj) for ii, jj in zip(source_shape, target_shape)])):
+            print("Warning: skip loading weights for layer: {}, required weights: {}, provided: {}".format(layer.name, target_shape, source_shape))
+            continue
+
+        if hasattr(layer, "set_weights_channels_last"):
+            layer.set_weights_channels_last(ss)
+        else:
+            layer.set_weights(ss)
 
 def load_weights_from_hdf5_file(filepath, model, skip_mismatch=False, debug=False):
     import h5py
 
     with h5py.File(filepath, "r") as h5_file:
         weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
-
-        for tt in model.layers:
-            if len(tt.weights) == 0:
-                continue
-            if debug:
-                print(">>>> Load layer weights:", tt.name, [ii.name for ii in tt.weights])
-            if tt.name not in weights:
-                if debug:
-                    print("Warning: {} not exists in provided h5 weights".format(tt.name))
-                continue
-
-            ss = weights[tt.name]
-            ss = [np.array(ss[ww]) for ww in ss.attrs["weight_names"]]
-            source_shape, target_shape = [ii.shape for ii in ss], [list(ii.shape) for ii in tt.weights]
-
-            if debug:
-                print("     [Before transpose] required weights: {}, provided: {}".format(target_shape, source_shape))
-            if skip_mismatch and (len(source_shape) != len(target_shape) or any([np.prod(ii) != np.prod(jj) for ii, jj in zip(source_shape, target_shape)])):
-                print("Warning: skip loading weights for layer: {}, required weights: {}, provided: {}".format(tt.name, target_shape, source_shape))
-                continue
-
-            if hasattr(tt, "set_weights_channels_last"):
-                tt.set_weights_channels_last(ss)
-            else:
-                tt.set_weights(ss)
+        _load_layer_weights_nested_(model, weights, skip_mismatch=skip_mismatch, debug=debug)
 
 
-def save_attributes_to_hdf5_group(group, name, data):
+def _save_attributes_to_hdf5_group_(group, name, data):
     """Saves attributes (data) of the specified name into the HDF5 group.
 
     This method deals with an inherent problem of HDF5 file which is not
@@ -177,6 +188,34 @@ def save_attributes_to_hdf5_group(group, name, data):
         group.attrs[name] = data
 
 
+def _save_to_layer_group_nested_(layer_weights, layer_group, compression=None):
+    if hasattr(layer_weights, "layers"):  # nested
+        sub_model = layer_weights
+        weight_names, weight_values = [], []
+        for layer in sub_model.layers:
+            weight_names += [ww.name.encode("utf8") for ww in layer.weights]
+            weight_values += layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()
+        # for sub_layer in layer_weights.layers:
+        #     sub_layer_group = layer_group.create_group(sub_layer.name)
+        #     _save_to_layer_group_nested_(sub_layer, sub_layer_group)
+        # return
+    elif isinstance(layer_weights, layers.Layer):
+        layer = layer_weights
+        weight_names = [ww.name.encode("utf8") for ww in layer.weights]
+        weight_values = layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()
+    else:
+        weight_names = [ww.encode("utf8") for ww in layer_weights]
+        weight_values = list(layer_weights.values())
+
+    _save_attributes_to_hdf5_group_(layer_group, "weight_names", weight_names)
+    for name, val in zip(weight_names, weight_values):
+        param_dset = layer_group.create_dataset(name, val.shape, dtype=val.dtype, compression=compression, chunks=True)
+        if not val.shape:
+            # scalar
+            param_dset[()] = val
+        else:
+            param_dset[:] = val
+
 def save_weights_to_hdf5_file(filepath, model, compression=None, layer_start=None, layer_end=None):
     """Saves the weights of a list of layers to a HDF5 file.
     - compression: refer `import h5py; help(h5py.File.create_dataset)`
@@ -188,29 +227,31 @@ def save_weights_to_hdf5_file(filepath, model, compression=None, layer_start=Non
         weights_dict = model
     else:
         weights_dict = {layer.name: layer for layer in model.layers[layer_start:layer_end]}
+        # weights_dict = _get_layer_nested_(model, layer_start, layer_end)
 
     with h5py.File(filepath, "w") as h5_file:
-        save_attributes_to_hdf5_group(h5_file, "layer_names", [layer_name.encode("utf8") for layer_name in weights_dict])
+        _save_attributes_to_hdf5_group_(h5_file, "layer_names", [layer_name.encode("utf8") for layer_name in weights_dict])
         h5_file.attrs["backend"] = backend.backend().encode("utf8")
         for layer_name, layer_weights in weights_dict.items():
             layer_group = h5_file.create_group(layer_name)
-            if isinstance(layer_weights, layers.Layer):
-                layer = layer_weights
-                weight_values = layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()
-                weight_names = [ww.name.encode("utf8") for ww in layer.weights]
-            else:
-                weight_names = [ww.encode("utf8") for ww in layer_weights]
-                weight_values = list(layer_weights.values())
-            # save_subset_weights_to_hdf5_group(layer_group, weight_names, weight_values, compression=compression)
-
-            save_attributes_to_hdf5_group(layer_group, "weight_names", weight_names)
-            for name, val in zip(weight_names, weight_values):
-                param_dset = layer_group.create_dataset(name, val.shape, dtype=val.dtype, compression=compression, chunks=True)
-                if not val.shape:
-                    # scalar
-                    param_dset[()] = val
-                else:
-                    param_dset[:] = val
+            # print(layer_name, layer_weights)
+            _save_to_layer_group_nested_(layer_weights, layer_group, compression=compression)
+            # if isinstance(layer_weights, layers.Layer):
+            #     layer = layer_weights
+            #     weight_values = layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()
+            #     weight_names = [ww.name.encode("utf8") for ww in layer.weights]
+            # else:
+            #     weight_names = [ww.encode("utf8") for ww in layer_weights]
+            #     weight_values = list(layer_weights.values())
+            #
+            # _save_attributes_to_hdf5_group_(layer_group, "weight_names", weight_names)
+            # for name, val in zip(weight_names, weight_values):
+            #     param_dset = layer_group.create_dataset(name, val.shape, dtype=val.dtype, compression=compression, chunks=True)
+            #     if not val.shape:
+            #         # scalar
+            #         param_dset[()] = val
+            #     else:
+            #         param_dset[:] = val
 
 
 def convert_torch_weights_to_h5(
@@ -229,7 +270,7 @@ def convert_torch_weights_to_h5(
     >>> from keras_cv_attention_models import download_and_load, models
     >>> mm = models.AotNet50()
     >>> mm.save('test.pt')
-    >>> conv_func = lambda name, ww: ww.transpose([2, 3, 1, 0]) if name.endswith("conv.weight") else ww
+    >>> conv_func = lambda target_name, ww: ww.transpose([2, 3, 1, 0]) if target_name.endswith("conv") and len(ww.shape) == 4 else ww
     >>> _ = download_and_load.convert_torch_weights_to_h5('test.pt', 'test.h5', weight_convert_funcs=[conv_func])
     >>> mm.load("test.h5")
     """
@@ -259,7 +300,7 @@ def convert_torch_weights_to_h5(
         for kk, vv in name_convert_map.items():
             if kk in target_layer_name:
                 target_layer_name = target_layer_name.replace(kk, vv)
-        print(">>>> layer {} -> {}".format(source_layer_name, target_layer_name))
+        print(">>>> layer {} -> {}, {}: {}".format(source_layer_name, target_layer_name, source_weight_name, source_weight.shape))
 
         source_weight = source_weight.numpy() if hasattr(source_weight, "numpy") else source_weight
         source_weight = source_weight.astype("float16") if to_fp16 else source_weight
