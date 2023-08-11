@@ -94,7 +94,7 @@
   import os
   os.environ['KECAM_BACKEND'] = 'torch'
 
-  from keras_cv_attention_models.imagenet import data
+  from keras_cv_attention_models.imagenet import data, callbacks
   input_shape = (32, 32, 3)
   batch_size = 16
   train_dataset, test_dataset, total_images, num_classes, steps_per_epoch = data.init_dataset(
@@ -111,7 +111,8 @@
 
   """ Simple compile + fit """
   mm.compile(optimizer="AdamW", metrics='acc')
-  mm.fit(train_dataset, epochs=10)
+  callbacks = [callbacks.MyHistory(initial_file='checkpoints/test_hist.json'), callbacks.MyCheckpoint('test')]
+  mm.fit(train_dataset, epochs=10, validation_data=test_dataset, callbacks=callbacks)
   ```
   Or use typical PyTorch training process
   ```py

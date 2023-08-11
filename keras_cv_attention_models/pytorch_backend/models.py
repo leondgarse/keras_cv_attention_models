@@ -43,7 +43,7 @@ class _Trainer_(object):
     def fit(self, x=None, y=None, batch_size=32, epochs=1, callbacks=None, validation_data=None, initial_epoch=0, validation_batch_size=None, **kwargs):
         callbacks = callbacks or []
         [ii.set_model(self) for ii in callbacks if ii is None]
-        self.hists = {"loss": []}
+        self.history = {"loss": []}
         validation_batch_size = validation_batch_size or batch_size
         self.batch_size, self.callbacks, self.validation_batch_size = batch_size, callbacks, validation_batch_size
 
@@ -97,22 +97,22 @@ class _Trainer_(object):
                 [ii.on_train_batch_end(batch, logs=batch_logs) for ii in callbacks]
 
             loss = avg_loss / (batch + 1)
-            self.hists["loss"].append(loss.item())
+            self.history["loss"].append(loss.item())
             for name, metric in zip(self.metrics_names, self.metrics):
                 metric_result = metric.result()
-                self.hists.setdefault(name, []).append(metric_result.item())
+                self.history.setdefault(name, []).append(metric_result.item())
 
             if validation_data is not None:
                 val_loss, val_metrics_results = self.evaluate(validation_data, batch_size=validation_batch_size, callbacks=callbacks)
 
-                self.hists.setdefault("val_loss", []).append(val_loss.item())
+                self.history.setdefault("val_loss", []).append(val_loss.item())
                 for name, metric_result in val_metrics_results.items():
-                    self.hists.setdefault("val_" + name, []).append(metric_result.item() if hasattr(metric_result, "item") else metric_result)
+                    self.history.setdefault(name, []).append(metric_result.item() if hasattr(metric_result, "item") else metric_result)
 
                 process_bar.desc += " - val_loss: {:.4f}".format(val_loss)
                 process_bar.desc += "".join([" - {}: {:.4f}".format(name, metric) for name, metric in val_metrics_results.items()])
                 process_bar.display()
-            epoch_logs = {kk: vv[-1] for kk, vv in self.hists.items()}
+            epoch_logs = {kk: vv[-1] for kk, vv in self.history.items()}
             [ii.on_epoch_end(epoch, epoch_logs) for ii in callbacks]
             print()
 
@@ -129,6 +129,9 @@ class _Trainer_(object):
         for batch, (xx, yy) in enumerate(val_dataset):
             batch_logs = {}  # Can be used as global value between different callbacks
             [ii.on_test_batch_begin(batch, batch_logs) for ii in callbacks]
+
+            xx = [self._convert_data_(ii) for ii in xx] if isinstance(xx, (list, tuple)) else self._convert_data_(xx)
+            yy = [self._convert_data_(ii) for ii in yy] if isinstance(yy, (list, tuple)) else self._convert_data_(yy)
             with self.global_context, torch.no_grad():
                 out = self(xx)
                 loss = self.loss(out, yy)

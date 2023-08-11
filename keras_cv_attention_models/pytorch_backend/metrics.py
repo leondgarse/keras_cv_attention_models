@@ -5,10 +5,12 @@ BUILDIN_METRICS = {}
 
 def register_metrics(name=None):
     def decorator(arg):
-        registered_name = name or arg.__name__
-        if registered_name in BUILDIN_METRICS:
-            raise ValueError(f"{registered_name} has already been registered to " f"{BUILDIN_METRICS[registered_name]}")
-        BUILDIN_METRICS[registered_name] = arg
+        registered_names = name or [arg.__name__]
+        registered_names = registered_names if isinstance(registered_names, (list, tuple)) else [registered_names]
+        for registered_name in registered_names:
+            if registered_name in BUILDIN_METRICS:
+                raise ValueError(f"{registered_name} has already been registered to " f"{BUILDIN_METRICS[registered_name]}")
+            BUILDIN_METRICS[registered_name] = arg
         return arg
 
     return decorator
@@ -30,7 +32,7 @@ class Metric:
         pass
 
 
-@register_metrics(name="acc")
+@register_metrics(name=["acc", "accuracy"])
 class Accuracy(Metric):
     def __init__(self, name="acc"):
         super().__init__(name=name)
