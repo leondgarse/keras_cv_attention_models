@@ -45,7 +45,7 @@ def init_global_strategy(enable_float16=True, seed=0, TPU=False):
 def init_lr_scheduler(lr_base, lr_decay_steps, lr_min=1e-5, lr_decay_on_batch=False, lr_warmup=1e-4, warmup_steps=0, cooldown_steps=0, t_mul=2, m_mul=0.5):
     if isinstance(lr_decay_steps, list):
         constant_lr_sch = lambda epoch: callbacks.constant_scheduler(epoch, lr_base=lr_base, lr_decay_steps=lr_decay_steps, warmup_steps=warmup_steps)
-        lr_scheduler = keras.callbacks.LearningRateScheduler(constant_lr_sch)
+        lr_scheduler = callbacks.LearningRateScheduler(constant_lr_sch)
         lr_total_epochs = lr_decay_steps[-1] + cooldown_steps  # 120 for lr_decay_steps=[30, 60, 90], warmup_steps=4, cooldown_steps=30
     elif lr_decay_on_batch:
         lr_scheduler = callbacks.CosineLrScheduler(

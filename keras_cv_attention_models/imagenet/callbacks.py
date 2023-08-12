@@ -1,7 +1,7 @@
 import os
 import json
 import numpy as np
-from keras_cv_attention_models.backend import functional, callbacks
+from keras_cv_attention_models.backend import callbacks
 
 
 class CosineLrScheduler(callbacks.Callback):
@@ -23,7 +23,7 @@ class CosineLrScheduler(callbacks.Callback):
             self.build(steps_per_epoch)
 
     def cosine_decay(self, step):
-        factor = 0.5 * (1 + functional.cos(np.pi * (functional.minimum(step, self.first_restart_batch_step) / self.first_restart_batch_step)))
+        factor = 0.5 * (1 + np.cos(np.pi * (np.minimum(step, self.first_restart_batch_step) / self.first_restart_batch_step)))
         return ((1 - self.alpha) * factor + self.alpha) * self.lr_base
 
     def cosine_decay_restarts(self, step):
@@ -32,7 +32,7 @@ class CosineLrScheduler(callbacks.Callback):
         cur_total_decay_steps = self.first_restart_batch_step * (self.t_mul ** cur_stage)
         cur_alpha = self.lr_min / cur_lr_base
         step -= 0 if cur_stage == 0 else self.restart_steps[cur_stage - 1]
-        factor = 0.5 * (1 + functional.cos(np.pi * (step / cur_total_decay_steps)))
+        factor = 0.5 * (1 + np.cos(np.pi * (step / cur_total_decay_steps)))
         return ((1 - cur_alpha) * factor + cur_alpha) * cur_lr_base
 
     def build(self, steps_per_epoch=-1):
@@ -87,10 +87,11 @@ class CosineLrScheduler(callbacks.Callback):
 
         if self.model is not None:
             # self.set_value(self.model.optimizer.lr, lr)
-            self.model.optimizer.lr = lr
             if hasattr(self.model.optimizer, "param_groups"):
                 for param_group in self.model.optimizer.param_groups:
                     param_group["lr"] = lr
+            else:
+                self.model.optimizer.lr = lr
         if iterNum == 0:
             print("\nLearning rate for iter {} is {}, global_iterNum is {}".format(self.cur_epoch + 1, lr, global_iterNum))
         return lr
@@ -124,7 +125,7 @@ class CosineLrSchedulerEpoch(callbacks.Callback):
             self.warmup_lr_func = lambda ii: self.lr_warmup + (lr_base - self.lr_warmup) * ii / warmup_steps
 
     def cosine_decay(self, step):
-        factor = 0.5 * (1 + functional.cos(np.pi * (functional.minimum(step, self.first_restart_step) / self.first_restart_step)))
+        factor = 0.5 * (1 + np.cos(np.pi * (np.minimum(step, self.first_restart_step) / self.first_restart_step)))
         return ((1 - self.alpha) * factor + self.alpha) * self.lr_base
 
     def cosine_decay_restarts(self, step):
@@ -133,7 +134,7 @@ class CosineLrSchedulerEpoch(callbacks.Callback):
         cur_total_decay_steps = self.first_restart_step * (self.t_mul ** cur_stage)
         cur_alpha = self.lr_min / cur_lr_base
         step -= 0 if cur_stage == 0 else self.restart_steps[cur_stage - 1]
-        factor = 0.5 * (1 + functional.cos(np.pi * (step / cur_total_decay_steps)))
+        factor = 0.5 * (1 + np.cos(np.pi * (step / cur_total_decay_steps)))
         return ((1 - cur_alpha) * factor + cur_alpha) * cur_lr_base
 
     def on_epoch_begin(self, epoch, logs=None):
@@ -151,12 +152,35 @@ class CosineLrSchedulerEpoch(callbacks.Callback):
 
         if self.model is not None:
             # self.set_value(self.model.optimizer.lr, lr)
-            self.model.optimizer.lr = lr
             if hasattr(self.model.optimizer, "param_groups"):
                 for param_group in self.model.optimizer.param_groups:
                     param_group["lr"] = lr
+            else:
+                self.model.optimizer.lr = lr
         print("\nLearning rate for iter {} is {}".format(epoch + 1, lr))
         return lr
+
+
+class LearningRateScheduler(callbacks.Callback):
+    def __init__(self, schedule, verbose=0):
+        super().__init__()
+        self.schedule, self.verbose = schedule, verbose
+
+    def on_epoch_begin(self, epoch, logs=None):
+        lr = self.schedule(epoch)
+        if self.model is not None:
+            if hasattr(self.model.optimizer, "param_groups"):
+                for param_group in self.model.optimizer.param_groups:
+                    param_group["lr"] = lr
+            else:
+                self.model.optimizer.lr = lr
+        print("\nLearning rate for iter {} is {}".format(epoch + 1, lr))
+        return lr
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        lr = self.model.optimizer.lr
+        logs["lr"] = lr.value() if hasattr(lr, "value") else lr
 
 
 def constant_scheduler(epoch, lr_base, lr_decay_steps, decay_rate=0.1, warmup_steps=0):
@@ -232,7 +256,8 @@ class MyHistory(callbacks.Callback):
             self.history.setdefault(k, []).append(float(v))
 
         if hasattr(self.model, "losses") and len(self.model.losses) != 0:  # Has regular_loss
-            regular_loss = functional.reduce_sum(self.model.losses).numpy()
+            # regular_loss = functional.reduce_sum(self.model.losses).numpy()
+            regular_loss = np.sum(self.model.losses)
             self.history.setdefault("regular_loss", []).append(float(regular_loss))
             self.history["loss"][-1] -= regular_loss
             if "val_loss" in self.history:
