@@ -5,7 +5,6 @@ from keras_cv_attention_models.backend import layers, functional, models, initia
 from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     BiasLayer,
-    # ChannelAffine,
     drop_block,
     layer_norm,
     mlp_block,
@@ -31,7 +30,7 @@ PRETRAINED_DICT = {
 
 @backend.register_keras_serializable(package="kecam")
 class ExpLogitScale(layers.Layer):
-    def __init__(self, axis=-1, init_value=10.0, max_value=100.0, **kwargs):
+    def __init__(self, axis=-1, init_value=math.log(10.0), max_value=math.log(100.0), **kwargs):
         super().__init__(**kwargs)
         self.axis, self.init_value, self.max_value = axis, init_value, max_value
 
@@ -46,10 +45,10 @@ class ExpLogitScale(layers.Layer):
             for ii in axis:
                 weight_shape[ii] = input_shape[ii]
 
-        initializer = initializers.constant(math.log(self.init_value))
+        initializer = initializers.constant(self.init_value)
         self.scale = self.add_weight(name="gamma", shape=weight_shape, initializer=initializer, trainable=True)
         # self.__max_value__ = functional.convert_to_tensor(float(math.log(self.max_value)))
-        self.__max_value__ = float(math.log(self.max_value))
+        self.__max_value__ = float(self.max_value)
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):

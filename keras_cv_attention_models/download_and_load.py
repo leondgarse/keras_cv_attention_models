@@ -227,7 +227,6 @@ def save_weights_to_hdf5_file(filepath, model, compression=None, layer_start=Non
         weights_dict = model
     else:
         weights_dict = {layer.name: layer for layer in model.layers[layer_start:layer_end]}
-        # weights_dict = _get_layer_nested_(model, layer_start, layer_end)
 
     with h5py.File(filepath, "w") as h5_file:
         _save_attributes_to_hdf5_group_(h5_file, "layer_names", [layer_name.encode("utf8") for layer_name in weights_dict])
@@ -236,22 +235,6 @@ def save_weights_to_hdf5_file(filepath, model, compression=None, layer_start=Non
             layer_group = h5_file.create_group(layer_name)
             # print(layer_name, layer_weights)
             _save_to_layer_group_nested_(layer_weights, layer_group, compression=compression)
-            # if isinstance(layer_weights, layers.Layer):
-            #     layer = layer_weights
-            #     weight_values = layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()
-            #     weight_names = [ww.name.encode("utf8") for ww in layer.weights]
-            # else:
-            #     weight_names = [ww.encode("utf8") for ww in layer_weights]
-            #     weight_values = list(layer_weights.values())
-            #
-            # _save_attributes_to_hdf5_group_(layer_group, "weight_names", weight_names)
-            # for name, val in zip(weight_names, weight_values):
-            #     param_dset = layer_group.create_dataset(name, val.shape, dtype=val.dtype, compression=compression, chunks=True)
-            #     if not val.shape:
-            #         # scalar
-            #         param_dset[()] = val
-            #     else:
-            #         param_dset[:] = val
 
 
 def convert_torch_weights_to_h5(

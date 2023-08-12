@@ -35,11 +35,11 @@ def convert_to_clip_model(image_model, text_model=None, caption_tokenizer=None):
 
     # Return similarity directly for avoiding re-calculating in metrics again
     text_latents = text_output / functional.norm(text_output, ord="euclidean", axis=-1, keepdims=True)
-    text_latents = attention_layers.ExpLogitScale(axis=None, init_value=math.log(1 / 0.07), dtype="float32", name="temperature")(text_latents)
-
     image_latents = layers.Identity(dtype="float32", name="image_latents")(image_output)  # Give a name for locating this layer in split
     image_latents = image_latents / functional.norm(image_latents, ord="euclidean", axis=-1, keepdims=True)
+
     similarity = functional.matmul(image_latents, text_latents, transpose_b=True)
+    similarity = attention_layers.ExpLogitScale(axis=None, init_value=math.log(1 / 0.07), dtype="float32", name="temperature")(similarity)
 
     model = models.Model([image_input, text_input], similarity)
     model.run_prediction = RunPrediction(image_model, text_model, caption_tokenizer=caption_tokenizer)
