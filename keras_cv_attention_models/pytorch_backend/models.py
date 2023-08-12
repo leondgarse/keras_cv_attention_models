@@ -90,28 +90,30 @@ class _Trainer_(object):
                     [ii.update_state(yy, out) for ii in self.metrics]
                 metrics_results = {name: metric.result().item() for name, metric in zip(self.metrics_names, self.metrics)}
                 process_bar.desc += "".join([" - {}: {:.4f}".format(name, metric) for name, metric in metrics_results.items()])
-                process_bar.refresh()
 
                 batch_logs["loss"] = loss.item()
                 batch_logs.update(metrics_results)
                 [ii.on_train_batch_end(batch, logs=batch_logs) for ii in callbacks]
 
-            loss = avg_loss / (batch + 1)
-            self.history["loss"].append(loss.item())
-            for name, metric in zip(self.metrics_names, self.metrics):
-                metric_result = metric.result()
-                self.history.setdefault(name, []).append(metric_result.item())
+                """ Eval process, put inside for loop for a better display of process bar """
+                if batch == total - 1:
+                    loss = avg_loss / (batch + 1)
+                    self.history["loss"].append(loss.item())
+                    for name, metric in zip(self.metrics_names, self.metrics):
+                        metric_result = metric.result()
+                        self.history.setdefault(name, []).append(metric_result.item())
 
-            if validation_data is not None:
-                val_loss, val_metrics_results = self.evaluate(validation_data, batch_size=validation_batch_size, callbacks=callbacks)
+                    if validation_data is not None:
+                        val_loss, val_metrics_results = self.evaluate(validation_data, batch_size=validation_batch_size, callbacks=callbacks)
 
-                self.history.setdefault("val_loss", []).append(val_loss.item())
-                for name, metric_result in val_metrics_results.items():
-                    self.history.setdefault(name, []).append(metric_result.item() if hasattr(metric_result, "item") else metric_result)
+                        self.history.setdefault("val_loss", []).append(val_loss.item())
+                        for name, metric_result in val_metrics_results.items():
+                            self.history.setdefault(name, []).append(metric_result.item() if hasattr(metric_result, "item") else metric_result)
 
-                process_bar.desc += " - val_loss: {:.4f}".format(val_loss)
-                process_bar.desc += "".join([" - {}: {:.4f}".format(name, metric) for name, metric in val_metrics_results.items()])
-                process_bar.display()
+                        process_bar.desc += " - val_loss: {:.4f}".format(val_loss)
+                        process_bar.desc += "".join([" - {}: {:.4f}".format(name, metric) for name, metric in val_metrics_results.items()])
+                        # process_bar.display()
+                process_bar.refresh()
             epoch_logs = {kk: vv[-1] for kk, vv in self.history.items()}
             [ii.on_epoch_end(epoch, epoch_logs) for ii in callbacks]
             print()

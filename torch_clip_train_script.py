@@ -2,16 +2,8 @@ import os
 import math
 import torch
 import numpy as np
-import pandas as pd
 from PIL import Image
-from tqdm import tqdm
-from contextlib import nullcontext
-
-from torch import nn
-from torch import optim
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader, BatchSampler
-from torchvision.transforms import Normalize, Compose, RandomResizedCrop, Resize, InterpolationMode, ToTensor
+from torch.utils.data import Dataset, DataLoader
 
 os.environ["KECAM_BACKEND"] = "torch"
 import kecam
@@ -41,6 +33,8 @@ def read_from_tsv(data_path):
 
 class CaptionDataset(Dataset):
     def __init__(self, images, captions, tokenizer, is_train=True, image_size=224):
+        from torchvision.transforms import Normalize, Compose, RandomResizedCrop, Resize, InterpolationMode, ToTensor
+
         self.images, self.captions, self.tokenizer = images, captions, tokenizer
         self.context_length = self.tokenizer.context_length
 
@@ -92,7 +86,7 @@ def build_dataset(data_path, caption_tokenizer, batch_size=64, image_size=224, n
     train_dataloader.num_samples = len(train_images)
     train_dataloader.num_batches = len(train_dataloader)
 
-    test_dataset = CaptionDataset(test_images, test_captions, tokenizer=caption_tokenizer, is_train=True, image_size=image_size)
+    test_dataset = CaptionDataset(test_images, test_captions, tokenizer=caption_tokenizer, is_train=False, image_size=image_size)
     test_dataloader = DataLoader(
         test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=collate_wrapper, pin_memory=True, sampler=None, drop_last=True
     )
@@ -115,12 +109,12 @@ def build_optimizer(model, lr=1e-3, weight_decay=0.2, beta1=0.9, beta2=0.98, eps
         {"params": [param for name, param in named_parameters if exclude(name, param) and param.requires_grad], "weight_decay": 0.0},
         {"params": [param for name, param in named_parameters if not exclude(name, param) and param.requires_grad], "weight_decay": weight_decay},
     ]
-    optimizer = optim.AdamW(params, lr=lr, betas=(beta1, beta2), eps=eps)
+    optimizer = torch.optim.AdamW(params, lr=lr, betas=(beta1, beta2), eps=eps)
     return optimizer
 
 
 def clip_loss(y_true, y_pred):
-    return (F.cross_entropy(y_pred, y_true) + F.cross_entropy(y_pred.T, y_true)) / 2
+    return (torch.nn.functional.cross_entropy(y_pred, y_true) + torch.nn.functional.cross_entropy(y_pred.T, y_true)) / 2
 
 
 def parse_arguments():
@@ -167,18 +161,21 @@ if __name__ == "__main__":
         args.data_path, caption_tokenizer=caption_tokenizer, image_size=args.input_shape, batch_size=args.batch_size
     )
     (image, text), labels = next(iter(train_dataloader))
+    print(">>>> Total train samples: {}, total test samples: {}".format(train_dataloader.num_samples, test_dataloader.num_samples))
     print(">>>> Data: image.shape: {}, text.shape: {}, labels.shape: {}".format(image.shape, text.shape, labels.shape))
 
     image_model_kwargs = {} if args.image_model_pretrained == "default" else {"pretrained": args.image_model_pretrained}
     image_model_kwargs.update({"input_shape": (3, args.input_shape, args.input_shape), "num_classes": args.latents_dim, "classifier_activation": None})
+    print(">>>> image_model_kwargs:", image_model_kwargs)
     image_model = build_model(args.image_model, **image_model_kwargs)
+    print(">>>> image_model name: {}, input_shape: {}, output_shape: {}".format(image_model.name, image_model.input_shape, image_model.output_shape))
 
     text_model_kwargs = {} if args.text_model_pretrained == "default" else {"pretrained": args.text_model_pretrained}
     text_model_kwargs.update({"vocab_size": caption_tokenizer.vocab_size, "include_top": False})
+    print(">>>> text_model_kwargs:", text_model_kwargs)
     text_model = build_model(args.text_model, **text_model_kwargs)
-
-    print(">>>> image_model name: {}, input_shape: {}, output_shape: {}".format(image_model.name, image_model.input_shape, image_model.output_shape))
     print(">>>> text_model name: {}, input_shape: {}, output_shape: {}".format(text_model.name, text_model.input_shape, text_model.output_shape))
+
     model, image_model, text_model = kecam.clip.convert_to_clip_model(image_model, text_model)
     model.to(device=device)
 
@@ -194,5 +191,5 @@ if __name__ == "__main__":
         kecam.imagenet.callbacks.MyCheckpoint(basic_save_name=basic_save_name, save_path="checkpoints"),
         kecam.imagenet.callbacks.MyHistory(initial_file=os.path.join("checkpoints", basic_save_name + "_hist.json")),
     ]
-    model.compile(optimizer=optimizer, loss=clip_loss, grad_max_norm=10.0)
+    model.compile(optimizer=optimizer, loss=clip_loss, grad_max_norm=10.0, metrics=["acc"])
     model.fit(train_dataloader, epochs=args.epochs, validation_data=test_dataloader, callbacks=callbacks)
