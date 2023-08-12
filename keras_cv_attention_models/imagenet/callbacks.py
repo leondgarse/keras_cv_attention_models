@@ -5,10 +5,14 @@ from keras_cv_attention_models.backend import functional, callbacks
 
 
 class CosineLrScheduler(callbacks.Callback):
+    """
+    >>> from keras_cv_attention_models.imagenet import callbacks
+    >>> aa = callbacks.CosineLrScheduler(0.1, first_restart_step=5, steps_per_epoch=10, m_mul=0.5)
+    >>> bb = [aa.on_train_batch_begin(ii) for ii in range(350)]
+    >>> plt.plot(bb)
+    >>> plt.grid(True)
+    """
     def __init__(self, lr_base, first_restart_step, steps_per_epoch=-1, m_mul=0.5, t_mul=2.0, lr_min=1e-5, lr_warmup=-1, warmup_steps=0, cooldown_steps=0):
-        from tensorflow import keras
-        from tensorflow.keras import backend as K
-
         super(CosineLrScheduler, self).__init__()
         self.lr_base, self.m_mul, self.t_mul, self.lr_min, self.steps_per_epoch = lr_base, m_mul, t_mul, lr_min, steps_per_epoch
         self.first_restart_step, self.warmup_steps, self.cooldown_steps, self.lr_warmup = first_restart_step, warmup_steps, cooldown_steps, lr_warmup
@@ -17,11 +21,19 @@ class CosineLrScheduler(callbacks.Callback):
         self.is_built = False
         if steps_per_epoch != -1:
             self.build(steps_per_epoch)
-        self.set_value = K.set_value
 
     def cosine_decay(self, step):
         factor = 0.5 * (1 + functional.cos(np.pi * (functional.minimum(step, self.first_restart_batch_step) / self.first_restart_batch_step)))
         return ((1 - self.alpha) * factor + self.alpha) * self.lr_base
+
+    def cosine_decay_restarts(self, step):
+        cur_stage = (self.restart_steps > step).argmax()
+        cur_lr_base = self.lr_base * (self.m_mul ** cur_stage)
+        cur_total_decay_steps = self.first_restart_batch_step * (self.t_mul ** cur_stage)
+        cur_alpha = self.lr_min / cur_lr_base
+        step -= 0 if cur_stage == 0 else self.restart_steps[cur_stage - 1]
+        factor = 0.5 * (1 + functional.cos(np.pi * (step / cur_total_decay_steps)))
+        return ((1 - cur_alpha) * factor + cur_alpha) * cur_lr_base
 
     def build(self, steps_per_epoch=-1):
         # print(">>>> steps_per_epoch:", steps_per_epoch)
@@ -31,13 +43,13 @@ class CosineLrScheduler(callbacks.Callback):
         self.first_restart_batch_step = self.first_restart_step * self.steps_per_epoch
         alpha = self.lr_min / self.lr_base
         if self.lr_min == self.lr_base * self.m_mul:  # Without restart
-            self.schedule = keras.experimental.CosineDecay(self.lr_base, self.first_restart_batch_step, alpha=alpha)
-            # self.schedule = self.cosine_decay
+            self.schedule = self.cosine_decay
             self.cooldown_steps_start, self.cooldown_steps_end = np.array([]), np.array([])
         else:
-            self.schedule = keras.experimental.CosineDecayRestarts(self.lr_base, self.first_restart_batch_step, t_mul=self.t_mul, m_mul=self.m_mul, alpha=alpha)
-            aa = [self.first_restart_batch_step / self.steps_per_epoch * (self.t_mul**ii) for ii in range(5)]
-            self.cooldown_steps_start = np.array([int(sum(aa[:ii]) + self.cooldown_steps * (ii - 1)) for ii in range(1, 5)])
+            self.schedule = self.cosine_decay_restarts
+            batch_steps_each_stage = [self.first_restart_batch_step * (self.t_mul**stage) for stage in range(5)]
+            self.restart_steps = np.array([int(sum(batch_steps_each_stage[:stage])) for stage in range(1, 5)])
+            self.cooldown_steps_start = np.array([int(self.restart_steps[stage] / self.steps_per_epoch + self.cooldown_steps * stage) for stage in range(4)])
             self.cooldown_steps_end = np.array([ii + self.cooldown_steps for ii in self.cooldown_steps_start])
 
         if self.warmup_steps != 0:
@@ -74,40 +86,55 @@ class CosineLrScheduler(callbacks.Callback):
             lr = self.schedule(global_iterNum - self.previous_cooldown_steps)
 
         if self.model is not None:
-            self.set_value(self.model.optimizer.lr, lr)
-            # self.model.optimizer.lr = lr
+            # self.set_value(self.model.optimizer.lr, lr)
+            self.model.optimizer.lr = lr
+            if hasattr(self.model.optimizer, "param_groups"):
+                for param_group in self.model.optimizer.param_groups:
+                    param_group["lr"] = lr
         if iterNum == 0:
             print("\nLearning rate for iter {} is {}, global_iterNum is {}".format(self.cur_epoch + 1, lr, global_iterNum))
         return lr
 
 
 class CosineLrSchedulerEpoch(callbacks.Callback):
+    """
+    >>> from keras_cv_attention_models.imagenet import callbacks
+    >>> aa = callbacks.CosineLrSchedulerEpoch(0.1, first_restart_step=50, m_mul=0.5)
+    >>> bb = [aa.on_epoch_begin(ii) for ii in range(350)]
+    >>> plt.plot(bb)
+    >>> plt.grid(True)
+    """
     def __init__(self, lr_base, first_restart_step, m_mul=0.5, t_mul=2.0, lr_min=1e-6, lr_warmup=-1, warmup_steps=0, cooldown_steps=0):
-        from tensorflow import keras
-        from tensorflow.keras import backend as K
-
         super(CosineLrSchedulerEpoch, self).__init__()
         self.warmup_steps, self.cooldown_steps, self.lr_min, self.lr_base, self.alpha = warmup_steps, cooldown_steps, lr_min, lr_base, lr_min / lr_base
-        self.first_restart_step = first_restart_step
+        self.first_restart_step, self.m_mul, self.t_mul = first_restart_step, m_mul, t_mul
 
         if lr_min == lr_base * m_mul:
-            self.schedule = keras.experimental.CosineDecay(lr_base, first_restart_step, alpha=lr_min / lr_base)
-            # self.schedule = self.cosine_decay
+            self.schedule = self.cosine_decay
             self.cooldown_steps_start, self.cooldown_steps_end = np.array([]), np.array([])
         else:
-            self.schedule = keras.experimental.CosineDecayRestarts(lr_base, first_restart_step, t_mul=t_mul, m_mul=m_mul, alpha=lr_min / lr_base)
-            aa = [first_restart_step * (t_mul**ii) for ii in range(5)]
-            self.cooldown_steps_start = np.array([int(sum(aa[:ii]) + cooldown_steps * (ii - 1)) for ii in range(1, 5)])
+            self.schedule = self.cosine_decay_restarts
+            epoch_steps_each_stage = [first_restart_step * (t_mul**stage) for stage in range(5)]
+            self.restart_steps = np.array([int(sum(epoch_steps_each_stage[:stage])) for stage in range(1, 5)])
+            self.cooldown_steps_start = np.array([int(self.restart_steps[stage] + cooldown_steps * stage) for stage in range(4)])
             self.cooldown_steps_end = np.array([ii + cooldown_steps for ii in self.cooldown_steps_start])
 
         if warmup_steps != 0:
             self.lr_warmup = lr_warmup if lr_warmup > 0 else lr_min
             self.warmup_lr_func = lambda ii: self.lr_warmup + (lr_base - self.lr_warmup) * ii / warmup_steps
-        self.set_value = K.set_value
 
     def cosine_decay(self, step):
         factor = 0.5 * (1 + functional.cos(np.pi * (functional.minimum(step, self.first_restart_step) / self.first_restart_step)))
         return ((1 - self.alpha) * factor + self.alpha) * self.lr_base
+
+    def cosine_decay_restarts(self, step):
+        cur_stage = (self.restart_steps > step).argmax()
+        cur_lr_base = self.lr_base * (self.m_mul ** cur_stage)
+        cur_total_decay_steps = self.first_restart_step * (self.t_mul ** cur_stage)
+        cur_alpha = self.lr_min / cur_lr_base
+        step -= 0 if cur_stage == 0 else self.restart_steps[cur_stage - 1]
+        factor = 0.5 * (1 + functional.cos(np.pi * (step / cur_total_decay_steps)))
+        return ((1 - cur_alpha) * factor + cur_alpha) * cur_lr_base
 
     def on_epoch_begin(self, epoch, logs=None):
         if epoch < self.warmup_steps:
@@ -123,8 +150,11 @@ class CosineLrSchedulerEpoch(callbacks.Callback):
             lr = self.schedule(epoch)
 
         if self.model is not None:
-            self.set_value(self.model.optimizer.lr, lr)
-
+            # self.set_value(self.model.optimizer.lr, lr)
+            self.model.optimizer.lr = lr
+            if hasattr(self.model.optimizer, "param_groups"):
+                for param_group in self.model.optimizer.param_groups:
+                    param_group["lr"] = lr
         print("\nLearning rate for iter {} is {}".format(epoch + 1, lr))
         return lr
 
