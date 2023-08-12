@@ -26,7 +26,7 @@ class _Trainer_(object):
 
     def compile(self, optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, grad_accumulate=1, grad_max_norm=-1, **kwargs):
         self.optimizer = getattr(torch.optim, optimizer)(self.parameters()) if isinstance(optimizer, str) else optimizer
-        self.loss = torch.functional.F.cross_entropy if loss is None else loss
+        self.loss = (lambda y_true, y_pred: torch.functional.F.cross_entropy(y_pred, y_true)) if loss is None else loss
         self.loss_weights, self.grad_accumulate, self.grad_max_norm = loss_weights, grad_accumulate, grad_max_norm
         self.metrics_names, self.metrics = self.init_metrics(metrics)
 
@@ -42,7 +42,7 @@ class _Trainer_(object):
 
     def fit(self, x=None, y=None, batch_size=32, epochs=1, callbacks=None, validation_data=None, initial_epoch=0, validation_batch_size=None, **kwargs):
         callbacks = callbacks or []
-        [ii.set_model(self) for ii in callbacks if ii is None]
+        [ii.set_model(self) for ii in callbacks if ii.model is None]
         self.history = {"loss": []}
         validation_batch_size = validation_batch_size or batch_size
         self.batch_size, self.callbacks, self.validation_batch_size = batch_size, callbacks, validation_batch_size
@@ -68,7 +68,7 @@ class _Trainer_(object):
                 yy = [self._convert_data_(ii) for ii in yy] if isinstance(yy, (list, tuple)) else self._convert_data_(yy)
                 with self.global_context:
                     out = self(xx)
-                    loss = self.loss(out, yy)
+                    loss = self.loss(yy, out)
                 self.scaler.scale(loss).backward()
 
                 accumulate_passed_batches += 1
@@ -85,9 +85,9 @@ class _Trainer_(object):
                 process_bar.desc = " - loss: {:.4f}".format(avg_loss / (batch + 1))  # process_bar.set_description automatically add a : on the tail
 
                 if isinstance(yy, (list, tuple)):
-                    [metric.update_state(cur_out, cur_yy) for cur_out, cur_yy, metric in zip(out, yy, self.metrics)]
+                    [metric.update_state(cur_yy, cur_out) for cur_out, cur_yy, metric in zip(out, yy, self.metrics)]
                 else:
-                    [ii.update_state(out, yy) for ii in self.metrics]
+                    [ii.update_state(yy, out) for ii in self.metrics]
                 metrics_results = {name: metric.result().item() for name, metric in zip(self.metrics_names, self.metrics)}
                 process_bar.desc += "".join([" - {}: {:.4f}".format(name, metric) for name, metric in metrics_results.items()])
                 process_bar.refresh()
@@ -134,13 +134,13 @@ class _Trainer_(object):
             yy = [self._convert_data_(ii) for ii in yy] if isinstance(yy, (list, tuple)) else self._convert_data_(yy)
             with self.global_context, torch.no_grad():
                 out = self(xx)
-                loss = self.loss(out, yy)
+                loss = self.loss(yy, out)
             avg_loss += loss
 
             if isinstance(yy, (list, tuple)):
-                [metric.update_state(cur_out, cur_yy) for cur_out, cur_yy, metric in zip(out, yy, self.metrics)]
+                [metric.update_state(cur_yy, cur_out) for cur_out, cur_yy, metric in zip(out, yy, self.metrics)]
             else:
-                [ii.update_state(out, yy) for ii in self.metrics]
+                [ii.update_state(yy, out) for ii in self.metrics]
             batch_logs["val_loss"] = loss.item()
             batch_logs.update({name: metric.result().item() for name, metric in zip(self.metrics_names, self.metrics)})
             [ii.on_test_batch_end(batch, batch_logs) for ii in callbacks]
@@ -290,7 +290,7 @@ class Model(nn.Module, _Trainer_, _Exporter_):
     >>> mm = models.Model(inputs, nn)
     >>> mm.summary()
     >>> xx, yy = torch.rand([1128, 3, 32, 32]), torch.functional.F.one_hot(torch.randint(0, 10, size=[1128]), 10).float()
-    >>> loss = lambda y_pred, y_true: (y_true - y_pred.float()).abs().mean()
+    >>> loss = lambda y_true, y_pred: (y_true - y_pred.float()).abs().mean()
     >>> mm.compile(optimizer="AdamW", loss=loss, metrics='acc')
     >>> callbacks = [MyCheckpoint(basic_save_name="test")]
     >>> mm.fit(xx[:1000], yy[:1000], epochs=2, callbacks=callbacks, validation_data=(xx[1000:], yy[1000:]))

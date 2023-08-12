@@ -573,14 +573,16 @@
     ```py
     mm.save_weights("foo.h5")
     ```
-  - **Training with compile and fit**
+  - **Training with compile and fit** Note: loss function arguments should be `y_true, y_pred`, while typical torch loss functions using `y_pred, y_true`.
     ```py
     import torch
+    from keras_cv_attention_models.backend import models, layers
+    mm = models.Sequential([layers.Input([3, 32, 32]), layers.Conv2D(32, 3), layers.GlobalAveragePooling2D(), layers.Dense(10)])
     if torch.cuda.is_available():
         _ = mm.to("cuda")
     xx = torch.rand([64, *mm.input_shape[1:]])
     yy = torch.functional.F.one_hot(torch.randint(0, mm.output_shape[-1], size=[64]), mm.output_shape[-1]).float()
-    loss = lambda y_pred, y_true: (y_true - y_pred.float()).abs().mean()
+    loss = lambda y_true, y_pred: (y_true - y_pred.float()).abs().mean()
     mm.compile(optimizer="AdamW", loss=loss, metrics='acc', grad_accumulate=4)
     mm.fit(xx, yy, epochs=2, batch_size=4)
     ```

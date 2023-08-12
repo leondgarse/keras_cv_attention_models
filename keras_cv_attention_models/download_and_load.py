@@ -111,12 +111,13 @@ def read_h5_weights(filepath, only_valid_weights=True):
         weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
         return {kk: {ww: np.array(vv[ww]) for ww in vv.attrs["weight_names"]} for kk, vv in weights.items() if not only_valid_weights or len(vv) > 0}
 
-def _load_layer_weights_nested_(model, weights, skip_mismatch=False, debug=False):
+
+def _load_layer_weights_nested_(model, weights, skip_mismatch=False, debug=False, prefix=""):
     for layer in model.layers:
         if len(layer.weights) == 0:
             continue
         if debug:
-            print(">>>> Load layer weights:", layer.name, [ii.name for ii in layer.weights])
+            print(">>>> Load layer weights:", "/".join([prefix, layer.name]) if prefix else layer.name, [ii.name for ii in layer.weights])
         if layer.name not in weights:
             if debug:
                 print("Warning: {} not exists in provided h5 weights".format(layer.name))
@@ -125,9 +126,9 @@ def _load_layer_weights_nested_(model, weights, skip_mismatch=False, debug=False
         ss = weights[layer.name]
         if hasattr(layer, "layers"):  # nested
             dd = {}
-            for weight_name in ss.attrs['weight_names']:
+            for weight_name in ss.attrs["weight_names"]:
                 dd.setdefault("/".join(weight_name.split("/")[:-1]), []).append(ss[weight_name])
-            _load_layer_weights_nested_(layer, dd, skip_mismatch=skip_mismatch, debug=debug)
+            _load_layer_weights_nested_(layer, dd, skip_mismatch=skip_mismatch, debug=debug, prefix=layer.name)
             continue
 
         if hasattr(ss, "attrs"):
@@ -146,6 +147,7 @@ def _load_layer_weights_nested_(model, weights, skip_mismatch=False, debug=False
             layer.set_weights_channels_last(ss)
         else:
             layer.set_weights(ss)
+
 
 def load_weights_from_hdf5_file(filepath, model, skip_mismatch=False, debug=False):
     import h5py
@@ -215,6 +217,7 @@ def _save_to_layer_group_nested_(layer_weights, layer_group, compression=None):
             param_dset[()] = val
         else:
             param_dset[:] = val
+
 
 def save_weights_to_hdf5_file(filepath, model, compression=None, layer_start=None, layer_end=None):
     """Saves the weights of a list of layers to a HDF5 file.

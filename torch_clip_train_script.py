@@ -11,48 +11,50 @@ from torch import nn
 from torch import optim
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader, BatchSampler
-from torchvision.transforms import Normalize, Compose, RandomResizedCrop, InterpolationMode, ToTensor
+from torchvision.transforms import Normalize, Compose, RandomResizedCrop, Resize, InterpolationMode, ToTensor
 
 os.environ["KECAM_BACKEND"] = "torch"
 import kecam
 
-# Always 0, no matter CUDA_VISIBLE_DEVICES
-global_device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-device_type = global_device.type
-if device_type == "cpu":
-    global_scaler = torch.cuda.amp.GradScaler(enabled=False)
-    global_context = nullcontext()
-else:
-    global_scaler = torch.cuda.amp.GradScaler(enabled=True)
-    global_context = torch.amp.autocast(device_type=device_type, dtype=torch.float16)
 
+def read_from_tsv(data_path):
+    import csv
 
-class CsvDataset(Dataset):
-    def __init__(self, input_filename, tokenizer, image_size=224, sep="\t"):
-        df = pd.read_csv(input_filename, header=None, sep=sep, names=["image", "caption"])
-
-        self.images, self.captions, self.base_path = [], [], "."
-        for image, caption in zip(df["image"], df["caption"]):
-            if image == "TEST":
-                break
-            if image == "base_path":
-                self.base_path = caption
+    delimiter = "\t" if data_path.endswith(".tsv") else ","
+    train_images, train_captions, test_images, test_captions, base_path, is_train = [], [], [], [], ".", True
+    with open(data_path) as ff:
+        for ii in csv.reader(ff, delimiter=delimiter):
+            if ii[0] == "base_path":  # special keys for info
+                base_path = ii[1]
+            elif ii[0] == "TEST":  # Use this as indicator for start of test set
+                is_train = False
+            elif is_train:
+                train_images.append(ii[0])
+                train_captions.append(ii[1])
             else:
-                self.images.append(image)
-                self.captions.append(caption)
-        self.images = [os.path.join(self.base_path, ii) for ii in self.images]
+                test_images.append(ii[0])
+                test_captions.append(ii[1])
+    train_images = [os.path.join(base_path, ii) for ii in train_images]
+    test_images = [os.path.join(base_path, ii) for ii in test_images]
+    return train_images, train_captions, test_images, test_captions
+
+
+class CaptionDataset(Dataset):
+    def __init__(self, images, captions, tokenizer, is_train=True, image_size=224):
+        self.images, self.captions, self.tokenizer = images, captions, tokenizer
+        self.context_length = self.tokenizer.context_length
 
         self.mean, self.std = (0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)
+        interpolation = InterpolationMode.BICUBIC
+        image_size = image_size if isinstance(image_size, (list, tuple)) else (image_size, image_size)
         self.transforms = Compose(
             [
-                RandomResizedCrop(image_size, scale=(0.9, 1.0), interpolation=InterpolationMode.BICUBIC),
+                RandomResizedCrop(image_size, scale=(0.9, 1.0), interpolation=interpolation) if is_train else Resize(image_size, interpolation=interpolation),
                 lambda image: image.convert("RGB"),
                 ToTensor(),
                 Normalize(mean=self.mean, std=self.std),
             ]
         )
-        self.tokenizer = tokenizer
-        self.context_length = self.tokenizer.context_length
 
     def tokenize(self, texts):
         if isinstance(texts, str):
@@ -68,56 +70,42 @@ class CsvDataset(Dataset):
         return result
 
     def __len__(self):
-        return len(self.captions)
+        return len(self.images)
 
     def __getitem__(self, idx):
         images = self.transforms(Image.open(str(self.images[idx])))
         texts = self.tokenize([str(self.captions[idx])])[0]
-        return (images, texts), 0
+        return images, texts
+
+
+def collate_wrapper(batch):
+    images, texts = list(zip(*batch))
+    return (torch.stack(images), torch.stack(texts)), torch.arange(len(batch))
 
 
 def build_dataset(data_path, caption_tokenizer, batch_size=64, image_size=224, num_workers=8):
-    dataset = CsvDataset(data_path, image_size=image_size, tokenizer=caption_tokenizer)
-    num_samples = len(dataset)
+    train_images, train_captions, test_images, test_captions = read_from_tsv(data_path)
+    train_dataset = CaptionDataset(train_images, train_captions, tokenizer=caption_tokenizer, is_train=True, image_size=image_size)
+    train_dataloader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, collate_fn=collate_wrapper, pin_memory=True, sampler=None, drop_last=True
+    )
+    train_dataloader.num_samples = len(train_images)
+    train_dataloader.num_batches = len(train_dataloader)
 
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True, sampler=None, drop_last=True)
-    dataloader.num_samples = num_samples
-    dataloader.num_batches = len(dataloader)
-    return dataloader
+    test_dataset = CaptionDataset(test_images, test_captions, tokenizer=caption_tokenizer, is_train=True, image_size=image_size)
+    test_dataloader = DataLoader(
+        test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=collate_wrapper, pin_memory=True, sampler=None, drop_last=True
+    )
+    test_dataloader.num_samples = len(test_images)
+    test_dataloader.num_batches = len(test_dataloader)
 
-
-class CLIP(nn.Module):
-    def __init__(self, image_model, text_model):
-        super().__init__()
-        self.image_model, self.text_model = image_model, text_model
-        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
-
-    def forward(self, inputs):
-        image, text = inputs
-        image_features = F.normalize(self.image_model(image), dim=-1)
-        text_features = F.normalize(self.text_model(text), dim=-1)
-        similarity = self.logit_scale.exp() * image_features @ text_features.T
-        return similarity
+    return train_dataloader, test_dataloader
 
 
-def build_model(image_model="FlexiViTBase", text_model="GPT2_Base", latents_dim=512, image_model_kwargs={}, text_model_kwargs={}):
-    if isinstance(image_model, str):
-        model_split = image_model.split(".")
-        image_model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam.models, model_split[0])
-        image_model = image_model_class(num_classes=latents_dim, classifier_activation=None, **image_model_kwargs)
-
-    if isinstance(text_model, str):
-        model_split = text_model.split(".")
-        text_model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam.models, model_split[0])
-        text_model = text_model_class(include_top=False, **text_model_kwargs)
-        text_inputs = text_model.inputs[0]
-        text_outputs = text_model.outputs[0]
-        text_outputs = kecam.clip.models.text_model_index_header(text_inputs, text_outputs, latents_dim)
-        text_model = kecam.backend.models.Model(text_inputs, text_outputs, name=text_model.name)
-    # text_model(torch.ones([1, 77], dtype=torch.long)).shape
-    model = CLIP(image_model, text_model)
-    return model, image_model, text_model
-    # return kecam.clip.convert_to_clip_model(image_model, text_model)
+def build_model(model_name, **model_kwargs):
+    model_split = model_name.split(".")
+    model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam.models, model_split[0])
+    return model_class(**model_kwargs)
 
 
 def build_optimizer(model, lr=1e-3, weight_decay=0.2, beta1=0.9, beta2=0.98, eps=1.0e-6):
@@ -131,63 +119,8 @@ def build_optimizer(model, lr=1e-3, weight_decay=0.2, beta1=0.9, beta2=0.98, eps
     return optimizer
 
 
-def cosine_lr(optimizer, total_steps, base_lr=1e-3, warmup_steps=10000):
-    def _lr_adjuster(step):
-        if step < warmup_steps:
-            lr = base_lr * (step + 1) / warmup_steps
-        else:
-            lr = 0.5 * (1 + np.cos(np.pi * (step - warmup_steps) / (total_steps - warmup_steps))) * base_lr
-        for param_group in optimizer.param_groups:
-            param_group["lr"] = lr
-        return lr
-
-    return _lr_adjuster
-
-
-def clip_loss(labels, similarity):
-    labels = torch.arange(similarity.shape[0], device=similarity.device, dtype=torch.long)
-    acc = (torch.argmax(similarity, axis=-1) == labels).float().mean()
-    return (F.cross_entropy(similarity, labels) + F.cross_entropy(similarity.T, labels)) / 2, acc
-
-
-class AverageMeter:
-    def __init__(self):
-        self.val, self.count = 0, 0
-
-    def __call__(self, val):
-        self.val += val
-        self.count += 1
-        return self.val / self.count
-
-
-def train_one_epoch(model, optimizer, dataloader, loss, scheduler, cur_epoch, grad_clip_norm=10.0):
-    model.train()
-    bar_format = "{n_fmt}/{total_fmt} [{bar:30}] - ETA: {elapsed}<{remaining} {rate_fmt}{postfix}{desc}"
-    process_bar = tqdm(enumerate(dataloader), total=dataloader.num_batches, bar_format=bar_format, ascii=".>>=")
-    loss_metrics, acc_metrics = AverageMeter(), AverageMeter()
-    for id, ((images, texts), labels) in process_bar:
-        step = dataloader.num_batches * cur_epoch + id
-        scheduler(step)
-
-        images = images.to(device=global_device, non_blocking=True)
-        texts = texts.to(device=global_device, dtype=torch.long, non_blocking=True)
-        optimizer.zero_grad()
-
-        with global_context:
-            similarity = model([images, texts])
-            losses, acc = loss(labels, similarity)
-        global_scaler.scale(losses).backward()
-
-        if grad_clip_norm > 0:
-            global_scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm, norm_type=2.0)
-        global_scaler.step(optimizer)
-        global_scaler.update()
-        with torch.no_grad():
-            model.logit_scale.clamp_(0, math.log(100))  # clamp to 4.6052 == ln(100)
-
-        process_bar.desc = " - loss: {:.4f} - acc: {:.4f}".format(loss_metrics(losses), acc_metrics(acc))
-        process_bar.refresh()
+def clip_loss(y_true, y_pred):
+    return (F.cross_entropy(y_pred, y_true) + F.cross_entropy(y_pred.T, y_true)) / 2
 
 
 def parse_arguments():
@@ -214,6 +147,7 @@ def parse_arguments():
         default="GPT2Tokenizer",
         help="One of ['GPT2Tokenizer', 'SimpleTokenizer'], or tiktoken one ['gpt2', 'r50k_base', 'p50k_base', 'cl100k_base']",
     )
+    model.add_argument("--latents_dim", type=int, default=512, help="hidden dimension of `image_latents` and `text_latents` before calculating similarity")
 
     lr_wd = parser.add_argument_group("Learning rate, weight decay arguments")
     lr_wd.add_argument("--lr", type=float, default=1e-3, help="Learning rate ")
@@ -225,34 +159,40 @@ def parse_arguments():
 if __name__ == "__main__":
     args = parse_arguments()
 
+    # Always 0, no matter CUDA_VISIBLE_DEVICES
+    device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) > 0 else torch.device("cpu")
+
     caption_tokenizer = getattr(kecam.clip, args.tokenizer)() if hasattr(kecam.clip, args.tokenizer) else kecam.clip.TikToken(args.tokenizer)
-    train_dataloader = build_dataset(args.data_path, caption_tokenizer=caption_tokenizer, image_size=args.input_shape, batch_size=args.batch_size)
+    train_dataloader, test_dataloader = build_dataset(
+        args.data_path, caption_tokenizer=caption_tokenizer, image_size=args.input_shape, batch_size=args.batch_size
+    )
     (image, text), labels = next(iter(train_dataloader))
     print(">>>> Data: image.shape: {}, text.shape: {}, labels.shape: {}".format(image.shape, text.shape, labels.shape))
 
     image_model_kwargs = {} if args.image_model_pretrained == "default" else {"pretrained": args.image_model_pretrained}
-    image_model_kwargs.update({"input_shape": (3, args.input_shape, args.input_shape)})
+    image_model_kwargs.update({"input_shape": (3, args.input_shape, args.input_shape), "num_classes": args.latents_dim, "classifier_activation": None})
+    image_model = build_model(args.image_model, **image_model_kwargs)
+
     text_model_kwargs = {} if args.text_model_pretrained == "default" else {"pretrained": args.text_model_pretrained}
-    text_model_kwargs.update({"vocab_size": caption_tokenizer.vocab_size})
-    model, image_model, text_model = build_model(
-        args.image_model, args.text_model, latents_dim=512, image_model_kwargs=image_model_kwargs, text_model_kwargs=text_model_kwargs
-    )
+    text_model_kwargs.update({"vocab_size": caption_tokenizer.vocab_size, "include_top": False})
+    text_model = build_model(args.text_model, **text_model_kwargs)
+
     print(">>>> image_model name: {}, input_shape: {}, output_shape: {}".format(image_model.name, image_model.input_shape, image_model.output_shape))
     print(">>>> text_model name: {}, input_shape: {}, output_shape: {}".format(text_model.name, text_model.input_shape, text_model.output_shape))
+    model, image_model, text_model = kecam.clip.convert_to_clip_model(image_model, text_model)
+    model.to(device=device)
 
-    model.to(device=global_device)
     if hasattr(torch, "compile") and torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 6:
         print(">>>> Calling torch.compile")
         model = torch.compile(model)
     optimizer = build_optimizer(model, lr=args.lr, weight_decay=args.weight_decay)
 
-    total_steps = train_dataloader.num_batches * args.epochs
-    warmup_steps = train_dataloader.num_batches * args.lr_warmup_steps
-    scheduler = cosine_lr(optimizer, total_steps=total_steps, base_lr=args.lr, warmup_steps=warmup_steps)
-
-    for epoch in range(args.initial_epoch, args.epochs):
-        print("Epoch {}/{}".format(epoch + 1, args.epochs))
-        train_one_epoch(model, optimizer, train_dataloader, clip_loss, scheduler, epoch)
-        print()
-        image_model.save_weights(args.basic_save_name + "_image_model.h5")
-        text_model.save_weights(args.basic_save_name + "_text_model.h5")
+    basic_save_name = "clip_{}_{}".format(image_model.name, text_model.name)
+    print(">>>> basic_save_name:", basic_save_name)
+    callbacks = [
+        kecam.imagenet.callbacks.CosineLrScheduler(args.lr, args.epochs, steps_per_epoch=train_dataloader.num_batches, warmup_steps=args.lr_warmup_steps),
+        kecam.imagenet.callbacks.MyCheckpoint(basic_save_name=basic_save_name, save_path="checkpoints"),
+        kecam.imagenet.callbacks.MyHistory(initial_file=os.path.join("checkpoints", basic_save_name + "_hist.json")),
+    ]
+    model.compile(optimizer=optimizer, loss=clip_loss, grad_max_norm=10.0)
+    model.fit(train_dataloader, epochs=args.epochs, validation_data=test_dataloader, callbacks=callbacks)

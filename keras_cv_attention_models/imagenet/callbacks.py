@@ -12,6 +12,7 @@ class CosineLrScheduler(callbacks.Callback):
     >>> plt.plot(bb)
     >>> plt.grid(True)
     """
+
     def __init__(self, lr_base, first_restart_step, steps_per_epoch=-1, m_mul=0.5, t_mul=2.0, lr_min=1e-5, lr_warmup=-1, warmup_steps=0, cooldown_steps=0):
         super(CosineLrScheduler, self).__init__()
         self.lr_base, self.m_mul, self.t_mul, self.lr_min, self.steps_per_epoch = lr_base, m_mul, t_mul, lr_min, steps_per_epoch
@@ -28,8 +29,8 @@ class CosineLrScheduler(callbacks.Callback):
 
     def cosine_decay_restarts(self, step):
         cur_stage = (self.restart_steps > step).argmax()
-        cur_lr_base = self.lr_base * (self.m_mul ** cur_stage)
-        cur_total_decay_steps = self.first_restart_batch_step * (self.t_mul ** cur_stage)
+        cur_lr_base = self.lr_base * (self.m_mul**cur_stage)
+        cur_total_decay_steps = self.first_restart_batch_step * (self.t_mul**cur_stage)
         cur_alpha = self.lr_min / cur_lr_base
         step -= 0 if cur_stage == 0 else self.restart_steps[cur_stage - 1]
         factor = 0.5 * (1 + np.cos(np.pi * (step / cur_total_decay_steps)))
@@ -60,6 +61,16 @@ class CosineLrScheduler(callbacks.Callback):
             self.warmup_batch_steps = 0
         self.is_built = True
 
+    def get_lr_with_warmup_cooldown(self, global_iterNum):
+        if global_iterNum < self.warmup_batch_steps:
+            lr = self.warmup_lr_func(global_iterNum)
+        elif self.is_cooldown_epoch:
+            lr = self.lr_min  # cooldown
+        else:
+            # lr = self.schedule(global_iterNum - self.warmup_batch_steps - self.previous_cooldown_steps)
+            lr = self.schedule(global_iterNum - self.previous_cooldown_steps)
+        return lr
+
     def on_epoch_begin(self, cur_epoch, logs=None):
         if not self.is_built:
             self.build()
@@ -74,17 +85,11 @@ class CosineLrScheduler(callbacks.Callback):
                 self.is_cooldown_epoch = True
             else:
                 self.is_cooldown_epoch = False
+        lr = self.get_lr_with_warmup_cooldown(self.init_step_num)
+        print("\nLearning rate for iter {} is {}, global_iterNum is {}".format(self.cur_epoch + 1, lr, self.init_step_num))
 
     def on_train_batch_begin(self, iterNum, logs=None):
-        global_iterNum = iterNum + self.init_step_num
-        if global_iterNum < self.warmup_batch_steps:
-            lr = self.warmup_lr_func(global_iterNum)
-        elif self.is_cooldown_epoch:
-            lr = self.lr_min  # cooldown
-        else:
-            # lr = self.schedule(global_iterNum - self.warmup_batch_steps - self.previous_cooldown_steps)
-            lr = self.schedule(global_iterNum - self.previous_cooldown_steps)
-
+        lr = self.get_lr_with_warmup_cooldown(iterNum + self.init_step_num)
         if self.model is not None:
             # self.set_value(self.model.optimizer.lr, lr)
             if hasattr(self.model.optimizer, "param_groups"):
@@ -92,8 +97,6 @@ class CosineLrScheduler(callbacks.Callback):
                     param_group["lr"] = lr
             else:
                 self.model.optimizer.lr = lr
-        if iterNum == 0:
-            print("\nLearning rate for iter {} is {}, global_iterNum is {}".format(self.cur_epoch + 1, lr, global_iterNum))
         return lr
 
 
@@ -105,6 +108,7 @@ class CosineLrSchedulerEpoch(callbacks.Callback):
     >>> plt.plot(bb)
     >>> plt.grid(True)
     """
+
     def __init__(self, lr_base, first_restart_step, m_mul=0.5, t_mul=2.0, lr_min=1e-6, lr_warmup=-1, warmup_steps=0, cooldown_steps=0):
         super(CosineLrSchedulerEpoch, self).__init__()
         self.warmup_steps, self.cooldown_steps, self.lr_min, self.lr_base, self.alpha = warmup_steps, cooldown_steps, lr_min, lr_base, lr_min / lr_base
@@ -130,8 +134,8 @@ class CosineLrSchedulerEpoch(callbacks.Callback):
 
     def cosine_decay_restarts(self, step):
         cur_stage = (self.restart_steps > step).argmax()
-        cur_lr_base = self.lr_base * (self.m_mul ** cur_stage)
-        cur_total_decay_steps = self.first_restart_step * (self.t_mul ** cur_stage)
+        cur_lr_base = self.lr_base * (self.m_mul**cur_stage)
+        cur_total_decay_steps = self.first_restart_step * (self.t_mul**cur_stage)
         cur_alpha = self.lr_min / cur_lr_base
         step -= 0 if cur_stage == 0 else self.restart_steps[cur_stage - 1]
         factor = 0.5 * (1 + np.cos(np.pi * (step / cur_total_decay_steps)))
@@ -242,11 +246,11 @@ class MyHistory(callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        logs.pop("lr", None)
+        lr = logs.pop("lr", float("nan"))
         if hasattr(self.model, "optimizer") and hasattr(self.model.optimizer, "lr"):
             lr = self.model.optimizer.lr
         elif hasattr(self.model, "optimizer") and hasattr(self.model.optimizer, "param_groups"):
-            lr = self.model.optimizer.param_groups[0]['lr']
+            lr = self.model.optimizer.param_groups[0]["lr"]
         lr = lr.value() if hasattr(lr, "value") else lr
         lr = lr.item() if hasattr(lr, "item") else lr
         self.history.setdefault("lr", []).append(float(lr))

@@ -88,6 +88,18 @@
   mm.save_weights("aa.h5")
   mm.load_weights('aa.h5')
   ```
+  **Sequential model**
+  ```py
+  from keras_cv_attention_models.pytorch_backend import layers, models, functional
+  mm = models.Sequential([
+      layers.Input([3, 32, 32]),
+      layers.Conv2D(32, 3, 2, padding='same'),
+      layers.GlobalAveragePooling2D(),
+      layers.Dense(10),
+      functional.softmax,  # Can also be an functional callable
+  ])
+  mm.summary()
+  ```
 ## Simple compile fit training
   - It can be either typical PyTorch training process or a simple version of `compile` + `fit`.
   ```py
@@ -111,8 +123,12 @@
 
   """ Simple compile + fit """
   mm.compile(optimizer="AdamW", metrics='acc')
-  callbacks = [callbacks.MyHistory(initial_file='checkpoints/test_hist.json'), callbacks.MyCheckpoint('test')]
-  mm.fit(train_dataset, epochs=10, validation_data=test_dataset, callbacks=callbacks)
+  cur_callbacks = [
+      callbacks.MyHistory(initial_file='checkpoints/test_hist.json'),
+      callbacks.MyCheckpoint('test', save_path="checkpoints"),
+      callbacks.CosineLrScheduler(lr_base=0.1, first_restart_step=10, steps_per_epoch=len(train_dataset)),
+  ]
+  mm.fit(train_dataset, epochs=10, validation_data=test_dataset, callbacks=cur_callbacks)
   ```
   Or use typical PyTorch training process
   ```py
