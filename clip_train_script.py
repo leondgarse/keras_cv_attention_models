@@ -57,7 +57,7 @@ def parse_arguments():
     model.add_argument("-i", "--input_shape", type=int, default=224, help="Image model input shape")
     model.add_argument("-m", "--image_model", type=str, default="FlexiViTBase", help="Model name in format [sub_dir].[model_name] like beit.BeitBasePatch16")
     model.add_argument("--image_model_pretrained", type=str, default=None, help="If build model with pretrained weights. Set 'default' for model preset value")
-    model.add_argument("--text_model", type=str, default="GPT2_Base", help="model from this repo `gpt2.[model_name]` like gpt2.GPT2_Base")
+    model.add_argument("--text_model", type=str, default="GPT2_Base", help="model from this repo `[sub_dir].[model_name]` like llama2.LLaMA2_42M")
     model.add_argument(
         "--text_model_pretrained", type=str, default="default", help="Text model pretrained weight, default 'default' for using model preset value"
     )
@@ -89,16 +89,19 @@ if __name__ == "__main__":
 
     with global_strategy.scope():
         image_model_kwargs = {} if args.image_model_pretrained == "default" else {"pretrained": args.image_model_pretrained}
-        image_model_kwargs.update({"input_shape": (3, args.input_shape, args.input_shape), "num_classes": args.latents_dim, "classifier_activation": None})
+        image_model_kwargs.update({"input_shape": (args.input_shape, args.input_shape, 3), "num_classes": args.latents_dim, "classifier_activation": None})
         print(">>>> image_model_kwargs:", image_model_kwargs)
         image_model = build_model(args.image_model, **image_model_kwargs)
         print(">>>> image_model name: {}, input_shape: {}, output_shape: {}".format(image_model.name, image_model.input_shape, image_model.output_shape))
 
-        text_model_kwargs = {} if args.text_model_pretrained == "default" else {"pretrained": args.text_model_pretrained}
-        text_model_kwargs.update({"vocab_size": caption_tokenizer.vocab_size, "include_top": False})
-        print(">>>> text_model_kwargs:", text_model_kwargs)
-        text_model = build_model(args.text_model, **text_model_kwargs)
-        print(">>>> text_model name: {}, input_shape: {}, output_shape: {}".format(text_model.name, text_model.input_shape, text_model.output_shape))
+        if args.text_model == "image_model":
+            text_model = None
+        else:
+            text_model_kwargs = {} if args.text_model_pretrained == "default" else {"pretrained": args.text_model_pretrained}
+            text_model_kwargs.update({"vocab_size": caption_tokenizer.vocab_size, "include_top": False})
+            print(">>>> text_model_kwargs:", text_model_kwargs)
+            text_model = build_model(args.text_model, **text_model_kwargs)
+            print(">>>> text_model name: {}, input_shape: {}, output_shape: {}".format(text_model.name, text_model.input_shape, text_model.output_shape))
 
         model, image_model, text_model = kecam.clip.convert_to_clip_model(image_model, text_model)
         basic_save_name = args.basic_save_name or "clip_{}_{}_{}".format(image_model.name, text_model.name, kecam.backend.backend())
@@ -130,7 +133,7 @@ if __name__ == "__main__":
             epochs=args.epochs,
             train_dataset=train_dataset,
             test_dataset=test_dataset,
-            initial_epoch=0,
+            initial_epoch=args.initial_epoch,
             lr_scheduler=lr_scheduler,
             basic_save_name=basic_save_name,
             init_callbacks=[],

@@ -20,17 +20,15 @@
   ```
 - **Train using `train_script.py`** by specifying `--text_model` a text model and `--data_name` a caption dataset.
   ```sh
-  CUDA_VISIBLE_DEVICES=1 python train_script.py -m BeitBasePatch16 --text_model GPT2_Base -d datasets/coco_dog_cat/captions.json \
-  -i 160 -b 32 --optimizer adam --weight_decay 0.1 --lr_base_512 0.002 --lr_warmup 1e-5 --lr_decay_steps 14 \
-  --lr_warmup_steps 2 --lr_cooldown_steps 2 --random_crop_min 0.8 --rescale_mode tf --magnitude 0 \
-  --pretrained default -s gpt2_beit_clip_test
+  CUDA_VISIBLE_DEVICES=1 python clip_train_script.py -m EVA02SmallPatch14 --text_model LLaMA2_42M \
+  -d datasets/coco_dog_cat/captions.tsv -i 160 -b 128 --text_model_pretrained None
   ```
 - **Reload model and run prediction after training**
   ```py
   from keras_cv_attention_models import clip, test_images
 
   caption_tokenizer = clip.GPT2Tokenizer()
-  model = keras.models.load_model('checkpoints/gpt2_beit_clip_test_latest.h5', compile=False)
+  model = keras.models.load_model('checkpoints/clip_eva02_small_patch14_llama2_42m_tensorflow_latest.h5', compile=False)
   image_model, text_model = clip.split_to_image_text_model(model)
   run_prediction = clip.RunPrediction(image_model, text_model, caption_tokenizer)
 
@@ -39,13 +37,16 @@
   similarity = run_prediction(images, ['cat', 'dog', 'person', 'computer'])
   ax = plot_func.show_images_texts_similarity(images, run_prediction.text_labels, similarity)
   ```
+- **Train Using PyTorch backend by setting `KECAM_BACKEND='torch'`** Note: saved `h5` is weights only, not supporting `keras.models.load_model`
+  ```sh
+  KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python clip_train_script.py -m EVA02SmallPatch14 --text_model LLaMA2_42M \
+  -d datasets/coco_dog_cat/captions.tsv -i 160 -b 128 --text_model_pretrained None
+  ```
 ## Single tower training
 - **Specifying `--text_model image_model`** for creating text_model from image_model, using shared model blocks.
   ```sh
-  CUDA_VISIBLE_DEVICES=1 python train_script.py -m BeitBasePatch16 --text_model image_model -d datasets/coco_dog_cat/captions.json \
-  -i 160 -b 4 --optimizer adam --weight_decay 0.1 --lr_base_512 0.002 --lr_warmup 1e-5 --lr_decay_steps 14 \
-  --lr_warmup_steps 2 --lr_cooldown_steps 2 --random_crop_min 0.8 --rescale_mode tf --magnitude 0 \
-  --pretrained default  
+  CUDA_VISIBLE_DEVICES=1 python clip_train_script.py -m FlexiViTBase --text_model image_model \
+  -d datasets/coco_dog_cat/captions.tsv -i 160 -b 128
   ```
 - **Model built detail**
   - `image_model` is firstly split to 3 parts `head_model`/ `body_model` / `tail_model`, by if `block` in layer name, where `body_model` is the shared part with `text_model`.
