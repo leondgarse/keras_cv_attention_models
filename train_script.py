@@ -121,7 +121,7 @@ def parse_arguments(argv):
         default=None,
         help="Could be h5 model path, or model from this repo `gpt2.[model_name]` like gpt2.GPT2_Base. Special value 'image_model' for build from image_model",
     )
-    dt_group.add_argument(
+    clip_group.add_argument(
         "--text_model_pretrained", type=str, default="default", help="Text model pretrained weight, default 'default' for using model preset value"
     )
     clip_group.add_argument(
@@ -200,7 +200,7 @@ def run_training_by_args(args):
                 if args.text_model == "image_model":
                     text_model = None  # Single tower, build text_model from image model
                 else:
-                    args.text_model_additional_kwargs.update({"include_top": False})
+                    args.text_model_additional_kwargs.update({"include_top": False, "vocab_size": caption_tokenizer.vocab_size})
                     text_model = train_func.init_model(
                         args.text_model, input_shape=-1, num_classes=-1, pretrained=args.text_model_pretrained, **args.text_model_additional_kwargs
                     )

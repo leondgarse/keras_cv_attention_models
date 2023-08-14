@@ -10,7 +10,7 @@ def text_model_index_header(text_input, text_output, latents_dim):
     return text_output
 
 
-def convert_to_clip_model(image_model, text_model=None, caption_tokenizer=None):
+def convert_to_clip_model(image_model, text_model=None, caption_tokenizer=None, epsilon=1e-6):
     """
     >>> import tensorflow as tf  # Or import torch for PyTroch backend
     >>> from keras_cv_attention_models import clip, gpt2, beit
@@ -34,9 +34,11 @@ def convert_to_clip_model(image_model, text_model=None, caption_tokenizer=None):
         text_model = models.Model(text_input, text_output, name=text_model.name)
 
     # Return similarity directly for avoiding re-calculating in metrics again
-    text_latents = text_output / functional.norm(text_output, ord="euclidean", axis=-1, keepdims=True)
+    # text_latents = text_output / functional.norm(text_output, ord="euclidean", axis=-1, keepdims=True)
+    text_latents = text_output * functional.rsqrt(functional.reduce_sum(functional.square(text_output), axis=-1, keepdims=True) + epsilon)
     image_latents = layers.Identity(dtype="float32", name="image_latents")(image_output)  # Give a name for locating this layer in split
-    image_latents = image_latents / functional.norm(image_latents, ord="euclidean", axis=-1, keepdims=True)
+    # image_latents = image_latents / functional.norm(image_latents, ord="euclidean", axis=-1, keepdims=True)
+    image_latents = image_latents * functional.rsqrt(functional.reduce_sum(functional.square(image_latents), axis=-1, keepdims=True) + epsilon)
 
     similarity = functional.matmul(image_latents, text_latents, transpose_b=True)
     similarity = attention_layers.ExpLogitScale(axis=None, init_value=math.log(1 / 0.07), dtype="float32", name="temperature")(similarity)

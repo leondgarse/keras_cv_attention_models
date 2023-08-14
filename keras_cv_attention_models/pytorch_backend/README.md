@@ -126,7 +126,7 @@
   cur_callbacks = [
       callbacks.MyHistory(initial_file='checkpoints/test_hist.json'),
       callbacks.MyCheckpoint('test', save_path="checkpoints"),
-      callbacks.CosineLrScheduler(lr_base=0.1, first_restart_step=10, steps_per_epoch=len(train_dataset)),
+      callbacks.CosineLrScheduler(lr_base=0.001, first_restart_step=10, steps_per_epoch=len(train_dataset)),
   ]
   mm.fit(train_dataset, epochs=10, validation_data=test_dataset, callbacks=cur_callbacks)
   ```

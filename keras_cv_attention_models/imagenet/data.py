@@ -518,7 +518,7 @@ def init_dataset(
 
     if is_caption:
         train_pre_batch = lambda data_point: (train_image_func(data_point["image"]), data_point["caption"])
-        y_true = tf.eye(batch_size)  # equal to tf.one_hot(tf.range(batch_size), batch_size)
+        y_true = tf.range(batch_size)  # equal to tf.one_hot(tf.range(batch_size), batch_size)
         train_post_batch = lambda xx, caption: (((xx - mean) / std, caption), y_true)
         drop_remainder = True  # Also set drop_remainder for using fixed y_true
     elif use_token_label:

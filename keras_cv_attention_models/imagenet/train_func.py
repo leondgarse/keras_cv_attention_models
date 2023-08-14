@@ -1,9 +1,9 @@
 import os
 import time
 import keras_cv_attention_models
-from tensorflow import keras
-from keras_cv_attention_models.imagenet import callbacks, losses
-from keras_cv_attention_models import model_surgery
+from keras_cv_attention_models import backend, model_surgery
+from keras_cv_attention_models.backend import layers, models
+from keras_cv_attention_models.imagenet import callbacks
 
 GLOBAL_STRATEGY = None
 
@@ -34,7 +34,7 @@ def init_global_strategy(enable_float16=True, seed=0, TPU=False):
 
     if enable_float16:
         policy = "mixed_bfloat16" if TPU else "mixed_float16"
-        keras.mixed_precision.set_global_policy(policy)
+        tf.keras.mixed_precision.set_global_policy(policy)
 
     if seed is not None:
         print(">>>> Set random seed:", seed)
@@ -79,13 +79,13 @@ def init_optimizer(optimizer, lr_base, weight_decay, momentum=0.9):
     optimizer = optimizer.lower()
     buildin_optimizers = {
         # key: (class, kwargs)
-        "sgd": (keras.optimizers.SGD, {}),
-        "rmsprop": (keras.optimizers.RMSprop, {}),
-        "adam": (keras.optimizers.Adam, {}),
-        "custom": (keras.optimizers.AdamW, {"beta_1": 0.9, "beta_2": 0.98, "epsilon": 1e-6}),  # For clip
+        "sgd": (backend.optimizers.SGD, {}),
+        "rmsprop": (backend.optimizers.RMSprop, {}),
+        "adam": (backend.optimizers.Adam, {}),
+        "custom": (backend.optimizers.AdamW, {"beta_1": 0.9, "beta_2": 0.98, "epsilon": 1e-6, "global_clipnorm": 10.0}),  # For clip
     }
-    if hasattr(keras.optimizers, "AdamW"):
-        buildin_optimizers.update({"adamw": (keras.optimizers.AdamW, {})})
+    if hasattr(backend.optimizers, "AdamW"):
+        buildin_optimizers.update({"adamw": (backend.optimizers.AdamW, {})})
     # norm_weights = ["bn/gamma", "bn/beta", "ln/gamma", "ln/beta", "/positional_embedding", "/bias"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
     no_weight_decay = ["/gamma", "/beta", "/bias", "/positional_embedding", "/no_weight_decay"]  # ["bn/moving_mean", "bn/moving_variance"] not in weights
 
@@ -109,7 +109,7 @@ def init_optimizer(optimizer, lr_base, weight_decay, momentum=0.9):
         if hasattr(optimizer, "exclude_from_weight_decay"):
             setattr(optimizer, "exclude_from_weight_decay", no_weight_decay)
     else:
-        optimizer = getattr(keras.optimizers, optimizer.capitalize())(learning_rate=lr_base)
+        optimizer = getattr(backend.optimizers, optimizer.capitalize())(learning_rate=lr_base)
 
     return optimizer
 
@@ -117,19 +117,21 @@ def init_optimizer(optimizer, lr_base, weight_decay, momentum=0.9):
 def is_decoupled_weight_decay(optimizer):
     # import tensorflow_addons as tfa
 
-    optimizer = optimizer.inner_optimizer if isinstance(optimizer, keras.mixed_precision.LossScaleOptimizer) else optimizer
+    optimizer = optimizer.inner_optimizer if hasattr(optimizer, "inner_optimizer") else optimizer
     # return isinstance(optimizer.__module__, tfa.optimizers.weight_decay_optimizers.DecoupledWeightDecayExtension)
     return optimizer.__module__ == "tensorflow_addons.optimizers.weight_decay_optimizers"
 
 
 def init_loss(bce_threshold=1.0, label_smoothing=0, token_label_loss_weight=0, distill_loss_weight=0, distill_temperature=10, model_output_names=[]):
+    from keras_cv_attention_models.imagenet import losses
+
     from_logits = True if distill_loss_weight > 0 else False  # classifier_activation is set to None for distill model, set from_logits=True for distill
     if bce_threshold >= 0 and bce_threshold < 1:
         cls_loss = losses.BinaryCrossEntropyTimm(target_threshold=bce_threshold, label_smoothing=label_smoothing, from_logits=from_logits)
         aux_loss = losses.BinaryCrossEntropyTimm(target_threshold=bce_threshold, label_smoothing=label_smoothing) if token_label_loss_weight > 0 else None
     else:
-        cls_loss = keras.losses.CategoricalCrossentropy(label_smoothing=label_smoothing, from_logits=from_logits)
-        aux_loss = keras.losses.CategoricalCrossentropy(label_smoothing=label_smoothing) if token_label_loss_weight > 0 else None
+        cls_loss = backend.losses.CategoricalCrossentropy(label_smoothing=label_smoothing, from_logits=from_logits)
+        aux_loss = backend.losses.CategoricalCrossentropy(label_smoothing=label_smoothing) if token_label_loss_weight > 0 else None
 
     if token_label_loss_weight > 0:
         loss = [cls_loss, aux_loss]
@@ -152,8 +154,8 @@ def init_model(model=None, input_shape=(224, 224, 3), num_classes=1000, pretrain
     2. Model name defined in this repo, format [sub_dir].[model_name] like regnet.RegNetZD8.
     3. timm model like timm.models.resmlp_12_224
     """
-    if isinstance(model, keras.models.Model):
-        print(">>> Got a keras.models.Model: {}, do nothing with it.".format(model.name))
+    if isinstance(model, models.Model):
+        print(">>> Got a models.Model: {}, do nothing with it.".format(model.name))
         return model
 
     if model.startswith("timm."):  # model like: timm.models.resmlp_12_224
@@ -172,7 +174,7 @@ def init_model(model=None, input_shape=(224, 224, 3), num_classes=1000, pretrain
             pass
 
         print(">>>> Restore model from:", model)
-        model = keras.models.load_model(model, compile=reload_compile)
+        model = models.load_model(model, compile=reload_compile)
         return model
 
     if input_shape != -1:
@@ -206,7 +208,7 @@ def model_post_process(model, freeze_backbone=False, freeze_norm_layers=False, u
 
     if freeze_norm_layers:
         for ii in model.layers:
-            if isinstance(ii, keras.layers.BatchNormalization) or isinstance(ii, keras.layers.LayerNormalization):
+            if isinstance(ii, layers.BatchNormalization) or isinstance(ii, layers.LayerNormalization):
                 ii.trainable = False
 
     if use_token_label and model.optimizer is None:  # model.optimizer is not None if restored from h5
@@ -221,7 +223,7 @@ def init_distill_model(model, teacher_model):
 
     model.layers[-1].activation = None  # Also set model output activation softmax to linear
     if model.optimizer is None:  # model.optimizer is not None if restored from h5
-        model = keras.models.Model(model.inputs[0], [model.output, model.output])
+        model = models.Model(model.inputs[0], [model.output, model.output])
         model.output_names[1] = "distill"
     return model, teacher_model
 
@@ -267,10 +269,10 @@ def train(
         # os.remove(hist_file)
         os.rename(hist_file, hist_file + ".bak")
     cur_callbacks.append(callbacks.MyHistory(initial_file=hist_file))
-    cur_callbacks.append(keras.callbacks.TerminateOnNaN())
+    cur_callbacks.append(backend.callbacks.TerminateOnNaN())
     if logs is not None:
         logs = "logs/" + basic_save_name + "_" + time.strftime("%Y%m%d-%H%M%S") if logs == "auto" else logs
-        cur_callbacks.append(keras.callbacks.TensorBoard(log_dir=logs, histogram_freq=1))
+        cur_callbacks.append(backend.callbacks.TensorBoard(log_dir=logs, histogram_freq=1))
         print(">>>> TensorBoard log path:", logs)
 
     if lr_scheduler is not None:

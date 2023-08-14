@@ -6,9 +6,6 @@ from functools import partial
 from keras_cv_attention_models.pytorch_backend import initializers
 
 
-# [TODO] Identity, Normalization, Rescaling, SeparableConv2D
-
-
 """ Basic Layers """
 
 

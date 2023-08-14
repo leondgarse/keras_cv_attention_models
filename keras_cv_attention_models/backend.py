@@ -24,11 +24,11 @@ if is_tensorflow_backend:
 
 if is_tensorflow_backend:
     import tensorflow as tf
-    from tensorflow.keras import layers, models, initializers, callbacks, metrics
+    from tensorflow.keras import layers, models, initializers, callbacks, metrics, losses, optimizers
     from tensorflow.keras.utils import register_keras_serializable, get_file
     from keras_cv_attention_models import tf_functional as functional
 elif is_torch_backend:
-    from keras_cv_attention_models.pytorch_backend import layers, models, functional, initializers, callbacks, metrics
+    from keras_cv_attention_models.pytorch_backend import layers, models, functional, initializers, callbacks, metrics, losses, optimizers
     from keras_cv_attention_models.pytorch_backend.utils import register_keras_serializable, get_file
 
     print(">>>> Using PyTorch backend")

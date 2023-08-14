@@ -26,7 +26,7 @@ class _Trainer_(object):
 
     def compile(self, optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, grad_accumulate=1, grad_max_norm=-1, **kwargs):
         self.optimizer = getattr(torch.optim, optimizer)(self.parameters()) if isinstance(optimizer, str) else optimizer
-        self.loss = (lambda y_true, y_pred: torch.functional.F.cross_entropy(y_pred, y_true)) if loss is None else loss
+        self.compiled_loss = self.loss = (lambda y_true, y_pred: torch.functional.F.cross_entropy(y_pred, y_true)) if loss is None else loss
         self.loss_weights, self.grad_accumulate, self.grad_max_norm = loss_weights, grad_accumulate, grad_max_norm
         self.metrics_names, self.metrics = self.init_metrics(metrics)
 
