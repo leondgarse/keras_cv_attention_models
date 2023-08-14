@@ -101,7 +101,7 @@ if __name__ == "__main__":
         print(">>>> text_model name: {}, input_shape: {}, output_shape: {}".format(text_model.name, text_model.input_shape, text_model.output_shape))
 
         model, image_model, text_model = kecam.clip.convert_to_clip_model(image_model, text_model)
-        basic_save_name = basic_save_name or "clip_{}_{}_{}".format(image_model.name, text_model.name, kecam.backend.backend())
+        basic_save_name = args.basic_save_name or "clip_{}_{}_{}".format(image_model.name, text_model.name, kecam.backend.backend())
         print(">>>> basic_save_name:", basic_save_name)
 
         if kecam.backend.is_torch_backend:
