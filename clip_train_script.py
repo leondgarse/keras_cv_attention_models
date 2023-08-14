@@ -51,7 +51,7 @@ def parse_arguments():
     parser.add_argument("-b", "--batch_size", type=int, default=32, help="Batch size")
     parser.add_argument("-e", "--epochs", type=int, default=30, help="Total epochs")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
-    parser.add_argument("-s", "--basic_save_name", type=str, default="torch_clip_test", help="Basic save name for model and history")
+    parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history")
 
     model = parser.add_argument_group("Model arguments")
     model.add_argument("-i", "--input_shape", type=int, default=224, help="Image model input shape")
@@ -101,6 +101,8 @@ if __name__ == "__main__":
         print(">>>> text_model name: {}, input_shape: {}, output_shape: {}".format(text_model.name, text_model.input_shape, text_model.output_shape))
 
         model, image_model, text_model = kecam.clip.convert_to_clip_model(image_model, text_model)
+        basic_save_name = basic_save_name or "clip_{}_{}_{}".format(image_model.name, text_model.name, kecam.backend.backend())
+        print(">>>> basic_save_name:", basic_save_name)
 
         if kecam.backend.is_torch_backend:
             # Always 0, no matter CUDA_VISIBLE_DEVICES
@@ -121,8 +123,6 @@ if __name__ == "__main__":
         model.compile(optimizer=optimizer, loss=kecam.clip.losses.clip_loss, metrics=["acc"])
         # model.fit(train_dataset, epochs=args.epochs, validation_data=test_dataset, callbacks=callbacks)
 
-        basic_save_name = "clip_{}_{}".format(image_model.name, text_model.name)
-        print(">>>> basic_save_name:", basic_save_name)
         lr_scheduler = kecam.imagenet.callbacks.CosineLrScheduler(args.lr, args.epochs, steps_per_epoch=len(train_dataset), warmup_steps=args.lr_warmup_steps)
         other_kwargs = {}
         latest_save, hist = kecam.imagenet.train_func.train(

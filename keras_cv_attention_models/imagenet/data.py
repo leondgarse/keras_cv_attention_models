@@ -360,7 +360,7 @@ def init_from_json_or_csv_or_tsv(data_path, is_caption):
 
                 if ii[0] == "TEST":  # Use this as indicator for start of test set
                     is_train = False
-                if is_train:
+                elif is_train:
                     train.append({"image": ii[0], label_key: ii[1]})
                 else:
                     test.append({"image": ii[0], label_key: ii[1]})

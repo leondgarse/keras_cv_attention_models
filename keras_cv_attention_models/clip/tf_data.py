@@ -32,6 +32,6 @@ def init_dataset(data_path, caption_tokenizer, batch_size=64, image_size=224, re
     if test_dataset is not None:
         test_pre_batch = lambda data_point: (image_process(data_point["image"], image_size, is_train=False), data_point["caption"])
         test_dataset = test_dataset.map(test_pre_batch, num_parallel_calls=AUTOTUNE)
-        test_dataset = test_dataset.batch(batch_size, drop_remainder=True).map(train_post_batch, num_parallel_calls=AUTOTUNE)
+        test_dataset = test_dataset.batch(batch_size, drop_remainder=True).map(train_post_batch)
 
     return train_dataset, test_dataset
