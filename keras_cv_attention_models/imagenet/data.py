@@ -338,7 +338,7 @@ def evaluation_process_resize_crop(image, target_shape=(224, 224), central_crop=
     return image
 
 
-def init_from_json_or_csv_or_tsv(data_path, is_caption):
+def init_from_json_or_csv_or_tsv(data_path, is_caption=False):
     if data_path.endswith(".json"):
         import json
 
@@ -469,7 +469,6 @@ def init_dataset(
     token_label_target_patches=-1,
     teacher_model=None,
     teacher_model_input_shape=-1,  # -1 means same with input_shape
-    caption_tokenizer=None,
     **augment_kwargs,  # Too many...
 ):
     import tensorflow_datasets as tfds
@@ -480,16 +479,15 @@ def init_dataset(
     use_token_label = False if token_label_file is None else True
     use_distill = False if teacher_model is None else True
     teacher_model_input_shape = input_shape if teacher_model_input_shape == -1 else teacher_model_input_shape
-    is_caption = False if caption_tokenizer is None else True
 
     if data_name.endswith(".json") or data_name.endswith(".tsv"):
         if info_only:
-            _, (total_images, num_classes, num_channels) = init_from_json_or_csv_or_tsv(data_name, is_caption)
+            _, (total_images, num_classes, num_channels) = init_from_json_or_csv_or_tsv(data_name)
         else:
-            dataset, total_images, num_classes, num_channels = build_custom_dataset(data_name, with_info=True, caption_tokenizer=caption_tokenizer)
+            dataset, total_images, num_classes, num_channels = build_custom_dataset(data_name, with_info=True)
     else:
         dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)
-        num_classes = 0 if is_caption else info.features["label"].num_classes
+        num_classes = info.features["label"].num_classes
         num_channels = info.features["image"].shape[-1]
         total_images = info.splits["train"].num_examples
     steps_per_epoch = int(tf.math.ceil(total_images / float(batch_size)))
@@ -516,12 +514,7 @@ def init_dataset(
         **augment_kwargs,
     )
 
-    if is_caption:
-        train_pre_batch = lambda data_point: (train_image_func(data_point["image"]), data_point["caption"])
-        y_true = tf.range(batch_size)  # equal to tf.one_hot(tf.range(batch_size), batch_size)
-        train_post_batch = lambda xx, caption: (((xx - mean) / std, caption), y_true)
-        drop_remainder = True  # Also set drop_remainder for using fixed y_true
-    elif use_token_label:
+    if use_token_label:
         train_pre_batch = lambda data_point: (*train_image_func(data_point["image"]), data_point["label"])
         train_post_batch = lambda xx, token_label, yy: ((xx - mean) / std, tf.one_hot(yy, num_classes), token_label)
     else:
@@ -536,13 +529,9 @@ def init_dataset(
         train_dataset = train_dataset.shuffle(buffer_size, seed=seed)
     train_dataset = train_dataset.map(train_pre_batch, num_parallel_calls=AUTOTUNE)
     train_dataset = train_dataset.batch(batch_size, drop_remainder=drop_remainder).map(train_post_batch, num_parallel_calls=AUTOTUNE)
+    train_dataset = apply_mixup_cutmix(train_dataset, mixup_alpha, cutmix_alpha, switch_prob=0.5)
 
-    if not is_caption:
-        train_dataset = apply_mixup_cutmix(train_dataset, mixup_alpha, cutmix_alpha, switch_prob=0.5)
-
-    if is_caption:
-        pass  # Just skip others
-    elif use_token_label:
+    if use_token_label:
         train_dataset = train_dataset.map(lambda xx, yy, token_label: (xx, (yy, token_label)))
     elif use_distill:
         print(">>>> KLDivergence teacher model provided.")
@@ -557,12 +546,9 @@ def init_dataset(
         # test_pre_batch = lambda xx: evaluation_process_resize_crop(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)  # timm
         # test_image_func = lambda xx: evaluation_process_crop_resize(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)
         test_pre_batch = lambda data_point: (
-            evaluation_process_crop_resize(data_point["image"], input_shape[:2], eval_central_crop, resize_method, resize_antialias),
-            data_point["caption" if is_caption else "label"],
+            evaluation_process_crop_resize(data_point["image"], input_shape[:2], eval_central_crop, resize_method, resize_antialias), data_point["label"]
         )
-        if is_caption:
-            test_post_batch = lambda xx, caption: (((xx - mean) / std, caption), y_true)
-        elif use_token_label:
+        if use_token_label:
             test_post_batch = lambda xx, yy: ((xx - mean) / std, (tf.one_hot(yy, num_classes), None))  # just give None on token_label data position
         elif use_distill:
             test_post_batch = lambda xx, yy: ((xx - mean) / std, (tf.one_hot(yy, num_classes), None))

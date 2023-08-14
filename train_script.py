@@ -87,8 +87,8 @@ def parse_arguments(argv):
     ds_group.add_argument("--magnitude", type=int, default=6, help="Randaug magnitude value")
     ds_group.add_argument("--num_layers", type=int, default=2, help="Number of randaug applied sequentially to an image. Usually best in [1, 3]")
     ds_group.add_argument("--random_crop_min", type=float, default=0.08, help="Random crop min value for RRC. Set 1 to disable RRC")
-    ds_group.add_argument("--mixup_alpha", type=float, default=0.1, help="Mixup alpha value. Force 0 for Clip training")
-    ds_group.add_argument("--cutmix_alpha", type=float, default=1.0, help="Cutmix alpha value. Force 0 for Clip training")
+    ds_group.add_argument("--mixup_alpha", type=float, default=0.1, help="Mixup alpha value.")
+    ds_group.add_argument("--cutmix_alpha", type=float, default=1.0, help="Cutmix alpha value.")
     ds_group.add_argument("--random_erasing_prob", type=float, default=0, help="Random erasing prob, can be used to replace cutout. Set 0 to disable")
     ds_group.add_argument("--eval_central_crop", type=float, default=0.95, help="Evaluation central crop fraction. Set 1 to disable")
     ds_group.add_argument("--rescale_mode", type=str, default="torch", help="Rescale mode, one of [tf, torch]")
@@ -113,33 +113,10 @@ def parse_arguments(argv):
     dt_group.add_argument("--distill_temperature", type=float, default=10, help="Temperature for DistillKLDivergenceLoss")
     dt_group.add_argument("--distill_loss_weight", type=float, default=1, help="Distill loss weight if `teacher_model` is not None")
 
-    """ Clip parameters """
-    clip_group = parser.add_argument_group("Clip arguments")
-    clip_group.add_argument(
-        "--text_model",
-        type=str,
-        default=None,
-        help="Could be h5 model path, or model from this repo `gpt2.[model_name]` like gpt2.GPT2_Base. Special value 'image_model' for build from image_model",
-    )
-    clip_group.add_argument(
-        "--text_model_pretrained", type=str, default="default", help="Text model pretrained weight, default 'default' for using model preset value"
-    )
-    clip_group.add_argument(
-        "--text_model_additional_kwargs", type=str, default=None, help="Json format model kwargs like '{\"drop_connect_rate\": 0.05}'. Note all quote marks"
-    )
-    clip_group.add_argument(
-        "--tokenizer",
-        type=str,
-        default="GPT2Tokenizer",
-        help="One of ['GPT2Tokenizer', 'SimpleTokenizer'], or tiktoken one ['gpt2', 'r50k_base', 'p50k_base', 'cl100k_base']",
-    )
-    clip_group.add_argument("--latents_dim", type=int, default=512, help="hidden dimension of `image_latents` and `text_latents` before calculating similarity")
-
     args = parser.parse_known_args(argv)[0]
 
     # args.additional_model_kwargs = {"drop_connect_rate": 0.05}
     args.additional_model_kwargs = json.loads(args.additional_model_kwargs) if args.additional_model_kwargs else {}
-    args.text_model_additional_kwargs = json.loads(args.text_model_additional_kwargs) if args.text_model_additional_kwargs else {}
 
     lr_decay_steps = args.lr_decay_steps.strip().split(",")
     if len(lr_decay_steps) > 1:
@@ -175,7 +152,6 @@ def run_training_by_args(args):
     input_shape = (args.input_shape, args.input_shape)
     use_token_label = args.token_label_file is not None
     use_teacher_model = args.teacher_model is not None
-    is_clip_train = args.text_model is not None
     teacher_model_input_shape = input_shape if args.teacher_model_input_shape == -1 else (args.teacher_model_input_shape, args.teacher_model_input_shape)
 
     # Init model first, for in case of use_token_label, getting token_label_target_patches
@@ -185,28 +161,11 @@ def run_training_by_args(args):
     assert not (num_channels != 3 and args.rescale_mode == "torch")  # "torch" mode mean and std are 3 channels
     with strategy.scope():
         model = args.model if args.restore_path is None else args.restore_path
-        if is_clip_train:
-            args.additional_model_kwargs.update({"classifier_activation": None})
-        model = train_func.init_model(model, input_shape, args.latents_dim if is_clip_train else num_classes, args.pretrained, **args.additional_model_kwargs)
+        model = train_func.init_model(model, input_shape, num_classes, args.pretrained, **args.additional_model_kwargs)
         model = train_func.model_post_process(model, args.freeze_backbone, args.freeze_norm_layers, use_token_label)
 
-        teacher_model, caption_tokenizer = None, None
-        if is_clip_train:
-            from keras_cv_attention_models import clip
-
-            caption_tokenizer = getattr(clip, args.tokenizer)() if hasattr(clip, args.tokenizer) else clip.TikToken(args.tokenizer)
-            if args.restore_path is None:  # Skip build if restore
-                print(">>>> [Build text model]")
-                if args.text_model == "image_model":
-                    text_model = None  # Single tower, build text_model from image model
-                else:
-                    args.text_model_additional_kwargs.update({"include_top": False, "vocab_size": caption_tokenizer.vocab_size})
-                    text_model = train_func.init_model(
-                        args.text_model, input_shape=-1, num_classes=-1, pretrained=args.text_model_pretrained, **args.text_model_additional_kwargs
-                    )
-                model, image_model, text_model = clip.convert_to_clip_model(model, text_model, caption_tokenizer=caption_tokenizer)
-            print(">>>> model.input_shape: {}, model.output_shape {}".format(model.input_shape, model.output_shape))
-        elif use_teacher_model:
+        teacher_model = None
+        if use_teacher_model:
             print(">>>> [Build teacher model]")
             teacher_model = train_func.init_model(
                 args.teacher_model, teacher_model_input_shape, num_classes, args.teacher_model_pretrained, reload_compile=False
@@ -236,7 +195,6 @@ def run_training_by_args(args):
         token_label_target_patches=token_label_target_patches,
         teacher_model=teacher_model,
         teacher_model_input_shape=teacher_model_input_shape,
-        caption_tokenizer=caption_tokenizer,
     )
 
     lr_base = args.lr_base_512 * batch_size / 512
@@ -249,12 +207,9 @@ def run_training_by_args(args):
     with strategy.scope():
         token_label_loss_weight = args.token_label_loss_weight if use_token_label else 0
         distill_loss_weight = args.distill_loss_weight if use_teacher_model else 0
-        if is_clip_train:
-            loss, loss_weights, metrics = clip.clip_loss, None, ["acc"]
-        else:
-            loss, loss_weights, metrics = train_func.init_loss(
-                args.bce_threshold, args.label_smoothing, token_label_loss_weight, distill_loss_weight, args.distill_temperature, model.output_names
-            )
+        loss, loss_weights, metrics = train_func.init_loss(
+            args.bce_threshold, args.label_smoothing, token_label_loss_weight, distill_loss_weight, args.distill_temperature, model.output_names
+        )
 
         if model.optimizer is None:
             # optimizer can be a str like "sgd" / "adamw" / "lamb", or specific initialized `keras.optimizers.xxx` instance.

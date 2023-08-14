@@ -1,8 +1,8 @@
 import os
-import kecam  # os.environ["KECAM_BACKEND"] = "torch"
+import kecam
 
 
-if kecam.backend.is_torch_backend:
+if kecam.backend.is_torch_backend:  # os.environ["KECAM_BACKEND"] = "torch"
     import torch
     from collections import namedtuple
     from contextlib import nullcontext
