@@ -32,6 +32,11 @@ def argmax(inputs, axis=None, output_type="int64", name=None):
     return wrapper(partial(torch.argmax, dim=axis), inputs, output_shape=output_shape, name=name)
 
 
+def argsort(inputs, axis=-1, direction="ASCENDING", stable=False, name=None):
+    descending = direction.upper() == "DESCENDING"
+    return wrapper(partial(torch.argmax, dim=axis, descending=descending, stable=stable), inputs, output_shape=inputs.shape, name=name)
+
+
 def assign(parameter, data):
     parameter.data = torch.tensor(data, dtype=parameter.dtype)
 

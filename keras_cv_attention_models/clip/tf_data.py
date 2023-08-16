@@ -27,6 +27,7 @@ def init_dataset(data_path, caption_tokenizer, batch_size=64, image_size=224, re
     train_dataset = dataset["train"]
     train_dataset = train_dataset.shuffle(buffer_size, seed=seed).map(train_pre_batch, num_parallel_calls=AUTOTUNE)
     train_dataset = train_dataset.batch(batch_size, drop_remainder=True).map(train_post_batch, num_parallel_calls=AUTOTUNE)
+    train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE)
 
     test_dataset = dataset.get("validation", dataset.get("test", None))
     if test_dataset is not None:

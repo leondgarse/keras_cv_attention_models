@@ -214,7 +214,7 @@ class PositionalEmbedding(layers.Layer):
         self.input_height = input_height
 
     def build(self, input_shape):
-        self.pp = self.add_weight(name="positional_embedding", shape=(1, *input_shape[1:]), initializer=self.pp_init, trainable=True)
+        self.positional_embedding = self.add_weight(name="positional_embedding", shape=(1, *input_shape[1:]), initializer=self.pp_init, trainable=True)
         super().build(input_shape)
 
         if len(input_shape) == 3:
@@ -227,7 +227,7 @@ class PositionalEmbedding(layers.Layer):
             self.height, self.width = input_shape[1:3]
 
     def call(self, inputs, **kwargs):
-        return inputs + self.pp
+        return inputs + self.positional_embedding
 
     def get_config(self):
         base_config = super().get_config()
@@ -239,7 +239,7 @@ class PositionalEmbedding(layers.Layer):
         if isinstance(source_layer, dict):
             source_pp = list(source_layer.values())[0]  # weights
         else:
-            source_pp = source_layer.pp  # layer
+            source_pp = source_layer.positional_embedding  # layer
 
         source_pp = np.array(source_pp).astype("float32")
         if self.is_fused_height_width:
@@ -252,13 +252,13 @@ class PositionalEmbedding(layers.Layer):
             tt = np.concatenate([source_pp[:, : -hh * ww], tt], axis=1)  # If has cls_token
         else:
             tt = backend.numpy_image_resize(source_pp, target_shape=[self.height, self.width], method=method)
-        # functional.assign(self.pp, tt)  # For TF it's `parameter.assign(data)`, for Torch `parameter.data = torch.tensor(data)`
+        # functional.assign(self.positional_embedding, tt)  # For TF it's `parameter.assign(data)`, for Torch `parameter.data = torch.tensor(data)`
         self.set_weights([tt])
 
     def show_pos_emb(self, rows=16, base_size=1):
         import matplotlib.pyplot as plt
 
-        ss = self.pp[0]
+        ss = self.positional_embedding[0]
         cols = int(math.ceil(ss.shape[-1] / rows))
         fig, axes = plt.subplots(rows, cols, figsize=(base_size * cols, base_size * rows))
         for id, ax in enumerate(axes.flatten()):

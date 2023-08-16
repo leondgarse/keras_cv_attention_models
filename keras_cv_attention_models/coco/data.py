@@ -374,7 +374,7 @@ def detection_dataset_from_custom_json(data_path, with_info=False):
         num_classes = max([max([int(jj) for jj in ii["objects"]["label"]]) for ii in train]) + 1
         print(">>>> Using max value from train as num_classes:", num_classes)
 
-    if "base_path" in info:
+    if "base_path" in info and len(info["base_path"]) > 0:
         base_path = info["base_path"]
         for ii in train:
             ii["image"] = os.path.join(base_path, ii["image"])

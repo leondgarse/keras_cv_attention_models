@@ -10,7 +10,7 @@ def read_from_tsv(data_path):
     import csv
 
     delimiter = "\t" if data_path.endswith(".tsv") else ","
-    train_images, train_captions, test_images, test_captions, base_path, is_train = [], [], [], [], ".", True
+    train_images, train_captions, test_images, test_captions, base_path, is_train = [], [], [], [], "", True
     with open(data_path) as ff:
         for ii in csv.reader(ff, delimiter=delimiter):
             if ii[0] == "base_path":  # special keys for info
@@ -23,8 +23,9 @@ def read_from_tsv(data_path):
             else:
                 test_images.append(ii[0])
                 test_captions.append(ii[1])
-    train_images = [os.path.join(base_path, ii) for ii in train_images]
-    test_images = [os.path.join(base_path, ii) for ii in test_images]
+    if len(base_path) > 0:
+        train_images = [os.path.join(base_path, ii) for ii in train_images]
+        test_images = [os.path.join(base_path, ii) for ii in test_images]
     return train_images, train_captions, test_images, test_captions
 
 

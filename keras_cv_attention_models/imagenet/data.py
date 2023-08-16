@@ -372,7 +372,7 @@ def init_from_json_or_csv_or_tsv(data_path, is_caption=False):
         num_classes = max([ii["label"] for ii in train]) + 1
         print(">>>> Using max value from train as num_classes:", num_classes)
 
-    if "base_path" in info:
+    if "base_path" in info and len(info["base_path"]) > 0:
         base_path = info["base_path"]
         for ii in train:
             ii["image"] = os.path.join(base_path, ii["image"])
@@ -546,7 +546,8 @@ def init_dataset(
         # test_pre_batch = lambda xx: evaluation_process_resize_crop(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)  # timm
         # test_image_func = lambda xx: evaluation_process_crop_resize(xx, input_shape[:2], eval_central_crop, resize_method, resize_antialias)
         test_pre_batch = lambda data_point: (
-            evaluation_process_crop_resize(data_point["image"], input_shape[:2], eval_central_crop, resize_method, resize_antialias), data_point["label"]
+            evaluation_process_crop_resize(data_point["image"], input_shape[:2], eval_central_crop, resize_method, resize_antialias),
+            data_point["label"],
         )
         if use_token_label:
             test_post_batch = lambda xx, yy: ((xx - mean) / std, (tf.one_hot(yy, num_classes), None))  # just give None on token_label data position

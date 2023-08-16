@@ -66,6 +66,7 @@ def get_anchors(input_shape=(512, 512, 3), pyramid_levels=[3, 7], aspect_ratios=
     base_anchors_hh_half, base_anchors_ww_half = base_anchors_hh / 2, base_anchors_ww / 2
     base_anchors = np.stack([base_anchors_hh_half * -1, base_anchors_ww_half * -1, base_anchors_hh_half, base_anchors_ww_half], axis=1)
     # base_anchors = tf.gather(base_anchors, [3, 6, 0, 4, 7, 1, 5, 8, 2])  # re-order according to official generated anchors
+    # For anchor_free, base_anchors = np.array([[-0.5, -0.5, 0.5, 0.5]])
 
     # make grid
     pyramid_levels = list(range(min(pyramid_levels), max(pyramid_levels) + 1))

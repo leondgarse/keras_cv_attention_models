@@ -29,6 +29,7 @@ class _Trainer_(object):
         self.compiled_loss = self.loss = (lambda y_true, y_pred: torch.functional.F.cross_entropy(y_pred, y_true)) if loss is None else loss
         self.loss_weights, self.grad_accumulate, self.grad_max_norm = loss_weights, grad_accumulate, grad_max_norm
         self.metrics_names, self.metrics = self.init_metrics(metrics)
+        self.eval_metrics = [metric.name for metric in self.metrics if metric.eval_only]  # Mark metric like acc5 for eval only
 
         device = next(self.parameters()).device
         device_type = device.type
@@ -85,10 +86,10 @@ class _Trainer_(object):
                 process_bar.desc = " - loss: {:.4f}".format(avg_loss / (batch + 1))  # process_bar.set_description automatically add a : on the tail
 
                 if isinstance(yy, (list, tuple)):
-                    [metric.update_state(cur_yy, cur_out) for cur_out, cur_yy, metric in zip(out, yy, self.metrics)]
+                    [metric.update_state(cur_yy, cur_out) for cur_out, cur_yy, metric in zip(out, yy, self.metrics) if metric.name not in self.eval_metrics]
                 else:
-                    [ii.update_state(yy, out) for ii in self.metrics]
-                metrics_results = {name: metric.result().item() for name, metric in zip(self.metrics_names, self.metrics)}
+                    [metric.update_state(yy, out) for metric in self.metrics if metric.name not in self.eval_metrics]
+                metrics_results = {ii: metric.result().item() for ii, metric in zip(self.metrics_names, self.metrics) if metric.name not in self.eval_metrics}
                 process_bar.desc += "".join([" - {}: {:.4f}".format(name, metric) for name, metric in metrics_results.items()])
 
                 batch_logs["loss"] = loss.item()
@@ -96,24 +97,22 @@ class _Trainer_(object):
                 [ii.on_train_batch_end(batch, logs=batch_logs) for ii in callbacks]
 
                 """ Eval process, put inside for loop for a better display of process bar """
-                if batch == total - 1:
-                    loss = avg_loss / (batch + 1)
-                    self.history["loss"].append(loss.item())
-                    for name, metric in zip(self.metrics_names, self.metrics):
-                        metric_result = metric.result()
-                        self.history.setdefault(name, []).append(metric_result.item())
+                if batch == total - 1 and validation_data is not None:
+                    val_loss, val_metrics_results = self.evaluate(validation_data, batch_size=validation_batch_size, callbacks=callbacks)
 
-                    if validation_data is not None:
-                        val_loss, val_metrics_results = self.evaluate(validation_data, batch_size=validation_batch_size, callbacks=callbacks)
+                    self.history.setdefault("val_loss", []).append(val_loss.item())
+                    for name, val_metric_result in val_metrics_results.items():
+                        self.history.setdefault(name, []).append(val_metric_result.item() if hasattr(val_metric_result, "item") else val_metric_result)
 
-                        self.history.setdefault("val_loss", []).append(val_loss.item())
-                        for name, metric_result in val_metrics_results.items():
-                            self.history.setdefault(name, []).append(metric_result.item() if hasattr(metric_result, "item") else metric_result)
-
-                        process_bar.desc += " - val_loss: {:.4f}".format(val_loss)
-                        process_bar.desc += "".join([" - {}: {:.4f}".format(name, metric) for name, metric in val_metrics_results.items()])
-                        # process_bar.display()
+                    process_bar.desc += " - val_loss: {:.4f}".format(val_loss)
+                    process_bar.desc += "".join([" - {}: {:.4f}".format(name, metric) for name, metric in val_metrics_results.items()])
+                    # process_bar.display()
                 process_bar.refresh()
+
+            loss = avg_loss / (batch + 1)
+            self.history["loss"].append(loss.item())
+            for name, metric_result in metrics_results.items():
+                self.history.setdefault(name, []).append(metric_result)
             epoch_logs = {kk: vv[-1] for kk, vv in self.history.items()}
             [ii.on_epoch_end(epoch, epoch_logs) for ii in callbacks]
             print()
