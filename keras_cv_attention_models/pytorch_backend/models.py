@@ -110,7 +110,7 @@ class _Trainer_(object):
                 process_bar.refresh()
 
             loss = avg_loss / (batch + 1)
-            self.history["loss"].append(loss.item())
+            self.history["loss"].append(loss.item() if hasattr(loss, "item") else loss)
             for name, metric_result in metrics_results.items():
                 self.history.setdefault(name, []).append(metric_result)
             epoch_logs = {kk: vv[-1] for kk, vv in self.history.items()}

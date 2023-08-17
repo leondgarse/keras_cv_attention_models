@@ -15,7 +15,7 @@ else:
     from keras_cv_attention_models.clip import tf_data as data
     from keras_cv_attention_models.imagenet.train_func import init_global_strategy
 
-    global_strategy = init_global_strategy()
+    global_strategy = init_global_strategy(enable_float16=len(tf.config.experimental.get_visible_devices("GPU")) > 0)
 
 
 def build_model(model_name, **model_kwargs):

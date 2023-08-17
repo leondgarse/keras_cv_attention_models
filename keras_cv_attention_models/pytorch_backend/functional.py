@@ -34,7 +34,7 @@ def argmax(inputs, axis=None, output_type="int64", name=None):
 
 def argsort(inputs, axis=-1, direction="ASCENDING", stable=False, name=None):
     descending = direction.upper() == "DESCENDING"
-    return wrapper(partial(torch.argmax, dim=axis, descending=descending, stable=stable), inputs, output_shape=inputs.shape, name=name)
+    return wrapper(partial(torch.argsort, dim=axis, descending=descending, stable=stable), inputs, output_shape=inputs.shape, name=name)
 
 
 def assign(parameter, data):
