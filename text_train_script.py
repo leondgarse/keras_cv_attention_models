@@ -114,6 +114,7 @@ def build_tf_dataset(train_dataset_gen, test_dataset_gen):
 
     train_dataset = tf.data.Dataset.from_generator(lambda: ((xx, yy) for xx, yy in iter(train_dataset_gen)), output_signature=output_signature)
     train_dataset = train_dataset.apply(tf.data.experimental.assert_cardinality(train_steps_per_epoch)).with_options(options)
+    train_dataset = train_dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
 
     test_dataset = tf.data.Dataset.from_generator(lambda: ((xx, yy) for xx, yy in iter(test_dataset_gen)), output_signature=output_signature)
     test_dataset = test_dataset.apply(tf.data.experimental.assert_cardinality(test_steps_per_epoch)).with_options(options)
@@ -146,6 +147,7 @@ def build_tf_optimizer(lr=1e-3, weight_decay=0.2, beta1=0.9, beta2=0.95, eps=1.0
     return optimizer
 
 
+@kecam.backend.register_keras_serializable(package="kecamLoss")
 def ravel_loss(y_true, y_pred):
     y_true = kecam.backend.functional.reshape(y_true, [-1])
     y_pred = kecam.backend.functional.reshape(y_pred, [-1, y_pred.shape[-1]])

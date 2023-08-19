@@ -46,25 +46,12 @@ class CaptionDataset(Dataset):
             ]
         )
 
-    def tokenize(self, texts):
-        if isinstance(texts, str):
-            texts = [texts]
-        all_tokens = [[self.tokenizer.sot_token] + self.tokenizer.encode(text) + [self.tokenizer.eot_token] for text in texts]
-        result = torch.zeros(len(all_tokens), self.context_length, dtype=torch.long)
-
-        for i, tokens in enumerate(all_tokens):
-            if len(tokens) > self.context_length:
-                tokens = tokens[: self.context_length]  # Truncate
-                tokens[-1] = eot_token
-            result[i, : len(tokens)] = torch.tensor(tokens)
-        return result
-
     def __len__(self):
         return len(self.images)
 
     def __getitem__(self, idx):
         images = self.transforms(Image.open(str(self.images[idx])))
-        texts = self.tokenize([str(self.captions[idx])])[0]
+        texts = torch.from_numpy(self.tokenizer(str(self.captions[idx])))
         return images, texts
 
 
@@ -75,6 +62,7 @@ def collate_wrapper(batch):
 
 def init_dataset(data_path, caption_tokenizer, batch_size=64, image_size=224, num_workers=8):
     train_images, train_captions, test_images, test_captions = read_from_tsv(data_path)
+
     train_dataset = CaptionDataset(train_images, train_captions, tokenizer=caption_tokenizer, is_train=True, image_size=image_size)
     train_dataloader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, collate_fn=collate_wrapper, pin_memory=True, sampler=None, drop_last=True

@@ -18,12 +18,6 @@ else:
     global_strategy = init_global_strategy(enable_float16=len(tf.config.experimental.get_visible_devices("GPU")) > 0)
 
 
-def build_model(model_name, **model_kwargs):
-    model_split = model_name.split(".")
-    model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam.models, model_split[0])
-    return model_class(**model_kwargs)
-
-
 def build_torch_optimizer(model, lr=1e-3, weight_decay=0.2, beta1=0.9, beta2=0.98, eps=1.0e-6):
     named_parameters = list(model.named_parameters())
     exclude = lambda name, param: param.ndim < 2 or any([ii in name for ii in ["gamma", "beta", "bias", "positional_embedding", "no_weight_decay"]])
@@ -41,6 +35,19 @@ def build_tf_optimizer(lr=1e-3, weight_decay=0.2, beta1=0.9, beta2=0.98, eps=1.0
     optimizer = tf.optimizers.AdamW(learning_rate=lr, weight_decay=weight_decay, beta_1=beta1, beta_2=beta2, epsilon=eps)
     optimizer.exclude_from_weight_decay(var_names=no_weight_decay)
     return optimizer
+
+
+def build_model(model_name, **model_kwargs):
+    model_split = model_name.split(".")
+    model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam.models, model_split[0])
+    return model_class(**model_kwargs)
+
+
+@kecam.backend.register_keras_serializable(package="kecamLoss")
+def clip_loss(y_true, y_pred):
+    caption_loss = kecam.backend.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True)
+    image_loss = kecam.backend.losses.sparse_categorical_crossentropy(y_true, kecam.backend.functional.transpose(y_pred), from_logits=True)
+    return (caption_loss + image_loss) / 2.0
 
 
 def parse_arguments():
@@ -123,7 +130,7 @@ if __name__ == "__main__":
         #     kecam.imagenet.callbacks.MyCheckpoint(basic_save_name=basic_save_name, save_path="checkpoints"),
         #     kecam.imagenet.callbacks.MyHistory(initial_file=os.path.join("checkpoints", basic_save_name + "_hist.json")),
         # ]
-        model.compile(optimizer=optimizer, loss=kecam.clip.losses.clip_loss, metrics=["acc"])
+        model.compile(optimizer=optimizer, loss=clip_loss, metrics=["acc"])
         # model.fit(train_dataset, epochs=args.epochs, validation_data=test_dataset, callbacks=callbacks)
 
         lr_scheduler = kecam.imagenet.callbacks.CosineLrScheduler(args.lr, args.epochs, steps_per_epoch=len(train_dataset), warmup_steps=args.lr_warmup_steps)
