@@ -46,6 +46,7 @@
   - [EVA02](#eva02)
   - [FasterNet](#fasternet)
   - [FasterViT](#fastervit)
+  - [FastViT](#fastvit)
   - [FBNetV3](#fbnetv3)
   - [FlexiViT](#flexivit)
   - [GCViT](#gcvit)
@@ -971,6 +972,25 @@
   | [FasterViT4](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastervit/fastervit_4_224_imagenet.h5) | 351.12M  | 41.57G  | 224   | 85.4     | 71.6303 qps  |
   | [FasterViT5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastervit/fastervit_5_224_imagenet.h5) | 957.52M  | 114.08G | 224   | 85.6     |              |
   | [FasterViT6](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastervit/fastervit_6_224_imagenet.1.h5), [+.2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastervit/fastervit_6_224_imagenet.2.h5) | 1360.33M | 144.13G | 224   | 85.8     |              |
+## FastViT
+  - [Keras FastViT](keras_cv_attention_models/fastvit) includes implementation of [PDF 2303.14189 FastViT: A Fast Hybrid Vision Transformer using Structural Reparameterization](https://arxiv.org/pdf/2303.14189.pdf).
+
+  | Model        | Params | FLOPs | Input | Top1 Acc | T4 Inference |
+  | ------------ | ------ | ----- | ----- | -------- | ------------ |
+  | [FastViT_T8](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_t8_imagenet.h5)   | 4.03M  | 0.65G | 256   | 76.2     |  |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_t8_distill.h5)    | 4.03M  | 0.65G | 256   | 77.2     |  |
+  | [FastViT_T12](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_t12_imagenet.h5)  | 7.55M  | 1.34G | 256   | 79.3     |  |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_t12_distill.h5)    | 7.55M  | 1.34G | 256   | 80.3     |  |
+  | [FastViT_S12](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_s12_imagenet.h5)  | 9.47M  | 1.74G | 256   | 79.9     |  |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_s12_distill.h5)    | 9.47M  | 1.74G | 256   | 81.1     |  |
+  | [FastViT_SA12](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa12_imagenet.h5) | 11.58M | 1.88G | 256   | 80.9     |  |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa12_distill.h5)    | 11.58M | 1.88G | 256   | 81.9     |  |
+  | [FastViT_SA24](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa24_imagenet.h5) | 21.55M | 3.66G | 256   | 82.7     |  |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa24_distill.h5)    | 21.55M | 3.66G | 256   | 83.4     |  |
+  | [FastViT_SA36](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa36_imagenet.h5) | 31.53M | 5.44G | 256   | 83.6     |  |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa36_distill.h5)    | 31.53M | 5.44G | 256   | 84.2     |  |
+  | [FastViT_MA36](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_ma36_imagenet.h5) | 44.07M | 7.64G | 256   | 83.9     |  |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_ma36_distill.h5)    | 44.07M | 7.64G | 256   | 84.6     |  |
 ## FBNetV3
   - [Keras FBNetV3](keras_cv_attention_models/mobilenetv3_family#fbnetv3) includes implementation of [PDF 2006.02049 FBNetV3: Joint Architecture-Recipe Search using Predictor Pretraining](https://arxiv.org/pdf/2006.02049.pdf).
 
