@@ -43,6 +43,24 @@ def test_FasterViT0_switch_to_deploy():
     assert np.allclose(preds, preds_deploy, atol=1e-5)
 
 
+def test_FastViT_T8_switch_to_deploy():
+    mm = keras_cv_attention_models.models.FastViT_T8()
+    preds = mm(mm.preprocess_input(cat()))
+
+    bb = mm.switch_to_deploy()
+    preds_deploy = bb(bb.preprocess_input(cat()))
+    assert np.allclose(preds, preds_deploy, atol=1e-5)
+
+
+def test_FastViT_SA12_switch_to_deploy():
+    mm = keras_cv_attention_models.models.FastViT_SA12()
+    preds = mm(mm.preprocess_input(cat()))
+
+    bb = mm.switch_to_deploy()
+    preds_deploy = bb(bb.preprocess_input(cat()))
+    assert np.allclose(preds, preds_deploy, atol=1e-5)
+
+
 def test_LeViT128S_switch_to_deploy():
     mm = keras_cv_attention_models.models.LeViT128S()
     preds = mm(mm.preprocess_input(cat()))

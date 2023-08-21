@@ -4,7 +4,6 @@
 ## Summary
   - Keras implementation of [Github apple/ml-fastvit](https://github.com/apple/ml-fastvit). Paper [PDF 2303.14189 FastViT: A Fast Hybrid Vision Transformer using Structural Reparameterization](https://arxiv.org/pdf/2303.14189.pdf).
   - Model weights ported from official publication.
-  - **[TODO] `switch_to_deploy` for reparameter blocks.**
 ***
 
 ## Models
@@ -52,6 +51,30 @@
   preds = mm(mm.preprocess_input(test_images.cat(), input_shape=(219, 112, 3)))
   print(mm.decode_predictions(preds))
   # [('n02124075', 'Egyptian_cat', 0.9374073), ('n03942813', 'ping-pong_ball', 0.019263275), ...]
+  ```
+  **Switch to deploy** by calling `model.switch_to_deploy()`, will fuse reparameter block into a single `Conv2D` layer, **by calling `fuse_reparam_blocks` 3 times**, and apply `convert_to_fused_conv_bn_model` that fusing `Conv2D->BatchNorm`.
+  ```py
+  from keras_cv_attention_models import fastvit, test_images, model_surgery
+
+  mm = fastvit.FastViT_SA12(pretrained="imagenet")
+  model_surgery.count_params(mm)
+  # Total params: 11,616,296 | Trainable params: 11,580,968 | Non-trainable params:35,328
+  preds = mm(mm.preprocess_input(test_images.cat()))
+
+  """ switch_to_deploy """
+  bb = mm.switch_to_deploy()
+  model_surgery.count_params(bb)
+  # Total params: 11,540,456 | Trainable params: 11,538,408 | Non-trainable params:2,048
+  preds_deploy = bb(bb.preprocess_input(test_images.cat()))
+
+  print(f"{np.allclose(preds, preds_deploy, atol=1e-5) = }")
+  # np.allclose(preds, preds_deploy, atol=1e-5) = True
+
+  """ save and load weights using deploy=True """
+  bb.save("aa.h5")
+  cc = fastvit.FastViT_SA12(pretrained="aa.h5", deploy=True)
+  print(f"{np.allclose(preds_deploy, cc(cc.preprocess_input(test_images.cat())), atol=1e-7) = }")
+  # np.allclose(preds_deploy, cc(cc.preprocess_input(test_images.cat())), atol=1e-7) = True
   ```
   **Using PyTorch backend** by set `KECAM_BACKEND='torch'` environment variable.
   ```py

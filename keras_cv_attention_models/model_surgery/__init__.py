@@ -17,6 +17,7 @@ from keras_cv_attention_models.model_surgery.model_surgery import (
     count_params,
     export_onnx,
     fuse_sequential_conv_strict,
+    fuse_channel_affine_to_conv_dense,
     fuse_reparam_blocks,
     fuse_distill_head,
     get_actual_survival_probabilities,

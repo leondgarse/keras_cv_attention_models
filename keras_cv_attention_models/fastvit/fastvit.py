@@ -2,11 +2,13 @@ from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format
 from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
+    ChannelAffine,
     activation_by_name,
-    add_with_layer_scale_and_drop_block,
+    # add_with_layer_scale_and_drop_block,
     batchnorm_with_activation,
     conv2d_no_bias,
     depthwise_conv2d_no_bias,
+    drop_block,
     mlp_block,
     multi_head_self_attention,
     se_module,
@@ -26,66 +28,81 @@ PRETRAINED_DICT = {
 }
 
 
-def rep_conv_block(inputs, out_channel, kernel_size=3, strides=1, groups=1, deploy=False, activation="gelu", name=""):
-    if deploy:
-        return conv2d_no_bias(inputs, out_channel, kernel_size=kernel_size, strides=strides, use_bias=True, padding="same", name=name + "REPARAM_1_")
+def rep_conv_block(inputs, out_channel, kernel_size=3, strides=1, groups=1, deploy=False, name=""):
+    input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
+    use_depthwise = input_channel == out_channel and groups == out_channel
+    if deploy and use_depthwise:
+        return depthwise_conv2d_no_bias(inputs, kernel_size=kernel_size, strides=strides, use_bias=True, padding="same", name=name + "REPARAM_1_")
+    elif deploy:
+        return conv2d_no_bias(
+            inputs, out_channel, kernel_size=kernel_size, strides=strides, use_bias=True, padding="same", groups=groups, name=name + "REPARAM_1_"
+        )
 
-    channel_axis = -1 if image_data_format() == "channels_last" else 1
-    input_channel = inputs.shape[channel_axis]
     use_shortcut = input_channel == out_channel and strides == 1
     if use_shortcut:
-        short = batchnorm_with_activation(inputs, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "REPARAM_0_")
+        short = batchnorm_with_activation(inputs, epsilon=BATCH_NORM_EPSILON, name=name + "REPARAM_0_")
 
-    if input_channel == out_channel and groups == out_channel:
+    if use_depthwise:
         dw_1 = depthwise_conv2d_no_bias(inputs, kernel_size=kernel_size, strides=strides, padding="same", name=name + "REPARAM_1_")
     else:
         dw_1 = conv2d_no_bias(inputs, out_channel, kernel_size=kernel_size, strides=strides, padding="same", groups=groups, name=name + "REPARAM_1_")
-    dw_1 = batchnorm_with_activation(dw_1, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "REPARAM_1_")
+    dw_1 = batchnorm_with_activation(dw_1, epsilon=BATCH_NORM_EPSILON, name=name + "REPARAM_1_")
 
     if kernel_size > 1:
-        if groups == out_channel:
+        if use_depthwise:
             dw_2 = depthwise_conv2d_no_bias(inputs, 1, strides=strides, name=name + "REPARAM_2_")
         else:
             dw_2 = conv2d_no_bias(inputs, out_channel, 1, strides=strides, groups=groups, name=name + "REPARAM_2_")
-        dw_2 = batchnorm_with_activation(dw_2, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "REPARAM_2_")
+        dw_2 = batchnorm_with_activation(dw_2, epsilon=BATCH_NORM_EPSILON, name=name + "REPARAM_2_")
         out = layers.Add(name=name + "REPARAM_out")([dw_1, dw_2, short] if use_shortcut else [dw_1, dw_2])
     else:
         out = layers.Add(name=name + "REPARAM_out")([dw_1, short]) if use_shortcut else dw_1
-    return activation_by_name(out, activation=activation, name=name + "out")
+    return out
 
 
-def rep_downsample_block(inputs, out_channel, strides=2, deploy=False, activation="gelu", name=""):
+def rep_downsample_block(inputs, out_channel, strides=2, deploy=False, name=""):
     input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
+    if deploy:
+        return conv2d_no_bias(inputs, out_channel, 7, strides=strides, use_bias=True, padding="same", groups=input_channel, name=name + "REPARAM_1_")
+
     dw_1 = conv2d_no_bias(inputs, out_channel, kernel_size=7, strides=strides, padding="same", groups=input_channel, name=name + "REPARAM_1_")
-    dw_1 = batchnorm_with_activation(dw_1, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "REPARAM_1_")
+    dw_1 = batchnorm_with_activation(dw_1, epsilon=BATCH_NORM_EPSILON, name=name + "REPARAM_1_")
     dw_2 = conv2d_no_bias(inputs, out_channel, kernel_size=3, strides=strides, padding="same", groups=input_channel, name=name + "REPARAM_2_")
-    dw_2 = batchnorm_with_activation(dw_2, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "REPARAM_2_")
-    out = layers.Add(name=name + "REPARAM_out")([dw_1, dw_2])
-    return activation_by_name(out, activation=activation, name=name + "out")
+    dw_2 = batchnorm_with_activation(dw_2, epsilon=BATCH_NORM_EPSILON, name=name + "REPARAM_2_")
+    return layers.Add(name=name + "REPARAM_out")([dw_1, dw_2])
 
 
 def rep_conditional_positional_encoding(inputs, kernel_size=7, deploy=False, name=""):
     dw_1 = depthwise_conv2d_no_bias(inputs, kernel_size=kernel_size, strides=1, use_bias=True, padding="same", name=name + "REPARAM_1_")
-    return layers.Add(name=name + "REPARAM_out")([dw_1, inputs])
+    return dw_1 if deploy else layers.Add(name=name + "REPARAM_out")([dw_1, inputs])
 
 
 def mixer_mlp_block(inputs, out_channel, mlp_ratio=3, use_attn=False, kernel_size=3, drop_rate=0, layer_scale=-1, deploy=False, activation="gelu", name=None):
     # print(f"{inputs.shape = }")
-    input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    input_channel = inputs.shape[channel_axis]
+    layer_scale = 0 if deploy else layer_scale  # Force skip layer_scale if deploy, as it will be fused
     norm_mixer = batchnorm_with_activation(inputs, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "mixer_")
     if use_attn:
         mixer = norm_mixer if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(norm_mixer)
         mixer = multi_head_self_attention(mixer, num_heads=input_channel // 32, qkv_bias=False, out_bias=True, name=name + "attn_")
         mixer = mixer if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(mixer)
     else:
-        deep_mixer = rep_conv_block(inputs, out_channel, kernel_size=kernel_size, groups=out_channel, deploy=deploy, activation=None, name=name + "mixer_")
-        mixer = deep_mixer - norm_mixer
-    mixer = add_with_layer_scale_and_drop_block(inputs, mixer, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "1_")
+        deep_mixer = rep_conv_block(inputs, out_channel, kernel_size=kernel_size, groups=out_channel, deploy=deploy, name=name + "mixer_")
+        mixer = deep_mixer if deploy else layers.Subtract(name=name + "REPARAM_TWICE_out")([deep_mixer, norm_mixer])
 
-    mlp = conv2d_no_bias(mixer, out_channel, kernel_size=7, strides=1, padding="same", groups=input_channel, name=name + "mlp_pre_")
-    mlp = batchnorm_with_activation(mlp, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "mlp_pre_")
+    if use_attn or not deploy:
+        mixer = ChannelAffine(use_bias=False, weight_init_value=layer_scale, axis=channel_axis, name=name + "1_gamma")(mixer) if layer_scale > 0 else mixer
+        mixer = drop_block(mixer, drop_rate=drop_rate, name=name + "1_")
+        mixer = layers.Add(name=name + ("1_out" if use_attn else "REPARAM_THIRD_out"))([mixer, inputs])
+
+    mlp = conv2d_no_bias(mixer, out_channel, kernel_size=7, strides=1, use_bias=deploy, padding="same", groups=input_channel, name=name + "mlp_pre_")
+    mlp = mlp if deploy else batchnorm_with_activation(mlp, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "mlp_pre_")
     mlp = mlp_block(mlp, int(out_channel * mlp_ratio), use_conv=True, activation=activation, name=name + "mlp_")
-    return add_with_layer_scale_and_drop_block(mixer, mlp, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "2_")
+    # return add_with_layer_scale_and_drop_block(mixer, mlp, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "2_")
+    mlp = ChannelAffine(use_bias=False, weight_init_value=layer_scale, axis=channel_axis, name=name + "2_gamma")(mlp) if layer_scale > 0 else mlp
+    mlp = drop_block(mlp, drop_rate=drop_rate, name=name + "2_")
+    return layers.Add(name=name + "2_output")([mlp, mixer])
 
 
 def FastViT(
@@ -112,8 +129,11 @@ def FastViT(
     inputs = layers.Input(input_shape)
     stem_width = stem_width if stem_width > 0 else out_channels[0]
     nn = rep_conv_block(inputs, stem_width, kernel_size=3, strides=2, deploy=deploy, name="stem_1_")
+    nn = activation_by_name(nn, activation=activation, name="stem_1_")
     nn = rep_conv_block(nn, stem_width, kernel_size=3, strides=2, groups=stem_width, deploy=deploy, name="stem_2_")
+    nn = activation_by_name(nn, activation=activation, name="stem_2_")
     nn = rep_conv_block(nn, stem_width, kernel_size=1, strides=1, deploy=deploy, name="stem_3_")
+    nn = activation_by_name(nn, activation=activation, name="stem_3_")
 
     """ stages """
     total_blocks = sum(num_blocks)
@@ -123,20 +143,23 @@ def FastViT(
         use_attn = False if block_type[0].lower() == "c" else True
         # attn_channel = attn_channels[stack_id] if isinstance(attn_channels, (list, tuple)) else make_divisible(attn_channels * out_channel, divisor=8)
         if stack_id > 0:
-            nn = rep_downsample_block(nn, out_channel, deploy=deploy, activation=None, name=stack_name + "downsample_")  # [???] activation is ignored
-            nn = rep_conv_block(nn, out_channel, kernel_size=1, deploy=deploy, activation=activation, name=stack_name + "downsample_2_")
+            nn = rep_downsample_block(nn, out_channel, deploy=deploy, name=stack_name + "downsample_")  # [???] activation is ignored
+            nn = rep_conv_block(nn, out_channel, kernel_size=1, deploy=deploy, name=stack_name + "downsample_2_")
+            nn = activation_by_name(nn, activation=activation, name=stack_name + "downsample_")
 
         if use_attn:
-            nn = rep_conditional_positional_encoding(nn, name=stack_name + "cpe_")
+            nn = rep_conditional_positional_encoding(nn, deploy=deploy, name=stack_name + "cpe_")
 
         for block_id in range(num_block):
             name = stack_name + "block{}_".format(block_id + 1)
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
             global_block_id += 1
-            nn = mixer_mlp_block(nn, out_channel, mlp_ratio, use_attn, drop_rate=block_drop_rate, layer_scale=layer_scale, activation=activation, name=name)
+            nn = mixer_mlp_block(
+                nn, out_channel, mlp_ratio, use_attn, drop_rate=block_drop_rate, layer_scale=layer_scale, deploy=deploy, activation=activation, name=name
+            )
 
     if num_classes > 0:
-        nn = rep_conv_block(nn, out_channels[-1] * 2, kernel_size=3, strides=1, groups=out_channels[-1], deploy=deploy, activation=None, name="features_")
+        nn = rep_conv_block(nn, out_channels[-1] * 2, kernel_size=3, strides=1, groups=out_channels[-1], deploy=deploy, name="features_")
         nn = se_module(nn, se_ratio=0.0625, divisor=1, activation="relu", name="features_se_")
         nn = activation_by_name(nn, activation=activation, name="features_")
 
@@ -144,9 +167,23 @@ def FastViT(
         nn = layers.Dropout(dropout, name="head_drop")(nn) if dropout > 0 else nn
         nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="head")(nn)
     model = models.Model(inputs, nn, name=model_name)
-    add_pre_post_process(model, rescale_mode="torch")
     reload_model_weights(model, PRETRAINED_DICT, "fastvit", pretrained)
+
+    add_pre_post_process(model, rescale_mode="torch")
+    model.switch_to_deploy = lambda: switch_to_deploy(model)
     return model
+
+
+def switch_to_deploy(model):
+    from keras_cv_attention_models.model_surgery.model_surgery import fuse_reparam_blocks, convert_to_fused_conv_bn_model, fuse_channel_affine_to_conv_dense
+
+    new_model = convert_to_fused_conv_bn_model(model)
+    new_model = fuse_reparam_blocks(new_model, output_layer_key="REPARAM_out")
+    new_model = fuse_reparam_blocks(new_model, output_layer_key="REPARAM_TWICE_out")
+    new_model = fuse_channel_affine_to_conv_dense(new_model)
+    new_model = fuse_reparam_blocks(new_model, output_layer_key="REPARAM_THIRD_out")
+    add_pre_post_process(new_model, rescale_mode=model.preprocess_input.rescale_mode, post_process=model.decode_predictions)
+    return new_model
 
 
 @register_model

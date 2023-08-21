@@ -755,60 +755,106 @@ def fuse_sequential_conv_strict(model, verbose=0):
     )
 
 
-def fuse_reparam_blocks(model, key="REPARAM", verbose=0):
+def fuse_channel_affine_to_conv_dense(model, verbose=0):
+    fuse_layer_condition = lambda layer: layer["class_name"].split(">")[-1] == "ChannelAffine"
+    pre_layer_condition = lambda layer: layer.get("class_name") in ["Conv2D", "DepthwiseConv2D", "Dense"]
+
+    def layer_weight_process(pre_fused_layer, fused_layer):
+        pre_ww = pre_fused_layer.get_weights()
+        pre_ww, pre_bias = pre_ww if len(pre_ww) == 2 else (pre_ww, None)
+        fused_ww = fused_layer.get_weights()
+        fused_ww, fused_bias = fused_ww if len(fused_ww) == 2 else (fused_ww, None)
+
+        fused_ww = np.squeeze(fused_ww)
+        new_ww = pre_ww * (fused_ww[:, None] if pre_ww.shape[-1] == 1 else fused_ww)
+        if pre_bias is None and fused_bias is None:
+            return [new_ww]
+        if pre_bias is None:
+            return [new_ww, fused_bias]
+
+        pre_bias = pre_bias * fused_ww
+        new_bias = pre_bias if fused_bias is None else (fused_bias + pre_bias)
+        return [new_ww, new_bias]
+
+    return fuse_layer_single_input(
+        model=model,
+        fuse_layer_condition=fuse_layer_condition,
+        pre_layer_condition=pre_layer_condition,
+        layer_weight_process=layer_weight_process,
+        verbose=verbose,
+    )
+
+
+def fuse_reparam_blocks(model, output_layer_key="REPARAM_out", verbose=0):
+    """
+    from keras_cv_attention_models.fastvit import fastvit
+    from keras_cv_attention_models import model_surgery
+    inputs = keras.layers.Input([32, 32, 64])
+    nn = keras.layers.Conv2D(32, 3)(inputs)
+    nn = fastvit.rep_conv_block(nn, 32, name='test_')
+    nn = keras.layers.Conv2D(32, 3)(nn)
+    mm = keras.models.Model(inputs, nn)
+    aa = model_surgery.convert_to_fused_conv_bn_model(mm)
+    bb = model_surgery.fuse_reparam_blocks(aa, verbose=1)
+    """
     # model = convert_to_fused_conv_bn_model(model)
-    reparam_layer_dict = {ii.name: ii for ii in model.layers if key in ii.name and len(ii.weights) > 0}  # Only layers with weights
     fuse_layers = []
     fused_reparam_weights = {}  # Record fused weights first, then set_weights after new model built
-    for layer in model.layers:
-        if key in layer.name and hasattr(layer, "kernel_size") and tuple(layer.kernel_size) != (1, 1):
-            reparameter_layer_name_prefix = layer.name.split(key)[0] + key
-            kernel_1_layers = [vv for kk, vv in reparam_layer_dict.items() if kk.startswith(reparameter_layer_name_prefix) and kk != layer.name]
-            if len(kernel_1_layers) != 1:
-                print(">>>> [WARNING] Needs exactly 1 layer match with layer {}, got {}".format(layer.name, [ii.name for ii in kernel_1_layers]))
-                continue
-            kernel_1_layer = kernel_1_layers[0]
+    for block_out_layer in model.layers:
+        if not block_out_layer.name.endswith(output_layer_key) or len(block_out_layer.input) < 2:
+            continue
+
+        prefix = block_out_layer.name.split(output_layer_key)[0]
+        if verbose > 0:
+            print(">>>> block_out_layer.name:", block_out_layer.name, "prefix:", prefix)
+
+        # Just regard the first input as the one with largest kernel_size.
+        # It should always with use_bias=True, the bias may comes from fused BatchNorm layer.
+        remain_layer = model.get_layer(block_out_layer.input[0].node.layer.name)
+
+        orign_weights = remain_layer.get_weights()
+        orign_weight, orign_bias = orign_weights if len(orign_weights) == 2 else (orign_weights[0], 0)
+        for input_layer in block_out_layer.input[1:]:
+            input_layer = model.get_layer(input_layer.node.layer.name)
             if verbose > 0:
-                print(">>>> layer.name:", layer.name)
-            output_layer_input = model.get_layer(reparameter_layer_name_prefix + "_out").input
-            if isinstance(output_layer_input, (list, tuple)) and len(output_layer_input) == 3:
-                if isinstance(kernel_1_layer, layers.DepthwiseConv2D):
-                    identity_branch_weight = 1
-                    identity_branch_msg = ", identity_branch 1"
-                elif layer.groups == 1:  # Conv2D without groups
-                    identity_branch_weight = np.eye(layer.filters, dtype="float32")
-                    identity_branch_msg = ", identity_branch (eye) {}".format(identity_branch_weight.shape)
-                else:  # Conv2D with groups, https://github.com/Deci-AI/super-gradients/blob/master/src/super_gradients/modules/qarepvgg_block.py#L135
-                    identity_branch_weight = np.zeros([layer.filters, layer.filters, 1, 1], dtype="float32")
-                    group_interval = layer.filters // layer.groups
-                    for ii in range(layer.filters):
-                        identity_branch_weight[ii, ii % group_interval] = 1.0
-                    identity_branch_msg = ", identity_branch (groups={}) {}".format(layer.groups, identity_branch_weight.shape)
-            else:
-                identity_branch_weight = 0
-                identity_branch_msg = ""
+                print("     input_layer.name:", input_layer.name)
 
-            kernel_1_layer_weights = kernel_1_layer.get_weights()
-            kernel_1_ww, kernel_1_bb = kernel_1_layer_weights if len(kernel_1_layer_weights) == 2 else (kernel_1_layer_weights[0], 0)
-            pad = [(ii - 1) // 2 for ii in layer.kernel_size]  # (3, 3) -> (1, 1)
-            kernel_1_ww = functional.pad(kernel_1_ww + identity_branch_weight, [[pad[0], pad[0]], [pad[1], pad[1]], [0, 0], [0, 0]])
+            if not input_layer.name.startswith(prefix) or isinstance(input_layer, layers.BatchNormalization):  # Identity branch
+                # Conv2D with groups == 1 -> np.eye(filters), DepthWiseConv2D -> 1, COnv2D with groups != 1 -> partial 1
+                in_channels, out_channels = remain_layer.weights[0].shape[2], remain_layer.weights[0].shape[3]
+                branch_weight = np.zeros([1, 1, in_channels, out_channels], dtype="float32")
+                filters, groups = (in_channels, in_channels) if isinstance(remain_layer, layers.DepthwiseConv2D) else (out_channels, remain_layer.groups)
+                group_interval = filters // groups
+                for ii in range(filters):
+                    branch_weight[:, :, ii, ii % group_interval] = 1.0
+                branch_bias = 0
+                cur_kernel_size = [1] * len(remain_layer.kernel_size)
+            elif hasattr(input_layer, "kernel_size"):
+                branch_weights = input_layer.get_weights()
+                branch_weight, branch_bias = branch_weights if len(branch_weights) == 2 else (branch_weights[0], 0)
+                cur_kernel_size = input_layer.kernel_size
+                fuse_layers.append(input_layer.name)
+                if isinstance(input_layer.input.node.layer, layers.ZeroPadding2D):
+                    fuse_layers.append(input_layer.input.node.layer.name)
 
-            layer_weights = layer.get_weights()
-            if len(layer_weights) != 2 and len(kernel_1_layer_weights) == 2:
-                print(">>>> [WARNING] layer {} needs to be use_bias=True while kernel 1 branch is use_bias=True".format(layer.name))
-                continue
-            if verbose > 0:
-                print(">>>> Fuse layer weights: {} <- {}".format(layer.name, kernel_1_layer.name, identity_branch_weight) + identity_branch_msg)
-            if len(layer_weights) == 2:
-                # layer.set_weights([layer_weights[0] + kernel_1_ww, layer_weights[1] + kernel_1_bb])
-                fused_reparam_weights[layer.name] = [layer_weights[0] + kernel_1_ww, layer_weights[1] + kernel_1_bb]
-            else:
-                # layer.set_weights([layer_weights[0] + kernel_1_ww])
-                fused_reparam_weights[layer.name] = [layer_weights[0] + kernel_1_ww]
-            fuse_layers.append(kernel_1_layer.name)
-            fuse_layers.append(reparameter_layer_name_prefix + "_out")
+            if isinstance(input_layer, layers.BatchNormalization):
+                if isinstance(remain_layer, layers.DepthwiseConv2D):
+                    fake_conv = layers.DepthwiseConv2D(kernel_size=1, use_bias=False)
+                else:
+                    fake_conv = layers.Conv2D(out_channels, kernel_size=1, use_bias=False)
+                _ = fake_conv(initializers.ones()([1, *input_layer.input_shape[1:]]))
+                fake_conv.set_weights([branch_weight])  # Previously created identity branch weights
+                branch_weight, branch_bias = fuse_conv_bn_weights(fake_conv, input_layer)
+                fuse_layers.append(input_layer.name)
 
-    cc = remove_layer_single_input(model, remove_layer_condition=lambda layer: layer["name"] in fuse_layers)
+            pad = [(remain - cur) // 2 for remain, cur in zip(remain_layer.kernel_size, cur_kernel_size)]  # (3, 3) -> (1, 1)
+            branch_weight = functional.pad(branch_weight, [[pad[0], pad[0]], [pad[1], pad[1]], [0, 0], [0, 0]])
+            orign_weight = (orign_weight - branch_weight) if isinstance(block_out_layer, layers.Subtract) else (orign_weight + branch_weight)
+            orign_bias = (orign_bias - branch_bias) if isinstance(block_out_layer, layers.Subtract) else (orign_bias + branch_bias)
+        fuse_layers.append(block_out_layer.name)
+        fused_reparam_weights[remain_layer.name] = [orign_weight, orign_bias]
+
+    cc = remove_layer_single_input(model, remove_layer_condition=lambda layer: layer["name"] in fuse_layers, verbose=verbose)
     for ii in cc.layers:
         if ii.name in fused_reparam_weights:
             if verbose > 0:
