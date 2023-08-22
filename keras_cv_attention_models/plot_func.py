@@ -417,7 +417,7 @@ def plot_model_summary(
     gather_extras = []
     allow_extras = [] if allow_extras is None else allow_extras
     marker_id = 0
-    for name, group in dd.groupby(dd["series"]):
+    for (name, is_deploy), group in dd.groupby([dd['series'], ['deploy' in ii for ii in dd['model']]]):
         if plot_series is not None and name.lower() not in plot_series:
             continue
 
@@ -434,8 +434,9 @@ def plot_model_summary(
             continue
 
         ax.plot(xx, yy)
-        ax.scatter(xx, yy, label=name, marker=markers[marker_id])
-        marker_id += 1
+        label = (name + "_deploy") if is_deploy else name
+        ax.scatter(xx, yy, label=label, marker=markers[marker_id])
+        marker_id = (marker_id + 1) if marker_id < len(markers) - 1 else 0
         for _, cur in group.iterrows():
             # print(cur)
             text = cur["model"][len(name) :]

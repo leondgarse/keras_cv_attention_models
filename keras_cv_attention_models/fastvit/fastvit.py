@@ -4,7 +4,6 @@ from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     ChannelAffine,
     activation_by_name,
-    # add_with_layer_scale_and_drop_block,
     batchnorm_with_activation,
     conv2d_no_bias,
     depthwise_conv2d_no_bias,
@@ -99,7 +98,7 @@ def mixer_mlp_block(inputs, out_channel, mlp_ratio=3, use_attn=False, kernel_siz
     mlp = conv2d_no_bias(mixer, out_channel, kernel_size=7, strides=1, use_bias=deploy, padding="same", groups=input_channel, name=name + "mlp_pre_")
     mlp = mlp if deploy else batchnorm_with_activation(mlp, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "mlp_pre_")
     mlp = mlp_block(mlp, int(out_channel * mlp_ratio), use_conv=True, activation=activation, name=name + "mlp_")
-    # return add_with_layer_scale_and_drop_block(mixer, mlp, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "2_")
+
     mlp = ChannelAffine(use_bias=False, weight_init_value=layer_scale, axis=channel_axis, name=name + "2_gamma")(mlp) if layer_scale > 0 else mlp
     mlp = drop_block(mlp, drop_rate=drop_rate, name=name + "2_")
     return layers.Add(name=name + "2_output")([mlp, mixer])
@@ -113,7 +112,7 @@ def FastViT(
     stem_width=-1,
     layer_scale=1e-5,
     input_shape=(256, 256, 3),
-    deploy=False,  # build model with rep_vgg_depthwise/conv+bn/distill_head all being fused
+    deploy=False,  # build model with rep_xxx / conv+bn all being fused
     num_classes=1000,
     activation="gelu",
     drop_connect_rate=0,
@@ -141,7 +140,6 @@ def FastViT(
     for stack_id, (num_block, out_channel, block_type) in enumerate(zip(num_blocks, out_channels, block_types)):
         stack_name = "stack{}_".format(stack_id + 1)
         use_attn = False if block_type[0].lower() == "c" else True
-        # attn_channel = attn_channels[stack_id] if isinstance(attn_channels, (list, tuple)) else make_divisible(attn_channels * out_channel, divisor=8)
         if stack_id > 0:
             nn = rep_downsample_block(nn, out_channel, deploy=deploy, name=stack_name + "downsample_")  # [???] activation is ignored
             nn = rep_conv_block(nn, out_channel, kernel_size=1, deploy=deploy, name=stack_name + "downsample_2_")
@@ -229,7 +227,7 @@ def FastViT_SA36(input_shape=(256, 256, 3), num_classes=1000, deploy=False, acti
     num_blocks = [6, 6, 18, 6]
     out_channels = [64, 128, 256, 512]
     mlp_ratio = 4
-    layer_scale = kwrags.pop("layer_scale", 1e-6)
+    layer_scale = kwargs.pop("layer_scale", 1e-6)
     block_types = ["conv", "conv", "conv", "transformer"]
     return FastViT(**locals(), model_name="fastvit_sa36", **kwargs)
 
@@ -239,6 +237,6 @@ def FastViT_MA36(input_shape=(256, 256, 3), num_classes=1000, deploy=False, acti
     num_blocks = [6, 6, 18, 6]
     out_channels = [76, 152, 304, 608]
     mlp_ratio = 4
-    layer_scale = kwrags.pop("layer_scale", 1e-6)
+    layer_scale = kwargs.pop("layer_scale", 1e-6)
     block_types = ["conv", "conv", "conv", "transformer"]
     return FastViT(**locals(), model_name="fastvit_ma36", **kwargs)

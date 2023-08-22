@@ -975,22 +975,29 @@
 ## FastViT
   - [Keras FastViT](keras_cv_attention_models/fastvit) includes implementation of [PDF 2303.14189 FastViT: A Fast Hybrid Vision Transformer using Structural Reparameterization](https://arxiv.org/pdf/2303.14189.pdf).
 
-  | Model        | Params | FLOPs | Input | Top1 Acc | T4 Inference |
-  | ------------ | ------ | ----- | ----- | -------- | ------------ |
-  | [FastViT_T8](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_t8_imagenet.h5)   | 4.03M  | 0.65G | 256   | 76.2     |  |
-  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_t8_distill.h5)    | 4.03M  | 0.65G | 256   | 77.2     |  |
-  | [FastViT_T12](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_t12_imagenet.h5)  | 7.55M  | 1.34G | 256   | 79.3     |  |
-  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_t12_distill.h5)    | 7.55M  | 1.34G | 256   | 80.3     |  |
-  | [FastViT_S12](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_s12_imagenet.h5)  | 9.47M  | 1.74G | 256   | 79.9     |  |
-  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_s12_distill.h5)    | 9.47M  | 1.74G | 256   | 81.1     |  |
-  | [FastViT_SA12](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa12_imagenet.h5) | 11.58M | 1.88G | 256   | 80.9     |  |
-  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa12_distill.h5)    | 11.58M | 1.88G | 256   | 81.9     |  |
-  | [FastViT_SA24](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa24_imagenet.h5) | 21.55M | 3.66G | 256   | 82.7     |  |
-  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa24_distill.h5)    | 21.55M | 3.66G | 256   | 83.4     |  |
-  | [FastViT_SA36](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa36_imagenet.h5) | 31.53M | 5.44G | 256   | 83.6     |  |
-  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa36_distill.h5)    | 31.53M | 5.44G | 256   | 84.2     |  |
-  | [FastViT_MA36](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_ma36_imagenet.h5) | 44.07M | 7.64G | 256   | 83.9     |  |
-  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_ma36_distill.h5)    | 44.07M | 7.64G | 256   | 84.6     |  |
+  | Model         | Params | FLOPs | Input | Top1 Acc | T4 Inference |
+  | ------------- | ------ | ----- | ----- | -------- | ------------ |
+  | [FastViT_T8](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_t8_imagenet.h5)     | 4.03M  | 0.65G | 256   | 76.2     | 1020.29 qps  |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_t8_distill.h5)       | 4.03M  | 0.65G | 256   | 77.2     | 1020.29 qps  |
+  | - deploy=True | 3.99M  | 0.64G | 256   | 76.2     | 1323.14 qps  |
+  | [FastViT_T12](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_t12_imagenet.h5)   | 7.55M  | 1.34G | 256   | 79.3     | 734.867 qps  |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_t12_distill.h5)      | 7.55M  | 1.34G | 256   | 80.3     | 734.867 qps  |
+  | - deploy=True | 7.50M  | 1.33G | 256   | 79.3     | 956.332 qps  |
+  | [FastViT_S12](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_s12_imagenet.h5)   | 9.47M  | 1.74G | 256   | 79.9     | 666.669 qps  |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_s12_distill.h5)      | 9.47M  | 1.74G | 256   | 81.1     | 666.669 qps  |
+  | - deploy=True | 9.42M  | 1.74G | 256   | 79.9     | 881.429 qps  |
+  | [FastViT_SA12](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa12_imagenet.h5) | 11.58M | 1.88G | 256   | 80.9     | 656.95 qps   |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa12_distill.h5)     | 11.58M | 1.88G | 256   | 81.9     | 656.95 qps   |
+  | - deploy=True | 11.54M | 1.88G | 256   | 80.9     | 833.011 qps  |
+  | [FastViT_SA24](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa24_imagenet.h5) | 21.55M | 3.66G | 256   | 82.7     | 371.84 qps   |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa24_distill.h5)     | 21.55M | 3.66G | 256   | 83.4     | 371.84 qps   |
+  | - deploy=True | 21.49M | 3.66G | 256   | 82.7     | 444.055 qps  |
+  | [FastViT_SA36](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa36_imagenet.h5) | 31.53M | 5.44G | 256   | 83.6     | 267.986 qps  |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_sa36_distill.h5)     | 31.53M | 5.44G | 256   | 84.2     | 267.986 qps  |
+  | - deploy=True | 31.44M | 5.43G | 256   | 83.6     | 325.967 qps  |
+  | [FastViT_MA36](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_ma36_imagenet.h5) | 44.07M | 7.64G | 256   | 83.9     | 211.928 qps  |
+  | - [distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/fastvit/fastvit_ma36_distill.h5)     | 44.07M | 7.64G | 256   | 84.6     | 211.928 qps  |
+  | - deploy=True | 43.96M | 7.63G | 256   | 83.9     | 274.559 qps  |
 ## FBNetV3
   - [Keras FBNetV3](keras_cv_attention_models/mobilenetv3_family#fbnetv3) includes implementation of [PDF 2006.02049 FBNetV3: Joint Architecture-Recipe Search using Predictor Pretraining](https://arxiv.org/pdf/2006.02049.pdf).
 
