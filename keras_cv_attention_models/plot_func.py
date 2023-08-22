@@ -417,7 +417,7 @@ def plot_model_summary(
     gather_extras = []
     allow_extras = [] if allow_extras is None else allow_extras
     marker_id = 0
-    for (name, is_deploy), group in dd.groupby([dd['series'], ['deploy' in ii for ii in dd['model']]]):
+    for (name, is_deploy), group in dd.groupby([dd["series"], ["deploy" in ii for ii in dd["model"]]]):
         if plot_series is not None and name.lower() not in plot_series:
             continue
 

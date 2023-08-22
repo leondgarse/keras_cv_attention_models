@@ -153,6 +153,13 @@ def build_caption_dataset(train_image_path, train_captions, test_image_path=None
     else:
         x_test, y_test = [], []
 
+    """ Shuffle tests in case one image with multi captions like COCO """
+    random.seed(42)
+    indexes = list(range(len(x_test)))
+    random.shuffle(indexes)
+    x_test = [x_test[ii] for ii in indexes]
+    y_test = [y_test[ii] for ii in indexes]
+
     """ Save """
     info = {"base_path": "" if os.path.abspath(train_image_path) == train_image_path else os.path.abspath(".")}
     print(">>>> total_train_samples: {}, total_test_samples: {}".format(len(x_train), len(x_test)))

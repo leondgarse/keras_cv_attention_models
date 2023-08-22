@@ -786,17 +786,6 @@ def fuse_channel_affine_to_conv_dense(model, verbose=0):
 
 
 def fuse_reparam_blocks(model, output_layer_key="REPARAM_out", verbose=0):
-    """
-    from keras_cv_attention_models.fastvit import fastvit
-    from keras_cv_attention_models import model_surgery
-    inputs = keras.layers.Input([32, 32, 64])
-    nn = keras.layers.Conv2D(32, 3)(inputs)
-    nn = fastvit.rep_conv_block(nn, 32, name='test_')
-    nn = keras.layers.Conv2D(32, 3)(nn)
-    mm = keras.models.Model(inputs, nn)
-    aa = model_surgery.convert_to_fused_conv_bn_model(mm)
-    bb = model_surgery.fuse_reparam_blocks(aa, verbose=1)
-    """
     # model = convert_to_fused_conv_bn_model(model)
     fuse_layers = []
     fused_reparam_weights = {}  # Record fused weights first, then set_weights after new model built

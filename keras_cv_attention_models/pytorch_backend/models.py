@@ -173,9 +173,9 @@ class _Trainer_(object):
             data_shape = xx.element_spec[0].shape
             if self.input_shape is not None and data_shape[-1] == self.input_shape[1]:
                 perm = [0, len(data_shape) - 1] + list(range(1, len(data_shape) - 1))  # [0, 3, 1, 2]
-                train_dataset = ((ii.transpose(perm), jj) for ii, jj in xx.as_numpy_iterator())
+                dataset = ((ii.transpose(perm), jj) for ii, jj in xx.as_numpy_iterator())
             else:
-                train_dataset = xx.as_numpy_iterator()
+                dataset = xx.as_numpy_iterator()
             total = len(xx)
         elif isinstance(xx, np.ndarray) or isinstance(xx, torch.Tensor):
             assert yy is not None
@@ -188,12 +188,12 @@ class _Trainer_(object):
                 cur = cur.long() if cur.dtype == torch.int32 else cur
                 return cur
 
-            train_dataset = ((_convert_tensor(xx, id), _convert_tensor(yy, id)) for id in range(num_batches))
+            dataset = ((_convert_tensor(xx, id), _convert_tensor(yy, id)) for id in range(num_batches))
             total = num_batches
         else:  # generator or torch.utils.data.DataLoader
-            train_dataset = xx
+            dataset = xx
             total = len(xx)
-        return train_dataset, total
+        return dataset, total
 
 
 class _Exporter_(object):

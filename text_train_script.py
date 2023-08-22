@@ -125,7 +125,7 @@ def build_torch_optimizer(model, lr=1e-3, weight_decay=0.2, beta1=0.9, beta2=0.9
     import inspect
 
     named_parameters = list(model.named_parameters())
-    exclude = lambda name, param: param.ndim < 2 or any([ii in name for ii in ["bn", "ln", "bias", "logit_scale"]])
+    exclude = lambda name, param: param.ndim < 2 or any([ii in name for ii in ["gamma", "beta", "bias", "positional_embedding", "no_weight_decay"]])
     params = [
         {"params": [param for name, param in named_parameters if exclude(name, param) and param.requires_grad], "weight_decay": 0.0},
         {"params": [param for name, param in named_parameters if not exclude(name, param) and param.requires_grad], "weight_decay": weight_decay},
@@ -214,12 +214,12 @@ if __name__ == "__main__":
                 model = torch.compile(model)
             optimizer = build_torch_optimizer(model, lr=args.lr, weight_decay=args.weight_decay, beta1=0.9, beta2=0.95)
             train_dataset, test_dataset = build_torch_dataset(train_dataset_gen, test_dataset_gen)
-            compile_kwrags = {"grad_accumulate": 5}
+            compile_kwargs = {"grad_accumulate": 5}
         else:
             optimizer = build_tf_optimizer(lr=args.lr, weight_decay=args.weight_decay, beta1=0.9, beta2=0.95)
             train_dataset, test_dataset = build_tf_dataset(train_dataset_gen, test_dataset_gen)
-            compile_kwrags = {}
-        model.compile(optimizer=optimizer, loss=ravel_loss, **compile_kwrags)
+            compile_kwargs = {}
+        model.compile(optimizer=optimizer, loss=ravel_loss, **compile_kwargs)
 
         basic_save_name = args.basic_save_name or "text_{}_{}".format(model.name, kecam.backend.backend())
         print(">>>> basic_save_name:", basic_save_name)
