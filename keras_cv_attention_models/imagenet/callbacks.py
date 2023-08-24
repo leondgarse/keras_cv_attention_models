@@ -96,7 +96,7 @@ class CosineLrScheduler(callbacks.Callback):
                 for param_group in self.model.optimizer.param_groups:
                     param_group["lr"] = lr
             else:
-                self.model.optimizer.lr = lr
+                self.model.optimizer.learning_rate = lr
         return lr
 
 
@@ -160,7 +160,7 @@ class CosineLrSchedulerEpoch(callbacks.Callback):
                 for param_group in self.model.optimizer.param_groups:
                     param_group["lr"] = lr
             else:
-                self.model.optimizer.lr = lr
+                self.model.optimizer.learning_rate = lr
         print("\nLearning rate for iter {} is {}".format(epoch + 1, lr))
         return lr
 
@@ -177,7 +177,7 @@ class LearningRateScheduler(callbacks.Callback):
                 for param_group in self.model.optimizer.param_groups:
                     param_group["lr"] = lr
             else:
-                self.model.optimizer.lr = lr
+                self.model.optimizer.learning_rate = lr
         print("\nLearning rate for iter {} is {}".format(epoch + 1, lr))
         return lr
 

@@ -98,7 +98,7 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
 
     train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path, batch_size=batch_size, imgsz=imgsz, rect_val=rect_val)
     device = next(model.parameters()).device  # get model device
-    num_classes = getattr(model, "num_classes", model.output_shape - 64)
+    num_classes = getattr(model, "num_classes", model.output_shape[-1] - 64)
     print(">>>> num_classes =", num_classes)
     compute_loss = losses.Loss(device=device, nc=num_classes)
     optimizer = build_optimizer(model, name=optimizer_name)

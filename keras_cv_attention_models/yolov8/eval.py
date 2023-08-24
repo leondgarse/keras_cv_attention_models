@@ -4,9 +4,9 @@ Copied from ultralytics/yolo/engine/validator.py. Original one will fuse bn if u
 import copy
 import torch
 from tqdm import tqdm
-from ultralytics.yolo import v8
-from ultralytics.yolo.utils.ops import Profile
-from ultralytics.yolo.data.utils import check_det_dataset
+from ultralytics.models import yolo
+from ultralytics.utils.ops import Profile
+from ultralytics.data.utils import check_det_dataset
 from pathlib import Path
 
 
@@ -17,7 +17,7 @@ class Validator:
         self.device = next(model.parameters()).device
         cfg.half = self.device.type == "cuda"
 
-        validator = v8.detect.DetectionValidator(val_loader, save_dir=Path(save_dir), args=cfg)
+        validator = yolo.detect.DetectionValidator(val_loader, save_dir=Path(save_dir), args=cfg.__dict__)
         # def eval(validator, model):
         validator.data = check_det_dataset(validator.args.data)
         validator.device = self.device

@@ -201,7 +201,7 @@ def _save_to_layer_group_nested_(layer_weights, layer_group, compression=None):
         #     sub_layer_group = layer_group.create_group(sub_layer.name)
         #     _save_to_layer_group_nested_(sub_layer, sub_layer_group)
         # return
-    elif isinstance(layer_weights, layers.Layer):
+    elif isinstance(layer_weights, (layers.Layer, layers.Shape)):
         layer = layer_weights
         weight_names = [ww.name.encode("utf8") for ww in layer.weights]
         weight_values = layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()

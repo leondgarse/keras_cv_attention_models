@@ -3,10 +3,10 @@ Raw ultralytics data loader
 """
 import torch
 from torch.utils.data import DataLoader
-from ultralytics.yolo.cfg import get_cfg
-from ultralytics.yolo.utils import DEFAULT_CFG
-from ultralytics.yolo.data.utils import check_det_dataset
-from ultralytics.yolo.data.dataset import YOLODataset
+from ultralytics.cfg import get_cfg
+from ultralytics.utils import DEFAULT_CFG
+from ultralytics.data.utils import check_det_dataset
+from ultralytics.data.dataset import YOLODataset
 
 
 def to_data_loader(data, cfg, imgsz=640, mode="train", batch_size=16, rect_val=False):

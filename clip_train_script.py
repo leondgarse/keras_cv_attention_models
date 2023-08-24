@@ -85,6 +85,7 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
+    args.text_model_pretrained = None if args.text_model_pretrained.lower() == "none" else args.text_model_pretrained
 
     caption_tokenizer = getattr(kecam.clip, args.tokenizer)() if hasattr(kecam.clip, args.tokenizer) else kecam.clip.TikToken(args.tokenizer)
     train_dataset, test_dataset = data.init_dataset(
