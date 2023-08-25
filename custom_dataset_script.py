@@ -184,7 +184,7 @@ def build_caption_dataset(train_image_path, train_captions, test_image_path=None
 
 def match_detection_labels_dir(image_names, label_path):
     xxs, yys = [], []
-    labels_dict = {os.path.splitext(ii)[0]: os.path.join(label_path, ii), for ii in os.listdir(label_path)}
+    labels_dict = {os.path.splitext(ii)[0]: os.path.join(label_path, ii) for ii in os.listdir(label_path)}
     for image_name in tqdm(image_names, "Matching image name with label"):
         # print(f"{label_path = }, {image_name = }")
         label = labels_dict.get(os.path.splitext(os.path.basename(image_name))[0], None)
