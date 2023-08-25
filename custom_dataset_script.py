@@ -184,16 +184,15 @@ def build_caption_dataset(train_image_path, train_captions, test_image_path=None
 
 def match_detection_labels_dir(image_names, label_path):
     xxs, yys = [], []
+    labels_dict = {os.path.splitext(ii)[0]: os.path.join(label_path, ii), for ii in os.listdir(label_path)}
     for image_name in tqdm(image_names, "Matching image name with label"):
         # print(f"{label_path = }, {image_name = }")
-        yy = glob(os.path.join(label_path, os.path.splitext(os.path.basename(image_name))[0] + ".*"))
-        if len(yy) == 0:
-            print(">>>> Found none label for:", image_name)
-        elif len(yy) > 1:
-            print(">>>> Found multi labels for:", image_name)
-        else:
+        label = labels_dict.get(os.path.splitext(os.path.basename(image_name))[0], None)
+        if label:
             xxs.append(image_name)
-            yys.append(yy[0])
+            yys.append(label)
+        else:
+            print(">>>> Found none label for:", image_name)
     return xxs, yys, None
 
 
@@ -208,6 +207,8 @@ def match_detection_labels_coco_annotation(image_names, label_path, target_ids=N
     rrs = {}
     for ii in tqdm(aa["annotations"], "Checking annotations"):
         if target_ids is not None and ii["category_id"] not in target_ids:
+            continue
+        if ii.get('iscrowd', None):
             continue
 
         image_info = image_info_dict[ii["image_id"]]
@@ -298,6 +299,7 @@ def build_detection_dataset_json(
     """ Read bbox + label data """
     # x_train = [os.path.abspath(ii) for ii in x_train]
     # x_test = [os.path.abspath(ii) for ii in x_test]
+    print(">>>> Reading objects")
     train = [{"image": ii, "objects": jj if isinstance(jj, dict) else read_coco_objects(jj)} for ii, jj in zip(x_train, y_train)]
     test = [{"image": ii, "objects": jj if isinstance(jj, dict) else read_coco_objects(jj)} for ii, jj in zip(x_test, y_test)]
     # num_classes = max([max(ii["objects"]["label"]) for ii in train]) + 1
@@ -320,6 +322,7 @@ def build_detection_dataset_json(
         indices_2_labels = {vv: kk for kk, vv in labels_2_indices.items()}
         label_convert_func = lambda xx: labels_2_indices.get(xx, -1)
         num_classes = len(indices_2_labels)
+    print(">>>> Converting objects")
     train = [{"image": ii["image"], "objects": convert_bbox_labels(ii["objects"], label_convert_func, bbox_source_format)} for ii in train]
     test = [{"image": ii["image"], "objects": convert_bbox_labels(ii["objects"], label_convert_func, bbox_source_format)} for ii in test]
 
@@ -377,7 +380,7 @@ def parse_arguments(argv):
         default=None,
         help="[Caption] json file matching image names with captions, can be COCO caption format one. None for using `train_captions`",
     )
-    cap_group.add_argument("-f", "--save_format", type=str, default="json", help="[Caption] one of [json, tsv], tsv file could be like half smaller")
+    cap_group.add_argument("-f", "--save_format", type=str, default="tsv", help="[Caption] one of [json, tsv], tsv file could be like half smaller")
 
     args = parser.parse_known_args(argv)[0]
     # assert args.test_images or args.test_split
