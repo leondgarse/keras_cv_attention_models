@@ -126,7 +126,7 @@ def GPT2(
     nn = layers.LayerNormalization(axis=-1, name="ln_f")(nn)
 
     if include_top:
-        nn = layers.Dense(vocab_size, use_bias=False, name="lm_head")(nn)
+        nn = layers.Dense(vocab_size, use_bias=False, dtype="float32", name="lm_head")(nn)
 
     model = models.Model(inputs, nn, name=model_name)
     model.max_block_size = max_block_size  # or model.get_layer('pos_idx').block_size
