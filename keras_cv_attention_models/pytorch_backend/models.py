@@ -51,8 +51,6 @@ class _Trainer_(object):
 
     def train_step(self, xx, yy):
         # Split out for being able to overwrite
-        xx = [self._convert_data_(ii) for ii in xx] if isinstance(xx, (list, tuple)) else self._convert_data_(xx)
-        yy = [self._convert_data_(ii) for ii in yy] if isinstance(yy, (list, tuple)) else self._convert_data_(yy)
         with self.global_context:
             out = self(xx)
             loss = self.loss(yy, out)
@@ -82,6 +80,8 @@ class _Trainer_(object):
                 batch_logs = {}  # Can be used as global value between different callbacks
                 [ii.on_train_batch_begin(batch, batch_logs) for ii in callbacks]
 
+                xx = [self._convert_data_(ii) for ii in xx] if isinstance(xx, (list, tuple)) else self._convert_data_(xx)
+                yy = [self._convert_data_(ii) for ii in yy] if isinstance(yy, (list, tuple)) else self._convert_data_(yy)
                 out, loss = self.train_step(xx, yy)
                 self.scaler.scale(loss).backward()
 
@@ -98,7 +98,7 @@ class _Trainer_(object):
                 avg_loss += loss
                 process_bar.desc = " - loss: {:.4f}".format(avg_loss / (batch + 1))  # process_bar.set_description automatically add a : on the tail
 
-                out = out.detach().cpu()
+                # out = out.detach().cpu()
                 if isinstance(yy, (list, tuple)):
                     [metric.update_state(cur_yy, cur_out) for cur_out, cur_yy, metric in zip(out, yy, self.metrics) if metric.name not in self.eval_metrics]
                 else:
@@ -145,11 +145,13 @@ class _Trainer_(object):
             batch_logs = {}  # Can be used as global value between different callbacks
             [ii.on_test_batch_begin(batch, batch_logs) for ii in callbacks]
 
+            xx = [self._convert_data_(ii) for ii in xx] if isinstance(xx, (list, tuple)) else self._convert_data_(xx)
+            yy = [self._convert_data_(ii) for ii in yy] if isinstance(yy, (list, tuple)) else self._convert_data_(yy)
             with torch.no_grad():
                 out, loss = self.train_step(xx, yy)
             avg_loss += loss
 
-            out = out.detach().cpu()
+            # out = out.detach().cpu()
             if isinstance(yy, (list, tuple)):
                 [metric.update_state(cur_yy, cur_out) for cur_out, cur_yy, metric in zip(out, yy, self.metrics)]
             else:
@@ -452,8 +454,10 @@ class Model(nn.Module, _Trainer_, _Exporter_):
             self.load_weights(filepath, **kwargs)
         else:
             weights = torch.load(filepath, map_location=torch.device("cpu"), **kwargs)
-            weights = weights.state_dict() if hasattr(weights.state_dict) else weights
+            weights = weights.state_dict() if hasattr(weights, "state_dict") else weights
             self.load_state_dict(weights.get("state_dict", weights.get("model", weights)))
+            if hasattr(self, "optimizer") and "optimizer" in weights:
+                self.optimizer.load_state_dict(weights["optimizer"])
 
     def save(self, filepath=None, **kwargs):
         if filepath.endswith("h5"):

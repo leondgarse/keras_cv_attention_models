@@ -59,6 +59,9 @@ def parse_arguments():
     parser.add_argument("-e", "--epochs", type=int, default=30, help="Total epochs")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
     parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history")
+    parser.add_argument(
+        "-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 by `keras.models.load_model` directly. Higher priority than model"
+    )
 
     model = parser.add_argument_group("Model arguments")
     model.add_argument("-i", "--input_shape", type=int, default=224, help="Image model input shape")
@@ -80,8 +83,13 @@ def parse_arguments():
     lr_wd.add_argument("--lr", type=float, default=1e-3, help="Learning rate ")
     lr_wd.add_argument("--lr_warmup_steps", type=int, default=3, help="Learning rate warmup epochs")
     lr_wd.add_argument("--weight_decay", type=float, default=0.2, help="Weight decay")
-    return parser.parse_known_args()[0]
 
+    args = parser.parse_known_args()[0]
+    if args.basic_save_name is None and args.restore_path is not None:
+        basic_save_name = os.path.splitext(os.path.basename(args.restore_path))[0]
+        basic_save_name = basic_save_name[:-7] if basic_save_name.endswith("_latest") else basic_save_name
+        args.basic_save_name = basic_save_name
+    return args
 
 if __name__ == "__main__":
     args = parse_arguments()
@@ -96,23 +104,26 @@ if __name__ == "__main__":
     print(">>>> Data: image.shape: {}, text.shape: {}, labels.shape: {}".format(image.shape, text.shape, labels.shape))
 
     with global_strategy.scope():
-        image_model_kwargs = {} if args.image_model_pretrained == "default" else {"pretrained": args.image_model_pretrained}
-        image_model_kwargs.update({"input_shape": (args.input_shape, args.input_shape, 3), "num_classes": args.latents_dim, "classifier_activation": None})
-        print(">>>> image_model_kwargs:", image_model_kwargs)
-        image_model = build_model(args.image_model, **image_model_kwargs)
-        print(">>>> image_model name: {}, input_shape: {}, output_shape: {}".format(image_model.name, image_model.input_shape, image_model.output_shape))
+        if args.restore_path is None or kecam.backend.is_torch_backend:
+            image_model_kwargs = {} if args.image_model_pretrained == "default" else {"pretrained": args.image_model_pretrained}
+            image_model_kwargs.update({"input_shape": (args.input_shape, args.input_shape, 3), "num_classes": args.latents_dim, "classifier_activation": None})
+            print(">>>> image_model_kwargs:", image_model_kwargs)
+            image_model = build_model(args.image_model, **image_model_kwargs)
+            print(">>>> image_model name: {}, input_shape: {}, output_shape: {}".format(image_model.name, image_model.input_shape, image_model.output_shape))
 
-        if args.text_model == "image_model":
-            text_model = None
+            if args.text_model == "image_model":
+                text_model = None
+            else:
+                text_model_kwargs = {} if args.text_model_pretrained == "default" else {"pretrained": args.text_model_pretrained}
+                text_model_kwargs.update({"vocab_size": caption_tokenizer.vocab_size, "include_top": False})
+                print(">>>> text_model_kwargs:", text_model_kwargs)
+                text_model = build_model(args.text_model, **text_model_kwargs)
+                print(">>>> text_model name: {}, input_shape: {}, output_shape: {}".format(text_model.name, text_model.input_shape, text_model.output_shape))
+
+            model, image_model, text_model = kecam.clip.convert_to_clip_model(image_model, text_model)
+            basic_save_name = args.basic_save_name or "clip_{}_{}_{}".format(image_model.name, text_model.name, kecam.backend.backend())
         else:
-            text_model_kwargs = {} if args.text_model_pretrained == "default" else {"pretrained": args.text_model_pretrained}
-            text_model_kwargs.update({"vocab_size": caption_tokenizer.vocab_size, "include_top": False})
-            print(">>>> text_model_kwargs:", text_model_kwargs)
-            text_model = build_model(args.text_model, **text_model_kwargs)
-            print(">>>> text_model name: {}, input_shape: {}, output_shape: {}".format(text_model.name, text_model.input_shape, text_model.output_shape))
-
-        model, image_model, text_model = kecam.clip.convert_to_clip_model(image_model, text_model)
-        basic_save_name = args.basic_save_name or "clip_{}_{}_{}".format(image_model.name, text_model.name, kecam.backend.backend())
+            model = kecam.backend.models.load_model(args.restore_path)
         print(">>>> basic_save_name:", basic_save_name)
 
         if kecam.backend.is_torch_backend:
@@ -123,15 +134,19 @@ if __name__ == "__main__":
                 print(">>>> Calling torch.compile")
                 model = torch.compile(model)
             optimizer = build_torch_optimizer(model, lr=args.lr, weight_decay=args.weight_decay)
-        else:
+            model.compile(optimizer=optimizer, loss=clip_loss, metrics=["acc"])
+        elif model.optimizer is None:
             optimizer = build_tf_optimizer(lr=args.lr, weight_decay=args.weight_decay)
+            model.compile(optimizer=optimizer, loss=clip_loss, metrics=["acc"])
+
+        if args.restore_path is not None and kecam.backend.is_torch_backend:
+            model.load(args.restore_path)  # Reload wights after compile
 
         # callbacks = [
         #     kecam.imagenet.callbacks.CosineLrScheduler(args.lr, args.epochs, steps_per_epoch=len(train_dataset), warmup_steps=args.lr_warmup_steps),
         #     kecam.imagenet.callbacks.MyCheckpoint(basic_save_name=basic_save_name, save_path="checkpoints"),
         #     kecam.imagenet.callbacks.MyHistory(initial_file=os.path.join("checkpoints", basic_save_name + "_hist.json")),
         # ]
-        model.compile(optimizer=optimizer, loss=clip_loss, metrics=["acc"])
         # model.fit(train_dataset, epochs=args.epochs, validation_data=test_dataset, callbacks=callbacks)
 
         lr_scheduler = kecam.imagenet.callbacks.CosineLrScheduler(args.lr, args.epochs, steps_per_epoch=len(train_dataset), warmup_steps=args.lr_warmup_steps)

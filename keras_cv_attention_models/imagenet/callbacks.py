@@ -1,6 +1,7 @@
 import os
 import json
 import numpy as np
+from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import callbacks
 
 
@@ -287,7 +288,7 @@ class MyCheckpoint(callbacks.Callback):
 
     def __init__(self, basic_save_name, monitor="val_acc", mode="auto", save_path="checkpoints"):
         super(MyCheckpoint, self).__init__()
-        self.suffix = ".h5"  # not saving .keras currently, netron not supporting well
+        self.suffix = ".pt" if backend.is_torch_backend else ".h5"  # not saving .keras currently, netron not supporting well
         # try:
         #     is_tf2_13 = int(tf.__version__.split(".")[0]) >= 2 and int(tf.__version__.split(".")[1]) >= 13
         #     self.suffix = ".keras" if is_tf2_13 else ".h5"

@@ -208,7 +208,7 @@ def match_detection_labels_coco_annotation(image_names, label_path, target_ids=N
     for ii in tqdm(aa["annotations"], "Checking annotations"):
         if target_ids is not None and ii["category_id"] not in target_ids:
             continue
-        if ii.get('iscrowd', None):
+        if ii.get("iscrowd", None):
             continue
 
         image_info = image_info_dict[ii["image_id"]]
