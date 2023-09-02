@@ -17,12 +17,12 @@ def categorical_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=
     >>> import torch, tensorflow as tf
     >>> from keras_cv_attention_models.pytorch_backend import losses
     >>> xx, yy = tf.random.uniform([24, 10]), tf.one_hot(tf.random.uniform([24], 0, 10, dtype='int32'), 10)
-    >>> tf_out = keras.losses.categorical_crossentropy(yy, xx, from_logits=False).numpy().mean()
+    >>> tf_out = tf.losses.categorical_crossentropy(yy, xx, from_logits=False).numpy().mean()
     >>> torch_out = losses.categorical_crossentropy(torch.from_numpy(yy.numpy()), torch.from_numpy(xx.numpy()), from_logits=False)
     >>> print(tf_out, torch_out, np.allclose(tf_out, torch_out))
     >>> # 2.681877 tensor(2.6819) True
     # from_logits=True
-    >>> tf_out = keras.losses.categorical_crossentropy(yy, xx, from_logits=True).numpy().mean()
+    >>> tf_out = tf.losses.categorical_crossentropy(yy, xx, from_logits=True).numpy().mean()
     >>> torch_out = losses.categorical_crossentropy(torch.from_numpy(yy.numpy()), torch.from_numpy(xx.numpy()), from_logits=True)
     >>> print(tf_out, torch_out, np.allclose(tf_out, torch_out))
     >>> # 2.3364408 tensor(2.3364) True
@@ -41,12 +41,12 @@ def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, label_smo
     >>> import torch, tensorflow as tf
     >>> from keras_cv_attention_models.pytorch_backend import losses
     >>> xx, yy = tf.random.uniform([24, 10]), tf.random.uniform([24], 0, 10, dtype='int64')
-    >>> tf_out = keras.losses.sparse_categorical_crossentropy(yy, xx, from_logits=False).numpy().mean()
+    >>> tf_out = tf.losses.sparse_categorical_crossentropy(yy, xx, from_logits=False).numpy().mean()
     >>> torch_out = losses.sparse_categorical_crossentropy(torch.from_numpy(yy.numpy()), torch.from_numpy(xx.numpy()), from_logits=False)
     >>> print(tf_out, torch_out, np.allclose(tf_out, torch_out))
     >>> # 2.677911 tensor(2.6779) True
     # from_logits=True
-    >>> tf_out = keras.losses.sparse_categorical_crossentropy(yy, xx, from_logits=True).numpy().mean()
+    >>> tf_out = tf.losses.sparse_categorical_crossentropy(yy, xx, from_logits=True).numpy().mean()
     >>> torch_out = losses.sparse_categorical_crossentropy(torch.from_numpy(yy.numpy()), torch.from_numpy(xx.numpy()), from_logits=True)
     >>> print(tf_out, torch_out, np.allclose(tf_out, torch_out))
     >>> # 2.3503969 tensor(2.3504) True

@@ -46,7 +46,7 @@ class CausalMask(layers.Layer):
         self.use_layer_as_module = True
 
     def build(self, input_shape):
-        causal_mask = (1 - np.tri(self.block_size).astype("float32")[None, None]) * -1e10
+        causal_mask = (1 - np.tri(self.block_size).astype("float32")[None, None]) * -65504  # instead of -1e10, fit float16
         if hasattr(self, "register_buffer"):  # PyTorch
             self.register_buffer("causal_mask", functional.convert_to_tensor(causal_mask, dtype=self.compute_dtype), persistent=False)
         else:
@@ -216,27 +216,29 @@ class RunPrediction:
                 # forward the model to get the logits for the index in the sequence
                 cur_inputs = functional.convert_to_tensor(idx_cond, dtype="int64")[None]
                 if backend.is_torch_backend:
-                    cur_inputs.to(device)
+                    cur_inputs = cur_inputs.to(device)
                 logits = self.model(cur_inputs)
                 # pluck the logits at the final step and scale by desired temperature
                 logits = logits[:, -1, :] / temperature
                 logits = logits.detach().cpu() if hasattr(logits, "detach") else logits
                 logits = logits.numpy() if hasattr(logits, "numpy") else np.array(logits)  # np.array is for JAX
 
-                if top_k is not None:
-                    # optionally crop the logits to only the top k options
-                    threshold_pos = min(top_k, self.vocab_size)
-                    logits_threshold = np.sort(logits)[:, -threshold_pos]
-                    logits[logits < logits_threshold[:, None]] = -float("Inf")
-
-                # sample from the distribution
-                probs = self.softmax_numpy(logits, axis=-1)
-                multinomial_pick = np.array([np.random.choice(self.vocab_indexes, p=prob) for prob in probs])
-                inputs_idxes = np.concatenate([inputs_idxes, multinomial_pick], axis=-1)
+                if top_k == 0 or top_k == 1:
+                    pick = np.argmax(logits, axis=-1)
+                else:
+                    if top_k > 0:
+                        # optionally crop the logits to only the top k options
+                        threshold_pos = min(top_k, self.vocab_size)
+                        logits_threshold = np.sort(logits)[:, -threshold_pos]
+                        logits[logits < logits_threshold[:, None]] = -float("Inf")
+                    # sample from the distribution
+                    probs = self.softmax_numpy(logits.astype("float32"), axis=-1)
+                    pick = np.array([np.random.choice(self.vocab_indexes, p=prob) for prob in probs])
+                inputs_idxes = np.concatenate([inputs_idxes, pick], axis=-1)
                 next_word = self.tokenizer.decode(inputs_idxes[-1:].tolist())
                 print(next_word, end="", flush=True)
 
-                if stop_at_eot and multinomial_pick == self.tokenizer.eot_token or multinomial_pick == self.tokenizer.sot_token:
+                if stop_at_eot and pick == self.tokenizer.eot_token or pick == self.tokenizer.sot_token:
                     break
             print("\n---------------")
 

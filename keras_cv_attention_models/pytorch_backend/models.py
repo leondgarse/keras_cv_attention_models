@@ -41,6 +41,23 @@ class _Trainer_(object):
             global_context = torch.amp.autocast(device_type=device_type, dtype=torch.float16)
         self.device, self.device_type, self.scaler, self.global_context = device, device_type, scaler, global_context
 
+    def _convert_data_(self, data):
+        if isinstance(data, np.ndarray):
+            data = torch.from_numpy(data)
+        if self.device_type == "cuda":
+            # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
+            data = data.pin_memory().to(self.device, non_blocking=True)
+        return data
+
+    def train_step(self, xx, yy):
+        # Split out for being able to overwrite
+        xx = [self._convert_data_(ii) for ii in xx] if isinstance(xx, (list, tuple)) else self._convert_data_(xx)
+        yy = [self._convert_data_(ii) for ii in yy] if isinstance(yy, (list, tuple)) else self._convert_data_(yy)
+        with self.global_context:
+            out = self(xx)
+            loss = self.loss(yy, out)
+        return out, loss
+
     def fit(self, x=None, y=None, batch_size=32, epochs=1, callbacks=None, validation_data=None, initial_epoch=0, validation_batch_size=None, **kwargs):
         callbacks = callbacks or []
         [ii.set_model(self) for ii in callbacks if ii.model is None]
@@ -65,11 +82,7 @@ class _Trainer_(object):
                 batch_logs = {}  # Can be used as global value between different callbacks
                 [ii.on_train_batch_begin(batch, batch_logs) for ii in callbacks]
 
-                xx = [self._convert_data_(ii) for ii in xx] if isinstance(xx, (list, tuple)) else self._convert_data_(xx)
-                yy = [self._convert_data_(ii) for ii in yy] if isinstance(yy, (list, tuple)) else self._convert_data_(yy)
-                with self.global_context:
-                    out = self(xx)
-                    loss = self.loss(yy, out)
+                out, loss = self.train_step(xx, yy)
                 self.scaler.scale(loss).backward()
 
                 accumulate_passed_batches += 1
@@ -85,6 +98,7 @@ class _Trainer_(object):
                 avg_loss += loss
                 process_bar.desc = " - loss: {:.4f}".format(avg_loss / (batch + 1))  # process_bar.set_description automatically add a : on the tail
 
+                out = out.detach().cpu()
                 if isinstance(yy, (list, tuple)):
                     [metric.update_state(cur_yy, cur_out) for cur_out, cur_yy, metric in zip(out, yy, self.metrics) if metric.name not in self.eval_metrics]
                 else:
@@ -131,13 +145,11 @@ class _Trainer_(object):
             batch_logs = {}  # Can be used as global value between different callbacks
             [ii.on_test_batch_begin(batch, batch_logs) for ii in callbacks]
 
-            xx = [self._convert_data_(ii) for ii in xx] if isinstance(xx, (list, tuple)) else self._convert_data_(xx)
-            yy = [self._convert_data_(ii) for ii in yy] if isinstance(yy, (list, tuple)) else self._convert_data_(yy)
-            with self.global_context, torch.no_grad():
-                out = self(xx)
-                loss = self.loss(yy, out)
+            with torch.no_grad():
+                out, loss = self.train_step(xx, yy)
             avg_loss += loss
 
+            out = out.detach().cpu()
             if isinstance(yy, (list, tuple)):
                 [metric.update_state(cur_yy, cur_out) for cur_out, cur_yy, metric in zip(out, yy, self.metrics)]
             else:
@@ -154,14 +166,6 @@ class _Trainer_(object):
         epoch_logs.update(metrics_results)
         [ii.on_test_end(epoch_logs) for ii in callbacks]
         return val_loss, metrics_results
-
-    def _convert_data_(self, data):
-        if isinstance(data, np.ndarray):
-            data = torch.from_numpy(data)
-        if self.device_type == "cuda":
-            # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
-            data = data.pin_memory().to(self.device, non_blocking=True)
-        return data
 
     def _dataset_gen_(self, x=None, y=None, batch_size=32):
         if isinstance(x, (list, tuple)) and len(x) == 2 and y is None:

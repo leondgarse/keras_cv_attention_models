@@ -25,7 +25,9 @@ class DatasetGen:
 
         self.split, self.val_split, self.data_name, self.tokenizer = split, val_split, data_name, tokenizer
         self.save_path = os.path.join(os.path.expanduser("~"), ".keras", "datasets", self.data_name)
-        data_file = "train.bin" if split == "train" else "val.bin"
+
+        self.tokenizer_name = tokenizer.__class__.__name__
+        data_file = "train_{}.bin".format(self.tokenizer_name) if split == "train" else "val_{}.bin".format(self.tokenizer_name)
         data_path = os.path.join(self.save_path, data_file)
         print(">>>> Load data from {}".format(data_path))
         if not os.path.exists(data_path):
@@ -35,7 +37,8 @@ class DatasetGen:
         self.block_size, self.batch_size, self.steps_per_epoch = block_size, batch_size, steps_per_epoch
 
     def download_and_load(self, val_split=0.1):
-        train_bin_file, val_bin_file = os.path.join(self.save_path, "train.bin"), os.path.join(self.save_path, "val.bin")
+        train_bin_file = os.path.join(self.save_path, "train_{}.bin".format(self.tokenizer_name))
+        val_bin_file = os.path.join(self.save_path, "val_{}.bin".format(self.tokenizer_name))
         url = BUILDIN_DATASETS[self.data_name]["url"]
         target_file_path = os.path.join(self.save_path, os.path.basename(url))
 
@@ -121,7 +124,7 @@ def build_tf_dataset(train_dataset_gen, test_dataset_gen):
     return train_dataset, test_dataset
 
 
-def build_torch_optimizer(model, lr=1e-3, weight_decay=0.2, beta1=0.9, beta2=0.98, eps=1.0e-6):
+def build_torch_optimizer(model, lr=1e-3, weight_decay=0.2, beta1=0.9, beta2=0.95, eps=1.0e-6):
     import inspect
 
     named_parameters = list(model.named_parameters())
@@ -162,8 +165,8 @@ def parse_arguments():
     parser.add_argument("-i", "--block_size", type=int, default=1024, help="input block size")
     parser.add_argument("-d", "--data_name", type=str, default="tinyshakespeare", help="dataset name")
     parser.add_argument("-b", "--batch_size", type=int, default=32, help="Batch size")
-    parser.add_argument("-e", "--max_iters", type=int, default=60000, help="max iters")
-    parser.add_argument("-S", "--steps_per_epoch", type=int, default=2000, help="training steps per epoch, total epochs=max_iters//steps_per_epoch")
+    parser.add_argument("-e", "--epochs", type=int, default=30, help="training epochs, total max iterations=epochs * steps_per_epoch")
+    parser.add_argument("-S", "--steps_per_epoch", type=int, default=2000, help="training steps per epoch")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
     parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history")
     parser.add_argument(
@@ -177,7 +180,7 @@ def parse_arguments():
 
     # lr_wd = parser.add_argument_group("Learning rate, weight decay arguments")
     parser.add_argument("--lr", type=float, default=6e-4, help="Learning rate ")
-    parser.add_argument("--lr_warmup_steps", type=int, default=2000, help="Learning rate warmup steps")
+    parser.add_argument("--lr_warmup_steps", type=int, default=3, help="Learning rate warmup steps")
     parser.add_argument("--weight_decay", type=float, default=0.1, help="Weight decay")
     return parser.parse_known_args()[0]
 
@@ -224,8 +227,8 @@ if __name__ == "__main__":
         basic_save_name = args.basic_save_name or "text_{}_{}".format(model.name, kecam.backend.backend())
         print(">>>> basic_save_name:", basic_save_name)
 
-        epochs = args.max_iters // args.steps_per_epoch if args.max_iters > args.steps_per_epoch else args.max_iters
-        warmup_steps = args.lr_warmup_steps // args.steps_per_epoch if args.lr_warmup_steps > args.steps_per_epoch else args.lr_warmup_steps
+        epochs = (args.epochs // args.steps_per_epoch) if args.epochs > args.steps_per_epoch else args.epochs
+        warmup_steps = (args.lr_warmup_steps // args.steps_per_epoch) if args.lr_warmup_steps > args.steps_per_epoch else args.lr_warmup_steps
         lr_scheduler = kecam.imagenet.callbacks.CosineLrScheduler(args.lr, epochs, steps_per_epoch=args.steps_per_epoch, warmup_steps=warmup_steps)
         other_kwargs = {}
         latest_save, hist = kecam.imagenet.train_func.train(

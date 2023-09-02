@@ -19,7 +19,7 @@ def init_dataset(data_path, caption_tokenizer, batch_size=64, image_size=224, re
     mean, std = init_mean_std_by_rescale_mode(rescale_mode)
     image_size = image_size if isinstance(image_size, (list, tuple)) else [image_size, image_size]
 
-    AUTOTUNE, buffer_size, seed = tf.data.AUTOTUNE, batch_size * 1000, None
+    AUTOTUNE, buffer_size, seed = tf.data.AUTOTUNE, batch_size * 100, None
     train_pre_batch = lambda data_point: (image_process(data_point["image"], image_size, is_train=True), data_point["caption"])
     y_true = tf.range(batch_size)
     train_post_batch = lambda xx, caption: (((xx - mean) / std, caption), y_true)
