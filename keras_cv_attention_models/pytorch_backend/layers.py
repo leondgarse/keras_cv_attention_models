@@ -719,7 +719,7 @@ class Conv(_BaseConvPool):
             module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
         if self.use_bias and self.bias_initializer is not None:
             bias_initializer = getattr(initializers, self.bias_initializer)() if isinstance(self.bias_initializer, str) else self.bias_initializer
-            module.bias.data = self.bias_initializer(list(module.bias.shape))
+            module.bias.data = bias_initializer(list(module.bias.shape))
 
 
 
@@ -813,7 +813,7 @@ class ConvTranspose(_BaseConvPool):
             module.weight.data = kernel_initializer(list(module.weight.shape))
         if self.use_bias and self.bias_initializer is not None:
             bias_initializer = getattr(initializers, self.bias_initializer)() if isinstance(self.bias_initializer, str) else self.bias_initializer
-            module.bias.data = self.bias_initializer(list(module.bias.shape))
+            module.bias.data = bias_initializer(list(module.bias.shape))
 
         return module
 
@@ -933,7 +933,7 @@ class Dense(Layer):
             module.weight.data = kernel_initializer(list(module.weight.shape))  # not using kernel_initializer(module.weight) for compiling with TF
         if self.use_bias and self.bias_initializer is not None:
             bias_initializer = getattr(initializers, self.bias_initializer)() if isinstance(self.bias_initializer, str) else self.bias_initializer
-            module.bias.data = self.bias_initializer(list(module.bias.shape))
+            module.bias.data = bias_initializer(list(module.bias.shape))
 
         if self.axis == len(input_shape) - 1:
             self.module = module if self.activation is None else nn.Sequential(module, Activation(self.activation))
@@ -1154,7 +1154,7 @@ class SeparableConv2D(Conv):
             pointwise.weight.data = kernel_initializer(list(pointwise.weight.shape))
         if self.use_bias and self.bias_initializer is not None:
             bias_initializer = getattr(initializers, self.bias_initializer)() if isinstance(self.bias_initializer, str) else self.bias_initializer
-            pointwise.bias.data = self.bias_initializer(list(pointwise.bias.shape))
+            pointwise.bias.data = bias_initializer(list(pointwise.bias.shape))
 
         return nn.Sequential(depthwise, pointwise)
 
