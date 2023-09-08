@@ -117,10 +117,22 @@ def match_captions(images, captions_dict):
             caption_image_name_map.setdefault(os.path.basename(ii["image"]), []).append(ii["caption"])
 
     gathered_images, gathered_captions = [], []
-    for ii in images:
-        captions = caption_image_name_map.get(os.path.basename(ii), [])
-        gathered_captions.extend(captions)
-        gathered_images.extend([ii] * len(captions))
+    one_more_loop = True
+    while one_more_loop:
+        one_more_loop = False
+        for ii in images:
+            file_name = os.path.basename(ii)
+            if file_name not in caption_image_name_map:
+                continue
+            captions = caption_image_name_map.pop(file_name)
+            if len(captions) == 0:
+                continue
+
+            gathered_captions.append(captions[0])
+            gathered_images.append(ii)
+            if len(captions) > 1:
+                caption_image_name_map[file_name] = captions[1:]  # avoid image with multi captions gathered together
+                one_more_loop = True
     return gathered_images, gathered_captions
 
 
@@ -152,13 +164,6 @@ def build_caption_dataset(train_image_path, train_captions, test_image_path=None
         x_train, x_test, y_train, y_test = train_test_split(x_train, y_train, test_size=test_split, random_state=42)
     else:
         x_test, y_test = [], []
-
-    """ Shuffle tests in case one image with multi captions like COCO """
-    random.seed(42)
-    indexes = list(range(len(x_test)))
-    random.shuffle(indexes)
-    x_test = [x_test[ii] for ii in indexes]
-    y_test = [y_test[ii] for ii in indexes]
 
     """ Save """
     info = {"base_path": "" if os.path.abspath(train_image_path) == train_image_path else os.path.abspath(".")}

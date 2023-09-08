@@ -457,6 +457,7 @@ class Model(nn.Module, _Trainer_, _Exporter_):
             weights = weights.state_dict() if hasattr(weights, "state_dict") else weights
             self.load_state_dict(weights.get("state_dict", weights.get("model", weights)))
             if hasattr(self, "optimizer") and "optimizer" in weights:
+                print(">>>> Reload optimizer state_dict")
                 self.optimizer.load_state_dict(weights["optimizer"])
 
     def save(self, filepath=None, **kwargs):

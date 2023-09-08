@@ -1,12 +1,13 @@
 import math
-from keras_cv_attention_models.backend import layers, models, functional
+from keras_cv_attention_models.backend import layers, models, functional, initializers
 from keras_cv_attention_models import attention_layers
 
 
 def text_model_index_header(text_input, text_output, latents_dim):
     eol_index = functional.argmax(functional.pad(text_input[:, 1:], [[0, 0], [1, 0]]), axis=-1)  # Skip <|startoftext|> no matter what it is
     text_output = functional.gather_nd(text_output, functional.expand_dims(eol_index, axis=-1), batch_dims=1)
-    text_output = layers.Dense(latents_dim, use_bias=False, dtype="float32", name="text_latents")(text_output)
+    kernel_initializer = initializers.RandomNormal(stddev=text_output.shape[-1] ** -0.5)
+    text_output = layers.Dense(latents_dim, use_bias=False, kernel_initializer=kernel_initializer, dtype="float32", name="text_latents")(text_output)
     return text_output
 
 

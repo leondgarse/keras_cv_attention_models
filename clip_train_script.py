@@ -123,6 +123,7 @@ if __name__ == "__main__":
             model, image_model, text_model = kecam.clip.convert_to_clip_model(image_model, text_model)
             basic_save_name = args.basic_save_name or "clip_{}_{}_{}".format(image_model.name, text_model.name, kecam.backend.backend())
         else:
+            print(">>>> Reload from:", args.restore_path)
             model = kecam.backend.models.load_model(args.restore_path)
         print(">>>> basic_save_name:", basic_save_name)
 
@@ -140,6 +141,7 @@ if __name__ == "__main__":
             model.compile(optimizer=optimizer, loss=clip_loss, metrics=["acc"])
 
         if args.restore_path is not None and kecam.backend.is_torch_backend:
+            print(">>>> Reload weights from:", args.restore_path)
             model.load(args.restore_path)  # Reload wights after compile
 
         # callbacks = [

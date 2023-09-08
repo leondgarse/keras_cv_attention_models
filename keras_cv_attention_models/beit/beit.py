@@ -7,7 +7,6 @@ from keras_cv_attention_models.attention_layers import (
     BiasLayer,
     ChannelAffine,
     ClassToken,
-    conv2d_no_bias,
     drop_block,
     drop_connect_rates_split,
     PositionalEmbedding,
@@ -138,7 +137,7 @@ class MultiHeadRelativePositionalEmbedding(layers.Layer):
         # pos_shape = (num_relative_distance, num_heads)
         pos_shape = (num_heads, num_relative_distance)
         # initializer = tf.random_normal_initializer(stddev=0.02)
-        self.relative_position_bias_table = self.add_weight(name="positional_embedding", shape=pos_shape, initializer="zeros", trainable=True)
+        self.positional_embedding = self.add_weight(name="positional_embedding", shape=pos_shape, initializer="zeros", trainable=True)
 
         hh, ww = np.meshgrid(range(height), range(width))  # tf.meshgrid is same with np.meshgrid 'xy' mode, while torch.meshgrid 'ij' mode
         coords = np.stack([hh, ww], axis=-1)  # [14, 14, 2]
@@ -169,7 +168,7 @@ class MultiHeadRelativePositionalEmbedding(layers.Layer):
         super().build(attn_shape)
 
     def call(self, inputs, **kwargs):
-        pos_emb = functional.gather(self.relative_position_bias_table, self.relative_position_index[: inputs.shape[2], : inputs.shape[3]], axis=1)
+        pos_emb = functional.gather(self.positional_embedding, self.relative_position_index[: inputs.shape[2], : inputs.shape[3]], axis=1)
         # tf.print(pos_emb.shape, inputs.shape)
         return inputs + pos_emb
 
@@ -185,16 +184,16 @@ class MultiHeadRelativePositionalEmbedding(layers.Layer):
         else:
             source_tt = source_layer.get_weights()[0]  # layer
         source_tt = np.array(source_tt.detach() if hasattr(source_tt, "detach") else source_tt).astype("float32")
-        # self.relative_position_bias_table.assign(tf.transpose(source_tt))
+        # self.positional_embedding.assign(tf.transpose(source_tt))
         hh = ww = int(float(source_tt.shape[1] - self.cls_token_pos_len) ** 0.5)  # assume source weights are all square shape
         num_heads = source_tt.shape[0]
         ss = source_tt[:, : hh * ww].reshape((num_heads, hh, ww))  # [num_heads, hh, ww]
 
         if self.attn_height == -1:
-            target_hh = target_ww = int(float(self.relative_position_bias_table.shape[1] - self.cls_token_pos_len) ** 0.5)
+            target_hh = target_ww = int(float(self.positional_embedding.shape[1] - self.cls_token_pos_len) ** 0.5)
         else:
             target_hh = 2 * self.attn_height - 1
-            target_ww = int(float(self.relative_position_bias_table.shape[1] - self.cls_token_pos_len) / target_hh)
+            target_ww = int(float(self.positional_embedding.shape[1] - self.cls_token_pos_len) / target_hh)
 
         tt = backend.numpy_image_resize(ss, target_shape=[target_hh, target_ww], method=method, is_source_channels_last=False)
         tt = tt.reshape((num_heads, tt.shape[1] * tt.shape[2]))  # [num_heads, target_hh * target_ww]
@@ -206,10 +205,10 @@ class MultiHeadRelativePositionalEmbedding(layers.Layer):
         import math
         import matplotlib.pyplot as plt
 
-        num_heads = self.relative_position_bias_table.shape[0]
-        # pos_emb = tf.gather(self.relative_position_bias_table, self.relative_position_index, axis=1).numpy()
-        hh = ww = int(float(self.relative_position_bias_table.shape[1] - self.cls_token_pos_len) ** 0.5)
-        pos_emb = self.relative_position_bias_table[:, : hh * ww]
+        num_heads = self.positional_embedding.shape[0]
+        # pos_emb = tf.gather(self.positional_embedding, self.relative_position_index, axis=1).numpy()
+        hh = ww = int(float(self.positional_embedding.shape[1] - self.cls_token_pos_len) ** 0.5)
+        pos_emb = self.positional_embedding[:, : hh * ww]
         pos_emb = pos_emb.detach() if hasattr(pos_emb, "detach") else pos_emb
         pos_emb = pos_emb.numpy() if hasattr(pos_emb, "numpy") else np.array(pos_emb)
         pos_emb = pos_emb.reshape((num_heads, hh, ww))
@@ -467,8 +466,12 @@ def Beit(
     inputs = layers.Input(input_shape)
 
     """ forward_embeddings """
-    # nn = conv2d_no_bias(inputs, embed_dim, patch_size, strides=patch_size, padding="valid", use_bias=True, name="stem_")
-    nn = PatchConv2DWithResampleWeights(embed_dim, patch_size, strides=patch_size, padding="valid", use_bias=use_patch_bias, name="stem_conv")(inputs)
+    # torch conv kernel initializer: uniform(-1/sqrt(k), 1/sqrt(k)), where k = weight.size(1) * prod(*kernel_size)
+    # Not using same one as torch, as current one works better in some tests, decreasing loss 3.7055 -> 3.4224 in the first epoch clip training for TF
+    kernel_initializer = None if backend.is_torch_backend else initializers.RandomUniform(minval=-1 / (patch_size ** 0.5), maxval=1 / (patch_size ** 0.5))
+    nn = PatchConv2DWithResampleWeights(
+        embed_dim, patch_size, strides=patch_size, padding="valid", kernel_initializer=kernel_initializer, use_bias=use_patch_bias, name="stem_conv"
+    )(inputs)
     nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
     patch_height = nn.shape[1]
     nn = layers.Reshape([-1, nn.shape[-1]])(nn)
