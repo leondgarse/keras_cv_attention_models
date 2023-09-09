@@ -486,11 +486,13 @@ def get_flops(model):
 
 
 def count_params(model):
+    # "parameters" and "requires_grad" are for torch model, while "weights" and "trainable" for TF models
     total_params, trainable_params = 0, 0
-    for ii in model.weights:
+    for ii in (model.parameters() if hasattr(model, "parameters") else model.weights):
         cur_params = np.prod(ii.shape)
         total_params += cur_params
-        trainable_params += cur_params if ii.trainable else 0
+        trainable = ii.requires_grad if hasattr(ii, "requires_grad") else ii.trainable
+        trainable_params += cur_params if trainable else 0
     non_trainable_params = total_params - trainable_params
     print("Total params: {:,} | Trainable params: {:,} | Non-trainable params:{:,}".format(total_params, trainable_params, non_trainable_params))
     return total_params, trainable_params

@@ -8,10 +8,9 @@
   - [Paper 2111.02114 LAION-400M: Open Dataset of CLIP-Filtered 400 Million Image-Text Pairs](https://arxiv.org/abs/2111.02114)
   - [Github taki0112/CLIP-Tensorflow](https://github.com/taki0112/CLIP-Tensorflow)
   - [Github lucidrains/x-clip](https://github.com/lucidrains/x-clip)
-  - [Multilingual CLIP with Huggingface + PyTorch Lightning](https://sachinruk.github.io/blog/pytorch/pytorch%20lightning/loss%20function/gpu/2021/03/07/CLIP.html)
 # Requirments
   ```sh
-  pip install ftfy regex
+  pip install ftfy regex sentencepiece
   ```
 # Training
 - Colab train test [kecam_caption_test.ipynb](https://colab.research.google.com/drive/1VaOOE4Q2rD_pV4k3YymY1glqtlNjoikT?usp=sharing).
@@ -30,7 +29,10 @@
   ```sh
   DATA_PATH=/datasets/coco/2017
   python custom_dataset_script.py --train_images $DATA_PATH/train2017 --test_images $DATA_PATH/val2017 \
-  --train_captions $DATA_PATH/annotations/captions_train2017.json --test_captions $DATA_PATH/annotations/captions_val2017.json
+  --train_captions $DATA_PATH/annotations/captions_train2017.json \
+  --test_captions $DATA_PATH/annotations/captions_val2017.json -s coco_captions
+  # >>>> total_train_samples: 591753, totla_test_samples: 25014
+  # >>>> Saved to: coco_captions.tsv
   ```
 - **Train using `clip_train_script.py on COCO captions`** Default `--data_path` is a testing one `datasets/coco_dog_cat/captions.tsv`.
   ```sh

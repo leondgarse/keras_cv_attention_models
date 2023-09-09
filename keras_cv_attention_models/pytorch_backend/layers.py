@@ -468,6 +468,12 @@ class Divide(_Merge):
         return output
 
 
+class Equal(_Merge):
+    def merge_function(self, inputs):
+        output = torch.eq(inputs[0], inputs[1])
+        return output
+
+
 class Subtract(_Merge):
     def merge_function(self, inputs):
         output = torch.subtract(inputs[0], inputs[1])

@@ -8,7 +8,7 @@ def text_model_index_header(text_input, text_output, latents_dim, eot_token=None
         eol_index = functional.argmax(functional.pad(text_input[:, 1:], [[0, 0], [1, 0]]), axis=-1)  # Skip <|startoftext|> no matter what it is
     else:
         assert eot_token != 0, "eot_token is 0, conflict with the padding value"
-        eol_index = functional.argmax(functional.pad(text_input[:, 1:], [[0, 0], [1, 0]]) == eot_token, axis=-1)
+        eol_index = functional.argmax(functional.equal(functional.pad(text_input[:, 1:], [[0, 0], [1, 0]]), eot_token), axis=-1)
     text_output = functional.gather_nd(text_output, functional.expand_dims(eol_index, axis=-1), batch_dims=1)
     kernel_initializer = initializers.RandomNormal(stddev=text_output.shape[-1] ** -0.5)
     text_output = layers.Dense(latents_dim, use_bias=False, kernel_initializer=kernel_initializer, dtype="float32", name="text_latents")(text_output)

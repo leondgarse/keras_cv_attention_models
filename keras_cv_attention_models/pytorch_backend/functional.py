@@ -8,6 +8,7 @@ from keras_cv_attention_models.pytorch_backend.layers import (
     _GatherND,
     Add,
     Concatenate,
+    Equal,
     GraphNode,
     Lambda,
     Shape,
@@ -67,6 +68,10 @@ def convert_to_tensor(inputs, dtype="float32"):
 
 def cos(inputs, name=None):
     return wrapper(torch.cos, inputs, name=name)
+
+
+def equal(x, y, name=None):
+    return Equal(name=name)([x, y]) if isinstance(y, GraphNode) else wrapper(lambda inputs: torch.eq(inputs, y), x, output_shape=x.shape, name=name)
 
 
 def exp(inputs, name=None):

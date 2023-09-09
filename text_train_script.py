@@ -210,7 +210,7 @@ if __name__ == "__main__":
 
         if kecam.backend.is_torch_backend:
             # Always 0, no matter CUDA_VISIBLE_DEVICES
-            device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) > 0 else torch.device("cpu")
+            device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
             model.to(device=device)
             if hasattr(torch, "compile") and torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 6:
                 print(">>>> Calling torch.compile")
