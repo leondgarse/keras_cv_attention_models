@@ -1,5 +1,5 @@
 from keras_cv_attention_models import backend
-from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.backend import layers, models, functional, initializers, image_data_format
 from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
@@ -9,7 +9,7 @@ from keras_cv_attention_models.attention_layers import (
     depthwise_conv2d_no_bias,
     layer_norm,
     mlp_block,
-    HeadInitializer,
+    # HeadInitializer,
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
@@ -90,7 +90,7 @@ def InceptionNeXt(
     """  Output head """
     if num_classes > 0:
         nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn)
-        head_init = HeadInitializer(scale=0.02)
+        head_init = initializers.TruncatedNormal(stddev=0.02)  # HeadInitializer(scale=0.02)
         nn = layers.Dense(embed_dims[-1] * 3, use_bias=True, kernel_initializer=head_init, bias_initializer="zeros", name="pre_head_dense")(nn)
         nn = activation_by_name(nn, activation=activation, name="pre_head_")
         nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="pre_head_")

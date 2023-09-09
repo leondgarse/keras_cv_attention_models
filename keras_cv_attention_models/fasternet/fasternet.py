@@ -1,12 +1,12 @@
 from keras_cv_attention_models import backend
-from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.backend import layers, models, functional, initializers, image_data_format
 from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
     add_with_layer_scale_and_drop_block,
     batchnorm_with_activation,
     conv2d_no_bias,
-    HeadInitializer,
+    # HeadInitializer,
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
@@ -45,7 +45,7 @@ def FasterNet(
     partial_conv_ratio=0.25,
     output_conv_filter=1280,
     layer_scale=0,  # > 0 for applying layer_scale, 0 for not using
-    head_init_scale=0.02,
+    # head_init_scale=0.02,
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",
@@ -89,7 +89,7 @@ def FasterNet(
 
         if dropout > 0:
             nn = layers.Dropout(dropout, name="head_drop")(nn)
-        head_init = HeadInitializer(scale=head_init_scale)
+        head_init = initializers.TruncatedNormal(stddev=0.02)  # HeadInitializer(scale=head_init_scale)
         nn = layers.Dense(
             num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=head_init, name="predictions"
         )(nn)

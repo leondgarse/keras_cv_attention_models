@@ -15,6 +15,8 @@
   - [Model surgery](#model-surgery)
   - [ImageNet training and evaluating](#imagenet-training-and-evaluating)
   - [COCO training and evaluating](#coco-training-and-evaluating)
+  - [CLIP training and evaluating](#clip-training-and-evaluating)
+  - [Text training](#text-training)
   - [Visualizing](#visualizing)
   - [TFLite Conversion](#tflite-conversion)
   - [Using PyTorch as backend](#using-pytorch-as-backend)
@@ -434,6 +436,39 @@
     ema = train.train(model, dataset_path="coco.yaml", rect_val=False)
     ```
     ![yolov8_training](https://user-images.githubusercontent.com/5744524/235142289-cb6a4da0-1ea7-4261-afdd-03a3c36278b8.png)
+## CLIP training and evaluating
+  - [CLIP](keras_cv_attention_models/clip) contains more detail usage.
+  - `custom_dataset_script.py` can be used creating a `tsv` / `json` format file, which can be used as `--data_name xxx.tsv` for training, detail usage can be found in [Custom caption dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussioncomment-6516154).
+  - **Train using `clip_train_script.py on COCO captions`** Default `--data_path` is a testing one `datasets/coco_dog_cat/captions.tsv`.
+    ```sh
+    CUDA_VISIBLE_DEVICES=1 TF_XLA_FLAGS="--tf_xla_auto_jit=2" python clip_train_script.py -i 160 -b 128 \
+    --text_model_pretrained None --data_path coco_captions.tsv
+    ```
+    **Train Using PyTorch backend by setting `KECAM_BACKEND='torch'`**
+    ```sh
+    KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python clip_train_script.py -i 160 -b 128 \
+    --text_model_pretrained None --data_path coco_captions.tsv
+    ```
+    ![clip_torch_tf](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/86baa514-0d3b-4e98-8b53-51dfe847369c)
+## Text training
+  - Currently it's only a simple one modified from [Github karpathy/nanoGPT](https://github.com/karpathy/nanoGPT).
+  - **Train using `text_train_script.py`** As dataset is randomly sampled, needs to specify `steps_per_epoch`
+    ```sh
+    CUDA_VISIBLE_DEVICES=1 TF_XLA_FLAGS="--tf_xla_auto_jit=2" python text_train_script.py -m LLaMA2_15M --batch_size 8 \
+    --steps_per_epoch 8000 --tokenizer SentencePieceTokenizer
+    ```
+    **Train Using PyTorch backend by setting `KECAM_BACKEND='torch'`**
+    ```sh
+    KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python text_train_script.py -m LLaMA2_15M --batch_size 8 \
+    --steps_per_epoch 8000 --tokenizer SentencePieceTokenizer
+    ```
+    **Plotting**
+    ```py
+    from keras_cv_attention_models import plot_func
+    hists = ['checkpoints/text_llama2_15m_tensorflow_hist.json', 'checkpoints/text_llama2_15m_torch_hist.json']
+    plot_func.plot_hists(hists, addition_plots=['val_loss', 'lr'], skip_first=3)
+    ```
+    ![text_tf_torch](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/0fc3dd08-bb20-47be-9267-d9cc35fba4c0)
 ## Visualizing
   - [Visualizing](keras_cv_attention_models/visualizing) is for visualizing convnet filters or attention map scores.
   - **make_and_apply_gradcam_heatmap** is for Grad-CAM class activation visualization.

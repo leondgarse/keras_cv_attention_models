@@ -1,5 +1,5 @@
 from keras_cv_attention_models import backend
-from keras_cv_attention_models.backend import layers, models, functional, image_data_format
+from keras_cv_attention_models.backend import layers, models, functional, initializers, image_data_format
 from keras_cv_attention_models.models import register_model
 from keras_cv_attention_models.attention_layers import (
     activation_by_name,
@@ -8,7 +8,7 @@ from keras_cv_attention_models.attention_layers import (
     depthwise_conv2d_no_bias,
     drop_block,
     layer_norm,
-    HeadInitializer,
+    # HeadInitializer,
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
@@ -153,7 +153,7 @@ def ConvNeXt(
         if output_num_filters > 0:
             nn = layers.Dense(output_num_filters, use_bias=True, name="head_pre_dense")(nn)
             nn = activation_by_name(nn, activation=activation, name="head_pre_")
-        head_init = HeadInitializer(scale=head_init_scale)
+        head_init = initializers.TruncatedNormal(stddev=0.02)  # HeadInitializer(scale=head_init_scale)
         nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, name="predictions")(nn)
 
     model = models.Model(inputs, nn, name=model_name)

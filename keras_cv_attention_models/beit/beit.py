@@ -520,7 +520,7 @@ def Beit(
 
     """ Output """
     if num_classes > 0:
-        head_init = HeadInitializer()
+        head_init = initializers.TruncatedNormal(stddev=0.02)  # HeadInitializer() -> Unknown initializer 'HeadInitializer' when loading [???]
         nn = layers.Dense(
             num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=head_init, name="predictions"
         )(nn)

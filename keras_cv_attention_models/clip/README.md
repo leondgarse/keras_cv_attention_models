@@ -1,6 +1,14 @@
 # ___[Experimental] CLIP___
 ***
 
+## Related
+  - [Official, Github openai/CLIP](https://github.com/openai/CLIP)
+  - [Communiy, used by timm, Github mlfoundations/open_clip](https://github.com/mlfoundations/open_clip)
+  - [Paper 2103.00020 Learning Transferable Visual Models From Natural Language Supervision](https://arxiv.org/abs/2103.00020)
+  - [Paper 2111.02114 LAION-400M: Open Dataset of CLIP-Filtered 400 Million Image-Text Pairs](https://arxiv.org/abs/2111.02114)
+  - [Github taki0112/CLIP-Tensorflow](https://github.com/taki0112/CLIP-Tensorflow)
+  - [Github lucidrains/x-clip](https://github.com/lucidrains/x-clip)
+  - [Multilingual CLIP with Huggingface + PyTorch Lightning](https://sachinruk.github.io/blog/pytorch/pytorch%20lightning/loss%20function/gpu/2021/03/07/CLIP.html)
 # Requirments
   ```sh
   pip install ftfy regex
@@ -12,35 +20,69 @@
   !wget https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/coco_dog_cat.tar.gz
   !mkdir -p datasets
   !mv coco_dog_cat.tar.gz datasets && cd datasets && tar xf coco_dog_cat.tar.gz && cd -
-  !head datasets/coco_dog_cat/captions.json
-  # {
-  #   "train": [
-  #     {"image": "train2017/images/000000000042.jpg", "caption": "This wire metal rack holds several pairs of shoes and sandals"},
-  #     {"image": "train2017/images/000000000042.jpg", "caption": "A dog sleeping on a show rack in the shoes."},
+  !head datasets/coco_dog_cat/captions.tsv
+  # base_path       .
+  # datasets/coco_dog_cat/train2017/images/000000014285.jpg A cat sleeping on a bed with a small TV in a bedroom.
+  # datasets/coco_dog_cat/train2017/images/000000252203.jpg A couple of dogs sitting in the front seats of a car.
+  # datasets/coco_dog_cat/train2017/images/000000159075.jpg A dog standing on top of a pickup truck
   ```
-- **Train using `train_script.py`** by specifying `--text_model` a text model and `--data_name` a caption dataset.
+- **Train using `clip_train_script.py on COCO captions`** Default `--data_path` is a testing one `datasets/coco_dog_cat/captions.tsv`.
   ```sh
-  CUDA_VISIBLE_DEVICES=1 python clip_train_script.py -m EVA02SmallPatch14 --text_model LLaMA2_42M \
-  -d datasets/coco_dog_cat/captions.tsv -i 160 -b 128 --text_model_pretrained None
+  CUDA_VISIBLE_DEVICES=1 TF_XLA_FLAGS="--tf_xla_auto_jit=2" python clip_train_script.py -i 160 -b 128 \
+  --text_model_pretrained None --data_path coco_captions.tsv
   ```
-- **Reload model and run prediction after training**
+  **Train Using PyTorch backend by setting `KECAM_BACKEND='torch'`**
+  ```sh
+  KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python clip_train_script.py -i 160 -b 128 \
+  --text_model_pretrained None --data_path coco_captions.tsv
+  ```
+  ![clip_torch_tf](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/86baa514-0d3b-4e98-8b53-51dfe847369c)
+- **Reload model and run prediction after training** For TF backend h5 file, model can be directly reloaded.
   ```py
   from keras_cv_attention_models import clip, test_images
+  from keras_cv_attention_models.backend import numpy_image_resize, functional
 
   caption_tokenizer = clip.GPT2Tokenizer()
   model = keras.models.load_model('checkpoints/clip_eva02_small_patch14_llama2_42m_tensorflow_latest.h5', compile=False)
-  image_model, text_model = clip.split_to_image_text_model(model)
-  run_prediction = clip.RunPrediction(image_model, text_model, caption_tokenizer)
 
   """ Run prediction """
+  formater = "a {}"
+  text_labels = [formater.format(ii) for ii in ["person", "cat", "dog", "dog and a cat"]]
+  text_inputs = np.stack([caption_tokenizer(ii).astype(int64) for ii in text_labels])
+
+  image_size = 160
   images = [test_images.cat(), test_images.dog(), test_images.dog_cat()]
-  similarity = run_prediction(images, ['cat', 'dog', 'person', 'computer'])
-  ax = plot_func.show_images_texts_similarity(images, run_prediction.text_labels, similarity)
+  image_inputs = np.stack([numpy_image_resize(ii / 255, [image_size, image_size], method="bicubic", antialias=True) for ii in images])
+  mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]  # Using imagenet one
+  image_inputs = ((image_inputs - mean) / std).astype("float32")
+  print(f"{text_inputs.shape = }, {image_inputs.shape = }, {image_inputs.min() = }, {image_inputs.max() = }")
+  # text_inputs.shape = (4, 77), image_inputs.shape = (3, 160, 160, 3), image_inputs.min() = -2.144696, image_inputs.max() = 2.70702
+
+  similarity = functional.softmax(1 * model([image_inputs, text_inputs]), axis=-1).numpy()
+  ax = plot_func.show_images_texts_similarity(images, text_labels, similarity)
   ```
-- **Train Using PyTorch backend by setting `KECAM_BACKEND='torch'`** Note: saved `h5` is weights only, not supporting `keras.models.load_model`
-  ```sh
-  KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python clip_train_script.py -m EVA02SmallPatch14 --text_model LLaMA2_42M \
-  -d datasets/coco_dog_cat/captions.tsv -i 160 -b 128 --text_model_pretrained None
+  ![clip_out](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/48231386-8fd3-4a42-b67c-9675e4e7c25a)
+- **Re-build model and load weights after training** This works for both TF and Torch, and a help function `run_prediction` is added to `model`.
+  ```py
+  import os
+  os.environ["KECAM_BACKEND"] = "torch"
+
+  import torch, kecam
+
+  latents_dim = 512
+  caption_tokenizer = kecam.clip.GPT2Tokenizer()
+  image_model = kecam.models.EVA02SmallPatch14(pretrained=None, input_shape=(3, 160, 160), num_classes=latents_dim, classifier_activation=None)
+  text_model = kecam.models.LLaMA2_42M(vocab_size=caption_tokenizer.vocab_size, pretrained=None, include_top=False)
+  model, image_model, text_model = kecam.clip.convert_to_clip_model(image_model, text_model, caption_tokenizer)
+
+  ss = torch.load("checkpoints/clip_eva02_small_patch14_llama2_42m_torch_latest.pt", map_location=torch.device("cpu"))
+  model.load_state_dict(ss["state_dict"])
+
+  """ Run prediction """
+  images = [kecam.test_images.cat(), kecam.test_images.dog(), kecam.test_images.dog_cat()]
+  # model.run_prediction.reset(softmax_scale=100, formatter="a {}", rescale_mode="torch")
+  similarity = model.run_prediction(images, ["person", "cat", "dog", "dog and a cat"])
+  ax = plot_func.show_images_texts_similarity(images, model.run_prediction.text_labels, similarity)
   ```
 ## Single tower training
 - **Specifying `--text_model image_model`** for creating text_model from image_model, using shared model blocks.
@@ -65,10 +107,4 @@
   # model.input_shape = [(None, 240, 240, 3), (None, None)], model.output_shape = (None, None)
   print(f"{model([tf.ones([4, 240, 240, 3]), tf.ones([4, 77])]).shape = }")
   # model([tf.ones([4, 240, 240, 3]), tf.ones([4, 77])]).shape = TensorShape([4, 4])
-  ```
-  ```py
-  """ Run prediction """
-  images = [test_images.cat(), test_images.dog(), test_images.dog_cat()]
-  similarity = model.run_prediction(images, ['cat', 'dog', 'person', 'computer'])
-  ax = plot_func.show_images_texts_similarity(images, model.run_prediction.text_labels, similarity)
   ```

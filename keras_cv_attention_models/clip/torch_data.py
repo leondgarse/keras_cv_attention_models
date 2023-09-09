@@ -34,7 +34,8 @@ class CaptionDataset(Dataset):
         self.images, self.captions, self.tokenizer = images, captions, tokenizer
         self.context_length = self.tokenizer.context_length
 
-        self.mean, self.std = (0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)
+        # self.mean, self.std = (0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)  # value from openai/CLIP
+        self.mean, self.std = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
         interpolation = InterpolationMode.BICUBIC
         image_size = image_size if isinstance(image_size, (list, tuple)) else (image_size, image_size)
         self.transforms = Compose(

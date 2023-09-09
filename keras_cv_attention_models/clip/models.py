@@ -3,8 +3,12 @@ from keras_cv_attention_models.backend import layers, models, functional, initia
 from keras_cv_attention_models import attention_layers
 
 
-def text_model_index_header(text_input, text_output, latents_dim):
-    eol_index = functional.argmax(functional.pad(text_input[:, 1:], [[0, 0], [1, 0]]), axis=-1)  # Skip <|startoftext|> no matter what it is
+def text_model_index_header(text_input, text_output, latents_dim, eot_token=None):
+    if eot_token is None:
+        eol_index = functional.argmax(functional.pad(text_input[:, 1:], [[0, 0], [1, 0]]), axis=-1)  # Skip <|startoftext|> no matter what it is
+    else:
+        assert eot_token != 0, "eot_token is 0, conflict with the padding value"
+        eol_index = functional.argmax(functional.pad(text_input[:, 1:], [[0, 0], [1, 0]]) == eot_token, axis=-1)
     text_output = functional.gather_nd(text_output, functional.expand_dims(eol_index, axis=-1), batch_dims=1)
     kernel_initializer = initializers.RandomNormal(stddev=text_output.shape[-1] ** -0.5)
     text_output = layers.Dense(latents_dim, use_bias=False, kernel_initializer=kernel_initializer, dtype="float32", name="text_latents")(text_output)
@@ -31,7 +35,9 @@ def convert_to_clip_model(image_model, text_model=None, caption_tokenizer=None, 
 
     # image_output = layers.Dense(latents_dim, use_bias=False, dtype="float32", name="image_latents")(image_output)
     if text_model.output_names[0] != "text_latents":
-        text_output = text_model_index_header(text_input, text_output, latents_dim=image_output.shape[-1])
+        # Use None for argmax as eot position for GPT2Tokenizer and SimpleTokenizer. For SentencePieceTokenizer eot==2, pass the actual value
+        eot_token = None if caption_tokenizer is not None and caption_tokenizer.eot_token >= caption_tokenizer.vocab_size - 2 else caption_tokenizer.eot_token
+        text_output = text_model_index_header(text_input, text_output, latents_dim=image_output.shape[-1], eot_token=eot_token)
         text_model = models.Model(text_input, text_output, name=text_model.name)
 
     # Return similarity directly for avoiding re-calculating in metrics again
@@ -87,11 +93,11 @@ def build_text_model_from_image_model(image_model, vocab_size=50257, text_dropou
 
 
 class RunPrediction:
-    def __init__(self, image_model, text_model, caption_tokenizer, softmax_scale=10, formatter="a photo of a {}", rescale_mode="tf"):
+    def __init__(self, image_model, text_model, caption_tokenizer, softmax_scale=100, formatter="a {}", rescale_mode="torch"):
         self.image_model, self.text_model, self.caption_tokenizer = image_model, text_model, caption_tokenizer
         self.reset(softmax_scale=softmax_scale, formatter=formatter, rescale_mode=rescale_mode)
 
-    def reset(self, softmax_scale=10, formatter="a photo of a {}", rescale_mode="tf"):
+    def reset(self, softmax_scale=100, formatter="a {}", rescale_mode="torch"):
         self.formatter, self.text_labels, self.text_features = formatter, None, None
         self.softmax_scale = softmax_scale
         self.init_image_model_preprocess_input(rescale_mode)

@@ -16,6 +16,9 @@ def init_mean_std_by_rescale_mode(rescale_mode):
         mean, std = 128.0, 128.0
     elif rescale_mode == "raw01":
         mean, std = 0, 255.0  # [0, 255] -> [0, 1]
+    elif rescale_mode == "clip":  # value from openai/CLIP
+        mean = tf.constant([0.48145466, 0.4578275, 0.40821073]) * 255.0
+        std = tf.constant([0.26862954, 0.26130258, 0.27577711]) * 255.0
     else:
         mean, std = 0, 1  # raw inputs [0, 255]
     return mean, std

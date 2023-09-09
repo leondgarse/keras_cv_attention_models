@@ -55,7 +55,7 @@ def parse_arguments():
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-d", "--data_path", type=str, default="datasets/coco_dog_cat/captions.tsv", help="tsv format dataset path")
-    parser.add_argument("-b", "--batch_size", type=int, default=32, help="Batch size")
+    parser.add_argument("-b", "--batch_size", type=int, default=128, help="Batch size")
     parser.add_argument("-e", "--epochs", type=int, default=30, help="Total epochs")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
     parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history")
@@ -65,9 +65,9 @@ def parse_arguments():
 
     model = parser.add_argument_group("Model arguments")
     model.add_argument("-i", "--input_shape", type=int, default=224, help="Image model input shape")
-    model.add_argument("-m", "--image_model", type=str, default="FlexiViTBase", help="Model name in format [sub_dir].[model_name] like beit.BeitBasePatch16")
+    model.add_argument("-m", "--image_model", type=str, default="EVA02SmallPatch14", help="Model name in format [sub_dir].[model_name] like beit.FlexiViTBase")
     model.add_argument("--image_model_pretrained", type=str, default=None, help="If build model with pretrained weights. Set 'default' for model preset value")
-    model.add_argument("--text_model", type=str, default="GPT2_Base", help="model from this repo `[sub_dir].[model_name]` like llama2.LLaMA2_42M")
+    model.add_argument("--text_model", type=str, default="LLaMA2_42M", help="model from this repo `[sub_dir].[model_name]` like gpt2.GPT2_Base")
     model.add_argument(
         "--text_model_pretrained", type=str, default="default", help="Text model pretrained weight, default 'default' for using model preset value"
     )
@@ -75,12 +75,12 @@ def parse_arguments():
         "--tokenizer",
         type=str,
         default="GPT2Tokenizer",
-        help="One of ['GPT2Tokenizer', 'SimpleTokenizer'], or tiktoken one ['gpt2', 'r50k_base', 'p50k_base', 'cl100k_base']",
+        help="One of ['GPT2Tokenizer', 'SimpleTokenizer', 'SentencePieceTokenizer'], or tiktoken one ['gpt2', 'r50k_base', 'p50k_base', 'cl100k_base']",
     )
     model.add_argument("--latents_dim", type=int, default=512, help="hidden dimension of `image_latents` and `text_latents` before calculating similarity")
 
     lr_wd = parser.add_argument_group("Learning rate, weight decay arguments")
-    lr_wd.add_argument("--lr", type=float, default=1e-3, help="Learning rate ")
+    lr_wd.add_argument("--lr_base_512", type=float, default=1e-3, help="Learning rate for batch_size=512, lr = lr_base_512 * 512 / batch_size")
     lr_wd.add_argument("--lr_warmup_steps", type=int, default=3, help="Learning rate warmup epochs")
     lr_wd.add_argument("--weight_decay", type=float, default=0.2, help="Weight decay")
 
@@ -127,6 +127,7 @@ if __name__ == "__main__":
             model = kecam.backend.models.load_model(args.restore_path)
         print(">>>> basic_save_name:", basic_save_name)
 
+        lr = args.lr_base_512 * args.batch_size / 512
         if kecam.backend.is_torch_backend:
             # Always 0, no matter CUDA_VISIBLE_DEVICES
             device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) > 0 else torch.device("cpu")
@@ -134,10 +135,10 @@ if __name__ == "__main__":
             if hasattr(torch, "compile") and torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 6:
                 print(">>>> Calling torch.compile")
                 model = torch.compile(model)
-            optimizer = build_torch_optimizer(model, lr=args.lr, weight_decay=args.weight_decay)
+            optimizer = build_torch_optimizer(model, lr=lr, weight_decay=args.weight_decay)
             model.compile(optimizer=optimizer, loss=clip_loss, metrics=["acc"])
         elif model.optimizer is None:
-            optimizer = build_tf_optimizer(lr=args.lr, weight_decay=args.weight_decay)
+            optimizer = build_tf_optimizer(lr=lr, weight_decay=args.weight_decay)
             model.compile(optimizer=optimizer, loss=clip_loss, metrics=["acc"])
 
         if args.restore_path is not None and kecam.backend.is_torch_backend:
@@ -145,13 +146,13 @@ if __name__ == "__main__":
             model.load(args.restore_path)  # Reload wights after compile
 
         # callbacks = [
-        #     kecam.imagenet.callbacks.CosineLrScheduler(args.lr, args.epochs, steps_per_epoch=len(train_dataset), warmup_steps=args.lr_warmup_steps),
+        #     kecam.imagenet.callbacks.CosineLrScheduler(lr, args.epochs, steps_per_epoch=len(train_dataset), warmup_steps=args.lr_warmup_steps),
         #     kecam.imagenet.callbacks.MyCheckpoint(basic_save_name=basic_save_name, save_path="checkpoints"),
         #     kecam.imagenet.callbacks.MyHistory(initial_file=os.path.join("checkpoints", basic_save_name + "_hist.json")),
         # ]
         # model.fit(train_dataset, epochs=args.epochs, validation_data=test_dataset, callbacks=callbacks)
 
-        lr_scheduler = kecam.imagenet.callbacks.CosineLrScheduler(args.lr, args.epochs, steps_per_epoch=len(train_dataset), warmup_steps=args.lr_warmup_steps)
+        lr_scheduler = kecam.imagenet.callbacks.CosineLrScheduler(lr, args.epochs, steps_per_epoch=len(train_dataset), warmup_steps=args.lr_warmup_steps)
         other_kwargs = {}
         latest_save, hist = kecam.imagenet.train_func.train(
             compiled_model=model,

@@ -8,7 +8,6 @@ Paper [PDF 2303.03667 Run, Don’t Walk: Chasing Higher FLOPS for Faster Neural 
 __tail_doc__ = """  window_ratios: window split ratio. Each stack will calculate `window_size = (height // window_ratio, width // window_ratio)` .
   layer_scale: layer scale init value. Default `-1` means not applying, any value `>=0` will add a scale value for each block output.
       [Going deeper with Image Transformers](https://arxiv.org/pdf/2103.17239.pdf).
-  head_init_scale: init head layer scale value if create model from scratch or fine-tune. Default `1`.
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   activation: activation used in whole model, default `gelu`.
