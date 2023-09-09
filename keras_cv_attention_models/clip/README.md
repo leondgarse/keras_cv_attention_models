@@ -26,6 +26,12 @@
   # datasets/coco_dog_cat/train2017/images/000000252203.jpg A couple of dogs sitting in the front seats of a car.
   # datasets/coco_dog_cat/train2017/images/000000159075.jpg A dog standing on top of a pickup truck
   ```
+  Creating dataset using COCO captions
+  ```sh
+  DATA_PATH=/datasets/coco/2017
+  python custom_dataset_script.py --train_images $DATA_PATH/train2017 --test_images $DATA_PATH/val2017 \
+  --train_captions $DATA_PATH/annotations/captions_train2017.json --test_captions $DATA_PATH/annotations/captions_val2017.json
+  ```
 - **Train using `clip_train_script.py on COCO captions`** Default `--data_path` is a testing one `datasets/coco_dog_cat/captions.tsv`.
   ```sh
   CUDA_VISIBLE_DEVICES=1 TF_XLA_FLAGS="--tf_xla_auto_jit=2" python clip_train_script.py -i 160 -b 128 \
@@ -39,7 +45,7 @@
   ![clip_torch_tf](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/86baa514-0d3b-4e98-8b53-51dfe847369c)
 - **Reload model and run prediction after training** For TF backend h5 file, model can be directly reloaded.
   ```py
-  from keras_cv_attention_models import clip, test_images
+  from keras_cv_attention_models import clip, test_images, plot_func
   from keras_cv_attention_models.backend import numpy_image_resize, functional
 
   caption_tokenizer = clip.GPT2Tokenizer()
@@ -48,7 +54,7 @@
   """ Run prediction """
   formater = "a {}"
   text_labels = [formater.format(ii) for ii in ["person", "cat", "dog", "dog and a cat"]]
-  text_inputs = np.stack([caption_tokenizer(ii).astype(int64) for ii in text_labels])
+  text_inputs = np.stack([caption_tokenizer(ii).astype("int64") for ii in text_labels])
 
   image_size = 160
   images = [test_images.cat(), test_images.dog(), test_images.dog_cat()]
@@ -61,7 +67,7 @@
   similarity = functional.softmax(1 * model([image_inputs, text_inputs]), axis=-1).numpy()
   ax = plot_func.show_images_texts_similarity(images, text_labels, similarity)
   ```
-  ![clip_out](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/48231386-8fd3-4a42-b67c-9675e4e7c25a)
+  ![clip_out](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/ce2cac67-517d-43ee-bf75-8b2d90932bf0)
 - **Re-build model and load weights after training** This works for both TF and Torch, and a help function `run_prediction` is added to `model`.
   ```py
   import os
@@ -81,14 +87,15 @@
   """ Run prediction """
   images = [kecam.test_images.cat(), kecam.test_images.dog(), kecam.test_images.dog_cat()]
   # model.run_prediction.reset(softmax_scale=100, formatter="a {}", rescale_mode="torch")
-  similarity = model.run_prediction(images, ["person", "cat", "dog", "dog and a cat"])
+  similarity = model.run_prediction(images, ["dog and a cat", "dog", "cat", "person"])
   ax = plot_func.show_images_texts_similarity(images, model.run_prediction.text_labels, similarity)
   ```
+  ![clip_out_2](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/340a21e2-6047-460d-a022-49f8ef0bc66a)
 ## Single tower training
-- **Specifying `--text_model image_model`** for creating text_model from image_model, using shared model blocks.
+- **Specifying `--text_model image_model`** for creating text_model from image_model, using shared model blocks. **Also works for PyTorch backend**.
   ```sh
   CUDA_VISIBLE_DEVICES=1 python clip_train_script.py -m FlexiViTBase --text_model image_model \
-  -d datasets/coco_dog_cat/captions.tsv -i 160 -b 128
+  -d datasets/coco_dog_cat/captions.tsv -i 160 -b 64
   ```
 - **Model built detail**
   - `image_model` is firstly split to 3 parts `head_model`/ `body_model` / `tail_model`, by if `block` in layer name, where `body_model` is the shared part with `text_model`.

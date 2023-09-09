@@ -128,6 +128,7 @@ if __name__ == "__main__":
         print(">>>> basic_save_name:", basic_save_name)
 
         lr = args.lr_base_512 * args.batch_size / 512
+        print(">>>> lr:", lr)
         if kecam.backend.is_torch_backend:
             # Always 0, no matter CUDA_VISIBLE_DEVICES
             device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) > 0 else torch.device("cpu")

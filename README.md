@@ -454,13 +454,13 @@
   - Currently it's only a simple one modified from [Github karpathy/nanoGPT](https://github.com/karpathy/nanoGPT).
   - **Train using `text_train_script.py`** As dataset is randomly sampled, needs to specify `steps_per_epoch`
     ```sh
-    CUDA_VISIBLE_DEVICES=1 TF_XLA_FLAGS="--tf_xla_auto_jit=2" python text_train_script.py -m LLaMA2_15M --batch_size 8 \
-    --steps_per_epoch 8000 --tokenizer SentencePieceTokenizer
+    CUDA_VISIBLE_DEVICES=1 TF_XLA_FLAGS="--tf_xla_auto_jit=2" python text_train_script.py -m LLaMA2_15M \
+    --steps_per_epoch 8000 --batch_size 8 --tokenizer SentencePieceTokenizer
     ```
     **Train Using PyTorch backend by setting `KECAM_BACKEND='torch'`**
     ```sh
-    KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python text_train_script.py -m LLaMA2_15M --batch_size 8 \
-    --steps_per_epoch 8000 --tokenizer SentencePieceTokenizer
+    KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python text_train_script.py -m LLaMA2_15M \
+    --steps_per_epoch 8000 --batch_size 8 --tokenizer SentencePieceTokenizer
     ```
     **Plotting**
     ```py

@@ -36,7 +36,7 @@ def convert_to_clip_model(image_model, text_model=None, caption_tokenizer=None, 
     # image_output = layers.Dense(latents_dim, use_bias=False, dtype="float32", name="image_latents")(image_output)
     if text_model.output_names[0] != "text_latents":
         # Use None for argmax as eot position for GPT2Tokenizer and SimpleTokenizer. For SentencePieceTokenizer eot==2, pass the actual value
-        eot_token = None if caption_tokenizer is not None and caption_tokenizer.eot_token >= caption_tokenizer.vocab_size - 2 else caption_tokenizer.eot_token
+        eot_token = None if caption_tokenizer is None or caption_tokenizer.eot_token >= caption_tokenizer.vocab_size - 2 else caption_tokenizer.eot_token
         text_output = text_model_index_header(text_input, text_output, latents_dim=image_output.shape[-1], eot_token=eot_token)
         text_model = models.Model(text_input, text_output, name=text_model.name)
 
@@ -88,7 +88,7 @@ def build_text_model_from_image_model(image_model, vocab_size=50257, text_dropou
 
     text_body_output = body_model(text_head_output)
     text_output = text_model_index_header(text_input, text_body_output, latents_dim=image_model.outputs[0].shape[-1])
-    text_model = models.Model(text_input, text_output)
+    text_model = models.Model(text_input, text_output, name=image_model.name + "_text")
     return image_model, text_model
 
 
