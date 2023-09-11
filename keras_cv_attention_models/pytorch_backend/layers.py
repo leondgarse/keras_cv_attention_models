@@ -697,7 +697,7 @@ class Conv(_BaseConvPool):
         use_bias=True,
         groups=1,
         kernel_initializer=None,
-        bias_initializer=None,
+        bias_initializer="zeros",
         **kwargs,
     ):
         super().__init__(kernel_size=kernel_size, strides=strides, padding=padding, dilation_rate=dilation_rate, **kwargs)
@@ -791,7 +791,7 @@ class ConvTranspose(_BaseConvPool):
         dilation_rate=1,
         use_bias=True,
         kernel_initializer=None,
-        bias_initializer=None,
+        bias_initializer="zeros",
         **kwargs,
     ):
         super().__init__(kernel_size=kernel_size, strides=strides, padding=padding, dilation_rate=dilation_rate, **kwargs)
@@ -925,7 +925,7 @@ class DepthwiseConv2D(Conv):
 
 
 class Dense(Layer):
-    def __init__(self, units, activation=None, use_bias=True, axis=-1, kernel_initializer=None, bias_initializer=None, **kwargs):
+    def __init__(self, units, activation=None, use_bias=True, axis=-1, kernel_initializer=None, bias_initializer="zeros", **kwargs):
         self.units, self.activation, self.use_bias, self.axis = int(units), activation, use_bias, axis
         self.kernel_initializer, self.bias_initializer = kernel_initializer, bias_initializer
         super().__init__(**kwargs)
@@ -1126,7 +1126,7 @@ class SeparableConv2D(Conv):
         dilation_rate=1,
         use_bias=True,
         pointwise_initializer=None,
-        bias_initializer=None,
+        bias_initializer="zeros",
         **kwargs,
     ):
         groups = 1

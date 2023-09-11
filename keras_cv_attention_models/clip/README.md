@@ -44,7 +44,7 @@
   KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python clip_train_script.py -i 160 -b 128 \
   --text_model_pretrained None --data_path coco_captions.tsv
   ```
-  ![clip_torch_tf](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/86baa514-0d3b-4e98-8b53-51dfe847369c)
+  ![clip_torch_tf](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/4cbc22e4-907d-4735-81a0-41e0fc17ebc5)
 - **Reload model and run prediction after training** For TF backend h5 file, model can be directly reloaded.
   ```py
   from keras_cv_attention_models import clip, test_images, plot_func
@@ -92,7 +92,7 @@
   similarity = model.run_prediction(images, ["dog and a cat", "dog", "cat", "person"])
   ax = plot_func.show_images_texts_similarity(images, model.run_prediction.text_labels, similarity)
   ```
-  ![clip_out_2](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/340a21e2-6047-460d-a022-49f8ef0bc66a)
+  ![clip_out_3](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/a75ee754-536c-487b-a047-c676ba025ae3)
 ## Single tower training
 - **Specifying `--text_model image_model`** for creating text_model from image_model, using shared model blocks. **Also works for PyTorch backend**.
   ```sh
