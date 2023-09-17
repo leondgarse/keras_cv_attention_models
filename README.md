@@ -487,8 +487,9 @@
     ```
     ![](https://user-images.githubusercontent.com/5744524/147209511-f5194d73-9e4c-457e-a763-45a4025f452b.png)
 ## TFLite Conversion
-  - Currently `TFLite` not supporting `Conv2D with groups>1` / `gelu` / `tf.image.extract_patches` / `tf.transpose with len(perm) > 4`. Some operations could be supported in `tf-nightly` version. May try if encountering issue. More discussion can be found [Converting a trained keras CV attention model to TFLite #17](https://github.com/leondgarse/keras_cv_attention_models/discussions/17). Some speed testing results can be found [How to speed up inference on a quantized model #44](https://github.com/leondgarse/keras_cv_attention_models/discussions/44#discussioncomment-2348910).
-  - `tf.nn.gelu(inputs, approximate=True)` activation works for TFLite. Define model with `activation="gelu/approximate"` or `activation="gelu/app"` will set `approximate=True` for `gelu`. **Should better decide before training, or there may be accuracy loss**.
+  - Currently `TFLite` not supporting `tf.image.extract_patches` / `tf.transpose with len(perm) > 4`. Some operations could be supported in latest or `tf-nightly` version, like previously not supported `gelu` / `Conv2D with groups>1` are working now. May try if encountering issue.
+  - More discussion can be found [Converting a trained keras CV attention model to TFLite #17](https://github.com/leondgarse/keras_cv_attention_models/discussions/17). Some speed testing results can be found [How to speed up inference on a quantized model #44](https://github.com/leondgarse/keras_cv_attention_models/discussions/44#discussioncomment-2348910).
+- Functions like `model_surgery.convert_groups_conv2d_2_split_conv2d` and `model_surgery.convert_gelu_to_approximate` are not needed using up-to-date TF version.
   - Not supporting `VOLO` / `HaloNet` models converting, cause they need a longer `tf.transpose` `perm`.
   - **model_surgery.convert_dense_to_conv** converts all `Dense` layer with 3D / 4D inputs to `Conv1D` / `Conv2D`, as currently TFLIte xnnpack not supporting it.
     ```py
@@ -503,22 +504,6 @@
     | ----------------- | ------------------------- | ------------------------- | ------------------------- |
     | MobileViT_S       | Inference (avg) 215371 us | Inference (avg) 163836 us | Inference (avg) 163817 us |
     | EfficientFormerL1 | Inference (avg) 126829 us | Inference (avg) 107053 us | Inference (avg) 107132 us |
-  - **model_surgery.convert_groups_conv2d_2_split_conv2d** converts model `Conv2D with groups>1` layers to `SplitConv` using `split -> conv -> concat`:
-    ```py
-    from keras_cv_attention_models import regnet, model_surgery
-    from keras_cv_attention_models.imagenet import eval_func
-
-    bb = regnet.RegNetZD32()
-    mm = model_surgery.convert_groups_conv2d_2_split_conv2d(bb)  # converts all `Conv2D` using `groups` to `SplitConv2D`
-    test_inputs = np.random.uniform(size=[1, *mm.input_shape[1:]])
-    print(np.allclose(mm(test_inputs), bb(test_inputs)))
-    # True
-
-    converter = tf.lite.TFLiteConverter.from_keras_model(mm)
-    open(mm.name + ".tflite", "wb").write(converter.convert())
-    print(np.allclose(mm(test_inputs), eval_func.TFLiteModelInterf(mm.name + '.tflite')(test_inputs), atol=1e-7))
-    # True
-    ```
   - **model_surgery.convert_extract_patches_to_conv** converts `tf.image.extract_patches` to a `Conv2D` version:
     ```py
     from keras_cv_attention_models import cotnet, model_surgery

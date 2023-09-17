@@ -1023,8 +1023,8 @@ def convert_dense_to_conv(model):
 
 def prepare_for_tflite(model):
     model = convert_dense_to_conv(model)
-    model = convert_groups_conv2d_2_split_conv2d(model)
-    model = convert_gelu_to_approximate(model)
+    # model = convert_groups_conv2d_2_split_conv2d(model)
+    # model = convert_gelu_to_approximate(model)
     model = convert_extract_patches_to_conv(model)
     return model
 
