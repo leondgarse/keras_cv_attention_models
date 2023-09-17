@@ -489,9 +489,9 @@
 ## TFLite Conversion
   - Currently `TFLite` not supporting `tf.image.extract_patches` / `tf.transpose with len(perm) > 4`. Some operations could be supported in latest or `tf-nightly` version, like previously not supported `gelu` / `Conv2D with groups>1` are working now. May try if encountering issue.
   - More discussion can be found [Converting a trained keras CV attention model to TFLite #17](https://github.com/leondgarse/keras_cv_attention_models/discussions/17). Some speed testing results can be found [How to speed up inference on a quantized model #44](https://github.com/leondgarse/keras_cv_attention_models/discussions/44#discussioncomment-2348910).
-- Functions like `model_surgery.convert_groups_conv2d_2_split_conv2d` and `model_surgery.convert_gelu_to_approximate` are not needed using up-to-date TF version.
+  - Functions like `model_surgery.convert_groups_conv2d_2_split_conv2d` and `model_surgery.convert_gelu_to_approximate` are not needed using up-to-date TF version.
   - Not supporting `VOLO` / `HaloNet` models converting, cause they need a longer `tf.transpose` `perm`.
-  - **model_surgery.convert_dense_to_conv** converts all `Dense` layer with 3D / 4D inputs to `Conv1D` / `Conv2D`, as currently TFLIte xnnpack not supporting it.
+  - **model_surgery.convert_dense_to_conv** converts all `Dense` layer with 3D / 4D inputs to `Conv1D` / `Conv2D`, as currently TFLite xnnpack not supporting it.
     ```py
     from keras_cv_attention_models import beit, model_surgery, efficientformer, mobilevit
 
