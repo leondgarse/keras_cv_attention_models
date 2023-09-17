@@ -1005,7 +1005,6 @@ def convert_dense_to_conv(model):
     >>>
     >>> converter = tf.lite.TFLiteConverter.from_keras_model(bb)
     >>> open(mm.name + ".tflite", "wb").write(converter.convert())
-
     """
     def __convert_dense_to_conv__(layer):
         if isinstance(layer, layers.Dense) and (len(layer.input_shape) == 3 or len(layer.input_shape) == 4):
@@ -1023,6 +1022,7 @@ def convert_dense_to_conv(model):
 
 
 def prepare_for_tflite(model):
+    model = convert_dense_to_conv(model)
     model = convert_groups_conv2d_2_split_conv2d(model)
     model = convert_gelu_to_approximate(model)
     model = convert_extract_patches_to_conv(model)
