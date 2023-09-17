@@ -991,6 +991,37 @@ def convert_gelu_and_extract_patches_for_tflite(model):
     return model
 
 
+def convert_dense_to_conv(model):
+    """ Convert Dense layers to Conv1D or Conv2D, as TFLite not supporting Dense layers with xnnpack [???]
+    >>> from keras_cv_attention_models import model_surgery
+
+    >>> inputs = keras.layers.Input([32, 32, 3])
+    >>> nn = keras.layers.Dense(12, use_bias=True)(inputs)
+    >>> mm = keras.models.Model(inputs, nn, name='test_dense')
+    >>>
+    >>> bb = model_surgery.convert_dense_to_conv(mm)
+    >>> inputs = tf.random.uniform([1, 32, 32, 3])
+    >>> np.allclose(mm(inputs), bb(inputs))
+    >>>
+    >>> converter = tf.lite.TFLiteConverter.from_keras_model(bb)
+    >>> open(mm.name + ".tflite", "wb").write(converter.convert())
+
+    """
+    def __convert_dense_to_conv__(layer):
+        if isinstance(layer, layers.Dense) and (len(layer.input_shape) == 3 or len(layer.input_shape) == 4):
+            target_layer = layers.Conv1D if len(layer.input_shape) == 3 else layers.Conv2D
+            bb = target_layer(layer.units, kernel_size=1, use_bias=layer.use_bias, name=layer.name + "conv")
+            bb(initializers.ones()([1, *layer.input_shape[1:]]))
+
+            wws = [np.reshape(ii, jj.shape) for ii, jj in zip(layer.get_weights(), bb.get_weights())]
+            bb.set_weights(wws)
+            return bb
+        return layer
+
+    input_tensors = layers.Input(model.input_shape[1:])
+    return models.clone_model(model, input_tensors=input_tensors, clone_function=__convert_dense_to_conv__)
+
+
 def prepare_for_tflite(model):
     model = convert_groups_conv2d_2_split_conv2d(model)
     model = convert_gelu_to_approximate(model)
