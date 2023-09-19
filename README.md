@@ -449,7 +449,7 @@
     KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python clip_train_script.py -i 160 -b 128 \
     --text_model_pretrained None --data_path coco_captions.tsv
     ```
-    ![clip_torch_tf](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/86baa514-0d3b-4e98-8b53-51dfe847369c)
+    ![clip_torch_tf](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/4cbc22e4-907d-4735-81a0-41e0fc17ebc5)
 ## Text training
   - Currently it's only a simple one modified from [Github karpathy/nanoGPT](https://github.com/karpathy/nanoGPT).
   - **Train using `text_train_script.py`** As dataset is randomly sampled, needs to specify `steps_per_epoch`

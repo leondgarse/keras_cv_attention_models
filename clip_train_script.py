@@ -91,6 +91,7 @@ def parse_arguments():
         args.basic_save_name = basic_save_name
     return args
 
+
 if __name__ == "__main__":
     args = parse_arguments()
     args.text_model_pretrained = None if args.text_model_pretrained.lower() == "none" else args.text_model_pretrained

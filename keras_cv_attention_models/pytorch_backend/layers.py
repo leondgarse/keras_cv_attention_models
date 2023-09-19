@@ -726,9 +726,6 @@ class Conv(_BaseConvPool):
         if self.use_bias and self.bias_initializer is not None:
             bias_initializer = getattr(initializers, self.bias_initializer)() if isinstance(self.bias_initializer, str) else self.bias_initializer
             module.bias.data = bias_initializer(list(module.bias.shape))
-
-
-
         return module
 
     def compute_output_shape(self, input_shape):

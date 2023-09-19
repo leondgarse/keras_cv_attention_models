@@ -1,0 +1,137 @@
+import numpy as np
+from keras_cv_attention_models import backend
+from keras_cv_attention_models.backend import layers, functional, models, initializers, image_data_format
+from keras_cv_attention_models.models import register_model
+from keras_cv_attention_models.attention_layers import (
+    activation_by_name,
+    conv2d_no_bias,
+    group_norm,
+    add_pre_post_process,
+    qkv_to_multi_head_channels_last_format,
+    scaled_dot_product_attention,
+)
+from keras_cv_attention_models.stable_diffusion.unet import res_block
+from keras_cv_attention_models.download_and_load import reload_model_weights
+
+LAYER_NORM_EPSILON = 1e-6
+
+PRETRAINED_DICT = {"": {"": ""}}
+
+
+def attention_block(inputs, num_attention_block=1, mlp_ratio=4, num_heads=4, head_dim=0, name=""):
+    input_channels = inputs.shape[-1 if backend.image_data_format() == "channels_last" else 1]
+    height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
+    qk_scale = 1.0 / (float(input_channels) ** 0.5)
+
+    nn = group_norm(inputs, name=name + "in_layers_")
+
+    qq = conv2d_no_bias(nn, input_channels, use_bias=True, name=name and name + "query_")
+    kk = conv2d_no_bias(nn, input_channels, use_bias=True, name=name and name + "key_")
+    vv = conv2d_no_bias(nn, input_channels, use_bias=True, name=name and name + "value_")
+
+    if image_data_format() == "channels_last":
+        qq = functional.reshape(qq, [-1, qq.shape[1] * qq.shape[2], qq.shape[-1]])
+        kk = functional.transpose(functional.reshape(kk, [-1, kk.shape[1] * kk.shape[2], kk.shape[-1]]), [0, 2, 1])
+        vv = functional.reshape(vv, [-1, vv.shape[1] * vv.shape[2], vv.shape[-1]])
+    else:
+        qq = functional.transpose(functional.reshape(qq, [-1, qq.shape[1], qq.shape[2] * qq.shape[3]]), [0, 2, 1])
+        kk = functional.reshape(kk, [-1, kk.shape[1], kk.shape[2] * kk.shape[3]])
+        vv = functional.reshape(vv, [-1, vv.shape[1], vv.shape[2] * vv.shape[3]])
+
+    attention_scores = (qq @ kk) * qk_scale
+    attention_scores = layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
+
+    if image_data_format() == "channels_last":
+        attention_output = attention_scores @ vv
+        output = functional.reshape(attention_output, [-1, height, width, input_channels])
+    else:
+        attention_output = vv @ functional.transpose(attention_scores, [0, 2, 1])
+        output = functional.reshape(attention_output, [-1, input_channels, height, width])
+    output = conv2d_no_bias(output, input_channels, use_bias=True, name=name and name + "out")
+    return layers.Add(name=name + "out")([output, inputs])
+
+
+def Encoder(
+    input_shape=(640, 640, 3),
+    num_blocks=[2, 2, 2, 2],
+    hidden_channels=128,
+    hidden_expands=[1, 2, 4, 4],
+    z_channels=4,
+    pretrained=None,
+    model_name="encoder",
+    kwargs=None,  # Not using, recieving parameter
+):
+    # Regard input_shape as force using original shape if len(input_shape) == 4,
+    # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
+    inputs = layers.Input(backend.align_input_shape_by_image_data_format(input_shape))
+    channel_axis = -1 if backend.image_data_format() == "channels_last" else 1
+    nn = conv2d_no_bias(inputs, hidden_channels, kernel_size=3, use_bias=True, padding="SAME", name="stem_")
+
+    """ Down blocks """
+    for stack_id, (num_block, hidden_expand) in enumerate(zip(num_blocks, hidden_expands)):
+        stack_name = "stack{}_".format(stack_id + 1)
+        out_channels = hidden_expand * hidden_channels
+        if stack_id > 0:
+            nn = conv2d_no_bias(nn, nn.shape[channel_axis], 3, 2, use_bias=True, padding="same", use_torch_padding=False, name=stack_name + "downsample_")
+
+        for block_id in range(num_block):
+            block_name = stack_name + "down_block{}_".format(block_id + 1)
+            nn = res_block(nn, time_embedding=None, out_channels=out_channels, name=block_name)
+    # print(f">>>> {[ii.shape for ii in skip_connections] = }")
+
+    """ Middle blocks """
+    nn = res_block(nn, time_embedding=None, name="middle_block_1_")
+    nn = attention_block(nn, name="middle_block_attn_")
+    nn = res_block(nn, time_embedding=None, name="middle_block_2_")
+
+    """ Output blocks """
+    nn = group_norm(nn, name="output_")
+    nn = activation_by_name(nn, activation="swish", name="output_")
+    outputs = conv2d_no_bias(nn, z_channels * 2, kernel_size=3, use_bias=True, padding="SAME", name="output_")
+
+    model = models.Model(inputs, outputs, name=model_name)
+    reload_model_weights(model, PRETRAINED_DICT, "stable_diffusion", pretrained)
+    return model
+
+
+def Decoder(
+    input_shape=(640, 640, 4),
+    num_blocks=[2, 2, 2, 2],
+    hidden_channels=128,
+    hidden_expands=[4, 4, 2, 1],
+    output_channels=3,
+    pretrained=None,
+    model_name="decoder",
+    kwargs=None,  # Not using, recieving parameter
+):
+    # Regard input_shape as force using original shape if len(input_shape) == 4,
+    # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
+    inputs = layers.Input(backend.align_input_shape_by_image_data_format(input_shape))
+    channel_axis = -1 if backend.image_data_format() == "channels_last" else 1
+    nn = conv2d_no_bias(inputs, hidden_channels * hidden_expands[0], kernel_size=3, use_bias=True, padding="SAME", name="stem_")
+
+    """ Middle blocks """
+    nn = res_block(nn, time_embedding=None, name="middle_block_1_")
+    nn = attention_block(nn, name="middle_block_attn_")
+    nn = res_block(nn, time_embedding=None, name="middle_block_2_")
+
+    """ Up blocks """
+    for stack_id, (num_block, hidden_expand) in enumerate(zip(num_blocks, hidden_expands)):
+        stack_name = "stack{}_".format(stack_id + 1)
+        out_channels = hidden_expand * hidden_channels
+        if stack_id > 0:
+            nn = layers.UpSampling2D(size=2, name=stack_name + "upsample_")(nn)
+            nn = conv2d_no_bias(nn, nn.shape[channel_axis], kernel_size=3, strides=1, use_bias=True, padding="same", name=stack_name + "upsample_")
+
+        for block_id in range(num_block + 1):
+            block_name = stack_name + "down_block{}_".format(block_id + 1)
+            nn = res_block(nn, time_embedding=None, out_channels=out_channels, name=block_name)
+
+    """ Output blocks """
+    nn = group_norm(nn, name="output_")
+    nn = activation_by_name(nn, activation="swish", name="output_")
+    outputs = conv2d_no_bias(nn, output_channels, kernel_size=3, use_bias=True, padding="SAME", name="output_")
+
+    model = models.Model(inputs, outputs, name=model_name)
+    reload_model_weights(model, PRETRAINED_DICT, "stable_diffusion", pretrained)
+    return model

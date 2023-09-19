@@ -488,7 +488,7 @@ def get_flops(model):
 def count_params(model):
     # "parameters" and "requires_grad" are for torch model, while "weights" and "trainable" for TF models
     total_params, trainable_params = 0, 0
-    for ii in (model.parameters() if hasattr(model, "parameters") else model.weights):
+    for ii in model.parameters() if hasattr(model, "parameters") else model.weights:
         cur_params = np.prod(ii.shape)
         total_params += cur_params
         trainable = ii.requires_grad if hasattr(ii, "requires_grad") else ii.trainable
@@ -992,7 +992,7 @@ def convert_gelu_and_extract_patches_for_tflite(model):
 
 
 def convert_dense_to_conv(model):
-    """ Convert Dense layers to Conv1D or Conv2D, as TFLite not supporting Dense layers with xnnpack [???]
+    """Convert Dense layers to Conv1D or Conv2D, as TFLite not supporting Dense layers with xnnpack [???]
     >>> from keras_cv_attention_models import model_surgery
 
     >>> inputs = keras.layers.Input([32, 32, 3])
@@ -1006,6 +1006,7 @@ def convert_dense_to_conv(model):
     >>> converter = tf.lite.TFLiteConverter.from_keras_model(bb)
     >>> open(mm.name + ".tflite", "wb").write(converter.convert())
     """
+
     def __convert_dense_to_conv__(layer):
         if isinstance(layer, layers.Dense) and (len(layer.input_shape) == 3 or len(layer.input_shape) == 4):
             target_layer = layers.Conv1D if len(layer.input_shape) == 3 else layers.Conv2D
@@ -1021,8 +1022,14 @@ def convert_dense_to_conv(model):
     return models.clone_model(model, input_tensors=input_tensors, clone_function=__convert_dense_to_conv__)
 
 
-def prepare_for_tflite(model):
-    model = convert_dense_to_conv(model)
+def convert_to_fixed_batch_size(model, batch_size=1):
+    """Fixing batch_size avoiding dynamic tensors, for supporting TFLite xnnpack. https://github.com/tensorflow/tensorflow/issues/60762"""
+    input_tensors = [layers.Input(ii.shape[1:], dtype=ii.dtype, name=ii.name, batch_size=batch_size) for ii in mm.inputs]
+    return models.clone_model(model, input_tensors=input_tensors)
+
+
+def prepare_for_tflite(model, batch_size=1):
+    model = convert_to_fixed_batch_size(model) if batch_size > 0 else convert_dense_to_conv(model)
     # model = convert_groups_conv2d_2_split_conv2d(model)
     # model = convert_gelu_to_approximate(model)
     model = convert_extract_patches_to_conv(model)

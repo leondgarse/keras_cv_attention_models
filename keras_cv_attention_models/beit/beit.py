@@ -471,7 +471,7 @@ def Beit(
     """ forward_embeddings """
     # torch conv kernel initializer: uniform(-1/sqrt(k), 1/sqrt(k)), where k = weight.size(1) * prod(*kernel_size)
     # Not using same one as torch, as current one works better in some tests, decreasing loss 3.7055 -> 3.4224 in the first epoch clip training for TF
-    kernel_initializer = None if backend.is_torch_backend else initializers.RandomUniform(minval=-1 / (patch_size ** 0.5), maxval=1 / (patch_size ** 0.5))
+    kernel_initializer = None if backend.is_torch_backend else initializers.RandomUniform(minval=-1 / (patch_size**0.5), maxval=1 / (patch_size**0.5))
     nn = PatchConv2DWithResampleWeights(
         embed_dim, patch_size, strides=patch_size, padding="valid", kernel_initializer=kernel_initializer, use_bias=use_patch_bias, name="stem_conv"
     )(inputs)
