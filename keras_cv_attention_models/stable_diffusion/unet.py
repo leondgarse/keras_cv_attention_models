@@ -125,7 +125,7 @@ def res_block(inputs, time_embedding=None, out_channels=-1, activation="swish", 
 
 
 def UNet(
-    input_shape=(640, 640, 4),
+    input_shape=(64, 64, 4),
     num_blocks=[2, 2, 2, 2],
     hidden_channels=320,
     hidden_expands=[1, 2, 4, 4],

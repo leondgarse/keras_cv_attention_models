@@ -1,6 +1,5 @@
 from keras_cv_attention_models.beit.beit import (
     Beit,
-    ViT,
     BeitBasePatch16,
     BeitLargePatch16,
     BeitV2BasePatch16,
@@ -15,6 +14,7 @@ from keras_cv_attention_models.beit.eva import EVA, EvaLargePatch14, EvaGiantPat
 from keras_cv_attention_models.beit.eva02 import EVA02, EVA02TinyPatch14, EVA02SmallPatch14, EVA02BasePatch14, EVA02LargePatch14
 from keras_cv_attention_models.beit.flexivit import FlexiViT, FlexiViTSmall, FlexiViTBase, FlexiViTLarge
 from keras_cv_attention_models.beit.meta_transformer import MetaTransformer, MetaTransformerBasePatch16, MetaTransformerLargePatch14
+from keras_cv_attention_models.beit.vit import ViT, ViTTinyPatch16, ViTBasePatch16, ViTLargePatch14, ViTText, ViTTextLargePatch14
 
 __beit_head_doc__ = """
 Keras implementation of [beit](https://github.com/microsoft/unilm/tree/master/beit).
@@ -111,6 +111,13 @@ Args:
   use_mean_pooling_head: boolean value if use mean output or `class_token` output. Default False for Vit, True for Beit.
   use_cat_head: boolean value if use mean output concatenated with `class_token` output. Default True for DINOv2, False for others.
 
+  [Text model args]
+  vocab_size: set value > 0 for building text model. Default 49408 for ViTText, 0 for others.
+  max_block_size: max block size, works only if vocab_size > 0. Default 77.
+  text_positional_dropout: dropout for text model embedding layers. Default 0.
+  text_use_positional_embedding: boolean value if use Embedding positional layer after inputs. Default True.
+  include_top: boolean value if include top output Dense layer, True for using output channles == vocab_size. Default True.
+
   [common args]
 """ + __tail_doc__
 
@@ -173,6 +180,7 @@ Model architectures:
 """
 
 ViT.__doc__ = __vit_head_doc__ + __class_tail_doc__.format(patch_size=16)
+ViTText.__doc__ = __vit_head_doc__ + __class_tail_doc__.format(patch_size=16)
 
 MetaTransformer.__doc__ = __meta_transformer_head_doc__ + __class_tail_doc__.format(patch_size=16) + """
 Model architectures:
@@ -211,6 +219,10 @@ FlexiViTLarge.__doc__ = FlexiViTSmall.__doc__
 
 MetaTransformerBasePatch16.__doc__ = __meta_transformer_head_doc__ + __model_tail_doc__.format(patch_size=16)
 MetaTransformerLargePatch14.__doc__ = __meta_transformer_head_doc__ + __model_tail_doc__.format(patch_size=14)
+
+ViTTinyPatch16.__doc__ = __vit_head_doc__ + __model_tail_doc__.format(patch_size=16)
+ViTBasePatch16.__doc__ = __vit_head_doc__ + __model_tail_doc__.format(patch_size=16)
+ViTLargePatch14.__doc__ = __vit_head_doc__ + __model_tail_doc__.format(patch_size=14)
 
 MultiHeadRelativePositionalEmbedding.__doc__ = __beit_head_doc__ + """
 Multi Head Relative Positional Embedding layer.

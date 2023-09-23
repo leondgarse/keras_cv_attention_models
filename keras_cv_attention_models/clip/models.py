@@ -3,16 +3,26 @@ from keras_cv_attention_models.backend import layers, models, functional, initia
 from keras_cv_attention_models import attention_layers
 
 
-def text_model_index_header(text_input, text_output, latents_dim, eot_token=None):
+def text_model_index_header(text_input, text_output, latents_dim=512, eot_token=None):
     if eot_token is None:
         eol_index = functional.argmax(functional.pad(text_input[:, 1:], [[0, 0], [1, 0]]), axis=-1)  # Skip <|startoftext|> no matter what it is
     else:
         assert eot_token != 0, "eot_token is 0, conflict with the padding value"
         eol_index = functional.argmax(functional.equal(functional.pad(text_input[:, 1:], [[0, 0], [1, 0]]), eot_token), axis=-1)
+
     text_output = functional.gather_nd(text_output, functional.expand_dims(eol_index, axis=-1), batch_dims=1)
-    kernel_initializer = initializers.RandomNormal(stddev=text_output.shape[-1] ** -0.5)
-    text_output = layers.Dense(latents_dim, use_bias=False, kernel_initializer=kernel_initializer, dtype="float32", name="text_latents")(text_output)
+    if latents_dim > 0:
+        kernel_initializer = initializers.RandomNormal(stddev=text_output.shape[-1] ** -0.5)
+        text_output = layers.Dense(latents_dim, use_bias=False, kernel_initializer=kernel_initializer, dtype="float32", name="text_latents")(text_output)
     return text_output
+
+
+def add_text_model_index_header(model, latents_dim=512, caption_tokenizer=None):
+    # Use None for argmax as eot position for GPT2Tokenizer and SimpleTokenizer. For SentencePieceTokenizer eot==2, pass the actual value
+    eot_token = None if caption_tokenizer is None or caption_tokenizer.eot_token >= caption_tokenizer.vocab_size - 2 else caption_tokenizer.eot_token
+    text_input, text_output = model.inputs[0], model.outputs[-1]
+    text_output = text_model_index_header(text_input, text_output, latents_dim=latents_dim, eot_token=eot_token)
+    return models.Model(text_input, text_output, name=model.name)
 
 
 def convert_to_clip_model(image_model, text_model=None, caption_tokenizer=None, epsilon=1e-6):
@@ -31,14 +41,9 @@ def convert_to_clip_model(image_model, text_model=None, caption_tokenizer=None, 
         image_model, text_model = build_text_model_from_image_model(image_model, **kwargs)
 
     image_input, image_output = image_model.inputs[0], image_model.outputs[-1]
-    text_input, text_output = text_model.inputs[0], text_model.outputs[-1]
-
-    # image_output = layers.Dense(latents_dim, use_bias=False, dtype="float32", name="image_latents")(image_output)
     if text_model.output_names[0] != "text_latents":
-        # Use None for argmax as eot position for GPT2Tokenizer and SimpleTokenizer. For SentencePieceTokenizer eot==2, pass the actual value
-        eot_token = None if caption_tokenizer is None or caption_tokenizer.eot_token >= caption_tokenizer.vocab_size - 2 else caption_tokenizer.eot_token
-        text_output = text_model_index_header(text_input, text_output, latents_dim=image_output.shape[-1], eot_token=eot_token)
-        text_model = models.Model(text_input, text_output, name=text_model.name)
+        text_model = add_text_model_index_header(text_model, latents_dim=image_output.shape[-1], caption_tokenizer=caption_tokenizer)
+    text_input, text_output = text_model.inputs[0], text_model.outputs[-1]
 
     # Return similarity directly for avoiding re-calculating in metrics again
     # text_latents = text_output / functional.norm(text_output, ord="euclidean", axis=-1, keepdims=True)
@@ -87,8 +92,8 @@ def build_text_model_from_image_model(image_model, vocab_size=50257, text_dropou
     text_head_output = layers.Dropout(dropout)(text_head_output) if text_dropout > 0 else text_head_output
 
     text_body_output = body_model(text_head_output)
-    text_output = text_model_index_header(text_input, text_body_output, latents_dim=image_model.outputs[0].shape[-1])
-    text_model = models.Model(text_input, text_output, name=image_model.name + "_text")
+    # text_output = text_model_index_header(text_input, text_body_output, latents_dim=image_model.outputs[0].shape[-1])
+    text_model = models.Model(text_input, text_body_output, name=image_model.name + "_text")
     return image_model, text_model
 
 

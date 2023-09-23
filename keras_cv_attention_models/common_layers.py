@@ -43,6 +43,13 @@ def phish(inputs):
     return inputs * functional.tanh(functional.gelu(inputs))
 
 
+def gelu_quick(inputs):
+    """https://github.com/huggingface/transformers/blob/main/src/transformers/activations.py#L90-L98
+    Applies GELU approximation that is fast but somewhat inaccurate. See: https://github.com/hendrycks/GELUs
+    """
+    return inputs * functional.sigmoid(1.702 * inputs)
+
+
 def gelu_linear(inputs):
     """
     >>> from keras_cv_attention_models.common_layers import gelu_linear
@@ -87,6 +94,8 @@ def activation_by_name(inputs, activation="relu", name=None):
         return functional.gelu(inputs, approximate=True)
     elif activation_lower.startswith("gelu/linear"):
         return gelu_linear(inputs)
+    elif activation_lower.startswith("gelu/quick"):
+        return gelu_quick(inputs)
     elif activation_lower.startswith("leaky_relu/"):
         # leaky_relu with alpha parameter
         alpha = float(activation_lower.split("/")[-1])

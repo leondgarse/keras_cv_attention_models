@@ -9,6 +9,7 @@ from keras_cv_attention_models.beit import eva
 from keras_cv_attention_models.beit import eva02
 from keras_cv_attention_models.beit import dinov2
 from keras_cv_attention_models.beit import meta_transformer
+from keras_cv_attention_models.beit import vit
 from keras_cv_attention_models import botnet
 from keras_cv_attention_models import caformer
 from keras_cv_attention_models import coat

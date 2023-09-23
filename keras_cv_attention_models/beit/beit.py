@@ -10,6 +10,9 @@ from keras_cv_attention_models.attention_layers import (
     drop_block,
     drop_connect_rates_split,
     PositionalEmbedding,
+    PositionalIndex,
+    PositionalEncodingFourierRot1D,
+    CausalMask,
     add_pre_post_process,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
@@ -302,12 +305,14 @@ def attention_block(
     use_rot_pos_emb=False,
     qk_rope=None,
     attn_height=-1,
+    text_max_block_size=0,  # Also a mark if this is a text inputs
     attn_dropout=0,
     name=None,
 ):
     _, bb, cc = inputs.shape
     key_dim = key_dim if key_dim > 0 else cc // num_heads
     emded_dim = int(num_heads * key_dim)
+    is_text_inputs = text_max_block_size > 0
     # print(f">>>> {bb = }, {cc = }, {emded_dim = }")
 
     # if qkv_bias, just use bias in qkv_dense, and set qv_bias False
@@ -326,13 +331,24 @@ def attention_block(
         query = BiasLayer(name=name + "query_bias")(query)
         value = BiasLayer(name=name + "value_bias")(value)
 
-    if use_rot_pos_emb:
+    if use_rot_pos_emb and is_text_inputs:
+        rope = PositionalEncodingFourierRot1D(max_block_size=text_max_block_size, name=name + "rope")
+        query = rope(layers.Reshape([-1, num_heads, key_dim // 2, 2])(query))
+        key = rope(layers.Reshape([-1, num_heads, key_dim // 2, 2])(key))
+    elif use_rot_pos_emb:
         # Create a new one every time, as there's no weights for this layer
-        rope = PositionalEncodingFourierRot(with_cls_token=True, attn_height=attn_height, num_heads=num_heads)
+        rope = PositionalEncodingFourierRot(with_cls_token=True, attn_height=attn_height, num_heads=num_heads, name=name + "rope")
         query, key = rope(query), rope(key)
-    query, key, value = qkv_to_multi_head_channels_last_format(query, key, value, num_heads, data_format="channels_last")
+    query = functional.transpose(layers.Reshape([-1, num_heads, key_dim])(query), [0, 2, 1, 3])
+    key = functional.transpose(layers.Reshape([-1, num_heads, key_dim])(key), [0, 2, 3, 1])
+    value = functional.transpose(layers.Reshape([-1, num_heads, key_dim])(value), [0, 2, 1, 3])
 
-    pos_emb = MultiHeadRelativePositionalEmbedding(attn_height=attn_height, name=name and name + "pos_emb") if use_pos_emb else None
+    if is_text_inputs:
+        pos_emb = CausalMask(block_size=text_max_block_size)
+    elif use_pos_emb:
+        pos_emb = MultiHeadRelativePositionalEmbedding(attn_height=attn_height, name=name and name + "pos_emb")
+    else:
+        pos_emb = None
     output_shape = [-1, -1, emded_dim]
     return scaled_dot_product_attention(query, key, value, output_shape, pos_emb, out_weight, out_bias, dropout=attn_dropout, name=name)
 
@@ -452,8 +468,13 @@ def Beit(
     use_norm_mlp=False,  # [MLP args] True for EVA02 base and large, False for others.
     use_mean_pooling_head=True,  # [Head args] False for Vit, True for Beit, whether use use mean output or `class_token` output
     use_cat_head=False,  # [Head args] True for DINOv2
-    input_shape=(224, 224, 3),  # [Common args]
-    num_classes=1000,
+    vocab_size=0,  # [Text model] Set value > 0 for building text model
+    max_block_size=77,  # [Text model] max block size, works only if vocab_size > 0
+    text_positional_dropout=0,  # [Text model] dropout for text model embedding layers
+    text_use_positional_embedding=True,  # [Text model] boolean value if use Embedding positional layer after inputs
+    include_top=True,  # [Text model] boolean value if include top output Dense layer, True for using output channles == vocab_size
+    input_shape=(224, 224, 3),  # [Common args] Not taking effect for text model
+    num_classes=1000,  # For text model, equals to vocab_size if include_top is True
     activation="gelu",
     layer_scale=0.1,  # 0 for Vit, 0.1 for Beit, if > 0 will use `layer_scale` on block output
     drop_connect_rate=0,
@@ -463,32 +484,47 @@ def Beit(
     model_name="beit",
     kwargs=None,
 ):
-    # Regard input_shape as force using original shape if len(input_shape) == 4,
-    # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
-    input_shape = backend.align_input_shape_by_image_data_format(input_shape)
-    inputs = layers.Input(input_shape)
+    if vocab_size > 0:
+        """Text inputs"""
+        inputs = layers.Input([None], dtype="int64")
+        tok_emb = layers.Embedding(vocab_size, embed_dim, name="embed_tokens")(inputs)
 
-    """ forward_embeddings """
-    # torch conv kernel initializer: uniform(-1/sqrt(k), 1/sqrt(k)), where k = weight.size(1) * prod(*kernel_size)
-    # Not using same one as torch, as current one works better in some tests, decreasing loss 3.7055 -> 3.4224 in the first epoch clip training for TF
-    kernel_initializer = None if backend.is_torch_backend else initializers.RandomUniform(minval=-1 / (patch_size**0.5), maxval=1 / (patch_size**0.5))
-    nn = PatchConv2DWithResampleWeights(
-        embed_dim, patch_size, strides=patch_size, padding="valid", kernel_initializer=kernel_initializer, use_bias=use_patch_bias, name="stem_conv"
-    )(inputs)
-    nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
-    patch_height = nn.shape[1]
-    nn = layers.Reshape([-1, nn.shape[-1]])(nn)
+        if text_use_positional_embedding:
+            pos_idx = PositionalIndex(block_size=max_block_size, name="pos_idx")(inputs)
+            pos_emb = layers.Embedding(max_block_size, embed_dim, name="wpe")(pos_idx)
+            nn = tok_emb + pos_emb
+        else:
+            nn = tok_emb
+        nn = layers.Dropout(text_positional_dropout)(nn) if text_positional_dropout > 0 else nn
+        patch_height = -1
+        num_classes = vocab_size
+    else:
+        # Regard input_shape as force using original shape if len(input_shape) == 4,
+        # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
+        input_shape = backend.align_input_shape_by_image_data_format(input_shape)
+        inputs = layers.Input(input_shape)
 
-    """ Positional embedding """
-    if use_abs_pos_emb and use_abs_pos_emb_on_cls_token:  # ViT / EvaLarge / EvaGiant / DINOv2
-        nn = ClassToken(name="cls_token")(nn)
-        nn = PositionalEmbedding(input_height=patch_height, name="positional_embedding")(nn)
-    elif use_abs_pos_emb:  # FlexiViT models
-        nn = PositionalEmbedding(input_height=patch_height, name="positional_embedding")(nn)
-        nn = ClassToken(name="cls_token")(nn)
-    else:  # Beit and BeitV2
-        nn = ClassToken(name="cls_token")(nn)
-    nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="pre_ln")(nn) if use_pre_norm else nn
+        """ forward_embeddings """
+        # torch conv kernel initializer: uniform(-1/sqrt(k), 1/sqrt(k)), where k = weight.size(1) * prod(*kernel_size)
+        # Not using same one as torch, as current one works better in some tests, decreasing loss 3.7055 -> 3.4224 in the first epoch clip training for TF
+        kernel_initializer = None if backend.is_torch_backend else initializers.RandomUniform(minval=-1 / (patch_size**0.5), maxval=1 / (patch_size**0.5))
+        nn = PatchConv2DWithResampleWeights(
+            embed_dim, patch_size, strides=patch_size, padding="valid", kernel_initializer=kernel_initializer, use_bias=use_patch_bias, name="stem_conv"
+        )(inputs)
+        nn = nn if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)  # channels_first -> channels_last
+        patch_height = nn.shape[1]
+        nn = layers.Reshape([-1, nn.shape[-1]])(nn)
+
+        """ Positional embedding """
+        if use_abs_pos_emb and use_abs_pos_emb_on_cls_token:  # ViT / EvaLarge / EvaGiant / DINOv2
+            nn = ClassToken(name="cls_token")(nn)
+            nn = PositionalEmbedding(input_height=patch_height, name="positional_embedding")(nn)
+        elif use_abs_pos_emb:  # FlexiViT models
+            nn = PositionalEmbedding(input_height=patch_height, name="positional_embedding")(nn)
+            nn = ClassToken(name="cls_token")(nn)
+        else:  # Beit and BeitV2
+            nn = ClassToken(name="cls_token")(nn)
+        nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="pre_ln")(nn) if use_pre_norm else nn
 
     """ Attention MLP body """
     attn_params = {
@@ -501,6 +537,7 @@ def Beit(
         "attn_height": patch_height,
         "use_pos_emb": not use_abs_pos_emb,
         "use_rot_pos_emb": use_rot_pos_emb,
+        "text_max_block_size": max_block_size if vocab_size > 0 else 0,
         "attn_dropout": attn_dropout,
     }
 
@@ -511,7 +548,9 @@ def Beit(
         nn = attention_mlp_block(nn, layer_scale, mlp_ratio, use_gated_mlp, use_norm_mlp, block_drop_rate, activation, attn_params, name=name)
 
     """ Head """
-    if use_cat_head:  # DINOv2
+    if vocab_size > 0:  # Text model
+        nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="out_ln")(nn)  # "channels_first" also using axis=-1
+    elif use_cat_head:  # DINOv2
         nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="out_ln")(nn)  # "channels_first" also using axis=-1
         nn = functional.concat([nn[:, 0], functional.reduce_mean(nn[:, 1:, :], axis=1)], axis=-1)
     elif use_mean_pooling_head:
@@ -522,7 +561,7 @@ def Beit(
         nn = nn[:, 0]
 
     """ Output """
-    if num_classes > 0:
+    if num_classes > 0 and include_top:
         head_init = initializers.TruncatedNormal(stddev=0.02)  # HeadInitializer() -> Unknown initializer 'HeadInitializer' when loading [???]
         nn = layers.Dense(
             num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=head_init, name="predictions"
@@ -566,14 +605,6 @@ def BeitV2LargePatch16(
     input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet21k-ft1k", **kwargs
 ):
     return BeitLargePatch16(**locals(), **kwargs, model_name="beit_v2_large_patch16")
-
-
-""" Typical ViT """
-
-
-def ViT(attn_qv_bias=False, attn_qkv_bias=True, use_abs_pos_emb=True, layer_scale=0, use_mean_pooling_head=False, model_name="vit", **kwargs):
-    kwargs.pop("kwargs", None)
-    return Beit(**locals(), **kwargs)
 
 
 """ keras_model_load_weights_from_pytorch_model """

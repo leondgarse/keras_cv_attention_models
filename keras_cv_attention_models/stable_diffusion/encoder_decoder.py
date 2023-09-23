@@ -18,6 +18,17 @@ LAYER_NORM_EPSILON = 1e-6
 PRETRAINED_DICT = {"": {"": ""}}
 
 
+def gaussian_distribution(inputs):
+    # [TODO] keras.layers.GaussianNoise
+    channel_axis = -1 if backend.image_data_format() == "channels_last" else 1
+    mean, log_var = functional.split(inputs, 2, axis=channel_axis)
+    log_var = functional.clip_by_value(log_var, -30.0, 20.0)
+    std = functional.exp(log_var * 0.5)
+
+    gaussian = initializers.RandomNormal()(std.shape)
+    return mean + std * gaussian
+
+
 def attention_block(inputs, num_attention_block=1, mlp_ratio=4, num_heads=4, head_dim=0, name=""):
     input_channels = inputs.shape[-1 if backend.image_data_format() == "channels_last" else 1]
     height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
@@ -52,11 +63,12 @@ def attention_block(inputs, num_attention_block=1, mlp_ratio=4, num_heads=4, hea
 
 
 def Encoder(
-    input_shape=(640, 640, 3),
+    input_shape=(512, 512, 3),  # input -> DownSample 3 times -> // 8, 512 -> 64
     num_blocks=[2, 2, 2, 2],
     hidden_channels=128,
     hidden_expands=[1, 2, 4, 4],
-    z_channels=4,
+    output_channels=4,
+    post_encoder_channels=4,  # > 0 value for an additional Conv2D layer after output layer
     pretrained=None,
     model_name="encoder",
     kwargs=None,  # Not using, recieving parameter
@@ -87,7 +99,9 @@ def Encoder(
     """ Output blocks """
     nn = group_norm(nn, name="output_")
     nn = activation_by_name(nn, activation="swish", name="output_")
-    outputs = conv2d_no_bias(nn, z_channels * 2, kernel_size=3, use_bias=True, padding="SAME", name="output_")
+    # * 2 means [mean, std]
+    outputs = conv2d_no_bias(nn, output_channels * 2, kernel_size=3, use_bias=True, padding="SAME", name="output_")
+    outputs = conv2d_no_bias(outputs, 2 * post_encoder_channels, use_bias=True, name="post_encoder_") if post_encoder_channels > 0 else outputs
 
     model = models.Model(inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "stable_diffusion", pretrained)
@@ -95,11 +109,12 @@ def Encoder(
 
 
 def Decoder(
-    input_shape=(640, 640, 4),
+    input_shape=(64, 64, 4),
     num_blocks=[2, 2, 2, 2],
     hidden_channels=128,
     hidden_expands=[4, 4, 2, 1],
     output_channels=3,
+    pre_decoder_channels=4,  # > 0 value for an additional Conv2D layer after input layer
     pretrained=None,
     model_name="decoder",
     kwargs=None,  # Not using, recieving parameter
@@ -108,7 +123,8 @@ def Decoder(
     # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
     inputs = layers.Input(backend.align_input_shape_by_image_data_format(input_shape))
     channel_axis = -1 if backend.image_data_format() == "channels_last" else 1
-    nn = conv2d_no_bias(inputs, hidden_channels * hidden_expands[0], kernel_size=3, use_bias=True, padding="SAME", name="stem_")
+    nn = conv2d_no_bias(inputs, pre_decoder_channels, use_bias=True, name="pre_decoder_") if pre_decoder_channels > 0 else inputs
+    nn = conv2d_no_bias(nn, hidden_channels * hidden_expands[0], kernel_size=3, use_bias=True, padding="SAME", name="stem_")
 
     """ Middle blocks """
     nn = res_block(nn, time_embedding=None, name="middle_block_1_")

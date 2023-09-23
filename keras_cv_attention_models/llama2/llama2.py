@@ -70,7 +70,7 @@ class RMSNorm(layers.Layer):
         return base_config
 
 
-def apply_positional_encoding_rotary(inputs, pos_emb_layer, with_cls_token=True):
+def apply_positional_encoding_rotary(inputs, pos_emb_layer):
     """Reshape is separated out from PositionalEncodingFourierRot1D for setting as dynamic"""
     num_heads = inputs.shape[-2]
     nn = layers.Reshape([-1, num_heads, inputs.shape[-1] // 2, 2])(inputs)

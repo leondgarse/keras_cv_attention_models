@@ -30,6 +30,8 @@ from keras_cv_attention_models.mlp_family.res_mlp import ChannelAffine
 from keras_cv_attention_models.mlp_family.gated_mlp import spatial_gating_block
 from keras_cv_attention_models.mlp_family.wave_mlp import phase_aware_token_mixing
 from keras_cv_attention_models.volo.volo import outlook_attention, outlook_attention_simple, BiasLayer, PositionalEmbedding, ClassToken, MixupToken
+from keras_cv_attention_models.gpt2.gpt2 import PositionalIndex, CausalMask
+from keras_cv_attention_models.llama2.llama2 import PositionalEncodingFourierRot1D, RMSNorm
 from keras_cv_attention_models.beit.beit import (
     PositionalEncodingFourierRot,
     MultiHeadRelativePositionalEmbedding,
@@ -41,7 +43,6 @@ from keras_cv_attention_models.beit.beit import (
 from keras_cv_attention_models.botnet.botnet import RelativePositionalEmbedding, mhsa_with_relative_position_embedding
 from keras_cv_attention_models.cotnet.cotnet import cot_attention
 from keras_cv_attention_models.coat.coat import ConvPositionalEncoding, ConvRelativePositionalEncoding
-from keras_cv_attention_models.gpt2.gpt2 import PositionalIndex, CausalMask
 from keras_cv_attention_models.halonet.halonet import halo_attention
 from keras_cv_attention_models.convnext.convnext import global_response_normalize, add_with_layer_scale_and_drop_block
 from keras_cv_attention_models.levit.levit import MultiHeadPositionalEmbedding, mhsa_with_multi_head_position, mhsa_with_multi_head_position_and_strides
