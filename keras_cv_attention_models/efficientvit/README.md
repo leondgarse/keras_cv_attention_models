@@ -30,6 +30,9 @@
   | EfficientViT_B3 | 48.65M | 4.14G | 224   | 83.5     | [efficientvit_b3_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_224_imagenet.h5) |
   | EfficientViT_B3 | 48.65M | 5.51G | 256   | 83.8     | [efficientvit_b3_256_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_256_imagenet.h5) |
   | EfficientViT_B3 | 48.65M | 7.14G | 288   | 84.2     | [efficientvit_b3_288_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_288_imagenet.h5) |
+  | EfficientViT_L1 | 52.65M | 5.28G | 224   | 84.48    | [efficientvit_l1_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l1_224_imagenet.h5) |
+  | EfficientViT_L2 | 63.71M | 6.98G | 224   | 85.05    | [efficientvit_l2_224_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l2_224_imagenet.h5) |
+  | EfficientViT_L2 | 63.71M | 20.7G | 384   | 85.98    | [efficientvit_l2_384_imagenet.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l2_384_imagenet.h5) |
 ## Usage
   ```py
   from keras_cv_attention_models import efficientvit, test_images

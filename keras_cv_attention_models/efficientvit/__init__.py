@@ -8,7 +8,17 @@ from keras_cv_attention_models.efficientvit.efficientvit_m import (
     EfficientViT_M5,
     cascaded_mhsa_with_multi_head_position,
 )
-from keras_cv_attention_models.efficientvit.efficientvit_b import EfficientViT_B, EfficientViT_B0, EfficientViT_B1, EfficientViT_B2, EfficientViT_B3
+from keras_cv_attention_models.efficientvit.efficientvit_b import (
+    EfficientViT_B,
+    EfficientViT_B0,
+    EfficientViT_B1,
+    EfficientViT_B2,
+    EfficientViT_B3,
+    EfficientViT_L,
+    EfficientViT_L0,
+    EfficientViT_L1,
+    EfficientViT_L2,
+)
 
 __m_head_doc__ = """
 Keras implementation of [Github microsoft/Cream/EfficientViT/classification](https://github.com/microsoft/Cream/tree/main/EfficientViT/classification).
@@ -82,7 +92,9 @@ Args:
       - `conv` or any `c` / `C` starts word, means `mb_conv` block.
       - `transfrom` or any not `c` / `C` starts word, means `lite_mhsa` + `mb_conv` block.
       value could be in format like `"cctt"` or `"CCTT"` or `["conv", "conv", "transfrom", "transform"]`.
-  expansion: filter expansion in each block. The larger the wider.
+  expansions: int or list, each element in list can also be an int or list of int.
+      Indicates filter expansion in each block. The larger the wider.
+  is_fused: boolean or list of boolean, indicates if using fused MBConv in each stack.
   head_dimension: heads dimension for transformer block, and `num_heads = channels // head_dimension`.
   output_filters: int or list of int value indicates id using additional blocks before output.
       - int value for adding `Conv2D + BatchNorm + Activation` block, and the value is used as conv2D filters.
@@ -103,7 +115,12 @@ Model architectures:
   | EfficientViT_B3 | 48.65M | 4.14G | 224   | 83.5     |
   | EfficientViT_B3 | 48.65M | 5.51G | 256   | 83.8     |
   | EfficientViT_B3 | 48.65M | 7.14G | 288   | 84.2     |
+  | EfficientViT_L1 | 52.65M | 5.28G | 224   | 84.48    |
+  | EfficientViT_L2 | 63.71M | 6.98G | 224   | 85.05    |
+  | EfficientViT_L2 | 63.71M | 20.7G | 384   | 85.98    |
 """
+
+EfficientViT_L.__doc__ = EfficientViT_B.__doc__
 
 EfficientViT_B0.__doc__ = __b_head_doc__ + """
 Args:
@@ -112,6 +129,9 @@ Args:
 EfficientViT_B1.__doc__ = EfficientViT_B0.__doc__
 EfficientViT_B2.__doc__ = EfficientViT_B0.__doc__
 EfficientViT_B3.__doc__ = EfficientViT_B0.__doc__
+EfficientViT_L0.__doc__ = EfficientViT_B0.__doc__
+EfficientViT_L1.__doc__ = EfficientViT_B0.__doc__
+EfficientViT_L2.__doc__ = EfficientViT_B0.__doc__
 
 cascaded_mhsa_with_multi_head_position.__doc__ = __m_head_doc__ + """
 Cascaded multi head self attention with MultiHeadPositionalEmbedding. Defined as function, not layer.

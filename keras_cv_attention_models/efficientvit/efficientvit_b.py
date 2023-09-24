@@ -23,20 +23,30 @@ PRETRAINED_DICT = {
     "efficientvit_b3": {
         "imagenet": {224: "52b0266e48b7fb0f469c23f0b564ee4f", 256: "e8f3fd1ba3ce4d30d52b927d595663f9", 288: "4569c90bb93c7a657d4add91f0a7323f"}
     },
+    "efficientvit_l1": {"imagenet": {224: "a487ed323d278e7b4807a4f04257ed10"}},
+    "efficientvit_l2": {"imagenet": {224: "b1bc0d47aeaa90421f73a89ceac04e8b", 384: "c396388dd90e7532256a3a25fed4b5b0"}},
 }
 
 
-def mb_conv(inputs, output_channel, shortcut=True, strides=1, expansion=4, use_bias=False, use_norm=True, drop_rate=0, activation="hard_swish", name=""):
+def mb_conv(
+    inputs, output_channel, shortcut=True, strides=1, expansion=4, is_fused=False, use_bias=False, use_norm=True, drop_rate=0, activation="hard_swish", name=""
+):
     input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
-    if expansion > 1:
+    if is_fused:
+        nn = conv2d_no_bias(inputs, int(input_channel * expansion), 3, strides, padding="same", name=name and name + "expand_")
+        nn = batchnorm_with_activation(nn, activation=activation, name=name + "expand_") if use_norm else activation_by_name(nn, activation=activation)
+    elif expansion > 1:
         nn = conv2d_no_bias(inputs, int(input_channel * expansion), 1, strides=1, use_bias=use_bias, name=name + "expand_")
         nn = batchnorm_with_activation(nn, activation=activation, name=name + "expand_") if use_norm else activation_by_name(nn, activation=activation)
     else:
         nn = inputs
-    nn = depthwise_conv2d_no_bias(nn, 3, strides=strides, use_bias=use_bias, padding="same", name=name)
-    nn = batchnorm_with_activation(nn, activation=activation, name=name + "dw_") if use_norm else activation_by_name(nn, activation=activation)
 
-    nn = conv2d_no_bias(nn, output_channel, 1, strides=1, use_bias=False, name=name + "pw_")
+    if not is_fused:
+        nn = depthwise_conv2d_no_bias(nn, 3, strides=strides, use_bias=use_bias, padding="same", name=name)
+        nn = batchnorm_with_activation(nn, activation=activation, name=name + "dw_") if use_norm else activation_by_name(nn, activation=activation)
+
+    pw_kernel_size = 3 if is_fused and expansion == 1 else 1
+    nn = conv2d_no_bias(nn, output_channel, pw_kernel_size, strides=1, padding="same", use_bias=False, name=name + "pw_")
     nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "pw_")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
     return layers.Add(name=name + "output")([inputs, nn]) if shortcut else layers.Activation("linear", name=name + "output")(nn)
@@ -87,13 +97,14 @@ def lite_mhsa(inputs, num_heads=8, key_dim=16, sr_ratio=5, qkv_bias=False, out_s
 
 
 def EfficientViT_B(
-    num_blocks=[2, 3, 4, 5],
-    out_channels=[32, 64, 128, 256],
-    stem_width=16,
+    num_blocks=[2, 2, 3, 3],
+    out_channels=[16, 32, 64, 128],
+    stem_width=8,
     block_types=["conv", "conv", "transform", "transform"],
-    expansion=4,
+    expansions=4,  # int or list, each element in list can also be an int or list of int
+    is_fused=False,  # True for L models, False for B models
     head_dimension=16,  # `num_heads = channels // head_dimension`
-    output_filters=[1536, 1600],
+    output_filters=[1024, 1280],
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="hard_swish",
@@ -108,32 +119,36 @@ def EfficientViT_B(
     # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
     input_shape = backend.align_input_shape_by_image_data_format(input_shape)
     inputs = layers.Input(input_shape)
+    is_fused = is_fused if isinstance(is_fused, (list, tuple)) else ([is_fused] * len(num_blocks))
 
     """ stage 0, Stem_stage """
     nn = conv2d_no_bias(inputs, stem_width, 3, strides=2, padding="same", name="stem_")
     nn = batchnorm_with_activation(nn, activation=activation, name="stem_")
-    nn = mb_conv(nn, stem_width, shortcut=True, expansion=1, activation=activation, name="stem_MB_")
+    nn = mb_conv(nn, stem_width, shortcut=True, expansion=1, is_fused=is_fused[0], activation=activation, name="stem_MB_")
 
     """ stage [1, 2, 3, 4] """
     total_blocks = sum(num_blocks)
     global_block_id = 0
     for stack_id, (num_block, out_channel, block_type) in enumerate(zip(num_blocks, out_channels, block_types)):
         is_conv_block = True if block_type[0].lower() == "c" else False
+        cur_expansions = expansions[stack_id] if isinstance(expansions, (list, tuple)) else expansions
+        use_bias, use_norm = (True, False) if stack_id >= 2 else (False, True)  # fewer_norm
+        cur_is_fused = is_fused[stack_id]
         for block_id in range(num_block):
             name = "stack_{}_block_{}_".format(stack_id + 1, block_id + 1)
             stride = 2 if block_id == 0 else 1
             shortcut = False if block_id == 0 else True
+            cur_expansion = cur_expansions[block_id] if isinstance(cur_expansions, (list, tuple)) else cur_expansions
             block_drop_rate = drop_connect_rate * global_block_id / total_blocks
 
-            use_bias, use_norm = (False, True) if is_conv_block else (True, False)
             if is_conv_block or block_id == 0:
                 cur_name = (name + "downsample_") if stride > 1 else name
-                nn = mb_conv(nn, out_channel, shortcut, stride, expansion, use_bias, use_norm, drop_rate=block_drop_rate, activation=activation, name=cur_name)
+                nn = mb_conv(nn, out_channel, shortcut, stride, cur_expansion, cur_is_fused, use_bias, use_norm, block_drop_rate, activation, name=cur_name)
             else:
                 num_heads = out_channel // head_dimension
                 attn = lite_mhsa(nn, num_heads=num_heads, key_dim=head_dimension, sr_ratio=5, name=name + "attn_")
                 nn = nn + attn
-                nn = mb_conv(nn, out_channel, shortcut, stride, expansion, use_bias, use_norm, drop_rate=block_drop_rate, activation=activation, name=name)
+                nn = mb_conv(nn, out_channel, shortcut, stride, cur_expansion, cur_is_fused, use_bias, use_norm, block_drop_rate, activation, name=name)
             global_block_id += 1
 
     output_filters = output_filters if isinstance(output_filters, (list, tuple)) else (output_filters, 0)
@@ -157,21 +172,21 @@ def EfficientViT_B(
 
 
 @register_model
-def EfficientViT_B0(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
-    out_channels = [16, 32, 64, 128]
-    num_blocks = [2, 2, 3, 3]
-    stem_width = 8
-    output_filters = [1024, 1280]
+def EfficientViT_B0(input_shape=(224, 224, 3), num_classes=1000, activation="hard_swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     return EfficientViT_B(**locals(), model_name="efficientvit_b0", **kwargs)
 
 
 @register_model
-def EfficientViT_B1(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def EfficientViT_B1(input_shape=(224, 224, 3), num_classes=1000, activation="hard_swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    out_channels = [32, 64, 128, 256]
+    num_blocks = [2, 3, 4, 5]
+    stem_width = 16
+    output_filters = [1536, 1600]
     return EfficientViT_B(**locals(), model_name="efficientvit_b1", **kwargs)
 
 
 @register_model
-def EfficientViT_B2(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def EfficientViT_B2(input_shape=(224, 224, 3), num_classes=1000, activation="hard_swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels = [48, 96, 192, 384]
     num_blocks = [3, 4, 5, 7]
     stem_width = 24
@@ -181,10 +196,47 @@ def EfficientViT_B2(input_shape=(224, 224, 3), num_classes=1000, drop_connect_ra
 
 
 @register_model
-def EfficientViT_B3(input_shape=(224, 224, 3), num_classes=1000, drop_connect_rate=0, classifier_activation="softmax", pretrained="imagenet", **kwargs):
+def EfficientViT_B3(input_shape=(224, 224, 3), num_classes=1000, activation="hard_swish", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     out_channels = [64, 128, 256, 512]
     num_blocks = [4, 6, 7, 10]
     stem_width = 32
     head_dimension = 32
     output_filters = [2304, 2560]
     return EfficientViT_B(**locals(), model_name="efficientvit_b3", **kwargs)
+
+
+""" EfficientViT_L models """
+
+
+def EfficientViT_L(
+    num_blocks=[2, 2, 5, 5],
+    out_channels=[64, 128, 256, 512],
+    stem_width=32,
+    head_dimension=32,
+    block_types=["conv", "conv", "conv", "transform"],
+    is_fused=[True, True, False, False],
+    output_filters=[3072, 3200],
+    activation="gelu",
+    model_name="efficientvit_l",
+    **kwargs,
+):
+    expansions = kwargs.pop("expansions", [[16] + [4] * num_blocks[0], [16] + [4] * num_blocks[1], [16] + [4] * num_blocks[2], [24] + [6] * num_blocks[3]])
+    kwargs.pop("kwargs", None)
+    return EfficientViT_B(**locals(), **kwargs)
+
+
+@register_model
+def EfficientViT_L0(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained=None, **kwargs):
+    return EfficientViT_L(**locals(), model_name="efficientvit_l0", **kwargs)
+
+
+@register_model
+def EfficientViT_L1(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [2, 2, 7, 7]
+    return EfficientViT_L(**locals(), model_name="efficientvit_l1", **kwargs)
+
+
+@register_model
+def EfficientViT_L2(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 3, 9, 9]
+    return EfficientViT_L(**locals(), model_name="efficientvit_l2", **kwargs)
