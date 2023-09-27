@@ -78,6 +78,7 @@ from keras_cv_attention_models.yolov8 import yolo_nas
 from keras_cv_attention_models import coco
 from keras_cv_attention_models import clip
 from keras_cv_attention_models.clip import tokenizer
+from keras_cv_attention_models import stable_diffusion
 
 if backend.is_tensorflow_backend:
     from keras_cv_attention_models import nfnets

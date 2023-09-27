@@ -17,8 +17,6 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-LAYER_NORM_EPSILON = 1e-6
-
 
 PRETRAINED_DICT = {
     "beit_base_patch16": {"imagenet21k-ft1k": {224: "d7102337a13a3983f3b6470de77b5d5c", 384: "76353026477c60f8fdcbcc749fea17b3"}},
@@ -44,6 +42,7 @@ PRETRAINED_DICT = {
     "flexivit_large": {"imagenet": {240: "6faa953227d2ef1df6758f8eb7234490"}},
     "meta_transformer_base_patch16": {"laion_2b": {384: "5daafcdef0895ab292b39173331c12c3"}},
     "meta_transformer_large_patch14": {"laion_2b": {336: "f3a4444bf823ccbaab6e586d9915ffb1"}},
+    "vit_text_large_patch14": {"clip": "ebeaed60ecd6685c5aeaba117f1b1737"},
 }
 
 
@@ -353,7 +352,7 @@ def attention_block(
     return scaled_dot_product_attention(query, key, value, output_shape, pos_emb, out_weight, out_bias, dropout=attn_dropout, name=name)
 
 
-def mlp_block(inputs, mlp_ratio=4, is_gated=False, use_norm=False, activation="gelu", name=""):
+def mlp_block(inputs, mlp_ratio=4, is_gated=False, use_norm=False, epsilon=1e-6, activation="gelu", name=""):
     input_channels = inputs.shape[-1]
     if is_gated:
         nn = layers.Dense(int(input_channels * mlp_ratio) * 2, name=name + "dense_gate")(inputs)
@@ -366,22 +365,24 @@ def mlp_block(inputs, mlp_ratio=4, is_gated=False, use_norm=False, activation="g
         nn = layers.Dense(int(input_channels * mlp_ratio), name=name + "dense_1")(inputs)
         nn = activation_by_name(nn, activation, name=name)
     if use_norm:
-        nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "scale_ln")(nn)
+        nn = layers.LayerNormalization(axis=-1, epsilon=epsilon, name=name + "scale_ln")(nn)
     nn = layers.Dense(input_channels, name=name + "dense_2")(nn)
     return nn
 
 
-def attention_mlp_block(inputs, layer_scale=0.1, mlp_ratio=4, use_gated_mlp=False, use_norm_mlp=False, drop_rate=0, activation="gelu", attn_params={}, name=""):
+def attention_mlp_block(
+    inputs, layer_scale=0.1, mlp_ratio=4, use_gated_mlp=False, use_norm_mlp=False, drop_rate=0, epsilon=1e-6, activation="gelu", attn_params={}, name=""
+):
     # print(f">>>> {inputs.shape = }, {drop_rate = }")
-    nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "attn_ln")(inputs)  # "channels_first" also using axis=-1
+    nn = layers.LayerNormalization(axis=-1, epsilon=epsilon, name=name + "attn_ln")(inputs)  # "channels_first" also using axis=-1
     nn = attention_block(nn, **attn_params, name=name + "attn_")
     nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "attn_gamma")(nn) if layer_scale > 0 else nn
     nn = drop_block(nn, drop_rate)
     attn_out = layers.Add(name=name + "attn_out")([inputs, nn])
 
     """ MLP """
-    nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "mlp_ln")(attn_out)  # "channels_first" also using axis=-1
-    nn = mlp_block(nn, mlp_ratio=mlp_ratio, is_gated=use_gated_mlp, use_norm=use_norm_mlp, activation=activation, name=name + "mlp_")
+    nn = layers.LayerNormalization(axis=-1, epsilon=epsilon, name=name + "mlp_ln")(attn_out)  # "channels_first" also using axis=-1
+    nn = mlp_block(nn, mlp_ratio=mlp_ratio, is_gated=use_gated_mlp, use_norm=use_norm_mlp, epsilon=epsilon, activation=activation, name=name + "mlp_")
     nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "mlp_gamma")(nn) if layer_scale > 0 else nn
     nn = drop_block(nn, drop_rate)
     # print(f">>>> {attn_out.shape = }, {nn.shape = }")
@@ -475,6 +476,7 @@ def Beit(
     include_top=True,  # [Text model] boolean value if include top output Dense layer, True for using output channles == vocab_size
     input_shape=(224, 224, 3),  # [Common args] Not taking effect for text model
     num_classes=1000,  # For text model, equals to vocab_size if include_top is True
+    layer_norm_epsilon=1e-6,  # 1e-5 for ViT clip models, 1e-6 for others
     activation="gelu",
     layer_scale=0.1,  # 0 for Vit, 0.1 for Beit, if > 0 will use `layer_scale` on block output
     drop_connect_rate=0,
@@ -524,7 +526,7 @@ def Beit(
             nn = ClassToken(name="cls_token")(nn)
         else:  # Beit and BeitV2
             nn = ClassToken(name="cls_token")(nn)
-        nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="pre_ln")(nn) if use_pre_norm else nn
+        nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="pre_ln")(nn) if use_pre_norm else nn
 
     """ Attention MLP body """
     attn_params = {
@@ -545,19 +547,19 @@ def Beit(
     for id in range(depth):
         name = "block{}_".format(id)
         block_drop_rate = drop_connect_rates[id]
-        nn = attention_mlp_block(nn, layer_scale, mlp_ratio, use_gated_mlp, use_norm_mlp, block_drop_rate, activation, attn_params, name=name)
+        nn = attention_mlp_block(nn, layer_scale, mlp_ratio, use_gated_mlp, use_norm_mlp, block_drop_rate, layer_norm_epsilon, activation, attn_params, name)
 
     """ Head """
     if vocab_size > 0:  # Text model
-        nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="out_ln")(nn)  # "channels_first" also using axis=-1
+        nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
     elif use_cat_head:  # DINOv2
-        nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="out_ln")(nn)  # "channels_first" also using axis=-1
+        nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
         nn = functional.concat([nn[:, 0], functional.reduce_mean(nn[:, 1:, :], axis=1)], axis=-1)
     elif use_mean_pooling_head:
         nn = functional.reduce_mean(nn[:, 1:, :], axis=1)
-        nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="out_ln")(nn)  # "channels_first" also using axis=-1
+        nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
     else:  # FlexiViT
-        nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name="out_ln")(nn)  # "channels_first" also using axis=-1
+        nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
         nn = nn[:, 0]
 
     """ Output """

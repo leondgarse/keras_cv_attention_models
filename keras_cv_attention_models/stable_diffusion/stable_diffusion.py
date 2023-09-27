@@ -1,57 +1,100 @@
 import numpy as np
 from tqdm.auto import tqdm
+import keras_cv_attention_models
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, initializers, image_data_format
-from keras_cv_attention_models.stable_diffusion.unet import UNet
-from keras_cv_attention_models.beit.vit import ViTTextLargePatch14
-from keras_cv_attention_models.stable_diffusion.encoder_decoder import Encoder, Decoder, gaussian_distribution
-from keras_cv_attention_models.clip.tokenizer import SimpleTokenizer
-from keras_cv_attention_models.clip.models import add_text_model_index_header
+from keras_cv_attention_models.clip import tokenizer
+from keras_cv_attention_models.models import register_model
 
 
+@register_model
 class StableDiffusion:
-    def __init__(self, n_steps=50, n_steps_training=1000, ddim_discretize="uniform", linear_start=0.00085, linear_end=0.0120, ddim_eta=0.0):
-        self.tokenizer = SimpleTokenizer()
-        clip_model = ViTTextLargePatch14(vocab_size=self.tokenizer.vocab_size, include_top=False)
-        self.clip_model = add_text_model_index_header(clip_model, latents_dim=0, caption_tokenizer=self.tokenizer)
+    def __init__(
+        self,
+        image_shape=(512, 512, 3),
+        clip_model="beit.ViTTextLargePatch14",
+        unet_model="stable_diffusion.UNet",
+        decoder_model="stable_diffusion.Decoder",
+        encoder_model=None,  # or "stable_diffusion.Encoder"
+        clip_model_kwargs={},
+        unet_model_kwargs={},
+        decoder_model_kwargs={},
+        encoder_model_kwargs={},
+        caption_tokenizer="SimpleTokenizer",
+        num_steps=50,
+        num_training_steps=1000,
+        ddim_discretize="uniform",
+        linear_start=0.00085,
+        linear_end=0.0120,
+        ddim_eta=0.0,
+    ):
+        if isinstance(tokenizer, str) and hasattr(tokenizer, caption_tokenizer):
+            self.caption_tokenizer = getattr(tokenizer, caption_tokenizer)()
+        elif isinstance(tokenizer, str):  # tiktoken one
+            self.caption_tokenizer = tokenizer.TikToken(caption_tokenizer)
+        else:
+            self.caption_tokenizer = tokenizer
 
-        # self.encoder = Encoder()
-        self.unet_model = UNet()
-        self.decoder_model = Decoder()
+        clip_model_kwargs.update({"vocab_size": self.caption_tokenizer.vocab_size, "include_top": False})
+        self.clip_model = self.build_model(clip_model, **clip_model_kwargs)
+        self.uncond_prompt = None  # Init later after load weights
 
-        self.uncond_prompt = self.clip_model(functional.convert_to_tensor(self.tokenizer("")[None]))
-        self.channel_axis = -1 if image_data_format() == "channels_last" else 1
-        self.n_steps, self.n_steps_training, self.ddim_discretize, self.ddim_eta = n_steps, n_steps_training, ddim_discretize, ddim_eta
+        image_shape = backend.align_input_shape_by_image_data_format(image_shape)
+        encoder_model_kwargs.update({"input_shape": image_shape})
+        self.encoder_model = self.build_model(encoder_model, **encoder_model_kwargs)
+        self.image_shape = (None, *image_shape)  # encoder_model could be None
+
+        if image_data_format() == "channels_last":
+            latents_input_shape = [ii // 8 for ii in image_shape[:-1]] + [4]  # [512, 512, 3] -> [64, 64, 4]
+        else:
+            latents_input_shape = [4] + [ii // 8 for ii in image_shape[1:]]  # [3, 512, 512] -> [4, 64, 64]
+        unet_model_kwargs.update({"input_shape": latents_input_shape})
+        self.unet_model = self.build_model(unet_model, **unet_model_kwargs)
+        self.latents_input_shape = self.unet_model.input_shape[0]
+
+        decoder_model_kwargs.update({"input_shape": latents_input_shape})
+        self.decoder_model = self.build_model(decoder_model, **decoder_model_kwargs)
+        self.output_shape = self.decoder_model.output_shape
+
+        self.models = [self.clip_model, self.unet_model, self.decoder_model] + ([] if self.encoder_model is None else [self.encoder_model])
+        self.num_steps, self.num_training_steps, self.ddim_discretize, self.ddim_eta = num_steps, num_training_steps, ddim_discretize, ddim_eta
         self.linear_start, self.linear_end = linear_start, linear_end
-        self.init_ddim_sampler(n_steps, n_steps_training, ddim_discretize, linear_start, linear_end, ddim_eta)
+        self.init_ddim_sampler(num_steps, num_training_steps, ddim_discretize, linear_start, linear_end, ddim_eta)
 
-    def init_ddim_sampler(self, n_steps=50, n_steps_training=1000, ddim_discretize="uniform", linear_start=0.00085, linear_end=0.0120, ddim_eta=0.0):
+    def build_model(self, model, **model_kwargs):
+        if not isinstance(model, str) or len(model) == 0:
+            return model
+
+        model_split = model.split(".")
+        if len(model_split) == 2:
+            model_class = getattr(getattr(keras_cv_attention_models, model_split[0]), model_split[1])
+        else:
+            model_class = getattr(keras_cv_attention_models.models, model_split[0])
+        return model_class(**model_kwargs)
+
+    def init_ddim_sampler(self, num_steps=50, num_training_steps=1000, ddim_discretize="uniform", linear_start=0.00085, linear_end=0.0120, ddim_eta=0.0):
         # DDIM sampling from the paper [Denoising Diffusion Implicit Models](https://papers.labml.ai/paper/2010.02502)
-        # n_steps, n_steps_training, ddim_discretize, linear_start, linear_end, ddim_eta = 50, 1000, "uniform", 0.00085, 0.0120, 0
+        # num_steps, num_training_steps, ddim_discretize, linear_start, linear_end, ddim_eta = 50, 1000, "uniform", 0.00085, 0.0120, 0
         if ddim_discretize == "quad":
-            time_steps = ((np.linspace(0, np.sqrt(n_steps_training * 0.8), n_steps)) ** 2).astype(int) + 1
+            time_steps = ((np.linspace(0, np.sqrt(num_training_steps * 0.8), num_steps)) ** 2).astype(int) + 1
         else:  # "uniform"
-            interval = n_steps_training // n_steps
-            time_steps = np.arange(0, n_steps_training, interval) + 1
+            interval = num_training_steps // num_steps
+            time_steps = np.arange(0, num_training_steps, interval) + 1
 
-        beta = np.linspace(linear_start**0.5, linear_end**0.5, n_steps_training, dtype="float64") ** 2
-        alpha = 1.0 - beta
-        alpha_bar = np.cumprod(alpha, axis=0).astype("float32")
+        beta = np.linspace(linear_start**0.5, linear_end**0.5, num_training_steps, dtype="float64") ** 2
+        alpha_bar = np.cumprod(1.0 - beta, axis=0).astype("float32")
 
         ddim_alpha = alpha_bar[time_steps]
-        ddim_alpha_sqrt = np.sqrt(ddim_alpha)
         ddim_alpha_prev = np.concatenate([alpha_bar[:1], alpha_bar[time_steps[:-1]]])
         ddim_sigma = ddim_eta * ((1 - ddim_alpha_prev) / (1 - ddim_alpha) * (1 - ddim_alpha / ddim_alpha_prev)) ** 0.5
-        ddim_sqrt_one_minus_alpha = (1.0 - ddim_alpha) ** 0.5
 
-        self.time_steps, self.ddim_alpha, self.ddim_alpha_sqrt, self.ddim_alpha_prev = time_steps, ddim_alpha, ddim_alpha_sqrt, ddim_alpha_prev
-        self.ddim_sigma, self.ddim_sqrt_one_minus_alpha = ddim_sigma, ddim_sqrt_one_minus_alpha
+        self.time_steps, self.ddim_alpha, self.ddim_alpha_prev, self.ddim_sigma = time_steps, ddim_alpha, ddim_alpha_prev, ddim_sigma
+        self.ddim_alpha_sqrt, self.ddim_sqrt_one_minus_alpha = ddim_alpha**0.5, (1.0 - ddim_alpha) ** 0.5
 
     def text_to_image(
         self,
         prompt,
-        input_shape=[None, 512 // 8, 512 // 8, 4],  # 3 or 4 dimension, will exclude the first dimension if 4
-        batch_size=4,
+        batch_size=1,
         repeat_noise=False,  # specified whether the noise should be same for all samples in the batch
         temperature=1,  # is the noise temperature (random noise gets multiplied by this)
         init_x0=None,  # If not provided random noise will be used.
@@ -60,20 +103,27 @@ class StableDiffusion:
         uncond_scale=7.5,  # unconditional guidance scale: "eps = eps(x, empty) + scale * (eps(x, cond) - eps(x, empty))"
         return_inner=False,  # boolean value if return inner step results for visualizing the process
     ):
-        input_shape = input_shape if len(input_shape) == 3 else input_shape[1:]  # Exclude batch_size dimension
-        # assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
-        input_shape = backend.align_input_shape_by_image_data_format(input_shape)
-        target_shape = [batch_size, *input_shape]
+        if backend.is_torch_backend:
+            device = next(self.unet_model.parameters()).device
 
-        cond_prompt = self.clip_model(self.tokenizer(prompt)[None])
-        uncond_cond_prompt = functional.concat([self.uncond_prompt] * batch_size + [cond_prompt] * batch_size, axis=0)
+        target_shape = [batch_size, *self.latents_input_shape[1:]]
+        if self.uncond_prompt is None:
+            uncond_prompt = functional.convert_to_tensor(self.caption_tokenizer("", padding_value=self.caption_tokenizer.eot_token)[None])
+            uncond_prompt = uncond_prompt.long().to(device) if backend.is_torch_backend else uncond_prompt
+            self.uncond_token = self.clip_model(uncond_prompt)
+        cond_prompt = functional.convert_to_tensor(self.caption_tokenizer(prompt, padding_value=self.caption_tokenizer.eot_token)[None])
+        cond_prompt = cond_prompt.long().to(device) if backend.is_torch_backend else cond_prompt
+        cond_token = self.clip_model(cond_prompt)
+        uncond_cond_prompt = functional.concat([self.uncond_token] * batch_size + [cond_token] * batch_size, axis=0)
 
         xt = np.random.normal(size=target_shape) if init_x0 is None else init_x0
         xt = functional.convert_to_tensor(xt.astype("float32"))
+        xt = xt.to(device) if backend.is_torch_backend else xt
 
         rr = []
-        for cur_step in tqdm(range(self.n_steps - init_step)[::-1]):
+        for cur_step in tqdm(range(self.num_steps - init_step)[::-1]):
             time_step = functional.convert_to_tensor(np.stack([self.time_steps[cur_step]] * batch_size * 2))
+            time_step = time_step.to(device) if backend.is_torch_backend else time_step
             xt_inputs = functional.concat([xt, xt], axis=0)
 
             # get_eps
@@ -86,13 +136,11 @@ class StableDiffusion:
             pred_x0 = (xt - e_t * self.ddim_sqrt_one_minus_alpha[cur_step]) / (self.ddim_alpha[cur_step] ** 0.5)  # Current prediction for x_0
             dir_xt = e_t * ((1.0 - ddim_alpha_prev - ddim_sigma**2) ** 0.5)  # Direction pointing to x_t
 
-            if ddim_sigma == 0:
-                noise = 0.0
-            elif repeat_noise:
-                noise = np.random.normal(size=(1, *target_shape[1:])).astype("float32")
-            else:
-                noise = np.random.normal(size=target_shape).astype("float32")
-            xt = (ddim_alpha_prev**0.5) * pred_x0 + dir_xt + ddim_sigma * temperature * functional.convert_to_tensor(noise)
+            noise_shape = (1, *target_shape[1:]) if repeat_noise else target_shape
+            noise = 0.0 if ddim_sigma == 0 else np.random.normal(size=noise_shape).astype("float32")
+            noise = functional.convert_to_tensor(noise)
+            noise = noise.to(device) if backend.is_torch_backend else noise
+            xt = (ddim_alpha_prev**0.5) * pred_x0 + dir_xt + ddim_sigma * temperature * noise
             if return_inner:
                 rr.append(xt)
 

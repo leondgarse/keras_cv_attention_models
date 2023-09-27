@@ -14,9 +14,10 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 
 LAYER_NORM_EPSILON = 1e-6
 
-PRETRAINED_DICT = {"": {"": ""}}
+PRETRAINED_DICT = {"unet": {"v1_5": "30b5e8755d2a04211980e608df14f133"}}
 
 
+@backend.register_keras_serializable(package="kecam")
 class SinusoidalTimeStepEmbedding(layers.Layer):
     def __init__(self, hidden_channels=320, max_period=10000, **kwargs):
         super().__init__(**kwargs)
@@ -66,25 +67,26 @@ def attention_mlp_block(inputs, condition=None, mlp_ratio=4, num_heads=4, head_d
     attn_out = layers.Add(name=name + "attn_out")([inputs, nn])
 
     """ Attention with condition """
-    nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "cond_attn_ln")(attn_out)  # "channels_first" also using axis=-1
-    nn = cross_attention(nn, condition=condition, num_heads=num_heads, head_dim=head_dim, name=name + "cond_attn_")
-    cond_attn_out = layers.Add(name=name + "cond_attn_out")([attn_out, nn])
+    if condition is not None:
+        nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "cond_attn_ln")(attn_out)  # "channels_first" also using axis=-1
+        nn = cross_attention(nn, condition=condition, num_heads=num_heads, head_dim=head_dim, name=name + "cond_attn_")
+        attn_out = layers.Add(name=name + "cond_attn_out")([attn_out, nn])
 
     """ Feed forward """
     input_channels = inputs.shape[-1]
-    nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "ffn_ln")(cond_attn_out)  # "channels_first" also using axis=-1
+    nn = layers.LayerNormalization(axis=-1, epsilon=LAYER_NORM_EPSILON, name=name + "ffn_ln")(attn_out)  # "channels_first" also using axis=-1
     nn = layers.Dense(input_channels * mlp_ratio * 2, use_bias=True, name=name + "ffn_gate_dense")(nn)
     fft, fft_gate = functional.split(nn, 2, axis=-1)
     nn = fft * activation_by_name(fft_gate, activation="gelu", name=name + "gate_")
 
     nn = layers.Dense(input_channels, use_bias=True, name=name + "mlp.down_proj")(nn)
-    nn = layers.Add(name=name + "mlp_output")([cond_attn_out, nn])
+    nn = layers.Add(name=name + "mlp_output")([attn_out, nn])
     return nn
 
 
 def spatial_transformer_block(inputs, condition=None, num_attention_block=1, mlp_ratio=4, num_heads=4, head_dim=0, name=""):
     input_channels = inputs.shape[-1 if backend.image_data_format() == "channels_last" else 1]
-    nn = group_norm(inputs, name=name + "in_layers_")
+    nn = group_norm(inputs, epsilon=LAYER_NORM_EPSILON, name=name + "in_layers_")
     nn = conv2d_no_bias(nn, input_channels, kernel_size=1, use_bias=True, name=name + "in_layers_")
 
     nn = nn if backend.image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)
@@ -92,15 +94,15 @@ def spatial_transformer_block(inputs, condition=None, num_attention_block=1, mlp
     nn = functional.reshape(nn, [-1, block_height * block_width, nn.shape[-1]])
 
     for attention_block_id in range(num_attention_block):
-        block_name = name + "attn_{}_".format(attention_block_id)
+        block_name = name + "{}_".format(attention_block_id + 1)
         nn = attention_mlp_block(nn, condition, mlp_ratio=mlp_ratio, num_heads=num_heads, head_dim=head_dim, name=block_name)
     nn = functional.reshape(nn, [-1, block_height, block_width, nn.shape[-1]])
     nn = nn if backend.image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)
     nn = conv2d_no_bias(nn, input_channels, kernel_size=1, use_bias=True, name=name + "out_layers_")
-    return nn
+    return layers.Add(name=name + "output")([inputs, nn])
 
 
-def res_block(inputs, time_embedding=None, out_channels=-1, activation="swish", name=""):
+def res_block(inputs, time_embedding=None, out_channels=-1, epsilon=1e-5, activation="swish", name=""):
     input_channels = inputs.shape[-1 if backend.image_data_format() == "channels_last" else 1]
     out_channels = out_channels if out_channels > 0 else input_channels
     if input_channels == out_channels:
@@ -108,7 +110,7 @@ def res_block(inputs, time_embedding=None, out_channels=-1, activation="swish", 
     else:
         short = conv2d_no_bias(inputs, out_channels, kernel_size=1, use_bias=True, name=name + "short_")
 
-    nn = group_norm(inputs, name=name + "in_layers_")
+    nn = group_norm(inputs, epsilon=epsilon, name=name + "in_layers_")
     nn = activation_by_name(nn, activation=activation, name=name + "in_layers_")
     nn = conv2d_no_bias(nn, out_channels, kernel_size=3, use_bias=True, padding="SAME", name=name + "in_layers_")
 
@@ -118,12 +120,13 @@ def res_block(inputs, time_embedding=None, out_channels=-1, activation="swish", 
         emb = emb[:, None, None, :] if backend.image_data_format() == "channels_last" else emb[:, :, None, None]
         nn = nn + emb
 
-    nn = group_norm(nn, name=name + "out_layers_")
+    nn = group_norm(nn, epsilon=epsilon, name=name + "out_layers_")
     nn = activation_by_name(nn, activation=activation, name=name + "out_layers_")
     nn = conv2d_no_bias(nn, out_channels, kernel_size=3, use_bias=True, padding="SAME", name=name + "out_layers_")
     return layers.Add(name=name + "out")([nn, short])
 
 
+@register_model
 def UNet(
     input_shape=(64, 64, 4),
     num_blocks=[2, 2, 2, 2],
@@ -133,7 +136,8 @@ def UNet(
     num_heads=8,
     mlp_ratio=4,
     conditional_embedding=768,
-    pretrained=None,
+    labels_embedding=0,
+    pretrained="v1_5",
     model_name="unet",
     kwargs=None,  # Not using, recieving parameter
 ):

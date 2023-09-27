@@ -433,7 +433,7 @@ def try_save_pth_and_onnx(torch_model, save_pth=True, save_onnx=True, input_shap
     dummy_inputs = torch.from_numpy(np.random.uniform(size=input_shape).astype(dtype))
     if save_pth:
         output_name = save_name + ".pth"
-        traced_cell = torch.jit.trace(torch_model, (dummy_inputs))
+        traced_cell = torch.jit.trace(torch_model, (dummy_inputs), strict=False)
         torch.jit.save(traced_cell, output_name)
         print(">>>> Saved to:", output_name)
 
@@ -507,6 +507,7 @@ def keras_reload_from_torch_model(
                 pass
     else:
         state_dict = torch_model
+    do_convert = do_convert and len(state_dict) > 0
 
     """ Convert torch weights """
     # torch_params = {kk: (np.cumproduct(vv.shape)[-1] if len(vv.shape) != 0 else 1) for kk, vv in state_dict.items() if ".num_batches_tracked" not in kk}

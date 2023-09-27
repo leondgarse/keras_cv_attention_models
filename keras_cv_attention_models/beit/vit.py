@@ -13,6 +13,7 @@ def ViTText(
     text_positional_dropout=0,
     text_use_positional_embedding=True,
     include_top=True,
+    layer_norm_epsilon=1e-5,
     activation="gelu/quick",
     model_name="vit_text",
     **kwargs,
@@ -59,4 +60,4 @@ def ViTTextLargePatch14(vocab_size=49408, max_block_size=77, activation="gelu/qu
     depth = 12
     num_heads = 12
     patch_size = kwargs.pop("patch_size", 14)
-    return ViT(**locals(), model_name="vit_text_large_patch14", **kwargs)
+    return ViTText(**locals(), model_name="vit_text_large_patch14", **kwargs)

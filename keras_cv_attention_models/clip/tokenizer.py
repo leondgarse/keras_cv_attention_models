@@ -54,7 +54,7 @@ class SimpleTokenizer(object):
         token_vocab = ["".join(ii) for ii in tokens_split]
         vocab = [ii for ii in byte_vocab if ii not in token_vocab] + token_vocab  # filter basic byte_vocab from provided token_vocab
 
-        special_tokens = list(set([self.sot, self.eot])) + (special_tokens if special_tokens else [])
+        special_tokens = ([self.sot] if self.sot == self.eot else [self.sot, self.eot]) + (special_tokens if special_tokens else [])
         self.cache = {t: t for t in special_tokens}
         special_regex = "|".join([ii.replace("|", "\|") for ii in special_tokens])
         self.pat = regex.compile(special_regex + r"""|'s|'t|'re|'ve|'m|'ll|'d|[\p{L}]+|[\p{N}]|[^\s\p{L}\p{N}]+""", regex.IGNORECASE)
@@ -193,12 +193,12 @@ class SimpleTokenizer(object):
         text = bytearray([self.byte_decoder[c] for c in text]).decode("utf-8", errors="replace").replace("</w>", " ")
         return text
 
-    def __call__(self, inputs):
+    def __call__(self, inputs, padding_value=0):
         if isinstance(inputs, str) or isinstance(inputs, bytes):
             inputs = inputs.decode() if hasattr(inputs, "decode") else inputs
             tokens = [self.sot_token] + self.encode(inputs)[: self.context_length - 2] + [self.eot_token]
             # print(f"{tokens = }")
-            return np.pad(tokens, [0, self.context_length - len(tokens)])
+            return np.pad(tokens, [0, self.context_length - len(tokens)], constant_values=padding_value)
         else:
             inputs = inputs.detach() if hasattr(inputs, "detach") else inputs
             inputs = inputs.cpu() if hasattr(inputs, "cpu") else inputs

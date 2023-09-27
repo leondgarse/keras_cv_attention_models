@@ -13,9 +13,9 @@ from keras_cv_attention_models.attention_layers import (
 from keras_cv_attention_models.stable_diffusion.unet import res_block
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-LAYER_NORM_EPSILON = 1e-6
+GROUP_NORM_EPSILON = 1e-6
 
-PRETRAINED_DICT = {"": {"": ""}}
+PRETRAINED_DICT = {"decoder": {"v1_5": "3b37d81cd07fbab875bdbb48fbb91e27"}, "encoder": {"v1_5": "d053d1d1d43cba0f357381cf2710836a"}}
 
 
 def gaussian_distribution(inputs):
@@ -34,7 +34,7 @@ def attention_block(inputs, num_attention_block=1, mlp_ratio=4, num_heads=4, hea
     height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
     qk_scale = 1.0 / (float(input_channels) ** 0.5)
 
-    nn = group_norm(inputs, name=name + "in_layers_")
+    nn = group_norm(inputs, epsilon=GROUP_NORM_EPSILON, name=name + "in_layers_")
 
     qq = conv2d_no_bias(nn, input_channels, use_bias=True, name=name and name + "query_")
     kk = conv2d_no_bias(nn, input_channels, use_bias=True, name=name and name + "key_")
@@ -62,6 +62,7 @@ def attention_block(inputs, num_attention_block=1, mlp_ratio=4, num_heads=4, hea
     return layers.Add(name=name + "out")([output, inputs])
 
 
+@register_model
 def Encoder(
     input_shape=(512, 512, 3),  # input -> DownSample 3 times -> // 8, 512 -> 64
     num_blocks=[2, 2, 2, 2],
@@ -69,7 +70,7 @@ def Encoder(
     hidden_expands=[1, 2, 4, 4],
     output_channels=4,
     post_encoder_channels=4,  # > 0 value for an additional Conv2D layer after output layer
-    pretrained=None,
+    pretrained="v1_5",
     model_name="encoder",
     kwargs=None,  # Not using, recieving parameter
 ):
@@ -97,7 +98,7 @@ def Encoder(
     nn = res_block(nn, time_embedding=None, name="middle_block_2_")
 
     """ Output blocks """
-    nn = group_norm(nn, name="output_")
+    nn = group_norm(nn, epsilon=GROUP_NORM_EPSILON, name="output_")
     nn = activation_by_name(nn, activation="swish", name="output_")
     # * 2 means [mean, std]
     outputs = conv2d_no_bias(nn, output_channels * 2, kernel_size=3, use_bias=True, padding="SAME", name="output_")
@@ -108,6 +109,7 @@ def Encoder(
     return model
 
 
+@register_model
 def Decoder(
     input_shape=(64, 64, 4),
     num_blocks=[2, 2, 2, 2],
@@ -115,7 +117,7 @@ def Decoder(
     hidden_expands=[4, 4, 2, 1],
     output_channels=3,
     pre_decoder_channels=4,  # > 0 value for an additional Conv2D layer after input layer
-    pretrained=None,
+    pretrained="v1_5",
     model_name="decoder",
     kwargs=None,  # Not using, recieving parameter
 ):
@@ -127,9 +129,9 @@ def Decoder(
     nn = conv2d_no_bias(nn, hidden_channels * hidden_expands[0], kernel_size=3, use_bias=True, padding="SAME", name="stem_")
 
     """ Middle blocks """
-    nn = res_block(nn, time_embedding=None, name="middle_block_1_")
+    nn = res_block(nn, time_embedding=None, epsilon=GROUP_NORM_EPSILON, name="middle_block_1_")
     nn = attention_block(nn, name="middle_block_attn_")
-    nn = res_block(nn, time_embedding=None, name="middle_block_2_")
+    nn = res_block(nn, time_embedding=None, epsilon=GROUP_NORM_EPSILON, name="middle_block_2_")
 
     """ Up blocks """
     for stack_id, (num_block, hidden_expand) in enumerate(zip(num_blocks, hidden_expands)):
@@ -140,11 +142,11 @@ def Decoder(
             nn = conv2d_no_bias(nn, nn.shape[channel_axis], kernel_size=3, strides=1, use_bias=True, padding="same", name=stack_name + "upsample_")
 
         for block_id in range(num_block + 1):
-            block_name = stack_name + "down_block{}_".format(block_id + 1)
-            nn = res_block(nn, time_embedding=None, out_channels=out_channels, name=block_name)
+            block_name = stack_name + "up_block{}_".format(block_id + 1)
+            nn = res_block(nn, time_embedding=None, epsilon=GROUP_NORM_EPSILON, out_channels=out_channels, name=block_name)
 
     """ Output blocks """
-    nn = group_norm(nn, name="output_")
+    nn = group_norm(nn, epsilon=GROUP_NORM_EPSILON, name="output_")
     nn = activation_by_name(nn, activation="swish", name="output_")
     outputs = conv2d_no_bias(nn, output_channels, kernel_size=3, use_bias=True, padding="SAME", name="output_")
 

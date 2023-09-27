@@ -98,6 +98,7 @@
 - [Language Models](#language-models)
   - [GPT2](#gpt2)
   - [LLaMA2](#llama2)
+- [Stable Diffusion](#stable-diffusion)
 - [Licenses](#licenses)
 - [Citing](#citing)
 
@@ -1611,6 +1612,15 @@
   | [LLaMA2_42M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_42m_tiny_stories.h5)  | 58.17M | 50.7G  | 32000      | 0.847    |  |
   | [LLaMA2_110M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_110m_tiny_stories.h5) | 134.1M | 130.2G | 32000      | 0.760    |  |
   | LLaMA2_7B   | 6.74B  | 14.54T | 32000      |          |  |
+***
+
+# Stable Diffusion
+  | Model               | Params | FLOPs   | Input               | Download            |
+  | ------------------- | ------ | ------- | ------------------- | ------------------- |
+  | ViTTextLargePatch14 | 123.1M | 6.67G   | [None, 77]          | [vit_text_large_patch14_clip.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/vit_text_large_patch14_clip.h5) |
+  | Encoder             | 34.16M | 559.6G  | [None, 512, 512, 3] | [encoder_v1_5.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/stable_diffusion/encoder_v1_5.h5) |
+  | UNet                | 859.5M | 404.4G  | [None, 64, 64, 4]   | [unet_v1_5.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/stable_diffusion/unet_v1_5.h5) |
+  | Decoder             | 49.49M | 1259.5G | [None, 64, 64, 4]   | [decoder_v1_5.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/stable_diffusion/decoder_v1_5.h5) |
 ***
 
 # Licenses
