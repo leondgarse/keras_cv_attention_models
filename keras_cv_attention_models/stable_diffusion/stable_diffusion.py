@@ -4,11 +4,11 @@ import keras_cv_attention_models
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, initializers, image_data_format
 from keras_cv_attention_models.clip import tokenizer
-from keras_cv_attention_models.models import register_model
+from keras_cv_attention_models.models import register_model, FakeModelWrapper  # FakeModelWrapper providing save / load / cuda class methods
 
 
 @register_model
-class StableDiffusion:
+class StableDiffusion(FakeModelWrapper):
     def __init__(
         self,
         image_shape=(512, 512, 3),
@@ -21,45 +21,61 @@ class StableDiffusion:
         decoder_model_kwargs={},
         encoder_model_kwargs={},
         caption_tokenizer="SimpleTokenizer",
+        pretrained="default",  # default for using model preset weights, set None to disable all pretrained, for specific model, set related xxx_model_kwargs
         num_steps=50,
         num_training_steps=1000,
         ddim_discretize="uniform",
         linear_start=0.00085,
         linear_end=0.0120,
         ddim_eta=0.0,
+        name="stable_diffusion",
     ):
-        if isinstance(tokenizer, str) and hasattr(tokenizer, caption_tokenizer):
-            self.caption_tokenizer = getattr(tokenizer, caption_tokenizer)()
-        elif isinstance(tokenizer, str):  # tiktoken one
-            self.caption_tokenizer = tokenizer.TikToken(caption_tokenizer)
-        else:
-            self.caption_tokenizer = tokenizer
-
-        clip_model_kwargs.update({"vocab_size": self.caption_tokenizer.vocab_size, "include_top": False})
-        self.clip_model = self.build_model(clip_model, **clip_model_kwargs)
-        self.uncond_prompt = None  # Init later after load weights
+        if pretrained != "default":
+            clip_model_kwargs.update({"pretrained": pretrained})
+            unet_model_kwargs.update({"pretrained": pretrained})
+            decoder_model_kwargs.update({"pretrained": pretrained})
+            encoder_model_kwargs.update({"pretrained": pretrained})
 
         image_shape = backend.align_input_shape_by_image_data_format(image_shape)
-        encoder_model_kwargs.update({"input_shape": image_shape})
-        self.encoder_model = self.build_model(encoder_model, **encoder_model_kwargs)
-        self.image_shape = (None, *image_shape)  # encoder_model could be None
-
         if image_data_format() == "channels_last":
             latents_input_shape = [ii // 8 for ii in image_shape[:-1]] + [4]  # [512, 512, 3] -> [64, 64, 4]
         else:
             latents_input_shape = [4] + [ii // 8 for ii in image_shape[1:]]  # [3, 512, 512] -> [4, 64, 64]
+        self.image_shape = (None, *image_shape)
+        self.latents_input_shape = (None, *latents_input_shape)
+
+        """ tokenizer """
+        if isinstance(caption_tokenizer, str) and hasattr(tokenizer, caption_tokenizer):
+            self.caption_tokenizer = getattr(tokenizer, caption_tokenizer)()
+        elif isinstance(caption_tokenizer, str):  # tiktoken one
+            self.caption_tokenizer = tokenizer.TikToken(caption_tokenizer)
+        else:
+            self.caption_tokenizer = tokenizer
+
+        """ clip_model """
+        clip_model_kwargs.update({"vocab_size": self.caption_tokenizer.vocab_size, "include_top": False})
+        self.clip_model = self.build_model(clip_model, **clip_model_kwargs)
+        self.uncond_prompt = None  # Init later after load weights
+
+        """ encoder, could be None """
+        encoder_model_kwargs.update({"input_shape": image_shape})
+        self.encoder_model = self.build_model(encoder_model, **encoder_model_kwargs)
+
+        """ unet """
         unet_model_kwargs.update({"input_shape": latents_input_shape})
         self.unet_model = self.build_model(unet_model, **unet_model_kwargs)
-        self.latents_input_shape = self.unet_model.input_shape[0]
 
+        """ decoder """
         decoder_model_kwargs.update({"input_shape": latents_input_shape})
         self.decoder_model = self.build_model(decoder_model, **decoder_model_kwargs)
         self.output_shape = self.decoder_model.output_shape
 
+        """ Gather models and sampler """
         self.models = [self.clip_model, self.unet_model, self.decoder_model] + ([] if self.encoder_model is None else [self.encoder_model])
         self.num_steps, self.num_training_steps, self.ddim_discretize, self.ddim_eta = num_steps, num_training_steps, ddim_discretize, ddim_eta
         self.linear_start, self.linear_end = linear_start, linear_end
         self.init_ddim_sampler(num_steps, num_training_steps, ddim_discretize, linear_start, linear_end, ddim_eta)
+        super().__init__(self.models, name=name)
 
     def build_model(self, model, **model_kwargs):
         if not isinstance(model, str) or len(model) == 0:

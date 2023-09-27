@@ -217,7 +217,7 @@ def UNet(
     outputs = conv2d_no_bias(nn, output_channels, kernel_size=3, use_bias=True, padding="SAME", name="output_")
 
     model_inputs = [inputs, labels_inputs, time_steps] if num_labels > 0 else [inputs, time_steps]
-    model_inputs += ([condition] if conditional_embedding > 0 else [])
+    model_inputs += [condition] if conditional_embedding > 0 else []
     model = models.Model(model_inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "stable_diffusion", pretrained)
     return model
