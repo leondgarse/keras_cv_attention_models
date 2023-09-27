@@ -1616,6 +1616,7 @@
 
 # Stable Diffusion
   - [Keras Stable Diffusion](keras_cv_attention_models/stable_diffusion) includes implementation of [PDF 2112.10752 High-Resolution Image Synthesis with Latent Diffusion Models](https://arxiv.org/pdf/2112.10752.pdf). weights ported from [Github runwayml/stable-diffusion](https://github.com/runwayml/stable-diffusion) `sd-v1-5.ckpt`.
+
   | Model               | Params | FLOPs   | Input               | Download            |
   | ------------------- | ------ | ------- | ------------------- | ------------------- |
   | ViTTextLargePatch14 | 123.1M | 6.67G   | [None, 77]          | [vit_text_large_patch14_clip.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/vit_text_large_patch14_clip.h5) |
