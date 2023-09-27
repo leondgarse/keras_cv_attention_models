@@ -464,14 +464,15 @@ def get_layer_as_inputs_count_from_mode_json(model):
     return dd
 
 
-def get_flops(model):
+def get_flops(model, input_shape=None):
+    input_shape = [(1, *ii.shape[1:]) for ii in model.inputs] if input_shape is None else input_shape
     if backend.is_tensorflow_backend:
         # https://github.com/tensorflow/tensorflow/issues/32809#issuecomment-849439287
         import tensorflow as tf
         from tensorflow.python.profiler import model_analyzer, option_builder
 
-        input_signature = [tf.TensorSpec(shape=(1, *ii.shape[1:]), dtype=ii.dtype, name=ii.name) for ii in model.inputs]
-        forward_graph = tf.function(model, input_signature).get_concrete_function().graph
+        input_signature = [tf.TensorSpec(shape=ss, dtype=ii.dtype, name=ii.name) for ii, ss in zip(model.inputs, input_shape)]
+        forward_graph = tf.function(model, [input_signature]).get_concrete_function().graph
         options = option_builder.ProfileOptionBuilder.float_operation()
         graph_info = model_analyzer.profile(forward_graph, options=options)
         flops = graph_info.total_float_ops // 2
@@ -479,8 +480,8 @@ def get_flops(model):
         import thop
         import torch
 
-        inputs = torch.ones([1, *model.input_shape[1:]])
-        flops, params = thop.profile(model, inputs=(inputs,))
+        inputs = [torch.ones(ii) for ii in input_shape]
+        flops, params = thop.profile(model, inputs=tuple([inputs]))
     print(">>>> FLOPs: {:,}, GFLOPs: {:.4f}G".format(flops, flops / 1e9))
     return flops
 
@@ -956,12 +957,15 @@ def convert_groups_conv2d_2_split_conv2d(model):
     return models.clone_model(model, input_tensors=input_tensors, clone_function=__convert_groups_conv2d_2_split_conv2d__)
 
 
-def convert_gelu_to_approximate(model):
-    from keras_cv_attention_models import attention_layers
+def convert_gelu_to_approximate(model, target_activation="gelu/app"):
+    from keras_cv_attention_models import common_layers
 
     def __convert_gelu_to_approximate__(layer):
         if isinstance(layer, layers.Activation) and layer.activation.__name__ == "gelu":
-            return layers.Lambda(lambda xx: functional.gelu(xx, approximate=True))
+            if target_activation == "gelu/quick":
+                return layers.Lambda(common_layers.gelu_quick)
+            else:  # "gelu/app"
+                return layers.Lambda(lambda xx: functional.gelu(xx, approximate=True))
         return layer
 
     input_tensors = layers.Input(model.input_shape[1:])
