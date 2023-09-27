@@ -141,7 +141,7 @@ def UNet(
     num_attention_blocks=[1, 1, 1, 0],  # attention_blocks after each res_block in each stack
     num_heads=8,
     mlp_ratio=4,
-    conditional_embedding=768,
+    conditional_embedding=768,  # > 0 value for using text conditional as generating instruction.
     num_labels=0,  # > 0 value for also using labels as generating instruction.
     activation="swish",
     pretrained="v1_5",
@@ -216,7 +216,8 @@ def UNet(
     nn = activation_by_name(nn, activation=activation, name="output_")
     outputs = conv2d_no_bias(nn, output_channels, kernel_size=3, use_bias=True, padding="SAME", name="output_")
 
-    model_inputs = [inputs, labels_inputs, time_steps, condition] if num_labels > 0 else [inputs, time_steps, condition]
+    model_inputs = [inputs, labels_inputs, time_steps] if num_labels > 0 else [inputs, time_steps]
+    model_inputs += ([condition] if conditional_embedding > 0 else [])
     model = models.Model(model_inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "stable_diffusion", pretrained)
     return model
