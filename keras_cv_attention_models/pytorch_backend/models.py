@@ -38,7 +38,7 @@ class _Trainer_(object):
             global_context = nullcontext()
         else:
             scaler = torch.cuda.amp.GradScaler(enabled=True)
-            global_context = torch.amp.autocast(device_type=device_type, dtype=torch.float16)
+            global_context = torch.autocast(device_type=device_type, dtype=torch.float16)
         self.device, self.device_type, self.scaler, self.global_context = device, device_type, scaler, global_context
 
     def _convert_data_(self, data):
@@ -424,6 +424,13 @@ class Model(nn.Module, _Trainer_, _Exporter_):
         else:
             self.nodes.append(cur_node)
         return cur_node
+
+    @property
+    def compute_dtype(self):
+        try:
+            return next(self.parameters()).dtype
+        except StopIteration:
+            return torch.get_default_dtype()
 
     @property
     def layers(self):

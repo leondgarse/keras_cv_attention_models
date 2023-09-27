@@ -22,24 +22,31 @@
   **Note: `StableDiffusion` is not defined a model. just a gather of above models and forward functions like `text_to_image`.**
 ## Usage
   ```py
-  from keras_cv_attention_models import stable_diffusion
+  import tensorflow as tf
+  if len(tf.config.experimental.get_visible_devices('GPU')) > 0:
+      tf.keras.mixed_precision.set_global_policy("mixed_float16")
 
+  from keras_cv_attention_models import stable_diffusion
   mm = stable_diffusion.StableDiffusion()
   imm = mm.text_to_image('Cyberpunk cityscape with towering skyscrapers, neon signs, and flying cars.', batch_size=4).numpy()
   print(f"{imm.shape = }, {imm.min() = }, {imm.max() = }")
   # imm.shape = (4, 512, 512, 3), imm.min() = -2.4545908, imm.max() = 1.851803
-  plt.imshow(np.hstack(np.clip(imm / 2 + 0.5, 0, 1)))
+  plt.imshow(np.hstack(np.clip(imm.astype("float32") / 2 + 0.5, 0, 1)))
   ```
   ![stabel_diffusion](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/e565c750-f98a-4d04-a280-0d0aa382ef5f)
 
   **Change to other shape** by setting `image_shape`. Should be divisible by `64`, as UNet needs to concatenate down and up samples
   ```py
+  import tensorflow as tf
+  if len(tf.config.experimental.get_visible_devices('GPU')) > 0:
+      tf.keras.mixed_precision.set_global_policy("mixed_float16")
+
   from keras_cv_attention_models import stable_diffusion
   mm = stable_diffusion.StableDiffusion(image_shape=(512, 1024, 3))
   imm = mm.text_to_image('mountains, stars and paisley fileed sky, artstation, digital painting, sharp focus.', batch_size=1).numpy()
   print(f"{imm.shape = }, {imm.min() = }, {imm.max() = }")
   # imm.shape = (1, 512, 1024, 3), imm.min() = -1.5322105, imm.max() = 1.419162
-  plt.imsave('aa.jpg', np.hstack(np.clip(imm / 2 + 0.5, 0, 1)))
+  plt.imsave('aa.jpg', np.hstack(np.clip(imm.astype("float32") / 2 + 0.5, 0, 1)))
   ```
   ![stable_diffusion_512_1024](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/a10e3b97-38b5-4993-92ff-98f05ac0055d)
 
@@ -49,16 +56,15 @@
   import torch
   from contextlib import nullcontext
   device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
-  global_context = nullcontext() if device.type == "cpu" else torch.amp.autocast(device_type=device.type, dtype=torch.float16)
+  global_context = nullcontext() if device.type == "cpu" else torch.autocast(device_type=device.type, dtype=torch.float16)
 
   from keras_cv_attention_models import stable_diffusion
   # >>>> Using PyTorch backend
-  mm = stable_diffusion.StableDiffusion(image_shape=(768, 384, 3))
-  mm.to(device)
+  mm = stable_diffusion.StableDiffusion(image_shape=(768, 384, 3)).to(device)
   with torch.no_grad(), global_context:
       imm = mm.text_to_image('anime draw of a penguin under the moon on the beach.', batch_size=4).cpu().numpy()
   print(f"{imm.shape = }, {imm.min() = }, {imm.max() = }")
   # imm.shape = (4, 3, 768, 384), imm.min() = -1.24831, imm.max() = 1.2017612
-  plt.imsave('bb.jpg', np.hstack(np.clip(imm.transpose([0, 2, 3, 1]) / 2 + 0.5, 0, 1)))
+  plt.imsave('bb.jpg', np.hstack(np.clip(imm.transpose([0, 2, 3, 1]).astype("float32") / 2 + 0.5, 0, 1)))
   ```
   ![stable_diffusion_384_768](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/f8f322de-06c4-459e-8411-119b59bbebd2)

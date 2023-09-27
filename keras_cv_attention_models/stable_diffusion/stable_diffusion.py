@@ -121,24 +121,25 @@ class StableDiffusion(FakeModelWrapper):
     ):
         if backend.is_torch_backend:
             device = next(self.unet_model.parameters()).device
+        compute_dtype = self.unet_model.compute_dtype
 
         target_shape = [batch_size, *self.latents_input_shape[1:]]
         if self.uncond_prompt is None:
-            uncond_prompt = functional.convert_to_tensor(self.caption_tokenizer("", padding_value=self.caption_tokenizer.eot_token)[None])
+            uncond_prompt = functional.convert_to_tensor(self.caption_tokenizer("", padding_value=self.caption_tokenizer.eot_token)[None], dtype=compute_dtype)
             uncond_prompt = uncond_prompt.long().to(device) if backend.is_torch_backend else uncond_prompt
             self.uncond_token = self.clip_model(uncond_prompt)
-        cond_prompt = functional.convert_to_tensor(self.caption_tokenizer(prompt, padding_value=self.caption_tokenizer.eot_token)[None])
+        cond_prompt = functional.convert_to_tensor(self.caption_tokenizer(prompt, padding_value=self.caption_tokenizer.eot_token)[None], dtype=compute_dtype)
         cond_prompt = cond_prompt.long().to(device) if backend.is_torch_backend else cond_prompt
         cond_token = self.clip_model(cond_prompt)
         uncond_cond_prompt = functional.concat([self.uncond_token] * batch_size + [cond_token] * batch_size, axis=0)
 
         xt = np.random.normal(size=target_shape) if init_x0 is None else init_x0
-        xt = functional.convert_to_tensor(xt.astype("float32"))
+        xt = functional.convert_to_tensor(xt.astype("float32"), dtype=compute_dtype)
         xt = xt.to(device) if backend.is_torch_backend else xt
 
         rr = []
         for cur_step in tqdm(range(self.num_steps - init_step)[::-1]):
-            time_step = functional.convert_to_tensor(np.stack([self.time_steps[cur_step]] * batch_size * 2))
+            time_step = functional.convert_to_tensor(np.stack([self.time_steps[cur_step]] * batch_size * 2), dtype=compute_dtype)
             time_step = time_step.to(device) if backend.is_torch_backend else time_step
             xt_inputs = functional.concat([xt, xt], axis=0)
 
@@ -154,7 +155,7 @@ class StableDiffusion(FakeModelWrapper):
 
             noise_shape = (1, *target_shape[1:]) if repeat_noise else target_shape
             noise = 0.0 if ddim_sigma == 0 else np.random.normal(size=noise_shape).astype("float32")
-            noise = functional.convert_to_tensor(noise)
+            noise = functional.convert_to_tensor(noise, dtype=compute_dtype)
             noise = noise.to(device) if backend.is_torch_backend else noise
             xt = (ddim_alpha_prev**0.5) * pred_x0 + dir_xt + ddim_sigma * temperature * noise
             if return_inner:
