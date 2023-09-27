@@ -102,7 +102,7 @@ def spatial_transformer_block(inputs, condition=None, num_attention_block=1, mlp
     return layers.Add(name=name + "output")([inputs, nn])
 
 
-def res_block(inputs, time_embedding=None, out_channels=-1, epsilon=1e-5, activation="swish", name=""):
+def res_block(inputs, time_embedding=None, labels_embedding=None, out_channels=-1, epsilon=1e-5, activation="swish", name=""):
     input_channels = inputs.shape[-1 if backend.image_data_format() == "channels_last" else 1]
     out_channels = out_channels if out_channels > 0 else input_channels
     if input_channels == out_channels:
@@ -117,6 +117,12 @@ def res_block(inputs, time_embedding=None, out_channels=-1, epsilon=1e-5, activa
     if time_embedding is not None:
         emb = activation_by_name(time_embedding, activation=activation, name=name + "emb_layers_")
         emb = layers.Dense(out_channels, name=name + "emb_layers_dense")(emb)
+        emb = emb[:, None, None, :] if backend.image_data_format() == "channels_last" else emb[:, :, None, None]
+        nn = nn + emb
+
+    if labels_embedding is not None:
+        emb = activation_by_name(labels_embedding, activation=activation, name=name + "labels_emb_layers_")
+        emb = layers.Dense(out_channels, name=name + "labels_emb_layers_dense")(emb)
         emb = emb[:, None, None, :] if backend.image_data_format() == "channels_last" else emb[:, :, None, None]
         nn = nn + emb
 
@@ -136,22 +142,32 @@ def UNet(
     num_heads=8,
     mlp_ratio=4,
     conditional_embedding=768,
-    labels_embedding=0,
+    num_labels=0,  # > 0 value for also using labels as generating instruction.
+    activation="swish",
     pretrained="v1_5",
     model_name="unet",
     kwargs=None,  # Not using, recieving parameter
 ):
     # Regard input_shape as force using original shape if len(input_shape) == 4,
     # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
-    inputs = layers.Input(backend.align_input_shape_by_image_data_format(input_shape))
+    inputs = layers.Input(backend.align_input_shape_by_image_data_format(input_shape), name="inputs")
     channel_axis = -1 if backend.image_data_format() == "channels_last" else 1
-    time_steps = layers.Input([])
-    condition = layers.Input([None, conditional_embedding])
+    time_steps = layers.Input([], name="time_steps")
+    condition = layers.Input([None, conditional_embedding], name="condition") if conditional_embedding > 0 else None
 
     time_embedding = SinusoidalTimeStepEmbedding(hidden_channels=hidden_channels, name="time_embedding")(time_steps)
     time_embedding = layers.Dense(hidden_channels * 4, name="time_embed_1_dense")(time_embedding)
-    time_embedding = activation_by_name(time_embedding, activation="swish", name="time_embed_")
+    time_embedding = activation_by_name(time_embedding, activation=activation, name="time_embed_")
     time_embedding = layers.Dense(hidden_channels * 4, name="time_embed_2_dense")(time_embedding)
+
+    if num_labels > 0:
+        labels_inputs = layers.Input([], name="labels_inputs")
+        labels_embedding = layers.Embedding(num_labels + 1, hidden_channels, mask_zero=True, name="labels_embedding")(labels_inputs)
+        labels_embedding = layers.Dense(hidden_channels * 4, name="labels_embed_1_dense")(labels_embedding)
+        labels_embedding = activation_by_name(labels_embedding, activation=activation, name="labels_embed_")
+        labels_embedding = layers.Dense(hidden_channels * 4, name="labels_embed_2_dense")(labels_embedding)
+    else:
+        labels_embedding = None
 
     nn = conv2d_no_bias(inputs, hidden_channels, kernel_size=3, use_bias=True, padding="SAME", name="latents_")
 
@@ -166,16 +182,16 @@ def UNet(
 
         for block_id in range(num_block):
             block_name = stack_name + "down_block{}_".format(block_id + 1)
-            nn = res_block(nn, time_embedding, out_channels, name=block_name)
+            nn = res_block(nn, time_embedding, labels_embedding=labels_embedding, out_channels=out_channels, activation=activation, name=block_name)
             if num_attention_block > 0:
                 nn = spatial_transformer_block(nn, condition, num_attention_block, mlp_ratio=mlp_ratio, num_heads=num_heads, name=block_name + "attn_")
             skip_connections.append(nn)
     # print(f">>>> {[ii.shape for ii in skip_connections] = }")
 
     """ Middle blocks """
-    nn = res_block(nn, time_embedding, name="middle_block_1_")
+    nn = res_block(nn, time_embedding, labels_embedding=labels_embedding, activation=activation, name="middle_block_1_")
     nn = spatial_transformer_block(nn, condition, num_attention_block=1, name="middle_block_attn_")
-    nn = res_block(nn, time_embedding, name="middle_block_2_")
+    nn = res_block(nn, time_embedding, labels_embedding=labels_embedding, activation=activation, name="middle_block_2_")
 
     """ Up blocks """
     for stack_id, (num_block, hidden_expand, num_attention_block) in enumerate(zip(num_blocks[::-1], hidden_expands[::-1], num_attention_blocks[::-1])):
@@ -190,16 +206,17 @@ def UNet(
             skip_connection = skip_connections.pop(-1)
             nn = functional.concat([nn, skip_connection], axis=channel_axis)
 
-            nn = res_block(nn, time_embedding, out_channels, name=block_name)
+            nn = res_block(nn, time_embedding, labels_embedding=labels_embedding, out_channels=out_channels, activation=activation, name=block_name)
             if num_attention_block > 0:
                 nn = spatial_transformer_block(nn, condition, num_attention_block, mlp_ratio=mlp_ratio, num_heads=num_heads, name=block_name + "attn_")
 
     """ Output blocks """
     output_channels = inputs.shape[channel_axis]
     nn = group_norm(nn, name="output_")
-    nn = activation_by_name(nn, activation="swish", name="output_")
+    nn = activation_by_name(nn, activation=activation, name="output_")
     outputs = conv2d_no_bias(nn, output_channels, kernel_size=3, use_bias=True, padding="SAME", name="output_")
 
-    model = models.Model([inputs, time_steps, condition], outputs, name=model_name)
+    model_inputs = [inputs, labels_inputs, time_steps, condition] if num_labels > 0 else [inputs, time_steps, condition]
+    model = models.Model(model_inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "stable_diffusion", pretrained)
     return model

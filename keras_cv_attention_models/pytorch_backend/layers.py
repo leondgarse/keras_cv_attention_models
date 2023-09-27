@@ -979,7 +979,8 @@ class Embedding(Layer):
         super().__init__(**kwargs)
 
     def build(self, input_shape):
-        self.module = torch.nn.Embedding(num_embeddings=self.input_dim, embedding_dim=self.output_dim, padding_idx=None, max_norm=None)
+        padding_idx = 0 if self.mask_zero else None
+        self.module = torch.nn.Embedding(num_embeddings=self.input_dim, embedding_dim=self.output_dim, padding_idx=padding_idx, max_norm=None)
         initializer = getattr(initializers, self.embeddings_initializer)() if isinstance(self.embeddings_initializer, str) else self.embeddings_initializer
         self.module.weight.data = initializer(list(self.module.weight.shape))
         super().build(input_shape)
