@@ -15,23 +15,28 @@ class FakeModelWrapper:
 
     def cuda(self):
         """Torch function"""
-        return [model.cuda() for model in self.models]
+        self.models = [model.cuda() for model in self.models]
+        return self
 
     def cpu(self):
         """Torch function"""
-        return [model.cpu() for model in self.models]
+        self.models = [model.cpu() for model in self.models]
+        return self
 
     def float(self):
         """Torch function"""
-        return [model.float() for model in self.models]
+        self.models = [model.float() for model in self.models]
+        return self
 
     def half(self):
         """Torch function"""
-        return [model.half() for model in self.models]
+        self.models = [model.half() for model in self.models]
+        return self
 
     def to(self, *args):
         """Torch function"""
-        return [model.to(*args) for model in self.models]
+        self.models = [model.to(*args) for model in self.models]
+        return self
 
     def _save_load_file_path_rule_(self, file_path=None):
         file_path = self.name if file_path is None else file_path

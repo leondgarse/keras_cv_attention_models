@@ -47,11 +47,16 @@
   ```py
   os.environ['KECAM_BACKEND'] = 'torch'
   import torch
+  from contextlib import nullcontext
+  device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
+  global_context = nullcontext() if device.type == "cpu" else torch.amp.autocast(device_type=device.type, dtype=torch.float16)
+
   from keras_cv_attention_models import stable_diffusion
   # >>>> Using PyTorch backend
   mm = stable_diffusion.StableDiffusion(image_shape=(768, 384, 3))
-  with torch.no_grad():
-      imm = mm.text_to_image('anime draw of a penguin under the moon on the beach.', batch_size=4).numpy()
+  mm.to(device)
+  with torch.no_grad(), global_context:
+      imm = mm.text_to_image('anime draw of a penguin under the moon on the beach.', batch_size=4).cpu().numpy()
   print(f"{imm.shape = }, {imm.min() = }, {imm.max() = }")
   # imm.shape = (4, 3, 768, 384), imm.min() = -1.24831, imm.max() = 1.2017612
   plt.imsave('bb.jpg', np.hstack(np.clip(imm.transpose([0, 2, 3, 1]) / 2 + 0.5, 0, 1)))
