@@ -29,6 +29,7 @@
   from keras_cv_attention_models import stable_diffusion
   mm = stable_diffusion.StableDiffusion()
   imm = mm.text_to_image('Cyberpunk cityscape with towering skyscrapers, neon signs, and flying cars.', batch_size=4).numpy()
+
   print(f"{imm.shape = }, {imm.min() = }, {imm.max() = }")
   # imm.shape = (4, 512, 512, 3), imm.min() = -2.4545908, imm.max() = 1.851803
   plt.imshow(np.hstack(np.clip(imm.astype("float32") / 2 + 0.5, 0, 1)))
@@ -44,6 +45,7 @@
   from keras_cv_attention_models import stable_diffusion
   mm = stable_diffusion.StableDiffusion(image_shape=(512, 1024, 3))
   imm = mm.text_to_image('mountains, stars and paisley fileed sky, artstation, digital painting, sharp focus.', batch_size=1).numpy()
+
   print(f"{imm.shape = }, {imm.min() = }, {imm.max() = }")
   # imm.shape = (1, 512, 1024, 3), imm.min() = -1.5322105, imm.max() = 1.419162
   plt.imsave('aa.jpg', np.hstack(np.clip(imm.astype("float32") / 2 + 0.5, 0, 1)))
@@ -63,8 +65,27 @@
   mm = stable_diffusion.StableDiffusion(image_shape=(768, 384, 3)).to(device)
   with torch.no_grad(), global_context:
       imm = mm.text_to_image('anime draw of a penguin under the moon on the beach.', batch_size=4).cpu().numpy()
+
   print(f"{imm.shape = }, {imm.min() = }, {imm.max() = }")
   # imm.shape = (4, 3, 768, 384), imm.min() = -1.24831, imm.max() = 1.2017612
   plt.imsave('bb.jpg', np.hstack(np.clip(imm.transpose([0, 2, 3, 1]).astype("float32") / 2 + 0.5, 0, 1)))
   ```
   ![stable_diffusion_384_768](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/f8f322de-06c4-459e-8411-119b59bbebd2)
+
+  **Show inner process results** by setting `return_inner=True`
+  ```py
+  import tensorflow as tf
+  if len(tf.config.experimental.get_visible_devices('GPU')) > 0:
+      tf.keras.mixed_precision.set_global_policy("mixed_float16")
+
+  from keras_cv_attention_models import stable_diffusion
+  mm = stable_diffusion.StableDiffusion()
+  imms = mm.text_to_image('anime cute cat relaxing in the grass.', batch_size=1, return_inner=True)
+
+  imms = np.concatenate([ii.numpy().astype("float32") for ii in imms], axis=0)
+  print(f"{imms.shape = }, {imms.min() = }, {imms.max() = }")
+  # imms.shape = (50, 512, 512, 3), imms.min() = -1.9704391, imms.max() = 1.8913615
+  imms = np.clip(imms / 2 + 0.5, 0, 1)
+  plt.imshow(np.vstack([np.hstack(imms[id * 10: (id + 1) * 10]) for id in range(5)]))
+  ```
+  ![stable_diffusion_inner](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/efb3c8a4-6dea-4e40-b28c-a5bc8dacefbc)
