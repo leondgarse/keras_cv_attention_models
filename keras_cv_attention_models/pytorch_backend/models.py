@@ -128,7 +128,8 @@ class _Trainer_(object):
             for name, metric_result in metrics_results.items():
                 self.history.setdefault(name, []).append(metric_result)
             epoch_logs = {kk: vv[-1] for kk, vv in self.history.items()}
-            [ii.on_epoch_end(epoch, epoch_logs) for ii in callbacks]
+            with self.global_context, torch.no_grad():
+                [ii.on_epoch_end(epoch, epoch_logs) for ii in callbacks]
             print()
 
     def evaluate(self, x=None, y=None, batch_size=None, verbose="auto", callbacks=None, **kwargs):
