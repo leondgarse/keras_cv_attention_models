@@ -163,6 +163,6 @@ class StableDiffusion(FakeModelWrapper):
 
         # Decode the image
         if return_inner:
-            return [self.decoder_model(inner / latent_scaling_factor) for inner in rr]
+            return [self.decoder_model(inner / latent_scaling_factor) for inner in tqdm(rr, "Decoding")]
         else:
             return self.decoder_model(xt / latent_scaling_factor)
