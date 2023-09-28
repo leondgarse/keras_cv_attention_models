@@ -83,7 +83,7 @@ def lite_mhsa(inputs, num_heads=8, key_dim=16, sr_ratio=5, qkv_bias=False, out_s
 
     query_key = query @ key
     scale = functional.reduce_sum(query_key, axis=-1, keepdims=True)
-    attention_output = query_key @ value / (scale + 1e-15)
+    attention_output = query_key @ value / (scale + 1e-7)  # 1e-7 for also working on float16
 
     if image_data_format() == "channels_last":
         output = functional.transpose(attention_output, [0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
