@@ -8,6 +8,8 @@ if kecam.backend.is_torch_backend:  # os.environ["KECAM_BACKEND"] = "torch"
     from contextlib import nullcontext
 
     global_strategy = namedtuple("strategy", ["scope"])(nullcontext)  # Fake
+    # Always 0, no matter CUDA_VISIBLE_DEVICES
+    global_device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
 else:
     import tensorflow as tf
     from keras_cv_attention_models.imagenet.train_func import init_global_strategy
@@ -169,6 +171,7 @@ def parse_arguments():
     parser.add_argument("-S", "--steps_per_epoch", type=int, default=2000, help="training steps per epoch")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
     parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history")
+    parser.add_argument("-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 or pt file. Higher priority than model")
     parser.add_argument(
         "-t",
         "--tokenizer",
@@ -179,7 +182,7 @@ def parse_arguments():
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights. Set 'default' for model preset value")
 
     # lr_wd = parser.add_argument_group("Learning rate, weight decay arguments")
-    parser.add_argument("--lr", type=float, default=6e-4, help="Learning rate ")
+    parser.add_argument("--lr_base_512", type=float, default=1e-4, help="Learning rate for batch_size=512, lr = lr_base_512 * 512 / batch_size")
     parser.add_argument("--lr_warmup_steps", type=int, default=3, help="Learning rate warmup steps")
     parser.add_argument("--weight_decay", type=float, default=0.1, help="Weight decay")
     return parser.parse_known_args()[0]
@@ -198,38 +201,48 @@ if __name__ == "__main__":
     input_data, output_data = next(iter(train_dataset_gen))
     print(">>>> Total train batches: {}, total test batches: {}".format(len(train_dataset_gen), len(test_dataset_gen)))
     print(">>>> Data: input_data.shape: {}, output_data.shape: {}".format(input_data.shape, output_data.shape))
+    if kecam.backend.is_torch_backend:
+        train_dataset, test_dataset = build_torch_dataset(train_dataset_gen, test_dataset_gen)
+    else:
+        train_dataset, test_dataset = build_tf_dataset(train_dataset_gen, test_dataset_gen)
+
+    lr = args.lr_base_512 * args.batch_size / 512
+    print(">>>> lr:", lr)
 
     with global_strategy.scope():
-        model_split = args.model.split(".")
-        model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam.models, model_split[0])
-        kwargs = {} if args.pretrained == "default" else {"pretrained": args.pretrained}
-        kwargs.update({"max_block_size": args.block_size, "vocab_size": caption_tokenizer.vocab_size})
-        print(">>>> model_kwargs:", kwargs)
-        model = model_class(**kwargs)
-        print(">>>> model name: {}, input_shape: {}, output_shape: {}".format(model.name, model.input_shape, model.output_shape))
+        if args.restore_path is None or kecam.backend.is_torch_backend:
+            model_split = args.model.split(".")
+            model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam.models, model_split[0])
+            kwargs = {} if args.pretrained == "default" else {"pretrained": args.pretrained}
+            kwargs.update({"max_block_size": args.block_size, "vocab_size": caption_tokenizer.vocab_size})
+            print(">>>> model_kwargs:", kwargs)
+            model = model_class(**kwargs)
+            print(">>>> model name: {}, input_shape: {}, output_shape: {}".format(model.name, model.input_shape, model.output_shape))
+        else:
+            print(">>>> Reload from:", args.restore_path)
+            model = kecam.backend.models.load_model(args.restore_path)
 
         if kecam.backend.is_torch_backend:
-            # Always 0, no matter CUDA_VISIBLE_DEVICES
-            device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
-            model.to(device=device)
+            model.to(device=global_device)
             if hasattr(torch, "compile") and torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 6:
                 print(">>>> Calling torch.compile")
                 model = torch.compile(model)
             optimizer = build_torch_optimizer(model, lr=args.lr, weight_decay=args.weight_decay, beta1=0.9, beta2=0.95)
-            train_dataset, test_dataset = build_torch_dataset(train_dataset_gen, test_dataset_gen)
-            compile_kwargs = {"grad_accumulate": 5}
-        else:
-            optimizer = build_tf_optimizer(lr=args.lr, weight_decay=args.weight_decay, beta1=0.9, beta2=0.95)
-            train_dataset, test_dataset = build_tf_dataset(train_dataset_gen, test_dataset_gen)
-            compile_kwargs = {}
-        model.compile(optimizer=optimizer, loss=ravel_loss, **compile_kwargs)
+            model.compile(optimizer=optimizer, loss=ravel_loss, grad_accumulate=5)
+
+            if args.restore_path is not None:
+                print(">>>> Reload weights from:", args.restore_path)
+                model.load(args.restore_path)  # Reload wights after compile
+        elif model.optimizer is None:
+            optimizer = build_tf_optimizer(lr=lr, weight_decay=args.weight_decay, beta1=0.9, beta2=0.95)
+            model.compile(optimizer=optimizer, loss=ravel_loss)
 
         basic_save_name = args.basic_save_name or "text_{}_{}".format(model.name, kecam.backend.backend())
         print(">>>> basic_save_name:", basic_save_name)
 
         epochs = (args.epochs // args.steps_per_epoch) if args.epochs > args.steps_per_epoch else args.epochs
         warmup_steps = (args.lr_warmup_steps // args.steps_per_epoch) if args.lr_warmup_steps > args.steps_per_epoch else args.lr_warmup_steps
-        lr_scheduler = kecam.imagenet.callbacks.CosineLrScheduler(args.lr, epochs, steps_per_epoch=args.steps_per_epoch, warmup_steps=warmup_steps)
+        lr_scheduler = kecam.imagenet.callbacks.CosineLrScheduler(lr, epochs, steps_per_epoch=args.steps_per_epoch, warmup_steps=warmup_steps)
         other_kwargs = {}
         latest_save, hist = kecam.imagenet.train_func.train(
             compiled_model=model,

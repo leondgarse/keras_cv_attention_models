@@ -38,7 +38,27 @@ def validate_file_md5(fpath, file_hash, chunk_size=65535):
     return str(hasher.hexdigest()) == str(file_hash)
 
 
-def get_file(fname=None, origin=None, cache_subdir="datasets", file_hash=None):
+def _extract_archive(file_path, path=".", archive_format="auto"):
+    if "zip" in archive_format or (archive_format == "auto" and file_path.endswith(".zip")):
+        import zipfile
+
+        assert zipfile.is_zipfile(file_path), "Not a zip file: {}".format(file_path)
+        open_fn = zipfile.ZipFile
+    elif "tar" in archive_format or (archive_format == "auto" and (file_path.endswith(".tar") or file_path.endswith(".tar.gz"))):
+        import tarfile
+
+        assert tarfile.is_tarfile(file_path), "Not a tar file: {}".format(file_path)
+        open_fn = tarfile.open
+    else:
+        raise ValueError("Not a supported extract file format: {}".format(file_path))
+
+    print(">>>> Extract {} -> {}".format(file_path, path))
+    with open_fn(file_path) as ff:
+        ff.extractall(path)
+    return path
+
+
+def get_file(fname=None, origin=None, cache_subdir="datasets", file_hash=None, extract=False):
     # print(f">>>> {fname = }, {origin = }, {cache_subdir = }, {file_hash = }")
     save_dir = os.path.join(os.path.expanduser("~/.keras"), cache_subdir)
     if not os.path.exists(save_dir):
@@ -58,4 +78,7 @@ def get_file(fname=None, origin=None, cache_subdir="datasets", file_hash=None):
     torch.hub.download_url_to_file(origin, file_path)
     if os.path.exists(file_path) and file_hash is not None and not validate_file_md5(file_path, file_hash):
         raise ValueError("Incomplete or corrupted file detected. The md5 file hash does not match the provided value {}.".format(file_hash))
+
+    if extract:
+        _extract_archive(file_path, path=save_dir)  # return tar file path, just like keras one
     return file_path

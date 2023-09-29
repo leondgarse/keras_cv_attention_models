@@ -12,6 +12,7 @@ from keras_cv_attention_models.model_surgery.model_surgery import (
     convert_groups_conv2d_2_split_conv2d,
     convert_to_mixed_float16,
     convert_mixed_float16_to_float32,
+    convert_to_fixed_batch_size,
     convert_to_fused_conv_bn_model,
     convert_to_token_label_model,
     convert_layers_to_deploy_inplace,

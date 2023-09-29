@@ -1,5 +1,5 @@
 from keras_cv_attention_models.stable_diffusion.stable_diffusion import StableDiffusion
-from keras_cv_attention_models.stable_diffusion.unet import UNet
+from keras_cv_attention_models.stable_diffusion.unet import UNet, UNetTest
 from keras_cv_attention_models.stable_diffusion.encoder_decoder import Encoder, Decoder
 
 

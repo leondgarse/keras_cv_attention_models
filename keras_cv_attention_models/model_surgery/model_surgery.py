@@ -1028,7 +1028,7 @@ def convert_dense_to_conv(model):
 
 def convert_to_fixed_batch_size(model, batch_size=1):
     """Fixing batch_size avoiding dynamic tensors, for supporting TFLite xnnpack. https://github.com/tensorflow/tensorflow/issues/60762"""
-    input_tensors = [layers.Input(ii.shape[1:], dtype=ii.dtype, name=ii.name, batch_size=batch_size) for ii in mm.inputs]
+    input_tensors = [layers.Input(ii.shape[1:], dtype=ii.dtype, name=ii.name, batch_size=batch_size) for ii in model.inputs]
     return models.clone_model(model, input_tensors=input_tensors)
 
 

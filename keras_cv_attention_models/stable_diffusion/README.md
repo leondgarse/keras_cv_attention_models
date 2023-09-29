@@ -43,8 +43,9 @@
       tf.keras.mixed_precision.set_global_policy("mixed_float16")
 
   from keras_cv_attention_models import stable_diffusion
-  mm = stable_diffusion.StableDiffusion(image_shape=(512, 1024, 3))
-  imm = mm.text_to_image('mountains, stars and paisley fileed sky, artstation, digital painting, sharp focus.', batch_size=1).numpy()
+  mm = stable_diffusion.StableDiffusion()
+  prompt = 'mountains, stars and paisley fileed sky, artstation, digital painting, sharp focus.'
+  imm = mm.text_to_image(prompt=prompt, image_shape=(512, 1024)).numpy()
 
   print(f"{imm.shape = }, {imm.min() = }, {imm.max() = }")
   # imm.shape = (1, 512, 1024, 3), imm.min() = -1.5322105, imm.max() = 1.419162
@@ -62,9 +63,9 @@
 
   from keras_cv_attention_models import stable_diffusion
   # >>>> Using PyTorch backend
-  mm = stable_diffusion.StableDiffusion(image_shape=(768, 384, 3)).to(device)
+  mm = stable_diffusion.StableDiffusion().to(device)
   with torch.no_grad(), global_context:
-      imm = mm.text_to_image('anime draw of a penguin under the moon on the beach.', batch_size=4).cpu().numpy()
+      imm = mm.text_to_image('anime draw of a penguin under the moon on the beach.', image_shape=(768, 384), batch_size=4).cpu().numpy()
 
   print(f"{imm.shape = }, {imm.min() = }, {imm.max() = }")
   # imm.shape = (4, 3, 768, 384), imm.min() = -1.24831, imm.max() = 1.2017612
@@ -80,7 +81,7 @@
 
   from keras_cv_attention_models import stable_diffusion
   mm = stable_diffusion.StableDiffusion()
-  imms = mm.text_to_image('anime cute cat relaxing in the grass.', batch_size=1, return_inner=True)
+  imms = mm.text_to_image('anime cute cat relaxing in the grass.', return_inner=True)
 
   imms = np.concatenate([ii.numpy().astype("float32") for ii in imms], axis=0)
   print(f"{imms.shape = }, {imms.min() = }, {imms.max() = }")

@@ -1,6 +1,11 @@
 import os
 import kecam
 
+BUILDIN_DATASETS = {
+    "coco_dog_cat": {
+        "url": "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/coco_dog_cat.tar.gz", "dataset_file": "captions.tsv"
+    },
+}
 
 if kecam.backend.is_torch_backend:  # os.environ["KECAM_BACKEND"] = "torch"
     import torch
@@ -9,6 +14,8 @@ if kecam.backend.is_torch_backend:  # os.environ["KECAM_BACKEND"] = "torch"
     from keras_cv_attention_models.clip import torch_data as data
 
     global_strategy = namedtuple("strategy", ["scope"])(nullcontext)  # Fake
+    # Always 0, no matter CUDA_VISIBLE_DEVICES
+    global_device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
 else:
     import tensorflow as tf
 
@@ -54,14 +61,12 @@ def parse_arguments():
     import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-d", "--data_path", type=str, default="datasets/coco_dog_cat/captions.tsv", help="tsv format dataset path")
+    parser.add_argument("-d", "--data_path", type=str, default="coco_dog_cat", help="tsv format dataset path")
     parser.add_argument("-b", "--batch_size", type=int, default=128, help="Batch size")
     parser.add_argument("-e", "--epochs", type=int, default=30, help="Total epochs")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
     parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history")
-    parser.add_argument(
-        "-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 by `keras.models.load_model` directly. Higher priority than model"
-    )
+    parser.add_argument("-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 or pt file. Higher priority than model")
 
     model = parser.add_argument_group("Model arguments")
     model.add_argument("-i", "--input_shape", type=int, default=224, help="Image model input shape")
@@ -85,6 +90,7 @@ def parse_arguments():
     lr_wd.add_argument("--weight_decay", type=float, default=0.2, help="Weight decay")
 
     args = parser.parse_known_args()[0]
+    args.text_model_pretrained = None if args.text_model_pretrained.lower() == "none" else args.text_model_pretrained
     if args.basic_save_name is None and args.restore_path is not None:
         basic_save_name = os.path.splitext(os.path.basename(args.restore_path))[0]
         basic_save_name = basic_save_name[:-7] if basic_save_name.endswith("_latest") else basic_save_name
@@ -94,7 +100,12 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
-    args.text_model_pretrained = None if args.text_model_pretrained.lower() == "none" else args.text_model_pretrained
+
+    if args.data_path in BUILDIN_DATASETS and not os.path.exists(args.data_path):
+        url, dataset_file = BUILDIN_DATASETS[args.data_path]["url"], BUILDIN_DATASETS[args.data_path]["dataset_file"]
+        file_path = kecam.backend.get_file(origin=url, cache_subdir="datasets", extract=True)  # returned tar file path
+        args.data_path = os.path.join(os.path.dirname(file_path), args.data_path, dataset_file)
+        print(">>>> Buildin dataset, path:", args.data_path)
 
     caption_tokenizer = getattr(kecam.clip, args.tokenizer)() if hasattr(kecam.clip, args.tokenizer) else kecam.clip.TikToken(args.tokenizer)
     train_dataset, test_dataset = data.init_dataset(
@@ -103,6 +114,9 @@ if __name__ == "__main__":
     (image, text), labels = next(iter(train_dataset))
     print(">>>> Total train batches: {}, total test batches: {}".format(len(train_dataset), len(test_dataset)))
     print(">>>> Data: image.shape: {}, text.shape: {}, labels.shape: {}".format(image.shape, text.shape, labels.shape))
+
+    lr = args.lr_base_512 * args.batch_size / 512
+    print(">>>> lr:", lr)
 
     with global_strategy.scope():
         if args.restore_path is None or kecam.backend.is_torch_backend:
@@ -128,31 +142,20 @@ if __name__ == "__main__":
             model = kecam.backend.models.load_model(args.restore_path)
         print(">>>> basic_save_name:", basic_save_name)
 
-        lr = args.lr_base_512 * args.batch_size / 512
-        print(">>>> lr:", lr)
         if kecam.backend.is_torch_backend:
-            # Always 0, no matter CUDA_VISIBLE_DEVICES
-            device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
-            model.to(device=device)
+            model.to(device=global_device)
             if hasattr(torch, "compile") and torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 6:
                 print(">>>> Calling torch.compile")
                 model = torch.compile(model)
             optimizer = build_torch_optimizer(model, lr=lr, weight_decay=args.weight_decay)
             model.compile(optimizer=optimizer, loss=clip_loss, metrics=["acc"])
+
+            if args.restore_path is not None:
+                print(">>>> Reload weights from:", args.restore_path)
+                model.load(args.restore_path)  # Reload wights after compile
         elif model.optimizer is None:
             optimizer = build_tf_optimizer(lr=lr, weight_decay=args.weight_decay)
             model.compile(optimizer=optimizer, loss=clip_loss, metrics=["acc"])
-
-        if args.restore_path is not None and kecam.backend.is_torch_backend:
-            print(">>>> Reload weights from:", args.restore_path)
-            model.load(args.restore_path)  # Reload wights after compile
-
-        # callbacks = [
-        #     kecam.imagenet.callbacks.CosineLrScheduler(lr, args.epochs, steps_per_epoch=len(train_dataset), warmup_steps=args.lr_warmup_steps),
-        #     kecam.imagenet.callbacks.MyCheckpoint(basic_save_name=basic_save_name, save_path="checkpoints"),
-        #     kecam.imagenet.callbacks.MyHistory(initial_file=os.path.join("checkpoints", basic_save_name + "_hist.json")),
-        # ]
-        # model.fit(train_dataset, epochs=args.epochs, validation_data=test_dataset, callbacks=callbacks)
 
         lr_scheduler = kecam.imagenet.callbacks.CosineLrScheduler(lr, args.epochs, steps_per_epoch=len(train_dataset), warmup_steps=args.lr_warmup_steps)
         other_kwargs = {}

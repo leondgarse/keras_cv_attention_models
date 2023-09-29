@@ -31,7 +31,7 @@ def gaussian_distribution(inputs):
 
 def attention_block(inputs, num_attention_block=1, mlp_ratio=4, num_heads=4, head_dim=0, name=""):
     input_channels = inputs.shape[-1 if backend.image_data_format() == "channels_last" else 1]
-    height, width = inputs.shape[1:-1] if image_data_format() == "channels_last" else inputs.shape[2:]
+    inputs_shape = functional.shape(inputs) if None in inputs.shape[1:] or -1 in inputs.shape[1:] else inputs.shape
     qk_scale = 1.0 / (float(input_channels) ** 0.5)
 
     nn = group_norm(inputs, epsilon=GROUP_NORM_EPSILON, name=name + "in_layers_")
@@ -41,23 +41,23 @@ def attention_block(inputs, num_attention_block=1, mlp_ratio=4, num_heads=4, hea
     vv = conv2d_no_bias(nn, input_channels, use_bias=True, name=name and name + "value_")
 
     if image_data_format() == "channels_last":
-        qq = functional.reshape(qq, [-1, qq.shape[1] * qq.shape[2], qq.shape[-1]])
-        kk = functional.transpose(functional.reshape(kk, [-1, kk.shape[1] * kk.shape[2], kk.shape[-1]]), [0, 2, 1])
-        vv = functional.reshape(vv, [-1, vv.shape[1] * vv.shape[2], vv.shape[-1]])
+        qq = layers.Reshape([-1, qq.shape[-1]])(qq)
+        kk = functional.transpose(layers.Reshape([-1, kk.shape[-1]])(kk), [0, 2, 1])
+        vv = layers.Reshape([-1, vv.shape[-1]])(vv)
     else:
-        qq = functional.transpose(functional.reshape(qq, [-1, qq.shape[1], qq.shape[2] * qq.shape[3]]), [0, 2, 1])
-        kk = functional.reshape(kk, [-1, kk.shape[1], kk.shape[2] * kk.shape[3]])
-        vv = functional.reshape(vv, [-1, vv.shape[1], vv.shape[2] * vv.shape[3]])
+        qq = functional.transpose(layers.Reshape([qq.shape[1], -1])(qq), [0, 2, 1])
+        kk = layers.Reshape([kk.shape[1], -1])(kk)
+        vv = layers.Reshape([vv.shape[1], -1])(vv)
 
     attention_scores = (qq @ kk) * qk_scale
     attention_scores = layers.Softmax(axis=-1, name=name and name + "attention_scores")(attention_scores)
 
     if image_data_format() == "channels_last":
         attention_output = attention_scores @ vv
-        output = functional.reshape(attention_output, [-1, height, width, input_channels])
+        output = functional.reshape(attention_output, inputs_shape)
     else:
         attention_output = vv @ functional.transpose(attention_scores, [0, 2, 1])
-        output = functional.reshape(attention_output, [-1, input_channels, height, width])
+        output = functional.reshape(attention_output, inputs_shape)
     output = conv2d_no_bias(output, input_channels, use_bias=True, name=name and name + "out")
     return layers.Add(name=name + "out")([output, inputs])
 

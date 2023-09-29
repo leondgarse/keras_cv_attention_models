@@ -565,18 +565,6 @@ class BatchNormalization(Layer):
         return config
 
 
-class _Reshape(nn.Module):
-    def __init__(self, target_shape, **kwargs):
-        self.target_shape = [-1 if ii is None else ii for ii in target_shape]
-        super().__init__(**kwargs)
-
-    def forward(self, inputs):
-        return inputs.contiguous().view([*self.target_shape])
-
-    def extra_repr(self):
-        return f"target_shape={self.target_shape}"
-
-
 class _SamePadding(nn.Module):
     """Perform same padding like TF"""
 
@@ -940,7 +928,6 @@ class Dense(Layer):
 
         if self.axis == len(input_shape) - 1:
             self.module = module if self.activation is None else nn.Sequential(module, Activation(self.activation))
-            # self.module = nn.Sequential(_Reshape([-1, input_shape[-1]]), module, _Reshape([-1, *input_shape[1:-1], self.units]))
         else:
             ndims = len(input_shape)
             perm = get_perm(total_axis=ndims, from_axis=self.axis, to_axis=-1)  # like axis=1 -> [0, 2, 3, 1]
@@ -1386,6 +1373,52 @@ class Permute(Layer):
 
     def extra_repr(self):
         return f"dims={self.dims}"
+
+
+class _Reshape(nn.Module):
+    def __init__(self, target_shape, **kwargs):
+        self.target_shape = [-1 if ii is None else ii for ii in target_shape]
+        super().__init__(**kwargs)
+
+    def forward(self, inputs):
+        return inputs.contiguous().view([*self.target_shape])
+
+    def extra_repr(self):
+        return f"target_shape={self.target_shape}"
+
+
+class _ReshapeDynamic(Layer):
+    """
+    Reshape supporting dynamic size.
+    >>> from keras_cv_attention_models.pytorch_backend import layers, functional, models
+    >>> inputs = layers.Input([3, None, None])
+    >>> nn = layers.Reshape([3, -1])(inputs)
+    >>> nn = layers._ReshapeDynamic(inputs.shape)([nn, functional.shape(inputs)])
+    >>> mm = models.Model(inputs, nn)
+    >>> print(f"{mm.input_shape = }, {mm.output_shape = }")
+    >>> # mm.input_shape = (None, 3, None, None), mm.output_shape = (None, 3, None, None)
+    >>> print(f"{mm(torch.ones([1, 3, 24, 24])).shape = }")
+    >>> # mm(torch.ones([1, 3, 24, 24])).shape = torch.Size([1, 3, 24, 24])
+    >>> print(f"{mm(torch.ones([1, 3, 24, 42])).shape = }")
+    >>> # mm(torch.ones([1, 3, 24, 42])).shape = torch.Size([1, 3, 24, 42])
+    """
+
+    def __init__(self, target_shape, **kwargs):
+        self.target_shape = target_shape  # Required for compute_output_shape, as it's not able to get
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        assert len(input_shape) == 2, "Input should be in format [inputs, target_shape]"
+        self.module = lambda inputs: inputs[0].contiguous().view(list(inputs[1]))
+        super().build(input_shape)
+
+    def compute_output_shape(self, input_shape):
+        return [None if ii == -1 else ii for ii in self.target_shape]
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"target_shape": self.target_shape})
+        return config
 
 
 class Reshape(Layer):

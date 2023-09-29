@@ -57,7 +57,7 @@ def cross_attention(inputs, condition=None, num_heads=4, head_dim=0, name=""):
     value = layers.Dense(emded_dim, use_bias=False, name=name and name + "value")(condition)
 
     query, key, value = qkv_to_multi_head_channels_last_format(query, key, value, num_heads, data_format="channels_last")
-    output_shape = [-1, bb, cc]
+    output_shape = [-1, -1 if bb is None else bb, cc]
     return scaled_dot_product_attention(query, key, value, output_shape, out_weight=True, out_bias=True, name=name)
 
 
@@ -90,13 +90,13 @@ def spatial_transformer_block(inputs, condition=None, num_attention_block=1, mlp
     nn = conv2d_no_bias(nn, input_channels, kernel_size=1, use_bias=True, name=name + "in_layers_")
 
     nn = nn if backend.image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(nn)
-    block_height, block_width = nn.shape[1], nn.shape[2]
-    nn = functional.reshape(nn, [-1, block_height * block_width, nn.shape[-1]])
+    pre_shape = functional.shape(nn) if None in nn.shape[1:] or -1 in nn.shape[1:] else [-1, *nn.shape[1:]]  # Could be dynamic shape, reshape back later
+    nn = layers.Reshape([-1, nn.shape[-1]])(nn)
 
     for attention_block_id in range(num_attention_block):
         block_name = name + "{}_".format(attention_block_id + 1)
         nn = attention_mlp_block(nn, condition, mlp_ratio=mlp_ratio, num_heads=num_heads, head_dim=head_dim, name=block_name)
-    nn = functional.reshape(nn, [-1, block_height, block_width, nn.shape[-1]])
+    nn = functional.reshape(nn, pre_shape)
     nn = nn if backend.image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)
     nn = conv2d_no_bias(nn, input_channels, kernel_size=1, use_bias=True, name=name + "out_layers_")
     return layers.Add(name=name + "output")([inputs, nn])
@@ -142,7 +142,7 @@ def UNet(
     num_heads=8,
     mlp_ratio=4,
     conditional_embedding=768,  # > 0 value for using text conditional as generating instruction.
-    num_labels=0,  # > 0 value for also using labels as generating instruction.
+    num_classes=0,  # > 0 value for also using labels as generating instruction.
     activation="swish",
     pretrained="v1_5",
     model_name="unet",
@@ -160,9 +160,9 @@ def UNet(
     time_embedding = activation_by_name(time_embedding, activation=activation, name="time_embed_")
     time_embedding = layers.Dense(hidden_channels * 4, name="time_embed_2_dense")(time_embedding)
 
-    if num_labels > 0:
+    if num_classes > 0:
         labels_inputs = layers.Input([], name="labels_inputs")
-        labels_embedding = layers.Embedding(num_labels + 1, hidden_channels, mask_zero=True, name="labels_embedding")(labels_inputs)
+        labels_embedding = layers.Embedding(num_classes + 1, hidden_channels, mask_zero=True, name="labels_embedding")(labels_inputs)
         labels_embedding = layers.Dense(hidden_channels * 4, name="labels_embed_1_dense")(labels_embedding)
         labels_embedding = activation_by_name(labels_embedding, activation=activation, name="labels_embed_")
         labels_embedding = layers.Dense(hidden_channels * 4, name="labels_embed_2_dense")(labels_embedding)
@@ -216,8 +216,16 @@ def UNet(
     nn = activation_by_name(nn, activation=activation, name="output_")
     outputs = conv2d_no_bias(nn, output_channels, kernel_size=3, use_bias=True, padding="SAME", name="output_")
 
-    model_inputs = [inputs, labels_inputs, time_steps] if num_labels > 0 else [inputs, time_steps]
+    model_inputs = [inputs, labels_inputs, time_steps] if num_classes > 0 else [inputs, time_steps]
     model_inputs += [condition] if conditional_embedding > 0 else []
     model = models.Model(model_inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "stable_diffusion", pretrained)
     return model
+
+
+@register_model
+def UNetTest(input_shape=(32, 32, 3), conditional_embedding=0, activation="swish", pretrained=None, **kwargs):
+    hidden_channels = 64
+    hidden_expands = [1, 2, 2, 4]
+    num_attention_blocks = [0, 0, 1, 1]
+    return UNet(**locals(), model_name="unet_test", **kwargs)

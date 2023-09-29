@@ -11,7 +11,6 @@ from keras_cv_attention_models.models import register_model, FakeModelWrapper  #
 class StableDiffusion(FakeModelWrapper):
     def __init__(
         self,
-        image_shape=(512, 512, 3),
         clip_model="beit.ViTTextLargePatch14",
         unet_model="stable_diffusion.UNet",
         decoder_model="stable_diffusion.Decoder",
@@ -36,11 +35,11 @@ class StableDiffusion(FakeModelWrapper):
             decoder_model_kwargs.update({"pretrained": pretrained})
             encoder_model_kwargs.update({"pretrained": pretrained})
 
-        image_shape = backend.align_input_shape_by_image_data_format(image_shape)
+        """ Dynamic input shape """
         if image_data_format() == "channels_last":
-            latents_input_shape = [ii // 8 for ii in image_shape[:-1]] + [4]  # [512, 512, 3] -> [64, 64, 4]
+            image_shape, latents_input_shape = [None, None, 3], [None, None, 4]  # [512, 512, 3] -> [64, 64, 4]
         else:
-            latents_input_shape = [4] + [ii // 8 for ii in image_shape[1:]]  # [3, 512, 512] -> [4, 64, 64]
+            image_shape, latents_input_shape = [3, None, None], [4, None, None]  # [3, 512, 512] -> [4, 64, 64]
         self.image_shape = (None, *image_shape)
         self.latents_input_shape = (None, *latents_input_shape)
 
@@ -58,15 +57,15 @@ class StableDiffusion(FakeModelWrapper):
         self.uncond_prompt = None  # Init later after load weights
 
         """ encoder, could be None """
-        encoder_model_kwargs.update({"input_shape": image_shape})
+        encoder_model_kwargs["input_shape"] = encoder_model_kwargs.pop("input_shape", image_shape)
         self.encoder_model = self.build_model(encoder_model, **encoder_model_kwargs)
 
         """ unet """
-        unet_model_kwargs.update({"input_shape": latents_input_shape})
+        unet_model_kwargs["input_shape"] = unet_model_kwargs.pop("input_shape", latents_input_shape)
         self.unet_model = self.build_model(unet_model, **unet_model_kwargs)
 
         """ decoder """
-        decoder_model_kwargs.update({"input_shape": latents_input_shape})
+        decoder_model_kwargs["input_shape"] = decoder_model_kwargs.pop("input_shape", latents_input_shape)
         self.decoder_model = self.build_model(decoder_model, **decoder_model_kwargs)
         self.output_shape = self.decoder_model.output_shape
 
@@ -111,6 +110,7 @@ class StableDiffusion(FakeModelWrapper):
         self,
         prompt,
         batch_size=1,
+        image_shape=(512, 512),  # int or list of 2 int, should be divisible by 64
         repeat_noise=False,  # specified whether the noise should be same for all samples in the batch
         temperature=1,  # is the noise temperature (random noise gets multiplied by this)
         init_x0=None,  # If not provided random noise will be used.
@@ -123,7 +123,12 @@ class StableDiffusion(FakeModelWrapper):
             device = next(self.unet_model.parameters()).device
         compute_dtype = self.unet_model.compute_dtype
 
-        target_shape = [batch_size, *self.latents_input_shape[1:]]
+        image_shape = image_shape if isinstance(image_shape, (list, tuple)) else [image_shape, image_shape]
+        if image_data_format() == "channels_last":
+            target_shape = [batch_size, image_shape[0] // 8, image_shape[1] // 8, self.latents_input_shape[-1]]
+        else:
+            target_shape = [batch_size, self.latents_input_shape[1], image_shape[-2] // 8, image_shape[-1] // 8]
+
         if self.uncond_prompt is None:
             uncond_prompt = functional.convert_to_tensor(self.caption_tokenizer("", padding_value=self.caption_tokenizer.eot_token)[None], dtype=compute_dtype)
             uncond_prompt = uncond_prompt.long().to(device) if backend.is_torch_backend else uncond_prompt
