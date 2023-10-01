@@ -14,7 +14,7 @@ def read_from_tsv(data_path):
     with open(data_path) as ff:
         for ii in csv.reader(ff, delimiter=delimiter):
             if ii[0] == "base_path":  # special keys for info
-                base_path = ii[1]
+                base_path = os.path.expanduser(ii[1])
             elif ii[0] == "TEST":  # Use this as indicator for start of test set
                 is_train = False
             elif is_train:

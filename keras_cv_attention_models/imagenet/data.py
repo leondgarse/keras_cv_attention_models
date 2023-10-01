@@ -376,7 +376,7 @@ def init_from_json_or_csv_or_tsv(data_path, is_caption=False):
         print(">>>> Using max value from train as num_classes:", num_classes)
 
     if "base_path" in info and len(info["base_path"]) > 0:
-        base_path = info["base_path"]
+        base_path = os.path.expanduser(info["base_path"])
         for ii in train:
             ii["image"] = os.path.join(base_path, ii["image"])
         for ii in test:

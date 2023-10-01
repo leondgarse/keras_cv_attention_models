@@ -375,7 +375,7 @@ def detection_dataset_from_custom_json(data_path, with_info=False):
         print(">>>> Using max value from train as num_classes:", num_classes)
 
     if "base_path" in info and len(info["base_path"]) > 0:
-        base_path = info["base_path"]
+        base_path = os.path.expanduser(info["base_path"])
         for ii in train:
             ii["image"] = os.path.join(base_path, ii["image"])
         for ii in test:

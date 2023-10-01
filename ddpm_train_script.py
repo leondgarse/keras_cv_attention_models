@@ -51,10 +51,13 @@ class DenoisingEval(kecam.backend.callbacks.Callback):
         self.alpha_bar = np.cumprod(self.alpha, axis=0)
         self.eps_coef = (1 - self.alpha) / (1 - self.alpha_bar) ** 0.5
 
-        self.to_device = (lambda xx: xx.to(global_device)) if kecam.backend.is_torch_backend else (lambda xx: xx)
+        self.device = None  # Set to actual torch model using device later
+        self.to_device = (lambda xx: xx.to(self.device)) if kecam.backend.is_torch_backend else (lambda xx: xx)
         self.to_host = (lambda xx: xx.cpu()) if kecam.backend.is_torch_backend else (lambda xx: xx)
 
     def on_epoch_end(self, cur_epoch=0, logs=None):
+        if kecam.backend.is_torch_backend and self.device is None:
+            self.device = next(self.unet_model.parameters()).device
         compute_dtype = self.model.compute_dtype
         xt = functional.convert_to_tensor(self.eval_x0, dtype=compute_dtype)
         xt = self.to_device(xt)
@@ -124,7 +127,7 @@ class DefussionDatasetGen:
             num_classes = max(all_labels) + 1
             print(">>>> Using max value from train as num_classes:", num_classes)
         if "base_path" in info and len(info["base_path"]) > 0:
-            base_path = info["base_path"]
+            base_path = os.path.expanduser(info["base_path"])
             all_images = [os.path.join(base_path, ii) for ii in all_images]
         return np.array(all_images), np.array(all_labels), num_classes
 

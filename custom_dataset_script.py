@@ -70,7 +70,7 @@ def build_recognition_dataset_json(train_path, test_path=None, test_split=0.0, s
     train = [{"image": ii, "label": jj} for ii, jj in zip(x_train, y_train)]
     test = [{"image": ii, "label": jj} for ii, jj in zip(x_test, y_test)]
     num_classes = len(image_classes_rule.indices_2_labels)
-    info = {"num_classes": num_classes, "base_path": "" if os.path.abspath(train_path) == train_path else os.path.abspath(".")}
+    info = {"num_classes": num_classes, "base_path": "" if os.path.isabs(train_path) else os.path.abspath(".")}
 
     print(">>>> total_train_samples: {}, total_test_samples: {}, num_classes: {}".format(len(train), len(test), num_classes))
 
@@ -166,7 +166,7 @@ def build_caption_dataset(train_image_path, train_captions, test_image_path=None
         x_test, y_test = [], []
 
     """ Save """
-    info = {"base_path": "" if os.path.abspath(train_image_path) == train_image_path else os.path.abspath(".")}
+    info = {"base_path": "" if os.path.isabs(train_image_path) else os.path.abspath(".")}
     print(">>>> total_train_samples: {}, total_test_samples: {}".format(len(x_train), len(x_test)))
     if save_format == "json":
         train = [{"image": ii, "caption": jj} for ii, jj in zip(x_train, y_train)]
@@ -332,7 +332,7 @@ def build_detection_dataset_json(
     test = [{"image": ii["image"], "objects": convert_bbox_labels(ii["objects"], label_convert_func, bbox_source_format)} for ii in test]
 
     """ Write target json file """
-    info = {"num_classes": num_classes, "base_path": "" if os.path.abspath(train_image_path) == train_image_path else os.path.abspath(".")}
+    info = {"num_classes": num_classes, "base_path": "" if os.path.isabs(train_image_path) else os.path.abspath(".")}
     print(">>>> total_train_samples: {}, total_test_samples: {}, num_classes: {}".format(len(train), len(test), num_classes))
 
     with open(save_name, "w") as ff:

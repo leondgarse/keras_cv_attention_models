@@ -351,7 +351,7 @@ def to_coco_annotation(json_path):
 
     # int conversion just in case key is str
     categories = {int(kk): vv for kk, vv in aa["indices_2_labels"].items()} if "indices_2_labels" in aa else {}
-    base_path = aa.get("info", {}).get("base_path", None)
+    base_path = os.path.expanduser(aa["info"]["base_path"]) if "base_path" in aa.get("info", {}) and len(aa["info"]["base_path"]) > 0 else None
     annotations, images, image_id_map = [], [], {}
     for image_id, ii in enumerate(aa.get("validation", aa.get("test", []))):
         image_file = os.path.join(base_path, ii["image"]) if base_path else ii["image"]
