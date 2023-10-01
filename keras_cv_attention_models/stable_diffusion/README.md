@@ -90,3 +90,20 @@
   plt.imshow(np.vstack([np.hstack(imms[id * 10: (id + 1) * 10]) for id in range(5)]))
   ```
   ![stable_diffusion_inner](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/efb3c8a4-6dea-4e40-b28c-a5bc8dacefbc)
+
+  **image to image**
+  ```py
+  import tensorflow as tf
+  if len(tf.config.experimental.get_visible_devices('GPU')) > 0:
+      tf.keras.mixed_precision.set_global_policy("mixed_float16")
+
+  from keras_cv_attention_models import stable_diffusion, test_images
+  image = test_images.cat()
+  mm = stable_diffusion.StableDiffusion()
+  imm = mm.image_to_image(image, 'a tiger', batch_size=2).numpy()
+
+  print(f"{imm.shape = }, {imm.min() = }, {imm.max() = }")
+  # imm.shape = (2, 3, 512, 512), imm.min() = -1.066, imm.max() = 1.191
+  plt.imshow(np.hstack([image / 255, *np.clip(imm.astype("float32") / 2 + 0.5, 0, 1)]))
+  ```
+  ![stable_duffusion_image_2_iamge](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/ff9b5cbb-6b7c-477d-b2c6-18fad9cf84d9)

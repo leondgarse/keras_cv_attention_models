@@ -243,10 +243,14 @@ class StableDiffusion(FakeModelWrapper):
         init_x0 = self.ddim_alpha_sqrt[timestep_start] * image_latents + self.ddim_sqrt_one_minus_alpha[timestep_start] * noise
 
         """ If inpaint mask """
-        if is_inpaint:
+        if is_inpaint and isinstance(inpaint_mask, (list, tuple)) and len(inpaint_mask) == 4:
             top, left, bottom, right = (np.array(inpaint_mask) * [height, width, height, width]).astype("int64")
             inpaint_mask = np.zeros(image_latents.shape).astype("float32")
             inpaint_mask[:, top:bottom, left:right, :] = 1
+            inpaint_mask = functional.convert_to_tensor(inpaint_mask.astype("float32"), dtype=compute_dtype)
+            inpaint_mask = inpaint_mask.to(device) if backend.is_torch_backend else inpaint_mask
+        elif is_inpaint:
+            assert inpaint_mask.shape == image_latents.shape, "provided inpaint_mask not in same shape with image_latents: {}".format(image_latents.shape)
             inpaint_mask = functional.convert_to_tensor(inpaint_mask.astype("float32"), dtype=compute_dtype)
             inpaint_mask = inpaint_mask.to(device) if backend.is_torch_backend else inpaint_mask
 
@@ -278,7 +282,7 @@ class StableDiffusion(FakeModelWrapper):
         latent_scaling_factor=0.18215,  # scaling factor for the image latent space. Encoder outputs and Decoder inputs are scaled by this value
         uncond_scale=5.0,  # unconditional guidance scale: "eps = eps(x, empty) + scale * (eps(x, cond) - eps(x, empty))"
         return_inner=False,  # boolean value if return inner step results for visualizing the process
-        inpaint_mask=[0.5, 0, 1, 1],  # [in_paint parameters], list of 4 float in [0, 1], format in [top, left, bottom, right], default one for bottom half
+        inpaint_mask=[0.5, 0, 1, 1],  # in same shape with image_latents, or list of 4 float [top, left, bottom, right] in [0, 1], defualt one for bottom half
     ):
         local_kwargs = {kk: vv for kk, vv in locals().items() if kk != "self"}
         return self.image_to_image(**local_kwargs, is_inpaint=True)
