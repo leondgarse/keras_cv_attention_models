@@ -215,6 +215,7 @@ class StableDiffusion(FakeModelWrapper):
         width, height = imm.size
         width, height = width - width % 64, height - height % 64  # or 32 [???]
         image = np.array(imm.resize((width, height), resample=Image.Resampling.BICUBIC))
+        print(">>>> input image.shape: {}, image.min(): {}, image.max(): {}".format(image.shape, image.min(), image.max()))
 
         """ Encoder """
         image = image.astype("float32")[None] / 127.5 - 1
@@ -234,8 +235,8 @@ class StableDiffusion(FakeModelWrapper):
 
         """ q_sample """
         noise = self.gaussian_sample(image_latents.shape, dtype=compute_dtype, device=device)
-        init_step = int(strength * self.num_steps)
-        init_x0 = self.ddim_alpha_sqrt[init_step] * image_latents + self.ddim_sqrt_one_minus_alpha[init_step] * noise
+        timestep_start = int(strength * self.num_steps)
+        init_x0 = self.ddim_alpha_sqrt[timestep_start] * image_latents + self.ddim_sqrt_one_minus_alpha[timestep_start] * noise
 
         """ If inpaint mask """
         if is_inpaint:
@@ -253,7 +254,7 @@ class StableDiffusion(FakeModelWrapper):
             repeat_noise=repeat_noise,
             temperature=temperature,
             init_x0=init_x0,
-            init_step=init_step,
+            init_step=self.num_steps - timestep_start,
             latent_scaling_factor=latent_scaling_factor,
             uncond_scale=uncond_scale,
             return_inner=return_inner,
