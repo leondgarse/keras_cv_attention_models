@@ -269,7 +269,7 @@ class StableDiffusion(FakeModelWrapper):
 
     def in_paint(
         self,
-        image_path,
+        image,
         prompt,
         batch_size=1,
         strength=0.75,  # specifies how much of the original image should not be preserved
