@@ -107,7 +107,7 @@ class DefussionDatasetGen:
         all_images = []
         for cur, dirs, files in os.walk(self.data_path):
             all_images.extend([os.path.join(cur, ii) for ii in files if os.path.splitext(ii)[-1].lower() in [".jpg", ".png"]])
-        return np.array(all_images)[:100]
+        return np.array(all_images)
 
     def init_from_json(self):
         import json
@@ -126,7 +126,7 @@ class DefussionDatasetGen:
         if "base_path" in info and len(info["base_path"]) > 0:
             base_path = info["base_path"]
             all_images = [os.path.join(base_path, ii) for ii in all_images]
-        return np.array(all_images)[:100], np.array(all_labels)[:100], num_classes
+        return np.array(all_images), np.array(all_labels), num_classes
 
     def imread(self, image_path):
         return np.array(Image.open(image_path).convert('RGB').resize([self.image_size, self.image_size], resample=Image.Resampling.BICUBIC)).astype("float32")
