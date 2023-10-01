@@ -6,7 +6,8 @@ from kecam.backend import functional
 
 BUILDIN_DATASETS = {
     "coco_dog_cat": {
-        "url": "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/coco_dog_cat.tar.gz", "dataset_file": "recognition.json"
+        "url": "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/coco_dog_cat.tar.gz",
+        "dataset_file": "recognition.json",
     },
 }
 
@@ -132,7 +133,7 @@ class DefussionDatasetGen:
         return np.array(all_images), np.array(all_labels), num_classes
 
     def imread(self, image_path):
-        return np.array(Image.open(image_path).convert('RGB').resize([self.image_size, self.image_size], resample=Image.Resampling.BICUBIC)).astype("float32")
+        return np.array(Image.open(image_path).convert("RGB").resize([self.image_size, self.image_size], resample=Image.Resampling.BICUBIC)).astype("float32")
 
     def __iter__(self):
         self.generated = 0
@@ -246,7 +247,7 @@ def parse_arguments():
         "--data_path",
         type=str,
         default="coco_dog_cat",
-        help="dataset directory path containing images, or a recognition json dataset path, which will train using labels as instruction"
+        help="dataset directory path containing images, or a recognition json dataset path, which will train using labels as instruction",
     )
     parser.add_argument("-i", "--input_shape", type=int, default=512, help="Model input shape")
     parser.add_argument("-m", "--model", type=str, default="UNet", help="model from this repo `[model_classs.model_name]` like stable_diffusion.UNet")

@@ -59,6 +59,7 @@ def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, label_smo
         y_true = torch.nn.functional.one_hot(y_true, y_pred.shape[-1])
         return -(y_true * y_pred.log()).sum(dim=axis).mean()
 
+
 class MeanSquaredError(Loss):
     """
     >>> from keras_cv_attention_models.pytorch_backend import losses
@@ -69,6 +70,7 @@ class MeanSquaredError(Loss):
     >>> print(f"{losses.MeanSquaredError()(torch.from_numpy(aa), torch.from_numpy(bb)) = }")
     # losses.MeanSquaredError()(torch.from_numpy(aa), torch.from_numpy(bb)) = tensor(0.1672)
     """
+
     def __init__(self, reduction="AUTO", name="mean_squared_error"):
         super().__init__(reduction=reduction, name=name)
 

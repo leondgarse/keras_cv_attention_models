@@ -190,7 +190,7 @@ class StableDiffusion(FakeModelWrapper):
 
     def image_to_image(
         self,
-        image_path,
+        image,
         prompt,
         batch_size=1,
         strength=0.75,  # specifies how much of the original image should not be preserved
@@ -211,10 +211,14 @@ class StableDiffusion(FakeModelWrapper):
             self.encoder_model = encoder_model.to(device) if backend.is_torch_backend else encoder_model
 
         """ Load image """
-        imm = Image.open(image_path).convert("RGB")
-        width, height = imm.size
-        width, height = width - width % 64, height - height % 64  # or 32 [???]
-        image = np.array(imm.resize((width, height), resample=Image.Resampling.BICUBIC))
+        if isinstance(image, str):
+            image = Image.open(image).convert("RGB")
+            width, height = image.size[0] - image.size[0] % 64, image.size[1] - image.size[1] % 64  # or 32 [???]
+            image = np.array(image.resize((width, height), resample=Image.Resampling.BICUBIC))
+        else:  # np.array inputs
+            height, width = image.shape[0] - image.shape[0] % 64, image.shape[1] - image.shape[1] % 64  # or 32 [???]
+            image = image[:height, :width]  # Just crop
+            image = image if image.max() > 2 else image * 255  # -> [0, 255]
         print(">>>> input image.shape: {}, image.min(): {}, image.max(): {}".format(image.shape, image.min(), image.max()))
 
         """ Encoder """

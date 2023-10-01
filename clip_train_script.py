@@ -3,7 +3,8 @@ import kecam
 
 BUILDIN_DATASETS = {
     "coco_dog_cat": {
-        "url": "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/coco_dog_cat.tar.gz", "dataset_file": "captions.tsv"
+        "url": "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/coco_dog_cat.tar.gz",
+        "dataset_file": "captions.tsv",
     },
 }
 
