@@ -149,7 +149,7 @@ class StableDiffusion(FakeModelWrapper):
         uncond_cond_prompt = functional.concat([self.uncond_token] * batch_size + [cond_token] * batch_size, axis=0)
 
         if init_x0 is None:
-            xt = gaussian_sample(target_shape, dtype=compute_dtype, device=device)
+            xt = self.gaussian_sample(target_shape, dtype=compute_dtype, device=device)
         else:
             xt = functional.convert_to_tensor(init_x0, dtype=compute_dtype)
             xt = xt.to(device) if backend.is_torch_backend else xt
