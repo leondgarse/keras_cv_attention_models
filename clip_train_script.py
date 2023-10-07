@@ -145,11 +145,11 @@ if __name__ == "__main__":
 
         if kecam.backend.is_torch_backend:
             model.to(device=global_device)
+            optimizer = build_torch_optimizer(model, lr=lr, weight_decay=args.weight_decay)
             if hasattr(torch, "compile") and torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 6:
                 print(">>>> Calling torch.compile")
                 model = torch.compile(model)
-            optimizer = build_torch_optimizer(model, lr=lr, weight_decay=args.weight_decay)
-            model.compile(optimizer=optimizer, loss=clip_loss, metrics=["acc"])
+            model.train_compile(optimizer=optimizer, loss=clip_loss, metrics=["acc"])  # `compile` is took by `nn.Module`
 
             if args.restore_path is not None:
                 print(">>>> Reload weights from:", args.restore_path)

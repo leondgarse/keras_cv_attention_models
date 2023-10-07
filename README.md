@@ -954,9 +954,9 @@
   | [EfficientViT_B3](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_224_imagenet.h5) | 48.65M | 4.14G | 224   | 83.5     | 329.764 qps  |
   | - [256](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_256_imagenet.h5)            | 48.65M | 5.51G | 256   | 83.8     | 288.605 qps  |
   | - [288](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_b3_288_imagenet.h5)            | 48.65M | 7.14G | 288   | 84.2     | 229.992 qps  |
-  | [EfficientViT_L1](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l1_224_imagenet.h5) | 52.65M | 5.28G | 224   | 84.48    |  |
-  | [EfficientViT_L2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l2_224_imagenet.h5) | 63.71M | 6.98G | 224   | 85.05    |  |
-  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l2_384_imagenet.h5)            | 63.71M | 20.7G | 384   | 85.98    |  |
+  | [EfficientViT_L1](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l1_224_imagenet.h5) | 52.65M | 5.28G | 224   | 84.48    | 503.068 qps |
+  | [EfficientViT_L2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l2_224_imagenet.h5) | 63.71M | 6.98G | 224   | 85.05    | 396.255 qps |
+  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l2_384_imagenet.h5)            | 63.71M | 20.7G | 384   | 85.98    | 207.322 qps |
 ## EfficientViT_M
   - [Keras EfficientViT_M](keras_cv_attention_models/efficientvit) is for Paper [PDF 2305.07027 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/pdf/2305.07027.pdf).
 

@@ -24,7 +24,8 @@ class _Trainer_(object):
         cur_metrics = [metrics.BUILDIN_METRICS[ii]() if isinstance(ii, str) else ii for ii in cur_metrics]
         return metrics_names, cur_metrics
 
-    def compile(self, optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, grad_accumulate=1, grad_max_norm=-1, **kwargs):
+    def train_compile(self, optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, grad_accumulate=1, grad_max_norm=-1, **kwargs):
+        # works like kers `model.compile`, but `compile` is took by `nn.Module`, rename as `train_compile`
         self.optimizer = getattr(torch.optim, optimizer)(self.parameters()) if isinstance(optimizer, str) else optimizer
         self.compiled_loss = self.loss = (lambda y_true, y_pred: torch.functional.F.cross_entropy(y_pred, y_true)) if loss is None else loss
         self.loss_weights, self.grad_accumulate, self.grad_max_norm = loss_weights, grad_accumulate, grad_max_norm

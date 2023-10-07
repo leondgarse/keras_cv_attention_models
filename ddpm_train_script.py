@@ -58,12 +58,12 @@ class DenoisingEval(kecam.backend.callbacks.Callback):
 
     def on_epoch_end(self, cur_epoch=0, logs=None):
         if kecam.backend.is_torch_backend and self.device is None:
-            self.device = next(self.unet_model.parameters()).device
+            self.device = next(self.model.parameters()).device
         compute_dtype = self.model.compute_dtype
         xt = functional.convert_to_tensor(self.eval_x0, dtype=compute_dtype)
         xt = self.to_device(xt)
         if self.num_classes > 0:
-            labels_inputs = self.to_device(functional.convert_to_tensor(self.labels_inputs))  # int64
+            labels_inputs = self.to_device(functional.convert_to_tensor(self.labels_inputs, dtype="int64"))
 
         for timestep in self.timesteps:
             timestep_inputs = functional.convert_to_tensor(np.stack([timestep] * self.batch_size), dtype=compute_dtype)
@@ -168,9 +168,9 @@ class DefussionDatasetGen:
             xt = cur_alpha**0.5 * images + (1 - cur_alpha) ** 0.5 * noise  # Sample from $q(x_t|x_0)$
 
             if self.num_classes > 0:
-                return ((xt, self.all_labels[cur_batch : cur_batch + self.batch_size], timestep), noise)
+                return ((xt, self.all_labels[cur_batch : cur_batch + self.batch_size], timestep.astype("float32")), noise)
             else:
-                return (xt, timestep), noise
+                return (xt, timestep.astype("float32")), noise
         else:
             raise StopIteration
 
@@ -198,11 +198,10 @@ def build_torch_dataset(dataset_gen):
 
 def build_tf_dataset(dataset_gen):
     image_signature = tf.TensorSpec(shape=(None, dataset_gen.image_size, dataset_gen.image_size, 3), dtype=tf.float32)
-    scalar_signature = tf.TensorSpec(shape=(None,), dtype=tf.int64)
     if dataset_gen.num_classes > 0:  # With labels as inputs, [(images, labels, timesteps), noise]
-        output_signature = ((image_signature, scalar_signature, scalar_signature), image_signature)
+        output_signature = ((image_signature, tf.TensorSpec(shape=(None,), dtype=tf.int64), tf.TensorSpec(shape=(None,), dtype=tf.float32)), image_signature)
     else:  # [(images, timesteps), noise]
-        output_signature = ((image_signature, scalar_signature), image_signature)
+        output_signature = ((image_signature, tf.TensorSpec(shape=(None,), dtype=tf.int64)), image_signature)
     options = tf.data.Options()
     options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
 
@@ -222,11 +221,7 @@ def build_torch_optimizer(model, lr=1e-4, weight_decay=0.2, beta1=0.9, beta2=0.9
         {"params": [param for name, param in named_parameters if not exclude(name, param) and param.requires_grad], "weight_decay": weight_decay},
     ]
 
-    device_type = named_parameters[0][1].device.type
-    use_fused = (device_type == "cuda") and ("fused" in inspect.signature(torch.optim.AdamW).parameters)
-    print(">>>> using fused AdamW:", use_fused)
-    extra_args = dict(fused=True) if use_fused else dict()
-    optimizer = torch.optim.AdamW(params, lr=lr, betas=(beta1, beta2), eps=eps, **extra_args)
+    optimizer = torch.optim.AdamW(params, lr=lr, betas=(beta1, beta2), eps=eps)
     return optimizer
 
 
@@ -308,11 +303,11 @@ if __name__ == "__main__":
 
         if kecam.backend.is_torch_backend:
             model.to(device=global_device)
+            optimizer = build_torch_optimizer(model, lr=lr, weight_decay=args.weight_decay)
             if hasattr(torch, "compile") and torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 6:
                 print(">>>> Calling torch.compile")
                 model = torch.compile(model)
-            optimizer = build_torch_optimizer(model, lr=lr, weight_decay=args.weight_decay)
-            model.compile(optimizer=optimizer, loss=kecam.backend.losses.MeanSquaredError())
+            model.train_compile(optimizer=optimizer, loss=kecam.backend.losses.MeanSquaredError())  # `compile` is took by `nn.Module`
 
             if args.restore_path is not None:
                 print(">>>> Reload weights from:", args.restore_path)
