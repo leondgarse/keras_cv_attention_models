@@ -118,6 +118,7 @@ def numpy_image_resize(inputs, target_shape, method="bilinear", antialias=False,
     if ndims < 2 or ndims > 4:
         raise ValueError("inputs with shape={}, ndims={} not supported, ndims must in [2, 4]".format(ipnuts.shape, ndims))
 
+    target_shape = [int(ii) for ii in target_shape]
     if is_source_channels_last:
         inputs = inputs if ndims == 4 else (inputs[None] if ndims == 3 else inputs[None, :, :, None])
         inputs = inputs if image_data_format() == "channels_last" else inputs.transpose([0, 3, 1, 2])
