@@ -2,6 +2,8 @@ import os
 import numpy as np
 import kecam
 from PIL import Image
+from functools import partial
+from multiprocessing import Pool
 from kecam.backend import functional
 
 BUILDIN_DATASETS = {
@@ -26,11 +28,16 @@ else:
     global_strategy = init_global_strategy(enable_float16=len(tf.config.experimental.get_visible_devices("GPU")) > 0)
 
 
+def imread(image_path, image_size):
+    return Image.open(image_path).convert("RGB").resize([image_size, image_size], resample=Image.Resampling.BICUBIC)
+
+
 class DenoisingEval(kecam.backend.callbacks.Callback):
-    def __init__(self, save_path, image_size=512, num_classes=0, num_training_steps=1000, num_steps=50, rows=4, cols=4):
+    def __init__(self, save_path, image_size=512, num_classes=0, num_training_steps=1000, num_steps=-1, rows=4, cols=4):
         super().__init__()
-        self.save_path, self.image_size, self.num_training_steps, self.num_steps = save_path, image_size, num_training_steps, num_steps
+        self.save_path, self.image_size, self.num_training_steps = save_path, image_size, num_training_steps
         self.num_classes, self.rows, self.cols, self.batch_size = num_classes, rows, cols, rows * cols
+        self.num_steps = num_steps if num_steps > 0 else num_training_steps
         if not os.path.exists(save_path):
             os.makedirs(save_path, exist_ok=True)
 
@@ -44,8 +51,9 @@ class DenoisingEval(kecam.backend.callbacks.Callback):
         self.eval_x0 = np.random.normal(size=self.noise_shape).astype("float32")
         if self.num_classes > 0:
             self.labels_inputs = np.random.uniform(0, self.num_classes, size=[self.batch_size]).astype("int64")
+            print(">>>> Eval labels:", self.labels_inputs)
 
-        self.timesteps = np.arange(0, num_training_steps, num_training_steps // num_steps)[::-1] + 1
+        self.timesteps = np.arange(0, num_training_steps, num_training_steps // num_steps)[::-1]
         # self.timesteps = np.stack([timesteps] * self.batch_size, axis=-1)[:, :, None, None, None]  # -> [num_steps, batch_size, None, None, None]
         self.beta = np.linspace(0.0001, 0.02, num_training_steps).astype("float32")
         self.alpha = 1.0 - self.beta
@@ -103,6 +111,11 @@ class DefussionDatasetGen:
             self.noise_shape = (batch_size, 3, image_size, image_size)
             self.is_channels_last = False
 
+        num_threads = min(os.cpu_count() // 2, 8)
+        print(">>>> Image reading num_threads:", num_threads)
+        self.imread_pool = Pool(num_threads)
+        self.imread = partial(imread, image_size=image_size)  # For using Pool
+
         self.beta = np.linspace(0.0001, 0.02, num_training_steps).astype("float32")[:, None, None, None]  # expand to calculation on batch dimension
         self.alpha = 1.0 - self.beta
         self.alpha_bar = np.cumprod(self.alpha, axis=0)
@@ -132,9 +145,6 @@ class DefussionDatasetGen:
             all_images = [os.path.join(base_path, ii) for ii in all_images]
         return np.array(all_images), np.array(all_labels), num_classes
 
-    def imread(self, image_path):
-        return np.array(Image.open(image_path).convert("RGB").resize([self.image_size, self.image_size], resample=Image.Resampling.BICUBIC)).astype("float32")
-
     def __iter__(self):
         self.generated = 0
         # print(">>>> Data shuffle")
@@ -154,9 +164,8 @@ class DefussionDatasetGen:
             cur_batch = self.generated * self.batch_size
             self.generated += 1
 
-            images = self.all_images[cur_batch : cur_batch + self.batch_size]
-            images = np.stack([self.imread(ii) for ii in images])
-            images = images / 127.5 - 1  # [0, 255] -> [-1, 1]
+            images = self.imread_pool.map(self.imread, self.all_images[cur_batch : cur_batch + self.batch_size])
+            images = np.stack(images).astype("float32") / 127.5 - 1  # [0, 255] -> [-1, 1]
             images = images if np.random.uniform() > 0.5 else np.flip(images, axis=2)  # Random flip left right
             images = images if self.is_channels_last else images.transpose([0, 3, 1, 2])
 
@@ -257,7 +266,7 @@ def parse_arguments():
 
     parser.add_argument("--lr_base_512", type=float, default=1e-3, help="Learning rate for batch_size=512, lr = lr_base_512 * 512 / batch_size")
     parser.add_argument("--lr_warmup_steps", type=int, default=3, help="Learning rate warmup steps")
-    parser.add_argument("--weight_decay", type=float, default=0.1, help="Weight decay")
+    parser.add_argument("--weight_decay", type=float, default=1e-4, help="Weight decay")
     args = parser.parse_known_args()[0]
     if args.basic_save_name is None and args.restore_path is not None:
         basic_save_name = os.path.splitext(os.path.basename(args.restore_path))[0]
