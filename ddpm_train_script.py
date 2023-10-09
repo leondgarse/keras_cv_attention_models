@@ -1,9 +1,6 @@
 import os
 import numpy as np
 import kecam
-from PIL import Image
-from functools import partial
-from multiprocessing import Pool
 from kecam.backend import functional
 
 BUILDIN_DATASETS = {
@@ -28,10 +25,6 @@ else:
     global_strategy = init_global_strategy(enable_float16=len(tf.config.experimental.get_visible_devices("GPU")) > 0)
 
 
-def imread(image_path, image_size):
-    return Image.open(image_path).convert("RGB").resize([image_size, image_size], resample=Image.Resampling.BICUBIC)
-
-
 class DenoisingEval(kecam.backend.callbacks.Callback):
     def __init__(self, save_path, image_size=512, num_classes=0, num_training_steps=1000, num_steps=-1, rows=4, cols=4):
         super().__init__()
@@ -53,8 +46,7 @@ class DenoisingEval(kecam.backend.callbacks.Callback):
             self.labels_inputs = np.random.uniform(0, self.num_classes, size=[self.batch_size]).astype("int64")
             print(">>>> Eval labels:", self.labels_inputs)
 
-        self.timesteps = np.arange(0, num_training_steps, num_training_steps // num_steps)[::-1]
-        # self.timesteps = np.stack([timesteps] * self.batch_size, axis=-1)[:, :, None, None, None]  # -> [num_steps, batch_size, None, None, None]
+        self.timesteps = np.arange(0, num_training_steps, num_training_steps // self.num_steps)[::-1]
         self.beta = np.linspace(0.0001, 0.02, num_training_steps).astype("float32")
         self.alpha = 1.0 - self.beta
         self.alpha_bar = np.cumprod(self.alpha, axis=0)
@@ -92,131 +84,119 @@ class DenoisingEval(kecam.backend.callbacks.Callback):
         print(">>>> Epoch {} image saved to {}".format(cur_epoch + 1, save_path))
 
 
-class DefussionDatasetGen:
-    def __init__(self, data_path, image_size=512, batch_size=32, num_training_steps=1000):
-        self.data_path, self.image_size, self.batch_size, self.num_training_steps = data_path, image_size, batch_size, num_training_steps
-        if data_path.endswith(".json"):
-            self.all_images, self.all_labels, self.num_classes = self.init_from_json()
-            print(">>>> total images found: {}, num_classes: {}".format(len(self.all_images), self.num_classes))
-        else:
-            self.all_images, self.all_labels, self.num_classes = self.walk_data_path_gather_images(), [], 0
-            print(">>>> total images found:", len(self.all_images))
-
-        self.total = len(self.all_images)
-        self.steps_per_epoch = self.total // batch_size  # Drop remaining
-        if kecam.backend.image_data_format() == "channels_last":
-            self.noise_shape = (batch_size, image_size, image_size, 3)
-            self.is_channels_last = True
-        else:
-            self.noise_shape = (batch_size, 3, image_size, image_size)
-            self.is_channels_last = False
-
-        num_threads = min(os.cpu_count() // 2, 8)
-        print(">>>> Image reading num_threads:", num_threads)
-        self.imread_pool = Pool(num_threads)
-        self.imread = partial(imread, image_size=image_size)  # For using Pool
-
-        self.beta = np.linspace(0.0001, 0.02, num_training_steps).astype("float32")[:, None, None, None]  # expand to calculation on batch dimension
-        self.alpha = 1.0 - self.beta
-        self.alpha_bar = np.cumprod(self.alpha, axis=0)
-
-    def walk_data_path_gather_images(self):
-        all_images = []
-        for cur, dirs, files in os.walk(self.data_path):
-            all_images.extend([os.path.join(cur, ii) for ii in files if os.path.splitext(ii)[-1].lower() in [".jpg", ".png"]])
-        return np.array(all_images)
-
-    def init_from_json(self):
-        import json
-
-        with open(self.data_path, "r") as ff:
-            aa = json.load(ff)
-        train, info = aa["train"], aa.get("info", {})
-
-        all_images = [ii["image"] for ii in train]
-        all_labels = [ii["label"] for ii in train] if "label" in train[0] else []
-        total_images, num_classes = len(train), info.get("num_classes", 0)
-
-        if num_classes <= 0 and "label" in train[0] and isinstance(train[0]["label"], int):
-            num_classes = max(all_labels) + 1
-            print(">>>> Using max value from train as num_classes:", num_classes)
-        if "base_path" in info and len(info["base_path"]) > 0:
-            base_path = os.path.expanduser(info["base_path"])
-            all_images = [os.path.join(base_path, ii) for ii in all_images]
-        return np.array(all_images), np.array(all_labels), num_classes
-
-    def __iter__(self):
-        self.generated = 0
-        # print(">>>> Data shuffle")
-        if self.num_classes > 0:
-            shuffle_indexes = np.random.permutation(self.all_images.shape[0])
-            self.all_images = self.all_images[shuffle_indexes]
-            self.all_labels = self.all_labels[shuffle_indexes]
-        else:
-            self.all_images = np.random.permutation(self.all_images)
-        return self
-
-    def __len__(self):
-        return self.steps_per_epoch
-
-    def __next__(self):
-        if self.generated < self.steps_per_epoch:
-            cur_batch = self.generated * self.batch_size
-            self.generated += 1
-
-            images = self.imread_pool.map(self.imread, self.all_images[cur_batch : cur_batch + self.batch_size])
-            images = np.stack(images).astype("float32") / 127.5 - 1  # [0, 255] -> [-1, 1]
-            images = images if np.random.uniform() > 0.5 else np.flip(images, axis=2)  # Random flip left right
-            images = images if self.is_channels_last else images.transpose([0, 3, 1, 2])
-
-            # diffusion process
-            timestep = np.random.uniform(0, self.num_training_steps, [self.batch_size]).astype("int64")
-            noise = np.random.normal(size=self.noise_shape).astype("float32")
-
-            cur_alpha = self.alpha_bar[timestep]
-            xt = cur_alpha**0.5 * images + (1 - cur_alpha) ** 0.5 * noise  # Sample from $q(x_t|x_0)$
-
-            if self.num_classes > 0:
-                return ((xt, self.all_labels[cur_batch : cur_batch + self.batch_size], timestep.astype("float32")), noise)
-            else:
-                return (xt, timestep.astype("float32")), noise
-        else:
-            raise StopIteration
-
-    def __getitem__(self, idx):
-        return self.__next__()
+def walk_data_path_gather_images(data_path):
+    all_images = []
+    for cur, dirs, files in os.walk(data_path):
+        all_images.extend([os.path.join(cur, ii) for ii in files if os.path.splitext(ii)[-1].lower() in [".jpg", ".png"]])
+    return all_images
 
 
-def build_torch_dataset(dataset_gen):
-    from torch.utils.data import DataLoader, IterableDataset
+def init_from_json(data_path):
+    import json
 
-    class DD(IterableDataset):
-        def __init__(self, dataset):
-            super().__init__()
-            self.dataset = dataset
+    with open(data_path, "r") as ff:
+        aa = json.load(ff)
+    train, info = aa["train"], aa.get("info", {})
+
+    all_images = [ii["image"] for ii in train]
+    all_labels = [ii["label"] for ii in train] if "label" in train[0] else []
+    total_images, num_classes = len(train), info.get("num_classes", 0)
+
+    if num_classes <= 0 and "label" in train[0] and isinstance(train[0]["label"], int):
+        num_classes = max(all_labels) + 1
+        print(">>>> Using max value from train as num_classes:", num_classes)
+    if "base_path" in info and len(info["base_path"]) > 0:
+        base_path = os.path.expanduser(info["base_path"])
+        all_images = [os.path.join(base_path, ii) for ii in all_images]
+    return all_images, all_labels, num_classes
+
+
+def init_diffusion_alpha(num_training_steps=1000):
+    beta = np.linspace(0.0001, 0.02, num_training_steps).astype("float32")[:, None, None, None]  # expand to calculation on batch dimension
+    alpha_bar = np.cumprod(1.0 - beta, axis=0)
+    sqrt_alpha_bar = alpha_bar**0.5
+    sqrt_one_minus_alpha_bar = (1 - alpha_bar) ** 0.5
+    return sqrt_alpha_bar, sqrt_one_minus_alpha_bar
+
+
+def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_training_steps=1000):
+    from PIL import Image
+    from torch.utils.data import DataLoader, Dataset
+    from torchvision.transforms import Normalize, Compose, RandomHorizontalFlip, Resize, InterpolationMode, ToTensor
+
+    use_labels = False if labels is None or len(labels) == 0 else True
+    image_size = image_size if isinstance(image_size, (list, tuple)) else (image_size, image_size)
+    sqrt_alpha_bar, sqrt_one_minus_alpha_bar = init_diffusion_alpha(num_training_steps)
+    sqrt_alpha_bar, sqrt_one_minus_alpha_bar = torch.from_numpy(sqrt_alpha_bar), torch.from_numpy(sqrt_one_minus_alpha_bar)
+
+    class _Dataset_(Dataset):
+        def __init__(self, images, labels=None, image_size=512):
+            self.images, self.labels = images, labels
+            self.mean, self.std = (0.5, 0.5, 0.5), (0.5, 0.5, 0.5)
+            self.transforms = Compose(
+                [
+                    Resize(image_size, interpolation=InterpolationMode.BICUBIC),
+                    RandomHorizontalFlip(),
+                    lambda image: image.convert("RGB"),
+                    ToTensor(),
+                    Normalize(mean=self.mean, std=self.std),
+                ]
+            )
 
         def __len__(self):
-            return len(self.dataset)
+            return len(self.images)
 
-        def __iter__(self):
-            return iter(self.dataset)
+        def __getitem__(self, idx):
+            image = self.transforms(Image.open(str(self.images[idx])))
+            return (image, self.labels[idx]) if use_labels else image
 
-    train_dataset = DataLoader(DD(dataset_gen), batch_size=None)
-    return train_dataset
+    def diffusion_process(batch):
+        if use_labels:
+            images, labels = list(zip(*batch))
+            images, labels = torch.stack(images), torch.stack(labels)
+        else:
+            images = torch.stack(batch)
+        timestep = torch.randint(num_training_steps, size=(batch_size,))
+        noise = torch.randn_like(images)
+
+        xt = sqrt_alpha_bar[timestep] * images + sqrt_one_minus_alpha_bar[timestep] * noise
+        return ((xt, labels, timestep), noise) if use_labels else ((xt, timestep), noise)
+
+    dd = _Dataset_(images, labels, image_size)
+    return DataLoader(dd, batch_size=batch_size, collate_fn=diffusion_process, shuffle=True, num_workers=4, drop_last=True, pin_memory=True)
 
 
-def build_tf_dataset(dataset_gen):
-    image_signature = tf.TensorSpec(shape=(None, dataset_gen.image_size, dataset_gen.image_size, 3), dtype=tf.float32)
-    if dataset_gen.num_classes > 0:  # With labels as inputs, [(images, labels, timesteps), noise]
-        output_signature = ((image_signature, tf.TensorSpec(shape=(None,), dtype=tf.int64), tf.TensorSpec(shape=(None,), dtype=tf.float32)), image_signature)
-    else:  # [(images, timesteps), noise]
-        output_signature = ((image_signature, tf.TensorSpec(shape=(None,), dtype=tf.int64)), image_signature)
-    options = tf.data.Options()
-    options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
+def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_training_steps=1000):
+    from keras_cv_attention_models.imagenet.data import tf_imread
 
-    train_dataset = tf.data.Dataset.from_generator(lambda: iter(dataset_gen), output_signature=output_signature)
-    train_dataset = train_dataset.apply(tf.data.experimental.assert_cardinality(dataset_gen.steps_per_epoch)).with_options(options)
-    train_dataset = train_dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
+    use_labels = False if labels is None or len(labels) == 0 else True
+    image_size = image_size if isinstance(image_size, (list, tuple)) else (image_size, image_size)
+    sqrt_alpha_bar, sqrt_one_minus_alpha_bar = init_diffusion_alpha(num_training_steps)
+    sqrt_alpha_bar, sqrt_one_minus_alpha_bar = tf.convert_to_tensor(sqrt_alpha_bar), tf.convert_to_tensor(sqrt_one_minus_alpha_bar)
+    AUTOTUNE, buffer_size, seed = tf.data.AUTOTUNE, batch_size * 100, None
+
+    if use_labels:
+        train_dataset = tf.data.Dataset.from_tensor_slices((images, labels)).shuffle(buffer_size=len(images), seed=seed)
+    else:
+        train_dataset = tf.data.Dataset.from_tensor_slices(images).shuffle(buffer_size=len(images), seed=seed)
+
+    def image_process(image, label=None):
+        image = tf_imread(image)
+        image = tf.image.resize(image, image_size, method="bicubic", antialias=True)
+        image = tf.cast(image, tf.float32)
+        image.set_shape([*image_size, 3])
+        return (image, label) if use_labels else image
+
+    def diffusion_process(image, label=None):
+        timestep = tf.random.uniform([batch_size], 0, num_training_steps, dtype='int64')
+        noise = tf.random.normal([batch_size, *image_size, 3])
+
+        xt = tf.gather(sqrt_alpha_bar, timestep) * image + tf.gather(sqrt_one_minus_alpha_bar, timestep) * noise
+        return ((xt, label, timestep), noise) if use_labels else ((xt, timestep), noise)
+
+    train_dataset = train_dataset.map(image_process, num_parallel_calls=AUTOTUNE)
+    train_dataset = train_dataset.batch(batch_size, drop_remainder=True).map(diffusion_process, num_parallel_calls=AUTOTUNE)
+    train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE)
     return train_dataset
 
 
@@ -284,12 +264,21 @@ if __name__ == "__main__":
         args.data_path = os.path.join(os.path.dirname(file_path), args.data_path, dataset_file)
         print(">>>> Buildin dataset, path:", args.data_path)
 
-    train_dataset_gen = DefussionDatasetGen(args.data_path, args.input_shape, batch_size=args.batch_size, num_training_steps=args.num_training_steps)
-    inputs, noise = next(iter(train_dataset_gen))
-    print(">>>> Total train batches: {}".format(len(train_dataset_gen)))
+    if args.data_path.endswith(".json"):
+        all_images, all_labels, num_classes = init_from_json(args.data_path)
+        print(">>>> total images found: {}, num_classes: {}".format(len(all_images), num_classes))
+    else:
+        all_images, all_labels, num_classes = walk_data_path_gather_images(args.data_path), None, 0
+        print(">>>> total images found:", len(all_images))
+
+    if kecam.backend.is_torch_backend:
+        train_dataset = build_torch_dataset(all_images, all_labels, args.input_shape, batch_size=args.batch_size, num_training_steps=args.num_training_steps)
+    else:
+        train_dataset = build_tf_dataset(all_images, all_labels, args.input_shape, batch_size=args.batch_size, num_training_steps=args.num_training_steps)
+
+    inputs, noise = next(iter(train_dataset))
+    print(">>>> Total train batches: {}".format(len(train_dataset)))
     print(">>>> Data: inputs: {}, noise.shape: {}".format([ii.shape for ii in inputs], noise.shape))
-    num_classes = train_dataset_gen.num_classes
-    train_dataset = build_torch_dataset(train_dataset_gen) if kecam.backend.is_torch_backend else build_tf_dataset(train_dataset_gen)
 
     lr = args.lr_base_512 * args.batch_size / 512
     print(">>>> lr:", lr)
@@ -330,7 +319,7 @@ if __name__ == "__main__":
         save_path = os.path.join("checkpoints", basic_save_name)
         eval_callback = DenoisingEval(save_path, args.input_shape, num_classes, args.num_training_steps, cols=cols, rows=rows)
 
-        lr_scheduler = kecam.imagenet.callbacks.CosineLrScheduler(lr, args.epochs, steps_per_epoch=len(train_dataset), warmup_steps=args.lr_warmup_steps)
+        lr_scheduler = kecam.imagenet.callbacks.CosineLrSchedulerEpoch(lr, args.epochs, warmup_steps=args.lr_warmup_steps)
         other_kwargs = {}
         latest_save, hist = kecam.imagenet.train_func.train(
             compiled_model=model,

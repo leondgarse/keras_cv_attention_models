@@ -24,6 +24,13 @@ class _Trainer_(object):
         cur_metrics = [metrics.BUILDIN_METRICS[ii]() if isinstance(ii, str) else ii for ii in cur_metrics]
         return metrics_names, cur_metrics
 
+    @property
+    def compute_dtype(self):
+        try:
+            return next(self.parameters()).dtype
+        except StopIteration:
+            return torch.get_default_dtype()
+
     def train_compile(self, optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, grad_accumulate=1, grad_max_norm=-1, **kwargs):
         # works like kers `model.compile`, but `compile` is took by `nn.Module`, rename as `train_compile`
         self.optimizer = getattr(torch.optim, optimizer)(self.parameters()) if isinstance(optimizer, str) else optimizer
@@ -274,6 +281,43 @@ class _Exporter_(object):
         torch.jit.save(traced_cell, filepath, **kwargs)
         print("Exported pth:", filepath)
 
+    def load_weights(self, filepath, by_name=True, skip_mismatch=False):
+        from keras_cv_attention_models.download_and_load import load_weights_from_hdf5_file
+
+        load_weights_from_hdf5_file(filepath, self, skip_mismatch=skip_mismatch, debug=self.debug)
+
+    def save_weights(self, filepath=None, **kwargs):
+        from keras_cv_attention_models.download_and_load import save_weights_to_hdf5_file
+
+        save_weights_to_hdf5_file(filepath if filepath else self.name + ".h5", self, **kwargs)
+
+    def load(self, filepath=None, **kwargs):
+        if filepath.endswith("h5"):
+            self.load_weights(filepath, **kwargs)
+        else:
+            weights = torch.load(filepath, map_location=torch.device("cpu"), **kwargs)
+            weights = weights.state_dict() if hasattr(weights, "state_dict") else weights
+            self.load_state_dict(weights.get("state_dict", weights.get("model", weights)))
+            if hasattr(self, "optimizer") and "optimizer" in weights:
+                print(">>>> Reload optimizer state_dict")
+                self.optimizer.load_state_dict(weights["optimizer"])
+
+    def save(self, filepath=None, **kwargs):
+        if filepath.endswith("h5"):
+            self.save_weights(filepath, **kwargs)
+        else:
+            save_items = {"state_dict": self.state_dict()}
+            if hasattr(self, "optimizer"):
+                save_items.update({"optimizer": self.optimizer.state_dict()})
+            torch.save(save_items, filepath, **kwargs)
+
+    def count_params(self):
+        total_params = sum([np.prod(ii.shape) for ii in self.state_dict().values() if len(ii.shape) != 0])
+        trainable_params = sum([np.prod(list(ii.shape)) for ii in self.parameters()])
+        non_trainable_params = total_params - trainable_params
+        print("Total params: {:,} | Trainable params: {:,} | Non-trainable params:{:,}".format(total_params, trainable_params, non_trainable_params))
+        return total_params
+
 
 class Model(nn.Module, _Trainer_, _Exporter_):
     """
@@ -428,13 +472,6 @@ class Model(nn.Module, _Trainer_, _Exporter_):
         return cur_node
 
     @property
-    def compute_dtype(self):
-        try:
-            return next(self.parameters()).dtype
-        except StopIteration:
-            return torch.get_default_dtype()
-
-    @property
     def layers(self):
         return list(self.__layers__.values())
 
@@ -447,43 +484,6 @@ class Model(nn.Module, _Trainer_, _Exporter_):
 
     def get_layer(self, layer_name):
         return self.__layers__[layer_name]
-
-    def load_weights(self, filepath, by_name=True, skip_mismatch=False):
-        from keras_cv_attention_models.download_and_load import load_weights_from_hdf5_file
-
-        load_weights_from_hdf5_file(filepath, self, skip_mismatch=skip_mismatch, debug=self.debug)
-
-    def save_weights(self, filepath=None, **kwargs):
-        from keras_cv_attention_models.download_and_load import save_weights_to_hdf5_file
-
-        save_weights_to_hdf5_file(filepath if filepath else self.name + ".h5", self, **kwargs)
-
-    def load(self, filepath=None, **kwargs):
-        if filepath.endswith("h5"):
-            self.load_weights(filepath, **kwargs)
-        else:
-            weights = torch.load(filepath, map_location=torch.device("cpu"), **kwargs)
-            weights = weights.state_dict() if hasattr(weights, "state_dict") else weights
-            self.load_state_dict(weights.get("state_dict", weights.get("model", weights)))
-            if hasattr(self, "optimizer") and "optimizer" in weights:
-                print(">>>> Reload optimizer state_dict")
-                self.optimizer.load_state_dict(weights["optimizer"])
-
-    def save(self, filepath=None, **kwargs):
-        if filepath.endswith("h5"):
-            self.save_weights(filepath, **kwargs)
-        else:
-            save_items = {"state_dict": self.state_dict()}
-            if hasattr(self, "optimizer"):
-                save_items.update({"optimizer": self.optimizer.state_dict()})
-            torch.save(save_items, filepath, **kwargs)
-
-    def count_params(self):
-        total_params = sum([np.prod(ii.shape) for ii in self.state_dict().values() if len(ii.shape) != 0])
-        trainable_params = sum([np.prod(list(ii.shape)) for ii in self.parameters()])
-        non_trainable_params = total_params - trainable_params
-        print("Total params: {:,} | Trainable params: {:,} | Non-trainable params:{:,}".format(total_params, trainable_params, non_trainable_params))
-        return total_params
 
     def set_debug(self, debug=True):
         self.debug = debug
