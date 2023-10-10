@@ -18,6 +18,7 @@ from keras_cv_attention_models.efficientvit.efficientvit_b import (
     EfficientViT_L0,
     EfficientViT_L1,
     EfficientViT_L2,
+    EfficientViT_L3,
 )
 
 __m_head_doc__ = """
@@ -118,6 +119,8 @@ Model architectures:
   | EfficientViT_L1 | 52.65M | 5.28G | 224   | 84.48    |
   | EfficientViT_L2 | 63.71M | 6.98G | 224   | 85.05    |
   | EfficientViT_L2 | 63.71M | 20.7G | 384   | 85.98    |
+  | EfficientViT_L3 | 246.0M | 27.6G | 224   | 85.814   |
+  | EfficientViT_L3 | 246.0M | 81.6G | 384   | 86.408   |
 """
 
 EfficientViT_L.__doc__ = EfficientViT_B.__doc__
@@ -132,6 +135,7 @@ EfficientViT_B3.__doc__ = EfficientViT_B0.__doc__
 EfficientViT_L0.__doc__ = EfficientViT_B0.__doc__
 EfficientViT_L1.__doc__ = EfficientViT_B0.__doc__
 EfficientViT_L2.__doc__ = EfficientViT_B0.__doc__
+EfficientViT_L3.__doc__ = EfficientViT_B0.__doc__
 
 cascaded_mhsa_with_multi_head_position.__doc__ = __m_head_doc__ + """
 Cascaded multi head self attention with MultiHeadPositionalEmbedding. Defined as function, not layer.

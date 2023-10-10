@@ -25,6 +25,7 @@ PRETRAINED_DICT = {
     },
     "efficientvit_l1": {"imagenet": {224: "a487ed323d278e7b4807a4f04257ed10"}},
     "efficientvit_l2": {"imagenet": {224: "b1bc0d47aeaa90421f73a89ceac04e8b", 384: "c396388dd90e7532256a3a25fed4b5b0"}},
+    "efficientvit_l3": {"imagenet": {224: "8b3d1480ce67c46101cf0a3a0fa69318", 384: "e7d5f2bce807254c24d7530553f21f6a"}},
 }
 
 
@@ -240,3 +241,12 @@ def EfficientViT_L1(input_shape=(224, 224, 3), num_classes=1000, activation="gel
 def EfficientViT_L2(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 3, 9, 9]
     return EfficientViT_L(**locals(), model_name="efficientvit_l2", **kwargs)
+
+
+@register_model
+def EfficientViT_L3(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 3, 9, 9]
+    out_channels = [128, 256, 512, 1024]
+    stem_width = 64
+    output_filters = [6144, 6400]
+    return EfficientViT_L(**locals(), model_name="efficientvit_l3", **kwargs)
