@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import kecam
+from PIL import Image
 from kecam.backend import functional
 
 BUILDIN_DATASETS = {
@@ -66,7 +67,7 @@ class DenoisingEval(kecam.backend.callbacks.Callback):
             labels_inputs = self.to_device(functional.convert_to_tensor(self.labels_inputs, dtype="int64"))
 
         for timestep in self.timesteps:
-            timestep_inputs = functional.convert_to_tensor(np.stack([timestep] * self.batch_size), dtype=compute_dtype)
+            timestep_inputs = functional.convert_to_tensor(np.stack([timestep] * self.batch_size), dtype="int64")
             timestep_inputs = self.to_device(timestep_inputs)
             xt_noise = self.model([xt, labels_inputs, timestep_inputs]) if self.num_classes > 0 else self.model([xt, timestep_inputs])
 
@@ -120,7 +121,6 @@ def init_diffusion_alpha(num_training_steps=1000):
 
 
 def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_training_steps=1000):
-    from PIL import Image
     from torch.utils.data import DataLoader, Dataset
     from torchvision.transforms import Normalize, Compose, RandomHorizontalFlip, Resize, InterpolationMode, ToTensor
 
@@ -153,7 +153,7 @@ def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_
     def diffusion_process(batch):
         if use_labels:
             images, labels = list(zip(*batch))
-            images, labels = torch.stack(images), torch.stack(labels)
+            images, labels = torch.stack(images), torch.tensor(labels)
         else:
             images = torch.stack(batch)
         timestep = torch.randint(num_training_steps, size=(batch_size,))
@@ -319,7 +319,7 @@ if __name__ == "__main__":
         save_path = os.path.join("checkpoints", basic_save_name)
         eval_callback = DenoisingEval(save_path, args.input_shape, num_classes, args.num_training_steps, cols=cols, rows=rows)
 
-        lr_scheduler = kecam.imagenet.callbacks.CosineLrSchedulerEpoch(lr, args.epochs, warmup_steps=args.lr_warmup_steps)
+        lr_scheduler = kecam.imagenet.callbacks.CosineLrSchedulerEpoch(lr, args.epochs, lr_warmup=1e-4, warmup_steps=args.lr_warmup_steps)
         other_kwargs = {}
         latest_save, hist = kecam.imagenet.train_func.train(
             compiled_model=model,
