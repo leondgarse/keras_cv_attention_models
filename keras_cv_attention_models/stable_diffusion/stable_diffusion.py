@@ -5,11 +5,11 @@ import keras_cv_attention_models
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, initializers, image_data_format
 from keras_cv_attention_models.clip import tokenizer
-from keras_cv_attention_models.models import register_model, FakeModelWrapper  # FakeModelWrapper providing save / load / cuda class methods
+from keras_cv_attention_models.models import register_model, FakeModelWrapper
 
 
 @register_model
-class StableDiffusion(FakeModelWrapper):
+class StableDiffusion(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda class methods
     def __init__(
         self,
         clip_model="beit.ViTTextLargePatch14",
@@ -38,9 +38,9 @@ class StableDiffusion(FakeModelWrapper):
 
         """ Dynamic input shape """
         if image_data_format() == "channels_last":
-            image_shape, latents_input_shape = [None, None, 3], [None, None, 4]  # [512, 512, 3] -> [64, 64, 4]
+            image_shape, latents_input_shape = [None, None, 3], [None, None, 4]  # [512, 512, 3], [64, 64, 4]
         else:
-            image_shape, latents_input_shape = [3, None, None], [4, None, None]  # [3, 512, 512] -> [4, 64, 64]
+            image_shape, latents_input_shape = [3, None, None], [4, None, None]  # [3, 512, 512], [4, 64, 64]
         self.image_shape = (None, *image_shape)
         self.latents_input_shape = (None, *latents_input_shape)
 
@@ -113,25 +113,35 @@ class StableDiffusion(FakeModelWrapper):
         gaussian = functional.convert_to_tensor(gaussian.astype("float32"), dtype=dtype)
         return gaussian.to(device) if backend.is_torch_backend else gaussian
 
-    def text_to_image(
+    def __call__(
         self,
         prompt,
+        image=None,  # [image_to_image and inpaint] None for `text_to_image` using prompt only, not None for `image_to_image` or `inpaint` mode
         batch_size=1,
-        image_shape=(512, 512),  # int or list of 2 int, should be divisible by 64
+        image_shape=(512, 512),  # int or list of 2 int, should be divisible by 64. Will be overwritten using `image.shape` if `image` not None
         repeat_noise=False,  # specified whether the noise should be same for all samples in the batch
-        temperature=1,  # is the noise temperature (random noise gets multiplied by this)
-        init_x0=None,  # If not provided random noise will be used.
-        init_step=0,  # is the number of time steps to skip $i'$. We start sampling from $S - i'$. And `x_last` is then $x_{\tau_{S - i'}}$.
+        temperature=1,  # the noise temperature, random noise gets multiplied by this
+        init_x0=None,  # tensor in same shape with `image_latents.shape`. Default `None` for random noise. Will be overwritten if `image` not None
+        init_step=0,  # int value in `[0, self.num_steps==50]`, skip steps for denoising process. Will be overwritten using `strength` if `image` not None
         latent_scaling_factor=0.18215,  # scaling factor for the image latent space. Encoder outputs and Decoder inputs are scaled by this value
         uncond_scale=7.5,  # unconditional guidance scale: "eps = eps(x, empty) + scale * (eps(x, cond) - eps(x, empty))"
         return_inner=False,  # boolean value if return inner step results for visualizing the process
-        inpaint_orign_image_latents=None,  # [in_paint parameters], not None value for inpaint mode
-        inpaint_orign_noise=None,  # [in_paint parameters]
-        inpaint_mask=None,  # [in_paint parameters]
+        strength=0.75,  # [image_to_image and inpaint] specifies how much of the original image should **NOT** be preserved
+        inpaint_mask=None,  # [inpaint], in same shape with image_latents, or 4 float [top, left, bottom, right] in [0, 1], like [0.5, 0, 1, 1] for bottom half
     ):
         device = next(self.unet_model.parameters()).device if backend.is_torch_backend else None
         compute_dtype = self.unet_model.compute_dtype
 
+        """ Checking if text_to_image / image_to_image / inpaint mode """
+        is_inpaint = image is not None and inpaint_mask is not None
+        if image is not None:  # image_to_image
+            init_x0, init_step, image_shape, inpaint_orign_latents, inpaint_orign_noise = self.encode_image(image, batch_size, strength, latent_scaling_factor)
+            print(">>>> Encoded image latents: {}, image_shape: {}, init_step: {}".format(init_x0.shape, image_shape, init_step))
+        if is_inpaint:  # inpaint
+            inpaint_mask = self.init_inpaint_mask(inpaint_mask, inpaint_orign_latents.shape)
+            print(">>>> Inpaint, inpaint_mask.shape:", inpaint_mask.shape)
+
+        """ Init x0 """
         batch_size = batch_size if init_x0 is None else init_x0.shape[0]
         image_shape = image_shape if isinstance(image_shape, (list, tuple)) else [image_shape, image_shape]
         if image_data_format() == "channels_last":
@@ -139,6 +149,13 @@ class StableDiffusion(FakeModelWrapper):
         else:
             target_shape = [batch_size, self.latents_input_shape[1], image_shape[-2] // 8, image_shape[-1] // 8]
 
+        if init_x0 is None:
+            xt = self.gaussian_sample(target_shape, dtype=compute_dtype, device=device)
+        else:
+            xt = functional.convert_to_tensor(init_x0, dtype=compute_dtype)
+            xt = xt.to(device) if backend.is_torch_backend else xt
+
+        """ Init prompt latents using clip model """
         if self.uncond_prompt is None:
             uncond_prompt = functional.convert_to_tensor(self.caption_tokenizer("", padding_value=self.caption_tokenizer.eot_token)[None], dtype=compute_dtype)
             uncond_prompt = uncond_prompt.long().to(device) if backend.is_torch_backend else uncond_prompt
@@ -148,15 +165,9 @@ class StableDiffusion(FakeModelWrapper):
         cond_token = self.clip_model(cond_prompt)
         uncond_cond_prompt = functional.concat([self.uncond_token] * batch_size + [cond_token] * batch_size, axis=0)
 
-        if init_x0 is None:
-            xt = self.gaussian_sample(target_shape, dtype=compute_dtype, device=device)
-        else:
-            xt = functional.convert_to_tensor(init_x0, dtype=compute_dtype)
-            xt = xt.to(device) if backend.is_torch_backend else xt
-
-        is_inpaint = inpaint_orign_image_latents is not None
-        rr = []
-        for cur_step in tqdm(range(self.num_steps - init_step)[::-1]):
+        """ Denoising using UNet """
+        gathered_inner = []  # return multiple if return_inner is True
+        for cur_step in tqdm(range(self.num_steps - init_step)[::-1]):  # 50 -> 0
             time_step = functional.convert_to_tensor(np.stack([self.time_steps[cur_step]] * batch_size * 2), dtype=compute_dtype)
             time_step = time_step.to(device) if backend.is_torch_backend else time_step
             xt_inputs = functional.concat([xt, xt], axis=0)
@@ -176,32 +187,25 @@ class StableDiffusion(FakeModelWrapper):
             xt = (ddim_alpha_prev**0.5) * pred_x0 + dir_xt + ddim_sigma * temperature * noise
 
             if is_inpaint:  # q_sample
-                orig_t = self.ddim_alpha_sqrt[cur_step] * inpaint_orign_image_latents + self.ddim_sqrt_one_minus_alpha[cur_step] * inpaint_orign_noise
-                xt = orig_t * inpaint_mask + xt * (1 - inpaint_mask)  # Replace the masked area
+                orig_t = self.ddim_alpha_sqrt[cur_step] * inpaint_orign_latents + self.ddim_sqrt_one_minus_alpha[cur_step] * inpaint_orign_noise
+                xt = orig_t * inpaint_mask + xt * (1 - inpaint_mask)  # Replace the masked area with original image latents
 
             if return_inner:
-                rr.append(xt)
+                gathered_inner.append(xt)
 
-        # Decode the image
+        """ Decode the image """
         if return_inner:
-            return [self.decoder_model(inner / latent_scaling_factor) for inner in tqdm(rr, "Decoding")]
+            return [self.decoder_model(inner / latent_scaling_factor) for inner in tqdm(gathered_inner, "Decoding")]
         else:
             return self.decoder_model(xt / latent_scaling_factor)
 
-    def image_to_image(
-        self,
-        image,
-        prompt,
-        batch_size=1,
-        strength=0.75,  # specifies how much of the original image should not be preserved
-        repeat_noise=False,  # specified whether the noise should be same for all samples in the batch
-        temperature=1,  # is the noise temperature (random noise gets multiplied by this)
-        latent_scaling_factor=0.18215,  # scaling factor for the image latent space. Encoder outputs and Decoder inputs are scaled by this value
-        uncond_scale=5.0,  # unconditional guidance scale: "eps = eps(x, empty) + scale * (eps(x, cond) - eps(x, empty))"
-        return_inner=False,  # boolean value if return inner step results for visualizing the process
-        is_inpaint=False,  # [in_paint parameters] True for in_paint mode
-        inpaint_mask=[0.5, 0, 1, 1],  # [in_paint parameters], list of 4 float in [0, 1], format in [top, left, bottom, right], default one for bottom half
-    ):
+    def encode_image(self, image, batch_size=1, strength=0.75, latent_scaling_factor=0.18215):
+        """
+        strength: specifies how much of the original image should not be preserved
+        latent_scaling_factor: scaling factor for the image latent space. Encoder outputs and Decoder inputs are scaled by this value
+
+        return init_x0, init_step, (height, width), image_latents, noise
+        """
         device = next(self.unet_model.parameters()).device if backend.is_torch_backend else None
         compute_dtype = self.unet_model.compute_dtype
 
@@ -209,6 +213,7 @@ class StableDiffusion(FakeModelWrapper):
             print(">>>> Build default Encoder model: stable_diffusion.Encoder")
             encoder_model = self.build_model("stable_diffusion.Encoder", **self.encoder_model_kwargs)
             self.encoder_model = encoder_model.to(device) if backend.is_torch_backend else encoder_model
+            self.models.append(self.encoder_model)
 
         """ Load image """
         if isinstance(image, str):
@@ -241,48 +246,25 @@ class StableDiffusion(FakeModelWrapper):
         noise = self.gaussian_sample(image_latents.shape, dtype=compute_dtype, device=device)
         timestep_start = int(strength * self.num_steps)
         init_x0 = self.ddim_alpha_sqrt[timestep_start] * image_latents + self.ddim_sqrt_one_minus_alpha[timestep_start] * noise
+        init_step = self.num_steps - timestep_start
+        return init_x0, init_step, (height, width), image_latents, noise
 
-        """ If inpaint mask """
-        if is_inpaint and isinstance(inpaint_mask, (list, tuple)) and len(inpaint_mask) == 4:
+    def init_inpaint_mask(self, inpaint_mask, latents_shape):
+        device = next(self.unet_model.parameters()).device if backend.is_torch_backend else None
+        compute_dtype = self.unet_model.compute_dtype
+
+        if isinstance(inpaint_mask, (list, tuple)) and len(inpaint_mask) == 4:
+            height, width = latents_shape[1:-1] if image_data_format() == "channels_last" else latents_shape[2:]
             top, left, bottom, right = (np.array(inpaint_mask) * [height, width, height, width]).astype("int64")
-            inpaint_mask = np.zeros(image_latents.shape).astype("float32")
-            inpaint_mask[:, top:bottom, left:right, :] = 1
+            inpaint_mask = np.zeros(latents_shape).astype("float32")
+            if image_data_format() == "channels_last":
+                inpaint_mask[:, top:bottom, left:right, :] = 1
+            else:
+                inpaint_mask[:, :, top:bottom, left:right] = 1
             inpaint_mask = functional.convert_to_tensor(inpaint_mask.astype("float32"), dtype=compute_dtype)
             inpaint_mask = inpaint_mask.to(device) if backend.is_torch_backend else inpaint_mask
-        elif is_inpaint:
-            assert inpaint_mask.shape == image_latents.shape, "provided inpaint_mask not in same shape with image_latents: {}".format(image_latents.shape)
+        else:
+            assert inpaint_mask.shape == latents_shape, "provided inpaint_mask not in same shape with image_latents: {}".format(latents_shape)
             inpaint_mask = functional.convert_to_tensor(inpaint_mask.astype("float32"), dtype=compute_dtype)
             inpaint_mask = inpaint_mask.to(device) if backend.is_torch_backend else inpaint_mask
-
-        """ p_sample """
-        return self.text_to_image(
-            prompt=prompt,
-            batch_size=batch_size,
-            image_shape=(height, width),
-            repeat_noise=repeat_noise,
-            temperature=temperature,
-            init_x0=init_x0,
-            init_step=self.num_steps - timestep_start,
-            latent_scaling_factor=latent_scaling_factor,
-            uncond_scale=uncond_scale,
-            return_inner=return_inner,
-            inpaint_orign_image_latents=image_latents if is_inpaint else None,
-            inpaint_orign_noise=noise if is_inpaint else None,
-            inpaint_mask=inpaint_mask if is_inpaint else None,
-        )
-
-    def in_paint(
-        self,
-        image,
-        prompt,
-        batch_size=1,
-        strength=0.75,  # specifies how much of the original image should not be preserved
-        repeat_noise=False,  # specified whether the noise should be same for all samples in the batch
-        temperature=1,  # is the noise temperature (random noise gets multiplied by this)
-        latent_scaling_factor=0.18215,  # scaling factor for the image latent space. Encoder outputs and Decoder inputs are scaled by this value
-        uncond_scale=5.0,  # unconditional guidance scale: "eps = eps(x, empty) + scale * (eps(x, cond) - eps(x, empty))"
-        return_inner=False,  # boolean value if return inner step results for visualizing the process
-        inpaint_mask=[0.5, 0, 1, 1],  # in same shape with image_latents, or list of 4 float [top, left, bottom, right] in [0, 1], defualt one for bottom half
-    ):
-        local_kwargs = {kk: vv for kk, vv in locals().items() if kk != "self"}
-        return self.image_to_image(**local_kwargs, is_inpaint=True)
+        return inpaint_mask

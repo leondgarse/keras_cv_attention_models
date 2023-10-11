@@ -31,7 +31,7 @@ def gaussian_distribution(inputs):
 
 def attention_block(inputs, num_attention_block=1, mlp_ratio=4, num_heads=4, head_dim=0, name=""):
     input_channels = inputs.shape[-1 if backend.image_data_format() == "channels_last" else 1]
-    inputs_shape = functional.shape(inputs) if None in inputs.shape[1:] or -1 in inputs.shape[1:] else inputs.shape
+    inputs_shape = functional.shape(inputs) if None in inputs.shape[1:] or -1 in inputs.shape[1:] else [-1, *inputs.shape[1:]]
     qk_scale = 1.0 / (float(input_channels) ** 0.5)
 
     nn = group_norm(inputs, epsilon=GROUP_NORM_EPSILON, name=name + "in_layers_")
