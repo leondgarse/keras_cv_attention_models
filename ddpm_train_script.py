@@ -27,7 +27,7 @@ else:
 
 
 class DenoisingEval(kecam.backend.callbacks.Callback):
-    def __init__(self, save_path, image_size=512, num_classes=0, num_training_steps=1000, num_steps=-1, rows=4, cols=4):
+    def __init__(self, save_path, image_size=512, num_classes=0, num_training_steps=1000, num_steps=-1, rows=5, cols=4):
         super().__init__()
         self.save_path, self.image_size, self.num_training_steps = save_path, image_size, num_training_steps
         self.num_classes, self.rows, self.cols, self.batch_size = num_classes, rows, cols, rows * cols
@@ -42,20 +42,24 @@ class DenoisingEval(kecam.backend.callbacks.Callback):
             self.noise_shape = (self.batch_size, 3, image_size, image_size)
             self.is_channels_last = False
 
-        self.eval_x0 = np.random.normal(size=self.noise_shape).astype("float32")
-        if self.num_classes > 0:
-            self.labels_inputs = np.random.uniform(0, self.num_classes, size=[self.batch_size]).astype("int64")
-            print(">>>> Eval labels:", self.labels_inputs)
-
-        self.timesteps = np.arange(0, num_training_steps, num_training_steps // self.num_steps)[::-1]
-        self.beta = np.linspace(0.0001, 0.02, num_training_steps).astype("float32")
-        self.alpha = 1.0 - self.beta
-        self.alpha_bar = np.cumprod(self.alpha, axis=0)
-        self.eps_coef = (1 - self.alpha) / (1 - self.alpha_bar) ** 0.5
-
         self.device = None  # Set to actual torch model using device later
         self.to_device = (lambda xx: xx.to(self.device)) if kecam.backend.is_torch_backend else (lambda xx: xx)
         self.to_host = (lambda xx: xx.cpu()) if kecam.backend.is_torch_backend else (lambda xx: xx)
+
+        self.eval_x0 = np.random.normal(size=self.noise_shape).astype("float32")
+        if self.num_classes > 0:
+            self.labels_inputs = np.random.uniform(0, self.num_classes, size=[self.batch_size]).astype("int64")
+            labels_inputs = np.arange(0, self.num_classes, self.num_classes / self.batch_size)[: self.batch_size].astype("int64")
+            self.labels_inputs = np.pad(labels_inputs, [0, self.batch_size - labels_inputs.shape[0]], constant_values=self.num_classes - 1)  # Just in case
+            print(">>>> Eval labels:", self.labels_inputs)
+
+        self.timesteps = np.arange(0, num_training_steps, num_training_steps // self.num_steps).astype("int64")
+        beta = np.linspace(0.0001, 0.02, num_training_steps).astype("float32")[self.timesteps]
+        alpha = 1.0 - beta
+        alpha_bar = np.cumprod(alpha, axis=0)
+        self.xt_prev_alpha = 1 / (alpha**0.5)
+        self.xt_noise_alpha = self.xt_prev_alpha * (1 - alpha) / (1 - alpha_bar) ** 0.5
+        self.eps_alpha = beta**0.5
 
     def on_epoch_end(self, cur_epoch=0, logs=None):
         if kecam.backend.is_torch_backend and self.device is None:
@@ -66,14 +70,13 @@ class DenoisingEval(kecam.backend.callbacks.Callback):
         if self.num_classes > 0:
             labels_inputs = self.to_device(functional.convert_to_tensor(self.labels_inputs, dtype="int64"))
 
-        for timestep in self.timesteps:
-            timestep_inputs = functional.convert_to_tensor(np.stack([timestep] * self.batch_size), dtype="int64")
+        for cur_step in range(self.num_steps)[::-1]:
+            timestep_inputs = functional.convert_to_tensor(np.stack([self.timesteps[cur_step]] * self.batch_size), dtype="int64")
             timestep_inputs = self.to_device(timestep_inputs)
             xt_noise = self.model([xt, labels_inputs, timestep_inputs]) if self.num_classes > 0 else self.model([xt, timestep_inputs])
 
             eps = functional.convert_to_tensor(np.random.normal(size=self.noise_shape).astype("float32"), dtype=compute_dtype)
-            cur_alpha, cur_eps_coef = self.alpha[timestep], self.eps_coef[timestep]
-            xt = 1 / (cur_alpha**0.5) * (xt - cur_eps_coef * xt_noise) + ((1 - cur_alpha) ** 0.5) * self.to_device(eps)
+            xt = self.xt_prev_alpha[cur_step] * xt - self.xt_noise_alpha[cur_step] * xt_noise + self.eps_alpha[cur_step] * self.to_device(eps)
 
         xt = self.to_host(xt).numpy()
         eval_xt = xt if self.is_channels_last else xt.transpose([0, 2, 3, 1])
@@ -188,7 +191,7 @@ def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_tra
         return (image, label) if use_labels else image
 
     def diffusion_process(image, label=None):
-        timestep = tf.random.uniform([batch_size], 0, num_training_steps, dtype='int64')
+        timestep = tf.random.uniform([batch_size], 0, num_training_steps, dtype="int64")
         noise = tf.random.normal([batch_size, *image_size, 3])
 
         xt = tf.gather(sqrt_alpha_bar, timestep) * image + tf.gather(sqrt_one_minus_alpha_bar, timestep) * noise
@@ -241,7 +244,7 @@ def parse_arguments():
     parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history")
     parser.add_argument("-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 or pt file. Higher priority than model")
     parser.add_argument("--num_training_steps", type=int, default=1000, help="train sampling steps")
-    parser.add_argument("--num_eval_plot", type=int, default=16, help="number of eval plot images, will take less than `batch_size`")
+    parser.add_argument("--num_eval_plot", type=int, default=20, help="number of eval plot images, will take less than `batch_size`")
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights. Set 'default' for model preset value")
 
     parser.add_argument("--lr_base_512", type=float, default=1e-3, help="Learning rate for batch_size=512, lr = lr_base_512 * 512 / batch_size")
