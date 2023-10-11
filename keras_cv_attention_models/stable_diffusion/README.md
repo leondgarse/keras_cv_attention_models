@@ -4,13 +4,14 @@
 ## Summary
   - [PDF 2006.11239 Denoising Diffusion Probabilistic Models](https://arxiv.org/pdf/2006.11239.pdf)
   - [PDF 2112.10752 High-Resolution Image Synthesis with Latent Diffusion Models](https://arxiv.org/pdf/2112.10752.pdf)
+  - [Huggingface runwayml/stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5)
+  - [The Illustrated Stable Diffusion](https://jalammar.github.io/illustrated-stable-diffusion/)
   - [Github CompVis/stable-diffusion](https://github.com/CompVis/stable-diffusion)
   - [Github runwayml/stable-diffusion](https://github.com/runwayml/stable-diffusion)
   - [Github stability-ai/stablediffusion](https://github.com/stability-ai/stablediffusion)
   - [Github labmlai/annotated_deep_learning_paper_implementations/stable_diffusion](https://github.com/labmlai/annotated_deep_learning_paper_implementations/tree/master/labml_nn/diffusion/stable_diffusion)
-  - [Huggingface runwayml/stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5)
-  - [The Illustrated Stable Diffusion](https://jalammar.github.io/illustrated-stable-diffusion/)
-  - Model weights ported from [Github runwayml/stable-diffusion](https://github.com/runwayml/stable-diffusion) `sd-v1-5.ckpt`
+  - [Github DenoisingDiffusionProbabilityModel-ddpm-](https://github.com/zoubohao/DenoisingDiffusionProbabilityModel-ddpm-)
+  - Model weights ported from [Github runwayml/stable-diffusion](https://github.com/runwayml/stable-diffusion) `sd-v1-5.ckpt`.
 ## Models
   | Model               | Params | FLOPs   | Input               | Download            |
   | ------------------- | ------ | ------- | ------------------- | ------------------- |
@@ -81,11 +82,11 @@
     image = test_images.cat()
     imm = mm('a tiger', image=image, batch_size=2).numpy()
     print(f"{imm.shape = }, {imm.min() = }, {imm.max() = }")
-    # imm.shape = (2, 3, 512, 512), imm.min() = -1.066, imm.max() = 1.191
+    # imm.shape = (2, 512, 512, 3), imm.min() = -1.066, imm.max() = 1.191
     plt.imshow(np.hstack([image / 255, *np.clip(imm.astype("float32") / 2 + 0.5, 0, 1)]))
     ```
     ![stable_duffusion_image_2_iamge](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/ff9b5cbb-6b7c-477d-b2c6-18fad9cf84d9)
-  - **Inpaint** by giving an image or image_path to `image`, and `inpaint_mask` for keeping part of the original image. `inpaint_mask` is in same shape with `image_latents`, which is the output of `Encoder` model in shape `[batch_size, image_height // 8, iamge_width // 8, 4]`, or 4 float `[top, left, bottom, right]` in `[0, 1]`, like `[0.5, 0, 1, 1]` for bottom half.
+  - **Inpaint** by giving an image or image_path to `image`, and `inpaint_mask` for keeping part of the original image. `inpaint_mask` is in same shape with `image_latents`, which is the output of `Encoder` model in shape `[batch_size, image_height // 8, image_width // 8, 4]`, or 4 float value `[top, left, bottom, right]` in `[0, 1]`, like `[0.5, 0, 1, 1]` for keeping bottom half.
     ```py
     import tensorflow as tf
     if len(tf.config.experimental.get_visible_devices('GPU')) > 0:
@@ -97,7 +98,7 @@
     image = test_images.cat()
     imm = mm('a tiger mask', image=image, batch_size=2, inpaint_mask=(0.5, 0, 1, 1)).numpy()
     print(f"{imm.shape = }, {imm.min() = }, {imm.max() = }")
-    # imm.shape = (2, 3, 512, 512), imm.min() = -1.066, imm.max() = 1.191
+    # imm.shape = (2, 512, 512, 3), imm.min() = -1.0901726, imm.max() = 1.257365
     plt.imshow(np.hstack([image / 255, *np.clip(imm.astype("float32") / 2 + 0.5, 0, 1)]))
     ```
     ![stable_diffusion_inpaint](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/c44c7585-9949-4826-afff-450258c8bb18)
@@ -117,7 +118,7 @@
         imm = mm('anime draw of a penguin under the moon on the beach.', image_shape=(768, 384), batch_size=4).cpu().numpy()
     print(f"{imm.shape = }, {imm.min() = }, {imm.max() = }")
     # imm.shape = (4, 3, 768, 384), imm.min() = -1.24831, imm.max() = 1.2017612
-    plt.imsave('bb.jpg', np.hstack(np.clip(imm.transpose([0, 2, 3, 1]).astype("float32") / 2 + 0.5, 0, 1)))
+    plt.imshow(np.hstack(np.clip(imm.transpose([0, 2, 3, 1]).astype("float32") / 2 + 0.5, 0, 1)))
     ```
     ![stable_diffusion_384_768](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/f8f322de-06c4-459e-8411-119b59bbebd2)
 ## Test of Encoder and Decoder
@@ -135,6 +136,6 @@
 
   dd = stable_diffusion.Decoder()
   out = dd(image_latents).numpy()
-  plt.imsave('cc.jpg', np.clip(out[0] / 2 + 0.5, 0, 1))
+  plt.imshow(np.clip(out[0] / 2 + 0.5, 0, 1))
   ```
-  Output `cc.jpg` should be same as the input image
+  Output should be same as the input image.

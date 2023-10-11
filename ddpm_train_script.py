@@ -182,6 +182,9 @@ def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_tra
         train_dataset = tf.data.Dataset.from_tensor_slices((images, labels)).shuffle(buffer_size=len(images), seed=seed)
     else:
         train_dataset = tf.data.Dataset.from_tensor_slices(images).shuffle(buffer_size=len(images), seed=seed)
+    options = tf.data.Options()
+    options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
+    train_dataset = train_dataset.apply(tf.data.experimental.assert_cardinality(len(images))).with_options(options)
 
     def image_process(image, label=None):
         image = tf_imread(image)
