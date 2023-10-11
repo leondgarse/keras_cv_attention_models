@@ -1,4 +1,4 @@
-# ___[Experimental] CLIP___
+# ___Keras CLIP___
 ***
 
 ## Related

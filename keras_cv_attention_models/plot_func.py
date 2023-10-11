@@ -435,11 +435,12 @@ def plot_model_summary(
 
         ax.plot(xx, yy)
         label = (name + "_deploy") if is_deploy else name
+        prefix_len = len(name.split("_")[0])
         ax.scatter(xx, yy, label=label, marker=markers[marker_id])
         marker_id = (marker_id + 1) if marker_id < len(markers) - 1 else 0
         for _, cur in group.iterrows():
             # print(cur)
-            text = cur["model"][len(name) :]
+            text = cur["model"][prefix_len:]
             if has_extra and str(cur["extra"]) != "nan":
                 text += "," + cur["extra"]
             ax.text(cur[x_label], cur[y_label], text[1:] if text.startswith("_") else text, fontsize=fontsize)

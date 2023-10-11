@@ -253,7 +253,7 @@
         plot_series, model_table="model_summary.csv", log_scale_x=True, allow_extras=['mae_in1k_ft1k']
     )
     ```
-    ![model_summary](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/be2d5abf-7642-4a9d-a293-9b2375058a8e)
+    ![model_summary](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/0677c0a1-afa7-4b36-ab7b-dd160f0c2550)
   - **Code format** is using `line-length=160`:
     ```sh
     find ./* -name "*.py" | grep -v __init__ | xargs -I {} black -l 160 {}
@@ -957,8 +957,8 @@
   | [EfficientViT_L1](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l1_224_imagenet.h5) | 52.65M | 5.28G | 224   | 84.48    | 503.068 qps |
   | [EfficientViT_L2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l2_224_imagenet.h5) | 63.71M | 6.98G | 224   | 85.05    | 396.255 qps |
   | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l2_384_imagenet.h5)            | 63.71M | 20.7G | 384   | 85.98    | 207.322 qps |
-  | [EfficientViT_L3](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l3_224_imagenet.h5) | 246.0M | 27.6G | 224   | 85.814   |  |
-  | - [384]](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l3_384_imagenet.h5)           | 246.0M | 81.6G | 384   | 86.408   |  |
+  | [EfficientViT_L3](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l3_224_imagenet.h5) | 246.0M | 27.6G | 224   | 85.814   | 174.926 qps |
+  | - [384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/efficientvit/efficientvit_l3_384_imagenet.h5)            | 246.0M | 81.6G | 384   | 86.408   | 86.895 qps  |
 ## EfficientViT_M
   - [Keras EfficientViT_M](keras_cv_attention_models/efficientvit) is for Paper [PDF 2305.07027 EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention](https://arxiv.org/pdf/2305.07027.pdf).
 
