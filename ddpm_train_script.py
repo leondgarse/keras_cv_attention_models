@@ -2,9 +2,14 @@ import os
 import numpy as np
 import kecam
 from PIL import Image
+from tqdm.auto import tqdm
 from kecam.backend import functional
 
 BUILDIN_DATASETS = {
+    "cifar10": {
+        "url": "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/cifar10.tar.gz",
+        "dataset_file": "recognition.json",
+    },
     "coco_dog_cat": {
         "url": "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/coco_dog_cat.tar.gz",
         "dataset_file": "recognition.json",
@@ -27,9 +32,9 @@ else:
 
 
 class DenoisingEval(kecam.backend.callbacks.Callback):
-    def __init__(self, save_path, image_size=512, num_classes=0, num_training_steps=1000, num_steps=-1, rows=5, cols=4):
+    def __init__(self, save_path, image_size=512, num_classes=0, num_training_steps=1000, num_steps=-1, labels_guide_weight=1.8, beta_max=0.02, rows=5, cols=4):
         super().__init__()
-        self.save_path, self.image_size, self.num_training_steps = save_path, image_size, num_training_steps
+        self.save_path, self.image_size, self.num_training_steps, self.labels_guide_weight = save_path, image_size, num_training_steps, labels_guide_weight
         self.num_classes, self.rows, self.cols, self.batch_size = num_classes, rows, cols, rows * cols
         self.num_steps = num_steps if num_steps > 0 else num_training_steps
         if not os.path.exists(save_path):
@@ -48,13 +53,13 @@ class DenoisingEval(kecam.backend.callbacks.Callback):
 
         self.eval_x0 = np.random.normal(size=self.noise_shape).astype("float32")
         if self.num_classes > 0:
-            self.labels_inputs = np.random.uniform(0, self.num_classes, size=[self.batch_size]).astype("int64")
             labels_inputs = np.arange(0, self.num_classes, self.num_classes / self.batch_size)[: self.batch_size].astype("int64")
             self.labels_inputs = np.pad(labels_inputs, [0, self.batch_size - labels_inputs.shape[0]], constant_values=self.num_classes - 1)  # Just in case
             print(">>>> Eval labels:", self.labels_inputs)
+            self.labels_inputs += 1  # add 1 skipping 0
 
         self.timesteps = np.arange(0, num_training_steps, num_training_steps // self.num_steps).astype("int64")
-        beta = np.linspace(0.0001, 0.02, num_training_steps).astype("float32")[self.timesteps]
+        beta = np.linspace(0.0001, beta_max, num_training_steps).astype("float32")[self.timesteps]
         alpha = 1.0 - beta
         alpha_bar = np.cumprod(alpha, axis=0)
         self.xt_prev_alpha = 1 / (alpha**0.5)
@@ -65,27 +70,35 @@ class DenoisingEval(kecam.backend.callbacks.Callback):
         if kecam.backend.is_torch_backend and self.device is None:
             self.device = next(self.model.parameters()).device
         compute_dtype = self.model.compute_dtype
-        xt = functional.convert_to_tensor(self.eval_x0, dtype=compute_dtype)
+        xt = functional.convert_to_tensor(self.eval_x0, dtype="float32")
         xt = self.to_device(xt)
         if self.num_classes > 0:
             labels_inputs = self.to_device(functional.convert_to_tensor(self.labels_inputs, dtype="int64"))
+            labels_inputs_zeros = self.to_device(functional.convert_to_tensor(np.zeros([self.batch_size]), dtype="int64"))
 
-        for cur_step in range(self.num_steps)[::-1]:
-            timestep_inputs = functional.convert_to_tensor(np.stack([self.timesteps[cur_step]] * self.batch_size), dtype="int64")
+        for cur_step in tqdm(range(self.num_steps)[::-1], "Eval", bar_format="{desc}: {n_fmt}/{total_fmt} - [{elapsed}<{remaining},{rate_fmt}]"):
+            timestep_inputs = functional.convert_to_tensor(np.stack([self.timesteps[cur_step]] * self.batch_size), dtype=compute_dtype)
             timestep_inputs = self.to_device(timestep_inputs)
-            xt_noise = self.model([xt, labels_inputs, timestep_inputs]) if self.num_classes > 0 else self.model([xt, timestep_inputs])
+            if self.num_classes > 0:
+                xt_noise_cond = self.model([xt, labels_inputs, timestep_inputs])
+                xt_noise_zeros = self.model([xt, labels_inputs_zeros, timestep_inputs])
+                xt_noise = xt_noise_cond + self.labels_guide_weight * (xt_noise_cond - xt_noise_zeros)
+            else:
+                xt_noise = self.model([xt, timestep_inputs])
 
-            eps = functional.convert_to_tensor(np.random.normal(size=self.noise_shape).astype("float32"), dtype=compute_dtype)
-            xt = self.xt_prev_alpha[cur_step] * xt - self.xt_noise_alpha[cur_step] * xt_noise + self.eps_alpha[cur_step] * self.to_device(eps)
+            eps = functional.convert_to_tensor(np.random.normal(size=self.noise_shape).astype("float32"), dtype=xt_noise.dtype)
+            xt = self.xt_prev_alpha[cur_step] * xt - self.xt_noise_alpha[cur_step] * xt_noise
+            if cur_step > 0:
+                xt += self.eps_alpha[cur_step] * self.to_device(eps)
 
-        xt = self.to_host(xt).numpy()
+        xt = self.to_host(xt).numpy().astype("float32")
         eval_xt = xt if self.is_channels_last else xt.transpose([0, 2, 3, 1])
         eval_xt = np.vstack([np.hstack(eval_xt[row * self.cols : (row + 1) * self.cols]) for row in range(self.rows)])
         eval_xt = (np.clip(eval_xt / 2 + 0.5, 0, 1) * 255).astype("uint8")
 
-        save_path = os.path.join(self.save_path, "epoch_{}.jpg".format(cur_epoch + 1))
+        save_path = os.path.join(self.save_path, "epoch_{}.jpg".format(cur_epoch + 1) if isinstance(cur_epoch, int) else (cur_epoch + ".jpg"))
         Image.fromarray(eval_xt).save(save_path)
-        print(">>>> Epoch {} image saved to {}".format(cur_epoch + 1, save_path))
+        print(">>>> Eval result image saved to {}".format(save_path))
 
 
 def walk_data_path_gather_images(data_path):
@@ -131,6 +144,11 @@ def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_
     image_size = image_size if isinstance(image_size, (list, tuple)) else (image_size, image_size)
     sqrt_alpha_bar, sqrt_one_minus_alpha_bar = init_diffusion_alpha(num_training_steps)
     sqrt_alpha_bar, sqrt_one_minus_alpha_bar = torch.from_numpy(sqrt_alpha_bar), torch.from_numpy(sqrt_one_minus_alpha_bar)
+        
+    if use_labels:
+        labels = [ii + 1 for ii in labels]  # add 1 to labels for skipping 0 as non-conditional
+        # to_zero_labels_rate = 1 / max(labels)
+        # print(">>>> dataset to_zero_labels_rate:", to_zero_labels_rate)
 
     class _Dataset_(Dataset):
         def __init__(self, images, labels=None, image_size=512):
@@ -156,7 +174,8 @@ def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_
     def diffusion_process(batch):
         if use_labels:
             images, labels = list(zip(*batch))
-            images, labels = torch.stack(images), torch.tensor(labels)
+            images = torch.stack(images)
+            labels = torch.tensor(labels)  # if torch.rand(()) > to_zero_labels_rate else torch.zeros([batch_size], dtype=torch.int64)  # [perform worse ???]
         else:
             images = torch.stack(batch)
         timestep = torch.randint(num_training_steps, size=(batch_size,))
@@ -179,9 +198,10 @@ def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_tra
     AUTOTUNE, buffer_size, seed = tf.data.AUTOTUNE, batch_size * 100, None
 
     if use_labels:
-        train_dataset = tf.data.Dataset.from_tensor_slices((images, labels)).shuffle(buffer_size=len(images), seed=seed)
+        labels = [ii + 1 for ii in labels]  # add 1 to labels for skipping 0 as non-conditional
+        train_dataset = tf.data.Dataset.from_tensor_slices((images, labels)).shuffle(buffer_size=buffer_size, seed=seed)
     else:
-        train_dataset = tf.data.Dataset.from_tensor_slices(images).shuffle(buffer_size=len(images), seed=seed)
+        train_dataset = tf.data.Dataset.from_tensor_slices(images).shuffle(buffer_size=buffer_size, seed=seed)
     options = tf.data.Options()
     options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
     train_dataset = train_dataset.apply(tf.data.experimental.assert_cardinality(len(images))).with_options(options)
@@ -196,6 +216,7 @@ def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_tra
     def diffusion_process(image, label=None):
         timestep = tf.random.uniform([batch_size], 0, num_training_steps, dtype="int64")
         noise = tf.random.normal([batch_size, *image_size, 3])
+        image = image / 127.5 - 1
 
         xt = tf.gather(sqrt_alpha_bar, timestep) * image + tf.gather(sqrt_one_minus_alpha_bar, timestep) * noise
         return ((xt, label, timestep), noise) if use_labels else ((xt, timestep), noise)
@@ -228,6 +249,12 @@ def build_tf_optimizer(lr=1e-4, weight_decay=0.2, beta1=0.9, beta2=0.95, eps=1.0
     return optimizer
 
 
+# Not using, just testing, same value as tf.losses.MeanSquaredError()
+def tf_loss(y_true, y_pred):
+    shape_prod = int(np.prod(y_true.shape[1:]))
+    return functional.reduce_sum((functional.reshape(y_true, [-1, shape_prod]) - functional.reshape(y_pred, [-1, shape_prod])) ** 2 / shape_prod, axis=-1)
+
+
 def parse_arguments():
     import argparse
 
@@ -236,13 +263,13 @@ def parse_arguments():
         "-d",
         "--data_path",
         type=str,
-        default="coco_dog_cat",
+        default="cifar10",
         help="dataset directory path containing images, or a recognition json dataset path, which will train using labels as instruction",
     )
-    parser.add_argument("-i", "--input_shape", type=int, default=512, help="Model input shape")
-    parser.add_argument("-m", "--model", type=str, default="UNet", help="model from this repo `[model_classs.model_name]` like stable_diffusion.UNet")
-    parser.add_argument("-b", "--batch_size", type=int, default=32, help="Batch size")
-    parser.add_argument("-e", "--epochs", type=int, default=30, help="training epochs, total max iterations=epochs * steps_per_epoch")
+    parser.add_argument("-i", "--input_shape", type=int, default=32, help="Model input shape")
+    parser.add_argument("-m", "--model", type=str, default="UNetTest", help="model from this repo `[model_classs.model_name]` like stable_diffusion.UNet")
+    parser.add_argument("-b", "--batch_size", type=int, default=128, help="Batch size")
+    parser.add_argument("-e", "--epochs", type=int, default=100, help="training epochs, total max iterations=epochs * steps_per_epoch")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
     parser.add_argument("-s", "--basic_save_name", type=str, default=None, help="Basic save name for model and history")
     parser.add_argument("-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 or pt file. Higher priority than model")
@@ -251,7 +278,7 @@ def parse_arguments():
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights. Set 'default' for model preset value")
 
     parser.add_argument("--lr_base_512", type=float, default=1e-3, help="Learning rate for batch_size=512, lr = lr_base_512 * 512 / batch_size")
-    parser.add_argument("--lr_warmup_steps", type=int, default=3, help="Learning rate warmup steps")
+    parser.add_argument("--lr_warmup_steps", type=float, default=0.1, help="Learning rate warmup steps, <1 for `lr_warmup_steps * epochs`, >=1 for exact value")
     parser.add_argument("--weight_decay", type=float, default=1e-4, help="Weight decay")
     args = parser.parse_known_args()[0]
     if args.basic_save_name is None and args.restore_path is not None:
@@ -287,7 +314,8 @@ if __name__ == "__main__":
     print(">>>> Data: inputs: {}, noise.shape: {}".format([ii.shape for ii in inputs], noise.shape))
 
     lr = args.lr_base_512 * args.batch_size / 512
-    print(">>>> lr:", lr)
+    lr_warmup_steps = args.lr_warmup_steps if args.lr_warmup_steps >= 1 else int(args.lr_warmup_steps * args.epochs)
+    print(">>>> lr: {}, lr_warmup_steps: {}".format(lr, lr_warmup_steps))
 
     with global_strategy.scope():
         if args.restore_path is None or kecam.backend.is_torch_backend:
@@ -311,7 +339,8 @@ if __name__ == "__main__":
             if hasattr(torch, "compile") and torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 6:
                 print(">>>> Calling torch.compile")
                 model = torch.compile(model)
-            model.train_compile(optimizer=optimizer, loss=kecam.backend.losses.MeanSquaredError())  # `compile` is took by `nn.Module`
+            # loss_weights = float(np.prod(inputs[0].shape[1:])) / args.num_training_steps
+            model.train_compile(optimizer=optimizer, loss=kecam.backend.losses.MeanSquaredError())  # , loss_weights=loss_weights)
 
             if args.restore_path is not None:
                 print(">>>> Reload weights from:", args.restore_path)

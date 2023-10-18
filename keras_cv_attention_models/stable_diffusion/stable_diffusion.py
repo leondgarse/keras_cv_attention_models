@@ -150,9 +150,9 @@ class StableDiffusion(FakeModelWrapper):  # FakeModelWrapper providing save / lo
             target_shape = [batch_size, self.latents_input_shape[1], image_shape[-2] // 8, image_shape[-1] // 8]
 
         if init_x0 is None:
-            xt = self.gaussian_sample(target_shape, dtype=compute_dtype, device=device)
+            xt = self.gaussian_sample(target_shape, dtype="float32", device=device)
         else:
-            xt = functional.convert_to_tensor(init_x0, dtype=compute_dtype)
+            xt = functional.convert_to_tensor(init_x0, dtype="float32")
             xt = xt.to(device) if backend.is_torch_backend else xt
 
         """ Init prompt latents using clip model """
@@ -183,7 +183,7 @@ class StableDiffusion(FakeModelWrapper):  # FakeModelWrapper providing save / lo
             dir_xt = e_t * ((1.0 - ddim_alpha_prev - ddim_sigma**2) ** 0.5)  # Direction pointing to x_t
 
             noise_shape = (1, *target_shape[1:]) if repeat_noise else target_shape
-            noise = 0.0 if ddim_sigma == 0 else self.gaussian_sample(noise_shape, dtype=compute_dtype, device=device)
+            noise = 0.0 if ddim_sigma == 0 else self.gaussian_sample(noise_shape, dtype=pred_x0.dtype, device=device)
             xt = (ddim_alpha_prev**0.5) * pred_x0 + dir_xt + ddim_sigma * temperature * noise
 
             if is_inpaint:  # q_sample

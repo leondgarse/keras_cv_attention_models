@@ -214,7 +214,7 @@ def UNet(
     output_channels = inputs.shape[channel_axis]
     nn = group_norm(nn, name="output_")
     nn = activation_by_name(nn, activation=activation, name="output_")
-    outputs = conv2d_no_bias(nn, output_channels, kernel_size=3, use_bias=True, padding="SAME", name="output_")
+    outputs = conv2d_no_bias(nn, output_channels, kernel_size=3, use_bias=True, padding="SAME", dtype="float32", name="output_")
 
     model_inputs = [inputs, labels_inputs, time_steps] if num_classes > 0 else [inputs, time_steps]
     model_inputs += [condition] if conditional_embedding > 0 else []
@@ -225,7 +225,7 @@ def UNet(
 
 @register_model
 def UNetTest(input_shape=(32, 32, 3), conditional_embedding=0, activation="swish", pretrained=None, **kwargs):
-    hidden_channels = 64
+    hidden_channels = 128
     hidden_expands = [1, 2, 2, 4]
     num_attention_blocks = [0, 0, 1, 1]
     return UNet(**locals(), model_name="unet_test", **kwargs)

@@ -35,7 +35,7 @@ class _Trainer_(object):
         # works like kers `model.compile`, but `compile` is took by `nn.Module`, rename as `train_compile`
         self.optimizer = getattr(torch.optim, optimizer)(self.parameters()) if isinstance(optimizer, str) else optimizer
         self.compiled_loss = self.loss = (lambda y_true, y_pred: torch.functional.F.cross_entropy(y_pred, y_true)) if loss is None else loss
-        self.loss_weights, self.grad_accumulate, self.grad_max_norm = loss_weights, grad_accumulate, grad_max_norm
+        self.loss_weights, self.grad_accumulate, self.grad_max_norm = loss_weights or 1.0, grad_accumulate, grad_max_norm
         self.metrics_names, self.metrics = self.init_metrics(metrics)
         self.eval_metrics = [metric.name for metric in self.metrics if metric.eval_only]  # Mark metric like acc5 for eval only
 
@@ -61,7 +61,7 @@ class _Trainer_(object):
         # Split out for being able to overwrite
         with self.global_context:
             out = self(xx)
-            loss = self.loss(yy, out)
+            loss = self.loss(yy, out) * self.loss_weights
         return out, loss
 
     def fit(self, x=None, y=None, batch_size=32, epochs=1, callbacks=None, validation_data=None, initial_epoch=0, validation_batch_size=None, **kwargs):

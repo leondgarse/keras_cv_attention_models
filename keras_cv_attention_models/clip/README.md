@@ -25,7 +25,7 @@
   # datasets/coco_dog_cat/train2017/images/000000252203.jpg A couple of dogs sitting in the front seats of a car.
   # datasets/coco_dog_cat/train2017/images/000000159075.jpg A dog standing on top of a pickup truck
   ```
-  Creating dataset using COCO captions
+  Or creat dataset using entire COCO captions
   ```sh
   DATA_PATH=/datasets/coco/2017
   python custom_dataset_script.py --train_images $DATA_PATH/train2017 --test_images $DATA_PATH/val2017 \

@@ -1,4 +1,9 @@
 # ___Keras Stable Diffusion___
+  - [Summary](#summary)
+  - [Models](#models)
+  - [Usage](#usage)
+  - [DDPM training](#ddpm-training)
+  - [Test of Encoder and Decoder](#test-of-encoder-and-decoder)
 ***
 
 ## Summary
@@ -10,7 +15,7 @@
   - [Github runwayml/stable-diffusion](https://github.com/runwayml/stable-diffusion)
   - [Github stability-ai/stablediffusion](https://github.com/stability-ai/stablediffusion)
   - [Github labmlai/annotated_deep_learning_paper_implementations/stable_diffusion](https://github.com/labmlai/annotated_deep_learning_paper_implementations/tree/master/labml_nn/diffusion/stable_diffusion)
-  - [Github DenoisingDiffusionProbabilityModel-ddpm-](https://github.com/zoubohao/DenoisingDiffusionProbabilityModel-ddpm-)
+  - [Github zoubohao/DenoisingDiffusionProbabilityModel-ddpm-](https://github.com/zoubohao/DenoisingDiffusionProbabilityModel-ddpm-)
   - Model weights ported from [Github runwayml/stable-diffusion](https://github.com/runwayml/stable-diffusion) `sd-v1-5.ckpt`.
 ## Models
   | Model               | Params | FLOPs   | Input               | Download            |
@@ -121,6 +126,56 @@
     plt.imshow(np.hstack(np.clip(imm.transpose([0, 2, 3, 1]).astype("float32") / 2 + 0.5, 0, 1)))
     ```
     ![stable_diffusion_384_768](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/f8f322de-06c4-459e-8411-119b59bbebd2)
+## DDPM training
+  - **Works Only with PyTorch backend, still not well with Tensorflow one**.
+  - **Dataset** can be a directory containing images for basi DDPM training using images only, or a recognition json file created following [Custom recognition dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussion-3971513), which will train using labels as instruction.
+    ```sh
+    python custom_dataset_script.py --train_images cifar10/train/ --test_images cifar10/test/
+    # >>>> total_train_samples: 50000, total_test_samples: 10000, num_classes: 10
+    # >>>> Saved to: cifar10.json
+    ```
+  - **Train using `ddpm_train_script.py on cifar10 with labels`** Default `--data_path` is builtin `cifar10`.
+    ```py
+    CUDA_VISIBLE_DEVICES=1 TF_XLA_FLAGS="--tf_xla_auto_jit=2" python ddpm_train_script.py --epochs 200
+    ```
+    **Train Using PyTorch backend by setting `KECAM_BACKEND='torch'`**
+    ```py
+    KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python ddpm_train_script.py --epochs 200
+    ```
+    ![ddpm_unet_test_torch_E200](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/e3ba4532-00f9-484f-ae0a-f13164b02e15)
+  - **Reload model and run prediction after training**
+    ```py
+    import tensorflow as tf
+    if len(tf.config.experimental.get_visible_devices('GPU')) > 0:
+        tf.keras.mixed_precision.set_global_policy("mixed_float16")
+
+    import ddpm_train_script, kecam
+    mm = kecam.models.UNetTest(num_classes=10, input_shape=(32, 32, 3))
+    mm.load_weights("checkpoints/ddpm_unet_test_tensorflow_latest.h5")
+
+    aa = ddpm_train_script.DenoisingEval(save_path=".", image_size=32, num_classes=10, rows=10, cols=8)
+    aa.model = mm
+    aa.on_epoch_end("ddpm_unet_test_tensorflow")
+    ```
+    **Or using PyTorch backend**
+    ```py
+    os.environ['KECAM_BACKEND'] = 'torch'
+    import torch
+    from contextlib import nullcontext
+    device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
+    global_context = nullcontext() if device.type == "cpu" else torch.autocast(device_type=device.type, dtype=torch.float16)
+
+    import ddpm_train_script, kecam
+    mm = kecam.models.UNetTest(num_classes=10, input_shape=(32, 32, 3))
+    mm.load_weights("checkpoints/ddpm_unet_test_torch_latest.pt")
+    mm = mm.cuda()
+
+    aa = ddpm_train_script.DenoisingEval(save_path=".", image_size=32, num_classes=10, rows=10, cols=8)
+    aa.model = mm
+    with torch.no_grad(), global_context:
+        aa.on_epoch_end("ddpm_unet_test_torch")
+    ```
+    ![ddpm_unet_test_torch_E200](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/d3cea4a1-b4d8-447f-92cc-f52078f26ae0)
 ## Test of Encoder and Decoder
   ```py
   from keras_cv_attention_models import stable_diffusion, test_images
