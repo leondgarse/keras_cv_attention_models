@@ -161,7 +161,7 @@ if __name__ == "__main__":
             initial_epoch=args.initial_epoch,
             lr_scheduler=lr_scheduler,
             basic_save_name=basic_save_name,
-            init_callbacks=[eval_callback],
+            init_callbacks=[eval_callback] if kecam.backend.is_torch_backend else [],  # [???] TF backend prediction runs rather slow
             logs=None,
             **other_kwargs,
         )
