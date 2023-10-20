@@ -95,6 +95,8 @@ class DenoisingEval(callbacks.Callback):
             print(">>>> Eval labels:", self.labels_inputs)
 
     def on_epoch_end(self, cur_epoch=0, logs=None):
+        if self.run_prediction.model is None:
+            self.run_prediction.model = self.model
         eval_xt = self.run_prediction(labels=self.labels_inputs, init_x0=self.eval_x0, init_step=0, labels_guide_weight=self.labels_guide_weight)
 
         eval_xt = np.vstack([np.hstack(eval_xt[row * self.cols : (row + 1) * self.cols]) for row in range(self.rows)])
