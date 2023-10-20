@@ -282,18 +282,10 @@ class _Exporter_(object):
         print("Exported pth:", filepath)
 
     def load_weights(self, filepath, by_name=True, skip_mismatch=False):
-        from keras_cv_attention_models.download_and_load import load_weights_from_hdf5_file
-
-        load_weights_from_hdf5_file(filepath, self, skip_mismatch=skip_mismatch, debug=self.debug)
-
-    def save_weights(self, filepath=None, **kwargs):
-        from keras_cv_attention_models.download_and_load import save_weights_to_hdf5_file
-
-        save_weights_to_hdf5_file(filepath if filepath else self.name + ".h5", self, **kwargs)
-
-    def load(self, filepath=None, **kwargs):
         if filepath.endswith("h5"):
-            self.load_weights(filepath, **kwargs)
+            from keras_cv_attention_models.download_and_load import load_weights_from_hdf5_file
+
+            load_weights_from_hdf5_file(filepath, self, skip_mismatch=skip_mismatch, debug=self.debug)
         else:
             weights = torch.load(filepath, map_location=torch.device("cpu"), **kwargs)
             weights = weights.state_dict() if hasattr(weights, "state_dict") else weights
@@ -302,14 +294,22 @@ class _Exporter_(object):
                 print(">>>> Reload optimizer state_dict")
                 self.optimizer.load_state_dict(weights["optimizer"])
 
-    def save(self, filepath=None, **kwargs):
+    def save_weights(self, filepath=None, **kwargs):
         if filepath.endswith("h5"):
-            self.save_weights(filepath, **kwargs)
+            from keras_cv_attention_models.download_and_load import save_weights_to_hdf5_file
+
+            save_weights_to_hdf5_file(filepath if filepath else self.name + ".h5", self, **kwargs)
         else:
             save_items = {"state_dict": self.state_dict()}
             if hasattr(self, "optimizer"):
                 save_items.update({"optimizer": self.optimizer.state_dict()})
             torch.save(save_items, filepath, **kwargs)
+
+    def load(self, filepath=None, **kwargs):
+        self.load_weights(filepath, **kwargs)
+
+    def save(self, filepath=None, **kwargs):
+        self.save_weights(filepath, **kwargs)
 
     def count_params(self):
         total_params = sum([np.prod(ii.shape) for ii in self.state_dict().values() if len(ii.shape) != 0])
