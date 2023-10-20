@@ -568,7 +568,7 @@ def init_dataset(
 """ Show """
 
 
-def show_batch_sample(dataset, rescale_mode="tf", rows=-1, caption_tokenizer=None, base_size=3):
+def show_batch_sample(dataset, rescale_mode="tf", rows=-1, caption_tokenizer=None, base_size=3, indices_2_labels=None):
     from keras_cv_attention_models import plot_func
     from keras_cv_attention_models.imagenet.eval_func import decode_predictions
 
@@ -594,6 +594,9 @@ def show_batch_sample(dataset, rescale_mode="tf", rows=-1, caption_tokenizer=Non
         labels = [ii[0][1] for ii in decode_predictions(labels, top=1)]
     elif tf.rank(labels[0]) == 1:
         labels = tf.argmax(labels, axis=-1).numpy()  # If 2 dimension
+
+    if not isinstance(labels[0], str) and indices_2_labels is not None:
+        labels = [indices_2_labels.get(label, indices_2_labels.get(str(label), str(label))) for label in labels]
     ax, _ = plot_func.stack_and_plot_images(images, texts=labels, rows=rows, ax=None, base_size=base_size)
     return ax
 
