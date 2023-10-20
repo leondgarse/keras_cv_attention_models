@@ -281,7 +281,7 @@ class _Exporter_(object):
         torch.jit.save(traced_cell, filepath, **kwargs)
         print("Exported pth:", filepath)
 
-    def load_weights(self, filepath, by_name=True, skip_mismatch=False):
+    def load_weights(self, filepath, by_name=True, skip_mismatch=False, **kwargs):
         if filepath.endswith("h5"):
             from keras_cv_attention_models.download_and_load import load_weights_from_hdf5_file
 

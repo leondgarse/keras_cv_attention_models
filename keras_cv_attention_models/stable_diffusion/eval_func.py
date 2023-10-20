@@ -80,6 +80,7 @@ class DenoisingEval(callbacks.Callback):
         self.save_path, self.image_size, self.labels_guide_weight = save_path, image_size, labels_guide_weight
         self.num_classes, self.rows, self.cols, self.batch_size = num_classes, rows, cols, rows * cols
         self.run_prediction = RunPrediction(model=None, num_training_steps=num_training_steps, num_steps=num_steps, beta_max=beta_max)
+
         if not os.path.exists(save_path):
             os.makedirs(save_path, exist_ok=True)
 

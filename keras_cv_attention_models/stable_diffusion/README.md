@@ -127,7 +127,7 @@
     ```
     ![stable_diffusion_384_768](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/f8f322de-06c4-459e-8411-119b59bbebd2)
 ## DDPM training
-  - **Works Only with PyTorch backend, still not well with Tensorflow one**.
+  - **>>>> Note: Works Only with PyTorch backend, still not well with Tensorflow one. <<<<**
   - **Dataset** can be a directory containing images for basic DDPM training using images only, or a recognition json file created following [Custom recognition dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussion-3971513), which will train using labels as instruction.
     ```sh
     python custom_dataset_script.py --train_images cifar10/train/ --test_images cifar10/test/
