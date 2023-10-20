@@ -1,6 +1,13 @@
+from keras_cv_attention_models import backend as __backend__
 from keras_cv_attention_models.stable_diffusion.stable_diffusion import StableDiffusion
 from keras_cv_attention_models.stable_diffusion.unet import UNet, UNetTest
 from keras_cv_attention_models.stable_diffusion.encoder_decoder import Encoder, Decoder
+from keras_cv_attention_models.stable_diffusion.eval_func import RunPrediction
+
+if __backend__.is_tensorflow_backend:
+    from keras_cv_attention_models.stable_diffusion.data import build_tf_dataset as build_dataset
+else:
+    from keras_cv_attention_models.stable_diffusion.data import build_torch_dataset as build_dataset
 
 
 __head_doc__ = """

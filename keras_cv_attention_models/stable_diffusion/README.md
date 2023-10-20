@@ -128,7 +128,7 @@
     ![stable_diffusion_384_768](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/f8f322de-06c4-459e-8411-119b59bbebd2)
 ## DDPM training
   - **Works Only with PyTorch backend, still not well with Tensorflow one**.
-  - **Dataset** can be a directory containing images for basi DDPM training using images only, or a recognition json file created following [Custom recognition dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussion-3971513), which will train using labels as instruction.
+  - **Dataset** can be a directory containing images for basic DDPM training using images only, or a recognition json file created following [Custom recognition dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussion-3971513), which will train using labels as instruction.
     ```sh
     python custom_dataset_script.py --train_images cifar10/train/ --test_images cifar10/test/
     # >>>> total_train_samples: 50000, total_test_samples: 10000, num_classes: 10
@@ -145,35 +145,39 @@
     ![ddpm_unet_test_torch_E200](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/e3ba4532-00f9-484f-ae0a-f13164b02e15)
   - **Reload model and run prediction after training**
     ```py
+    import numpy as np
     import tensorflow as tf
     if len(tf.config.experimental.get_visible_devices('GPU')) > 0:
         tf.keras.mixed_precision.set_global_policy("mixed_float16")
 
-    import ddpm_train_script, kecam
-    mm = kecam.models.UNetTest(num_classes=10, input_shape=(32, 32, 3))
+    from keras_cv_attention_models import stable_diffusion, plot_func
+    num_classes = 10
+    mm = stable_diffusion.UNetTest(num_classes=num_classes, input_shape=(32, 32, 3))
     mm.load_weights("checkpoints/ddpm_unet_test_tensorflow_latest.h5")
 
-    aa = ddpm_train_script.DenoisingEval(save_path=".", image_size=32, num_classes=10, rows=10, cols=8)
-    aa.model = mm
-    aa.on_epoch_end("ddpm_unet_test_tensorflow")
+    images = mm.run_prediction(labels=np.arange(num_classes).repeat(8))
+    print(f"{images.shape = }, {images.min() = }, {images.max() = }")
+    ax, _ = plot_func.stack_and_plot_images(images, rows=num_classes)
     ```
     **Or using PyTorch backend**
     ```py
     os.environ['KECAM_BACKEND'] = 'torch'
     import torch
+    import numpy as np
     from contextlib import nullcontext
     device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
     global_context = nullcontext() if device.type == "cpu" else torch.autocast(device_type=device.type, dtype=torch.float16)
 
-    import ddpm_train_script, kecam
-    mm = kecam.models.UNetTest(num_classes=10, input_shape=(32, 32, 3))
+    from keras_cv_attention_models import stable_diffusion, plot_func
+    num_classes = 10
+    mm = stable_diffusion.UNetTest(num_classes=num_classes, input_shape=(32, 32, 3))
     mm.load_weights("checkpoints/ddpm_unet_test_torch_latest.pt")
-    mm = mm.cuda()
+    mm = mm.to(device)
 
-    aa = ddpm_train_script.DenoisingEval(save_path=".", image_size=32, num_classes=10, rows=10, cols=8)
-    aa.model = mm
     with torch.no_grad(), global_context:
-        aa.on_epoch_end("ddpm_unet_test_torch")
+        images = mm.run_prediction(labels=np.arange(num_classes).repeat(8))
+    print(f"{images.shape = }, {images.min() = }, {images.max() = }")
+    ax, _ = plot_func.stack_and_plot_images(images, rows=num_classes)
     ```
     ![ddpm_unet_test_torch_E200](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/d3cea4a1-b4d8-447f-92cc-f52078f26ae0)
 ## Test of Encoder and Decoder

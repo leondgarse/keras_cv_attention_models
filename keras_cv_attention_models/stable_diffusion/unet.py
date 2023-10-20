@@ -11,6 +11,7 @@ from keras_cv_attention_models.attention_layers import (
     scaled_dot_product_attention,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
+from keras_cv_attention_models.stable_diffusion.eval_func import RunPrediction
 
 LAYER_NORM_EPSILON = 1e-6
 
@@ -214,17 +215,20 @@ def UNet(
     output_channels = inputs.shape[channel_axis]
     nn = group_norm(nn, name="output_")
     nn = activation_by_name(nn, activation=activation, name="output_")
-    outputs = conv2d_no_bias(nn, output_channels, kernel_size=3, use_bias=True, padding="SAME", dtype="float32", name="output_")
+    nn = conv2d_no_bias(nn, output_channels, kernel_size=3, use_bias=True, padding="SAME", name="output_")
+    outputs = layers.Activation("linear", dtype="float32", name="output")(nn)
 
     model_inputs = [inputs, labels_inputs, time_steps] if num_classes > 0 else [inputs, time_steps]
     model_inputs += [condition] if conditional_embedding > 0 else []
     model = models.Model(model_inputs, outputs, name=model_name)
     reload_model_weights(model, PRETRAINED_DICT, "stable_diffusion", pretrained)
+
+    model.run_prediction = RunPrediction(model=model)
     return model
 
 
 @register_model
-def UNetTest(input_shape=(32, 32, 3), conditional_embedding=0, activation="swish", pretrained=None, **kwargs):
+def UNetTest(input_shape=(32, 32, 3), conditional_embedding=0, num_classes=0, activation="swish", pretrained=None, **kwargs):
     hidden_channels = 128
     hidden_expands = [1, 2, 2, 4]
     num_attention_blocks = [0, 0, 1, 1]
