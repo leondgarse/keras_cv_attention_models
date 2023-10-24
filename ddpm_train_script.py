@@ -79,6 +79,7 @@ def parse_arguments():
     parser.add_argument("--lr_base_512", type=float, default=1e-3, help="Learning rate for batch_size=512, lr = lr_base_512 * 512 / batch_size")
     parser.add_argument("--lr_warmup_steps", type=float, default=0.1, help="Learning rate warmup steps, <1 for `lr_warmup_steps * epochs`, >=1 for exact value")
     parser.add_argument("--weight_decay", type=float, default=1e-4, help="Weight decay")
+    parser.add_argument("--disable_horizontal_flip", action="store_true", help="Disable random horizontal flip")
     args = parser.parse_known_args()[0]
     if args.basic_save_name is None and args.restore_path is not None:
         basic_save_name = os.path.splitext(os.path.basename(args.restore_path))[0]
@@ -89,6 +90,7 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
+    print(">>>> args:", args)
 
     if args.data_path in BUILDIN_DATASETS and not os.path.exists(args.data_path):
         url, dataset_file = BUILDIN_DATASETS[args.data_path]["url"], BUILDIN_DATASETS[args.data_path]["dataset_file"]
@@ -103,8 +105,9 @@ if __name__ == "__main__":
         all_images, all_labels, num_classes = kecam.stable_diffusion.data.walk_data_path_gather_images(args.data_path), None, 0
         print(">>>> total images found:", len(all_images))
 
+    use_horizontal_flip = not args.disable_horizontal_flip
     build_dataset = kecam.stable_diffusion.data.build_torch_dataset if kecam.backend.is_torch_backend else kecam.stable_diffusion.data.build_tf_dataset
-    train_dataset = build_dataset(all_images, all_labels, args.input_shape, batch_size=args.batch_size, num_training_steps=args.num_training_steps)
+    train_dataset = build_dataset(all_images, all_labels, args.input_shape, args.batch_size, args.num_training_steps, use_horizontal_flip=use_horizontal_flip)
 
     inputs, noise = next(iter(train_dataset))
     print(">>>> Total train batches: {}".format(len(train_dataset)))
@@ -151,7 +154,7 @@ if __name__ == "__main__":
         save_path = os.path.join("checkpoints", basic_save_name)
         eval_callback = kecam.stable_diffusion.eval_func.DenoisingEval(save_path, args.input_shape, num_classes, args.num_training_steps, cols=cols, rows=rows)
 
-        lr_scheduler = kecam.imagenet.callbacks.CosineLrSchedulerEpoch(lr, args.epochs, lr_warmup=1e-4, warmup_steps=args.lr_warmup_steps)
+        lr_scheduler = kecam.imagenet.callbacks.CosineLrSchedulerEpoch(lr, args.epochs, lr_warmup=1e-4, warmup_steps=lr_warmup_steps)
         other_kwargs = {}
         latest_save, hist = kecam.imagenet.train_func.train(
             compiled_model=model,

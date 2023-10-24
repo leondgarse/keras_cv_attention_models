@@ -37,7 +37,7 @@ def init_diffusion_alpha(num_training_steps=1000, beta_max=0.02):
     return sqrt_alpha_bar, sqrt_one_minus_alpha_bar
 
 
-def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_training_steps=1000):
+def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_training_steps=1000, use_horizontal_flip=True):
     import torch
     from PIL import Image
     from torch.utils.data import DataLoader, Dataset
@@ -60,7 +60,7 @@ def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_
             self.transforms = Compose(
                 [
                     Resize(image_size, interpolation=InterpolationMode.BICUBIC),
-                    RandomHorizontalFlip(),
+                    RandomHorizontalFlip() if use_horizontal_flip else lambda image: image,
                     lambda image: image.convert("RGB"),
                     ToTensor(),
                     Normalize(mean=self.mean, std=self.std),
@@ -91,7 +91,7 @@ def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_
     return DataLoader(dd, batch_size=batch_size, collate_fn=diffusion_process, shuffle=True, num_workers=4, drop_last=True, pin_memory=True)
 
 
-def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_training_steps=1000):
+def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_training_steps=1000, use_horizontal_flip=True):
     import tensorflow as tf
     from keras_cv_attention_models.imagenet.data import tf_imread
 
@@ -113,6 +113,7 @@ def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_tra
     def image_process(image, label=None):
         image = tf_imread(image)
         image = tf.image.resize(image, image_size, method="bicubic", antialias=True)
+        image = tf.image.random_flip_left_right(image) if use_horizontal_flip else image
         image = tf.cast(image, tf.float32)
         image.set_shape([*image_size, 3])
         return (image, label) if use_labels else image

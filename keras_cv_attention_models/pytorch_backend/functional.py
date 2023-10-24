@@ -71,6 +71,20 @@ def cos(inputs, name=None):
     return wrapper(torch.cos, inputs, name=name)
 
 
+def embedding_lookup(params, ids, max_norm=None, name=None):
+    return Equal(name=name)([x, y]) if isinstance(y, GraphNode) else wrapper(lambda inputs: torch.eq(inputs, y), x, output_shape=x.shape, name=name)
+
+    """
+    >>> import math, torch
+    >>> inputs = torch.randint(0, 1000, size=[32])
+    >>> params = torch.rand([1000, 320])
+    >>> print(np.allclose(torch.functional.F.embedding(inputs, params), tf.nn.embedding_lookup(params.numpy(), inputs.numpy())))
+    # True
+    """
+    # return wrapper(partial(F.embedding, max_norm=max_norm)), [params, ids], name=name)
+    return F.embedding(ids, params, max_norm=max_norm)
+
+
 def equal(x, y, name=None):
     return Equal(name=name)([x, y]) if isinstance(y, GraphNode) else wrapper(lambda inputs: torch.eq(inputs, y), x, output_shape=x.shape, name=name)
 
