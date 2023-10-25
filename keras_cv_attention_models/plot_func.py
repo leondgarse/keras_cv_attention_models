@@ -59,7 +59,7 @@ def stack_and_plot_images(images, texts=None, margin=5, margin_value=0, rows=-1,
 
         stacked_images = vstacked_images[:-margin, :-margin]
     else:
-        stacked_images = np.vstack([np.hstack(images[ii * cols : (rr + 1) * cols]) for ii in range(rows)])
+        stacked_images = np.vstack([np.hstack(images[ii * cols : (ii + 1) * cols]) for ii in range(rows)])
 
     ax.imshow(stacked_images)
     ax.set_axis_off()
@@ -265,11 +265,11 @@ def plot_hists(hists, names=None, base_size=6, addition_plots=["lr"], text_va=["
             plot_and_peak_scatter(axes[0], val_loss, np.argmin, name + " val_loss", skip_first, color, cur_va, cur_pred_curve, linestyle="--")
 
         acc = hist.get(acc_key, [])
-        if len(acc) > 0:  # For timm log
+        if len(acc) > 0:
             plot_and_peak_scatter(axes[1], acc, np.argmax, name + " " + acc_key, skip_first, color, cur_va, cur_pred_curve)
 
         val_acc = hist.get(val_acc_key, [])
-        if len(val_acc) > 0:  # For timm log
+        if len(val_acc) > 0:
             plot_and_peak_scatter(axes[1], val_acc, np.argmax, name + " " + val_acc_key, skip_first, color, cur_va, cur_pred_curve, linestyle="--")
 
         if addition_plots is not None and len(addition_plots) != 0:

@@ -5,6 +5,7 @@ from keras_cv_attention_models.common_layers import (
     batchnorm_with_activation,
     conv2d_no_bias,
     CompatibleExtractPatches,
+    dense_no_bias,
     depthwise_conv2d_no_bias,
     drop_block,
     drop_connect_rates_split,

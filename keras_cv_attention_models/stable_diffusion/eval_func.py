@@ -7,7 +7,7 @@ from keras_cv_attention_models.backend import callbacks, functional
 
 
 class RunPrediction:
-    def __init__(self, model, num_training_steps=1000, num_steps=-1, beta_max=0.02):
+    def __init__(self, model, num_training_steps=1000, num_steps=0, beta_max=0.02):
         self.model, self.num_training_steps = model, num_training_steps
         self.num_steps = num_steps if num_steps > 0 else num_training_steps
 
@@ -75,9 +75,11 @@ class RunPrediction:
 
 
 class DenoisingEval(callbacks.Callback):
-    def __init__(self, save_path, image_size=512, num_classes=0, num_training_steps=1000, num_steps=-1, labels_guide_weight=1.8, beta_max=0.02, rows=5, cols=4):
+    def __init__(
+        self, save_path, image_size=512, num_classes=0, num_training_steps=1000, num_steps=0, labels_guide_weight=1.8, beta_max=0.02, interval=1, rows=5, cols=4
+    ):
         super().__init__()
-        self.save_path, self.image_size, self.labels_guide_weight = save_path, image_size, labels_guide_weight
+        self.save_path, self.image_size, self.labels_guide_weight, self.interval = save_path, image_size, labels_guide_weight, max(interval, 1)
         self.num_classes, self.rows, self.cols, self.batch_size = num_classes, rows, cols, rows * cols
         self.run_prediction = RunPrediction(model=None, num_training_steps=num_training_steps, num_steps=num_steps, beta_max=beta_max)
 
@@ -95,6 +97,8 @@ class DenoisingEval(callbacks.Callback):
             print(">>>> Eval labels:", self.labels_inputs)
 
     def on_epoch_end(self, cur_epoch=0, logs=None):
+        if (cur_epoch + 1) % self.interval > 0:
+            return
         if self.run_prediction.model is None:
             self.run_prediction.model = self.model
         eval_xt = self.run_prediction(labels=self.labels_inputs, init_x0=self.eval_x0, init_step=0, labels_guide_weight=self.labels_guide_weight)

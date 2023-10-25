@@ -74,6 +74,7 @@ def parse_arguments():
     parser.add_argument("-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 or pt file. Higher priority than model")
     parser.add_argument("--num_training_steps", type=int, default=1000, help="train sampling steps")
     parser.add_argument("--num_eval_plot", type=int, default=20, help="number of eval plot images, will take less than `batch_size`")
+    parser.add_argument("--eval_interval", type=int, default=10, help="number of epochs interval running eval process")
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights. Set 'default' for model preset value")
 
     parser.add_argument("--lr_base_512", type=float, default=1e-3, help="Learning rate for batch_size=512, lr = lr_base_512 * 512 / batch_size")
@@ -94,7 +95,9 @@ if __name__ == "__main__":
 
     if args.data_path in BUILDIN_DATASETS and not os.path.exists(args.data_path):
         url, dataset_file = BUILDIN_DATASETS[args.data_path]["url"], BUILDIN_DATASETS[args.data_path]["dataset_file"]
-        file_path = kecam.backend.get_file(origin=url, cache_subdir="datasets", extract=True)  # returned tar file path
+        file_path = os.path.join(os.path.expanduser("~"), ".keras", "datasets", args.data_path)
+        if not os.path.exists(file_path):
+            file_path = kecam.backend.get_file(origin=url, cache_subdir="datasets", extract=True)  # returned tar file path
         args.data_path = os.path.join(os.path.dirname(file_path), args.data_path, dataset_file)
         print(">>>> Buildin dataset, path:", args.data_path)
 
@@ -152,7 +155,9 @@ if __name__ == "__main__":
         # Save an image to `checkpoints/{basic_save_name}/epoch_{id}.jpg` on each epoch end
         cols, rows = kecam.plot_func.get_plot_cols_rows(min(args.batch_size, args.num_eval_plot))  # 16 -> [4, 4]; 42 -> [7, 6]
         save_path = os.path.join("checkpoints", basic_save_name)
-        eval_callback = kecam.stable_diffusion.eval_func.DenoisingEval(save_path, args.input_shape, num_classes, args.num_training_steps, cols=cols, rows=rows)
+        eval_callback = kecam.stable_diffusion.eval_func.DenoisingEval(
+            save_path, args.input_shape, num_classes, args.num_training_steps, interval=args.eval_interval, cols=cols, rows=rows
+        )
 
         lr_scheduler = kecam.imagenet.callbacks.CosineLrSchedulerEpoch(lr, args.epochs, lr_warmup=1e-4, warmup_steps=lr_warmup_steps)
         other_kwargs = {}

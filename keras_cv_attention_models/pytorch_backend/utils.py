@@ -60,7 +60,7 @@ def _extract_archive(file_path, path=".", archive_format="auto"):
 
 def get_file(fname=None, origin=None, cache_subdir="datasets", file_hash=None, extract=False):
     # print(f">>>> {fname = }, {origin = }, {cache_subdir = }, {file_hash = }")
-    save_dir = os.path.join(os.path.expanduser("~/.keras"), cache_subdir)
+    save_dir = os.path.join(os.path.expanduser("~"), ".keras", cache_subdir)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
     fname = os.path.basename(origin) if fname is None else fname

@@ -275,7 +275,9 @@ def group_norm(inputs, groups=32, epsilon=BATCH_NORM_EPSILON, axis="auto", name=
 
 
 def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="valid", use_bias=False, groups=1, use_torch_padding=True, name=None, **kwargs):
-    """Typical Conv2D with `use_bias` default as `False` and fixed padding"""
+    """Typical Conv2D with `use_bias` default as `False` and fixed padding,
+    and torch initializer `uniform(-1/sqrt(k), 1/sqrt(k)), where k = weight.size(1) * prod(*kernel_size)`
+    """
     kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else (kernel_size, kernel_size)
     if isinstance(padding, str):
         padding = padding.lower()
@@ -287,6 +289,11 @@ def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="valid", u
     if use_torch_padding and not backend.is_torch_backend and padding == "same":
         inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs) if max(pad) > 0 else inputs
         padding = "valid"
+
+    kernel_initializer = kwargs.get("kernel_initializer", None)
+    if kernel_initializer is None and not backend.is_torch_backend:
+        fan_in = 1 / (float(inputs.shape[-1] * kernel_size[0] * kernel_size[1]) ** 0.5)
+        kernel_initializer = initializers.RandomUniform(-fan_in, fan_in)
 
     groups = max(1, groups)
     return layers.Conv2D(
@@ -296,13 +303,16 @@ def conv2d_no_bias(inputs, filters, kernel_size=1, strides=1, padding="valid", u
         padding="valid" if padding == "valid" else (pad if use_torch_padding else "same"),
         use_bias=use_bias,
         groups=groups,
+        kernel_initializer=kernel_initializer,
         name=name and name + "conv",
         **kwargs,
     )(inputs)
 
 
 def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="valid", use_bias=False, use_torch_padding=True, name=None, **kwargs):
-    """Typical DepthwiseConv2D with `use_bias` default as `False` and fixed padding"""
+    """Typical DepthwiseConv2D with `use_bias` default as `False` and fixed padding
+    and torch initializer `uniform(-1/sqrt(k), 1/sqrt(k)), where k = weight.size(1) * prod(*kernel_size)`
+    """
     kernel_size = kernel_size if isinstance(kernel_size, (list, tuple)) else (kernel_size, kernel_size)
     if isinstance(padding, str):
         padding = padding.lower()
@@ -315,14 +325,29 @@ def depthwise_conv2d_no_bias(inputs, kernel_size, strides=1, padding="valid", us
         inputs = layers.ZeroPadding2D(padding=pad, name=name and name + "pad")(inputs) if max(pad) > 0 else inputs
         padding = "valid"
 
+    depthwise_initializer = kwargs.get("depthwise_initializer", None)
+    if depthwise_initializer is None and not backend.is_torch_backend:
+        fan_in = 1 / (float(inputs.shape[-1] * kernel_size[0] * kernel_size[1]) ** 0.5)
+        depthwise_initializer = initializers.RandomUniform(-fan_in, fan_in)
+
     return layers.DepthwiseConv2D(
         kernel_size,
         strides=strides,
         padding="valid" if padding == "valid" else (pad if use_torch_padding else "same"),
         use_bias=use_bias,
+        depthwise_initializer=depthwise_initializer,
         name=name and name + "dw_conv",
         **kwargs,
     )(inputs)
+
+
+def dense_no_bias(inputs, units, use_bias=False, name=None, **kwargs):
+    """Typical Dense with `use_bias` default as `False`, and Torch Linear initializer `uniform(-1/sqrt(in_features), 1/sqrt(in_features))`"""
+    kernel_initializer = kwargs.get("kernel_initializer", None)
+    if kernel_initializer is None and not backend.is_torch_backend:
+        fan_in = 1 / (float(inputs.shape[-1]) ** 0.5)
+        kernel_initializer = initializers.RandomUniform(-fan_in, fan_in)
+    return layers.Dense(units, kernel_initializer=kernel_initializer, use_bias=use_bias, name=name, **kwargs)(inputs)
 
 
 """ Blocks """

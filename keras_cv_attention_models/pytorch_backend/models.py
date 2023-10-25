@@ -295,17 +295,18 @@ class _Exporter_(object):
                 self.optimizer.load_state_dict(weights["optimizer"])
 
     def save_weights(self, filepath=None, **kwargs):
+        filepath = filepath if filepath else self.name + ".h5"
         if filepath.endswith("h5"):
             from keras_cv_attention_models.download_and_load import save_weights_to_hdf5_file
 
-            save_weights_to_hdf5_file(filepath if filepath else self.name + ".h5", self, **kwargs)
+            save_weights_to_hdf5_file(filepath, self, **kwargs)
         else:
             save_items = {"state_dict": self.state_dict()}
             if hasattr(self, "optimizer"):
                 save_items.update({"optimizer": self.optimizer.state_dict()})
             torch.save(save_items, filepath, **kwargs)
 
-    def load(self, filepath=None, **kwargs):
+    def load(self, filepath, **kwargs):
         self.load_weights(filepath, **kwargs)
 
     def save(self, filepath=None, **kwargs):
