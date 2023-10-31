@@ -313,6 +313,7 @@ class MyCheckpoint(callbacks.Callback):
         # tf.print(">>>> Save latest to:", self.latest_save)
         # print(">>>> logs:", logs)
         if self.model is not None:
+            print("\n>>>> Save latest to:", self.latest_save)
             self.model.save(self.latest_save)
         if self.monitor is not None and self.monitor not in logs:
             all_val_acc = [ii for ii in logs.keys() if "val" in ii and "acc" in ii]
@@ -334,6 +335,6 @@ class MyCheckpoint(callbacks.Callback):
             if len(pre_monitor_saves) != 0:
                 os.remove(os.path.join(self.save_path, pre_monitor_saves[0]))
             monitor_save = self.monitor_save.format(epoch + 1, "{:.4f}".format(cur_monitor_val))
-            print("\n>>>> Save best to:", monitor_save)
+            print(">>>> Save best to:", monitor_save)
             if self.model is not None:
                 self.model.save(monitor_save)

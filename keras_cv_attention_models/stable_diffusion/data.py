@@ -104,6 +104,8 @@ def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_tra
     if use_labels:
         labels = [ii + 1 for ii in labels]  # add 1 to labels for skipping 0 as non-conditional
         train_dataset = tf.data.Dataset.from_tensor_slices((images, labels)).shuffle(buffer_size=buffer_size, seed=seed)
+        # to_zero_labels_rate = 1 / max(labels)
+        # print(">>>> dataset to_zero_labels_rate:", to_zero_labels_rate)
     else:
         train_dataset = tf.data.Dataset.from_tensor_slices(images).shuffle(buffer_size=buffer_size, seed=seed)
     options = tf.data.Options()
@@ -122,6 +124,7 @@ def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_tra
         timestep = tf.random.uniform([batch_size], 0, num_training_steps, dtype="int64")
         noise = tf.random.normal([batch_size, *image_size, 3])
         image = image / 127.5 - 1
+        labels = tf.cond(tf.random.uniform(()) > to_zero_labels_rate, lambda: label, lambda: tf.zeros([batch_size], dtype=label.dtype))
 
         xt = tf.gather(sqrt_alpha_bar, timestep) * image + tf.gather(sqrt_one_minus_alpha_bar, timestep) * noise
         return ((xt, label, timestep), noise) if use_labels else ((xt, timestep), noise)

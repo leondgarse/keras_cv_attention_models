@@ -83,9 +83,6 @@ class DenoisingEval(callbacks.Callback):
         self.num_classes, self.rows, self.cols, self.batch_size = num_classes, rows, cols, rows * cols
         self.run_prediction = RunPrediction(model=None, num_training_steps=num_training_steps, num_steps=num_steps, beta_max=beta_max)
 
-        if not os.path.exists(save_path):
-            os.makedirs(save_path, exist_ok=True)
-
         if backend.image_data_format() == "channels_last":
             self.eval_x0 = np.random.normal(size=(self.batch_size, image_size, image_size, 3)).astype("float32")
         else:
@@ -101,8 +98,10 @@ class DenoisingEval(callbacks.Callback):
             return
         if self.run_prediction.model is None:
             self.run_prediction.model = self.model
-        eval_xt = self.run_prediction(labels=self.labels_inputs, init_x0=self.eval_x0, init_step=0, labels_guide_weight=self.labels_guide_weight)
+        if not os.path.exists(save_path):
+            os.makedirs(save_path, exist_ok=True)
 
+        eval_xt = self.run_prediction(labels=self.labels_inputs, init_x0=self.eval_x0, init_step=0, labels_guide_weight=self.labels_guide_weight)
         eval_xt = np.vstack([np.hstack(eval_xt[row * self.cols : (row + 1) * self.cols]) for row in range(self.rows)])
         save_path = os.path.join(self.save_path, "epoch_{}.jpg".format(cur_epoch + 1) if isinstance(cur_epoch, int) else (cur_epoch + ".jpg"))
         Image.fromarray(eval_xt).save(save_path)

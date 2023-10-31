@@ -49,7 +49,7 @@ def build_torch_optimizer(model, lr=1e-4, weight_decay=0.2, beta1=0.9, beta2=0.9
 def build_tf_optimizer(lr=1e-4, weight_decay=0.2, beta1=0.9, beta2=0.95, eps=1.0e-6):
     no_weight_decay = ["/gamma", "/beta", "/bias", "/positional_embedding", "/no_weight_decay"]
 
-    optimizer = tf.optimizers.AdamW(learning_rate=lr, weight_decay=weight_decay, beta_1=beta1, beta_2=beta2, epsilon=eps)
+    optimizer = tf.keras.optimizers.AdamW(learning_rate=lr, weight_decay=weight_decay, beta_1=beta1, beta_2=beta2, epsilon=eps)
     optimizer.exclude_from_weight_decay(var_names=no_weight_decay)
     return optimizer
 
@@ -118,7 +118,8 @@ if __name__ == "__main__":
 
     lr = args.lr_base_512 * args.batch_size / 512
     lr_warmup_steps = args.lr_warmup_steps if args.lr_warmup_steps >= 1 else int(args.lr_warmup_steps * args.epochs)
-    print(">>>> lr: {}, lr_warmup_steps: {}".format(lr, lr_warmup_steps))
+    lr_cooldown_steps = 5
+    print(">>>> lr: {}, lr_warmup_steps: {}, lr_cooldown_steps: {}".format(lr, lr_warmup_steps, lr_cooldown_steps))
 
     with global_strategy.scope():
         if args.restore_path is None or kecam.backend.is_torch_backend:
@@ -130,11 +131,11 @@ if __name__ == "__main__":
             print(">>>> model_kwargs:", kwargs)
             model = model_class(**kwargs)
             print(">>>> model name: {}, input_shape: {}, output_shape: {}".format(model.name, model.input_shape, model.output_shape))
-            basic_save_name = args.basic_save_name or "ddpm_{}_{}".format(model.name, kecam.backend.backend())
+            args.basic_save_name = args.basic_save_name or "ddpm_{}_{}".format(model.name, kecam.backend.backend())
         else:
             print(">>>> Reload from:", args.restore_path)
             model = kecam.backend.models.load_model(args.restore_path)
-        print(">>>> basic_save_name:", basic_save_name)
+        print(">>>> basic_save_name:", args.basic_save_name)
 
         if kecam.backend.is_torch_backend:
             model.to(device=global_device)
@@ -154,22 +155,24 @@ if __name__ == "__main__":
 
         # Save an image to `checkpoints/{basic_save_name}/epoch_{id}.jpg` on each epoch end
         cols, rows = kecam.plot_func.get_plot_cols_rows(min(args.batch_size, args.num_eval_plot))  # 16 -> [4, 4]; 42 -> [7, 6]
-        save_path = os.path.join("checkpoints", basic_save_name)
+        save_path = os.path.join("checkpoints", args.basic_save_name)
         eval_callback = kecam.stable_diffusion.eval_func.DenoisingEval(
             save_path, args.input_shape, num_classes, args.num_training_steps, interval=args.eval_interval, cols=cols, rows=rows
         )
 
-        lr_scheduler = kecam.imagenet.callbacks.CosineLrSchedulerEpoch(lr, args.epochs, lr_warmup=1e-4, warmup_steps=lr_warmup_steps)
+        lr_scheduler = kecam.imagenet.callbacks.CosineLrSchedulerEpoch(
+            lr, args.epochs, lr_warmup=1e-4, warmup_steps=lr_warmup_steps, cooldown_steps=lr_cooldown_steps
+        )
         other_kwargs = {}
         latest_save, hist = kecam.imagenet.train_func.train(
             compiled_model=model,
-            epochs=args.epochs,
+            epochs=args.epochs + lr_cooldown_steps,
             train_dataset=train_dataset,
             test_dataset=None,
             initial_epoch=args.initial_epoch,
             lr_scheduler=lr_scheduler,
-            basic_save_name=basic_save_name,
-            init_callbacks=[eval_callback] if kecam.backend.is_torch_backend else [],  # [???] TF backend prediction runs rather slow
+            basic_save_name=args.basic_save_name,
+            init_callbacks=[eval_callback],  # if kecam.backend.is_torch_backend else [],  # [???] TF backend prediction runs rather slow
             logs=None,
             **other_kwargs,
         )

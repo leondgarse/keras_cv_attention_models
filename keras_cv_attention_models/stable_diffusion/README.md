@@ -151,13 +151,13 @@
         tf.keras.mixed_precision.set_global_policy("mixed_float16")
 
     from keras_cv_attention_models import stable_diffusion, plot_func
-    num_classes = 10
+    num_classes, num_samples = 10, 8
     mm = stable_diffusion.UNetTest(num_classes=num_classes, input_shape=(32, 32, 3))
     mm.load_weights("checkpoints/ddpm_unet_test_tensorflow_latest.h5")
 
-    images = mm.run_prediction(labels=np.arange(num_classes).repeat(8))
+    images = mm.run_prediction(labels=np.arange(num_classes).repeat(num_samples))
     print(f"{images.shape = }, {images.min() = }, {images.max() = }")
-    ax, _ = plot_func.stack_and_plot_images(images, rows=num_classes)
+    plt.imshow(np.vstack([np.hstack(row * num_samples: (row + 1) * num_samples) for row in range(num_classes)]))
     ```
     **Or using PyTorch backend**
     ```py
@@ -169,15 +169,15 @@
     global_context = nullcontext() if device.type == "cpu" else torch.autocast(device_type=device.type, dtype=torch.float16)
 
     from keras_cv_attention_models import stable_diffusion, plot_func
-    num_classes = 10
+    num_classes, num_samples = 10, 8
     mm = stable_diffusion.UNetTest(num_classes=num_classes, input_shape=(32, 32, 3))
     mm.load_weights("checkpoints/ddpm_unet_test_torch_latest.pt")
     mm = mm.to(device)
 
     with torch.no_grad(), global_context:
-        images = mm.run_prediction(labels=np.arange(num_classes).repeat(8))
+        images = mm.run_prediction(labels=np.arange(num_classes).repeat(num_samples))
     print(f"{images.shape = }, {images.min() = }, {images.max() = }")
-    ax, _ = plot_func.stack_and_plot_images(images, rows=num_classes)
+    plt.imshow(np.vstack([np.hstack(row * num_samples: (row + 1) * num_samples) for row in range(num_classes)]))
     ```
     ![ddpm_unet_test_torch_E200](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/d3cea4a1-b4d8-447f-92cc-f52078f26ae0)
 ## Test of Encoder and Decoder
