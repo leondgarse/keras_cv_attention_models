@@ -124,7 +124,7 @@ def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_tra
         timestep = tf.random.uniform([batch_size], 0, num_training_steps, dtype="int64")
         noise = tf.random.normal([batch_size, *image_size, 3])
         image = image / 127.5 - 1
-        labels = tf.cond(tf.random.uniform(()) > to_zero_labels_rate, lambda: label, lambda: tf.zeros([batch_size], dtype=label.dtype))
+        # labels = tf.cond(tf.random.uniform(()) > to_zero_labels_rate, lambda: label, lambda: tf.zeros([batch_size], dtype=label.dtype))
 
         xt = tf.gather(sqrt_alpha_bar, timestep) * image + tf.gather(sqrt_one_minus_alpha_bar, timestep) * noise
         return ((xt, label, timestep), noise) if use_labels else ((xt, timestep), noise)
