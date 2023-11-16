@@ -25,7 +25,7 @@ class RunPrediction:
         self.to_device = (lambda xx: xx.to(self.device)) if backend.is_torch_backend else (lambda xx: xx)
         self.to_host = (lambda xx: xx.cpu()) if backend.is_torch_backend else (lambda xx: xx)
 
-    def __call__(self, image_size=-1, batch_size=1, labels=None, init_x0=None, init_step=0, labels_guide_weight=1.8):
+    def __call__(self, image_size=-1, batch_size=1, labels=None, init_x0=None, init_step=0, labels_guide_weight=1.8, return_inner=False):
         assert (len(self.model.inputs) == 2 and labels is None) or (len(self.model.inputs) == 3 and labels is not None), "labels input not matching with model"
 
         if backend.is_torch_backend and self.device is None:
@@ -52,6 +52,7 @@ class RunPrediction:
         xt = self.to_device(functional.convert_to_tensor(init_x0, dtype="float32"))
 
         """ Unet loop steps """
+        gathered_inner = []
         for cur_step in tqdm(range(self.num_steps - init_step)[::-1], "Eval", bar_format=self.bar_format):  # 1000 -> 0
             timestep_inputs = functional.convert_to_tensor(np.stack([self.timesteps[cur_step]] * batch_size), dtype="int64")
             timestep_inputs = self.to_device(timestep_inputs)
@@ -64,12 +65,18 @@ class RunPrediction:
 
             eps = functional.convert_to_tensor(np.random.normal(size=noise_shape).astype("float32"), dtype=xt_noise.dtype)
             xt = self.xt_prev_alpha[cur_step] * xt - self.xt_noise_alpha[cur_step] * xt_noise
-            if cur_step > 0:
-                xt += self.eps_alpha[cur_step] * self.to_device(eps)
+            xt += self.eps_alpha[cur_step] * self.to_device(eps)
+
+            if return_inner:
+                gathered_inner.append(xt)
 
         """ Output """
-        xt = self.to_host(xt).numpy().astype("float32")
-        eval_xt = xt if self.is_channels_last else xt.transpose([0, 2, 3, 1])
+        if return_inner:
+            gathered_inner = np.stack([self.to_host(inner).numpy().astype("float32") for inner in gathered_inner], axis=1)
+            eval_xt = gathered_inner if self.is_channels_last else gathered_inner.transpose([0, 1, 3, 4, 2])  # [batch, innner_steps, height, width, channel]
+        else:
+            xt = self.to_host(xt).numpy().astype("float32")
+            eval_xt = xt if self.is_channels_last else xt.transpose([0, 2, 3, 1])
         eval_xt = (np.clip(eval_xt / 2 + 0.5, 0, 1) * 255).astype("uint8")
         return eval_xt
 
@@ -98,10 +105,11 @@ class DenoisingEval(callbacks.Callback):
             return
         if self.run_prediction.model is None:
             self.run_prediction.model = self.model
-        if not os.path.exists(save_path):
-            os.makedirs(save_path, exist_ok=True)
+        if not os.path.exists(self.save_path):
+            os.makedirs(self.save_path, exist_ok=True)
 
-        eval_xt = self.run_prediction(labels=self.labels_inputs, init_x0=self.eval_x0, init_step=0, labels_guide_weight=self.labels_guide_weight)
+        lables = self.labels_inputs if self.num_classes > 0 else None
+        eval_xt = self.run_prediction(labels=lables, init_x0=self.eval_x0, init_step=0, labels_guide_weight=self.labels_guide_weight)
         eval_xt = np.vstack([np.hstack(eval_xt[row * self.cols : (row + 1) * self.cols]) for row in range(self.rows)])
         save_path = os.path.join(self.save_path, "epoch_{}.jpg".format(cur_epoch + 1) if isinstance(cur_epoch, int) else (cur_epoch + ".jpg"))
         Image.fromarray(eval_xt).save(save_path)

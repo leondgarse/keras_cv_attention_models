@@ -127,7 +127,7 @@
     ```
     ![stable_diffusion_384_768](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/f8f322de-06c4-459e-8411-119b59bbebd2)
 ## DDPM training
-  - **>>>> Note: Works Only with PyTorch backend, still not well with Tensorflow one. <<<<**
+  - **Note: Works better with PyTorch backend, Tensorflow one seems overfitted if training logger like `--epochs 200`, and evaluation runs ~5 times slower. [???]**
   - **Dataset** can be a directory containing images for basic DDPM training using images only, or a recognition json file created following [Custom recognition dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussion-3971513), which will train using labels as instruction.
     ```sh
     python custom_dataset_script.py --train_images cifar10/train/ --test_images cifar10/test/
@@ -136,13 +136,14 @@
     ```
   - **Train using `ddpm_train_script.py on cifar10 with labels`** Default `--data_path` is builtin `cifar10`.
     ```py
-    CUDA_VISIBLE_DEVICES=1 TF_XLA_FLAGS="--tf_xla_auto_jit=2" python ddpm_train_script.py --epochs 200
+    # Set --eval_interval 50 as TF evaluation is rather slow [???]
+    TF_XLA_FLAGS="--tf_xla_auto_jit=2" CUDA_VISIBLE_DEVICES=1 python ddpm_train_script.py --eval_interval 50
     ```
     **Train Using PyTorch backend by setting `KECAM_BACKEND='torch'`**
     ```py
-    KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python ddpm_train_script.py --epochs 200
+    KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python ddpm_train_script.py --eval_interval 50
     ```
-    ![ddpm_unet_test_torch_E200](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/e3ba4532-00f9-484f-ae0a-f13164b02e15)
+    ![ddpm_unet_test_E100](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/861f4004-4496-4aff-ae9c-706f4c04fef2)
   - **Reload model and run prediction after training**
     ```py
     import numpy as np
@@ -159,7 +160,7 @@
     print(f"{images.shape = }, {images.min() = }, {images.max() = }")
     plt.imshow(np.vstack([np.hstack(row * num_samples: (row + 1) * num_samples) for row in range(num_classes)]))
     ```
-    **Or using PyTorch backend**
+    **Or using PyTorch backend** on gtsrb dataset
     ```py
     os.environ['KECAM_BACKEND'] = 'torch'
     import torch
@@ -169,17 +170,16 @@
     global_context = nullcontext() if device.type == "cpu" else torch.autocast(device_type=device.type, dtype=torch.float16)
 
     from keras_cv_attention_models import stable_diffusion, plot_func
-    num_classes, num_samples = 10, 8
-    mm = stable_diffusion.UNetTest(num_classes=num_classes, input_shape=(32, 32, 3))
-    mm.load_weights("checkpoints/ddpm_unet_test_torch_latest.pt")
+    mm = stable_diffusion.UNetTest(num_classes=43, input_shape=(64, 64, 3))
+    mm.load_weights("checkpoints/ddpm_unet_test_torch_gtsrb_E200_latest.pt")  # can also be a h5 file
     mm = mm.to(device)
 
     with torch.no_grad(), global_context:
-        images = mm.run_prediction(labels=np.arange(num_classes).repeat(num_samples))
+        images = mm.run_prediction(labels=np.arange(40).repeat(2))
     print(f"{images.shape = }, {images.min() = }, {images.max() = }")
-    plt.imshow(np.vstack([np.hstack(row * num_samples: (row + 1) * num_samples) for row in range(num_classes)]))
+    plt.imshow(np.vstack([np.hstack(row * 8: (row + 1) * 8) for row in range(10)]))
     ```
-    ![ddpm_unet_test_torch_E200](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/d3cea4a1-b4d8-447f-92cc-f52078f26ae0)
+    ![gtsrb_15](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/5952ab94-d7ac-426e-a5ae-121a450d4c48)
 ## Test of Encoder and Decoder
   ```py
   from keras_cv_attention_models import stable_diffusion, test_images

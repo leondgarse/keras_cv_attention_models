@@ -1,10 +1,6 @@
 # ___Keras_cv_attention_models___
 ***
 - **coco_train_script.py is under testing. Still struggling for this...**
-- **SwinV2 positional embedding is changed from `PairWiseRelativePositionalEmbedding -> mlp_block` to `MlpPairwisePositionalEmbedding` layer, follow `FasterViT` with a `switch_to_deploy` function, since `kecam > 1.3.18`. If needs to port previous self trained weights, try `kecam.model_surgery.swin_convert_pos_emb_mlp_to_MlpPairwisePositionalEmbedding_weights`.**
-- **LeViT/EfficientFormer changed to default using `use_distillation=False`, and a function `switch_to_deploy` is added for fusing distill head since `kecam > 1.3.18`.**
-- **YOLO_NAS changed to default using `use_reparam_conv=True`, and a function `switch_to_deploy` is added for fusing reparam blocks since `kecam > 1.3.18`.**
-
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [___>>>> Roadmap and todo list <<<<___](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)
@@ -17,6 +13,7 @@
   - [COCO training and evaluating](#coco-training-and-evaluating)
   - [CLIP training and evaluating](#clip-training-and-evaluating)
   - [Text training](#text-training)
+  - [DDPM training](#ddpm-training)
   - [Visualizing](#visualizing)
   - [TFLite Conversion](#tflite-conversion)
   - [Using PyTorch as backend](#using-pytorch-as-backend)
@@ -470,6 +467,25 @@
     plot_func.plot_hists(hists, addition_plots=['val_loss', 'lr'], skip_first=3)
     ```
     ![text_tf_torch](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/0fc3dd08-bb20-47be-9267-d9cc35fba4c0)
+## DDPM training
+  - [Stable Diffusion](keras_cv_attention_models/stable_diffusion) contains more detail usage.
+  - **Note: Works better with PyTorch backend, Tensorflow one seems overfitted if training logger like `--epochs 200`, and evaluation runs ~5 times slower. [???]**
+  - **Dataset** can be a directory containing images for basic DDPM training using images only, or a recognition json file created following [Custom recognition dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussion-3971513), which will train using labels as instruction.
+    ```sh
+    python custom_dataset_script.py --train_images cifar10/train/ --test_images cifar10/test/
+    # >>>> total_train_samples: 50000, total_test_samples: 10000, num_classes: 10
+    # >>>> Saved to: cifar10.json
+    ```
+  - **Train using `ddpm_train_script.py on cifar10 with labels`** Default `--data_path` is builtin `cifar10`.
+    ```py
+    # Set --eval_interval 50 as TF evaluation is rather slow [???]
+    TF_XLA_FLAGS="--tf_xla_auto_jit=2" CUDA_VISIBLE_DEVICES=1 python ddpm_train_script.py --eval_interval 50
+    ```
+    **Train Using PyTorch backend by setting `KECAM_BACKEND='torch'`**
+    ```py
+    KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python ddpm_train_script.py
+    ```
+    ![ddpm_unet_test_E100](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/861f4004-4496-4aff-ae9c-706f4c04fef2)
 ## Visualizing
   - [Visualizing](keras_cv_attention_models/visualizing) is for visualizing convnet filters or attention map scores.
   - **make_and_apply_gradcam_heatmap** is for Grad-CAM class activation visualization.

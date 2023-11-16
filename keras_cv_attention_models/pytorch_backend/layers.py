@@ -78,7 +78,10 @@ class GraphNode:
 
     def __repr__(self):
         # return ",".join(for kk, vv in zip())
-        rr = "{}:\n  pre_nodes: {}".format(self.name, {ii.name: ii.shape for ii in self.pre_nodes})
+        if len(self.pre_nodes) == 0:
+            rr = "{}:\n  shape: {}\n  dtype: {}".format(self.name, self.shape, self.dtype)
+        else:
+            rr = "{}:\n  pre_nodes: {}".format(self.name, {ii.name: ii.shape for ii in self.pre_nodes})
         rr += "\n  next_nodes: {}".format({ii.name: ii.shape for ii in self.next_nodes})
         if hasattr(self, "layer") and hasattr(self.layer, "output_shape"):
             rr += "\n  out: {}".format(self.layer.output_shape)
@@ -212,7 +215,7 @@ class Input(GraphNode):
         shape = [None, *shape]
         name = "input_{}".format(self.num_instances) if name is None else name
         super().__init__(shape, name=name)
-        self.dtype = torch.get_default_dtype() if dtype is None else dtype
+        self.dtype = torch.get_default_dtype() if dtype is None else (getattr(torch, dtype) if isinstance(dtype, str) else dtype)
 
 
 class Layer(nn.Module):

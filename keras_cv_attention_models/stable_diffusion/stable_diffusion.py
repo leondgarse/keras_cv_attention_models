@@ -168,7 +168,7 @@ class StableDiffusion(FakeModelWrapper):  # FakeModelWrapper providing save / lo
         """ Denoising using UNet """
         gathered_inner = []  # return multiple if return_inner is True
         for cur_step in tqdm(range(self.num_steps - init_step)[::-1]):  # 50 -> 0
-            time_step = functional.convert_to_tensor(np.stack([self.time_steps[cur_step]] * batch_size * 2), dtype=compute_dtype)
+            time_step = functional.convert_to_tensor(np.stack([self.time_steps[cur_step]] * batch_size * 2), dtype="int64")
             time_step = time_step.to(device) if backend.is_torch_backend else time_step
             xt_inputs = functional.concat([xt, xt], axis=0)
 

@@ -27,16 +27,19 @@ class SinusoidalTimeStepEmbedding(layers.Layer):
     def build(self, input_shape):
         # input_shape: [batch]
         half = self.hidden_channels // 2  # half the channels are sin and the other half is cos
-        frequencies = np.exp(-np.log(self.max_period) * np.arange(0, half, dtype="float32") / half)[None]
+        frequencies = np.exp(-np.log(self.max_period) * np.arange(0, half, dtype="float32") / half)
+        positions = np.arange(self.max_period).astype("float32")
+        embeddings = positions[:, None] * frequencies[None]
+        embeddings = np.concatenate([np.cos(embeddings), np.sin(embeddings)], axis=-1).astype("float32")
+
         if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("frequencies", functional.convert_to_tensor(frequencies, dtype=self.compute_dtype), persistent=False)
+            self.register_buffer("embeddings", functional.convert_to_tensor(embeddings, dtype=self.compute_dtype), persistent=False)
         else:
-            self.frequencies = functional.convert_to_tensor(frequencies, dtype=self.compute_dtype)
+            self.embeddings = functional.convert_to_tensor(embeddings, dtype=self.compute_dtype)
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
-        cur = inputs[:, None] * self.frequencies
-        return functional.concat([functional.cos(cur), functional.sin(cur)], axis=-1)
+        return functional.embedding_lookup(self.embeddings, inputs)
 
     def compute_output_shape(self, input_shape):
         return [None, self.hidden_channels]
@@ -103,7 +106,7 @@ def spatial_transformer_block(inputs, condition=None, num_attention_block=1, mlp
     return layers.Add(name=name + "output")([inputs, nn])
 
 
-def res_block(inputs, time_embedding=None, labels_embedding=None, out_channels=-1, epsilon=1e-5, activation="swish", name=""):
+def res_block(inputs, time_embedding=None, labels_embedding=None, out_channels=-1, epsilon=1e-5, activation="swish", dropout=0, name=""):
     input_channels = inputs.shape[-1 if backend.image_data_format() == "channels_last" else 1]
     out_channels = out_channels if out_channels > 0 else input_channels
     if input_channels == out_channels:
@@ -130,6 +133,7 @@ def res_block(inputs, time_embedding=None, labels_embedding=None, out_channels=-
     nn = group_norm(nn, epsilon=epsilon, name=name + "out_layers_")
     nn = activation_by_name(nn, activation=activation, name=name + "out_layers_")
     nn = conv2d_no_bias(nn, out_channels, kernel_size=3, use_bias=True, padding="SAME", name=name + "out_layers_")
+    nn = layers.Dropout(dropout=dropout)(nn) if dropout > 0 else nn
     return layers.Add(name=name + "out")([nn, short])
 
 
@@ -145,6 +149,7 @@ def UNet(
     conditional_embedding=768,  # > 0 value for using text conditional as generating instruction.
     num_classes=0,  # > 0 value for also using labels as generating instruction.
     activation="swish",
+    dropout=0,
     pretrained="v1_5",
     model_name="unet",
     kwargs=None,  # Not using, recieving parameter
@@ -153,7 +158,7 @@ def UNet(
     # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
     inputs = layers.Input(backend.align_input_shape_by_image_data_format(input_shape), name="inputs")
     channel_axis = -1 if backend.image_data_format() == "channels_last" else 1
-    time_steps = layers.Input([], name="time_steps")
+    time_steps = layers.Input([], dtype="int64", name="time_steps")
     condition = layers.Input([None, conditional_embedding], name="condition") if conditional_embedding > 0 else None
 
     time_embedding = SinusoidalTimeStepEmbedding(hidden_channels=hidden_channels, name="time_embedding")(time_steps)
@@ -162,7 +167,7 @@ def UNet(
     time_embedding = layers.Dense(hidden_channels * 4, name="time_embed_2_dense")(time_embedding)
 
     if num_classes > 0:
-        labels_inputs = layers.Input([], name="labels_inputs")
+        labels_inputs = layers.Input([], dtype="int64", name="labels_inputs")
         labels_embedding = layers.Embedding(num_classes + 1, hidden_channels, mask_zero=True, name="labels_embedding")(labels_inputs)
         labels_embedding = layers.Dense(hidden_channels * 4, name="labels_embed_1_dense")(labels_embedding)
         labels_embedding = activation_by_name(labels_embedding, activation=activation, name="labels_embed_")
@@ -178,21 +183,21 @@ def UNet(
         stack_name = "stack{}_".format(stack_id + 1)
         out_channels = hidden_expand * hidden_channels
         if stack_id > 0:
-            nn = conv2d_no_bias(nn, nn.shape[channel_axis], kernel_size=3, strides=2, use_bias=True, padding="same", name=stack_name + "downsample_")
+            nn = conv2d_no_bias(nn, nn.shape[channel_axis], kernel_size=3, strides=2, use_bias=True, padding="SAME", name=stack_name + "downsample_")
             skip_connections.append(nn)
 
         for block_id in range(num_block):
             block_name = stack_name + "down_block{}_".format(block_id + 1)
-            nn = res_block(nn, time_embedding, labels_embedding=labels_embedding, out_channels=out_channels, activation=activation, name=block_name)
+            nn = res_block(nn, time_embedding, labels_embedding, out_channels=out_channels, activation=activation, dropout=dropout, name=block_name)
             if num_attention_block > 0:
                 nn = spatial_transformer_block(nn, condition, num_attention_block, mlp_ratio=mlp_ratio, num_heads=num_heads, name=block_name + "attn_")
             skip_connections.append(nn)
     # print(f">>>> {[ii.shape for ii in skip_connections] = }")
 
     """ Middle blocks """
-    nn = res_block(nn, time_embedding, labels_embedding=labels_embedding, activation=activation, name="middle_block_1_")
+    nn = res_block(nn, time_embedding, labels_embedding=labels_embedding, activation=activation, dropout=dropout, name="middle_block_1_")
     nn = spatial_transformer_block(nn, condition, num_attention_block=1, name="middle_block_attn_")
-    nn = res_block(nn, time_embedding, labels_embedding=labels_embedding, activation=activation, name="middle_block_2_")
+    nn = res_block(nn, time_embedding, labels_embedding=labels_embedding, activation=activation, dropout=dropout, name="middle_block_2_")
 
     """ Up blocks """
     for stack_id, (num_block, hidden_expand, num_attention_block) in enumerate(zip(num_blocks[::-1], hidden_expands[::-1], num_attention_blocks[::-1])):
@@ -200,22 +205,21 @@ def UNet(
         out_channels = hidden_expand * hidden_channels
         if stack_id > 0:
             nn = layers.UpSampling2D(size=2, name=stack_name + "upsample_")(nn)
-            nn = conv2d_no_bias(nn, nn.shape[channel_axis], kernel_size=3, strides=1, use_bias=True, padding="same", name=stack_name + "upsample_")
+            nn = conv2d_no_bias(nn, nn.shape[channel_axis], kernel_size=3, strides=1, use_bias=True, padding="SAME", name=stack_name + "upsample_")
 
         for block_id in range(num_block + 1):
             block_name = stack_name + "up_block{}_".format(block_id + 1)
             skip_connection = skip_connections.pop(-1)
             nn = functional.concat([nn, skip_connection], axis=channel_axis)
 
-            nn = res_block(nn, time_embedding, labels_embedding=labels_embedding, out_channels=out_channels, activation=activation, name=block_name)
+            nn = res_block(nn, time_embedding, labels_embedding, out_channels=out_channels, activation=activation, dropout=dropout, name=block_name)
             if num_attention_block > 0:
                 nn = spatial_transformer_block(nn, condition, num_attention_block, mlp_ratio=mlp_ratio, num_heads=num_heads, name=block_name + "attn_")
 
     """ Output blocks """
-    output_channels = inputs.shape[channel_axis]
     nn = group_norm(nn, name="output_")
     nn = activation_by_name(nn, activation=activation, name="output_")
-    nn = conv2d_no_bias(nn, output_channels, kernel_size=3, use_bias=True, padding="SAME", name="output_")
+    nn = conv2d_no_bias(nn, inputs.shape[channel_axis], kernel_size=3, use_bias=True, padding="SAME", name="output_")
     outputs = layers.Activation("linear", dtype="float32", name="output")(nn)
 
     model_inputs = [inputs, labels_inputs, time_steps] if num_classes > 0 else [inputs, time_steps]

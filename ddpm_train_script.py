@@ -1,4 +1,5 @@
 import os
+import json
 import kecam
 
 
@@ -76,12 +77,17 @@ def parse_arguments():
     parser.add_argument("--num_eval_plot", type=int, default=20, help="number of eval plot images, will take less than `batch_size`")
     parser.add_argument("--eval_interval", type=int, default=10, help="number of epochs interval running eval process")
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights. Set 'default' for model preset value")
+    parser.add_argument(
+        "--additional_model_kwargs", type=str, default=None, help="Json format model kwargs like '{\"dropout\": 0.15}'. Note all quote marks"
+    )
 
     parser.add_argument("--lr_base_512", type=float, default=1e-3, help="Learning rate for batch_size=512, lr = lr_base_512 * 512 / batch_size")
     parser.add_argument("--lr_warmup_steps", type=float, default=0.1, help="Learning rate warmup steps, <1 for `lr_warmup_steps * epochs`, >=1 for exact value")
     parser.add_argument("--weight_decay", type=float, default=1e-4, help="Weight decay")
     parser.add_argument("--disable_horizontal_flip", action="store_true", help="Disable random horizontal flip")
     args = parser.parse_known_args()[0]
+
+    args.additional_model_kwargs = json.loads(args.additional_model_kwargs) if args.additional_model_kwargs else {}
     if args.basic_save_name is None and args.restore_path is not None:
         basic_save_name = os.path.splitext(os.path.basename(args.restore_path))[0]
         basic_save_name = basic_save_name[:-7] if basic_save_name.endswith("_latest") else basic_save_name
@@ -125,16 +131,17 @@ if __name__ == "__main__":
         if args.restore_path is None or kecam.backend.is_torch_backend:
             model_split = args.model.split(".")
             model_class = getattr(getattr(kecam, model_split[0]), model_split[1]) if len(model_split) == 2 else getattr(kecam.models, model_split[0])
-            kwargs = {} if args.pretrained == "default" else {"pretrained": args.pretrained}
+            if args.pretrained != "default":
+                args.additional_model_kwargs.update({"pretrained": args.pretrained})
             # Not using prompt conditional inputs, but may use labels as inputs if num_classes > 0
-            kwargs.update({"conditional_embedding": 0, "input_shape": inputs[0].shape[1:], "num_classes": num_classes})
-            print(">>>> model_kwargs:", kwargs)
-            model = model_class(**kwargs)
+            args.additional_model_kwargs.update({"conditional_embedding": 0, "input_shape": inputs[0].shape[1:], "num_classes": num_classes})
+            print(">>>> model_kwargs:", args.additional_model_kwargs)
+            model = model_class(**args.additional_model_kwargs)
             print(">>>> model name: {}, input_shape: {}, output_shape: {}".format(model.name, model.input_shape, model.output_shape))
             args.basic_save_name = args.basic_save_name or "ddpm_{}_{}".format(model.name, kecam.backend.backend())
         else:
             print(">>>> Reload from:", args.restore_path)
-            model = kecam.backend.models.load_model(args.restore_path)
+            model = kecam.backend.models.load_model(args.restore_path, custom_objects={"AdamW": tf.keras.optimizers.AdamW})
         print(">>>> basic_save_name:", args.basic_save_name)
 
         if kecam.backend.is_torch_backend:
