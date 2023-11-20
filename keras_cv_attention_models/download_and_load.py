@@ -129,6 +129,8 @@ class H5orKerasFileReader:
 
         self.h5_file = h5py.File(self.filepath, "r")
         weights = self.h5_file["model_weights"] if "model_weights" in self.h5_file else self.h5_file  # full model or weights only
+        # return {kk: [vv[ww] for ww in vv.attrs["weight_names"]] for kk, vv in weights.items() if len(vv) > 0 and "weight_names" in vv.attrs}
+        weights = {kk: weights[kk] for kk in weights.attrs['layer_names']}
         return {kk: [vv[ww] for ww in vv.attrs["weight_names"]] for kk, vv in weights.items() if len(vv) > 0}
 
     def __read_keras_file__(self):
