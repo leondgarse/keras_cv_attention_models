@@ -288,13 +288,15 @@ class MyCheckpoint(callbacks.Callback):
 
     def __init__(self, basic_save_name, monitor="val_acc", mode="auto", save_path="checkpoints"):
         super(MyCheckpoint, self).__init__()
-        self.suffix = ".pt" if backend.is_torch_backend else ".h5"  # not saving .keras currently, netron not supporting well
-        # try:
-        #     is_tf2_13 = int(tf.__version__.split(".")[0]) >= 2 and int(tf.__version__.split(".")[1]) >= 13
+        self.suffix = ".pt" if backend.is_torch_backend else ".h5"  # not saving .keras currently, reading weights from it is slower..
+        # if backend.is_torch_backend:
+        #     self.suffix = ".pt"
+        # else:
+        #     try:
+        #         is_tf2_13 = int(tf.__version__.split(".")[0]) >= 2 and int(tf.__version__.split(".")[1]) >= 13
+        #     except:
+        #         is_tf2_13 = False
         #     self.suffix = ".keras" if is_tf2_13 else ".h5"
-        # except:
-        #     is_tf2_13 = False
-
         self.basic_save_name, self.mode, self.save_path = basic_save_name, mode, save_path
         self.__init_monitor_strategy__(monitor)
 

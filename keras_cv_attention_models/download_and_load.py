@@ -11,7 +11,7 @@ def reload_model_weights(
 ):
     if not isinstance(pretrained, (str, list, tuple)):
         return
-    if isinstance(pretrained, (list, tuple)) or pretrained.endswith(".h5") or pretrained.endswith(".keras"):
+    if isinstance(pretrained, (list, tuple)) or pretrained.endswith(".h5") or pretrained.endswith(".keras") or pretrained.endswith(".pt"):
         pretraineds = pretrained if isinstance(pretrained, (list, tuple)) else [pretrained]
         for pretrained in pretraineds:
             print(">>>> Load pretrained from:", pretrained)
@@ -104,12 +104,76 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_re
 """ Save / load h5 weights from keras.saving.legacy.hdf5_format, supports both TF and PyTorch model, and convert_torch_weights_to_h5 """
 
 
-def read_h5_weights(filepath, only_valid_weights=True):
-    import h5py
+class H5orKerasFileReader:
+    """ Read `.h5` or `.keras` format weight file as a dict
+    >>> import kecam
+    >>> mm = kecam.models.LLaMA2_15M()
+    >>> mm.save('aa.keras')  # Or 'aa.h5'
+    >>>
+    >>> with kecam.download_and_load.H5orKerasFileReader('aa.keras') as ff:
+    >>>     print({kk: [ii.shape for ii in vv] for kk, vv in ff.items()})
+    >>>     kecam.download_and_load._load_layer_weights_nested_(mm, ff, debug=True)
+    """
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.read = self.__read_keras_file__ if self.filepath.endswith(".keras") else self.__read_h5_file__
 
-    with h5py.File(filepath, "r") as h5_file:
-        weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
-        return {kk: {ww: np.array(vv[ww]) for ww in vv.attrs["weight_names"]} for kk, vv in weights.items() if not only_valid_weights or len(vv) > 0}
+    def __enter__(self):
+        return self.read()
+
+    def __exit__(self, type, value, trace):
+        self.close()
+
+    def __read_h5_file__(self):
+        import h5py
+
+        self.h5_file = h5py.File(self.filepath, "r")
+        weights = self.h5_file["model_weights"] if "model_weights" in self.h5_file else self.h5_file  # full model or weights only
+        return {kk: [vv[ww] for ww in vv.attrs["weight_names"]] for kk, vv in weights.items() if len(vv) > 0}
+
+    def __read_keras_file__(self):
+        import re, json, zipfile, h5py
+
+        archive = zipfile.ZipFile(self.filepath, "r")
+        with archive.open('config.json', 'r') as ff:
+            model_config = json.loads(ff.read())
+        model_weight_file = archive.open('model.weights.h5', 'r')
+        h5_file = h5py.File(model_weight_file, mode="r")
+        self.archive, self.model_weight_file, self.h5_file = archive, model_weight_file, h5_file
+
+        if "_layer_checkpoint_dependencies" not in h5_file:
+            print(">>>> [ERROR] weights key '_layer_checkpoint_dependencies' not exists in provided keras file {}".format(self.filepath))
+            return {}
+
+        dd = {}
+        used_names = {}
+        weights = h5_file["_layer_checkpoint_dependencies"]
+        for ii in model_config['config']['layers']:
+            map_name = ii['class_name']
+            map_name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", map_name)
+            map_name = re.sub("([a-z])([A-Z])", r"\1_\2", map_name).lower()
+            map_name = ("private" + map_name) if map_name[0] == "_" else map_name
+
+            # _load_container_state
+            if map_name in used_names:
+                used_names[map_name] += 1
+                map_name = f"{map_name}_{used_names[map_name]}"
+            else:
+                used_names[map_name] = 0
+
+            # print(f"{map_name = }, {ii['name'] = }")
+            if map_name in weights and "vars" in weights[map_name]:
+                wws = weights[map_name]["vars"]  # This is rather slow [???]
+                if len(wws) > 0:
+                    dd[ii['name']] = list(wws.values())
+                    # print("  shape:", [ii.shape for ii in dd[ii['name']]])
+        return dd
+
+    def close(self):
+        self.h5_file.close()
+        if self.filepath.endswith(".keras"):
+            self.model_weight_file.close()
+            self.archive.close()
 
 
 def _load_layer_weights_nested_(model, weights, skip_mismatch=False, debug=False, prefix=""):
@@ -133,6 +197,8 @@ def _load_layer_weights_nested_(model, weights, skip_mismatch=False, debug=False
 
         if hasattr(ss, "attrs"):
             ss = [np.array(ss[ww]) for ww in ss.attrs["weight_names"]]
+        elif hasattr(ss, "values"):
+            ss = [np.array(ww) for ww in ss.values()]
         else:
             ss = [np.array(ww) for ww in ss]
 
@@ -150,11 +216,11 @@ def _load_layer_weights_nested_(model, weights, skip_mismatch=False, debug=False
 
 
 def load_weights_from_hdf5_file(filepath, model, skip_mismatch=False, debug=False):
-    import h5py
-
-    with h5py.File(filepath, "r") as h5_file:
-        weights = h5_file["model_weights"] if "model_weights" in h5_file else h5_file  # full model or weights only
-        _load_layer_weights_nested_(model, weights, skip_mismatch=skip_mismatch, debug=debug)
+    if not isinstance(filepath, str):  # Regard as dict
+        _load_layer_weights_nested_(model, filepath, skip_mismatch=skip_mismatch, debug=debug)
+    else:
+        with H5orKerasFileReader(filepath) as weights:
+            _load_layer_weights_nested_(model, weights, skip_mismatch=skip_mismatch, debug=debug)
 
 
 def _save_attributes_to_hdf5_group_(group, name, data):

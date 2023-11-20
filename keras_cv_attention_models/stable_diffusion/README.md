@@ -141,7 +141,9 @@
     ```
     **Train Using PyTorch backend by setting `KECAM_BACKEND='torch'`**
     ```py
-    KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python ddpm_train_script.py --eval_interval 50
+    # Training on gtsrb dataset
+    KECAM_BACKEND='torch' CUDA_VISIBLE_DEVICES=1 python ddpm_train_script.py --eval_interval 50 \
+    --data_path gtsrb --input_shape 64 --batch_size 64 --disable_horizontal_flip
     ```
     ![ddpm_unet_test_E100](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/861f4004-4496-4aff-ae9c-706f4c04fef2)
   - **Reload model and run prediction after training**
