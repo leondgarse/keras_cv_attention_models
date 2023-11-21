@@ -105,7 +105,7 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_re
 
 
 class H5orKerasFileReader:
-    """ Read `.h5` or `.keras` format weight file as a dict
+    """ Read `.h5` or `.keras` format weight file as a dict, `.keras` is the new saving format since TF 2.13
     >>> import kecam
     >>> mm = kecam.models.LLaMA2_15M()
     >>> mm.save('aa.keras')  # Or 'aa.h5'
@@ -116,7 +116,8 @@ class H5orKerasFileReader:
     """
     def __init__(self, filepath):
         self.filepath = filepath
-        self.read = self.__read_keras_file__ if self.filepath.endswith(".keras") else self.__read_h5_file__
+        self.is_keras_format = self.filepath.endswith(".keras")
+        self.read = self.__read_keras_file__ if self.is_keras_format else self.__read_h5_file__
 
     def __enter__(self):
         return self.read()
@@ -150,8 +151,9 @@ class H5orKerasFileReader:
         dd = {}
         used_names = {}
         weights = h5_file["_layer_checkpoint_dependencies"]
-        for ii in model_config['config']['layers']:
-            map_name = ii['class_name']
+        for layer in model_config['config']['layers']:
+            # from keras.src.utils import generic_utils; generic_utils.to_snake_case
+            map_name = layer['class_name']
             map_name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", map_name)
             map_name = re.sub("([a-z])([A-Z])", r"\1_\2", map_name).lower()
             map_name = ("private" + map_name) if map_name[0] == "_" else map_name
@@ -163,17 +165,17 @@ class H5orKerasFileReader:
             else:
                 used_names[map_name] = 0
 
-            # print(f"{map_name = }, {ii['name'] = }")
+            # print(f"{map_name = }, {layer['name'] = }")
             if map_name in weights and "vars" in weights[map_name]:
-                wws = weights[map_name]["vars"]  # This is rather slow [???]
+                wws = weights[map_name]["vars"]  # This is rather slow on the first time reading [???]
                 if len(wws) > 0:
-                    dd[ii['name']] = list(wws.values())
-                    # print("  shape:", [ii.shape for ii in dd[ii['name']]])
+                    dd[layer['name']] = list(wws.values())
+                    # print("  shape:", [ii.shape for ii in dd[layer['name']]])
         return dd
 
     def close(self):
         self.h5_file.close()
-        if self.filepath.endswith(".keras"):
+        if self.is_keras_format:
             self.model_weight_file.close()
             self.archive.close()
 
