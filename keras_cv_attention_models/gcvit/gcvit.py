@@ -19,12 +19,19 @@ from keras_cv_attention_models.attention_layers import (
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 PRETRAINED_DICT = {
-    "gcvit_xx_tiny": {"imagenet": {224: "ff516a5a1d3dfdda0c0b2e0051206c00"}},
-    "gcvit_x_tiny": {"imagenet": {224: "723155237e083716bb3df904c80711c4"}},
-    "gcvit_tiny": {"imagenet": {224: "0e6ecf576b649f7077f4f2f8122b420e"}},
-    "gcvit_small": {"imagenet": {224: "ac0cfb4240ae85a40a88691c2329edab"}},
-    "gcvit_base": {"imagenet": {224: "ef6e4015239f68dcabbb8ae9cb799d76"}},
+    "gcvit_base": {"imagenet": {224: "cad46f57087f9e0a5c3848b3af3fe144"}},
+    "gcvit_large": {
+        "imagenet": {224: "3a556727053be1173227b85bef8049ff"},
+        "imagenet21k-ft1k": {224: "1be7d0e856d0c59b83602155e73eab16", 384: "a9efb78e8783a23c61273d518000d508", 512: "79e7d5ff6e6d6183c1e5f7682fdce619"},
+    },
+    "gcvit_small2": {"imagenet": {224: "64c38e556b7d72a121c0fe03a0eb5255"}},
+    "gcvit_small": {"imagenet": {224: "a6d57fba8d630bd3fa6de001a06f28b6"}},
+    "gcvit_tiny2": {"imagenet": {224: "4465446ef57314d8e122d88ffe64152f"}},
+    "gcvit_tiny": {"imagenet": {224: "9db89519e361f096307387ac20b2fad3"}},
+    "gcvit_x_tiny": {"imagenet": {224: "453477bb07c69d3f9e06eb69fc383ec3"}},
+    "gcvit_xx_tiny": {"imagenet": {224: "dec2edbe2542db2ef3cfc502a018e641"}},
 }
+
 
 
 def gcvit_block(inputs, window_size, num_heads=4, global_query=None, mlp_ratio=4, layer_scale=0, drop_rate=0, activation="gelu", name=""):
@@ -167,6 +174,12 @@ def GCViT_Tiny(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", c
 
 
 @register_model
+def GCViT_Tiny2(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 4, 29, 5]
+    return GCViT(**locals(), model_name="gcvit_tiny2", **kwargs)
+
+
+@register_model
 def GCViT_Small(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 19, 5]
     num_heads = [3, 6, 12, 24]
@@ -177,6 +190,16 @@ def GCViT_Small(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", 
 
 
 @register_model
+def GCViT_Small2(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 4, 23, 5]
+    num_heads = [3, 6, 12, 24]
+    embed_dim = 96
+    mlp_ratio = 3
+    layer_scale = 1e-5
+    return GCViT(**locals(), model_name="gcvit_small2", **kwargs)
+
+
+@register_model
 def GCViT_Base(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
     num_blocks = [3, 4, 19, 5]
     num_heads = [4, 8, 16, 32]
@@ -184,3 +207,13 @@ def GCViT_Base(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", c
     mlp_ratio = 2
     layer_scale = 1e-5
     return GCViT(**locals(), model_name="gcvit_base", **kwargs)
+
+
+@register_model
+def GCViT_Large(input_shape=(224, 224, 3), num_classes=1000, activation="gelu", classifier_activation="softmax", pretrained="imagenet", **kwargs):
+    num_blocks = [3, 4, 19, 5]
+    num_heads = [6, 12, 24, 48]
+    embed_dim = 192
+    mlp_ratio = 2
+    layer_scale = 1e-5
+    return GCViT(**locals(), model_name="gcvit_large", **kwargs)
