@@ -1,7 +1,7 @@
 # ___Keras_cv_attention_models___
 ***
 - **coco_train_script.py is under testing. Still struggling for this...**
-- **RepViT architecture is changed adapting new weights since kecam>3.1.22**
+- **RepViT architecture is changed adapting new weights since kecam>1.3.22**
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [___>>>> Roadmap and todo list <<<<___](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)
