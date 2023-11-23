@@ -1,4 +1,4 @@
-from keras_cv_attention_models.repvit.repvit import RepViT, RepViT_M1, RepViT_M2, RepViT_M3, switch_to_deploy
+from keras_cv_attention_models.repvit.repvit import RepViT, RepViT_M09, RepViT_M10, RepViT_M11, RepViT_M15, RepViT_M23, switch_to_deploy
 
 
 __head_doc__ = """
@@ -37,19 +37,25 @@ Args:
   model_name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model                   | Params | FLOPs | Input | Top1 Acc |
-  | ----------------------- | ------ | ----- | ----- | -------- |
-  | RepViT_M1, distillation | 5.10M  | 0.82G | 224   | 78.5     |
-  | - deploy=True           | 5.07M  | 0.82G | 224   | 78.5     |
-  | RepViT_M2, distillation | 8.28M  | 1.35G | 224   | 80.6     |
-  | - deploy=True           | 8.25M  | 1.35G | 224   | 80.6     |
-  | RepViT_M3, distillation | 10.2M  | 1.87G | 224   | 81.4     |
-  | - deploy=True           | 10.12M | 1.87G | 224   | 81.4     |
+  | Model                    | Params | FLOPs | Input | Top1 Acc |
+  | ------------------------ | ------ | ----- | ----- | -------- |
+  | RepViT_M09, distillation | 5.10M  | 0.82G | 224   | 79.1     |
+  | - deploy=True            | 5.07M  | 0.82G | 224   | 79.1     |
+  | RepViT_M10, distillation | 6.85M  | 1.12G | 224   | 80.3     |
+  | - deploy=True            | 6.81M  | 1.12G | 224   | 80.3     |
+  | RepViT_M11, distillation | 8.29M  | 1.35G | 224   | 81.2     |
+  | - deploy=True            | 8.24M  | 1.35G | 224   | 81.2     |
+  | RepViT_M15, distillation | 14.13M | 2.30G | 224   | 82.5     |
+  | - deploy=True            | 14.05M | 2.30G | 224   | 82.5     |
+  | RepViT_M23, distillation | 23.01M | 4.55G | 224   | 83.7     |
+  | - deploy=True            | 22.93M | 4.55G | 224   | 83.7     |
 """
 
-RepViT_M1.__doc__ = __head_doc__ + """
+RepViT_M09.__doc__ = __head_doc__ + """
 Args:
 """ + __tail_doc__
 
-RepViT_M2.__doc__ = RepViT_M1.__doc__
-RepViT_M3.__doc__ = RepViT_M1.__doc__
+RepViT_M10.__doc__ = RepViT_M09.__doc__
+RepViT_M11.__doc__ = RepViT_M09.__doc__
+RepViT_M15.__doc__ = RepViT_M09.__doc__
+RepViT_M23.__doc__ = RepViT_M09.__doc__

@@ -547,7 +547,7 @@ def test_RegNetZB16_predict():
 
 
 def test_RepViT_M1_dynamic_predict():
-    mm = keras_cv_attention_models.repvit.RepViT_M1(input_shape=(None, None, 3), use_distillation=False, pretrained="imagenet")
+    mm = keras_cv_attention_models.repvit.RepViT_M09(input_shape=(None, None, 3), use_distillation=False, pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat(), input_shape=(160, 192, 3)))
     out = mm.decode_predictions(pred)[0][0]
 

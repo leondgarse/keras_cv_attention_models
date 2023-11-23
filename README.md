@@ -1,6 +1,7 @@
 # ___Keras_cv_attention_models___
 ***
 - **coco_train_script.py is under testing. Still struggling for this...**
+- **RepViT architecture is changed adapting new weights since kecam>3.1.22**
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [___>>>> Roadmap and todo list <<<<___](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)
@@ -1074,13 +1075,19 @@
 ## GCViT
   - [Keras GCViT](keras_cv_attention_models/gcvit) includes implementation of [PDF 2206.09959 Global Context Vision Transformers](https://arxiv.org/pdf/2206.09959.pdf).
 
-  | Model        | Params | FLOPs | Input | Top1 Acc | T4 Inference |
-  | ------------ | ------ | ----- | ----- | -------- | ------------ |
-  | [GCViT_XXTiny](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_xx_tiny_224_imagenet.h5) | 12.0M  | 2.15G | 224   | 79.8     | 337.7 qps    |
-  | [GCViT_XTiny](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_x_tiny_224_imagenet.h5)  | 20.0M  | 2.96G | 224   | 82.04    | 255.625 qps  |
-  | [GCViT_Tiny](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_tiny_224_imagenet.h5)   | 28.2M  | 4.83G | 224   | 83.4     | 174.553 qps  |
-  | [GCViT_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_small_224_imagenet.h5)  | 51.1M  | 8.63G | 224   | 83.95    | 131.577 qps  |
-  | [GCViT_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_base_224_imagenet.h5)   | 90.3M  | 14.9G | 224   | 84.47    | 105.845 qps  |
+  | Model           | Params | FLOPs  | Input | Top1 Acc | Download |
+  | --------------- | ------ | ------ | ----- | -------- | -------- |
+  | [GCViT_XXTiny](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_xx_tiny_224_imagenet.h5)    | 12.0M  | 2.15G  | 224   | 79.9     | 337.7 qps   |
+  | [GCViT_XTiny](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_x_tiny_224_imagenet.h5)     | 20.0M  | 2.96G  | 224   | 82.0     | 255.625 qps   |
+  | [GCViT_Tiny](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_tiny_224_imagenet.h5)      | 28.2M  | 4.83G  | 224   | 83.5     | 174.553 qps   |
+  | [GCViT_Tiny2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_tiny2_224_imagenet.h5)     | 34.5M  | 6.28G  | 224   | 83.7     |  |
+  | [GCViT_Small](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_small_224_imagenet.h5)     | 51.1M  | 8.63G  | 224   | 84.3     | 131.577 qps   |
+  | [GCViT_Small2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_small2_224_imagenet.h5)    | 68.6M  | 11.7G  | 224   | 84.8     |  |
+  | [GCViT_Base](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_base_224_imagenet.h5)      | 90.3M  | 14.9G  | 224   | 85.0     | 105.845 qps   |
+  | [GCViT_Large](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_large_224_imagenet.h5)     | 202.1M | 32.8G  | 224   | 85.7     |  |
+  | - [21k_ft1k](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_large_224_imagenet21k-ft1k.h5)      | 202.1M | 32.8G  | 224   | 86.6     |  |
+  | - [21k_ft1k, 384](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_large_384_imagenet21k-ft1k.h5) | 202.9M | 105.1G | 384   | 87.4     |  |
+  | - [21k_ft1k, 512](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gcvit/gcvit_large_512_imagenet21k-ft1k.h5) | 203.8M | 205.1G | 512   | 87.6     |  |
 ## GhostNet
   - [Keras GhostNet](keras_cv_attention_models/ghostnet) includes implementation of [PDF 1911.11907 GhostNet: More Features from Cheap Operations](https://arxiv.org/pdf/1911.11907.pdf).
 
@@ -1362,14 +1369,18 @@
 ## RepViT
   - [Keras RepViT](keras_cv_attention_models/repvit) is for [PDF 2307.09283 RepViT: Revisiting Mobile CNN From ViT Perspective](https://arxiv.org/pdf/2307.09283.pdf).
 
-  | Model          | Params | FLOPs | Input | Top1 Acc | T4 Inference |
-  | -------------- | ------ | ----- | ----- | -------- | ------------ |
-  | [RepViT_M1, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m1_imagenet.h5) | 5.10M  | 0.82G | 224   | 78.5     | 966.72 qps  |
-  | - deploy=True, distill      | 5.07M  | 0.82G | 224   | 78.5     | 1157.8 qps  |
-  | [RepViT_M2, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m2_imagenet.h5) | 8.28M  | 1.35G | 224   | 80.6     | 846.682 qps  |
-  | - deploy=True, distill      | 8.25M  | 1.35G | 224   | 80.6     | 1027.5 qps  |
-  | [RepViT_M3, distill](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m3_imagenet.h5) | 10.2M  | 1.87G | 224   | 81.4     | 583.381 qps  |
-  | - deploy=True, distill      | 10.12M | 1.87G | 224   | 81.4     | 748.154 qps |
+  | Model                    | Params | FLOPs | Input | Top1 Acc | T4 Inference |
+  | ------------------------ | ------ | ----- | ----- | -------- | -------- |
+  | [RepViT_M09, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m_09_imagenet.h5) | 5.10M  | 0.82G | 224   | 79.1     |  |
+  | - deploy=True            | 5.07M  | 0.82G | 224   | 79.1     | 966.72 qps  |
+  | [RepViT_M10, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m_10_imagenet.h5) | 6.85M  | 1.12G | 224   | 80.3     | 1157.8 qps  |
+  | - deploy=True            | 6.81M  | 1.12G | 224   | 80.3     |          |
+  | [RepViT_M11, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m_11_imagenet.h5) | 8.29M  | 1.35G | 224   | 81.2     | 846.682 qps  |
+  | - deploy=True            | 8.24M  | 1.35G | 224   | 81.2     | 1027.5 qps  |
+  | [RepViT_M15, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m_15_imagenet.h5) | 14.13M | 2.30G | 224   | 82.5     |   |
+  | - deploy=True            | 14.05M | 2.30G | 224   | 82.5     |   |
+  | [RepViT_M23, distillation](https://github.com/leondgarse/keras_cv_attention_models/releases/download/levit/repvit_m_23_imagenet.h5) | 23.01M | 4.55G | 224   | 83.7     |  |
+  | - deploy=True            | 22.93M | 4.55G | 224   | 83.7     |          |
 ## ResMLP
   - [Keras ResMLP](keras_cv_attention_models/mlp_family#resmlp) includes implementation of [PDF 2105.03404 ResMLP: Feedforward networks for image classification with data-efficient training](https://arxiv.org/pdf/2105.03404.pdf).
 

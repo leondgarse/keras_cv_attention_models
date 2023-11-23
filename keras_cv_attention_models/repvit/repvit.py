@@ -18,9 +18,11 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 BATCH_NORM_EPSILON = 1e-5
 
 PRETRAINED_DICT = {
-    "repvit_m1": {"imagenet": "9f28080702da8feac6845a390a4eacfe"},
-    "repvit_m2": {"imagenet": "db556c2d3c91808b77417e3a878450a0"},
-    "repvit_m3": {"imagenet": "39d803c1c03da4f14fe6c09086663725"},
+    "repvit_m_09": {"imagenet": "f406182ed50349a079093717b67fba1a"},
+    "repvit_m_10": {"imagenet": "1ff41e710ccc3dc46954c356ff62f20c"},
+    "repvit_m_11": {"imagenet": "30c9ccc796392e1adddda630858d7646"},
+    "repvit_m_15": {"imagenet": "b9347ab0ed9c15bb129acc6ba3d5833d"},
+    "repvit_m_23": {"imagenet": "ffb0f7617fb27baab4bfce5a17260c19"},
 }
 
 
@@ -30,9 +32,10 @@ def rep_vgg_depthwise(inputs, kernel_size=3, strides=1, deploy=False, name=""):
 
     dw_1 = depthwise_conv2d_no_bias(inputs, kernel_size=kernel_size, strides=strides, padding="same", name=name + "REPARAM_1_")
     dw_1 = batchnorm_with_activation(dw_1, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "REPARAM_1_")
-    dw_2 = depthwise_conv2d_no_bias(inputs, 1, name=name + "REPARAM_2_")
-    dw_2 = batchnorm_with_activation(dw_2, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "REPARAM_2_")
-    return layers.Add(name=name + "REPARAM_out")([dw_1, dw_2, inputs])
+    dw_2 = depthwise_conv2d_no_bias(inputs, 1, use_bias=True, name=name + "REPARAM_2_")
+    out = layers.Add(name=name + "REPARAM_out")([dw_1, dw_2, inputs])
+    return batchnorm_with_activation(out, epsilon=BATCH_NORM_EPSILON, activation=None, name=name + "out_")
+    return
 
 
 def dwconv_bn_conv_bn(inputs, out_channel, kernel_size=1, strides=1, deploy=False, name=""):
@@ -134,31 +137,49 @@ def switch_to_deploy(model):
     from keras_cv_attention_models.model_surgery.model_surgery import fuse_reparam_blocks, convert_to_fused_conv_bn_model, fuse_distill_head
 
     new_model = fuse_distill_head(model) if "head" in model.output_names else model
-    new_model = fuse_reparam_blocks(convert_to_fused_conv_bn_model(new_model))
+    new_model = convert_to_fused_conv_bn_model(fuse_reparam_blocks(convert_to_fused_conv_bn_model(new_model)))
     add_pre_post_process(new_model, rescale_mode=model.preprocess_input.rescale_mode, post_process=model.decode_predictions)
     return new_model
 
 
 @register_model
-def RepViT_M1(
+def RepViT_M09(
     input_shape=(224, 224, 3), num_classes=1000, deploy=False, use_distillation=False, classifier_activation="softmax", pretrained="imagenet", **kwargs
 ):
-    return RepViT(**locals(), model_name="repvit_m1" + ("_deploy" if deploy else ""), **kwargs)
+    return RepViT(**locals(), model_name="repvit_m_09" + ("_deploy" if deploy else ""), **kwargs)
 
 
 @register_model
-def RepViT_M2(
+def RepViT_M10(
+    input_shape=(224, 224, 3), num_classes=1000, deploy=False, use_distillation=False, classifier_activation="softmax", pretrained="imagenet", **kwargs
+):
+    num_blocks = [3, 3, 15, 2]
+    out_channels = [56, 112, 224, 448]
+    return RepViT(**locals(), model_name="repvit_m_10" + ("_deploy" if deploy else ""), **kwargs)
+
+
+@register_model
+def RepViT_M11(
     input_shape=(224, 224, 3), num_classes=1000, deploy=False, use_distillation=False, classifier_activation="softmax", pretrained="imagenet", **kwargs
 ):
     num_blocks = [3, 3, 13, 2]
     out_channels = [64, 128, 256, 512]
-    return RepViT(**locals(), model_name="repvit_m2" + ("_deploy" if deploy else ""), **kwargs)
+    return RepViT(**locals(), model_name="repvit_m_11" + ("_deploy" if deploy else ""), **kwargs)
 
 
 @register_model
-def RepViT_M3(
+def RepViT_M15(
     input_shape=(224, 224, 3), num_classes=1000, deploy=False, use_distillation=False, classifier_activation="softmax", pretrained="imagenet", **kwargs
 ):
-    num_blocks = [5, 5, 19, 2]
+    num_blocks = [5, 5, 25, 4]
     out_channels = [64, 128, 256, 512]
-    return RepViT(**locals(), model_name="repvit_m3" + ("_deploy" if deploy else ""), **kwargs)
+    return RepViT(**locals(), model_name="repvit_m_15" + ("_deploy" if deploy else ""), **kwargs)
+
+
+@register_model
+def RepViT_M23(
+    input_shape=(224, 224, 3), num_classes=1000, deploy=False, use_distillation=False, classifier_activation="softmax", pretrained="imagenet", **kwargs
+):
+    num_blocks = [7, 7, 35, 2]
+    out_channels = [80, 160, 320, 640]
+    return RepViT(**locals(), model_name="repvit_m_23" + ("_deploy" if deploy else ""), **kwargs)
