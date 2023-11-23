@@ -70,8 +70,8 @@ def test_LeViT128S_switch_to_deploy():
     assert np.allclose(preds, preds_deploy, atol=1e-5)
 
 
-def test_RepViT_M1_use_distillation_switch_to_deploy():
-    mm = keras_cv_attention_models.models.RepViT_M1(use_distillation=True, classifier_activation=None)
+def test_RepViT_M09_use_distillation_switch_to_deploy():
+    mm = keras_cv_attention_models.models.RepViT_M09(use_distillation=True, classifier_activation=None)
     preds = mm(mm.preprocess_input(cat()))
 
     bb = mm.switch_to_deploy()
@@ -80,7 +80,7 @@ def test_RepViT_M1_use_distillation_switch_to_deploy():
 
 
 def test_RepViT_M1_not_distillation_switch_to_deploy():
-    mm = keras_cv_attention_models.models.RepViT_M1(use_distillation=False)
+    mm = keras_cv_attention_models.models.RepViT_M09(use_distillation=False)
     preds = mm(mm.preprocess_input(cat()))
 
     bb = mm.switch_to_deploy()
