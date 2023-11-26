@@ -62,6 +62,7 @@ def TinyViT(
     # window_sizes=[7, 7, 14, 7],
     window_ratios=[8, 4, 1, 1],  # For `input_shape=(224, 224, 3)` will be window_sizes=[7, 7, 14, 7], for `(384, 384, 3)` will be `[12, 12, 24, 12]`.
     mlp_ratio=4,
+    strides=[1, 2, 2, 2],
     input_shape=(224, 224, 3),
     num_classes=1000,
     activation="gelu",
@@ -96,12 +97,12 @@ def TinyViT(
     """ stacks """
     total_blocks = sum(num_blocks)
     global_block_id = 0
-    for stack_id, (num_block, out_channel, block_type) in enumerate(zip(num_blocks, out_channels, block_types)):
+    for stack_id, (num_block, out_channel, stride, block_type) in enumerate(zip(num_blocks, out_channels, strides, block_types)):
         stack_name = "stack{}_".format(stack_id + 1)
         if stack_id > 0:
             name = stack_name + "downsample_"
             expand = out_channel / nn.shape[-1 if image_data_format() == "channels_last" else 1]
-            nn = inverted_residual_block(nn, out_channel, stride=2, expand=expand, shortcut=False, is_torch_mode=True, activation=activation, name=name)
+            nn = inverted_residual_block(nn, out_channel, stride=stride, expand=expand, shortcut=False, is_torch_mode=True, activation=activation, name=name)
 
         is_conv_block = True if block_type[0].lower() == "c" else False
         num_head = num_heads[stack_id] if isinstance(num_heads, (list, tuple)) else num_heads
