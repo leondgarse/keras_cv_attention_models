@@ -383,6 +383,7 @@ class Model(nn.Module, _Trainer_, _Exporter_):
         self.inputs = inputs if isinstance(inputs, (list, tuple)) else [inputs]
         self.input_shape = [tuple(ii.shape) for ii in self.inputs] if isinstance(inputs, (list, tuple)) else tuple(inputs.shape)
         self.input_names = [ii.name for ii in self.inputs]
+        self.input_dtype_dict = {ii.name: ii.dtype for ii in self.inputs}
 
         self.num_outputs = len(self.outputs)
         self.create_forward_pipeline()
@@ -421,6 +422,16 @@ class Model(nn.Module, _Trainer_, _Exporter_):
                 break
         self.forward_pipeline, self.intra_nodes_ref, self.__layers__ = forward_pipeline, intra_nodes_ref, all_layers
 
+    def input_to_tensor(self, inputs, dtype=torch.float32):
+        device = next(self.parameters()).device
+        if not isinstance(inputs, torch.Tensor):
+            inputs = torch.as_tensor(inputs, device=device)
+        if inputs.dtype != dtype:
+            inputs = inputs.to(dtype)
+        if inputs.device != device:
+            inputs = inputs.to(device)
+        return inputs
+
     def forward(self, inputs, **kwargs):
         if isinstance(inputs, layers.GraphNode) or (isinstance(inputs, (list, tuple)) and any([isinstance(ii, layers.GraphNode) for ii in inputs])):
             return self.graphnode_forward(inputs)
@@ -432,6 +443,7 @@ class Model(nn.Module, _Trainer_, _Exporter_):
             intra_nodes = {kk: [vv] * self.intra_nodes_ref[kk] for kk, vv in inputs.items()}
         else:  # Single input
             intra_nodes = {self.input_names[0]: [inputs] * self.intra_nodes_ref[self.input_names[0]]}
+        intra_nodes = {kk: [self.input_to_tensor(ii, dtype=self.input_dtype_dict[kk]) for ii in vv] for kk, vv in intra_nodes.items()}
 
         for node in self.forward_pipeline:
             if self.debug:
