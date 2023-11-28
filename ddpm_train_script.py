@@ -77,9 +77,7 @@ def parse_arguments():
     parser.add_argument("--num_eval_plot", type=int, default=20, help="number of eval plot images, will take less than `batch_size`")
     parser.add_argument("--eval_interval", type=int, default=10, help="number of epochs interval running eval process")
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights. Set 'default' for model preset value")
-    parser.add_argument(
-        "--additional_model_kwargs", type=str, default=None, help="Json format model kwargs like '{\"dropout\": 0.15}'. Note all quote marks"
-    )
+    parser.add_argument("--additional_model_kwargs", type=str, default=None, help="Json format model kwargs like '{\"dropout\": 0.15}'. Note all quote marks")
 
     parser.add_argument("--lr_base_512", type=float, default=1e-3, help="Learning rate for batch_size=512, lr = lr_base_512 * 512 / batch_size")
     parser.add_argument("--lr_warmup_steps", type=float, default=0.1, help="Learning rate warmup steps, <1 for `lr_warmup_steps * epochs`, >=1 for exact value")

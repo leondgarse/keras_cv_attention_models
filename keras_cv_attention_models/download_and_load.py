@@ -105,7 +105,7 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_re
 
 
 class H5orKerasFileReader:
-    """ Read `.h5` or `.keras` format weight file as a dict, `.keras` is the new saving format since TF 2.13
+    """Read `.h5` or `.keras` format weight file as a dict, `.keras` is the new saving format since TF 2.13
     >>> import kecam
     >>> mm = kecam.models.LLaMA2_15M()
     >>> mm.save('aa.keras')  # Or 'aa.h5'
@@ -114,6 +114,7 @@ class H5orKerasFileReader:
     >>>     print({kk: [ii.shape for ii in vv] for kk, vv in ff.items()})
     >>>     kecam.download_and_load._load_layer_weights_nested_(mm, ff, debug=True)
     """
+
     def __init__(self, filepath):
         self.filepath = filepath
         self.is_keras_format = self.filepath.endswith(".keras")
@@ -131,16 +132,16 @@ class H5orKerasFileReader:
         self.h5_file = h5py.File(self.filepath, "r")
         weights = self.h5_file["model_weights"] if "model_weights" in self.h5_file else self.h5_file  # full model or weights only
         # return {kk: [vv[ww] for ww in vv.attrs["weight_names"]] for kk, vv in weights.items() if len(vv) > 0 and "weight_names" in vv.attrs}
-        weights = {kk: weights[kk] for kk in weights.attrs['layer_names']}
+        weights = {kk: weights[kk] for kk in weights.attrs["layer_names"]}
         return {kk: [vv[ww] for ww in vv.attrs["weight_names"]] for kk, vv in weights.items() if len(vv) > 0}
 
     def __read_keras_file__(self):
         import re, json, zipfile, h5py
 
         archive = zipfile.ZipFile(self.filepath, "r")
-        with archive.open('config.json', 'r') as ff:
+        with archive.open("config.json", "r") as ff:
             model_config = json.loads(ff.read())
-        model_weight_file = archive.open('model.weights.h5', 'r')
+        model_weight_file = archive.open("model.weights.h5", "r")
         h5_file = h5py.File(model_weight_file, mode="r")
         self.archive, self.model_weight_file, self.h5_file = archive, model_weight_file, h5_file
 
@@ -151,9 +152,9 @@ class H5orKerasFileReader:
         dd = {}
         used_names = {}
         weights = h5_file["_layer_checkpoint_dependencies"]
-        for layer in model_config['config']['layers']:
+        for layer in model_config["config"]["layers"]:
             # from keras.src.utils import generic_utils; generic_utils.to_snake_case
-            map_name = layer['class_name']
+            map_name = layer["class_name"]
             map_name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", map_name)
             map_name = re.sub("([a-z])([A-Z])", r"\1_\2", map_name).lower()
             map_name = ("private" + map_name) if map_name[0] == "_" else map_name
@@ -169,7 +170,7 @@ class H5orKerasFileReader:
             if map_name in weights and "vars" in weights[map_name]:
                 wws = weights[map_name]["vars"]  # This is rather slow on the first time reading [???]
                 if len(wws) > 0:
-                    dd[layer['name']] = list(wws.values())
+                    dd[layer["name"]] = list(wws.values())
                     # print("  shape:", [ii.shape for ii in dd[layer['name']]])
         return dd
 

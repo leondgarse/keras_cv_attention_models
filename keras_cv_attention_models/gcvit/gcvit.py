@@ -33,7 +33,6 @@ PRETRAINED_DICT = {
 }
 
 
-
 def gcvit_block(inputs, window_size, num_heads=4, global_query=None, mlp_ratio=4, layer_scale=0, drop_rate=0, activation="gelu", name=""):
     # print(global_query)
     input_channel = inputs.shape[-1]  # Channels_last only
