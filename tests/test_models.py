@@ -737,3 +737,16 @@ def test_YOLOV8_S_dynamic_predict():
 
     pred_label = mm.decode_predictions(pred, input_shape=input_shape)[0][1].numpy()
     assert COCO_80_LABEL_DICT[pred_label[0]] == "cat"
+
+
+def test_stable_diffusion_no_weights_predict():
+    mm = keras_cv_attention_models.stable_diffusion.StableDiffusion(pretrained=None)
+    image = keras_cv_attention_models.backend.numpy_image_resize(cat(), [256, 256])
+    out = mm("hello world", image=image, init_step=49, strength=0.02, inpaint_mask=[0.5, 0, 1, 1])  # Run only 1 step
+    if keras_cv_attention_models.backend.is_torch_backend:
+        out = out.detach().cpu().numpy()
+        assert out.shape == (1, 3, 256, 256)
+    else:
+        out = out.numpy()
+        assert out.shape == (1, 256, 256, 3)
+    assert out.min() > -4 and out.max() < 4  # It should be within this range
