@@ -18,7 +18,7 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-LAYER_NORM_EPSILON = 1e-6
+LAYER_NORM_EPSILON = 1e-5
 
 PRETRAINED_DICT = {
     "tiny_vit_11m": {"imagenet": {224: "6cc52dda567fd70f706d57c69dfd81d8"}, "imagenet21k-ft1k": {224: "f84673169e5c7a4ec526866da24cd5f4"}},

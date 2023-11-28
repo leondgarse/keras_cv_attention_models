@@ -48,4 +48,29 @@
   print(keras.applications.imagenet_utils.decode_predictions(pred)[0])
   # [('n02124075', 'Egyptian_cat', 0.53003114), ('n02123159', 'tiger_cat', 0.13526095), ...]
   ```
+## Verification with PyTorch version
+  ```py
+  """ PyTorch tiny_vit_5m_224 """
+  sys.path.append('../pytorch-image-models/')  # Needs timm
+  sys.path.append('../Cream/TinyViT/models/')
+  import torch
+  import tiny_vit
+  torch_model = tiny_vit.tiny_vit_5m_224(pretrained=False)
+  ss = torch.load('tiny_vit_5m_1k.pth', map_location=torch.device('cpu'))
+  torch_model.load_state_dict(ss['model'])
+  _ = torch_model.eval()
+
+  """ Keras TinyViT_5M """
+  from keras_cv_attention_models import tinyvit
+  mm = tinyvit.TinyViT_5M(pretrained="imagenet", classifier_activation=None)
+
+  """ Verification """
+  inputs = np.random.uniform(size=(1, *mm.input_shape[1:])).astype("float32")
+  torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2)).detach().numpy()
+  keras_out = mm(inputs)
+  print(f"{np.allclose(torch_out, keras_out, atol=1e-5) = }")
+  # np.allclose(torch_out, keras_out, atol=1e-5) = True
+  print(f"{torch_out.min() = }, {torch_out.max() = }")
+  # torch_out.min() = -1.5161167, torch_out.max() = 2.8208928
+  ```
 ***
