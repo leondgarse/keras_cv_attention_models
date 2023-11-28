@@ -1,12 +1,10 @@
-import math
 import numpy as np
-from PIL import Image
 import keras_cv_attention_models
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
-from keras_cv_attention_models.segment_anything import mask_decoder
 from keras_cv_attention_models.attention_layers import BiasLayer, PureWeigths, conv2d_no_bias, layer_norm
 from keras_cv_attention_models.models import register_model, FakeModelWrapper
+from keras_cv_attention_models.segment_anything import mask_decoder
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 LAYER_NORM_EPSILON = 1e-6
@@ -19,6 +17,8 @@ PRETRAINED_DICT = {
     "points_encoder": {"mobile_sam_5m": "bbc785ad50937da738259d3ddf64b1f3"},
     "positional_embedding": {"mobile_sam_5m": "2d97b3faee52a82551e6d2d6562b394e"},
 }
+
+""" PromptEncoder """
 
 
 def PointsEncoder(embed_dims=256, pretrained="mobile_sam_5m", name="points_encoder"):
@@ -73,6 +73,9 @@ def PositionEmbeddingRandom(embed_dims=256, scale=1.0, pretrained="mobile_sam_5m
     return model
 
 
+""" ImageEncoder """
+
+
 def ImageEncoder(input_shape=(1024, 1024, 3), embed_dims=256, pretrained="mobile_sam_5m", name="image_encoder"):
     base_window_ration = input_shape[0] / 32 / 7  # keep window_size=[7, 7, 14, 7]
     window_ratios = [base_window_ration * 8, base_window_ration * 4, base_window_ration, base_window_ration * 2]
@@ -89,6 +92,9 @@ def ImageEncoder(input_shape=(1024, 1024, 3), embed_dims=256, pretrained="mobile
     model = models.Model(inputs, nn, name=name)
     reload_model_weights(model, PRETRAINED_DICT, "segment_anything", pretrained)
     return model
+
+
+""" SAM """
 
 
 class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda class methods
@@ -113,10 +119,8 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
         self.empty_masks = self.empty_masks_model.get_layer("empty_masks").get_weights()[0]
 
         grid = np.ones(self.image_embedding_shape, dtype="float32")
-        grid = np.stack([grid.cumsum(axis=1) - 0.5, grid.cumsum(axis=0) - 0.5], axis=-1)
-        self.grid_positional_embedding = self.normalize_coords(grid, self.image_embedding_shape[0], self.image_embedding_shape[1])[
-            None
-        ]  # [1, height, width, 256]
+        grid = np.stack([grid.cumsum(axis=1) - 0.5, grid.cumsum(axis=0) - 0.5], axis=-1)  # [height, width, 2]
+        self.grid_positional_embedding = self.normalize_coords(grid, self.image_embedding_shape[0], self.image_embedding_shape[1])[None]
 
     def normalize_coords(self, coords, height, width):
         coords = coords / [height, width]
@@ -126,7 +130,7 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
 
     def preprocess_image(self, image, scaled_height, scaled_width):
         """Aspect awared image resize -> Normalize to ~[-2, 2] -> pad to self.image_input_shape"""
-        image = np.array(Image.fromarray(image).resize([scaled_height, scaled_width])).astype("float32")
+        image = backend.numpy_image_resize(image.astype("float32"), [scaled_height, scaled_width], method="bicubic", antialias=True)
         mean, std = np.array([123.675, 116.28, 103.53]).astype("float32"), np.array([58.395, 57.12, 57.375]).astype("float32")
         normed_image = (image - mean) / std
         pad_height, pad_width = self.image_input_shape[0] - normed_image.shape[0], self.image_input_shape[1] - normed_image.shape[1]
@@ -138,14 +142,10 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
         return np.pad(points, [[0, 0], [0, 1], [0, 0]]) if pad else points
 
     def preprocess_boxes(self, boxes, height_scale, width_scale):
-        boxes = boxes.reshape([1, -1, 2, 2]) * [height_scale, width_scale]
-        boxes = boxes + 0.5  # Shift to center of pixel
+        boxes = boxes.reshape([1, -1, 2, 2]) * [height_scale, width_scale] + 0.5  # Shift to center of pixel
         return self.normalize_coords(boxes, self.image_input_shape[1], self.image_input_shape[0])  # [TODO] 0, 1 ???
 
-    def __call__(self, image, points=None, labels=None, boxes=None, masks=None, mask_threshold=0):
-        # points, labels, boxes, mask_inputs, return_logits, mask_threshold = np.array([[400, 400]]), np.array([1]), None, None, False, 0.0
-        return_logits = False
-
+    def __call__(self, image, points=None, labels=None, boxes=None, masks=None, mask_threshold=0, return_logits=False):
         orign_height, orign_width = image.shape[:2]
         scale = min(self.image_input_shape[0] / orign_height, self.image_input_shape[1] / orign_width)
         scaled_height, scaled_width = int(orign_height * scale + 0.5), int(orign_width * scale + 0.5)

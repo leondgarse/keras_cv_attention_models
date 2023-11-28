@@ -2,7 +2,8 @@
 ***
 
 ## Summary
-  - [Github facebookresearch/segment-anything(https://github.com/facebookresearch/segment-anything)
+  - Paper [PDF 2304.02643 Segment Anything](https://arxiv.org/abs/2304.02643)
+  - [Github facebookresearch/segment-anything](https://github.com/facebookresearch/segment-anything)
   - [Github ChaoningZhang/MobileSAM](https://github.com/ChaoningZhang/MobileSAM)
   - Model weights ported from [Github ChaoningZhang/MobileSAM](https://github.com/ChaoningZhang/MobileSAM).
 ## Models
