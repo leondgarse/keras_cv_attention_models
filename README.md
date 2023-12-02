@@ -641,17 +641,18 @@
     mm.fit(xx, yy, epochs=2, batch_size=4)
     ```
 ## Using keras core as backend
-  - **[Experimental] Set os environment `export KECAM_BACKEND='keras_core'` to enable this keras_core backend.**
+  - **[Experimental] Set os environment `export KECAM_BACKEND='keras_core'` to enable this `keras_core` backend. Not using `keras>3.0`, as still not compiling with TensorFlow==2.15.0**
   - `keras-core` has its own backends, supporting tensorflow / torch / jax, by editting `~/.keras/keras.json` `"backend"` value.
   - Currently most recognition models except `HaloNet` / `BotNet` supported, also `GPT2` / `LLaMA2` supported.
   - **Basic model build and prediction**.
     ```py
     !pip install sentencepiece  # required for llama2 tokenizer
     os.environ['KECAM_BACKEND'] = 'keras_core'
-    from keras_cv_attention_models import llama2
-    # Using TensorFlow backend  <-- Note: this line is printed only when using keras_core as backend
-
-    mm = llama2.LLaMA2_42M()
+    os.environ['KERAS_BACKEND'] = 'jax'
+    import kecam
+    print(f"{kecam.backend.backend() = }")
+    # kecam.backend.backend() = 'jax'
+    mm = kecam.llama2.LLaMA2_42M()
     # >>>> Load pretrained from: ~/.keras/models/llama2_42m_tiny_stories.h5
     mm.run_prediction('As evening fell, a maiden stood at the edge of a wood. In her hands,')
     # >>>> Load tokenizer from file: ~/.keras/datasets/llama_tokenizer.model

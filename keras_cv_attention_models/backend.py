@@ -1,10 +1,14 @@
 import os
 
-is_tensorflow_backend, is_torch_backend, is_keras_core_backend = False, False, False
+is_tensorflow_backend, is_torch_backend, is_jax_backend, is_keras_core_backend = False, False, False, False
 if "tensorflow" in os.getenv("KECAM_BACKEND", "tensorflow").lower():
     is_tensorflow_backend = True
 elif "torch" in os.getenv("KECAM_BACKEND", "tensorflow").lower():
     is_torch_backend = True
+elif "jax" in os.getenv("KECAM_BACKEND", "tensorflow").lower():
+    is_jax_backend = True
+    is_keras_core_backend = True
+    os.environ["KERAS_BACKEND"] = "jax"
 else:
     is_keras_core_backend = True
 
