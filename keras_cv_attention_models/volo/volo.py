@@ -287,7 +287,7 @@ class ClassToken(layers.Layer):
         return functional.concat([class_tokens, inputs], axis=1)
 
     def compute_output_shape(self, input_shape):
-        return (input_shape[0], input_shape[1] + self.num_tokens, input_shape[2])
+        return (input_shape[0], None if input_shape[1] is None else (input_shape[1] + self.num_tokens), input_shape[2])
 
     def get_config(self):
         base_config = super().get_config()

@@ -2,21 +2,21 @@ import numpy as np
 import keras_cv_attention_models
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
-from keras_cv_attention_models.attention_layers import BiasLayer, PureWeigths, conv2d_no_bias, layer_norm
+from keras_cv_attention_models.attention_layers import BiasLayer, PureWeigths, batchnorm_with_activation, conv2d_no_bias, layer_norm
 from keras_cv_attention_models.models import register_model, FakeModelWrapper
-from keras_cv_attention_models.segment_anything import mask_decoder
 from keras_cv_attention_models.download_and_load import reload_model_weights
+from keras_cv_attention_models.segment_anything import image_encoders, mask_decoder
 
 LAYER_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
-    "bboxes_encoder": {"mobile_sam_5m": "19e3fcdcdd927ecc67943a3062569d5f"},
-    "empty_mask": {"mobile_sam_5m": "304d75d6f1b2c68e8010192086c3b38d"},
-    "image_encoder": {"mobile_sam_5m": {1024: "d9e48e1b5109b8f677625454a5f9c257"}},
-    "mask_encoder": {"mobile_sam_5m": "2b20607797a03734b2002ae2e5256f62"},
-    "points_encoder": {"mobile_sam_5m": "bbc785ad50937da738259d3ddf64b1f3"},
-    "positional_embedding": {"mobile_sam_5m": "2d97b3faee52a82551e6d2d6562b394e"},
+    "bboxes_encoder": {"mobile_sam_5m": "19e3fcdcdd927ecc67943a3062569d5f", "efficientvit_l0": "a305c26af66a2c07052545341dcd8163"},
+    "empty_mask": {"mobile_sam_5m": "304d75d6f1b2c68e8010192086c3b38d", "efficientvit_l0": "f654dc9d837e6c69902ae744ace6f779"},
+    "mask_encoder": {"mobile_sam_5m": "2b20607797a03734b2002ae2e5256f62", "efficientvit_l0": "8c9528749eb302b9f157e2eecc19807d"},
+    "points_encoder": {"mobile_sam_5m": "bbc785ad50937da738259d3ddf64b1f3", "efficientvit_l0": "a5c1cd344447c43203ee4fbd812eda64"},
+    "positional_embedding": {"mobile_sam_5m": "2d97b3faee52a82551e6d2d6562b394e", "efficientvit_l0": "a57e860ed79b0c18bb9975eed2951ccb"},
 }
+
 
 """ PromptEncoder """
 
@@ -42,7 +42,7 @@ def BboxesEncoder(embed_dims=256, pretrained="mobile_sam_5m", name="bboxes_encod
 def MaskEncoder(embed_dims=256, mask_in_chans=16, activation="gelu", pretrained="mobile_sam_5m", name="mask_encoder"):
     model = models.Sequential(
         [
-            layers.Input([None, None, 1]),
+            layers.Input(backend.align_input_shape_by_image_data_format([None, None, 1])),
             layers.Conv2D(mask_in_chans // 4, kernel_size=2, strides=2, name="1_conv"),
             layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, name="1_ln"),
             layers.Activation(activation=activation),
@@ -73,49 +73,30 @@ def PositionEmbeddingRandom(embed_dims=256, scale=1.0, pretrained="mobile_sam_5m
     return model
 
 
-""" ImageEncoder """
-
-
-def ImageEncoder(input_shape=(1024, 1024, 3), embed_dims=256, pretrained="mobile_sam_5m", name="image_encoder"):
-    base_window_ration = input_shape[0] / 32 / 7  # keep window_size=[7, 7, 14, 7]
-    window_ratios = [base_window_ration * 8, base_window_ration * 4, base_window_ration, base_window_ration * 2]
-    image_encoder = keras_cv_attention_models.models.TinyViT_5M(
-        input_shape=input_shape, window_ratios=window_ratios, strides=[1, 2, 2, 1], num_classes=0, pretrained=None
-    )
-    inputs = image_encoder.inputs[0]
-    nn = image_encoder.outputs[0]
-    nn = conv2d_no_bias(nn, embed_dims, kernel_size=1, use_bias=False, name="neck_1_")
-    nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="neck_1_")
-    nn = conv2d_no_bias(nn, embed_dims, kernel_size=3, padding="SAME", use_bias=False, name="neck_2_")
-    nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="neck_2_")
-
-    model = models.Model(inputs, nn, name=name)
-    reload_model_weights(model, PRETRAINED_DICT, "segment_anything", pretrained)
-    return model
-
-
 """ SAM """
 
 
+@register_model
 class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda class methods
     def __init__(self, embed_dims=256, image_input_shape=(1024, 1024), mask_in_chans=16, pretrained="mobile_sam_5m", name="sam"):
         self.image_input_shape = image_input_shape[:2] if isinstance(image_input_shape, (list, tuple)) else image_input_shape
         self.embed_dims = embed_dims
 
-        self.image_encoder = ImageEncoder(input_shape=[*image_input_shape, 3], embed_dims=embed_dims, pretrained=pretrained)
+        self.image_encoder = image_encoders.get_image_encoder(pretrained, input_shape=[*image_input_shape, 3], embed_dims=embed_dims)
+        self.image_embedding_shape = self.image_encoder.output_shape[1:-1] if image_data_format() == "channels_last" else self.image_encoder.output_shape[2:]
+
         self.points_encoder = PointsEncoder(embed_dims=embed_dims, pretrained=pretrained)
         self.bboxes_encoder = BboxesEncoder(embed_dims=embed_dims, pretrained=pretrained)
         self.mask_encoder = MaskEncoder(embed_dims=embed_dims, mask_in_chans=mask_in_chans, pretrained=pretrained)
         self.empty_masks_model = EmptyMask(embed_dims=embed_dims, pretrained=pretrained)
         self.positional_embedding = PositionEmbeddingRandom(embed_dims=embed_dims, pretrained=pretrained)
-        self.mask_decoder = mask_decoder.MaskDecoder(embed_dims=embed_dims, pretrained=pretrained)
+        self.mask_decoder = mask_decoder.MaskDecoder(input_shape=[*self.image_embedding_shape, embed_dims], pretrained=pretrained)
         self.models = [self.image_encoder, self.points_encoder, self.bboxes_encoder, self.mask_encoder, self.empty_masks_model, self.positional_embedding]
         super().__init__(self.models, name=name)
 
         self.positional_encoding_gaussian_matrix = self.positional_embedding.get_layer("positional_embedding").get_weights()[0]
-        self.image_embedding_shape = self.image_encoder.output_shape[1:-1] if image_data_format() == "channels_last" else self.image_encoder.output_shape[2:]
-        self.empty_points = np.empty([1, 0, self.embed_dims]).astype("float32")
-        self.empty_bboxes = np.empty([1, 0, self.embed_dims]).astype("float32")
+        self.empty_points = functional.convert_to_tensor(np.empty([1, 0, self.embed_dims]).astype("float32"))
+        self.empty_bboxes = functional.convert_to_tensor(np.empty([1, 0, self.embed_dims]).astype("float32"))
         self.empty_masks = self.empty_masks_model.get_layer("empty_masks").get_weights()[0]
 
         grid = np.ones(self.image_embedding_shape, dtype="float32")
@@ -134,7 +115,8 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
         mean, std = np.array([123.675, 116.28, 103.53]).astype("float32"), np.array([58.395, 57.12, 57.375]).astype("float32")
         normed_image = (image - mean) / std
         pad_height, pad_width = self.image_input_shape[0] - normed_image.shape[0], self.image_input_shape[1] - normed_image.shape[1]
-        return np.pad(normed_image, [[0, pad_height], [0, pad_width], [0, 0]])[None] if pad_height > 0 or pad_width > 0 else normed_image[None]
+        padded_image = np.pad(normed_image, [[0, pad_height], [0, pad_width], [0, 0]])[None] if pad_height > 0 or pad_width > 0 else normed_image[None]
+        return padded_image if image_data_format() == "channels_last" else padded_image.transpose([0, 3, 1, 2])
 
     def preprocess_points(self, points, height_scale, width_scale, pad=False):
         points = points.reshape([1, -1, 2]) * [height_scale, width_scale] + 0.5  # Shift to center of pixel
@@ -154,6 +136,8 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
 
         """ prompt_encoder """
         image_embeddings = self.image_encoder(self.preprocess_image(image, scaled_height, scaled_width))
+        image_embeddings = image_embeddings if image_data_format() == "channels_last" else functional.transpose(image_embeddings, [0, 2, 3, 1])
+
         boxes_inputs = self.bboxes_encoder(self.preprocess_boxes(boxes, height_scale, width_scale)) if boxes is not None else self.empty_bboxes
         if points is not None and labels is not None:
             pad = boxes is None
@@ -180,10 +164,14 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
         return masks, iou_predictions, low_res_masks
 
     @staticmethod
-    def show(image, masks, iou_predictions, points=None, labels=None, boxes=None, save_path=None, base_size=10, random_color=False, marker_size=375):
+    def show(image, masks, iou_predictions=None, points=None, labels=None, boxes=None, save_path=None, base_size=10, random_color=False, marker_size=375):
         import matplotlib.pyplot as plt
 
-        total = iou_predictions.shape[-1]
+        reduce_array_batch_dim = lambda value, ndim: (np.array(value)[0] if np.ndim(value) > ndim else np.array(value)) if value is not None else None
+        masks, iou_predictions = reduce_array_batch_dim(masks, ndim=3), reduce_array_batch_dim(iou_predictions, ndim=1)
+        points, labels, boxes = reduce_array_batch_dim(points, ndim=2), reduce_array_batch_dim(labels, ndim=1), reduce_array_batch_dim(boxes, ndim=2)
+
+        total = masks.shape[-1]
         fig, axes = plt.subplots(1, total, figsize=(base_size * total, base_size))
         base_color = np.array([30 / 255, 144 / 255, 255 / 255, 0.6])
         for id, ax in enumerate(axes):
@@ -191,7 +179,7 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
 
             """ show_mask """
             color = np.concatenate([np.random.random(3), np.array([0.6])], axis=0) if random_color else base_color
-            mask_image = np.expand_dims(masks[0, :, :, id], -1) * color.reshape(1, 1, -1)
+            mask_image = np.expand_dims(masks[:, :, id], -1) * color.reshape(1, 1, -1)
             ax.imshow(mask_image)
 
             """ show_points """
@@ -206,7 +194,8 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
                 weight, height = boxes[2] - boxes[0], boxes[3] - boxes[1]
                 ax.add_patch(plt.Rectangle((x0, y0), weight, height, edgecolor="green", facecolor=(0, 0, 0, 0), lw=2))
 
-            ax.set_title("Mask {}, Score: {:.3f}".format(id, iou_predictions[0, id]), fontsize=18)
+            iou_score_str = " , Score: {:.3f}".format(iou_predictions[id]) if iou_predictions is not None else ""
+            ax.set_title("Mask {}".format(id) + iou_score_str, fontsize=18 / 10 * base_size)
             ax.set_axis_off()
         if save_path is not None:
             save_path = save_path if save_path.split(".")[-1].lower() in ["jpg", "png"] else (save_path + ".jpg")

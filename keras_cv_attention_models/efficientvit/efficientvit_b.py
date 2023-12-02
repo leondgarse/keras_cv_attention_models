@@ -12,6 +12,9 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
+BATCH_NORM_EPSILON = 1e-5
+LAYER_NORM_EPSILON = 1e-5
+
 PRETRAINED_DICT = {
     "efficientvit_b0": {"imagenet": {224: "dd0104843abccee903d93c7a5f5d3174"}},
     "efficientvit_b1": {
@@ -35,20 +38,20 @@ def mb_conv(
     input_channel = inputs.shape[-1 if image_data_format() == "channels_last" else 1]
     if is_fused:
         nn = conv2d_no_bias(inputs, int(input_channel * expansion), 3, strides, padding="same", name=name and name + "expand_")
-        nn = batchnorm_with_activation(nn, activation=activation, name=name + "expand_") if use_norm else activation_by_name(nn, activation=activation)
+        nn = batchnorm_with_activation(nn, activation, epsilon=BATCH_NORM_EPSILON, name=name + "expand_") if use_norm else activation_by_name(nn, activation)
     elif expansion > 1:
         nn = conv2d_no_bias(inputs, int(input_channel * expansion), 1, strides=1, use_bias=use_bias, name=name + "expand_")
-        nn = batchnorm_with_activation(nn, activation=activation, name=name + "expand_") if use_norm else activation_by_name(nn, activation=activation)
+        nn = batchnorm_with_activation(nn, activation, epsilon=BATCH_NORM_EPSILON, name=name + "expand_") if use_norm else activation_by_name(nn, activation)
     else:
         nn = inputs
 
     if not is_fused:
         nn = depthwise_conv2d_no_bias(nn, 3, strides=strides, use_bias=use_bias, padding="same", name=name)
-        nn = batchnorm_with_activation(nn, activation=activation, name=name + "dw_") if use_norm else activation_by_name(nn, activation=activation)
+        nn = batchnorm_with_activation(nn, activation, epsilon=BATCH_NORM_EPSILON, name=name + "dw_") if use_norm else activation_by_name(nn, activation)
 
     pw_kernel_size = 3 if is_fused and expansion == 1 else 1
     nn = conv2d_no_bias(nn, output_channel, pw_kernel_size, strides=1, padding="same", use_bias=False, name=name + "pw_")
-    nn = batchnorm_with_activation(nn, activation=None, zero_gamma=True, name=name + "pw_")
+    nn = batchnorm_with_activation(nn, activation=None, epsilon=BATCH_NORM_EPSILON, zero_gamma=True, name=name + "pw_")
     nn = drop_block(nn, drop_rate=drop_rate, name=name)
     return layers.Add(name=name + "output")([inputs, nn]) if shortcut else layers.Activation("linear", name=name + "output")(nn)
 
@@ -85,15 +88,17 @@ def lite_mhsa(inputs, num_heads=8, key_dim=16, sr_ratio=5, qkv_bias=False, out_s
     query_key = query @ key
     scale = functional.reduce_sum(query_key, axis=-1, keepdims=True)
     attention_output = query_key @ value / (scale + 1e-7)  # 1e-7 for also working on float16
+    # print(f">>>> {inputs.shape = }, {emb_dim = }, {num_heads = }, {key_dim = }, {attention_output.shape = }")
 
     if image_data_format() == "channels_last":
-        output = functional.transpose(attention_output, [0, 2, 1, 3])  # [batch, q_blocks, num_heads, key_dim * attn_ratio]
+        output = functional.transpose(attention_output, [0, 2, 1, 3])  # [batch, q_blocks, num_heads * 2, key_dim]
         output = functional.reshape(output, [-1, height, width, output.shape[2] * output.shape[3]])
     else:
-        output = functional.transpose(attention_output, [0, 1, 3, 2])  # [batch, num_heads, key_dim * attn_ratio, q_blocks]
+        output = functional.transpose(attention_output, [0, 1, 3, 2])  # [batch, num_heads * 2, key_dim, q_blocks]
         output = functional.reshape(output, [-1, output.shape[1] * output.shape[2], height, width])
+    # print(f">>>> {output.shape = }")
     output = conv2d_no_bias(output, out_shape, use_bias=out_bias, name=name and name + "out_")
-    output = batchnorm_with_activation(output, activation=None, name=name and name + "out_")
+    output = batchnorm_with_activation(output, activation=None, epsilon=BATCH_NORM_EPSILON, name=name and name + "out_")
     return output
 
 
@@ -124,7 +129,7 @@ def EfficientViT_B(
 
     """ stage 0, Stem_stage """
     nn = conv2d_no_bias(inputs, stem_width, 3, strides=2, padding="same", name="stem_")
-    nn = batchnorm_with_activation(nn, activation=activation, name="stem_")
+    nn = batchnorm_with_activation(nn, activation=activation, epsilon=BATCH_NORM_EPSILON, name="stem_")
     nn = mb_conv(nn, stem_width, shortcut=True, expansion=1, is_fused=is_fused[0], activation=activation, name="stem_MB_")
 
     """ stage [1, 2, 3, 4] """
@@ -155,7 +160,7 @@ def EfficientViT_B(
     output_filters = output_filters if isinstance(output_filters, (list, tuple)) else (output_filters, 0)
     if output_filters[0] > 0:
         nn = conv2d_no_bias(nn, output_filters[0], name="features_")
-        nn = batchnorm_with_activation(nn, activation=activation, name="features_")
+        nn = batchnorm_with_activation(nn, activation=activation, epsilon=BATCH_NORM_EPSILON, name="features_")
 
     if num_classes > 0:
         nn = layers.GlobalAveragePooling2D(name="avg_pool")(nn) if len(nn.shape) == 4 else nn
@@ -163,7 +168,7 @@ def EfficientViT_B(
             nn = layers.Dropout(dropout, name="head_drop")(nn)
         if output_filters[1] > 0:
             nn = layers.Dense(output_filters[1], use_bias=False, name="pre_predictions")(nn)
-            nn = layer_norm(nn, name="pre_predictions_")
+            nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, name="pre_predictions_")
             nn = activation_by_name(nn, activation=activation, name="pre_predictions_")
         nn = layers.Dense(num_classes, dtype="float32", activation=classifier_activation, name="predictions")(nn)
     model = models.Model(inputs, nn, name=model_name)

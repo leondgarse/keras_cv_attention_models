@@ -211,8 +211,8 @@ class Shape(GraphNode):
 
 
 class Input(GraphNode):
-    def __init__(self, shape, name=None, dtype=None):
-        shape = [None, *shape]
+    def __init__(self, shape, batch_size=None, name=None, dtype=None):
+        shape = [batch_size, *shape]
         name = "input_{}".format(self.num_instances) if name is None else name
         super().__init__(shape, name=name)
         self.dtype = torch.get_default_dtype() if dtype is None else (getattr(torch, dtype) if isinstance(dtype, str) else dtype)
@@ -544,12 +544,20 @@ class Concatenate(_Merge):
 
 class BatchNormalization(Layer):
     def __init__(self, axis=1, momentum=0.9, epsilon=1e-5, center=True, gamma_initializer="ones", **kwargs):
-        self.axis, self.momentum, self.epsilon, self.center, self.gamma_initializer = axis, momentum, epsilon, center, gamma_initializer
+        self.axis, self.momentum, self._epsilon, self.center, self.gamma_initializer = axis, momentum, epsilon, center, gamma_initializer
         super().__init__(**kwargs)
+
+    @property
+    def epsilon(self):
+        return self._epsilon
+
+    @epsilon.setter
+    def epsilon(self, value):
+        self.module.eps = value
 
     def build(self, input_shape):
         self.axis = len(input_shape) + self.axis if self.axis < 0 else self.axis
-        module = nn.BatchNorm2d(num_features=input_shape[self.axis], eps=self.epsilon, momentum=1 - self.momentum, affine=self.center)
+        module = nn.BatchNorm2d(num_features=input_shape[self.axis], eps=self._epsilon, momentum=1 - self.momentum, affine=self.center)
         gamma_initializer = getattr(initializers, self.gamma_initializer)() if isinstance(self.gamma_initializer, str) else self.gamma_initializer
         module.weight.data = gamma_initializer(list(module.weight.shape))  # not using gamma_initializer(module.weight) for compiling with TF
 
@@ -564,7 +572,7 @@ class BatchNormalization(Layer):
 
     def get_config(self):
         config = super().get_config()
-        config.update({"axis": self.axis, "momentum": self.momentum, "epsilon": self.epsilon, "center": self.center})
+        config.update({"axis": self.axis, "momentum": self.momentum, "epsilon": self._epsilon, "center": self.center})
         return config
 
 
@@ -1035,13 +1043,21 @@ class _LayerNormGeneral(nn.Module):
 
 class LayerNormalization(Layer):
     def __init__(self, axis=1, epsilon=1e-5, center=True, gamma_initializer="ones", **kwargs):
-        self.axis, self.epsilon, self.center, self.gamma_initializer = axis, epsilon, center, gamma_initializer
+        self.axis, self._epsilon, self.center, self.gamma_initializer = axis, epsilon, center, gamma_initializer
         super().__init__(**kwargs)
+
+    @property
+    def epsilon(self):
+        return self._epsilon
+
+    @epsilon.setter
+    def epsilon(self, value):
+        self.module.eps = value
 
     def build(self, input_shape):
         self.axis = len(input_shape) + self.axis if self.axis < 0 else self.axis
         if self.axis == len(input_shape) - 1 and self.center:
-            self.module = nn.LayerNorm(normalized_shape=input_shape[self.axis], eps=self.epsilon)
+            self.module = nn.LayerNorm(normalized_shape=input_shape[self.axis], eps=self._epsilon)
             gamma_initializer = getattr(initializers, self.gamma_initializer)() if isinstance(self.gamma_initializer, str) else self.gamma_initializer
             self.module.weight.data = gamma_initializer(list(self.module.weight.shape))
             # Default nn.LayerNorm is apllied on last dimension
@@ -1054,14 +1070,14 @@ class LayerNormalization(Layer):
             normalized_shape = input_shape[self.axis]
             if self.axis != len(input_shape) - 1:
                 normalized_shape = [normalized_shape] + [1] * (len(input_shape) - self.axis - 1)
-            self.module = _LayerNormGeneral(normalized_shape=normalized_shape, normalized_dim=self.axis, eps=self.epsilon, bias=self.center)
+            self.module = _LayerNormGeneral(normalized_shape=normalized_shape, normalized_dim=self.axis, eps=self._epsilon, bias=self.center)
             gamma_initializer = getattr(initializers, self.gamma_initializer)() if isinstance(self.gamma_initializer, str) else self.gamma_initializer
             self.module.weight.data = gamma_initializer(list(self.module.weight.shape))  # not using gamma_initializer(self.module.weight) for compiling with TF
         super().build(input_shape)
 
     def get_config(self):
         config = super().get_config()
-        config.update({"axis": self.axis, "epsilon": self.epsilon, "center": self.center})
+        config.update({"axis": self.axis, "epsilon": self._epsilon, "center": self.center})
         return config
 
     def get_weights_channels_last(self):
