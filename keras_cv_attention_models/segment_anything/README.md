@@ -68,14 +68,14 @@
   masks, iou_predictions, low_res_masks = mm(image, point_coords, point_labels)
 
   """ Verification """
-  print(f"{np.allclose(torch_out[0].transpose([1, 2, 0]), masks[0, :, :, 1:]) = }")
-  # np.allclose(torch_out[0].transpose([1, 2, 0]), masks[0, :, :, 1:]) = True
+  print(f"{np.allclose(torch_out[0], masks[1:, :, :]) = }")
+  # np.allclose(torch_out[0], masks[1:, :, :]) = True
   print(f"{torch_out[1] = }")
   # torch_out[1] = array([0.8689907 , 0.7555798 , 0.99140215], dtype=float32)
-  print(f"{iou_predictions[0, 1:] = }")
-  # iou_predictions[0, 1:] = array([0.868991  , 0.7555795 , 0.99140203], dtype=float32)
-  print(f"{np.allclose(torch_out[2].transpose([1, 2, 0]), low_res_masks[0, :, :, 1:], atol=1e-4) = }")
-  # np.allclose(torch_out[2].transpose([1, 2, 0]), low_res_masks[0, :, :, 1:], atol=1e-4) = True
+  print(f"{iou_predictions[1:] = }")
+  # iou_predictions[1:] = array([0.868991  , 0.7555795 , 0.99140203], dtype=float32)
+  print(f"{np.allclose(torch_out[2], low_res_masks[1:, :, :], atol=1e-4) = }")
+  # np.allclose(torch_out[2], low_res_masks[1:, :, :], atol=1e-4) = True
   ```
   **EfficientViT-L0-SAM**
   ```py
@@ -105,13 +105,13 @@
       masks, iou_predictions, low_res_masks = mm(image, point_coords, point_labels)
 
   """ Verification """
-  same_masks = (torch_out[0].transpose([1, 2, 0]) == masks[0, :, :, 1:]).sum() / np.prod(torch_out[0].shape)
+  same_masks = (torch_out[0] == masks[1:, :, :]).sum() / np.prod(torch_out[0].shape)
   print("same masks percentage: {:.6f}%".format(same_masks * 100))
   # same masks percentage: 99.999619%
   print(f"{torch_out[1] = }")
   # torch_out[1] = array([0.6856826 , 0.998912  , 0.96785474], dtype=float32)
-  print(f"{iou_predictions[0, 1:] = }")
-  # iou_predictions[0, 1:] = array([0.68567175, 0.99891114, 0.96785533], dtype=float32)
-  print(f"{np.allclose(torch_out[2].transpose([1, 2, 0]), low_res_masks[0, :, :, 1:], atol=1e-3) = }")
-  # np.allclose(torch_out[2].transpose([1, 2, 0]), low_res_masks[0, :, :, 1:], atol=1e-3) = True
+  print(f"{iou_predictions[1:] = }")
+  # iou_predictions[1:] = array([0.68567175, 0.99891114, 0.96785533], dtype=float32)
+  print(f"{np.allclose(torch_out[2], low_res_masks[1:, :, :], atol=1e-3) = }")
+  # np.allclose(torch_out[2], low_res_masks[1:, :, :], atol=1e-3) = True
   ```

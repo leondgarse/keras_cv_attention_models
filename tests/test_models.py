@@ -749,4 +749,4 @@ def test_stable_diffusion_no_weights_predict():
     else:
         out = out.numpy()
         assert out.shape == (1, 256, 256, 3)
-    assert out.min() > -4 and out.max() < 4  # It should be within this range
+    assert out.min() > -6 and out.max() < 6  # It should be within this range

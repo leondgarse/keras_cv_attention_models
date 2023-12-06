@@ -185,7 +185,7 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
         masks = masks if return_logits else (masks > mask_threshold)
 
         # For a single image, batch_size is always 1. Converting masks `[1, height, width, 4]` -> `[4, height, width]`
-        masks, iou_predictions, low_res_masks = masks[0].transpose([2, 0, 1]), iou_predictions[0], low_res_masks[0]
+        masks, iou_predictions, low_res_masks = masks[0].transpose([2, 0, 1]), iou_predictions[0], low_res_masks[0].transpose([2, 0, 1])
         return masks, iou_predictions, low_res_masks
 
     @staticmethod
