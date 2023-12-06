@@ -97,6 +97,7 @@
   - [GPT2](#gpt2)
   - [LLaMA2](#llama2)
 - [Stable Diffusion](#stable-diffusion)
+- [Segment Anything](#segment-anything)
 - [Licenses](#licenses)
 - [Citing](#citing)
 
@@ -1646,7 +1647,7 @@
 ***
 
 # Stable Diffusion
-  - [Keras Stable Diffusion](keras_cv_attention_models/stable_diffusion) includes implementation of [PDF 2112.10752 High-Resolution Image Synthesis with Latent Diffusion Models](https://arxiv.org/pdf/2112.10752.pdf). weights ported from [Github runwayml/stable-diffusion](https://github.com/runwayml/stable-diffusion) `sd-v1-5.ckpt`.
+  - [Keras Stable Diffusion](keras_cv_attention_models/stable_diffusion) includes implementation of [PDF 2112.10752 High-Resolution Image Synthesis with Latent Diffusion Models](https://arxiv.org/pdf/2112.10752.pdf). Weights ported from [Github runwayml/stable-diffusion](https://github.com/runwayml/stable-diffusion) `sd-v1-5.ckpt`.
 
   | Model               | Params | FLOPs   | Input               | Download            |
   | ------------------- | ------ | ------- | ------------------- | ------------------- |
@@ -1654,6 +1655,15 @@
   | Encoder             | 34.16M | 559.6G  | [None, 512, 512, 3] | [encoder_v1_5.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/stable_diffusion/encoder_v1_5.h5) |
   | UNet                | 859.5M | 404.4G  | [None, 64, 64, 4]   | [unet_v1_5.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/stable_diffusion/unet_v1_5.h5) |
   | Decoder             | 49.49M | 1259.5G | [None, 64, 64, 4]   | [decoder_v1_5.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/stable_diffusion/decoder_v1_5.h5) |
+***
+
+# Segment Anything
+  - [Keras Segment Anything](keras_cv_attention_models/segment_anything) includes implementation of [PDF 2304.02643 Segment Anything](https://arxiv.org/abs/2304.02643).
+
+  | Model               | Params | FLOPs | Input | COCO val mIoU | Download |
+  | ------------------- | ------ | ----- | ----- | ------------- | -------- |
+  | MobileSAM           | 5.75M  | 39.4G | 1024  | 72.8          | [multiple mobile_sam_5m_*](https://github.com/leondgarse/keras_cv_attention_models/releases/tag/segment_anything)  |
+  | EfficientViT_SAM_L0 | 30.73M | 35.4G | 512   | 74.45         | [multiple efficientvit_l0_*](https://github.com/leondgarse/keras_cv_attention_models/releases/tag/segment_anything)  |
 ***
 
 # Licenses

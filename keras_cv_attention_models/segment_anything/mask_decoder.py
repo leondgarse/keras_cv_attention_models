@@ -9,9 +9,10 @@ from keras_cv_attention_models.attention_layers import (
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
-LAYER_NORM_EPSILON = 1e-6
+LAYER_NORM_EPSILON = 1e-5
 PRETRAINED_DICT = {
-    "mask_decoder": {"mobile_sam_5m": "212d83fc04a1250d68db83ba9a33e2e2", "efficientvit_l0": "9356c6420534bd09cdce450e2584d3c9"},
+    "mobile_sam_5m_mask_decoder": {"sam": "212d83fc04a1250d68db83ba9a33e2e2"},
+    "efficientvit_l0_mask_decoder": {"sam": "9356c6420534bd09cdce450e2584d3c9"},
 }
 
 
@@ -136,7 +137,7 @@ def MaskDecoder(input_shape=(64, 64, 256), num_mask_tokens=4, activation="gelu",
     # print(f"{hyper_in.shape = }, {upscaled_image_embedding.shape = }")
     masks = hyper_in @ upscaled_image_embedding  # [batch, 4, 32] @ [batch, 32, height * width] -> [batch, 4, height * width]
     # print(f"{masks.shape = }, {pre_shape = }")
-    # [batch, 4, height * width] -> [batch, 4, height, width] -> [batch, height, width, 4], outputs channels_last also for PyTorch backend
+    # [batch, 4, height * width] -> [batch, 4, height, width] -> [batch, height, width, 4], outputs channels_first also for PyTorch backend for resizing later
     masks = layers.Permute([2, 3, 1])(functional.reshape(masks, [-1, masks.shape[1], *pre_shape]))
 
     model = models.Model([image_embedding, point_embedding, image_position], [masks, iou_pred], name=name)

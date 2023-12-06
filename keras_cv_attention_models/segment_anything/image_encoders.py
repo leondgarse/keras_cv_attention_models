@@ -7,7 +7,8 @@ LAYER_NORM_EPSILON = 1e-6
 BATCH_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
-    "image_encoder": {"mobile_sam_5m": {1024: "d9e48e1b5109b8f677625454a5f9c257"}, "efficientvit_l0": {1024: "d91f40cf7f46b375a859bef4b2c87bdb"}},
+    "mobile_sam_5m_image_encoder": {"sam": {1024: "d9e48e1b5109b8f677625454a5f9c257"}},
+    "efficientvit_l0_image_encoder": {"sam": {1024: "d91f40cf7f46b375a859bef4b2c87bdb"}},
 }
 
 IMAGE_ENCODERS = {
@@ -18,21 +19,21 @@ IMAGE_ENCODERS = {
 }
 
 
-def get_image_encoder(model="mobile_sam_5m", input_shape=(1024, 1024, 3), embed_dims=256):
+def get_image_encoder(model="mobile_sam_5m", input_shape=(1024, 1024, 3), embed_dims=256, pretrained="sam", name="image_encoder"):
     if not isinstance(model, str):
         return model
 
     simple_model_name = model.lower().replace("-", "").replace("_", "")
     model_name = IMAGE_ENCODERS[simple_model_name]
     print(">>>> image_encoder model name:", model_name)
-    return globals()[model_name](input_shape=input_shape, embed_dims=embed_dims)
+    return globals()[model_name](input_shape=input_shape, embed_dims=embed_dims, pretrained=pretrained, name=name)
 
 
 """ MobileSAM """
 
 
-def ImageEncoder_TinyViT_5M(input_shape=(1024, 1024, 3), embed_dims=256, pretrained="mobile_sam_5m", name="image_encoder"):
-    base_window_ration = input_shape[0] / 32 / 7  # keep window_size=[7, 7, 14, 7]
+def ImageEncoder_TinyViT_5M(input_shape=(1024, 1024, 3), embed_dims=256, pretrained="sam", name="mobile_sam_5m_image_encoder"):
+    base_window_ration = input_shape[1] / 32 / 7  # keep window_size=[7, 7, 14, 7]
     window_ratios = [base_window_ration * 8, base_window_ration * 4, base_window_ration, base_window_ration * 2]
     backbone = keras_cv_attention_models.models.TinyViT_5M(
         input_shape=input_shape, window_ratios=window_ratios, strides=[1, 2, 2, 1], num_classes=0, pretrained=None
@@ -53,7 +54,7 @@ def ImageEncoder_TinyViT_5M(input_shape=(1024, 1024, 3), embed_dims=256, pretrai
 
 
 def ImageEncoder_EfficientViT_L0(
-    input_shape=(1024, 1024, 3), embed_dims=256, middle_depth=4, activation="gelu/app", pretrained="efficientvit_l0", name="image_encoder"
+    input_shape=(512, 512, 3), embed_dims=256, middle_depth=4, activation="gelu/app", pretrained="sam", name="efficientvit_l0_image_encoder"
 ):
     from keras_cv_attention_models.efficientvit import efficientvit_b
 
@@ -68,13 +69,13 @@ def ImageEncoder_EfficientViT_L0(
 
     """ In """
     merged_features = []
-    middle_size = features[-2].output.shape[1:-1] if image_data_format() == "channels_last" else features[-2].output.shape[2:]
+    # middle_size = features[-2].output.shape[1:-1] if image_data_format() == "channels_last" else features[-2].output.shape[2:]
     for id, nn in enumerate([ii.output for ii in features[-3:]]):
         nn = conv2d_no_bias(nn, embed_dims, name="features_{}_".format(id + 1))
         nn = batchnorm_with_activation(nn, activation=None, epsilon=BATCH_NORM_EPSILON, name="features_{}_".format(id + 1))
         cur_height, cur_width = nn.shape[1:-1] if image_data_format() == "channels_last" else nn.shape[2:]
-        if id != 1:
-            nn = functional.resize(nn, middle_size, method="bicubic", antialias=False)  # Downsample or Upsample 2
+        if cur_height != 64 or cur_width != 64:
+            nn = functional.resize(nn, [64, 64], method="bicubic", antialias=False)  # shape fixed as [64, 64]
         merged_features.append(nn)
 
     """ Middle """

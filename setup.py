@@ -22,7 +22,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/leondgarse/keras_cv_attention_models",
     author="Leondgarse",
-    author_email="leondgarse@google.com",
+    author_email="leondgarse@gmail.com",
     classifiers=[
         # How mature is this project? Common values are
         #   3 - Alpha

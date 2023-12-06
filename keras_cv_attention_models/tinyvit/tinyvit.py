@@ -35,9 +35,9 @@ def tiny_vit_block(inputs, window_size=7, num_heads=4, mlp_ratio=4, layer_scale=
 
     """ attention """
     nn = inputs if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(inputs)  # channels_first -> channels_last
-    nn = layer_norm(nn, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "attn_")
+    attention_block = lambda xx, **kwargs: mhsa_with_multi_head_position(layer_norm(xx, epsilon=LAYER_NORM_EPSILON, axis=-1, name=name + "attn_"), **kwargs)
     nn = window_attention(
-        nn, window_size, num_heads=num_heads, attention_block=mhsa_with_multi_head_position, use_bn=False, qkv_bias=True, out_bias=True, name=name + "attn_"
+        nn, window_size, num_heads=num_heads, attention_block=attention_block, use_bn=False, qkv_bias=True, out_bias=True, name=name + "attn_"
     )
     nn = nn if image_data_format() == "channels_last" else layers.Permute([3, 1, 2])(nn)  # channels_last, channels_first
     attn_out = add_with_layer_scale_and_drop_block(inputs, nn, layer_scale=layer_scale, drop_rate=drop_rate, name=name + "attn_")
