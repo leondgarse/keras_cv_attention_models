@@ -1663,7 +1663,7 @@
   | Model               | Params | FLOPs | Input | COCO val mIoU | Download |
   | ------------------- | ------ | ----- | ----- | ------------- | -------- |
   | MobileSAM           | 5.75M  | 39.4G | 1024  | 72.8          | [multiple mobile_sam_5m_*](https://github.com/leondgarse/keras_cv_attention_models/releases/tag/segment_anything)  |
-  | EfficientViT_SAM_L0 | 30.73M | 35.4G | 512   | 74.45         | [multiple efficientvit_l0_*](https://github.com/leondgarse/keras_cv_attention_models/releases/tag/segment_anything)  |
+  | EfficientViT_SAM_L0 | 30.73M | 35.4G | 512   | 74.45         | [multiple efficientvit_sam_l0_*](https://github.com/leondgarse/keras_cv_attention_models/releases/tag/segment_anything)  |
 ***
 
 # Licenses

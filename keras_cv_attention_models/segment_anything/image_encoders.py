@@ -8,7 +8,7 @@ BATCH_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
     "mobile_sam_5m_image_encoder": {"sam": {1024: "d9e48e1b5109b8f677625454a5f9c257"}},
-    "efficientvit_l0_image_encoder": {"sam": {1024: "d91f40cf7f46b375a859bef4b2c87bdb"}},
+    "efficientvit_sam_l0_image_encoder": {"sam": {1024: "d91f40cf7f46b375a859bef4b2c87bdb"}},
 }
 
 IMAGE_ENCODERS = {
@@ -54,7 +54,7 @@ def ImageEncoder_TinyViT_5M(input_shape=(1024, 1024, 3), embed_dims=256, pretrai
 
 
 def ImageEncoder_EfficientViT_L0(
-    input_shape=(512, 512, 3), embed_dims=256, middle_depth=4, activation="gelu/app", pretrained="sam", name="efficientvit_l0_image_encoder"
+    input_shape=(512, 512, 3), embed_dims=256, middle_depth=4, activation="gelu/app", pretrained="sam", name="efficientvit_sam_l0_image_encoder"
 ):
     from keras_cv_attention_models.efficientvit import efficientvit_b
 

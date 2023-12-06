@@ -15,11 +15,11 @@ PRETRAINED_DICT = {
     "mobile_sam_5m_mask_encoder": {"sam": "2b20607797a03734b2002ae2e5256f62"},
     "mobile_sam_5m_points_encoder": {"sam": "bbc785ad50937da738259d3ddf64b1f3"},
     "mobile_sam_5m_positional_embedding": {"sam": "2d97b3faee52a82551e6d2d6562b394e"},
-    "efficientvit_l0_bboxes_encoder": {"sam": "a305c26af66a2c07052545341dcd8163"},
-    "efficientvit_l0_empty_mask": {"sam": "f654dc9d837e6c69902ae744ace6f779"},
-    "efficientvit_l0_mask_encoder": {"sam": "8c9528749eb302b9f157e2eecc19807d"},
-    "efficientvit_l0_points_encoder": {"sam": "a5c1cd344447c43203ee4fbd812eda64"},
-    "efficientvit_l0_positional_embedding": {"sam": "a57e860ed79b0c18bb9975eed2951ccb"},
+    "efficientvit_sam_l0_bboxes_encoder": {"sam": "a305c26af66a2c07052545341dcd8163"},
+    "efficientvit_sam_l0_empty_mask": {"sam": "f654dc9d837e6c69902ae744ace6f779"},
+    "efficientvit_sam_l0_mask_encoder": {"sam": "8c9528749eb302b9f157e2eecc19807d"},
+    "efficientvit_sam_l0_points_encoder": {"sam": "a5c1cd344447c43203ee4fbd812eda64"},
+    "efficientvit_sam_l0_positional_embedding": {"sam": "a57e860ed79b0c18bb9975eed2951ccb"},
 }
 
 
@@ -147,10 +147,11 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
         height_scale, width_scale = scaled_height / orign_height, scaled_width / orign_width
         # print(f"{scaled_height = }, {scaled_width = }, {height_scale = }, {width_scale = }")
 
-        """ prompt_encoder """
+        """ image_encoder """
         image_embeddings = self.image_encoder(self.preprocess_image(image))
         image_embeddings = image_embeddings if image_data_format() == "channels_last" else functional.transpose(image_embeddings, [0, 2, 3, 1])
 
+        """ prompt_encoder """
         if boxes is not None:
             boxes = np.array(boxes, dtype="float32").reshape([-1, 2, 2])
             boxes = self.coords_scale_and_norm(boxes, height_scale, width_scale, scaled_height, scaled_width)
@@ -178,7 +179,7 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
         low_res_masks = low_res_masks.cpu().numpy() if backend.is_torch_backend else low_res_masks.numpy()
         iou_predictions = iou_predictions.cpu().numpy() if backend.is_torch_backend else iou_predictions.numpy()
 
-        """ Remove padding and resize masks to the original image size. """
+        """ Remove padding and resize masks to the original image size """
         masks = backend.numpy_image_resize(low_res_masks, self.prompt_mask_shape, method="bilinear")
         masks = masks[:, :scaled_height, :scaled_width] if image_data_format() == "channels_last" else masks[:, :, :scaled_height, :scaled_width]
         masks = backend.numpy_image_resize(masks, [orign_height, orign_width], method="bilinear")
@@ -189,7 +190,7 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
         return masks, iou_predictions, low_res_masks
 
     @staticmethod
-    def show(image, masks, iou_predictions=None, points=None, labels=None, boxes=None, save_path=None, base_size=10, random_color=False, marker_size=375):
+    def show(image, masks, iou_predictions=None, points=None, labels=None, boxes=None, save_path=None, base_size=10, random_color=False):
         import matplotlib.pyplot as plt
 
         to_array_reshape = lambda value, shape: np.array(value, dtype="float32").reshape(shape) if value is not None else None
@@ -199,6 +200,7 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
 
         total = masks.shape[0]
         fig, axes = plt.subplots(1, total, figsize=(base_size * total, base_size))
+        marker_size, fontsize = 375 / 10 * base_size, 18 / 10 * base_size
         base_color = np.array([30 / 255, 144 / 255, 255 / 255, 0.6])
         for id, ax in enumerate(axes):
             ax.imshow(image)
@@ -223,7 +225,7 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
                     ax.add_patch(plt.Rectangle((left, top), right - left, bottom - top, edgecolor="green", facecolor=(0, 0, 0, 0), lw=2))
 
             iou_score_str = " , Score: {:.3f}".format(iou_predictions[id]) if iou_predictions is not None else ""
-            ax.set_title("Mask {}".format(id) + iou_score_str, fontsize=18 / 10 * base_size)
+            ax.set_title("Mask {}".format(id) + iou_score_str, fontsize=fontsize)
             ax.set_axis_off()
         if save_path is not None:
             save_path = save_path if save_path.split(".")[-1].lower() in ["jpg", "png"] else (save_path + ".jpg")
@@ -238,7 +240,7 @@ def MobileSAM(image_shape=(1024, 1024), pretrained="sam", name="mobile_sam_5m", 
 
 
 @register_model
-def EfficientViT_SAM_L0(image_shape=(512, 512), pretrained="sam", name="efficientvit_l0", **kwargs):
+def EfficientViT_SAM_L0(image_shape=(512, 512), pretrained="sam", name="efficientvit_sam_l0", **kwargs):
     mask_decoder.LAYER_NORM_EPSILON = 1e-6
     model = SAM(image_encoder="EfficientViT_L0", **locals(), **kwargs)
     mask_decoder.LAYER_NORM_EPSILON = 1e-5
