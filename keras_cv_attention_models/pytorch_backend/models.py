@@ -369,7 +369,7 @@ class Model(nn.Module, _Trainer_, _Exporter_):
     def __count__(cls):
         cls.num_instances += 1
 
-    def __init__(self, inputs, outputs, name=None, **kwargs):
+    def __init__(self, inputs=[], outputs=[], name=None, **kwargs):
         super().__init__()
         self.name = "model_{}".format(self.num_instances) if name == None else name
         self.nodes = None

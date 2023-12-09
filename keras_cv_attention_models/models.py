@@ -1,11 +1,24 @@
 import os
-import keras_cv_attention_models as __package__
+import keras_cv_attention_models as __package__  # don't show `keras_cv_attention_models` under `keras_cv_attention_models.models.`
 
 
 def register_model(model_func):
     if not hasattr(__package__.models, model_func.__name__):
         setattr(__package__.models, model_func.__name__, model_func)
     return model_func
+
+
+def torch_no_grad(func):
+    if __package__.backend.is_torch_backend:
+        import torch
+
+        def no_grad_call(*args, **kwargs):
+            with torch.no_grad():
+                return func(*args, **kwargs)
+
+        return no_grad_call
+    else:
+        return func
 
 
 class FakeModelWrapper:

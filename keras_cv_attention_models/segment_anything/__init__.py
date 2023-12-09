@@ -19,6 +19,15 @@ Call args:
   masks: NOT tested.
   mask_threshold: float value for regading model output where `masks > mask_threshold` as True.
   return_logits: boolean value if returning boolean mask or logits mask. Default False for boolean mask.
+
+Call returns:
+  masks: is all masks output, and it's `4` masks by default, specified by `MaskDecoder` parameter `num_mask_tokens`.
+      Default shape is `[4, image_height, image_width]`.
+      `masks[0]` is the output of token 0, which is said better for using if segmenting **single object with multi prompts**.
+      `masks[1:]` are intended for ambiguous input prompts, and `iou_predictions[1:]`** are the corresponding confidences,
+      which can be used for picking the highest score one from `masks[1:]`.
+  iou_predictions: is the corresponding masks confidences. Default shape is `[4]`.
+  low_res_masks: is the raw output from `MaskDecoder`. Default shape is `[4, 256, 256]`.
 """
 
 __tail_doc__ = """  image_shape: int or list of 2 int like [1024, 1024].
@@ -26,10 +35,10 @@ __tail_doc__ = """  image_shape: int or list of 2 int like [1024, 1024].
   mask_hidden_dims: `MaskEncoder` hidden channels.
   pretrained: one of `None` (random initialization) or 'sam' (pre-training on SA-1B from Segment Anything paper).
       Will try to download and load pre-trained model weights if not None.
-""" + __call_doc__ + """
+
 Returns:
     A `keras.Model` instance.
-"""
+""" + __call_doc__
 
 SAM.__doc__ = __head_doc__ + """
 Init args:
@@ -42,6 +51,8 @@ Model architectures:
   | MobileSAM           | 5.75M  | 39.4G | 1024  | 72.8          |
   | EfficientViT_SAM_L0 | 30.73M | 35.4G | 512   | 74.45         |
 """
+
+SAM.__call__.__doc__ = __call_doc__
 
 MobileSAM.__doc__ = __head_doc__ + """
 Args:

@@ -843,17 +843,6 @@ class ConvTranspose(_BaseConvPool):
         out = [self.deconv_output_length(*args) for args in zip(input_size, self.kernel_size, self.strides, self._pad, self.output_padding, self.dilation_rate)]
         return [None, self.filters, *out]
 
-    def get_weights_channels_last(self):
-        # channel_first -> channel_last
-        weights = self.get_weights()
-        weights[0] = np.transpose(weights[0], (2, 3, 1, 0))
-        return weights
-
-    def set_weights_channels_last(self, weights):
-        # channel_last -> channel_first
-        weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
-        return self.set_weights(weights)
-
     def get_config(self):
         config = super().get_config()
         config.update({"filters": self.filters, "use_bias": self.use_bias, "output_padding": self.output_padding})

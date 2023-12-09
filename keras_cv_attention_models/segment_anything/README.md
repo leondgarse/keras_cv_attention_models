@@ -11,8 +11,8 @@
 ## Models
   | Model               | Params | FLOPs | Input | COCO val mIoU | Download |
   | ------------------- | ------ | ----- | ----- | ------------- | -------- |
-  | MobileSAM           | 5.75M  | 39.4G | 1024  | 72.8          | [multiple mobile_sam_5m_*](https://github.com/leondgarse/keras_cv_attention_models/releases/tag/segment_anything)  |
-  | EfficientViT_SAM_L0 | 30.73M | 35.4G | 512   | 74.45         | [multiple efficientvit_sam_l0_*](https://github.com/leondgarse/keras_cv_attention_models/releases/tag/segment_anything)  |
+  | MobileSAM           | 5.75M  | 39.4G | 1024  | 72.8          | [mobile_sam_5m_image_encoder](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/mobile_sam_5m_image_encoder_1024_sam.h5)  |
+  | EfficientViT_SAM_L0 | 30.73M | 35.4G | 512   | 74.45         | [efficientvit_sam_l0_image_encoder](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/efficientvit_sam_l0_image_encoder_1024_sam.h5)  |
 ## Usage
   - **Basic [Mask and bbox input still not tested]**
     ```py
@@ -25,10 +25,14 @@
     ```
     ![sam_mobile_sam_5m](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/b4d5dbc7-69d9-47b1-936b-64bd00e7ec3e)
   - **Call args**
-    - **points**: combinging with `labels`, specific points coordinates as background or foreground. np.array value in shape `[None, 2]`, `2` means `[left, top]`. left / top value range in `[0, 1]` or `[0, width]` / `[0, height]`.
-    - **labels**: combinging with `points`, specific points coordinates as background or foreground. np.array value in shape `[None]`, value in `[0, 1]`, where 0 means relative point being background, and 1 foreground.
-    - **boxes**: specific box area performing segmentation. np.array value in shape `[None, 4]`, `4` means `[left, top, right, bottom]`. left and right / top and bottom value range in `[0, 1]` or `[0, width]` / `[0, height]`.
-    - **masks**: NOT tested.
+    - **`points`**: combinging with `labels`, specific points coordinates as background or foreground. np.array value in shape `[None, 2]`, `2` means `[left, top]`. left / top value range in `[0, 1]` or `[0, width]` / `[0, height]`.
+    - **`labels`**: combinging with `points`, specific points coordinates as background or foreground. np.array value in shape `[None]`, value in `[0, 1]`, where 0 means relative point being background, and 1 foreground.
+    - **`boxes`**: specific box area performing segmentation. np.array value in shape `[None, 4]`, `4` means `[left, top, right, bottom]`. left and right / top and bottom value range in `[0, 1]` or `[0, width]` / `[0, height]`.
+    - **`masks`**: NOT tested.
+  - **Outputs**
+    - **`masks`** is all masks output, and it's `4` masks by default, specified by `MaskDecoder` parameter `num_mask_tokens`. Default shape is `[4, image_height, image_width]`. **`masks[0]`** is the output of token 0, which is said better for using if segmenting **single object with multi prompts**. **`masks[1:]`** are intended for **ambiguous input prompts**, and **`iou_predictions[1:]`** are the corresponding confidences, which can be used for picking the highest score one from `masks[1:]`.
+    - **`iou_predictions`** is the corresponding masks confidences. Default shape is `[4]`.
+    - **`low_res_masks`** is the raw output from `MaskDecoder`. Default shape is `[4, 256, 256]`.
   - **Using PyTorch backend** by set `KECAM_BACKEND='torch'` environment variable.
     ```py
     os.environ['KECAM_BACKEND'] = 'torch'
@@ -38,8 +42,7 @@
     mm = segment_anything.EfficientViT_SAM_L0()
     image = test_images.dog_cat()
     points, labels = [[0.5, 0.8], [0.5, 0.2], [0.8, 0.8]], [1, 1, 0]
-    with torch.no_grad():
-        masks, iou_predictions, low_res_masks = mm(image, points, labels)
+    masks, iou_predictions, low_res_masks = mm(image, points, labels)
     fig = mm.show(image, masks, iou_predictions, points=points, labels=labels, save_path='bb.jpg')
     ```
     ![sam_efficientvit_l0](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/72135535-1bfe-4ab0-abe6-980ce50c8045)
@@ -101,8 +104,7 @@
   from keras_cv_attention_models import segment_anything
   # >>>> Using PyTorch backend
   mm = segment_anything.EfficientViT_SAM_L0()
-  with torch.no_grad():
-      masks, iou_predictions, low_res_masks = mm(image, point_coords, point_labels)
+  masks, iou_predictions, low_res_masks = mm(image, point_coords, point_labels)
 
   """ Verification """
   same_masks = (torch_out[0] == masks[1:, :, :]).sum() / np.prod(torch_out[0].shape)

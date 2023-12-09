@@ -276,12 +276,14 @@ def _save_to_layer_group_nested_(layer_weights, layer_group, compression=None):
         layer = layer_weights
         weight_names = [ww.name.encode("utf8") for ww in layer.weights]
         weight_values = layer.get_weights_channels_last() if hasattr(layer, "get_weights_channels_last") else layer.get_weights()
+        # print("{}:".format(layer.name), [ii.shape for ii in weight_values])
     else:
         weight_names = [ww.encode("utf8") for ww in layer_weights]
         weight_values = list(layer_weights.values())
 
     _save_attributes_to_hdf5_group_(layer_group, "weight_names", weight_names)
     for name, val in zip(weight_names, weight_values):
+        # print(f"{name = }, {val.shape = }")
         param_dset = layer_group.create_dataset(name, val.shape, dtype=val.dtype, compression=compression, chunks=True)
         if not val.shape:
             # scalar
@@ -305,6 +307,7 @@ def save_weights_to_hdf5_file(filepath, model, compression=None, layer_start=Non
     with h5py.File(filepath, "w") as h5_file:
         _save_attributes_to_hdf5_group_(h5_file, "layer_names", [layer_name.encode("utf8") for layer_name in weights_dict])
         h5_file.attrs["backend"] = backend.backend().encode("utf8")
+        h5_file.attrs["keras_version"] = "2.15.0".encode("utf8")  # Crucial for some weight shape transpose while using in TF >= 2.15.0
         for layer_name, layer_weights in weights_dict.items():
             layer_group = h5_file.create_group(layer_name)
             # print(layer_name, layer_weights)

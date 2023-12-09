@@ -5,7 +5,7 @@ import keras_cv_attention_models
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, initializers, image_data_format
 from keras_cv_attention_models.clip import tokenizer
-from keras_cv_attention_models.models import register_model, FakeModelWrapper
+from keras_cv_attention_models.models import register_model, FakeModelWrapper, torch_no_grad
 
 
 @register_model
@@ -113,6 +113,7 @@ class StableDiffusion(FakeModelWrapper):  # FakeModelWrapper providing save / lo
         gaussian = functional.convert_to_tensor(gaussian.astype("float32"), dtype=dtype)
         return gaussian.to(device) if backend.is_torch_backend else gaussian
 
+    @torch_no_grad
     def __call__(
         self,
         prompt,

@@ -295,6 +295,8 @@ def repeat(inputs, repeats, axis, name=None):
 
 
 def reshape(inputs, shape, name=None):
+    # is_shape_dynamic = isinstance(shape, Shape) and (None in shape[1:] or -1 in shape[1:])
+    # is_any_shape_dynamic = any([isinstance(ii, Shape) and (-1 in ii or None in ii) for ii in shape])
     if isinstance(inputs, GraphNode) and (isinstance(shape, Shape) and (None in shape[1:] or -1 in shape[1:])):  # If dynamic
         return _ReshapeDynamic(target_shape=list(shape), name=name)([inputs, shape])
     else:

@@ -11,8 +11,7 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 
 LAYER_NORM_EPSILON = 1e-5
 PRETRAINED_DICT = {
-    "mobile_sam_5m_mask_decoder": {"sam": "212d83fc04a1250d68db83ba9a33e2e2"},
-    "efficientvit_sam_l0_mask_decoder": {"sam": "9356c6420534bd09cdce450e2584d3c9"},
+    "sam_mask_decoder": {"sam": "86ccca20e41dd15578fbbd067035fa70"},
 }
 
 
@@ -101,7 +100,7 @@ def two_way_transformer(
     return query, key
 
 
-def MaskDecoder(input_shape=(64, 64, 256), num_mask_tokens=4, activation="gelu", pretrained="mobile_sam_5m", name="mask_decoder"):
+def MaskDecoder(input_shape=(64, 64, 256), num_mask_tokens=4, activation="gelu", pretrained="sam", name="sam_mask_decoder"):
     image_embedding = layers.Input(input_shape, batch_size=1, name="image_embedding")  # Inputs is channels_last also for PyTorch backend
     point_embedding = layers.Input([None, input_shape[-1]], batch_size=1, name="point_embedding")
     image_position = layers.Input(input_shape, batch_size=1, name="image_position")
@@ -122,23 +121,23 @@ def MaskDecoder(input_shape=(64, 64, 256), num_mask_tokens=4, activation="gelu",
     pre_shape = functional.shape(nn)[2:] if None in nn.shape[2:] or -1 in nn.shape[2:] else nn.shape[2:]  # Could be dynamic shape, reshape back later
     upscaled_image_embedding = layers.Reshape([embed_dims // 8, -1])(nn)
 
-    # iou_masks = functional.split(iou_masks, [5, -1], axis=1)[0]
-    iou_masks = iou_masks[:, :5]
-    iou_masks.set_shape([None, 5, embed_dims])
-    iou_token_out, masks_top, masks_left, masks_bottom, masks_right = functional.unstack(iou_masks, axis=1)
-    iou_pred = mlp_block_multi(iou_token_out, embed_dims, output_channel=num_mask_tokens, num_blocks=3, activation="relu", name="iou_pred_")
+    # iou_masks = functional.split(iou_masks, [num_mask_tokens + 1, -1], axis=1)[0]
+    iou_masks = iou_masks[:, : num_mask_tokens + 1]
+    iou_masks.set_shape([None, num_mask_tokens + 1, embed_dims])
+    # iou_token_out, masks_top, masks_left, masks_bottom, masks_right = functional.unstack(iou_masks, axis=1)
+    iou_pred = mlp_block_multi(iou_masks[:, 0], embed_dims, output_channel=num_mask_tokens, num_blocks=3, activation="relu", name="iou_pred_")
 
     hyper_in = []
-    for id, (ii, sub_name) in enumerate(zip([masks_top, masks_left, masks_bottom, masks_right], ["top", "left", "bottom", "right"])):
-        hyper_in.append(mlp_block_multi(ii, embed_dims, output_channel=embed_dims // 8, num_blocks=3, activation="relu", name="masks_" + sub_name + "_"))
+    for id in range(num_mask_tokens):
+        cur_mask, cur_name = iou_masks[:, id + 1], "masks_{}_".format(id + 1)
+        hyper_in.append(mlp_block_multi(cur_mask, embed_dims, output_channel=embed_dims // 8, num_blocks=3, activation="relu", name=cur_name))
     # print(f"{[ii.shape for ii in hyper_in] = }")
     hyper_in = functional.stack(hyper_in, axis=1)
 
     # print(f"{hyper_in.shape = }, {upscaled_image_embedding.shape = }")
     masks = hyper_in @ upscaled_image_embedding  # [batch, 4, 32] @ [batch, 32, height * width] -> [batch, 4, height * width]
     # print(f"{masks.shape = }, {pre_shape = }")
-    # [batch, 4, height * width] -> [batch, 4, height, width] -> [batch, height, width, 4], outputs channels_first also for PyTorch backend for resizing later
-    masks = layers.Permute([2, 3, 1])(functional.reshape(masks, [-1, masks.shape[1], *pre_shape]))
+    masks = functional.reshape(masks, [-1, num_mask_tokens, *pre_shape])  # [batch, 4, height * width] -> [batch, 4, height, width]
 
     model = models.Model([image_embedding, point_embedding, image_position], [masks, iou_pred], name=name)
     reload_model_weights(model, PRETRAINED_DICT, "segment_anything", pretrained)
