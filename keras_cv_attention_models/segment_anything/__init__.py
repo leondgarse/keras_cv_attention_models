@@ -14,8 +14,9 @@ Call args:
   labels: combinging with `points`, specific points coordinates as background or foreground.
       np.array value in shape `[None]`, value in `[0, 1]`, where 0 means relative point being background, and 1 foreground.
   boxes: specific box area performing segmentation.
-      np.array value in shape `[None, 4]`, `4` means `[left, top, right, bottom]`.
+      np.array value in shape `[1, 4]`, `4` means `[left, top, right, bottom]`.
       left and right / top and bottom value range in `[0, 1]` or `[0, width]` / `[0, height]`.
+      Supports only single boxes as inputs.
   masks: NOT tested.
   mask_threshold: float value for regading model output where `masks > mask_threshold` as True.
   return_logits: boolean value if returning boolean mask or logits mask. Default False for boolean mask.
@@ -48,7 +49,7 @@ Init args:
 Model architectures:
   | Model               | Params | FLOPs | Input | COCO val mIoU |
   | ------------------- | ------ | ----- | ----- | ------------- |
-  | MobileSAM           | 5.75M  | 39.4G | 1024  | 72.8          |
+  | MobileSAM           | 5.74M  | 39.4G | 1024  | 72.8          |
   | EfficientViT_SAM_L0 | 30.73M | 35.4G | 512   | 74.45         |
 """
 

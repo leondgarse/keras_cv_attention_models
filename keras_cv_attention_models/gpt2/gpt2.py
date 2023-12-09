@@ -1,7 +1,8 @@
+import os
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional
-from keras_cv_attention_models.models import register_model
+from keras_cv_attention_models.models import register_model, torch_no_grad
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 
@@ -188,6 +189,7 @@ class RunPrediction:
         exp_inputs = np.exp(inputs - np.max(inputs, axis=axis))
         return exp_inputs / np.sum(exp_inputs, keepdims=True, axis=axis)
 
+    @torch_no_grad
     def __call__(self, inputs, num_samples=1, max_new_tokens=500, temperature=0.8, top_k=200, stop_at_eot=True):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
@@ -203,25 +205,23 @@ class RunPrediction:
         """
         if not self.built:
             self.build()
-        if backend.is_torch_backend:
-            device = next(self.model.parameters()).device
 
+        LOCAL_RANK = int(os.environ.get("LOCAL_RANK", "0"))  # For torch distributed
         start_ids = np.array(self.tokenizer.encode(inputs, add_sot=True))
         for k in range(num_samples):
             inputs_idxes = start_ids
-            print(self.tokenizer.decode(inputs_idxes.tolist()), end="", flush=True)
+            if LOCAL_RANK == 0:
+                print(self.tokenizer.decode(inputs_idxes.tolist()), end="", flush=True)
             for _ in range(max_new_tokens):
                 # if the sequence context is growing too long we must crop it at block_size
                 idx_cond = inputs_idxes if inputs_idxes.shape[-1] <= self.max_block_size else inputs_idxes[-self.max_block_size :]
                 # forward the model to get the logits for the index in the sequence
                 cur_inputs = functional.convert_to_tensor(idx_cond, dtype="int64")[None]
-                if backend.is_torch_backend:
-                    cur_inputs = cur_inputs.to(device)
+
                 logits = self.model(cur_inputs)
                 # pluck the logits at the final step and scale by desired temperature
                 logits = logits[:, -1, :] / temperature
-                logits = logits.detach().cpu() if hasattr(logits, "detach") else logits
-                logits = logits.numpy() if hasattr(logits, "numpy") else np.array(logits)  # np.array is for JAX
+                logits = np.array(logits.cpu() if backend.is_torch_backend else logits)
 
                 if top_k == 0 or top_k == 1:
                     pick = np.argmax(logits, axis=-1)
@@ -236,11 +236,13 @@ class RunPrediction:
                     pick = np.array([np.random.choice(self.vocab_indexes, p=prob) for prob in probs])
                 inputs_idxes = np.concatenate([inputs_idxes, pick], axis=-1)
                 next_word = self.tokenizer.decode(inputs_idxes[-1:].tolist())
-                print(next_word, end="", flush=True)
+                if LOCAL_RANK == 0:
+                    print(next_word, end="", flush=True)
 
                 if stop_at_eot and pick == self.tokenizer.eot_token or pick == self.tokenizer.sot_token:
                     break
-            print("\n---------------")
+            if LOCAL_RANK == 0:
+                print("\n---------------")
 
 
 def load_weights_from_huggingface(model, save_name=None, save_path=".", force=False):

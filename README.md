@@ -1662,7 +1662,7 @@
 
   | Model               | Params | FLOPs | Input | COCO val mIoU | T4 Inference |
   | ------------------- | ------ | ----- | ----- | ------------- | ------------ |
-  | [MobileSAM](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/mobile_sam_5m_image_encoder_1024_sam.h5)           | 5.75M  | 39.4G | 1024  | 72.8          |   |
+  | [MobileSAM](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/mobile_sam_5m_image_encoder_1024_sam.h5)           | 5.74M  | 39.4G | 1024  | 72.8          |   |
   | [EfficientViT_SAM_L0](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/efficientvit_sam_l0_image_encoder_1024_sam.h5) | 30.73M | 35.4G | 512   | 74.45         |   |
 ***
 

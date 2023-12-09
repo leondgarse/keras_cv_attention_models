@@ -23,9 +23,10 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
         )
         self.image_embedding_shape = self.image_encoder.output_shape[1:-1] if image_data_format() == "channels_last" else self.image_encoder.output_shape[2:]
         self.prompt_mask_shape = [int(self.image_embedding_shape[0] * 16), int(self.image_embedding_shape[1] * 16)]  # [64, 64] -> [1024, 1024]
+        self.masks_input_shape = [int(self.image_embedding_shape[0] * 4), int(self.image_embedding_shape[1] * 4)]  # [64, 64] -> [256, 256]
 
         # prompt_encoder is also a subclass of FakeModelWrapper, and here not passing the `name`
-        self.prompt_encoder = prompt_encoder.PromptEncoder(embed_dims, mask_hidden_dims, self.prompt_mask_shape, pretrained=pretrained)
+        self.prompt_encoder = prompt_encoder.PromptEncoder(embed_dims, mask_hidden_dims, self.prompt_mask_shape, self.masks_input_shape, pretrained=pretrained)
         self.mask_decoder = mask_decoder.MaskDecoder(input_shape=[*self.image_embedding_shape, embed_dims], pretrained=pretrained)
         self.models = [self.image_encoder, self.mask_decoder] + self.prompt_encoder.models
         super().__init__(self.models, name=name)
@@ -57,7 +58,6 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
 
         """ image_encoder """
         image_embeddings = self.image_encoder(self.preprocess_image(image))
-        image_embeddings = image_embeddings if image_data_format() == "channels_last" else functional.transpose(image_embeddings, [0, 2, 3, 1])
 
         """ prompt_encoder """
         sparse_embeddings, dense_embeddings = self.prompt_encoder(
@@ -65,9 +65,10 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
         )
 
         """ mask_decoder """
-        image_with_masks_inputs = image_embeddings + dense_embeddings
-        # print(f"{image_with_masks_inputs.shape = }, {sparse_embeddings.shape = }, {self.grid_positional_embedding.shape = }")
-        low_res_masks, iou_predictions = self.mask_decoder([image_with_masks_inputs, sparse_embeddings, self.grid_positional_embedding])
+        image_with_masks = image_embeddings + dense_embeddings
+        image_with_masks = image_with_masks if image_data_format() == "channels_last" else functional.transpose(image_with_masks, [0, 2, 3, 1])
+        # print(f"{image_with_masks.shape = }, {sparse_embeddings.shape = }, {self.grid_positional_embedding.shape = }")
+        low_res_masks, iou_predictions = self.mask_decoder([image_with_masks, sparse_embeddings, self.grid_positional_embedding])
 
         """ Remove padding and resize masks to the original image size """
         # [batch, 4, height, width] -> [batch, height, width, 4] if channels_last
@@ -82,7 +83,7 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
         if backend.is_torch_backend:
             return masks[0].cpu().numpy(), iou_predictions[0].cpu().numpy(), low_res_masks[0].cpu().numpy()
         else:
-            return masks[0].numpy(), iou_predictions[0].numpy(), low_res_masks[0].numpy()
+            return np.array(masks[0]), np.array(iou_predictions[0]), np.array(low_res_masks[0])
 
     @staticmethod
     def show(image, masks, iou_predictions=None, points=None, labels=None, boxes=None, save_path=None, base_size=10, random_color=False):

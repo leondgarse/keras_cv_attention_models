@@ -18,8 +18,11 @@ PRETRAINED_DICT = {
 
 
 class PromptEncoder(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda class methods
-    def __init__(self, embed_dims=256, mask_hidden_dims=16, prompt_mask_shape=(1024, 1024), pretrained="sam", name="sam_prompt_encoder"):
+    def __init__(
+        self, embed_dims=256, mask_hidden_dims=16, prompt_mask_shape=(1024, 1024), masks_input_shape=(64, 64), pretrained="sam", name="sam_prompt_encoder"
+    ):
         self.prompt_mask_shape = prompt_mask_shape[:2] if isinstance(prompt_mask_shape, (list, tuple)) else [prompt_mask_shape, prompt_mask_shape]
+        self.masks_input_shape = masks_input_shape[:2] if isinstance(masks_input_shape, (list, tuple)) else [masks_input_shape, masks_input_shape]
 
         self.points_encoder = self.PointsEncoder(embed_dims=embed_dims, pretrained=pretrained, name=name + "_points_encoder")
         self.bboxes_encoder = self.BboxesEncoder(embed_dims=embed_dims, pretrained=pretrained, name=name + "_bboxes_encoder")
@@ -32,7 +35,8 @@ class PromptEncoder(FakeModelWrapper):  # FakeModelWrapper providing save / load
         self.positional_encoding_gaussian_matrix = self.positional_embedding.get_layer("positional_embedding").get_weights()[0]
         self.empty_points = functional.convert_to_tensor(np.empty([1, 0, embed_dims]).astype("float32"))
         self.empty_bboxes = functional.convert_to_tensor(np.empty([1, 0, embed_dims]).astype("float32"))
-        self.empty_masks = self.empty_masks_model.get_layer("empty_masks").get_weights()[0]
+        empty_masks = self.empty_masks_model.get_layer("empty_masks").get_weights()[0]
+        self.empty_masks = empty_masks[:, None, None, :] if backend.image_data_format() == "channels_last" else empty_masks[:, :, None, None]
 
     def normalize_coords(self, coords, height, width):
         coords = coords / [height, width]
@@ -71,14 +75,15 @@ class PromptEncoder(FakeModelWrapper):  # FakeModelWrapper providing save / load
 
     @staticmethod
     def MaskEncoder(embed_dims=256, mask_hidden_dims=16, activation="gelu", pretrained="sam", name="sam_prompt_encoder_mask_encoder"):
+        norm_axis = -1 if backend.image_data_format() == "channels_last" else 1
         model = models.Sequential(
             [
                 layers.Input(backend.align_input_shape_by_image_data_format([None, None, 1])),
                 layers.Conv2D(mask_hidden_dims // 4, kernel_size=2, strides=2, name="1_conv"),
-                layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, name="1_ln"),
+                layers.LayerNormalization(axis=norm_axis, epsilon=LAYER_NORM_EPSILON, name="1_ln"),
                 layers.Activation(activation=activation),
                 layers.Conv2D(mask_hidden_dims, kernel_size=2, strides=2, name="2_conv"),
-                layers.LayerNormalization(epsilon=LAYER_NORM_EPSILON, name="2_ln"),
+                layers.LayerNormalization(axis=norm_axis, epsilon=LAYER_NORM_EPSILON, name="2_ln"),
                 layers.Activation(activation=activation),
                 layers.Conv2D(embed_dims, kernel_size=1, name="output_conv"),
             ],
@@ -111,23 +116,37 @@ class PromptEncoder(FakeModelWrapper):  # FakeModelWrapper providing save / load
         height_scale, width_scale = scaled_height / image_orign_height, scaled_width / image_orign_width
         # print(f"{scaled_height = }, {scaled_width = }, {height_scale = }, {width_scale = }")
 
+        """ boxes """
         if boxes is not None:
             boxes = np.array(boxes, dtype="float32").reshape([-1, 2, 2])
+            assert boxes.shape[0] == 1, "Supports only single boxes as inputs"
             boxes = self.coords_scale_and_norm(boxes, height_scale, width_scale, scaled_height, scaled_width)
             boxes_inputs = self.bboxes_encoder(boxes)
         else:
             boxes_inputs = self.empty_bboxes
 
+        """ points and labels """
         if points is not None and labels is not None:
             points, labels = np.array(points, dtype="float32").reshape([1, -1, 2]), np.array(labels, dtype="float32").reshape([1, -1])
             points = self.coords_scale_and_norm(points, height_scale, width_scale, scaled_height, scaled_width)
             points = np.pad(points, [[0, 0], [0, 1], [0, 0]]) if boxes is None else points
             labels = np.pad(labels, [[0, 0], [0, 1]], constant_values=-1) if boxes is None else labels
 
-            assert points.shape[1] == labels.shape[-1]
+            assert points.shape[1] == labels.shape[-1], "Should provide same number of points and labels"
             points_inputs = self.points_encoder([points, labels])
         else:
             points_inputs = self.empty_points
         sparse_embeddings = functional.concat([points_inputs, boxes_inputs], axis=1)
-        dense_embeddings = self.mask_encoder(masks) if masks is not None else self.empty_masks  # [TODO], channels_first and check masks shape
+
+        """ masks """
+        if masks is not None:
+            masks = np.squeeze(np.array(masks, dtype="float32"))
+            assert masks.ndim == 2, "masks should better provided in shape `[height, width]` format"
+            if masks.shape[0] != self.masks_input_shape[0] or masks.shape[1] != self.masks_input_shape[1]:
+                masks = backend.numpy_image_resize(masks, self.masks_input_shape, method="nearest")  # resize to [256, 256]
+            masks = masks[None, :, :, None] if backend.image_data_format() == "channels_last" else masks[None, None]
+            dense_embeddings = self.mask_encoder(masks)
+        else:
+            dense_embeddings = self.empty_masks
+
         return sparse_embeddings, dense_embeddings

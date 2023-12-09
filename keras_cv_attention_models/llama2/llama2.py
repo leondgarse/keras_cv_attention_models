@@ -70,12 +70,12 @@ class RMSNorm(layers.Layer):
         return base_config
 
 
-def apply_positional_encoding_rotary(inputs, pos_emb_layer):
+def apply_positional_encoding_rotary(inputs, pos_emb_layer, name=""):
     """Reshape is separated out from PositionalEncodingFourierRot1D for setting as dynamic"""
     num_heads = inputs.shape[-2]
-    nn = layers.Reshape([-1, num_heads, inputs.shape[-1] // 2, 2])(inputs)
+    nn = layers.Reshape([-1, num_heads, inputs.shape[-1] // 2, 2], name=name + "pre_rope_reshape")(inputs)
     nn = pos_emb_layer(nn)
-    out = layers.Reshape([-1, num_heads, inputs.shape[-1]])(nn)
+    out = layers.Reshape([-1, num_heads, inputs.shape[-1]], name=name + "post_rope_reshape")(nn)
     return out
 
 
@@ -90,15 +90,15 @@ def causal_self_attention(inputs, block_size, num_heads, use_bias=False, dropout
 
     # Create a new one every time, as there's no weights for this layer
     rope = PositionalEncodingFourierRot1D(max_block_size=block_size, name=name + "rope")
-    query = layers.Reshape([-1, num_heads, key_dim])(query)
-    query = apply_positional_encoding_rotary(query, rope)
+    query = layers.Reshape([-1, num_heads, key_dim], name=name + "query_reshape")(query)
+    query = apply_positional_encoding_rotary(query, rope, name=name + "query_")
     query = functional.transpose(query, [0, 2, 1, 3])
 
-    key = layers.Reshape([-1, num_heads, key_dim])(key)
-    key = apply_positional_encoding_rotary(key, rope)
+    key = layers.Reshape([-1, num_heads, key_dim], name=name + "key_reshape")(key)
+    key = apply_positional_encoding_rotary(key, rope, name=name + "key_")
     key = functional.transpose(key, [0, 2, 3, 1])
 
-    value = functional.transpose(layers.Reshape([-1, num_heads, key_dim])(value), [0, 2, 1, 3])
+    value = functional.transpose(layers.Reshape([-1, num_heads, key_dim], name=name + "value_reshape")(value), [0, 2, 1, 3])
 
     attn = (query @ key) * qq_scale
     attn = CausalMask(block_size=block_size)(attn)
