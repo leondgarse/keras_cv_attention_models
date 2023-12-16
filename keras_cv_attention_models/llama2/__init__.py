@@ -3,6 +3,7 @@ from keras_cv_attention_models.llama2.llama2 import (
     LLaMA2_15M,
     LLaMA2_42M,
     LLaMA2_110M,
+    LLaMA2_1B,
     LLaMA2_7B,
     RunPrediction,
     PositionalEncodingFourierRot1D,
@@ -21,7 +22,7 @@ __tail_doc__ = """  vocab_size: model vocab size.
   dropout: float value for drop out rate for Embedding layer and attention blocks.
   activation: activation used in whole model, default `swish`.
   pretrained: None or "tiny_stories", or specific ".pt" or ".h5" file.
-      - if "tiny_stories", will try to download and load ported weights if available.
+      - if "tiny_stories" or "tiny_llama_1.1B_chat_v0.4", will try to download and load ported weights if available.
       - if "xxx.pt", will try converting and loading weights from .pt file.
       - if "xxx.h5", will just load weights.
       - if None, will initialize model with ranbdom weights.
@@ -45,6 +46,7 @@ Model architectures:
   | LLaMA2_15M  | 24.41M | 4.06G  | 32000      | 1.072    |
   | LLaMA2_42M  | 58.17M | 50.7G  | 32000      | 0.847    |
   | LLaMA2_110M | 134.1M | 130.2G | 32000      | 0.760    |
+  | LLaMA2_1B   | 1.10B  | 2.50T  | 32003      |          |
   | LLaMA2_7B   | 6.74B  | 14.54T | 32000      |          |
 """
 
@@ -54,4 +56,5 @@ Args:
 
 LLaMA2_42M.__doc__ = LLaMA2_15M.__doc__
 LLaMA2_110M.__doc__ = LLaMA2_15M.__doc__
+LLaMA2_1B.__doc__ = LLaMA2_15M.__doc__
 LLaMA2_7B.__doc__ = LLaMA2_15M.__doc__

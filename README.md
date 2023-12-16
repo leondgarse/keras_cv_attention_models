@@ -1636,13 +1636,15 @@
   | [GPT2_Large](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_large_webtext.h5)       | 838.36M | 890.28G | 50257      | 10.87       |              |
   | [GPT2_XLarge](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_xlarge_webtext.1.h5), [+.2](https://github.com/leondgarse/keras_cv_attention_models/releases/download/gpt2/gpt2_xlarge_webtext.2.h5) | 1.638B  | 1758.3G | 50257      | 8.63        |              |
 ## LLaMA2
-  - [Keras LLaMA2](keras_cv_attention_models/llama2) includes implementation of [PDF 2307.09288 Llama 2: Open Foundation and Fine-Tuned Chat Models](https://arxiv.org/pdf/2307.09288.pdf). `tiny_stories` weights ported from [Github karpathy/llama2.c](https://github.com/karpathy/llama2.c).
+  - [Keras LLaMA2](keras_cv_attention_models/llama2) includes implementation of [PDF 2307.09288 Llama 2: Open Foundation and Fine-Tuned Chat Models](https://arxiv.org/pdf/2307.09288.pdf).
+  - `tiny_stories` weights ported from [Github karpathy/llama2.c](https://github.com/karpathy/llama2.c), and `LLaMA2_1B` model weights ported from [Github jzhang38/TinyLlama](https://githubfast.com/jzhang38/TinyLlama) `TinyLlama-1.1B-Chat-V0.4` one.
 
   | Model       | Params | FLOPs  | vocab_size | Val loss | T4 Inference |
   | ----------- | ------ | ------ | ---------- | -------- | ------------ |
   | [LLaMA2_15M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_15m_tiny_stories.h5)  | 24.41M | 4.06G  | 32000      | 1.072    |  |
   | [LLaMA2_42M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_42m_tiny_stories.h5)  | 58.17M | 50.7G  | 32000      | 0.847    |  |
   | [LLaMA2_110M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_110m_tiny_stories.h5) | 134.1M | 130.2G | 32000      | 0.760    |  |
+  | [LLaMA2_1B](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_1b_tiny_llama_1.1B_chat_v0.4.h5) | 1.10B  | 2.50T  | 32003      |          |
   | LLaMA2_7B   | 6.74B  | 14.54T | 32000      |          |  |
 ***
 

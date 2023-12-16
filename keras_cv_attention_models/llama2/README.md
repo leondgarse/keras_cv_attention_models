@@ -3,7 +3,8 @@
 
 ## Summary
   - Keras implementation of [Github facebookresearch/llama](https://github.com/facebookresearch/llama). Paper [PDF 2307.09288 Llama 2: Open Foundation and Fine-Tuned Chat Models](https://arxiv.org/pdf/2307.09288.pdf).
-  - Model weights ported from [Github karpathy/llama2.c](https://github.com/karpathy/llama2.c).
+  - `LLaMA2_15M` / `LLaMA2_42M`, `LLaMA2_110M` model weights ported from [Github karpathy/llama2.c](https://github.com/karpathy/llama2.c).
+  - `LLaMA2_1B` model weights ported from [Github jzhang38/TinyLlama](https://githubfast.com/jzhang38/TinyLlama) `TinyLlama-1.1B-Chat-V0.4` one.
 ## Models
   - `Params` is counted with `include_top=True`, will match the name if set `include_top=False`.
 
@@ -12,6 +13,7 @@
   | [LLaMA2_15M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_15m_tiny_stories.h5)  | 24.41M | 4.06G  | 32000      | 1.072    |
   | [LLaMA2_42M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_42m_tiny_stories.h5)  | 58.17M | 50.7G  | 32000      | 0.847    |
   | [LLaMA2_110M](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_110m_tiny_stories.h5) | 134.1M | 130.2G | 32000      | 0.760    |
+  | [LLaMA2_1B](https://github.com/leondgarse/keras_cv_attention_models/releases/download/llama2/llama2_1b_tiny_llama_1.1B_chat_v0.4.h5) | 1.10B  | 2.50T  | 32003      |          |
   | LLaMA2_7B   | 6.74B  | 14.54T | 32000      |          |
 ## Usage
   ```py
@@ -51,7 +53,7 @@
   ```
   Then load back into model.
   ```py
-  mm = policy = keras.mixed_precision.Policy("float16")
+  policy = keras.mixed_precision.Policy("float16")
   keras.mixed_precision.set_global_policy(policy)
 
   from keras_cv_attention_models import llama2
