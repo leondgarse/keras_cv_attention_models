@@ -37,6 +37,7 @@ Args:
   embedding_size: `attention_fft_block` block embedding size.
   hidden_divisible: int value making fft block hidden layer size multiple of large power of 2.
   num_heads: num of heads.
+  num_kv_heads: int value specific key value heads, num_heads should be divisible by num_kv_heads. Default -1 for equal with num_heads.
   block_use_bias: boolean value if using bias for `attention_fft_block` Dense layers.
   model_name: string, model name.
 """ + __tail_doc__ + """

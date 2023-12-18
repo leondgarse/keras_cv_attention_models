@@ -305,8 +305,8 @@ def build_detection_dataset_json(
     # x_train = [os.path.abspath(ii) for ii in x_train]
     # x_test = [os.path.abspath(ii) for ii in x_test]
     print(">>>> Reading objects")
-    train = [{"image": ii, "objects": jj if isinstance(jj, dict) else read_coco_objects(jj)} for ii, jj in zip(x_train, y_train)]
-    test = [{"image": ii, "objects": jj if isinstance(jj, dict) else read_coco_objects(jj)} for ii, jj in zip(x_test, y_test)]
+    train = [{"image": ii, "objects": jj if isinstance(jj, dict) else read_coco_objects(jj)} for ii, jj in tqdm(zip(x_train, y_train))]
+    test = [{"image": ii, "objects": jj if isinstance(jj, dict) else read_coco_objects(jj)} for ii, jj in tqdm(zip(x_test, y_test))]
     # num_classes = max([max(ii["objects"]["label"]) for ii in train]) + 1
 
     """ Convert label string to int, convert bbox to corner [top, left, bottom, right] format """

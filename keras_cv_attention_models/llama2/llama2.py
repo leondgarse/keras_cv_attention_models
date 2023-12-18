@@ -162,7 +162,8 @@ def LLaMA2(
     nn = layers.Dropout(dropout)(tok_emb)
 
     for block_id in range(num_blocks):
-        nn = attention_fft_block(nn, max_block_size, num_heads, num_kv_heads, hidden_divisible, block_use_bias, dropout, activation, name="blocks.{}.".format(block_id))
+        block_name = "blocks.{}.".format(block_id)
+        nn = attention_fft_block(nn, max_block_size, num_heads, num_kv_heads, hidden_divisible, block_use_bias, dropout, activation, name=block_name)
     nn = RMSNorm(name="norm")(nn)
 
     if include_top:

@@ -3,7 +3,6 @@ import torch
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
-from torchvision.transforms import Normalize, Compose, RandomResizedCrop, Resize, InterpolationMode, ToTensor
 
 
 def read_from_tsv(data_path):
@@ -31,6 +30,8 @@ def read_from_tsv(data_path):
 
 class CaptionDataset(Dataset):
     def __init__(self, images, captions, tokenizer, is_train=True, image_size=224):
+        from torchvision.transforms import Normalize, Compose, RandomResizedCrop, Resize, InterpolationMode, ToTensor
+
         self.images, self.captions, self.tokenizer = images, captions, tokenizer
         self.context_length = self.tokenizer.context_length
 
