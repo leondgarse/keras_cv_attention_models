@@ -186,11 +186,11 @@ class RunPrediction:
 
     @staticmethod
     def softmax_numpy(inputs, axis=-1):
-        exp_inputs = np.exp(inputs - np.max(inputs, axis=axis))
+        exp_inputs = np.exp(inputs - np.max(inputs, keepdims=True, axis=axis))
         return exp_inputs / np.sum(exp_inputs, keepdims=True, axis=axis)
 
     @torch_no_grad
-    def __call__(self, inputs, num_samples=1, max_new_tokens=500, temperature=0.8, top_k=200, stop_at_eot=True):
+    def __call__(self, inputs, num_samples=1, max_new_tokens=500, temperature=0.8, top_k=200, stop_at_eot=True, return_token_and_probs=False):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
@@ -202,15 +202,17 @@ class RunPrediction:
           temperature: 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions.
           top_k: retain only the top_k most likely tokens, clamp others to have 0 probability.
           stop_at_eot: boolean value if stop at eot_token output.
+          return_token_and_probs: boolean value if return inner tokens and probs, also disable printing. Default False for not returning.
         """
         if not self.built:
             self.build()
 
         LOCAL_RANK = int(os.environ.get("LOCAL_RANK", "0"))  # For torch distributed
         start_ids = np.array(self.tokenizer.encode(inputs, add_sot=True))
+        inner_tokens, inner_probs = [], []
         for k in range(num_samples):
             inputs_idxes = start_ids
-            if LOCAL_RANK == 0:
+            if not return_token_and_probs and LOCAL_RANK == 0:
                 print(self.tokenizer.decode(inputs_idxes.tolist()), end="", flush=True)
             for _ in range(max_new_tokens):
                 # if the sequence context is growing too long we must crop it at block_size
@@ -224,7 +226,8 @@ class RunPrediction:
                 logits = np.array(logits.cpu() if backend.is_torch_backend else logits)
 
                 if top_k == 0 or top_k == 1:
-                    pick = np.argmax(logits, axis=-1)
+                    probs = self.softmax_numpy(logits.astype("float32"), axis=-1)
+                    pick = np.argmax(probs, axis=-1)
                 else:
                     if top_k > 0:
                         # optionally crop the logits to only the top k options
@@ -236,13 +239,19 @@ class RunPrediction:
                     pick = np.array([np.random.choice(self.vocab_indexes, p=prob) for prob in probs])
                 inputs_idxes = np.concatenate([inputs_idxes, pick], axis=-1)
                 next_word = self.tokenizer.decode(inputs_idxes[-1:].tolist())
-                if LOCAL_RANK == 0:
+                if not return_token_and_probs and LOCAL_RANK == 0:
                     print(next_word, end="", flush=True)
+
+                if return_token_and_probs:
+                    inner_tokens.append(pick[0])
+                    inner_probs.append(probs[0])
+
 
                 if stop_at_eot and pick == self.tokenizer.eot_token or pick == self.tokenizer.sot_token:
                     break
-            if LOCAL_RANK == 0:
+            if not return_token_and_probs and LOCAL_RANK == 0:
                 print("\n---------------")
+        return (np.stack(inner_tokens), np.stack(inner_probs)) if return_token_and_probs else None
 
 
 def load_weights_from_huggingface(model, save_name=None, save_path=".", force=False):

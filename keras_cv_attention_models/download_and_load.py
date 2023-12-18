@@ -346,7 +346,8 @@ def convert_torch_weights_to_h5(
 
     """ keras_reload_stacked_state_dict """
     stacked_state_dict = {}
-    for source_name, source_weight in source_state_dict.items():
+    for source_name in list(source_state_dict.keys()):
+        source_weight = source_state_dict.pop(source_name)  # pop out in case taking too much memory
         # target_name = source_name.replace("layers.", "blocks.")
         # target_name = target_name[len("model."):] if target_name.startswith("model.") else target_name
         if any([source_name.endswith(ii) for ii in skip_weights]):
