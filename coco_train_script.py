@@ -11,6 +11,13 @@ from keras_cv_attention_models.imagenet import (
 )
 import pycocotools  # Try import first, not using here, just in case it throws error later
 
+BUILDIN_DATASETS = {
+    "coco_dog_cat": {
+        "url": "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/coco_dog_cat.tar.gz",
+        "dataset_file": "detections.json",
+    },
+}
+
 
 def parse_arguments(argv):
     import argparse
@@ -28,7 +35,7 @@ def parse_arguments(argv):
         help="If build backbone with pretrained weights. Mostly one of [imagenet, imagenet21k, noisy_student]",
     )
     parser.add_argument("-D", "--det_header", type=str, default="efficientdet.EfficientDetD0", help="Detector header, name in format [sub_dir].[model_name]")
-    parser.add_argument("--freeze_backbone_epochs", type=int, default=32, help="Epochs training with backbone.trainable=false")
+    parser.add_argument("--freeze_backbone_epochs", type=int, default=0, help="Epochs training with backbone.trainable=false")
     parser.add_argument(
         "--additional_backbone_kwargs", type=str, default=None, help="Json format backbone kwargs like '{\"drop_connect_rate\": 0.05}'. Note all quote marks"
     )
@@ -66,7 +73,7 @@ def parse_arguments(argv):
         default=None,
         help="TensorBoard logs saving path, default None for disable. Set auto for `logs/{basic_save_name} + _ + timestamp`.",
     )
-    parser.add_argument("--eval_start_epoch", type=int, default=-1, help="eval process start epoch, default -1 for `epochs * 2 // 3`")
+    parser.add_argument("--eval_start_epoch", type=int, default=-1, help="eval process start epoch, default -1 for `epochs * 1 // 4`")
 
     """ Anchor arguments """
     anchor_group = parser.add_argument_group("Anchor arguments")
@@ -176,6 +183,14 @@ def run_training_by_args(args):
     batch_size = args.batch_size * strategy.num_replicas_in_sync
     input_shape = (args.input_shape, args.input_shape, 3)
 
+    if args.data_name in BUILDIN_DATASETS and not os.path.exists(args.data_name):
+        from keras_cv_attention_models.backend import get_file
+
+        url, dataset_file = BUILDIN_DATASETS[args.data_name]["url"], BUILDIN_DATASETS[args.data_name]["dataset_file"]
+        file_path = get_file(origin=url, cache_subdir="datasets", extract=True)  # returned tar file path
+        args.data_name = os.path.join(os.path.dirname(file_path), args.data_name, dataset_file)
+        print(">>>> Buildin dataset, path:", args.data_name)
+
     # Init model first, for getting actual pyramid_levels
     total_images, num_classes, steps_per_epoch = data.init_dataset(args.data_name, batch_size=batch_size, info_only=True)
     print(">>>> total_images: {}, num_classes: {}, steps_per_epoch: {}".format(total_images, num_classes, steps_per_epoch))
@@ -262,7 +277,7 @@ def run_training_by_args(args):
         kw = {"batch_size": batch_size, "rescale_mode": args.rescale_mode, "resize_method": args.resize_method, "resize_antialias": resize_antialias}
         kw.update({"anchor_scale": args.anchor_scale, "anchors_mode": args.anchors_mode, "model_basic_save_name": args.basic_save_name})
         kw.update({"aspect_ratios": args.aspect_ratios, "num_scales": args.num_scales, "nms_max_output_size": args.max_labels_per_image})
-        start_epoch = epochs * 2 // 3 if args.eval_start_epoch < 0 else args.eval_start_epoch  # coco eval starts from 2/3 epochs
+        start_epoch = epochs * 1 // 4 if args.eval_start_epoch < 0 else args.eval_start_epoch  # coco eval starts from 1/4 epochs
         frequency = 1
         print(">>>> COCO AP eval start_epoch: {}, frequency: {}".format(start_epoch, frequency))
         coco_ap_eval = eval_func.COCOEvalCallback(args.data_name, start_epoch=start_epoch, frequency=frequency, **kw)

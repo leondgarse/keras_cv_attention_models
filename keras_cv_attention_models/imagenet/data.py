@@ -474,8 +474,6 @@ def init_dataset(
     teacher_model_input_shape=-1,  # -1 means same with input_shape
     **augment_kwargs,  # Too many...
 ):
-    import tensorflow_datasets as tfds
-
     # print(">>>> Dataset args:", locals())
     is_tpu = True if len(tf.config.list_logical_devices("TPU")) > 0 else False  # Set True for try_gcs and drop_remainder
     try_gcs, drop_remainder = is_tpu, is_tpu
@@ -489,6 +487,8 @@ def init_dataset(
         else:
             dataset, total_images, num_classes, num_channels = build_custom_dataset(data_name, with_info=True)
     else:
+        import tensorflow_datasets as tfds
+
         dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)
         num_classes = info.features["label"].num_classes
         num_channels = info.features["image"].shape[-1]

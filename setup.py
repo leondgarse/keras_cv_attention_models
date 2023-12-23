@@ -47,6 +47,7 @@ setup(
     include_package_data=True,
     install_requires=[
         "pillow",
+        "tqdm",
         "ftfy",  # required for language models
         "regex",  # required for language models
         # "tensorflow-macos;platform_system=='Darwin'",  # [???]

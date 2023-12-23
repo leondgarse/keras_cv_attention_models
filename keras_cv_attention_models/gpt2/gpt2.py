@@ -246,7 +246,6 @@ class RunPrediction:
                     inner_tokens.append(pick[0])
                     inner_probs.append(probs[0])
 
-
                 if stop_at_eot and pick == self.tokenizer.eot_token or pick == self.tokenizer.sot_token:
                     break
             if not return_token_and_probs and LOCAL_RANK == 0:

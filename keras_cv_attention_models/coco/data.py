@@ -418,14 +418,14 @@ def init_dataset(
     seed=None,
     **augment_kwargs,  # Too many...
 ):
-    import tensorflow_datasets as tfds
-
     is_tpu = True if len(tf.config.list_logical_devices("TPU")) > 0 else False  # Set True for try_gcs and drop_remainder
     try_gcs, drop_remainder = is_tpu, is_tpu
 
     if data_name.endswith(".json"):
         dataset, total_images, num_classes = detection_dataset_from_custom_json(data_name, with_info=True)
     else:
+        import tensorflow_datasets as tfds
+
         dataset, info = tfds.load(data_name, with_info=True, try_gcs=try_gcs)
         num_classes = info.features["objects"]["label"].num_classes
         total_images = info.splits["train"].num_examples

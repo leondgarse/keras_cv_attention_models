@@ -35,9 +35,9 @@
     ```
     ![sam_mobile_sam_5m_raw](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/da678689-e613-4b04-8f65-f834e565b504)
   - **Call args**
-    - **`points`**: combinging with `labels`, specific points coordinates as background or foreground. np.array value in shape `[None, 2]`, `2` means `[left, top]`. left / top value range in `[0, 1]` or `[0, width]` / `[0, height]`.
-    - **`labels`**: combinging with `points`, specific points coordinates as background or foreground. np.array value in shape `[None]`, value in `[0, 1]`, where 0 means relative point being background, and 1 foreground.
-    - **`boxes`**: specific box area performing segmentation. np.array value in shape `[1, 4]`, `4` means `[left, top, right, bottom]`. left and right / top and bottom value range in `[0, 1]` or `[0, width]` / `[0, height]`. Supports only single boxes as inputs
+    - **`points`**: combinging with `labels`, specific points coordinates as background or foreground. `np.array` value in shape `[None, 2]`, where `2` means `[left, top]`. left value range in `[0, 1]` or `[0, width]`, and top in `[0, 1]` or `[0, height]`.
+    - **`labels`**: combinging with `points`, specific points coordinates as background or foreground. `np.array` value in shape `[None]`, value in `[0, 1]`, where 0 means relative point being background, and 1 foreground.
+    - **`boxes`**: specific box area performing segmentation. np.array value in shape `[1, 4]`, where `4` means `[left, top, right, bottom]`. left and right value range in `[0, 1]` or `[0, width]`, and top and bottom in `[0, 1]` or `[0, height]`. Supports only single boxes as inputs.
     - **`masks`**: specific masks area performing segmentation. np.array value in shape `[height, width]`, where `height` and `width` should better be `256`, or will perform nearest resize on it.
   - **Outputs**
     - **`masks`** is all masks output, and it's `4` masks by default, specified by `MaskDecoder` parameter `num_mask_tokens`. Default shape is `[4, image_height, image_width]`. **`masks[0]`** is the output of token 0, which is said better for using if segmenting **single object with multi prompts**. **`masks[1:]`** are intended for **ambiguous input prompts**, and **`iou_predictions[1:]`** are the corresponding confidences, which can be used for picking the highest score one from `masks[1:]`.
@@ -122,7 +122,7 @@
   _ = tt.eval()
   efficientvit_sam_predictor = EfficientViTSamPredictor(tt)
 
-  os.environ['KECAM_BACKEND'] = 'torch'  # TF bicubic resize if different from Torch, allclose atol could be rather high
+  os.environ['KECAM_BACKEND'] = 'torch'  # Using Torch backend here, TF bicubic resize is different from Torch, allclose atol could be rather high
   from keras_cv_attention_models import test_images
   point_coords, point_labels = np.array([(256, 256)]), np.array([1])
 

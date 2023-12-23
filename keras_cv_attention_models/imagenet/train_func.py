@@ -68,6 +68,7 @@ def _init_tf_buildin_optimizer_(optimizer_class, lr_base, weight_decay, no_weigh
         kwargs.update({"weight_decay": weight_decay})
     if "momentum" in inspect.signature(optimizer_class).parameters:  # SGD / RMSprop
         kwargs.update({"momentum": momentum})
+    print(">>>> optimizer kwargs:", kwargs)
     optimizer = optimizer_class(learning_rate=lr_base, **kwargs)
 
     if is_weight_decay_supported:
@@ -82,7 +83,7 @@ def init_optimizer(optimizer, lr_base, weight_decay, momentum=0.9):
         "sgd": (backend.optimizers.SGD, {}),
         "rmsprop": (backend.optimizers.RMSprop, {}),
         "adam": (backend.optimizers.Adam, {}),
-        "custom": (backend.optimizers.AdamW, {"beta_1": 0.9, "beta_2": 0.98, "epsilon": 1e-6, "global_clipnorm": 10.0}),  # For clip
+        "custom": (getattr(backend.optimizers, "AdamW", None), {"beta_1": 0.9, "beta_2": 0.98, "epsilon": 1e-6, "global_clipnorm": 10.0}),  # For clip
     }
     if hasattr(backend.optimizers, "AdamW"):
         buildin_optimizers.update({"adamw": (backend.optimizers.AdamW, {})})
