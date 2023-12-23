@@ -183,13 +183,10 @@ def run_training_by_args(args):
     batch_size = args.batch_size * strategy.num_replicas_in_sync
     input_shape = (args.input_shape, args.input_shape, 3)
 
-    if args.data_name in BUILDIN_DATASETS and not os.path.exists(args.data_name):
-        from keras_cv_attention_models.backend import get_file
+    if args.data_name in BUILDIN_DATASETS:
+        from keras_cv_attention_models.backend import download_buildin_dataset
 
-        url, dataset_file = BUILDIN_DATASETS[args.data_name]["url"], BUILDIN_DATASETS[args.data_name]["dataset_file"]
-        file_path = get_file(origin=url, cache_subdir="datasets", extract=True)  # returned tar file path
-        args.data_name = os.path.join(os.path.dirname(file_path), args.data_name, dataset_file)
-        print(">>>> Buildin dataset, path:", args.data_name)
+        args.data_name = download_buildin_dataset(args.data_name, BUILDIN_DATASETS, cache_subdir="datasets")
 
     # Init model first, for getting actual pyramid_levels
     total_images, num_classes, steps_per_epoch = data.init_dataset(args.data_name, batch_size=batch_size, info_only=True)

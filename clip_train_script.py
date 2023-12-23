@@ -103,10 +103,7 @@ if __name__ == "__main__":
     args = parse_arguments()
 
     if args.data_path in BUILDIN_DATASETS and not os.path.exists(args.data_path):
-        url, dataset_file = BUILDIN_DATASETS[args.data_path]["url"], BUILDIN_DATASETS[args.data_path]["dataset_file"]
-        file_path = kecam.backend.get_file(origin=url, cache_subdir="datasets", extract=True)  # returned tar file path
-        args.data_path = os.path.join(os.path.dirname(file_path), args.data_path, dataset_file)
-        print(">>>> Buildin dataset, path:", args.data_path)
+        args.data_path = kecam.backend.download_buildin_dataset(args.data_path, BUILDIN_DATASETS, cache_subdir="datasets")
 
     caption_tokenizer = getattr(kecam.clip, args.tokenizer)() if hasattr(kecam.clip, args.tokenizer) else kecam.clip.TikToken(args.tokenizer)
     train_dataset, test_dataset = data.init_dataset(

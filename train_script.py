@@ -3,6 +3,13 @@ import os
 import json
 from keras_cv_attention_models.imagenet import data, train_func, losses
 
+BUILDIN_DATASETS = {
+    "coco_dog_cat": {
+        "url": "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/coco_dog_cat.tar.gz",
+        "dataset_file": "recognition.json",
+    },
+}
+
 
 def parse_arguments(argv):
     import argparse
@@ -153,6 +160,11 @@ def run_training_by_args(args):
     use_token_label = args.token_label_file is not None
     use_teacher_model = args.teacher_model is not None
     teacher_model_input_shape = input_shape if args.teacher_model_input_shape == -1 else (args.teacher_model_input_shape, args.teacher_model_input_shape)
+
+    if args.data_name in BUILDIN_DATASETS:
+        from keras_cv_attention_models.backend import download_buildin_dataset
+
+        args.data_name = download_buildin_dataset(args.data_name, BUILDIN_DATASETS, cache_subdir="datasets")
 
     # Init model first, for in case of use_token_label, getting token_label_target_patches
     total_images, num_classes, steps_per_epoch, num_channels = data.init_dataset(args.data_name, batch_size=batch_size, info_only=True)
