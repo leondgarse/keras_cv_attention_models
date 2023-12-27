@@ -5,7 +5,7 @@ from keras_cv_attention_models.backend import layers, models, functional, image_
 from keras_cv_attention_models.attention_layers import BiasLayer, PureWeigths, batchnorm_with_activation, conv2d_no_bias, layer_norm
 from keras_cv_attention_models.models import register_model, FakeModelWrapper, torch_no_grad
 from keras_cv_attention_models.download_and_load import reload_model_weights
-from keras_cv_attention_models.segment_anything import image_encoders, mask_decoder, prompt_encoder
+from keras_cv_attention_models.segment_anything import image_encoders, mask_decoders, prompt_encoders
 
 LAYER_NORM_EPSILON = 1e-6
 
@@ -13,7 +13,15 @@ LAYER_NORM_EPSILON = 1e-6
 @register_model
 class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda class methods
     def __init__(
-        self, image_encoder="TinyViT_5M", image_shape=(1024, 1024), embed_dims=256, mask_hidden_dims=16, pretrained="sam", name="mobile_sam_5m", kwargs=None
+        self,
+        image_encoder="TinyViT_5M",
+        mask_decoder="sam_mask_decoder",  # string or built mask decoder model. Currently string can be one of ["sam_mask_decoder", "tiny_sam_mask_decoder"]
+        image_shape=(1024, 1024),
+        embed_dims=256,
+        mask_hidden_dims=16,
+        pretrained="sam",
+        name="mobile_sam_5m",
+        kwargs=None,  # Not using, just recieving parameter
     ):
         self.image_shape = image_shape[:2] if isinstance(image_shape, (list, tuple)) else [image_shape, image_shape]
         self.embed_dims = embed_dims
@@ -25,9 +33,13 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
         self.prompt_mask_shape = [int(self.image_embedding_shape[0] * 16), int(self.image_embedding_shape[1] * 16)]  # [64, 64] -> [1024, 1024]
         self.masks_input_shape = [int(self.image_embedding_shape[0] * 4), int(self.image_embedding_shape[1] * 4)]  # [64, 64] -> [256, 256]
 
+        if isinstance(mask_decoder, str):
+            self.mask_decoder = mask_decoders.MaskDecoder(input_shape=[*self.image_embedding_shape, embed_dims], name=mask_decoder)
+        else:
+            self.mask_decoder = mask_decoder
+
         # prompt_encoder is also a subclass of FakeModelWrapper, and here not passing the `name`
-        self.prompt_encoder = prompt_encoder.PromptEncoder(embed_dims, mask_hidden_dims, self.prompt_mask_shape, self.masks_input_shape, pretrained=pretrained)
-        self.mask_decoder = mask_decoder.MaskDecoder(input_shape=[*self.image_embedding_shape, embed_dims], pretrained=pretrained)
+        self.prompt_encoder = prompt_encoders.PromptEncoder(embed_dims, mask_hidden_dims, self.prompt_mask_shape, self.masks_input_shape, pretrained=pretrained)
         self.models = [self.image_encoder, self.mask_decoder] + self.prompt_encoder.models
         super().__init__(self.models, name=name)
 
@@ -136,8 +148,13 @@ def MobileSAM(image_shape=(1024, 1024), pretrained="sam", name="mobile_sam_5m", 
 
 
 @register_model
+def TinySAM(image_shape=(1024, 1024), mask_decoder="tiny_sam_mask_decoder", pretrained="sam", name="tiny_sam_5m", **kwargs):
+    return SAM(image_encoder="TinyViT_5M", **locals(), **kwargs)
+
+
+@register_model
 def EfficientViT_SAM_L0(image_shape=(512, 512), pretrained="sam", name="efficientvit_sam_l0", **kwargs):
-    mask_decoder.LAYER_NORM_EPSILON = 1e-6
+    mask_decoders.LAYER_NORM_EPSILON = 1e-6
     model = SAM(image_encoder="EfficientViT_L0", **locals(), **kwargs)
-    mask_decoder.LAYER_NORM_EPSILON = 1e-5
+    mask_decoders.LAYER_NORM_EPSILON = 1e-5
     return model

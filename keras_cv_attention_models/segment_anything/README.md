@@ -4,14 +4,17 @@
 ## Summary
   - Paper [PDF 2304.02643 Segment Anything](https://arxiv.org/abs/2304.02643)
   - Paper [PDF 2306.14289 FASTER SEGMENT ANYTHING: TOWARDS LIGHTWEIGHT SAM FOR MOBILE APPLICATIONS](https://arxiv.org/pdf/2306.14289.pdf)
+  - Paper [PDF 2312.13789 TinySAM: Pushing the Envelope for Efficient Segment Anything Mode](https://arxiv.org/pdf/2312.13789.pdf)
   - [Github facebookresearch/segment-anything](https://github.com/facebookresearch/segment-anything)
   - [Github ChaoningZhang/MobileSAM](https://github.com/ChaoningZhang/MobileSAM)
+  - [Github xinghaochen/TinySAM](https://github.com/xinghaochen/TinySAM)
   - MobileSAM weights ported from [Github ChaoningZhang/MobileSAM](https://github.com/ChaoningZhang/MobileSAM)
   - EfficientViT_SAM weights ported from [Github mit-han-lab/efficientvit](https://github.com/mit-han-lab/efficientvit)
 ## Models
   | Model               | Params | FLOPs | Input | COCO val mIoU | Download |
   | ------------------- | ------ | ----- | ----- | ------------- | -------- |
   | MobileSAM           | 5.74M  | 39.4G | 1024  | 72.8          | [mobile_sam_5m_image_encoder](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/mobile_sam_5m_image_encoder_1024_sam.h5)  |
+  | TinySAM             | 5.74M  | 39.4G | 1024  |               | [tinysam_5m_image_encoder](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/tinysam_5m_image_encoder_1024_sam.h5)     |
   | EfficientViT_SAM_L0 | 30.73M | 35.4G | 512   | 74.45         | [efficientvit_sam_l0_image_encoder](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/efficientvit_sam_l0_image_encoder_1024_sam.h5)  |
 
   Model differences only in `ImageEncoder`, the SAM `PromptEncoder` and `MaskDecoder` are sharing the same one
@@ -19,6 +22,7 @@
   | Model                   | Params | FLOPs | Download |
   | ----------------------- | ------ | ----- | -------- |
   | MaskDecoder             | 4.06M  | 1.78G | [sam_mask_decoder_sam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/sam_mask_decoder_sam.h5)         |
+  | - tiny_sam              | 4.06M  | 1.78G | [tiny_sam_mask_decoder_sam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/tiny_sam_mask_decoder_sam.h5)    |
   | PointsEncoder           | 768    | 0     | [sam_prompt_encoder_points_encoder_sam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/sam_prompt_encoder_points_encoder_sam.h5) |
   | BboxesEncoder           | 512    | 256   | [sam_prompt_encoder_bboxes_encoder_sam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/sam_prompt_encoder_bboxes_encoder_sam.h5) |
   | MaskEncoder             | 4684   | 0     | [sam_prompt_encoder_mask_encoder_sam.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/sam_prompt_encoder_mask_encoder_sam.h5) |

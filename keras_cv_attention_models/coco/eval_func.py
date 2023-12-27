@@ -256,10 +256,10 @@ def init_eval_dataset(
 
     # dataset = data.detection_dataset_from_custom_json(data_name) if data_name.endswith(".json") else tfds.load(data_name)
     if data_name.endswith(".json"):
-        import tensorflow_datasets as tfds
-
         dataset, _, num_classes = data.detection_dataset_from_custom_json(data_name, with_info=True)
     else:
+        import tensorflow_datasets as tfds
+
         dataset, info = tfds.load(data_name, with_info=True)
         num_classes = info.features["objects"]["label"].num_classes
 

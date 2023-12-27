@@ -1,4 +1,4 @@
-from keras_cv_attention_models.segment_anything.sam import SAM, MobileSAM, EfficientViT_SAM_L0
+from keras_cv_attention_models.segment_anything.sam import SAM, MobileSAM, TinySAM, EfficientViT_SAM_L0
 
 __head_doc__ = """
 Keras implementation of [Github facebookresearch/segment-anything](https://github.com/facebookresearch/segment-anything).
@@ -44,12 +44,14 @@ Returns:
 SAM.__doc__ = __head_doc__ + """
 Init args:
   image_encoder: string or built image encoder model. Currently string can be one of ["TinyViT_5M", "EfficientViT_L0"].
+  mask_decoder: string or built mask decoder model. Currently string can be one of ["sam_mask_decoder", "tiny_sam_mask_decoder"].
   name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
   | Model               | Params | FLOPs | Input | COCO val mIoU |
   | ------------------- | ------ | ----- | ----- | ------------- |
   | MobileSAM           | 5.74M  | 39.4G | 1024  | 72.8          |
+  | TinySAM             | 5.74M  | 39.4G | 1024  |               |
   | EfficientViT_SAM_L0 | 30.73M | 35.4G | 512   | 74.45         |
 """
 

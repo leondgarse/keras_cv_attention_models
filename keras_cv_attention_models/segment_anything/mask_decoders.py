@@ -12,6 +12,7 @@ from keras_cv_attention_models.download_and_load import reload_model_weights
 LAYER_NORM_EPSILON = 1e-5
 PRETRAINED_DICT = {
     "sam_mask_decoder": {"sam": "86ccca20e41dd15578fbbd067035fa70"},
+    "tiny_sam_mask_decoder": {"sam": "34f68eb047de515721f4658106e4ccb5"},
 }
 
 

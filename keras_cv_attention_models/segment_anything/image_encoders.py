@@ -8,6 +8,7 @@ BATCH_NORM_EPSILON = 1e-6
 
 PRETRAINED_DICT = {
     "mobile_sam_5m_image_encoder": {"sam": {1024: "d9e48e1b5109b8f677625454a5f9c257"}},
+    "tiny_sam_5m_image_encoder": {"sam": {1024: "ae58fa89388f5e1d414e86c33b21a71a"}},
     "efficientvit_sam_l0_image_encoder": {"sam": {1024: "d91f40cf7f46b375a859bef4b2c87bdb"}},
 }
 

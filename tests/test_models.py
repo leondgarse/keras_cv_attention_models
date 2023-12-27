@@ -739,6 +739,9 @@ def test_YOLOV8_S_dynamic_predict():
     assert COCO_80_LABEL_DICT[pred_label[0]] == "cat"
 
 
+""" Stable Diffusion """
+
+
 def test_stable_diffusion_no_weights_predict():
     mm = keras_cv_attention_models.stable_diffusion.StableDiffusion(pretrained=None)
     image = keras_cv_attention_models.backend.numpy_image_resize(cat(), [256, 256])
@@ -750,3 +753,16 @@ def test_stable_diffusion_no_weights_predict():
         out = out.numpy()
         assert out.shape == (1, 256, 256, 3)
     assert out.min() > -6 and out.max() < 6  # It should be within this range
+
+
+""" Segment Anything """
+
+
+def test_MobileSAM_predict():
+    mm = keras_cv_attention_models.segment_anything.MobileSAM()
+    points, labels = np.array([(0.5, 0.8)]), np.array([1])
+    masks, iou_predictions, low_res_masks = mm(cat(), points, labels)
+
+    assert masks.shape == (4, 512, 512) and iou_predictions.shape == (4,) and low_res_masks.shape == (4, 256, 256)
+    assert np.allclose(iou_predictions, np.array([0.98725945, 0.83492416, 0.9997821, 0.96904826]), atol=1e-3)
+    assert np.allclose([ii.sum() for ii in masks], [140151, 121550, 139295, 149360], atol=10)
