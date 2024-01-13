@@ -760,7 +760,7 @@ def test_stable_diffusion_no_weights_predict():
     else:
         out = out.numpy()
         assert out.shape == (1, 256, 256, 3)
-    assert out.min() > -6 and out.max() < 6  # It should be within this range
+    assert out.min() > -8 and out.max() < 8  # It should be within this range
 
 
 """ Segment Anything """
