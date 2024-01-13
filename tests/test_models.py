@@ -254,6 +254,14 @@ def test_ConvNeXtV2_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_CSPNeXtTiny_dynamic_predict():
+    mm = keras_cv_attention_models.cspnext.CSPNeXtTiny(input_shape=(None, None, 3), pretrained="imagenet")
+    pred = mm(mm.preprocess_input(cat(), input_shape=(160, 256, 3)))
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
 def test_DaViT_T_new_shape_predict():
     mm = keras_cv_attention_models.davit.DaViT_T(input_shape=(376, 227, 3), pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat()))

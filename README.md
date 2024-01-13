@@ -31,6 +31,7 @@
   - [ConvNeXt](#convnext)
   - [ConvNeXtV2](#convnextv2)
   - [CoTNet](#cotnet)
+  - [CSPNeXt](#cspnext)
   - [DaViT](#davit)
   - [DiNAT](#dinat)
   - [DINOv2](#dinov2)
@@ -845,6 +846,16 @@
   | [CotNetSE101D](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se101d_224_imagenet.h5) | 40.9M  | 8.44G  | 224   |   83.2   | 251.487 qps  |
   | [CotNetSE152D](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_224_imagenet.h5) | 55.8M  | 12.22G | 224   |   84.0   | 175.469 qps  |
   | [CotNetSE152D](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cotnet/cotnet_se152d_320_imagenet.h5) | 55.8M  | 24.92G | 320   |   84.6   | 175.469 qps  |
+## CSPNeXt
+  - [Keras CSPNeXt](keras_cv_attention_models/cspnext) is for backbone of [PDF 2212.07784 RTMDet: An Empirical Study of Designing Real-Time Object Detectors](https://arxiv.org/abs/2212.07784).
+
+  | Model         | Params | FLOPs | Input | Top1 Acc | T4 Inference |
+  | ------------- | ------ | ----- | ----- | -------- | -------- |
+  | [CSPNeXtTiny](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cspnext/cspnext_tiny_imagenet.h5)   | 2.73M  | 0.34G | 224   | 69.44    |  |
+  | [CSPNeXtSmall](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cspnext/cspnext_small_imagenet.h5)  | 4.89M  | 0.66G | 224   | 74.41    |  |
+  | [CSPNeXtMedium](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cspnext/cspnext_medium_imagenet.h5) | 13.05M | 1.92G | 224   | 79.27    |  |
+  | [CSPNeXtLarge](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cspnext/cspnext_large_imagenet.h5)  | 27.16M | 4.19G | 224   | 81.30    |  |
+  | [CSPNeXtXLarge](https://github.com/leondgarse/keras_cv_attention_models/releases/download/cspnext/cspnext_xlarge_imagenet.h5) | 48.85M | 7.75G | 224   | 82.10    |  |
 ## DaViT
   - [Keras DaViT](keras_cv_attention_models/davit) is for [PDF 2204.03645 DaViT: Dual Attention Vision Transformers](https://arxiv.org/pdf/2204.03645.pdf).
 

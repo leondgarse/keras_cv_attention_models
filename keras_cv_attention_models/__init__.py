@@ -17,6 +17,7 @@ from keras_cv_attention_models import coatnet
 from keras_cv_attention_models import convnext
 from keras_cv_attention_models import cotnet
 from keras_cv_attention_models import cmt
+from keras_cv_attention_models import cspnext
 from keras_cv_attention_models import davit
 from keras_cv_attention_models import efficientnet
 from keras_cv_attention_models import edgenext
@@ -24,7 +25,7 @@ from keras_cv_attention_models import efficientformer
 from keras_cv_attention_models import fasternet
 from keras_cv_attention_models import gcvit
 from keras_cv_attention_models import ghostnet
-from keras_cv_attention_models import ghostnet as ghostnetv2  # Will be removed
+from keras_cv_attention_models import ghostnet as ghostnetv2  # alias name
 from keras_cv_attention_models import gpt2
 from keras_cv_attention_models import llama2
 from keras_cv_attention_models import halonet
