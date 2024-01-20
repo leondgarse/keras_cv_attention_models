@@ -423,7 +423,10 @@ class Model(nn.Module, _Trainer_, _Exporter_):
         self.forward_pipeline, self.intra_nodes_ref, self.__layers__ = forward_pipeline, intra_nodes_ref, all_layers
 
     def input_to_tensor(self, inputs, dtype=torch.float32):
-        device = next(self.parameters()).device
+        param = next(self.parameters())
+        device = param.device
+        dtype = param.dtype if dtype in (torch.float16, torch.float32) else dtype
+
         if not isinstance(inputs, torch.Tensor):
             inputs = torch.as_tensor(inputs, device=device)
         if inputs.dtype != dtype:

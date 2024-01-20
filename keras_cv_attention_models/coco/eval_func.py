@@ -170,8 +170,10 @@ class DecodePredictions(layers.Layer):
 
         if mode == "per_class":
             bboxs, lables, confidences = self.__nms_per_class__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
-        else:
+        elif mode == "global":
             bboxs, lables, confidences = self.__nms_global__(bbs_decoded, ccs, labels, score_threshold, iou_threshold, soft_nms_sigma, max_output_size)
+        else:
+            bboxs, lables, confidences = bbs_decoded, labels, ccs  # Return raw decoded data for testing
 
         return self.__to_static__(bboxs, lables, confidences, max_output_size) if self.use_static_output else (bboxs, lables, confidences)
 
@@ -311,7 +313,7 @@ def init_eval_dataset(
 
 def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={}, is_coco=True, image_id_map=None, num_classes=80):
     sample_image = next(iter(eval_dataset))[0]
-    target_shape = sample_image.shape[:2] if backend.image_data_format() == "channels_last" else sample_image.shape[1:]
+    target_shape = sample_image.shape[1:-1] if backend.image_data_format() == "channels_last" else sample_image.shape[2:]
     # num_classes = model.output_shape[-1] - 4
     if is_coco:
         to_91_labels = (lambda label: label + 1) if num_classes >= 90 else (lambda label: info.COCO_80_to_90_LABEL_DICT[label] + 1)
@@ -323,7 +325,7 @@ def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={},
     results = []
     for images, scales, pad_tops, pad_lefts, original_image_shapes, image_ids in tqdm(eval_dataset):
         preds = model(images)
-        preds = functional.cast(preds, "float32")
+        preds = preds.cpu().float() if backend.is_torch_backend else functional.cast(preds, "float32")
         # decoded_preds: [[bboxes, labels, scores], [bboxes, labels, scores], ...]
         decoded_preds = pred_decoder(preds, **nms_kwargs)
 

@@ -204,10 +204,13 @@ def minimum(xx, yy, name=None):
 def non_max_suppression_with_scores(boxes, scores, max_output_size=100, iou_threshold=0.5, score_threshold=-math.inf, soft_nms_sigma=0.0, name=None):
     from torchvision.ops import nms, batched_nms
 
+    iou_threshold = soft_nms_sigma * 2 if iou_threshold == 1 else iou_threshold  # [TODO] soft_nms_sigma not supported here
     valid_scores_index = torch.where(scores > score_threshold)[0]
+    # batched_nms(boxes: torch.Tensor, scores: torch.Tensor, idxs: torch.Tensor, iou_threshold: float) -> torch.Tensor>
     nms_index = nms(boxes=boxes[valid_scores_index], scores=scores[valid_scores_index], iou_threshold=iou_threshold)
-    actual_index = valid_scores_index[nms_index]
+    actual_index = valid_scores_index[nms_index][:max_output_size]
     return actual_index, scores[actual_index]
+
     # from tensorflow import image
     #
     # if hasattr(boxes, "detach"):
@@ -253,10 +256,14 @@ def range(start, limit=None, delta=1, dtype=None, name="range"):
 
 def reduce_max(inputs, axis=None, keepdims=False, name=None):
     # return wrapper(partial(torch.max, dim=axis, keepdim=keepdims), inputs, name=name)
-    return wrapper(lambda inputs: torch.max(inputs, dim=axis, keepdim=keepdims)[0], inputs, name=name)
+    if axis is None:
+        return wrapper(lambda inputs: torch.max(inputs), inputs, name=name)
+    else:
+        return wrapper(lambda inputs: torch.max(inputs, dim=axis, keepdim=keepdims)[0], inputs, name=name)
 
 
 def reduce_mean(inputs, axis=None, keepdims=False, name=None):
+    axis = () if axis is None else axis
     return wrapper(partial(torch.mean, dim=axis, keepdim=keepdims), inputs, name=name)
 
 

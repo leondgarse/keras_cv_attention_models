@@ -1,13 +1,12 @@
 import os
 import math
 import random
-import cv2
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from keras_cv_attention_models.common_layers import init_mean_std_by_rescale_mode
 
-CV2_INTERPOLATION_MAP = {"nearest": cv2.INTER_NEAREST, "bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC, "area": cv2.INTER_AREA}
+CV2_INTERPOLATION_MAP = {"nearest": "INTER_NEAREST", "bilinear": "INTER_LINEAR", "bicubic": "INTER_CUBIC", "area": "INTER_AREA"}
 
 def load_from_custom_json(data_path, with_info=False):
     import json
@@ -15,10 +14,9 @@ def load_from_custom_json(data_path, with_info=False):
     with open(data_path, "r") as ff:
         aa = json.load(ff)
     test_key = "validation" if "validation" in aa else "test"
-    train, test = aa["train"], aa[test_key],
+    train, test, info = aa["train"], aa[test_key], aa.get("info", {})
 
     if with_info:
-        info = aa.get("info", {})
         total_images, num_classes = len(train), info.get("num_classes", 0)
         if num_classes <= 0:
             num_classes = max([max([int(jj) for jj in ii["objects"]["label"]]) for ii in train]) + 1
@@ -34,10 +32,14 @@ def load_from_custom_json(data_path, with_info=False):
 
 
 def imread(image_path, target_size=640):
+    import cv2
+
     return cv2.imread(image_path)[:, :, ::-1]  # BGR -> RGB
 
 
 def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, crop_x=0, letterbox_pad=-1, method="bilinear", antialias=False):
+    import cv2
+
     target_shape = target_shape[:2] if isinstance(target_shape, (list, tuple)) else (target_shape, target_shape)
     letterbox_target_shape = (target_shape[0] - letterbox_pad, target_shape[1] - letterbox_pad) if letterbox_pad > 0 else target_shape
     height, width = float(image.shape[0]), float(image.shape[1])
@@ -45,16 +47,18 @@ def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, 
         scale = min(letterbox_target_shape[0] / height, letterbox_target_shape[1] / width)
     scaled_hh, scaled_ww = int(height * scale), int(width * scale)
 
-    image = cv2.resize(image, [scaled_ww, scaled_hh], interpolation=CV2_INTERPOLATION_MAP.get(method, "bilinear"))
+    image = cv2.resize(image, [scaled_ww, scaled_hh], interpolation=getattr(cv2, CV2_INTERPOLATION_MAP.get(method, "INTER_LINEAR")))
     image = image[crop_y : crop_y + letterbox_target_shape[0], crop_x : crop_x + letterbox_target_shape[1]]
     cropped_shape = image.shape
 
     pad_top, pad_left = ((target_shape[0] - cropped_shape[0]) // 2, (target_shape[1] - cropped_shape[1]) // 2) if letterbox_pad >= 0 else (0, 0)
-    image = np.pad(image, [[pad_top, target_shape[0] - scaled_hh - pad_top], [pad_left, target_shape[1] - scaled_ww - pad_left], [0, 0]], constant_values=114)
+    image = np.pad(image, [[pad_top, target_shape[0] - scaled_hh - pad_top], [pad_left, target_shape[1] - scaled_ww - pad_left], [0, 0]])
     return image.astype("float32"), scale, pad_top, pad_left
 
 
 def augment_hsv(image, hgain=0.5, sgain=0.5, vgain=0.5):
+    import cv2
+
     gains = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain] + 1  # random gains
     hue, sat, val = cv2.split(cv2.cvtColor(image, cv2.COLOR_BGR2HSV))
 
@@ -68,6 +72,8 @@ def augment_hsv(image, hgain=0.5, sgain=0.5, vgain=0.5):
 
 
 def random_perspective(image, bbox, label, target_size=640, degrees=10, translate=0.1, scale=0.1, shear=10, size_thresh=5, aspect_thresh=20, area_thresh=0.1):
+    import cv2
+
     # torchvision.transforms.RandomAffine(degrees=(-10, 10), translate=(.1, .1), scale=(.9, 1.1), shear=(-10, 10))
     # Center
     cc = np.eye(3)
@@ -203,7 +209,7 @@ class DetectionDataset(Dataset):  # for training/testing
         if self.is_train and random.random() < self.fliplr:
             image = np.fliplr(image)
             bbox[:, [1, 3]] = 1 - bbox[:, [1, 3]]
-        image = image[:, :, ::-1].transpose(2, 0, 1)  # BGR -> RGB -> channels first
+        image = image.transpose(2, 0, 1)  # RGB -> channels first
         image = np.ascontiguousarray(image.astype("float32") / 255)
         return torch.from_numpy(image), torch.from_numpy(bbox), torch.from_numpy(label)
 
@@ -219,9 +225,9 @@ def collate_wrapper(batch):
 def init_dataset(data_path, batch_size=64, image_size=640, num_workers=8):
     """
     >>> os.environ["KECAM_BACKEND"] = "torch"
-    >>> from keras_cv_attention_models.coco import torch_datasets
+    >>> from keras_cv_attention_models.coco import torch_data
     >>> from keras_cv_attention_models.plot_func import show_image_with_bboxes
-    >>> train, test = torch_datasets.init_dataset('datasets/coco_dog_cat/detections.json')
+    >>> train, test = torch_data.init_dataset('datasets/coco_dog_cat/detections.json')
     >>> images, labels = next(iter(train))
     >>> image, label = images[0].numpy().transpose([1, 2, 0]), labels[labels[:, 0] == 0].numpy()
     >>> ax = show_image_with_bboxes(image, label[:, 1:-1], label[:, -1], indices_2_labels={0: 'cat', 1: 'dog'})
