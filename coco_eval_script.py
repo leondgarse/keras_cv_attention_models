@@ -1,8 +1,25 @@
 #!/usr/bin/env python3
+import sys
 import json
+import kecam
 from keras_cv_attention_models.coco import anchors_func, eval_func
-import tensorflow as tf
 
+if kecam.backend.is_torch_backend:  # os.environ["KECAM_BACKEND"] = "torch"
+    import torch
+
+    # Always 0, no matter CUDA_VISIBLE_DEVICES
+    global_device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
+else:
+    import tensorflow as tf
+
+    gpus = tf.config.experimental.get_visible_devices("GPU")
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+
+    try:
+        import tensorflow_addons as tfa
+    except:
+        pass
 
 def parse_arguments(argv):
     import argparse
@@ -69,15 +86,6 @@ def parse_arguments(argv):
 
 
 if __name__ == "__main__":
-    gpus = tf.config.experimental.get_visible_devices("GPU")
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
-
-    try:
-        import tensorflow_addons as tfa
-    except:
-        pass
-    import keras_cv_attention_models
     import sys
 
     args = parse_arguments(sys.argv[1:])
@@ -96,14 +104,14 @@ if __name__ == "__main__":
     if args.model_path.endswith(".h5"):
         model = tf.keras.models.load_model(args.model_path, compile=False)
     elif args.model_path.endswith(".tflite"):
-        from keras_cv_attention_models.imagenet.eval_func import TFLiteModelInterf
+        from kecam.imagenet.eval_func import TFLiteModelInterf
 
         # model = args.model_path
         model = TFLiteModelInterf(args.model_path)
         model.output_shape = model(tf.ones([1, *model.input_shape[1:-1], 3])).shape  # Have to init output_shape after inference once, or will be 1 [ ??? ]
     else:  # model_path like: yolor.YOLOR_CSP
         model = args.model_path.strip().split(".")
-        model_class = getattr(getattr(keras_cv_attention_models, model[0]), model[1])
+        model_class = getattr(getattr(kecam, model[0]), model[1])
         model_kwargs = {"anchor_scale": args.anchor_scale}
         if args.anchors_mode is not None and args.anchors_mode != "auto":
             model_kwargs.update({"anchors_mode": args.anchors_mode})
@@ -117,6 +125,9 @@ if __name__ == "__main__":
             model_kwargs.update({"pretrained": args.pretrained})
         print(">>>> model_kwargs:", model_kwargs)
         model = model_class(**model_kwargs)
+
+    if kecam.backend.is_torch_backend:
+        model.to(device=global_device)
 
     ANCHORS = {"anchor_scale": args.anchor_scale, "anchors_mode": args.anchors_mode, "aspect_ratios": args.aspect_ratios, "num_scales": args.num_scales}
     NMS = {"nms_score_threshold": args.nms_score_threshold, "nms_iou_or_sigma": args.nms_iou_or_sigma, "nms_max_output_size": args.nms_max_output_size}
