@@ -663,6 +663,34 @@ class CompatibleExtractPatches(layers.Layer):
         return base_config
 
 
+""" Preprocess input and decode predictions """
+
+
+def init_mean_std_by_rescale_mode(rescale_mode, convert_to_image_data_format=True):
+    if isinstance(rescale_mode, (list, tuple)):  # Specific mean and std
+        mean, std = rescale_mode
+    elif rescale_mode == "torch":
+        mean = np.array([0.485, 0.456, 0.406]).astype("float32") * 255.0
+        std = np.array([0.229, 0.224, 0.225]).astype("float32") * 255.0
+        if backend.image_data_format() != "channels_last" and convert_to_image_data_format:
+            mean, std = mean[:, None, None], std[:, None, None]
+    elif rescale_mode == "tf":  # [0, 255] -> [-1, 1]
+        mean, std = 127.5, 127.5
+        # mean, std = 127.5, 128.0
+    elif rescale_mode == "tf128":  # [0, 255] -> [-1, 1]
+        mean, std = 128.0, 128.0
+    elif rescale_mode == "raw01":
+        mean, std = 0, 255.0  # [0, 255] -> [0, 1]
+    elif rescale_mode == "clip":  # value from openai/CLIP
+        mean = np.array([0.48145466, 0.4578275, 0.40821073]).astype("float32") * 255.0
+        std = np.array([0.26862954, 0.26130258, 0.27577711]).astype("float32") * 255.0
+        if backend.image_data_format() != "channels_last" and convert_to_image_data_format:
+            mean, std = mean[:, None, None], std[:, None, None]
+    else:
+        mean, std = 0, 1  # raw inputs [0, 255]
+    return mean, std
+
+
 class PreprocessInput:
     """`rescale_mode` `torch` means `(image - [0.485, 0.456, 0.406]) / [0.229, 0.224, 0.225]`, `tf` means `(image - 0.5) / 0.5`"""
 
@@ -680,33 +708,8 @@ class PreprocessInput:
             channel_axis, channel_dim = min(enumerate(input_shape), key=lambda xx: xx[1])  # Assume the smallest value is the channel dimension
             self.input_shape = [dim for axis, dim in enumerate(input_shape) if axis != channel_axis]
 
-    @staticmethod
-    def init_mean_std_by_rescale_mode(rescale_mode):
-        if isinstance(rescale_mode, (list, tuple)):  # Specific mean and std
-            mean, std = rescale_mode
-        elif rescale_mode == "torch":
-            mean = np.array([0.485, 0.456, 0.406]).astype("float32") * 255.0
-            std = np.array([0.229, 0.224, 0.225]).astype("float32") * 255.0
-            if backend.image_data_format() != "channels_last":
-                mean, std = mean[:, None, None], std[:, None, None]
-        elif rescale_mode == "tf":  # [0, 255] -> [-1, 1]
-            mean, std = 127.5, 127.5
-            # mean, std = 127.5, 128.0
-        elif rescale_mode == "tf128":  # [0, 255] -> [-1, 1]
-            mean, std = 128.0, 128.0
-        elif rescale_mode == "raw01":
-            mean, std = 0, 255.0  # [0, 255] -> [0, 1]
-        elif rescale_mode == "clip":  # value from openai/CLIP
-            mean = np.array([0.48145466, 0.4578275, 0.40821073]).astype("float32") * 255.0
-            std = np.array([0.26862954, 0.26130258, 0.27577711]).astype("float32") * 255.0
-            if backend.image_data_format() != "channels_last":
-                mean, std = mean[:, None, None], std[:, None, None]
-        else:
-            mean, std = 0, 1  # raw inputs [0, 255]
-        return mean, std
-
     def set_rescale_mode(self, rescale_mode):
-        self.mean, self.std = self.init_mean_std_by_rescale_mode(rescale_mode)
+        self.mean, self.std = init_mean_std_by_rescale_mode(rescale_mode)
         self.rescale_mode = rescale_mode
 
     def __call__(self, image, resize_method="bilinear", resize_antialias=False, input_shape=None):

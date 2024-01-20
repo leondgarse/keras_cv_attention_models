@@ -3,7 +3,7 @@ from PIL import Image
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
 from keras_cv_attention_models.attention_layers import BiasLayer, PureWeigths, batchnorm_with_activation, conv2d_no_bias, layer_norm
-from keras_cv_attention_models.models import register_model, FakeModelWrapper, torch_no_grad
+from keras_cv_attention_models.models import register_model, FakeModelWrapper, no_grad_if_torch
 from keras_cv_attention_models.download_and_load import reload_model_weights
 from keras_cv_attention_models.segment_anything import image_encoders, mask_decoders, prompt_encoders
 
@@ -60,7 +60,7 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
         padded_image = np.pad(normed_image, [[0, pad_height], [0, pad_width], [0, 0]])[None] if pad_height > 0 or pad_width > 0 else normed_image[None]
         return padded_image if image_data_format() == "channels_last" else padded_image.transpose([0, 3, 1, 2])
 
-    @torch_no_grad
+    @no_grad_if_torch
     def __call__(self, image, points=None, labels=None, boxes=None, masks=None, mask_threshold=0, return_logits=False):
         orign_height, orign_width = image.shape[:2]
         scale = min(self.prompt_mask_shape[0] / orign_height, self.prompt_mask_shape[1] / orign_width)

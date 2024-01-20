@@ -3,7 +3,11 @@ import math
 import random
 import cv2
 import numpy as np
+import torch
+from torch.utils.data import Dataset, DataLoader
+from keras_cv_attention_models.common_layers import init_mean_std_by_rescale_mode
 
+CV2_INTERPOLATION_MAP = {"nearest": cv2.INTER_NEAREST, "bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC, "area": cv2.INTER_AREA}
 
 def load_from_custom_json(data_path, with_info=False):
     import json
@@ -11,11 +15,14 @@ def load_from_custom_json(data_path, with_info=False):
     with open(data_path, "r") as ff:
         aa = json.load(ff)
     test_key = "validation" if "validation" in aa else "test"
-    train, test, info = aa["train"], aa[test_key], aa.get("info", {})
-    total_images, num_classes = len(train), info.get("num_classes", 0)
-    if num_classes <= 0:
-        num_classes = max([max([int(jj) for jj in ii["objects"]["label"]]) for ii in train]) + 1
-        print(">>>> Using max value from train as num_classes:", num_classes)
+    train, test = aa["train"], aa[test_key],
+
+    if with_info:
+        info = aa.get("info", {})
+        total_images, num_classes = len(train), info.get("num_classes", 0)
+        if num_classes <= 0:
+            num_classes = max([max([int(jj) for jj in ii["objects"]["label"]]) for ii in train]) + 1
+            print(">>>> Using max value from train as num_classes:", num_classes)
 
     if "base_path" in info and len(info["base_path"]) > 0:
         base_path = os.path.expanduser(info["base_path"])
@@ -23,17 +30,28 @@ def load_from_custom_json(data_path, with_info=False):
             ii["image"] = os.path.join(base_path, ii["image"])
         for ii in test:
             ii["image"] = os.path.join(base_path, ii["image"])
-    return train, test
+    return (train, test, total_images, num_classes) if with_info else (train, test)
 
 
-def load_image(image_path, target_size=640):
-    image = cv2.imread(image_path)  # BGR
-    original_height, original_width = image.shape[:2]  # orig hw
-    ratio = target_size / max(original_height, original_width)  # resize image to img_size
-    if ratio != 1:  # always resize down, only resize up if training with augmentation
-        interp = cv2.INTER_AREA if ratio < 1 and not self.is_train else cv2.INTER_LINEAR
-        image = cv2.resize(image, (int(original_width * ratio), int(original_height * ratio)), interpolation=interp)
-    return image
+def imread(image_path, target_size=640):
+    return cv2.imread(image_path)[:, :, ::-1]  # BGR -> RGB
+
+
+def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, crop_x=0, letterbox_pad=-1, method="bilinear", antialias=False):
+    target_shape = target_shape[:2] if isinstance(target_shape, (list, tuple)) else (target_shape, target_shape)
+    letterbox_target_shape = (target_shape[0] - letterbox_pad, target_shape[1] - letterbox_pad) if letterbox_pad > 0 else target_shape
+    height, width = float(image.shape[0]), float(image.shape[1])
+    if scale == -1:
+        scale = min(letterbox_target_shape[0] / height, letterbox_target_shape[1] / width)
+    scaled_hh, scaled_ww = int(height * scale), int(width * scale)
+
+    image = cv2.resize(image, [scaled_ww, scaled_hh], interpolation=CV2_INTERPOLATION_MAP.get(method, "bilinear"))
+    image = image[crop_y : crop_y + letterbox_target_shape[0], crop_x : crop_x + letterbox_target_shape[1]]
+    cropped_shape = image.shape
+
+    pad_top, pad_left = ((target_shape[0] - cropped_shape[0]) // 2, (target_shape[1] - cropped_shape[1]) // 2) if letterbox_pad >= 0 else (0, 0)
+    image = np.pad(image, [[pad_top, target_shape[0] - scaled_hh - pad_top], [pad_left, target_shape[1] - scaled_ww - pad_left], [0, 0]], constant_values=114)
+    return image.astype("float32"), scale, pad_top, pad_left
 
 
 def augment_hsv(image, hgain=0.5, sgain=0.5, vgain=0.5):
@@ -133,7 +151,7 @@ def combine_mosaic(images, bboxes, labels, target_size=640):
     return mosaic_image, mosaic_bboxes, mosaic_labels
 
 
-class DetectionDataset:  # for training/testing
+class DetectionDataset(Dataset):  # for training/testing
     """
     >>> from keras_cv_attention_models.coco import torch_datasets
     >>> from keras_cv_attention_models.plot_func import show_image_with_bboxes
@@ -160,12 +178,15 @@ class DetectionDataset:  # for training/testing
         image_path, objects = datapoint["image"], datapoint["objects"]
         bbox, label = np.array(objects["bbox"], dtype="float32"), np.array(objects["label"], dtype="int64")
 
-        image = load_image(image_path, target_size=self.target_size)
+        # interp = cv2.INTER_AREA if ratio < 1 and not self.is_train else cv2.INTER_LINEAR
+        image = aspect_aware_resize_and_crop_image(imread(image_path), target_shape=self.target_size, method="bilinear", antialias=False)[0]
+
         if self.is_train and random.random() < self.mosaic:
             images, bboxes, labels = [image], [bbox], [label]
             for ii in [random.randint(0, len(self.data) - 1) for _ in range(3)]:  # 3 additional image indices
                 datapoint = self.data[ii]
-                images.append(load_image(datapoint["image"], target_size=self.target_size))
+                image = aspect_aware_resize_and_crop_image(imread(datapoint["image"]), target_shape=self.target_size, method="bilinear", antialias=False)[0]
+                images.append(image)
                 bboxes.append(np.array(datapoint["objects"]["bbox"]))
                 labels.append(np.array(datapoint["objects"]["label"]))
             image, bbox, label = combine_mosaic(images, bboxes, labels, target_size=self.target_size)
@@ -183,39 +204,39 @@ class DetectionDataset:  # for training/testing
             image = np.fliplr(image)
             bbox[:, [1, 3]] = 1 - bbox[:, [1, 3]]
         image = image[:, :, ::-1].transpose(2, 0, 1)  # BGR -> RGB -> channels first
-        image = np.ascontiguousarray(image)
-        return image, bbox, label
-        # return torch.from_numpy(img), labels_out, self.img_files[index], shapes
+        image = np.ascontiguousarray(image.astype("float32") / 255)
+        return torch.from_numpy(image), torch.from_numpy(bbox), torch.from_numpy(label)
 
 
-def letterbox(img, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, auto_size=32):
-    # Resize image to a 32-pixel-multiple rectangle https://github.com/ultralytics/yolov3/issues/232
-    shape = img.shape[:2]  # current shape [height, width]
-    if isinstance(new_shape, int):
-        new_shape = (new_shape, new_shape)
+def collate_wrapper(batch):
+    images, bboxes, labels = list(zip(*batch))
+    batch_ids = [torch.as_tensor([id] * len(ii)) for id, ii in enumerate(labels)]
+    batch_ids, bboxes, labels = torch.concat(batch_ids, dim=0), torch.concat(bboxes, dim=0), torch.concat(labels, dim=0)
+    # print(f">>>> {batch_ids.shape = }, {bboxes.shape = }, {labels.shape = }")
+    return torch.stack(images), torch.concat([batch_ids[:, None], bboxes, labels[:, None]], dim=-1)
 
-    # Scale ratio (new / old)
-    r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
-    if not scaleup:  # only scale down, do not scale up (for better test mAP)
-        r = min(r, 1.0)
 
-    # Compute padding
-    ratio = r, r  # width, height ratios
-    new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
-    dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]  # wh padding
-    if auto:  # minimum rectangle
-        dw, dh = np.mod(dw, auto_size), np.mod(dh, auto_size)  # wh padding
-    elif scaleFill:  # stretch
-        dw, dh = 0.0, 0.0
-        new_unpad = (new_shape[1], new_shape[0])
-        ratio = new_shape[1] / shape[1], new_shape[0] / shape[0]  # width, height ratios
+def init_dataset(data_path, batch_size=64, image_size=640, num_workers=8):
+    """
+    >>> os.environ["KECAM_BACKEND"] = "torch"
+    >>> from keras_cv_attention_models.coco import torch_datasets
+    >>> from keras_cv_attention_models.plot_func import show_image_with_bboxes
+    >>> train, test = torch_datasets.init_dataset('datasets/coco_dog_cat/detections.json')
+    >>> images, labels = next(iter(train))
+    >>> image, label = images[0].numpy().transpose([1, 2, 0]), labels[labels[:, 0] == 0].numpy()
+    >>> ax = show_image_with_bboxes(image, label[:, 1:-1], label[:, -1], indices_2_labels={0: 'cat', 1: 'dog'})
+    >>> ax.get_figure().savefig('aa.jpg')
+    """
+    train, test = load_from_custom_json(data_path)
 
-    dw /= 2  # divide padding into 2 sides
-    dh /= 2
+    train_dataset = DetectionDataset(train, is_train=True, image_size=image_size)
+    train_dataloader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, collate_fn=collate_wrapper, pin_memory=True, sampler=None, drop_last=True
+    )
 
-    if shape[::-1] != new_unpad:  # resize
-        img = cv2.resize(img, new_unpad, interpolation=cv2.INTER_LINEAR)
-    top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
-    left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
-    img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
-    return img, ratio, (dw, dh)
+    test_dataset = DetectionDataset(test, is_train=False, image_size=image_size)
+    test_dataloader = DataLoader(
+        test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=collate_wrapper, pin_memory=True, sampler=None, drop_last=True
+    )
+
+    return train_dataloader, test_dataloader

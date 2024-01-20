@@ -1,27 +1,7 @@
 import os
 import tensorflow as tf
 from tensorflow import keras
-
-
-def init_mean_std_by_rescale_mode(rescale_mode):
-    if isinstance(rescale_mode, (list, tuple)):  # Specific mean and std
-        mean, std = rescale_mode
-    elif rescale_mode == "torch":
-        mean = tf.constant([0.485, 0.456, 0.406]) * 255.0
-        std = tf.constant([0.229, 0.224, 0.225]) * 255.0
-    elif rescale_mode == "tf":  # [0, 255] -> [-1, 1]
-        mean, std = 127.5, 127.5
-        # mean, std = 127.5, 128.0
-    elif rescale_mode == "tf128":  # [0, 255] -> [-1, 1]
-        mean, std = 128.0, 128.0
-    elif rescale_mode == "raw01":
-        mean, std = 0, 255.0  # [0, 255] -> [0, 1]
-    elif rescale_mode == "clip":  # value from openai/CLIP
-        mean = tf.constant([0.48145466, 0.4578275, 0.40821073]) * 255.0
-        std = tf.constant([0.26862954, 0.26130258, 0.27577711]) * 255.0
-    else:
-        mean, std = 0, 1  # raw inputs [0, 255]
-    return mean, std
+from keras_cv_attention_models.common_layers import init_mean_std_by_rescale_mode
 
 
 def tf_imread(file_path):

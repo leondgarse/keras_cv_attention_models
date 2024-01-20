@@ -3,6 +3,7 @@ import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, callbacks
 from keras_cv_attention_models.coco import anchors_func, info
+from keras_cv_attention_models.models import no_grad_if_torch
 from tqdm import tqdm
 
 
@@ -220,21 +221,30 @@ def scale_bboxes_back_single(bboxes, image_shape, scale, pad_top, pad_left, targ
     bboxes *= [target_shape[0], target_shape[1], target_shape[0], target_shape[1]]
     bboxes -= [pad_top, pad_left, pad_top, pad_left]
     bboxes /= scale
-    bboxes = functional.clip_by_value(bboxes, 0, clip_value_max=[image_shape[0], image_shape[1], image_shape[0], image_shape[1]])
+    clip_value_max = functional.convert_to_tensor([image_shape[0], image_shape[1], image_shape[0], image_shape[1]], dtype="float32")
+    bboxes = functional.clip_by_value(bboxes, 0, clip_value_max=clip_value_max)
     # [top, left, bottom, right] -> [left, top, width, height]
     bboxes = functional.stack([bboxes[:, 1], bboxes[:, 0], bboxes[:, 3] - bboxes[:, 1], bboxes[:, 2] - bboxes[:, 0]], axis=-1)
     return bboxes
 
 
 def image_process(image, target_shape, mean, std, resize_method="bilinear", resize_antialias=False, use_bgr_input=False, letterbox_pad=-1):
-    from keras_cv_attention_models.coco import data
+    if backend.is_tensorflow_backend:
+        from keras_cv_attention_models.coco.tf_data import tf_imread as imread, aspect_aware_resize_and_crop_image
+    else:
+        from keras_cv_attention_models.coco.torch_data import imread, aspect_aware_resize_and_crop_image
 
     if len(image.shape) < 2:
-        image = data.tf_imread(image)  # it's image path
-    original_image_shape = functional.shape(image)[:2]
-    image = functional.cast(image, "float32")
+        image = imread(image)  # it's image path
+
+    if backend.is_tensorflow_backend:
+        original_image_shape = functional.shape(image)[:2]
+        image = functional.cast(image, "float32")
+    else:
+        original_image_shape, image = image.shape[:2], image.astype("float32")
+
     image = (image - mean) / std  # automl behavior: rescale -> resize
-    image, scale, pad_top, pad_left = data.aspect_aware_resize_and_crop_image(
+    image, scale, pad_top, pad_left = aspect_aware_resize_and_crop_image(
         image, target_shape, letterbox_pad=letterbox_pad, method=resize_method, antialias=resize_antialias
     )
     if use_bgr_input:
@@ -252,29 +262,56 @@ def init_eval_dataset(
     letterbox_pad=-1,
     use_bgr_input=False,
 ):
-    from keras_cv_attention_models.coco import data
+    if backend.is_tensorflow_backend:
+        from keras_cv_attention_models.coco import tf_data
 
-    # dataset = data.detection_dataset_from_custom_json(data_name) if data_name.endswith(".json") else tfds.load(data_name)
-    if data_name.endswith(".json"):
-        dataset, _, num_classes = data.detection_dataset_from_custom_json(data_name, with_info=True)
+        if data_name.endswith(".json"):
+            dataset, _, num_classes = tf_data.detection_dataset_from_custom_json(data_name, with_info=True)
+        else:
+            import tensorflow_datasets as tfds
+
+            dataset, info = tfds.load(data_name, with_info=True)
+            num_classes = info.features["objects"]["label"].num_classes
+
+        ds = dataset.get("validation", dataset.get("test", None))
+
+        mean, std = tf_data.init_mean_std_by_rescale_mode(rescale_mode)
+        __image_process__ = lambda image: image_process(image, input_shape, mean, std, resize_method, resize_antialias, use_bgr_input, letterbox_pad)
+        # ds: [resized_image, scale, pad_top, pad_left, original_image_shape, image_id]
+        ds = ds.map(lambda datapoint: (*__image_process__(datapoint["image"]), datapoint.get("image/id", datapoint["image"])))
+        ds = ds.batch(batch_size)
+        return ds, num_classes
     else:
-        import tensorflow_datasets as tfds
+        import torch
+        from torch.utils.data import Dataset, DataLoader
+        from keras_cv_attention_models.coco import torch_data
+        # from keras_cv_attention_models.coco.eval_func import image_process
 
-        dataset, info = tfds.load(data_name, with_info=True)
-        num_classes = info.features["objects"]["label"].num_classes
+        # data_name, rescale_mode, input_shape, resize_method, resize_antialias, use_bgr_input, letterbox_pad, batch_size = 'datasets/coco_dog_cat/detections.json', "raw01", 640, 'bilinear', False, False, -1, 8
+        _, test, total_images, num_classes = torch_data.load_from_custom_json(data_name, with_info=True)
+        mean, std = torch_data.init_mean_std_by_rescale_mode(rescale_mode, convert_to_image_data_format=False)
 
-    ds = dataset.get("validation", dataset.get("test", None))
+        class EvalDataset(Dataset):
+            def __len__(self):
+                return len(test)
 
-    mean, std = data.init_mean_std_by_rescale_mode(rescale_mode)
-    __image_process__ = lambda image: image_process(image, input_shape, mean, std, resize_method, resize_antialias, use_bgr_input, letterbox_pad)
-    # ds: [resized_image, scale, pad_top, pad_left, original_image_shape, image_id]
-    ds = ds.map(lambda datapoint: (*__image_process__(datapoint["image"]), datapoint.get("image/id", datapoint["image"])))
-    ds = ds.batch(batch_size)
-    return ds, num_classes
+            def __getitem__(self, index):
+                image_path = test[index]["image"]
+                image = torch_data.imread(image_path)  # Read ahead, avoiding passing in string value with no shape attribute
+                image, scale, pad_top, pad_left, original_image_shape = image_process(
+                    image, input_shape, mean, std, resize_method, resize_antialias, use_bgr_input, letterbox_pad
+                )
+                image = torch.from_numpy(image).permute([2, 0, 1]).contiguous()
+                return image, scale, pad_top, pad_left, torch.as_tensor(original_image_shape), image_path
+
+        ds = DataLoader(EvalDataset(), batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True, sampler=None, drop_last=False)
+        # ds.element_spec = next(iter(ds))
+        return ds, num_classes
 
 
 def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={}, is_coco=True, image_id_map=None, num_classes=80):
-    target_shape = (eval_dataset.element_spec[0].shape[1], eval_dataset.element_spec[0].shape[2])
+    sample_image = next(iter(eval_dataset))[0]
+    target_shape = sample_image.shape[:2] if backend.image_data_format() == "channels_last" else sample_image.shape[1:]
     # num_classes = model.output_shape[-1] - 4
     if is_coco:
         to_91_labels = (lambda label: label + 1) if num_classes >= 90 else (lambda label: info.COCO_80_to_90_LABEL_DICT[label] + 1)
@@ -293,7 +330,10 @@ def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={},
         # Loop on batch
         for rr, image_shape, scale, pad_top, pad_left, image_id in zip(decoded_preds, original_image_shapes, scales, pad_tops, pad_lefts, image_ids):
             bboxes, labels, scores = rr
-            image_id, bboxes, labels, scores = image_id.numpy(), bboxes.numpy(), labels.numpy(), scores.numpy()
+            image_id, bboxes, labels, scores = np.array(image_id).item(), bboxes.numpy(), labels.numpy(), scores.numpy()
+            # print(">>>> Before:", labels)
+            # labels = [{16: 0, 17: 1}.get(ii, ii) for ii in labels]
+            # print(">>>> After:", labels)
             if image_id_map is not None:
                 image_id = image_id_map[image_id.decode() if isinstance(image_id, bytes) else image_id]
             bboxes = scale_bboxes_back_single(bboxes, image_shape, scale, pad_top, pad_left, target_shape).numpy()
@@ -454,8 +494,9 @@ class COCOEvalCallback(callbacks.Callback):
     def build(self, input_shape, output_shape):
         import re
 
-        input_shape = (int(input_shape[1]), int(input_shape[2]))
+        input_shape = (int(input_shape[1]), int(input_shape[2])) if backend.image_data_format() == "channels_last" else (int(input_shape[2]), int(input_shape[3]))
         self.eval_dataset, self.num_classes = init_eval_dataset(input_shape=input_shape, **self.dataset_kwargs)
+        print("\n>>>> [COCOEvalCallback] self.dataset_kwargs:", self.dataset_kwargs)
         regression_len = (output_shape[-1] - self.num_classes) // 4 * 4
 
         if self.anchors_mode is None or self.anchors_mode == "auto":
@@ -465,7 +506,7 @@ class COCOEvalCallback(callbacks.Callback):
         else:
             num_anchors = anchors_func.NUM_ANCHORS.get(self.anchors_mode, 9)
         pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(input_shape, total_anchors=output_shape[1], num_anchors=num_anchors)
-        print("\n>>>> [COCOEvalCallback] input_shape: {}, pyramid_levels: {}, anchors_mode: {}".format(input_shape, pyramid_levels, self.anchors_mode))
+        print(">>>> [COCOEvalCallback] input_shape: {}, pyramid_levels: {}, anchors_mode: {}".format(input_shape, pyramid_levels, self.anchors_mode))
         # print(">>>>", self.dataset_kwargs)
         # print(">>>>", self.nms_kwargs)
 
@@ -482,6 +523,7 @@ class COCOEvalCallback(callbacks.Callback):
         self.coco_evaluation = COCOEvaluation(self.annotation_file)
         self.built = True
 
+    @no_grad_if_torch
     def on_epoch_end(self, epoch=0, logs=None):
         if not self.built:
             if self.dataset_kwargs["rescale_mode"] == "auto":

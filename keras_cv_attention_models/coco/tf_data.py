@@ -1,7 +1,8 @@
 import os
 import tensorflow as tf
 from tensorflow import keras
-from keras_cv_attention_models.imagenet.data import init_mean_std_by_rescale_mode, tf_imread, random_crop_and_resize_image
+from keras_cv_attention_models.common_layers import init_mean_std_by_rescale_mode
+from keras_cv_attention_models.imagenet.data import tf_imread, random_crop_and_resize_image
 from keras_cv_attention_models.coco import anchors_func
 from keras_cv_attention_models.plot_func import draw_bboxes, show_image_with_bboxes
 

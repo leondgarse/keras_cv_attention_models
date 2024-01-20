@@ -8,7 +8,7 @@ def register_model(model_func):
     return model_func
 
 
-def torch_no_grad(func):
+def no_grad_if_torch(func):
     if __package__.backend.is_torch_backend:
         import torch
 

@@ -2,7 +2,7 @@ import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, initializers
 from keras_cv_attention_models.attention_layers import BiasLayer, PureWeigths
-from keras_cv_attention_models.models import register_model, FakeModelWrapper, torch_no_grad
+from keras_cv_attention_models.models import register_model, FakeModelWrapper, no_grad_if_torch
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 LAYER_NORM_EPSILON = 1e-6
@@ -108,7 +108,7 @@ class PromptEncoder(FakeModelWrapper):  # FakeModelWrapper providing save / load
         reload_model_weights(model, PRETRAINED_DICT, "segment_anything", pretrained)
         return model
 
-    @torch_no_grad
+    @no_grad_if_torch
     def __call__(self, image_orign_shape, points=None, labels=None, boxes=None, masks=None):
         image_orign_height, image_orign_width = image_orign_shape[:2]
         scale = min(self.prompt_mask_shape[0] / image_orign_height, self.prompt_mask_shape[1] / image_orign_width)

@@ -73,6 +73,7 @@ def build_optimizer(model, name="sgd", lr=0.01, momentum=0.937, decay=5e-4):
 
 def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_epoch=0, optimizer_name="sgd", rect_val=False, overwrite_cfg=None):
     from keras_cv_attention_models.yolov8 import eval, data, losses
+    from keras_cv_attention_models.coco import torch_datasets
 
     if torch.cuda.is_available():
         model = model.cuda()
@@ -96,7 +97,8 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
     # cfg = get_cfg(DEFAULT_CFG)
     # cfg.data = dataset_path
 
-    train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path, batch_size=batch_size, imgsz=imgsz, rect_val=rect_val)
+    # train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path, batch_size=batch_size, imgsz=imgsz, rect_val=rect_val)
+    train_loader, val_loader = torch_datasets.init_dataset(data_path=dataset_path, batch_size=batch_size, image_size=imgsz)
     device = next(model.parameters()).device  # get model device
     num_classes = getattr(model, "num_classes", model.output_shape[-1] - 64)
     print(">>>> num_classes =", num_classes)
@@ -107,7 +109,7 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
     lf = lambda x: (1 - x / epochs) * (1.0 - 0.01) + 0.01  # linear
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
     scaler = amp.GradScaler(enabled=use_amp)
-    validator = eval.Validator(val_loader=val_loader, model=ema.ema, cfg=cfg)
+    # validator = eval.Validator(val_loader=val_loader, model=ema.ema, cfg=cfg)
     # validator = v8.detect.DetectionValidator(val_loader, save_dir=Path("./test"), args=copy.copy(cfg))
 
     nb = len(train_loader)
@@ -134,7 +136,7 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
         loss_names = ["box_loss", "cls_loss", "dfl_loss"]
         print(("\n" + "%11s" * (3 + len(loss_names))) % ("Epoch", *loss_names, "Instances", "Size"))
         pbar = tqdm(enumerate(train_loader), total=nb, bar_format="{l_bar}{bar:10}{r_bar}")
-        for i, batch in pbar:
+        for i, (images, labels) in pbar:
             # self.run_callbacks('on_train_batch_start')
             ni = i + nb * epoch
             if ni <= nw:
@@ -148,8 +150,8 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
 
             # Forward
             with torch.cuda.amp.autocast(use_amp):
-                preds = model(batch["img"].to(device, non_blocking=True).float() / 255)
-                loss, loss_items = compute_loss(preds, batch)
+                preds = model(images.to(device, non_blocking=True).float())
+                loss, loss_items = compute_loss(preds, labels)
                 tloss = (tloss * i + loss_items) / (i + 1) if tloss is not None else loss_items
 
             # Backward
@@ -168,9 +170,9 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
 
             loss_len = tloss.shape[0] if len(tloss.size()) else 1
             losses = tloss if loss_len > 1 else torch.unsqueeze(tloss, 0)
-            pbar.set_description(("%11s" * 1 + "%11.4g" * (2 + loss_len)) % (f"{epoch + 1}/{epochs}", *losses, batch["cls"].shape[0], batch["img"].shape[-1]))
+            pbar.set_description(("%11s" * 1 + "%11.4g" * (2 + loss_len)) % (f"{epoch + 1}/{epochs}", *losses, labels.shape[0], images.shape[-1]))
         scheduler.step()
-        validator()
+        # validator()
 
         if hasattr(model, "model") and hasattr(model.model, "save_weights"):
             model.model.save_weights(model.model.name + ".h5")

@@ -2,7 +2,7 @@ import os
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional
-from keras_cv_attention_models.models import register_model, torch_no_grad
+from keras_cv_attention_models.models import register_model, no_grad_if_torch
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
 
@@ -189,7 +189,7 @@ class RunPrediction:
         exp_inputs = np.exp(inputs - np.max(inputs, keepdims=True, axis=axis))
         return exp_inputs / np.sum(exp_inputs, keepdims=True, axis=axis)
 
-    @torch_no_grad
+    @no_grad_if_torch
     def __call__(self, inputs, num_samples=1, max_new_tokens=500, temperature=0.8, top_k=200, stop_at_eot=True, return_token_and_probs=False):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete

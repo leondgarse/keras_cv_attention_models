@@ -15,8 +15,9 @@ from keras_cv_attention_models.coco.info import COCO_80_LABEL_DICT, COCO_90_LABE
 from keras_cv_attention_models.plot_func import draw_bboxes, show_image_with_bboxes
 
 if backend.is_tensorflow_backend:
-    from keras_cv_attention_models.coco import data, losses
-    from keras_cv_attention_models.coco.data import (
+    from keras_cv_attention_models.coco import tf_data as data
+    from keras_cv_attention_models.coco import losses
+    from keras_cv_attention_models.coco.tf_data import (
         aspect_aware_resize_and_crop_image,
         init_mean_std_by_rescale_mode,
         init_dataset,
@@ -49,3 +50,6 @@ if backend.is_tensorflow_backend:
 
     Returns: train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
     """
+else:
+    from keras_cv_attention_models.coco import torch_data as data
+    from keras_cv_attention_models.coco.torch_data import init_dataset

@@ -56,6 +56,10 @@ def cast(inputs, dtype="float32"):
 
 
 def clip_by_value(inputs, clip_value_min, clip_value_max, name=None):
+    if isinstance(clip_value_min, torch.Tensor) and not isinstance(clip_value_max, torch.Tensor):
+        clip_value_max = torch.as_tensor(clip_value_max)  # Should be both Tensor or number
+    elif isinstance(clip_value_max, torch.Tensor) and not isinstance(clip_value_min, torch.Tensor):
+        clip_value_min = torch.as_tensor(clip_value_min)  # Should be both Tensor or number
     return wrapper(partial(torch.clip, min=clip_value_min, max=clip_value_max), inputs, name=name)
 
 
