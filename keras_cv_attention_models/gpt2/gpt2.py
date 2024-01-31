@@ -55,7 +55,8 @@ class CausalMask(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs):
-        return inputs + self.causal_mask[:, :, : inputs.shape[2], : inputs.shape[3]]
+        qq_len, kk_len = (functional.shape(inputs)[2], functional.shape(inputs)[3]) if backend.is_tensorflow_backend else (inputs.shape[2], inputs.shape[3])
+        return inputs + self.causal_mask[:, :, : qq_len, : kk_len]
 
     def get_config(self):
         base_config = super().get_config()

@@ -37,12 +37,12 @@ class TFLiteModelInterf:
         input_details = self.interpreter.get_input_details()[0]
         self.input_dtype = input_details["dtype"]
         self.input_index = input_details["index"]
-        self.input_shape = input_details["shape"].tolist()
+        self.input_shape = tuple(input_details["shape"].tolist())
 
         output_details = self.interpreter.get_output_details()[0]
         self.output_dtype = output_details["dtype"]
         self.output_index = output_details["index"]
-        self.output_shape = output_details["shape"].tolist()
+        self.output_shape = tuple(output_details["shape"].tolist())
 
         if self.input_dtype == tf.uint8 or self.output_dtype == tf.uint8:
             self.input_scale, self.input_zero_point = input_details.get("quantization", (1.0, 0.0))
@@ -70,6 +70,12 @@ class TFLiteModelInterf:
         # print(imgs.shape, imgs[0])
         preds = []
         for img in imgs:
+            cur_input_shape = (1, *img.shape)
+            if cur_input_shape != self.input_shape:  # Exclude batch dimension
+                print(">>>> Calling resize_tensor_input, cur_input_shape:", cur_input_shape)
+                self.interpreter.resize_tensor_input(self.input_index, cur_input_shape, strict=True)
+                self.interpreter.allocate_tensors()
+                self.input_shape = cur_input_shape  # Keep batch size 1
             pred = self.__interf__(img)
             preds.append(pred)
         return self.tf.concat(preds, 0).numpy()

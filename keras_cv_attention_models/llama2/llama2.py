@@ -41,7 +41,8 @@ class PositionalEncodingFourierRot1D(layers.Layer):
 
     def call(self, inputs, **kwargs):
         left, right = functional.unstack(inputs, axis=-2)
-        pos_cos, pos_sin = self.pos_cos[: left.shape[-3]], self.pos_sin[: left.shape[-3]]
+        seq_len = functional.shape(left)[-3] if backend.is_tensorflow_backend else left.shape[-3]
+        pos_cos, pos_sin = self.pos_cos[: seq_len], self.pos_sin[: seq_len]
         out = functional.stack([left * pos_cos - right * pos_sin, right * pos_cos + left * pos_sin], axis=-2)
         return out
 
