@@ -103,7 +103,7 @@ if __name__ == "__main__":
     args = parse_arguments()
 
     if args.data_path in BUILDIN_DATASETS and not os.path.exists(args.data_path):
-        args.data_path = kecam.backend.download_buildin_dataset(args.data_path, BUILDIN_DATASETS, cache_subdir="datasets")
+        args.data_path = kecam.download_and_load.download_buildin_dataset(args.data_path, BUILDIN_DATASETS, cache_subdir="datasets")
 
     caption_tokenizer = getattr(kecam.clip, args.tokenizer)() if hasattr(kecam.clip, args.tokenizer) else kecam.clip.TikToken(args.tokenizer)
     train_dataset, test_dataset = data.init_dataset(

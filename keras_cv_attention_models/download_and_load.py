@@ -101,6 +101,16 @@ def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_re
             pass
 
 
+def download_buildin_dataset(data_name, buildin_datasets, cache_subdir="datasets"):
+    url, dataset_file = buildin_datasets[data_name]["url"], buildin_datasets[data_name]["dataset_file"]
+    file_path = os.path.join(os.path.expanduser("~"), ".keras", cache_subdir, data_name)
+    if not os.path.exists(file_path):
+        file_path = backend.get_file(origin=url, cache_subdir=cache_subdir, extract=True)  # returned tar file path
+    data_name = os.path.join(os.path.dirname(file_path), data_name, dataset_file)
+    print(">>>> Buildin dataset, path:", data_name)
+    return data_name
+
+
 """ Save / load h5 weights from keras.saving.legacy.hdf5_format, supports both TF and PyTorch model, and convert_torch_weights_to_h5 """
 
 

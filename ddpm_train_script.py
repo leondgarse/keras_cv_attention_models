@@ -98,7 +98,7 @@ if __name__ == "__main__":
     print(">>>> args:", args)
 
     if args.data_path in BUILDIN_DATASETS and not os.path.exists(args.data_path):
-        args.data_path = kecam.backend.download_buildin_dataset(args.data_path, BUILDIN_DATASETS, cache_subdir="datasets")
+        args.data_path = kecam.download_and_load.download_buildin_dataset(args.data_path, BUILDIN_DATASETS, cache_subdir="datasets")
 
     if args.data_path.endswith(".json"):
         all_images, all_labels, num_classes = kecam.stable_diffusion.data.init_from_json(args.data_path)

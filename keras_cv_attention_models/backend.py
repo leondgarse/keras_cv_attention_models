@@ -144,13 +144,3 @@ def numpy_image_resize(inputs, target_shape, method="bilinear", antialias=False,
         inputs = inputs.transpose([0, 3, 1, 2]) if image_data_format() == "channels_last" else inputs
         inputs = inputs if ndims == 4 else (inputs[0] if ndims == 3 else inputs[0, 0])
     return inputs
-
-
-def download_buildin_dataset(data_name, buildin_datasets, cache_subdir="datasets"):
-    url, dataset_file = buildin_datasets[data_name]["url"], buildin_datasets[data_name]["dataset_file"]
-    file_path = os.path.join(os.path.expanduser("~"), ".keras", cache_subdir, data_name)
-    if not os.path.exists(file_path):
-        file_path = get_file(origin=url, cache_subdir=cache_subdir, extract=True)  # returned tar file path
-    data_name = os.path.join(os.path.dirname(file_path), data_name, dataset_file)
-    print(">>>> Buildin dataset, path:", data_name)
-    return data_name

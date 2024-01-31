@@ -184,7 +184,7 @@ def run_training_by_args(args):
     input_shape = (args.input_shape, args.input_shape, 3)
 
     if args.data_name in BUILDIN_DATASETS:
-        from keras_cv_attention_models.backend import download_buildin_dataset
+        from keras_cv_attention_models.download_and_load import download_buildin_dataset
 
         args.data_name = download_buildin_dataset(args.data_name, BUILDIN_DATASETS, cache_subdir="datasets")
 
