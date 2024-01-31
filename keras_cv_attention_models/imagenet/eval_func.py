@@ -27,6 +27,21 @@ class TorchModelInterf:
 
 
 class TFLiteModelInterf:
+    """
+    >>> import kecam
+    >>> mm = kecam.models.AotNet50(input_shape=[None, None, 3])  # Dynamic shape
+    >>> open(mm.name + ".tflite", "wb").write(tf.lite.TFLiteConverter.from_keras_model(mm).convert())
+    >>> tt = kecam.imagenet.eval_func.TFLiteModelInterf('aotnet50.tflite')
+    >>>
+    >>> print(f"{tt.input_shape = }")
+    >>> # tt.input_shape = (1, 1, 1, 3)
+    >>> print(f"{tt([np.ones([224, 224, 3]).astype('float32')]).shape = }")
+    >>> # >>>> Calling resize_tensor_input, input_shape (1, 1, 1, 3) -> (1, 224, 224, 3):
+    >>> # tt([np.ones([224, 224, 3]).astype('float32')]).shape = (1, 1000)
+    >>> print(f"{tt([np.ones([119, 75, 3]).astype('float32')]).shape = }")
+    >>> # >>>> Calling resize_tensor_input, input_shape (1, 224, 224, 3) -> (1, 119, 75, 3):
+    >>> # tt([np.ones([119, 75, 3]).astype('float32')]).shape = (1, 1000)
+    """
     def __init__(self, model_path):
         import tensorflow as tf
 
@@ -69,16 +84,18 @@ class TFLiteModelInterf:
     def __call__(self, imgs):
         # print(imgs.shape, imgs[0])
         preds = []
-        for img in imgs:
-            cur_input_shape = (1, *img.shape)
-            if cur_input_shape != self.input_shape:  # Exclude batch dimension
-                print(">>>> Calling resize_tensor_input, cur_input_shape:", cur_input_shape)
+        do_concat = True
+        for id, img in enumerate(imgs):
+            cur_input_shape = (1, *img.shape)  # For dynamic input shape. Keep batch size 1
+            if cur_input_shape != self.input_shape:
+                print(">>>> Calling resize_tensor_input, input_shape {} -> {}:".format(self.input_shape, cur_input_shape))
                 self.interpreter.resize_tensor_input(self.input_index, cur_input_shape, strict=True)
                 self.interpreter.allocate_tensors()
-                self.input_shape = cur_input_shape  # Keep batch size 1
+                self.input_shape = cur_input_shape
+                do_concat = False if id > 0 else do_concat  # If shape changed after the first inference
             pred = self.__interf__(img)
             preds.append(pred)
-        return self.tf.concat(preds, 0).numpy()
+        return np.concatenate(preds, 0) if do_concat else preds
 
 
 class ONNXModelInterf:

@@ -177,14 +177,20 @@ def change_model_input_shape(model, new_input_shape):
     import json
     import os
 
-    new_input_shape = [None, *new_input_shape[: len(model.input_shape) - 2], model.input_shape[-1]]
+    if len(new_input_shape) == len(model.input_shape) - 1:
+        new_input_shape = [model.input_shape[0], *new_input_shape]
+    elif len(new_input_shape) == len(model.input_shape) - 2:
+        new_input_shape = [model.input_shape[0], *new_input_shape, model.input_shape[-1]]
+    else:
+        new_input_shape = list(new_input_shape)
+
     if list(model.input_shape) == new_input_shape:
         return model
 
     aa = json.loads(model.to_json())
     aa["config"]["layers"][0]["config"]["batch_input_shape"] = new_input_shape
     bb = models.model_from_json(json.dumps(aa))
-    temp_name = "__change_model_input_shape_temp__.h5"
+    temp_name = "__" + model.name + "_change_model_input_shape_temp__.h5"
     model.save_weights(temp_name)
     bb.load_weights(temp_name)
     os.remove(temp_name)
