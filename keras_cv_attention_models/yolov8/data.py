@@ -26,7 +26,7 @@ def to_data_loader(data, cfg, imgsz=640, mode="train", batch_size=16, rect_val=F
         stride=32,
         pad=pad,
         data=data,
-        # data=data,
+        # names=data["names"],
         # classes=cfg.classes,
     )
 
@@ -34,7 +34,7 @@ def to_data_loader(data, cfg, imgsz=640, mode="train", batch_size=16, rect_val=F
     generator.manual_seed(6148914691236517205)
     collate_fn = getattr(dataset, "collate_fn", None)
     data_loader = DataLoader(
-        dataset=dataset, batch_size=batch_size, shuffle=shuffle, num_workers=16, sampler=None, pin_memory=True, collate_fn=collate_fn, generator=generator
+        dataset=dataset, batch_size=batch_size, shuffle=shuffle, num_workers=8, sampler=None, pin_memory=True, collate_fn=collate_fn, generator=generator
     )
     return data_loader
 
@@ -54,7 +54,6 @@ if __name__ == "__main__":
     sys.path.append("../ultralytics/")
     from keras_cv_attention_models.yolov8.data import get_data_loader
 
-    train_loader, val_loader = get_data_loader("datasets/coco_dog_cat.yaml")
-    for aa in train_loader:
-        break
+    train_loader, val_loader = get_data_loader("datasets/coco_dog_cat/ultralytics.yaml")
+    aa = next(iter(train_loader))
     plt.imshow(aa["img"][0].permute(1, 2, 0).numpy())

@@ -31,13 +31,7 @@ def load_from_custom_json(data_path, with_info=False):
     return (train, test, total_images, num_classes) if with_info else (train, test)
 
 
-def imread(image_path, target_size=640):
-    import cv2
-
-    return cv2.imread(image_path)[:, :, ::-1]  # BGR -> RGB
-
-
-def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, crop_x=0, letterbox_pad=-1, method="bilinear", antialias=False):
+def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, crop_x=0, letterbox_pad=-1, do_pad=False, method="bilinear", antialias=False):
     import cv2
 
     target_shape = target_shape[:2] if isinstance(target_shape, (list, tuple)) else (target_shape, target_shape)
@@ -51,24 +45,27 @@ def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, 
     image = image[crop_y : crop_y + letterbox_target_shape[0], crop_x : crop_x + letterbox_target_shape[1]]
     cropped_shape = image.shape
 
-    pad_top, pad_left = ((target_shape[0] - cropped_shape[0]) // 2, (target_shape[1] - cropped_shape[1]) // 2) if letterbox_pad >= 0 else (0, 0)
-    image = np.pad(image, [[pad_top, target_shape[0] - scaled_hh - pad_top], [pad_left, target_shape[1] - scaled_ww - pad_left], [0, 0]])
-    return image.astype("float32"), scale, pad_top, pad_left
+    if do_pad:
+        pad_top, pad_left = ((target_shape[0] - cropped_shape[0]) // 2, (target_shape[1] - cropped_shape[1]) // 2) if letterbox_pad >= 0 else (0, 0)
+        image = np.pad(image, [[pad_top, target_shape[0] - scaled_hh - pad_top], [pad_left, target_shape[1] - scaled_ww - pad_left], [0, 0]])
+    else:
+        pad_top, pad_left = 0, 0
+    return image.astype(np.uint8), scale, pad_top, pad_left
 
 
-def augment_hsv(image, hgain=0.5, sgain=0.5, vgain=0.5):
+def augment_hsv(image, hsv_h=0.5, hsv_s=0.5, hsv_v=0.5):
     import cv2
 
-    gains = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain] + 1  # random gains
+    gains = np.random.uniform(-1, 1, 3) * [hsv_h, hsv_s, hsv_v] + 1  # random gains
     hue, sat, val = cv2.split(cv2.cvtColor(image, cv2.COLOR_BGR2HSV))
 
-    random_color = np.arange(0, 256, dtype=np.int16)
+    random_color = np.arange(0, 256, dtype=gains.dtype)
     lut_hue = ((random_color * gains[0]) % 180).astype(image.dtype)
     lut_sat = np.clip(random_color * gains[1], 0, 255).astype(image.dtype)
     lut_val = np.clip(random_color * gains[2], 0, 255).astype(image.dtype)
 
-    image_hsv = cv2.merge((cv2.LUT(hue, lut_hue), cv2.LUT(sat, lut_sat), cv2.LUT(val, lut_val))).astype(image.dtype)
-    cv2.cvtColor(image_hsv, cv2.COLOR_HSV2BGR, dst=image)  # no return needed
+    image_hsv = cv2.merge((cv2.LUT(hue, lut_hue), cv2.LUT(sat, lut_sat), cv2.LUT(val, lut_val)))
+    return cv2.cvtColor(image_hsv, cv2.COLOR_HSV2BGR, dst=image)
 
 
 def random_perspective(image, bbox, label, target_size=640, degrees=10, translate=0.1, scale=0.1, shear=10, size_thresh=5, aspect_thresh=20, area_thresh=0.1):
@@ -159,10 +156,10 @@ def combine_mosaic(images, bboxes, labels, target_size=640):
 
 class DetectionDataset(Dataset):  # for training/testing
     """
-    >>> from keras_cv_attention_models.coco import torch_datasets
+    >>> from keras_cv_attention_models.coco import torch_data
     >>> from keras_cv_attention_models.plot_func import show_image_with_bboxes
-    >>> train, test = torch_datasets.load_from_custom_json('datasets/coco_dog_cat/detections.json')
-    >>> aa = torch_datasets.DetectionDataset(train)
+    >>> train, test = torch_data.load_from_custom_json('datasets/coco_dog_cat/detections.json')
+    >>> aa = torch_data.DetectionDataset(train)
     >>> image, bbox, label = aa.__getitem__(0)
     >>> ax = show_image_with_bboxes(image.transpose([1, 2, 0]), bbox, label, indices_2_labels={0: 'cat', 1: 'dog'})
     >>> ax.get_figure().savefig('aa.jpg')
@@ -172,46 +169,86 @@ class DetectionDataset(Dataset):  # for training/testing
         self.data, self.batch_size, self.is_train, self.mosaic = data, batch_size, is_train, mosaic
         self.target_size = max(image_size) if isinstance(image_size, (list, tuple)) else image_size
         # self.rect = False if is_train else rect
-        self.degrees, self.translate, self.scale, self.shear = 10, 0.1, 0.1, 10
-        self.hgain, self.sgain, self.vgain = 0.5, 0.5, 0.5
+        # import ultralytics
+        # cfg = ultralytics.cfg.get_cfg(ultralytics.utils.DEFAULT_CFG)
+        # cfg.degrees, cfg.translate, cfg.scale, cfg.shear, cfg.hsv_h, cfg.hsv_s, cfg.hsv_v
+        self.degrees, self.translate, self.scale, self.shear = 0.0, 0.1, 0.5, 0.0
+        self.hsv_h, self.hsv_s, self.hsv_v = 0.015, 0.7, 0.4
         self.fliplr = 0.5
+
+        """ Convert items all to ndarray """
+        for datapoint in self.data:
+            datapoint["objects"]["bbox"] = np.array(datapoint["objects"]["bbox"], dtype="float32")
+            datapoint["objects"]["label"] = np.array(datapoint["objects"]["label"], dtype="int64")
+
+        import cv2
+        self.imread = cv2.imread
+
+        """ Cache first for using in mosaic mix """
+        self.cached_images, self.cached_image_indexes, self.cache_length = [None] * len(data), [], batch_size * 8
+        if is_train:
+            for index in np.random.choice(range(len(data)), 4, replace=False):
+                self.cached_image_indexes.append(index)
+                self.cached_images[index] = self.__imread__(data[index]["image"])
+
 
     def __len__(self):
         return len(self.data)
 
+    def __imread__(self, image_path):
+        image = self.imread(image_path)
+        return aspect_aware_resize_and_crop_image(image, target_shape=self.target_size, do_pad=False, method="bilinear", antialias=False)[0]
+
     def __getitem__(self, index):
         datapoint = self.data[index]
         image_path, objects = datapoint["image"], datapoint["objects"]
-        bbox, label = np.array(objects["bbox"], dtype="float32"), np.array(objects["label"], dtype="int64")
+        bbox, label = objects["bbox"], objects["label"]
 
-        # interp = cv2.INTER_AREA if ratio < 1 and not self.is_train else cv2.INTER_LINEAR
-        image = aspect_aware_resize_and_crop_image(imread(image_path), target_shape=self.target_size, method="bilinear", antialias=False)[0]
+        """ Cache read images """
+        if index in self.cached_image_indexes:
+            image = self.cached_images[index]
+        elif self.is_train:
+            image = self.__imread__(image_path)
+            if len(self.cached_image_indexes) == self.cache_length:
+                clear_index = self.cached_image_indexes[0]
+                self.cached_image_indexes = self.cached_image_indexes[1:]
+                self.cached_images[clear_index] = None
+            # print(f">>>> {len(self.cached_image_indexes) = } {len([ii for ii in self.cached_images if ii is not None])}")
+            self.cached_image_indexes.append(index)
+            self.cached_images[index] = image
+        else:
+            image = self.__imread__(image_path)
 
+        """ Mosaic mix """
         if self.is_train and random.random() < self.mosaic:
             images, bboxes, labels = [image], [bbox], [label]
-            for ii in [random.randint(0, len(self.data) - 1) for _ in range(3)]:  # 3 additional image indices
-                datapoint = self.data[ii]
-                image = aspect_aware_resize_and_crop_image(imread(datapoint["image"]), target_shape=self.target_size, method="bilinear", antialias=False)[0]
-                images.append(image)
-                bboxes.append(np.array(datapoint["objects"]["bbox"]))
-                labels.append(np.array(datapoint["objects"]["label"]))
+            for index in np.random.choice(self.cached_image_indexes, 3, replace=False):  # 3 additional image indices from cached ones
+                datapoint = self.data[index]
+                images.append(self.cached_images[index])
+                bboxes.append(datapoint["objects"]["bbox"])
+                labels.append(datapoint["objects"]["label"])
             image, bbox, label = combine_mosaic(images, bboxes, labels, target_size=self.target_size)
-        else:
+        elif self.is_train:
             bbox *= [image.shape[0], image.shape[1], image.shape[0], image.shape[1]]
 
         if self.is_train:
             image, bbox, label = random_perspective(
                 image, bbox, label, target_size=self.target_size, degrees=self.degrees, translate=self.translate, scale=self.scale, shear=self.shear
             )
-            augment_hsv(image, hgain=self.hgain, sgain=self.sgain, vgain=self.vgain)
-        bbox /= [image.shape[0], image.shape[1], image.shape[0], image.shape[1]]  # normalized 0-1
+        if self.is_train and (self.hsv_h or self.hsv_s or self.hsv_v):
+            image = augment_hsv(image, hsv_h=self.hsv_h, hsv_s=self.hsv_s, hsv_v=self.hsv_v)
+
+        if self.is_train:
+            bbox /= [image.shape[0], image.shape[1], image.shape[0], image.shape[1]]  # normalized 0-1
+        else:  # Needs to pad image
+            image = np.pad(image, [[0, self.target_size - image.shape[0]], [0, self.target_size - image.shape[1]], [0, 0]])
 
         if self.is_train and random.random() < self.fliplr:
             image = np.fliplr(image)
             bbox[:, [1, 3]] = 1 - bbox[:, [1, 3]]
-        image = image.transpose(2, 0, 1)  # RGB -> channels first
-        image = np.ascontiguousarray(image.astype("float32") / 255)
-        return torch.from_numpy(image), torch.from_numpy(bbox), torch.from_numpy(label)
+        image = image.transpose(2, 0, 1)[::-1]  # BGR -> channels first -> RGB
+        image = np.ascontiguousarray(image)
+        return torch.from_numpy(image).float() / 255, torch.from_numpy(bbox).float(), torch.from_numpy(label).float()
 
 
 def collate_wrapper(batch):
@@ -237,12 +274,12 @@ def init_dataset(data_path, batch_size=64, image_size=640, num_workers=8):
 
     train_dataset = DetectionDataset(train, is_train=True, image_size=image_size)
     train_dataloader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, collate_fn=collate_wrapper, pin_memory=True, sampler=None, drop_last=True
+        train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, collate_fn=collate_wrapper, pin_memory=True, sampler=None, drop_last=False
     )
 
     test_dataset = DetectionDataset(test, is_train=False, image_size=image_size)
     test_dataloader = DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=collate_wrapper, pin_memory=True, sampler=None, drop_last=True
+        test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=collate_wrapper, pin_memory=True, sampler=None, drop_last=False
     )
 
     return train_dataloader, test_dataloader

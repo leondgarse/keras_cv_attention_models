@@ -234,10 +234,3 @@ def convert_huggingface_weights_to_h5(source_pt_path, save_path="AUTO", name_con
     ]
     weight_convert_funcs = [lambda target_name, weight: weight.T if len(weight.shape) == 2 and "embed_tokens" not in target_name else weight]  # Dense weight
     return convert_torch_weights_to_h5(source_pt_path, save_path, skip_weights, name_convert_funcs, name_convert_map, weight_convert_funcs, to_fp16)
-
-
-if __name__ == "__test__":
-    from keras_cv_attention_models import llama2
-
-    mm = llama2.LLaMA2_42M()
-    mm.run_prediction("As evening fell, a maiden stood at the edge of a wood. In her hands,", num_samples=3)

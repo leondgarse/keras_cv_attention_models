@@ -234,7 +234,10 @@ def image_process(image, target_shape, mean, std, resize_method="bilinear", resi
     if backend.is_tensorflow_backend:
         from keras_cv_attention_models.coco.tf_data import tf_imread as imread, aspect_aware_resize_and_crop_image
     else:
-        from keras_cv_attention_models.coco.torch_data import imread, aspect_aware_resize_and_crop_image
+        import cv2
+        from keras_cv_attention_models.coco.torch_data import aspect_aware_resize_and_crop_image
+
+        imread = lambda image_path: cv2.imread(image_path)[:, :, ::-1]  # BGR -> RGB
 
     if len(image.shape) < 2:
         image = imread(image)  # it's image path
