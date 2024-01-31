@@ -162,7 +162,7 @@ def run_training_by_args(args):
     teacher_model_input_shape = input_shape if args.teacher_model_input_shape == -1 else (args.teacher_model_input_shape, args.teacher_model_input_shape)
 
     if args.data_name in BUILDIN_DATASETS:
-        from keras_cv_attention_models.backend import download_buildin_dataset
+        from keras_cv_attention_models.download_and_load import download_buildin_dataset
 
         args.data_name = download_buildin_dataset(args.data_name, BUILDIN_DATASETS, cache_subdir="datasets")
 
