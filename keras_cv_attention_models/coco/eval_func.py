@@ -217,6 +217,9 @@ class DecodePredictions(layers.Layer):
         return config
 
 
+""" COCO Evaluation """
+
+
 def scale_bboxes_back_single(bboxes, image_shape, scale, pad_top, pad_left, target_shape):
     # height, width = target_shape[0] / scale, target_shape[1] / scale
     # bboxes *= [height, width, height, width]
@@ -239,7 +242,7 @@ def image_process(image, target_shape, mean, std, resize_method="bilinear", resi
 
         imread = lambda image_path: cv2.imread(image_path)[:, :, ::-1]  # BGR -> RGB
 
-    if len(image.shape) < 2:
+    if isinstance(image, str) or len(image.shape) < 2:
         image = imread(image)  # it's image path
 
     if backend.is_tensorflow_backend:
@@ -248,10 +251,10 @@ def image_process(image, target_shape, mean, std, resize_method="bilinear", resi
     else:
         original_image_shape, image = image.shape[:2], image.astype("float32")
 
-    image = (image - mean) / std  # automl behavior: rescale -> resize
     image, scale, pad_top, pad_left = aspect_aware_resize_and_crop_image(
         image, target_shape, letterbox_pad=letterbox_pad, method=resize_method, antialias=resize_antialias
     )
+    image = (image - mean) / std  # automl behavior: rescale -> resize
     if use_bgr_input:
         image = image[:, :, ::-1]
     return image, scale, pad_top, pad_left, original_image_shape
@@ -290,9 +293,7 @@ def init_eval_dataset(
         import torch
         from torch.utils.data import Dataset, DataLoader
         from keras_cv_attention_models.coco import torch_data
-        # from keras_cv_attention_models.coco.eval_func import image_process
 
-        # data_name, rescale_mode, input_shape, resize_method, resize_antialias, use_bgr_input, letterbox_pad, batch_size = 'datasets/coco_dog_cat/detections.json', "raw01", 640, 'bilinear', False, False, -1, 8
         _, test, total_images, num_classes = torch_data.load_from_custom_json(data_name, with_info=True)
         mean, std = torch_data.init_mean_std_by_rescale_mode(rescale_mode, convert_to_image_data_format=False)
 
@@ -302,9 +303,8 @@ def init_eval_dataset(
 
             def __getitem__(self, index):
                 image_path = test[index]["image"]
-                image = torch_data.imread(image_path)  # Read ahead, avoiding passing in string value with no shape attribute
                 image, scale, pad_top, pad_left, original_image_shape = image_process(
-                    image, input_shape, mean, std, resize_method, resize_antialias, use_bgr_input, letterbox_pad
+                    image_path, input_shape, mean, std, resize_method, resize_antialias, use_bgr_input, letterbox_pad
                 )
                 image = torch.from_numpy(image).permute([2, 0, 1]).contiguous()
                 return image, scale, pad_top, pad_left, torch.as_tensor(original_image_shape), image_path
@@ -336,14 +336,10 @@ def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={},
         for rr, image_shape, scale, pad_top, pad_left, image_id in zip(decoded_preds, original_image_shapes, scales, pad_tops, pad_lefts, image_ids):
             bboxes, labels, scores = rr
             image_id, bboxes, labels, scores = np.array(image_id).item(), bboxes.numpy(), labels.numpy(), scores.numpy()
-            # print(">>>> Before:", labels)
-            # labels = [{16: 0, 17: 1}.get(ii, ii) for ii in labels]
-            # print(">>>> After:", labels)
             if image_id_map is not None:
                 image_id = image_id_map[image_id.decode() if isinstance(image_id, bytes) else image_id]
             bboxes = scale_bboxes_back_single(bboxes, image_shape, scale, pad_top, pad_left, target_shape).numpy()
             results.extend([to_coco_eval_single(image_id, bb, cc, ss) for bb, cc, ss in zip(bboxes, labels, scores)])  # Loop on prediction results
-    # return functional.convert_to_tensor(results).numpy()
     return np.array(results)
 
 
@@ -421,7 +417,9 @@ def to_coco_annotation(json_path):
     return {"images": images, "annotations": annotations, "categories": categories}, image_id_map
 
 
-# Wrapper a callback for using in training
+""" Wrapper a callback for using in training """
+
+
 class COCOEvalCallback(callbacks.Callback):
     """
     Basic test:

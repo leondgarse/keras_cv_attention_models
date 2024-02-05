@@ -31,7 +31,7 @@ def load_from_custom_json(data_path, with_info=False):
     return (train, test, total_images, num_classes) if with_info else (train, test)
 
 
-def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, crop_x=0, letterbox_pad=-1, do_pad=False, method="bilinear", antialias=False):
+def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, crop_x=0, letterbox_pad=-1, do_pad=True, method="bilinear", antialias=False):
     import cv2
 
     target_shape = target_shape[:2] if isinstance(target_shape, (list, tuple)) else (target_shape, target_shape)
@@ -50,7 +50,7 @@ def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, 
         image = np.pad(image, [[pad_top, target_shape[0] - scaled_hh - pad_top], [pad_left, target_shape[1] - scaled_ww - pad_left], [0, 0]])
     else:
         pad_top, pad_left = 0, 0
-    return image.astype(np.uint8), scale, pad_top, pad_left
+    return image, scale, pad_top, pad_left
 
 
 def augment_hsv(image, hsv_h=0.5, hsv_s=0.5, hsv_v=0.5):
@@ -191,7 +191,6 @@ class DetectionDataset(Dataset):  # for training/testing
                 self.cached_image_indexes.append(index)
                 self.cached_images[index] = self.__imread__(data[index]["image"])
 
-
     def __len__(self):
         return len(self.data)
 
@@ -199,15 +198,18 @@ class DetectionDataset(Dataset):  # for training/testing
         image = self.imread(image_path)
         return aspect_aware_resize_and_crop_image(image, target_shape=self.target_size, do_pad=False, method="bilinear", antialias=False)[0]
 
-    def __getitem__(self, index):
-        datapoint = self.data[index]
-        image_path, objects = datapoint["image"], datapoint["objects"]
-        bbox, label = objects["bbox"], objects["label"]
+    def __process_eval__(self, index, image_path, bbox, label):
+        image = self.__imread__(image_path)
+        bbox *= [image.shape[0], image.shape[1], image.shape[0], image.shape[1]]
+        image = np.pad(image, [[0, self.target_size - image.shape[0]], [0, self.target_size - image.shape[1]], [0, 0]])
+        bbox /= [image.shape[0], image.shape[1], image.shape[0], image.shape[1]]
+        return image, bbox, label
 
+    def __process_train__(self, index, image_path, bbox, label):
         """ Cache read images """
-        if index in self.cached_image_indexes:
+        if index in self.cached_image_indexes:  # Seldom should this happen
             image = self.cached_images[index]
-        elif self.is_train:
+        else:
             image = self.__imread__(image_path)
             if len(self.cached_image_indexes) == self.cache_length:
                 clear_index = self.cached_image_indexes[0]
@@ -216,11 +218,9 @@ class DetectionDataset(Dataset):  # for training/testing
             # print(f">>>> {len(self.cached_image_indexes) = } {len([ii for ii in self.cached_images if ii is not None])}")
             self.cached_image_indexes.append(index)
             self.cached_images[index] = image
-        else:
-            image = self.__imread__(image_path)
 
         """ Mosaic mix """
-        if self.is_train and random.random() < self.mosaic:
+        if random.random() < self.mosaic:
             images, bboxes, labels = [image], [bbox], [label]
             for index in np.random.choice(self.cached_image_indexes, 3, replace=False):  # 3 additional image indices from cached ones
                 datapoint = self.data[index]
@@ -228,24 +228,27 @@ class DetectionDataset(Dataset):  # for training/testing
                 bboxes.append(datapoint["objects"]["bbox"])
                 labels.append(datapoint["objects"]["label"])
             image, bbox, label = combine_mosaic(images, bboxes, labels, target_size=self.target_size)
-        elif self.is_train:
+        else:
             bbox *= [image.shape[0], image.shape[1], image.shape[0], image.shape[1]]
 
-        if self.is_train:
-            image, bbox, label = random_perspective(
-                image, bbox, label, target_size=self.target_size, degrees=self.degrees, translate=self.translate, scale=self.scale, shear=self.shear
-            )
-        if self.is_train and (self.hsv_h or self.hsv_s or self.hsv_v):
-            image = augment_hsv(image, hsv_h=self.hsv_h, hsv_s=self.hsv_s, hsv_v=self.hsv_v)
+        image, bbox, label = random_perspective(
+            image, bbox, label, target_size=self.target_size, degrees=self.degrees, translate=self.translate, scale=self.scale, shear=self.shear
+        )  # Also process image as [target_size, target_size]
+        image = augment_hsv(image, hsv_h=self.hsv_h, hsv_s=self.hsv_s, hsv_v=self.hsv_v)
+        bbox /= [image.shape[0], image.shape[1], image.shape[0], image.shape[1]]  # normalized to [0, 1]
 
-        if self.is_train:
-            bbox /= [image.shape[0], image.shape[1], image.shape[0], image.shape[1]]  # normalized 0-1
-        else:  # Needs to pad image
-            image = np.pad(image, [[0, self.target_size - image.shape[0]], [0, self.target_size - image.shape[1]], [0, 0]])
-
-        if self.is_train and random.random() < self.fliplr:
+        if random.random() < self.fliplr:
             image = np.fliplr(image)
             bbox[:, [1, 3]] = 1 - bbox[:, [1, 3]]
+        return image, bbox, label
+
+
+    def __getitem__(self, index):
+        datapoint = self.data[index]
+        image_path, objects = datapoint["image"], datapoint["objects"]
+        bbox, label = objects["bbox"], objects["label"]
+        image, bbox, label = self.__process_train__(index, image_path, bbox, label) if self.is_train else self.__process_eval__(index, image_path, bbox, label)
+
         image = image.transpose(2, 0, 1)[::-1]  # BGR -> channels first -> RGB
         image = np.ascontiguousarray(image)
         return torch.from_numpy(image).float() / 255, torch.from_numpy(bbox).float(), torch.from_numpy(label).float()

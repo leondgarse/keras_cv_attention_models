@@ -78,6 +78,7 @@ class Detect(nn.Module):
             # box = box.reshape([-1, 4, self.reg_max, box.shape[-1]])[:, [1, 0, 3, 2]].reshape([-1, 64, box.shape[-1]])
             box = (box.view(-1, 4, self.reg_max, box.shape[-1]).softmax(2) * self.dfl).sum(2).view(-1, 4, box.shape[-1])
             box = dist2bbox(box, self.anchors.unsqueeze(0), xywh=True, dim=1) * self.strides
+            # box = box[:, [1, 0, 3, 2]]  # [TODO] w/o ultralytics xyxy -> yxyx
             val_out = torch.cat((box, cls.sigmoid()), 1)
             return val_out if self.export else (val_out, train_out)
 
