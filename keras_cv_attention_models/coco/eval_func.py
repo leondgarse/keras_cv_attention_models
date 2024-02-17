@@ -327,8 +327,7 @@ def model_detection_and_decode(model, eval_dataset, pred_decoder, nms_kwargs={},
 
     results = []
     for images, scales, pad_tops, pad_lefts, original_image_shapes, image_ids in tqdm(eval_dataset):
-        preds = model(images)
-        preds = preds.cpu().float() if backend.is_torch_backend else functional.cast(preds, "float32")
+        preds = model.predict(images).cpu().float() if backend.is_torch_backend else functional.cast(model(images), "float32")
         # decoded_preds: [[bboxes, labels, scores], [bboxes, labels, scores], ...]
         decoded_preds = pred_decoder(preds, **nms_kwargs)
 
@@ -443,8 +442,8 @@ class COCOEvalCallback(callbacks.Callback):
         nms_score_threshold=0.001,  # [model_detection_and_decode parameters]
         nms_iou_or_sigma=0.5,
         nms_max_output_size=100,
-        nms_method="gaussian",
-        nms_mode="per_class",
+        nms_method="gaussian",  # gaussian or hard
+        nms_mode="per_class",  # per_class or global
         nms_topk=5000,
         anchors_mode="auto",  # [model anchors related parameters]
         anchor_scale=4,  # Init anchors for model prediction. "auto" means 1 if (anchors_mode=="anchor_free" or anchors_mode=="yolor"), else 4

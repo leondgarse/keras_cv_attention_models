@@ -468,6 +468,10 @@ class Model(nn.Module, _Trainer_, _Exporter_):
                 print("     intra_nodes:", {kk: len(vv) for kk, vv in intra_nodes.items() if len(vv) > 0})
         return [intra_nodes[ii][0] for ii in self.output_names] if self.num_outputs != 1 else intra_nodes[self.output_names[0]][0]
 
+    @torch.no_grad()
+    def predict(self, inputs, **kwargs):
+        return self.forward(inputs, **kwargs)
+
     def graphnode_forward(self, inputs):
         self.input_shape = [() if isinstance(ii, (int, float)) else ii.shape for ii in inputs] if isinstance(inputs, (list, tuple)) else inputs.shape
         cur_node = layers.GraphNode(self.output_shape, name=self.name if self.nodes is None else (self.name + "_{}".format(len(self.nodes))))

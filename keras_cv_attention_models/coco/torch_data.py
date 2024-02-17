@@ -5,8 +5,11 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from keras_cv_attention_models.common_layers import init_mean_std_by_rescale_mode
+from keras_cv_attention_models.plot_func import draw_bboxes, show_image_with_bboxes
+
 
 CV2_INTERPOLATION_MAP = {"nearest": "INTER_NEAREST", "bilinear": "INTER_LINEAR", "bicubic": "INTER_CUBIC", "area": "INTER_AREA"}
+
 
 def load_from_custom_json(data_path, with_info=False):
     import json
@@ -68,7 +71,7 @@ def augment_hsv(image, hsv_h=0.5, hsv_s=0.5, hsv_v=0.5):
     return cv2.cvtColor(image_hsv, cv2.COLOR_HSV2BGR, dst=image)
 
 
-def random_perspective(image, bbox, label, target_size=640, degrees=10, translate=0.1, scale=0.1, shear=10, size_thresh=5, aspect_thresh=20, area_thresh=0.1):
+def random_perspective(image, bbox, label, target_size=640, degrees=10, translate=0.1, scale=0.1, shear=10, size_thresh=2, aspect_thresh=20, area_thresh=0.1):
     import cv2
 
     # torchvision.transforms.RandomAffine(degrees=(-10, 10), translate=(.1, .1), scale=(.9, 1.1), shear=(-10, 10))
@@ -178,14 +181,14 @@ class DetectionDataset(Dataset):  # for training/testing
 
         """ Convert items all to ndarray """
         for datapoint in self.data:
-            datapoint["objects"]["bbox"] = np.array(datapoint["objects"]["bbox"], dtype="float32")
+            datapoint["objects"]["bbox"] = np.array(datapoint["objects"]["bbox"], dtype="float32").reshape([-1, 4])
             datapoint["objects"]["label"] = np.array(datapoint["objects"]["label"], dtype="int64")
 
         import cv2
         self.imread = cv2.imread
 
         """ Cache first for using in mosaic mix """
-        self.cached_images, self.cached_image_indexes, self.cache_length = [None] * len(data), [], batch_size * 8
+        self.cached_images, self.cached_image_indexes, self.cache_length = [None] * len(data), [], min(batch_size * 32, 1024)
         if is_train:
             for index in np.random.choice(range(len(data)), 4, replace=False):
                 self.cached_image_indexes.append(index)
@@ -239,7 +242,7 @@ class DetectionDataset(Dataset):  # for training/testing
 
         if random.random() < self.fliplr:
             image = np.fliplr(image)
-            bbox[:, [1, 3]] = 1 - bbox[:, [1, 3]]
+            bbox[:, [1, 3]] = 1 - bbox[:, [3, 1]]
         return image, bbox, label
 
 

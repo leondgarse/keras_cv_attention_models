@@ -56,7 +56,7 @@ class Detect(nn.Module):
         return torch.cat(anchor_points).transpose(0, 1), torch.cat(stride_tensor).transpose(0, 1)
 
     def forward(self, inputs):
-        out = self.model(inputs)
+        out = self.model(inputs) if self.training else self.model.predict(inputs)
         out = out.permute([0, 2, 1])
 
         if self.training:
@@ -81,29 +81,3 @@ class Detect(nn.Module):
             # box = box[:, [1, 0, 3, 2]]  # [TODO] w/o ultralytics xyxy -> yxyx
             val_out = torch.cat((box, cls.sigmoid()), 1)
             return val_out if self.export else (val_out, train_out)
-
-
-if __name__ == "__main__":
-    os.environ["KECAM_BACKEND"] = "torch"
-    sys.path.append("../ultralytics/")
-    import torch
-    from keras_cv_attention_models.test_images import dog_cat
-    from skimage.transform import resize
-
-    tt = torch.load("yolov8n.pt")["model"]
-    _ = tt.eval()
-    _ = tt.float()
-
-    imm = resize(dog_cat(), [640, 640])
-    preds_torch, torch_out = tt(torch.from_numpy(imm[None]).permute([0, 3, 1, 2]).float())
-
-    import torch
-    from keras_cv_attention_models.yolov8 import torch_wrapper, yolov8
-    from keras_cv_attention_models.test_images import dog_cat
-    from skimage.transform import resize
-
-    mm = yolov8.YOLOV8_N(classifier_activation=None, input_shape=(640, 640, 3))
-    tt = torch_wrapper.Detect(mm)
-    _ = tt.eval()
-    imm = resize(dog_cat(), [640, 640])
-    preds_torch, torch_out = tt(torch.from_numpy(imm[None]).permute([0, 3, 1, 2]).float())
