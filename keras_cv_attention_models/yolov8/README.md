@@ -270,8 +270,8 @@
 
     """" Convert bboxes xywh to yxyx """
     bboxes, scores, labels = preds_torch[0, :4].T, *preds_torch[0, 4:].max(0)
-    top_left = bboxes[:, [1, 0]]] - bboxes[:, [3, 2]] / 2
-    bboxes = torch.concat([left_top, left_top + bboxes[:, [3, 2]]], dim=-1)
+    top_left = bboxes[:, [1, 0]] - bboxes[:, [3, 2]] / 2
+    bboxes = torch.concat([top_left, top_left + bboxes[:, [3, 2]]], dim=-1)
 
     rr, nms_scores = functional.non_max_suppression_with_scores(bboxes, scores, iou_threshold=0.5, score_threshold=0.3)
     data.show_image_with_bboxes(imm, bboxes[rr] / 640, labels[rr])
