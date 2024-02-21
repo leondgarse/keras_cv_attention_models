@@ -45,6 +45,7 @@ class DecodePredictions(layers.Layer):
         mode="global",  # decode parameter, can be set new value in `self.call`
         topk=0,  # decode parameter, can be set new value in `self.call`
         use_static_output=False,  # Set to True if using this as an actual layer, especially for converting tflite
+        use_sigmoid_on_score=False,  # wether applying sigmoid on score outputs. Set True if model is built using `classifier_activation=None`
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -58,7 +59,7 @@ class DecodePredictions(layers.Layer):
         else:
             self.anchors = None
         self.__input_shape__ = input_shape
-        self.use_static_output = use_static_output
+        self.use_static_output, self.use_sigmoid_on_score = use_static_output, use_sigmoid_on_score
         self.nms_kwargs = {
             "score_threshold": score_threshold,
             "iou_or_sigma": iou_or_sigma,
@@ -163,6 +164,7 @@ class DecodePredictions(layers.Layer):
             anchors = self.anchors
             if self.use_object_scores:
                 ccs = ccs * object_scores
+        ccs = functional.sigmoid(ccs) if self.use_sigmoid_on_score else ccs
 
         # print(f"{bbs.shape = }, {anchors.shape = }")
         bbs_decoded = anchors_func.decode_bboxes(bbs, anchors, regression_len=self.regression_len)
@@ -496,7 +498,9 @@ class COCOEvalCallback(callbacks.Callback):
     def build(self, input_shape, output_shape):
         import re
 
-        input_shape = (int(input_shape[1]), int(input_shape[2])) if backend.image_data_format() == "channels_last" else (int(input_shape[2]), int(input_shape[3]))
+        input_shape = (
+            (int(input_shape[1]), int(input_shape[2])) if backend.image_data_format() == "channels_last" else (int(input_shape[2]), int(input_shape[3]))
+        )
         self.eval_dataset, self.num_classes = init_eval_dataset(input_shape=input_shape, **self.dataset_kwargs)
         print("\n>>>> [COCOEvalCallback] self.dataset_kwargs:", self.dataset_kwargs)
         regression_len = (output_shape[-1] - self.num_classes) // 4 * 4
@@ -512,7 +516,11 @@ class COCOEvalCallback(callbacks.Callback):
         # print(">>>>", self.dataset_kwargs)
         # print(">>>>", self.nms_kwargs)
 
-        self.pred_decoder = DecodePredictions(input_shape, pyramid_levels, self.anchors_mode, regression_len=regression_len, **self.anchor_kwargs)
+        use_sigmoid_on_score = not any([ii.name.endswith("_sigmoid") for ii in self.model.layers[-50:]])
+        print(">>>> use_sigmoid_on_score:", use_sigmoid_on_score)
+        self.pred_decoder = DecodePredictions(
+            input_shape, pyramid_levels, self.anchors_mode, regression_len=regression_len, use_sigmoid_on_score=use_sigmoid_on_score, **self.anchor_kwargs
+        )
 
         # Training saving best
         if self.model_basic_save_name is not None:

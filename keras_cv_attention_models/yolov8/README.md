@@ -230,69 +230,33 @@
   # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.855
   ```
 ## Training using PyTorch backend and ultralytics
-  - **[Experimental] Training using PyTorch backend**, currently using `ultralytics` dataset and validator process. The advantage is that this supports any pyramid staged model in this package.
-  - The parameter `rect_val=False` means using fixed data shape `[640, 640]` for validator, or will by dynamic.
+  - **Custom dataset** is created using `custom_dataset_script.py`, which can be used as `dataset_path="coco.json"` for training, detail usage can be found in [Custom detection dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussioncomment-2460664).
   - **Train using `EfficientNetV2B0` backbone + `YOLOV8_N` head**.
     ```py
-    import os, sys
+    import os, sys, torch
     os.environ["KECAM_BACKEND"] = "torch"
-    sys.path.append(os.path.expanduser("~/workspace/ultralytics/"))
 
     from keras_cv_attention_models.yolov8 import train, yolov8, torch_wrapper
     from keras_cv_attention_models import efficientnet
 
+    global_device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
     # model Trainable params: 7,023,904, GFLOPs: 8.1815G
     bb = efficientnet.EfficientNetV2B0(input_shape=(3, 640, 640), num_classes=0)
-    model = yolov8.YOLOV8_N(backbone=bb, classifier_activation=None, pretrained=None).cuda()
+    model = yolov8.YOLOV8_N(backbone=bb, classifier_activation=None, pretrained=None).to(global_device)  # Note: classifier_activation=None
     # model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None).cuda()
-    model = torch_wrapper.Detect(model)
-    ema = train.train(model, dataset_path="coco.yaml", rect_val=False)
+    ema = train.train(model, dataset_path="coco.json", initial_epoch=0)
     ```
     ![yolov8_training](https://user-images.githubusercontent.com/5744524/235142289-cb6a4da0-1ea7-4261-afdd-03a3c36278b8.png)
-  - **Predict after training** **Note: currently trained weights output format is `[left, top, right, bottom]`, or `xyxy` format, while eval and show here using `[top, left, bottom, right]`, or `yxyx` format. This may change in the future.**
+  - **Predict after training using Torch / TF backend**. `bbox` output format is in `[top, left, bottom, right]`, or `yxyx` format.
     ```py
-    os.environ["KECAM_BACKEND"] = "torch"
-    import torch
-    from keras_cv_attention_models import efficientnet, yolov8, test_images
-    from keras_cv_attention_models.coco import data
-    from keras_cv_attention_models.backend import numpy_image_resize, functional
-    from keras_cv_attention_models.yolov8 import torch_wrapper
-
-    bb = efficientnet.EfficientNetV2B0(input_shape=(3, 640, 640), num_classes=0, pretrained=None)
-    model = yolov8.YOLOV8_N(backbone=bb, classifier_activation=None, pretrained="yolov8_n_E40_0291.h5")
-    tt = torch_wrapper.Detect(model)
-    _ = tt.eval()
-
-    imm = numpy_image_resize(test_images.dog_cat(), [640, 640]) / 255
-    preds_torch, torch_out = tt(torch.from_numpy(imm[None]).permute([0, 3, 1, 2]).float())
-    print(preds_torch.shape, [ii.shape for ii in torch_out])  # This should be same with ultralytics model prediction output
-    # torch.Size([1, 84, 8400]) [torch.Size([1, 144, 80, 80]), torch.Size([1, 144, 40, 40]), torch.Size([1, 144, 20, 20])]
-
-    """" Convert bboxes xywh to yxyx """
-    bboxes, scores, labels = preds_torch[0, :4].T, *preds_torch[0, 4:].max(0)
-    top_left = bboxes[:, [1, 0]] - bboxes[:, [3, 2]] / 2
-    bboxes = torch.concat([top_left, top_left + bboxes[:, [3, 2]]], dim=-1)
-
-    rr, nms_scores = functional.non_max_suppression_with_scores(bboxes, scores, iou_threshold=0.5, score_threshold=0.3)
-    data.show_image_with_bboxes(imm, bboxes[rr] / 640, labels[rr])
-    ```
-    **Inference using TF backend**
-    ```py
-    import tensorflow as tf
     from keras_cv_attention_models import efficientnet, yolov8, test_images
     from keras_cv_attention_models.coco import data
 
     bb = efficientnet.EfficientNetV2B0(input_shape=(3, 640, 640), num_classes=0, pretrained=None)
-    model = yolov8.YOLOV8_N(backbone=bb, pretrained="yolov8_n_E40_0291.h5")
+    model = yolov8.YOLOV8_N(backbone=bb, pretrained="yolov8_n.h5")
 
     imm = test_images.dog_cat()
     preds = model(model.preprocess_input(imm))
-    print(preds.shape)
-    # (1, 8400, 144)
-
-    """ Convert xyxy to yxyx """
-    preds_bbox = tf.reshape(tf.gather(tf.reshape(preds[:, :, :64], [1, -1, 4, 16]), [1, 0, 3, 2], axis=2), [1, -1, 64])
-    preds = tf.concat([preds_bbox, preds[:, :, 64:]], axis=-1)
     bboxes, labels, confidences = model.decode_predictions(preds)[0]
     data.show_image_with_bboxes(imm, bboxes, labels, confidences)
     ```

@@ -417,14 +417,11 @@
     CUDA_VISIBLE_DEVICES='1' python3 coco_eval_script.py -m checkpoints/yoloxtiny_yolor_anchor.h5
     # >>>> [COCOEvalCallback] input_shape: (416, 416), pyramid_levels: [3, 5], anchors_mode: yolor
     ```
-  - **[Experimental] Training using PyTorch backend**, currently using `ultralytics` dataset and validator process. The parameter `rect_val=False` means using fixed data shape `[640, 640]` for validator, or will by dynamic.
+  - **[Experimental] Training using PyTorch backend**
     ```py
-    !pip install ultralytics
-
     import os, sys
     os.environ["KECAM_BACKEND"] = "torch"
     sys.setrecursionlimit(65536)
-    # sys.path.append(os.path.expanduser("~/workspace/ultralytics/"))
 
     from keras_cv_attention_models.yolov8 import train, yolov8, torch_wrapper
     from keras_cv_attention_models import efficientnet
@@ -433,8 +430,7 @@
     bb = efficientnet.EfficientNetV2B0(input_shape=(3, 640, 640), num_classes=0)
     model = yolov8.YOLOV8_N(backbone=bb, classifier_activation=None, pretrained=None).cuda()
     # model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None).cuda()
-    model = torch_wrapper.Detect(model)
-    ema = train.train(model, dataset_path="coco.yaml", rect_val=False)
+    ema = train.train(model, dataset_path="coco.json")
     ```
     ![yolov8_training](https://user-images.githubusercontent.com/5744524/235142289-cb6a4da0-1ea7-4261-afdd-03a3c36278b8.png)
 ## CLIP training and evaluating

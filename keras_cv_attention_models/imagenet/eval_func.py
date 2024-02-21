@@ -42,6 +42,7 @@ class TFLiteModelInterf:
     >>> # >>>> Calling resize_tensor_input, input_shape (1, 224, 224, 3) -> (1, 119, 75, 3):
     >>> # tt([np.ones([119, 75, 3]).astype('float32')]).shape = (1, 1000)
     """
+
     def __init__(self, model_path):
         import tensorflow as tf
 

@@ -69,10 +69,9 @@ def build_optimizer(model, name="sgd", lr=0.01, momentum=0.937, decay=5e-4):
     return optimizer
 
 
-def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_epoch=0, optimizer_name="sgd", rect_val=False, overwrite_cfg=None):
+def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_epoch=0, optimizer_name="sgd"):
     from keras_cv_attention_models.yolov8 import losses
-    from keras_cv_attention_models.yolov8 import data, eval
-    # from keras_cv_attention_models.coco import torch_data, eval_func  # [TODO] w/o ultralytics
+    from keras_cv_attention_models.coco import torch_data, eval_func
 
     if torch.cuda.is_available():
         model = model.cuda()
@@ -86,21 +85,12 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
 
     imgsz = (model.input_shape[2] or 640) if hasattr(model, "input_shape") else 640
     print(">>>> imgsz:", imgsz)
-    cfg = FakeArgs(data=dataset_path, imgsz=imgsz, iou=0.7, single_cls=False, max_det=300, task="detect", mode="train", split="val", half=False, conf=None)
-    cfg.update(augment=False, degrees=0.0, translate=0.1, scale=0.5, shear=0.0, perspective=0.0, hsv_h=0.015, hsv_s=0.7, hsv_v=0.4, flipud=0.0, fliplr=0.5)
-    cfg.update(mask_ratio=4, overlap_mask=True, project=None, name=None, save_txt=False, save_hybrid=False, save_json=False, plots=False, verbose=True, seed=0)
-    if overwrite_cfg is not None:
-        cfg.update(**overwrite_cfg)
-    # from ultralytics.yolo.cfg import get_cfg
-    # from ultralytics.yolo.utils import DEFAULT_CFG
-    # cfg = get_cfg(DEFAULT_CFG)
-    # cfg.data = dataset_path
 
-    train_loader, val_loader = data.get_data_loader(dataset_path=dataset_path, batch_size=batch_size, imgsz=imgsz, rect_val=rect_val)
-    # train_loader, _ = torch_data.init_dataset(data_path=dataset_path, batch_size=batch_size, image_size=imgsz)  # [TODO] w/o ultralytics
+    train_loader, _ = torch_data.init_dataset(data_path=dataset_path, batch_size=batch_size, image_size=imgsz)
     device = next(model.parameters()).device  # get model device
     num_classes = getattr(model, "num_classes", model.output_shape[-1] - 64)
     print(">>>> num_classes =", num_classes)
+
     compute_loss = losses.Loss(device=device, nc=num_classes)
     optimizer = build_optimizer(model, name=optimizer_name)
     ema = ModelEMA(model)
@@ -108,9 +98,11 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
     lf = lambda x: (1 - x / epochs) * (1.0 - 0.01) + 0.01  # linear
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
     scaler = amp.GradScaler(enabled=use_amp)
-    validator = eval.Validator(val_loader=val_loader, model=ema.ema, cfg=cfg)
-    # validator = eval_func.COCOEvalCallback(data_name=dataset_path, batch_size=batch_size, nms_mode="global")  # [TODO] w/o ultralytics
-    # validator.model = model  # [TODO] w/o ultralytics
+
+    validator = eval_func.COCOEvalCallback(
+        data_name=dataset_path, batch_size=batch_size, rescale_mode="raw01", nms_method="hard", nms_iou_or_sigma=0.65, nms_max_output_size=300
+    )
+    validator.model = ema.ema
 
     nb = len(train_loader)
     nw = max(round(warmup_epochs * nb), 100)
@@ -121,24 +113,18 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
     warmup_momentum = 0.8
     last_opt_step = -1
     for epoch in range(initial_epoch, epochs):
-        # self.run_callbacks('on_train_epoch_start')
         model.train()
-        # Update attributes (optional)
         if epoch == (epochs - close_mosaic):
             print("Closing dataloader mosaic")
             if hasattr(train_loader.dataset, "mosaic"):
-                train_loader.dataset.mosaic = False
-            if hasattr(train_loader.dataset, "close_mosaic"):
-                train_loader.dataset.close_mosaic(hyp=cfg)
+                train_loader.dataset.mosaic = 0
 
         tloss = None
         optimizer.zero_grad()
         loss_names = ["box_loss", "cls_loss", "dfl_loss"]
         print(("\n" + "%11s" * (3 + len(loss_names))) % ("Epoch", *loss_names, "Instances", "Size"))
         pbar = tqdm(enumerate(train_loader), total=nb, bar_format="{l_bar}{bar:10}{r_bar}")
-        # for i, (images, labels) in pbar:  # [TODO] w/o ultralytics
-        for i, batch in pbar:
-            # self.run_callbacks('on_train_batch_start')
+        for i, (images, labels) in pbar:
             ni = i + nb * epoch
             if ni <= nw:
                 xi = [0, nw]  # x interp
@@ -151,10 +137,8 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
 
             # Forward
             with torch.cuda.amp.autocast(use_amp):
-                preds = model(batch["img"].to(device, non_blocking=True).float() / 255)
-                loss, loss_items = compute_loss(preds, batch)
-                # preds = model(images.to(device, non_blocking=True).float())  # [TODO] w/o ultralytics
-                # loss, loss_items = compute_loss(preds, labels)  # [TODO] w/o ultralytics
+                preds = model(images.to(device, non_blocking=True).float())
+                loss, loss_items = compute_loss(preds, labels)
                 tloss = (tloss * i + loss_items) / (i + 1) if tloss is not None else loss_items
 
             # Backward
@@ -173,34 +157,32 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
 
             loss_len = tloss.shape[0] if len(tloss.size()) else 1
             losses = tloss if loss_len > 1 else torch.unsqueeze(tloss, 0)
-            pbar.set_description(("%11s" * 1 + "%11.4g" * (2 + loss_len)) % (f"{epoch + 1}/{epochs}", *losses, batch["cls"].shape[0], batch["img"].shape[-1]))
-            # pbar.set_description(("%11s" * 1 + "%11.4g" * (2 + loss_len)) % (f"{epoch + 1}/{epochs}", *losses, labels.shape[0], images.shape[-1]))  # [TODO] w/o ultralytics
+            pbar.set_description(("%11s" * 1 + "%11.4g" * (2 + loss_len)) % (f"{epoch + 1}/{epochs}", *losses, labels.shape[0], images.shape[-1]))
         scheduler.step()
         model.eval()
-        validator()
-        # validator.on_epoch_end(epoch=epoch)  # [TODO] w/o ultralytics
+        validator.on_epoch_end(epoch=epoch)
 
-        if hasattr(model, "model") and hasattr(model.model, "save_weights"):
-            model.model.save_weights(model.model.name + ".h5")
-        elif hasattr(model, "model") and hasattr(model.model, "state_dict"):
-            torch.save(model.model.state_dict(), model.__class__.__name__ + ".pth")
+        if hasattr(model, "save_weights"):
+            model.save_weights(model.name + ".h5")
+        elif hasattr(model, "state_dict"):
+            torch.save(model.state_dict(), model.__class__.__name__ + ".pth")
 
     # Save ema model
-    ema_model = ema.ema.model
-    if hasattr(ema_model, "model") and hasattr(ema_model.model, "save_weights"):
-        ema_model.model.save_weights(ema_model.model.name + "_ema.h5")
-    elif hasattr(ema_model, "model") and hasattr(ema_model.model, "state_dict"):
-        torch.save(ema_model.model.state_dict(), ema_model.__class__.__name__ + "_ema.pth")
+    ema_model = ema.ema
+    if hasattr(ema_model, "save_weights"):
+        ema_model.save_weights(ema_model.name + "_ema.h5")
+    elif hasattr(ema_model, "state_dict"):
+        torch.save(ema_model.state_dict(), ema_model.__class__.__name__ + "_ema.pth")
     return ema
 
 
 if __name__ == "__main__":
-    os.environ["KECAM_BACKEND"] = "torch"
     sys.path.append("../ultralytics/")
+    os.environ["KECAM_BACKEND"] = "torch"
+    global_device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
     from keras_cv_attention_models.yolov8 import train, yolov8, torch_wrapper
 
     # from ultralytics import YOLO
     # model = YOLO('../ultralytics/ultralytics/models/v8/yolov8n.yaml').model
-    model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None)
-    model = torch_wrapper.Detect(model)
-    train.train(model, dataset_path="coco128.yaml")
+    model = yolov8.YOLOV8_N(input_shape=(3, 640, 640), num_classes=2, classifier_activation=None, pretrained=None).to(global_device)
+    train.train(model, dataset_path="datasets/coco_dog_cat/detections.json", initial_epoch=0)

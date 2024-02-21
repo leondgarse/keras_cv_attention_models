@@ -379,8 +379,10 @@ def detection_dataset_from_custom_json(data_path, with_info=False):
         base_path = os.path.expanduser(info["base_path"])
         for ii in train:
             ii["image"] = os.path.join(base_path, ii["image"])
+            ii["objects"]["bbox"] = tf.reshape(ii["objects"]["bbox"], [-1, 4])
         for ii in test:
             ii["image"] = os.path.join(base_path, ii["image"])
+            ii["objects"]["bbox"] = tf.reshape(ii["objects"]["bbox"], [-1, 4])
 
     objects_signature = {"bbox": tf.TensorSpec(shape=(None, 4), dtype=tf.float32), "label": tf.TensorSpec(shape=(None,), dtype=tf.int64)}
     output_signature = {"image": tf.TensorSpec(shape=(), dtype=tf.string), "objects": objects_signature}

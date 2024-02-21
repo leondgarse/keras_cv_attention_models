@@ -185,6 +185,7 @@ class DetectionDataset(Dataset):  # for training/testing
             datapoint["objects"]["label"] = np.array(datapoint["objects"]["label"], dtype="int64")
 
         import cv2
+
         self.imread = cv2.imread
 
         """ Cache first for using in mosaic mix """
@@ -209,7 +210,7 @@ class DetectionDataset(Dataset):  # for training/testing
         return image, bbox, label
 
     def __process_train__(self, index, image_path, bbox, label):
-        """ Cache read images """
+        """Cache read images"""
         if index in self.cached_image_indexes:  # Seldom should this happen
             image = self.cached_images[index]
         else:
@@ -244,7 +245,6 @@ class DetectionDataset(Dataset):  # for training/testing
             image = np.fliplr(image)
             bbox[:, [1, 3]] = 1 - bbox[:, [3, 1]]
         return image, bbox, label
-
 
     def __getitem__(self, index):
         datapoint = self.data[index]

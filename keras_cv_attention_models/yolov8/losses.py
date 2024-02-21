@@ -8,13 +8,18 @@ import torch.nn.functional as F
 
 
 class Loss:
-    def __init__(self, device="cpu", stride=[8, 16, 32], nc=80, reg_max=16, box_weight=7.5, cls_weight=0.5, dfl_weight=1.5, min_memory=False):
+    def __init__(self, device="cpu", stride=[8, 16, 32], nc=80, reg_max=16, input_shape=640, box_weight=7.5, cls_weight=0.5, dfl_weight=1.5, min_memory=False):
         # self.device = next(model.parameters()).device  # get model device
         # h = model.args  # hyperparameters
         # m = model.model[-1]  # Detect() module
-        self.bce = nn.BCEWithLogitsLoss(reduction="none")
+        self.bce = nn.BCEWithLogitsLoss(reduction="none")  # cannot use BCELoss here: torch.nn.BCELoss are unsafe to autocast
         self.stride, self.nc, self.reg_max, self.device = stride, nc, reg_max, device
         self.box_weight, self.cls_weight, self.dfl_weight, self.min_memory = box_weight, cls_weight, dfl_weight, min_memory
+
+        self.input_shape = input_shape[-2:] if isinstance(input_shape, (list, tuple)) else (input_shape, input_shape)
+        self.num_pyramid_levels = len(stride)
+        self.feature_sizes, self.feature_lens = self.get_feature_sizes()
+        self.anchor_points, self.stride_tensor = self.make_anchors()
 
         self.no = nc + reg_max * 4
         self.use_dfl = reg_max > 1
@@ -23,6 +28,23 @@ class Loss:
         self.assigner = TaskAlignedAssigner(topk=10, num_classes=self.nc, alpha=0.5, beta=6.0, roll_out_thr=roll_out_thr)
         self.bbox_loss = BboxLoss(reg_max - 1, use_dfl=self.use_dfl).to(self.device)
         self.proj = torch.arange(reg_max, dtype=torch.float, device=self.device)
+
+    def get_feature_sizes(self):
+        feature_sizes = [
+            (math.ceil(self.input_shape[-2] / (2**ii)), math.ceil(self.input_shape[-1] / (2**ii))) for ii in range(3, 3 + self.num_pyramid_levels)
+        ]
+        feature_lens = [ii[0] * ii[1] for ii in feature_sizes]
+        return feature_sizes, feature_lens
+
+    def make_anchors(self, grid_cell_offset=0.5):
+        anchor_points, stride_tensor = [], []
+        for (hh, ww), stride in zip(self.feature_sizes, self.stride):
+            sx = torch.arange(end=ww, device=self.device, dtype=torch.float32) + grid_cell_offset  # shift x
+            sy = torch.arange(end=hh, device=self.device, dtype=torch.float32) + grid_cell_offset  # shift y
+            sy, sx = torch.meshgrid(sy, sx, indexing="ij")
+            anchor_points.append(torch.stack((sx, sy), -1).view(-1, 2))
+            stride_tensor.append(torch.full((hh * ww, 1), stride, dtype=torch.float32, device=self.device))
+        return torch.cat(anchor_points), torch.cat(stride_tensor)
 
     def preprocess(self, targets, batch_size, scale_tensor):
         if targets.shape[0] == 0:
@@ -36,8 +58,7 @@ class Loss:
                 n = matches.sum()
                 if n:
                     out[j, :n] = targets[matches, 1:]
-            out[..., :-1] = xywh2xyxy(out[..., :-1].mul_(scale_tensor))
-            # out[..., :-1] = out[..., [1, 0, 3, 2]].mul_(scale_tensor)  # yxyx -> xyxy [TODO] w/o ultralytics
+            out[..., :-1] = out[..., [1, 0, 3, 2]].mul_(scale_tensor)  # target yxyx -> xyxy
         return out
 
     def bbox_decode(self, anchor_points, pred_dist):
@@ -49,46 +70,44 @@ class Loss:
         return dist2bbox(pred_dist, anchor_points, xywh=False)
 
     def __call__(self, preds, targets):
-        loss = torch.zeros(3, device=self.device)  # box, cls, dfl
-        feats = preds[1] if isinstance(preds, tuple) else preds
-        pred_distri, pred_scores = torch.cat([xi.view(feats[0].shape[0], self.no, -1) for xi in feats], 2).split((self.reg_max * 4, self.nc), 1)
+        dtype = preds.dtype
+        pred_distri, pred_scores = preds.split((self.reg_max * 4, self.nc), dim=-1)  # [None, 8400, 144] -> [None, 8400, 64], [None, 8400, 80]
+        pred_scores = pred_scores.contiguous()
 
-        pred_scores = pred_scores.permute(0, 2, 1).contiguous()
-        pred_distri = pred_distri.permute(0, 2, 1).contiguous()
+        batch_size, anchors, channels = pred_distri.shape
+        pred_distri = pred_distri.view(batch_size, anchors, 4, -1)[:, :, [1, 0, 3, 2]].contiguous()  # preds yxyx -> xyxy
+        pred_distri = pred_distri.view(batch_size, anchors, channels).contiguous()
 
-        dtype = pred_scores.dtype
-        batch_size = pred_scores.shape[0]
-        imgsz = torch.tensor(feats[0].shape[2:], device=self.device, dtype=dtype) * self.stride[0]  # image size (h,w)
-        anchor_points, stride_tensor = make_anchors(feats, self.stride, 0.5)
+        imgsz = torch.tensor(self.feature_sizes[0], device=self.device, dtype=dtype) * self.stride[0]  # image size (h,w)
 
         # targets
-        targets = torch.cat((targets["batch_idx"].view(-1, 1), targets["bboxes"], targets["cls"].view(-1, 1)), 1)  # [TODO] w/o ultralytics
         targets = self.preprocess(targets.to(self.device), batch_size, scale_tensor=imgsz[[1, 0, 1, 0]])
         gt_bboxes, gt_labels = targets.split((4, 1), 2)  # cls, xyxy
         mask_gt = gt_bboxes.sum(2, keepdim=True).gt_(0)
 
         # pboxes
-        pred_bboxes = self.bbox_decode(anchor_points, pred_distri)  # xyxy, (b, h*w, 4)
+        pred_bboxes = self.bbox_decode(self.anchor_points, pred_distri)  # xyxy, (b, h*w, 4)
 
         _, target_bboxes, target_scores, fg_mask, _ = self.assigner(
             pred_scores.detach().sigmoid(),
-            (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
-            anchor_points * stride_tensor,
+            (pred_bboxes.detach() * self.stride_tensor).type(gt_bboxes.dtype),
+            self.anchor_points * self.stride_tensor,
             gt_labels,
             gt_bboxes,
             mask_gt,
         )
 
-        target_bboxes /= stride_tensor
+        target_bboxes /= self.stride_tensor
         target_scores_sum = max(target_scores.sum(), 1)
 
+        loss = torch.zeros(3, device=self.device)  # box, cls, dfl
         # cls loss
         # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
         loss[1] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE
 
         # bbox loss
         if fg_mask.sum():
-            loss[0], loss[2] = self.bbox_loss(pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask)
+            loss[0], loss[2] = self.bbox_loss(pred_distri, pred_bboxes, self.anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask)
 
         loss[0] *= self.box_weight  # box gain
         loss[1] *= self.cls_weight  # cls gain
@@ -291,21 +310,6 @@ class TaskAlignedAssigner(nn.Module):
         return target_labels, target_bboxes, target_scores
 
 
-def make_anchors(feats, strides, grid_cell_offset=0.5):
-    """Generate anchors from features."""
-    anchor_points, stride_tensor = [], []
-    assert feats is not None
-    dtype, device = feats[0].dtype, feats[0].device
-    for i, stride in enumerate(strides):
-        _, _, h, w = feats[i].shape
-        sx = torch.arange(end=w, device=device, dtype=dtype) + grid_cell_offset  # shift x
-        sy = torch.arange(end=h, device=device, dtype=dtype) + grid_cell_offset  # shift y
-        sy, sx = torch.meshgrid(sy, sx, indexing="ij")
-        anchor_points.append(torch.stack((sx, sy), -1).view(-1, 2))
-        stride_tensor.append(torch.full((h * w, 1), stride, dtype=dtype, device=device))
-    return torch.cat(anchor_points), torch.cat(stride_tensor)
-
-
 def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
     """Transform distance(ltrb) to box(xywh or xyxy)."""
     lt, rb = distance.chunk(2, dim)
@@ -361,24 +365,6 @@ class BboxLoss(nn.Module):
             F.cross_entropy(pred_dist, tl.view(-1), reduction="none").view(tl.shape) * wl
             + F.cross_entropy(pred_dist, tr.view(-1), reduction="none").view(tl.shape) * wr
         ).mean(-1, keepdim=True)
-
-
-def xywh2xyxy(x):
-    """
-    Convert bounding box coordinates from (x, y, width, height) format to (x1, y1, x2, y2) format where (x1, y1) is the
-    top-left corner and (x2, y2) is the bottom-right corner.
-
-    Args:
-        x (np.ndarray) or (torch.Tensor): The input bounding box coordinates in (x, y, width, height) format.
-    Returns:
-        y (np.ndarray) or (torch.Tensor): The bounding box coordinates in (x1, y1, x2, y2) format.
-    """
-    y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
-    y[..., 0] = x[..., 0] - x[..., 2] / 2  # top left x
-    y[..., 1] = x[..., 1] - x[..., 3] / 2  # top left y
-    y[..., 2] = x[..., 0] + x[..., 2] / 2  # bottom right x
-    y[..., 3] = x[..., 1] + x[..., 3] / 2  # bottom right y
-    return y
 
 
 def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-7):

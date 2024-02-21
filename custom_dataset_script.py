@@ -239,9 +239,16 @@ def match_detection_labels_coco_annotation(image_names, label_path, target_ids=N
 
 def match_detection_labels(image_names, label_path):
     if label_path.endswith(".json"):
-        return match_detection_labels_coco_annotation(image_names, label_path)
+        x_train, y_train, indices_2_labels = match_detection_labels_coco_annotation(image_names, label_path)
     else:
-        return match_detection_labels_dir(image_names, label_path)
+        x_train, y_train, indices_2_labels = match_detection_labels_dir(image_names, label_path)
+
+    """ Adding images with no labels as backgrounds """
+    num_backgrounds = len(image_names) - len(x_train)
+    print(">>>> Total instances: {}, pure backgrounds: {}".format(len(image_names), num_backgrounds))
+    x_train.extend(list(set(image_names) - set(x_train)))
+    y_train.extend([{"label": [], "bbox": []}] * num_backgrounds)
+    return x_train, y_train, indices_2_labels
 
 
 def convert_to_corner_by_format(bbox, bbox_source_format="yxyx"):
