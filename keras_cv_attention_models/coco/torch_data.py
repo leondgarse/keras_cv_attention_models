@@ -11,7 +11,7 @@ from keras_cv_attention_models.plot_func import draw_bboxes, show_image_with_bbo
 CV2_INTERPOLATION_MAP = {"nearest": "INTER_NEAREST", "bilinear": "INTER_LINEAR", "bicubic": "INTER_CUBIC", "area": "INTER_AREA"}
 
 
-def load_from_custom_json(data_path, with_info=False):
+def load_from_custom_json(data_path):
     import json
 
     with open(data_path, "r") as ff:
@@ -19,11 +19,10 @@ def load_from_custom_json(data_path, with_info=False):
     test_key = "validation" if "validation" in aa else "test"
     train, test, info = aa["train"], aa[test_key], aa.get("info", {})
 
-    if with_info:
-        total_images, num_classes = len(train), info.get("num_classes", 0)
-        if num_classes <= 0:
-            num_classes = max([max([int(jj) for jj in ii["objects"]["label"]]) for ii in train]) + 1
-            print(">>>> Using max value from train as num_classes:", num_classes)
+    total_images, num_classes = len(train), info.get("num_classes", 0)
+    if num_classes <= 0:
+        num_classes = max([max([int(jj) for jj in ii["objects"]["label"]]) for ii in train]) + 1
+        print(">>>> Using max value from train as num_classes:", num_classes)
 
     if "base_path" in info and len(info["base_path"]) > 0:
         base_path = os.path.expanduser(info["base_path"])
@@ -31,7 +30,7 @@ def load_from_custom_json(data_path, with_info=False):
             ii["image"] = os.path.join(base_path, ii["image"])
         for ii in test:
             ii["image"] = os.path.join(base_path, ii["image"])
-    return (train, test, total_images, num_classes) if with_info else (train, test)
+    return train, test, total_images, num_classes
 
 
 def aspect_aware_resize_and_crop_image(image, target_shape, scale=-1, crop_y=0, crop_x=0, letterbox_pad=-1, do_pad=True, method="bilinear", antialias=False):
@@ -265,7 +264,7 @@ def collate_wrapper(batch):
     return torch.stack(images), torch.concat([batch_ids[:, None], bboxes, labels[:, None]], dim=-1)
 
 
-def init_dataset(data_path, batch_size=64, image_size=640, num_workers=8):
+def init_dataset(data_path, batch_size=64, image_size=640, num_workers=8, with_info=False):
     """
     >>> os.environ["KECAM_BACKEND"] = "torch"
     >>> from keras_cv_attention_models.coco import torch_data
@@ -276,7 +275,7 @@ def init_dataset(data_path, batch_size=64, image_size=640, num_workers=8):
     >>> ax = show_image_with_bboxes(image, label[:, 1:-1], label[:, -1], indices_2_labels={0: 'cat', 1: 'dog'})
     >>> ax.get_figure().savefig('aa.jpg')
     """
-    train, test = load_from_custom_json(data_path)
+    train, test, total_images, num_classes = load_from_custom_json(data_path)
 
     train_dataset = DetectionDataset(train, is_train=True, image_size=image_size)
     train_dataloader = DataLoader(
@@ -288,4 +287,4 @@ def init_dataset(data_path, batch_size=64, image_size=640, num_workers=8):
         test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=collate_wrapper, pin_memory=True, sampler=None, drop_last=False
     )
 
-    return train_dataloader, test_dataloader
+    return (train_dataloader, test_dataloader, total_images, num_classes) if with_info else (train_dataloader, test_dataloader)

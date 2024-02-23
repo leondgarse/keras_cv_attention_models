@@ -16,7 +16,7 @@ from keras_cv_attention_models.plot_func import draw_bboxes, show_image_with_bbo
 
 if backend.is_tensorflow_backend:
     from keras_cv_attention_models.coco import tf_data as data
-    from keras_cv_attention_models.coco import losses
+    from keras_cv_attention_models.coco import tf_losses as losses
     from keras_cv_attention_models.coco.tf_data import (
         aspect_aware_resize_and_crop_image,
         init_mean_std_by_rescale_mode,
@@ -52,4 +52,9 @@ if backend.is_tensorflow_backend:
     """
 else:
     from keras_cv_attention_models.coco import torch_data as data
-    from keras_cv_attention_models.coco.torch_data import init_dataset
+    from keras_cv_attention_models.coco import torch_losses as losses
+    from keras_cv_attention_models.coco.torch_data import (
+        aspect_aware_resize_and_crop_image,
+        init_mean_std_by_rescale_mode,
+        init_dataset,
+    )

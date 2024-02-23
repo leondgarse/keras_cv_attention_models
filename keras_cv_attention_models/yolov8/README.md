@@ -236,14 +236,14 @@
     import os, sys, torch
     os.environ["KECAM_BACKEND"] = "torch"
 
-    from keras_cv_attention_models.yolov8 import train, yolov8, torch_wrapper
+    from keras_cv_attention_models.yolov8 import train, yolov8
     from keras_cv_attention_models import efficientnet
 
     global_device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
     # model Trainable params: 7,023,904, GFLOPs: 8.1815G
     bb = efficientnet.EfficientNetV2B0(input_shape=(3, 640, 640), num_classes=0)
     model = yolov8.YOLOV8_N(backbone=bb, classifier_activation=None, pretrained=None).to(global_device)  # Note: classifier_activation=None
-    # model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None).cuda()
+    # model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None).to(global_device)
     ema = train.train(model, dataset_path="coco.json", initial_epoch=0)
     ```
     ![yolov8_training](https://user-images.githubusercontent.com/5744524/235142289-cb6a4da0-1ea7-4261-afdd-03a3c36278b8.png)
@@ -264,7 +264,7 @@
     ```py
     import kecam
     bb = kecam.efficientnet.EfficientNetV2B0(input_shape=(3, 640, 640), num_classes=0, pretrained=None)
-    model = kecam.yolov8.YOLOV8_N(backbone=bb, pretrained="yolov8_n_E40_0291.h5")
+    model = kecam.yolov8.YOLOV8_N(backbone=bb, pretrained="yolov8_n.h5")
     ee = kecam.coco.eval_func.COCOEvalCallback(data_name="coco.json", batch_size=32, nms_method="hard", nms_iou_or_sigma=0.65, rescale_mode="raw01")
     ee.model = model
     ee.on_epoch_end()

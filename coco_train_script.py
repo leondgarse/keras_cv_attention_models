@@ -2,11 +2,11 @@
 import os
 import json
 from keras_cv_attention_models.coco import data, losses, anchors_func, eval_func
-from keras_cv_attention_models.imagenet import (
-    compile_model,
+from keras_cv_attention_models.imagenet.train_func import (
     init_global_strategy,
     init_lr_scheduler,
     init_model,
+    compile_model,
     train,
 )
 import pycocotools  # Try import first, not using here, just in case it throws error later

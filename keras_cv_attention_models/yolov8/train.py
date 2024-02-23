@@ -1,21 +1,12 @@
-import copy
 import math
 import torch
 import numpy as np
+from copy import deepcopy
 from tqdm import tqdm
-from pathlib import Path
 from torch import nn
 from torch.cuda import amp
 from torch.optim import lr_scheduler
-
-
-class FakeArgs:
-    def __init__(self, **kwargs):
-        self.update(**kwargs)
-
-    def update(self, **kwargs):
-        for kk, vv in kwargs.items():
-            setattr(self, kk, vv)
+from keras_cv_attention_models.coco import torch_losses, torch_data, eval_func
 
 
 class ModelEMA:
@@ -27,25 +18,22 @@ class ModelEMA:
 
     def __init__(self, model, decay=0.9999, tau=2000, updates=0):
         # Create EMA
-        self.ema = copy.deepcopy(model).eval()  # FP32 EMA
-        self.updates = updates  # number of EMA updates
-        self.decay = lambda x: decay * (1 - math.exp(-x / tau))  # decay exponential ramp (to help early epochs)
+        self.decay, self.tau, self.updates = decay, tau, updates
+        self.ema = deepcopy(model).eval()  # FP32 EMA
         for p in self.ema.parameters():
             p.requires_grad_(False)
         self.enabled = True
 
     def update(self, model):
         # Update EMA parameters
-        if self.enabled:
-            self.updates += 1
-            d = self.decay(self.updates)
-
-            msd = model.state_dict()  # model state_dict
-            for k, v in self.ema.state_dict().items():
-                if v.dtype.is_floating_point:  # true for FP16 and FP32
-                    v *= d
-                    v += (1 - d) * msd[k].detach()
-                    # assert v.dtype == msd[k].dtype == torch.float32, f'{k}: EMA {v.dtype},  model {msd[k].dtype}'
+        if not self.enabled:
+            return
+        self.updates += 1
+        cur_decay = self.decay * (1 - math.exp(-self.updates / self.tau))  # decay exponential ramp (to help early epochs)
+        model_state_dict = model.state_dict()  # model state_dict
+        for name, param in self.ema.state_dict().items():
+            if param.dtype.is_floating_point:  # true for FP16 and FP32
+                param = param * cur_decay + (1 - cur_decay) * model_state_dict[name].detach()  # Update EMA parameters
 
 
 def build_optimizer(model, name="sgd", lr=0.01, momentum=0.937, decay=5e-4):
@@ -69,10 +57,7 @@ def build_optimizer(model, name="sgd", lr=0.01, momentum=0.937, decay=5e-4):
     return optimizer
 
 
-def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_epoch=0, optimizer_name="sgd"):
-    from keras_cv_attention_models.yolov8 import losses
-    from keras_cv_attention_models.coco import torch_data, eval_func
-
+def train(model, dataset_path="coco.json", batch_size=16, epochs=100, initial_epoch=0, optimizer_name="sgd"):
     if torch.cuda.is_available():
         model = model.cuda()
         use_amp = True
@@ -91,7 +76,7 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
     num_classes = getattr(model, "num_classes", model.output_shape[-1] - 64)
     print(">>>> num_classes =", num_classes)
 
-    compute_loss = losses.Loss(device=device, nc=num_classes)
+    compute_loss = torch_losses.Loss(device=device, nc=num_classes)
     optimizer = build_optimizer(model, name=optimizer_name)
     ema = ModelEMA(model)
     # lf = lambda x: (x * (1 - 0.01) / warmup_epochs + 0.01) if x < warmup_epochs else ((1 - x / epochs) * (1.0 - 0.01) + 0.01)  # linear
@@ -119,13 +104,13 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
             if hasattr(train_loader.dataset, "mosaic"):
                 train_loader.dataset.mosaic = 0
 
-        tloss = None
+        box_loss, cls_loss, dfl_loss = 0, 0, 0
         optimizer.zero_grad()
         loss_names = ["box_loss", "cls_loss", "dfl_loss"]
         print(("\n" + "%11s" * (3 + len(loss_names))) % ("Epoch", *loss_names, "Instances", "Size"))
         pbar = tqdm(enumerate(train_loader), total=nb, bar_format="{l_bar}{bar:10}{r_bar}")
-        for i, (images, labels) in pbar:
-            ni = i + nb * epoch
+        for batch, (images, labels) in pbar:
+            ni = batch + nb * epoch
             if ni <= nw:
                 xi = [0, nw]  # x interp
                 accumulate = max(1, np.interp(ni, xi, [1, nbs / batch_size]).round())
@@ -138,8 +123,7 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
             # Forward
             with torch.cuda.amp.autocast(use_amp):
                 preds = model(images.to(device, non_blocking=True).float())
-                loss, loss_items = compute_loss(preds, labels)
-                tloss = (tloss * i + loss_items) / (i + 1) if tloss is not None else loss_items
+                loss = compute_loss(labels, preds)
 
             # Backward
             scaler.scale(loss).backward()
@@ -155,34 +139,29 @@ def train(model, dataset_path="coco.yaml", batch_size=16, epochs=100, initial_ep
                 ema.update(model)
                 last_opt_step = ni
 
-            loss_len = tloss.shape[0] if len(tloss.size()) else 1
-            losses = tloss if loss_len > 1 else torch.unsqueeze(tloss, 0)
-            pbar.set_description(("%11s" * 1 + "%11.4g" * (2 + loss_len)) % (f"{epoch + 1}/{epochs}", *losses, labels.shape[0], images.shape[-1]))
+            box_loss = (box_loss * batch + compute_loss.box_loss.detach().item()) / (batch + 1)
+            cls_loss = (cls_loss * batch + compute_loss.cls_loss.detach().item()) / (batch + 1)
+            dfl_loss = (dfl_loss * batch + compute_loss.dfl_loss.detach().item()) / (batch + 1)
+            losses = [box_loss, cls_loss, dfl_loss]
+            pbar.set_description(("%11s" * 1 + "%11.4g" * (2 + len(losses))) % (f"{epoch + 1}/{epochs}", *losses, labels.shape[0], images.shape[-1]))
         scheduler.step()
         model.eval()
         validator.on_epoch_end(epoch=epoch)
-
-        if hasattr(model, "save_weights"):
-            model.save_weights(model.name + ".h5")
-        elif hasattr(model, "state_dict"):
-            torch.save(model.state_dict(), model.__class__.__name__ + ".pth")
-
-    # Save ema model
-    ema_model = ema.ema
-    if hasattr(ema_model, "save_weights"):
-        ema_model.save_weights(ema_model.name + "_ema.h5")
-    elif hasattr(ema_model, "state_dict"):
-        torch.save(ema_model.state_dict(), ema_model.__class__.__name__ + "_ema.pth")
+        model.save(model.name + ".pt")
+        ema.ema.save(model.name + "_ema.h5")
     return ema
 
 
 if __name__ == "__main__":
-    sys.path.append("../ultralytics/")
+    import os, sys, torch
     os.environ["KECAM_BACKEND"] = "torch"
-    global_device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
-    from keras_cv_attention_models.yolov8 import train, yolov8, torch_wrapper
 
-    # from ultralytics import YOLO
-    # model = YOLO('../ultralytics/ultralytics/models/v8/yolov8n.yaml').model
-    model = yolov8.YOLOV8_N(input_shape=(3, 640, 640), num_classes=2, classifier_activation=None, pretrained=None).to(global_device)
-    train.train(model, dataset_path="datasets/coco_dog_cat/detections.json", initial_epoch=0)
+    from keras_cv_attention_models.yolov8 import train, yolov8
+    from keras_cv_attention_models import efficientnet
+
+    global_device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
+    # model Trainable params: 7,023,904, GFLOPs: 8.1815G
+    bb = efficientnet.EfficientNetV2B0(input_shape=(3, 640, 640), num_classes=0)
+    model = yolov8.YOLOV8_N(backbone=bb, classifier_activation=None, pretrained=None).to(global_device)  # Note: classifier_activation=None
+    # model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None).to(global_device)
+    ema = train.train(model, dataset_path="datasets/coco_dog_cat/detections.json", initial_epoch=0)

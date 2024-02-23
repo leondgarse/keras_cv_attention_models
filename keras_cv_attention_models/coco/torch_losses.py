@@ -69,7 +69,7 @@ class Loss:
             # pred_dist = (pred_dist.view(b, a, c // 4, 4).softmax(2) * self.proj.type(pred_dist.dtype).view(1, 1, -1, 1)).sum(2)
         return dist2bbox(pred_dist, anchor_points, xywh=False)
 
-    def __call__(self, preds, targets):
+    def __call__(self, targets, preds):
         dtype = preds.dtype
         pred_distri, pred_scores = preds.split((self.reg_max * 4, self.nc), dim=-1)  # [None, 8400, 144] -> [None, 8400, 64], [None, 8400, 80]
         pred_scores = pred_scores.contiguous()
@@ -100,20 +100,20 @@ class Loss:
         target_bboxes /= self.stride_tensor
         target_scores_sum = max(target_scores.sum(), 1)
 
-        loss = torch.zeros(3, device=self.device)  # box, cls, dfl
         # cls loss
-        # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
-        loss[1] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE
+        # cls_loss = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
+        cls_loss = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE
 
         # bbox loss
         if fg_mask.sum():
-            loss[0], loss[2] = self.bbox_loss(pred_distri, pred_bboxes, self.anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask)
+            box_loss, dfl_loss = self.bbox_loss(pred_distri, pred_bboxes, self.anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask)
+        else:
+            box_loss, dfl_loss = 0, 0
 
-        loss[0] *= self.box_weight  # box gain
-        loss[1] *= self.cls_weight  # cls gain
-        loss[2] *= self.dfl_weight  # dfl gain
-
-        return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
+        self.box_loss, self.cls_loss, self.dfl_loss = box_loss * self.box_weight, cls_loss * self.cls_weight, dfl_loss * self.dfl_weight
+        # self.box_loss, self.cls_loss, self.dfl_loss = box_loss.detach(), cls_loss.detach(), dfl_loss.detach()  # For printing
+        return (self.box_loss + self.cls_loss + self.dfl_loss) * batch_size
+        # loss.sum() * batch_size, loss.detach()
 
 
 def select_candidates_in_gts(xy_centers, gt_bboxes, eps=1e-9, roll_out=False):

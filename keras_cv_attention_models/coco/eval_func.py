@@ -548,13 +548,7 @@ class COCOEvalCallback(callbacks.Callback):
         detection_results = model_detection_and_decode(
             self.model, eval_dataset, self.pred_decoder, self.nms_kwargs, self.is_coco, self.image_id_map, self.num_classes
         )
-        try:
-            coco_eval = self.coco_evaluation(detection_results)
-        except:
-            print(">>>> Error in running coco_evaluation")
-            coco_eval = None
-            data_name = self.data_name.replace("/", "_")
-            self.save_json = "{}_{}_detection_results_error.json".format(self.model.name, data_name) if self.save_json is None else self.save_json
+        coco_eval = None if len(detection_results) == 0 else self.coco_evaluation(detection_results)
 
         if self.save_json is not None:
             to_coco_json(detection_results, self.save_json)

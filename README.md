@@ -419,18 +419,18 @@
     ```
   - **[Experimental] Training using PyTorch backend**
     ```py
-    import os, sys
+    import os, sys, torch
     os.environ["KECAM_BACKEND"] = "torch"
-    sys.setrecursionlimit(65536)
 
-    from keras_cv_attention_models.yolov8 import train, yolov8, torch_wrapper
+    from keras_cv_attention_models.yolov8 import train, yolov8
     from keras_cv_attention_models import efficientnet
 
+    global_device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
     # model Trainable params: 7,023,904, GFLOPs: 8.1815G
     bb = efficientnet.EfficientNetV2B0(input_shape=(3, 640, 640), num_classes=0)
-    model = yolov8.YOLOV8_N(backbone=bb, classifier_activation=None, pretrained=None).cuda()
-    # model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None).cuda()
-    ema = train.train(model, dataset_path="coco.json")
+    model = yolov8.YOLOV8_N(backbone=bb, classifier_activation=None, pretrained=None).to(global_device)  # Note: classifier_activation=None
+    # model = yolov8.YOLOV8_N(input_shape=(3, None, None), classifier_activation=None, pretrained=None).to(global_device)
+    ema = train.train(model, dataset_path="coco.json", initial_epoch=0)
     ```
     ![yolov8_training](https://user-images.githubusercontent.com/5744524/235142289-cb6a4da0-1ea7-4261-afdd-03a3c36278b8.png)
 ## CLIP training and evaluating
