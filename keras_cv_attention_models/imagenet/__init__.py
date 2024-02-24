@@ -2,6 +2,7 @@ from keras_cv_attention_models import backend
 from keras_cv_attention_models.imagenet.eval_func import evaluation, combine_hist_into_one, parse_timm_log, decode_predictions, decode_predictions_imagenet21k
 from keras_cv_attention_models.plot_func import plot_hists
 from keras_cv_attention_models.imagenet import callbacks
+from keras_cv_attention_models.imagenet import metrics
 from keras_cv_attention_models.imagenet.train_func import init_lr_scheduler, init_model, train
 
 if backend.is_tensorflow_backend:

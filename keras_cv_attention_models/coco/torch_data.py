@@ -167,9 +167,11 @@ class DetectionDataset(Dataset):  # for training/testing
     >>> ax.get_figure().savefig('aa.jpg')
     """
 
-    def __init__(self, data, image_size=640, batch_size=16, is_train=True, mosaic=1.0):
-        self.data, self.batch_size, self.is_train, self.mosaic = data, batch_size, is_train, mosaic
+    def __init__(self, data, image_size=640, batch_size=16, rescale_mode="raw01", is_train=True, mosaic=1.0, max_mosaic_cache_len=1024):
+        self.data, self.batch_size, self.rescale_mode, self.is_train, self.mosaic = data, batch_size, rescale_mode, is_train, mosaic
         self.target_size = max(image_size) if isinstance(image_size, (list, tuple)) else image_size
+        self.mean, self.std = init_mean_std_by_rescale_mode(rescale_mode)
+
         # self.rect = False if is_train else rect
         # import ultralytics
         # cfg = ultralytics.cfg.get_cfg(ultralytics.utils.DEFAULT_CFG)
@@ -252,8 +254,8 @@ class DetectionDataset(Dataset):  # for training/testing
         image, bbox, label = self.__process_train__(index, image_path, bbox, label) if self.is_train else self.__process_eval__(index, image_path, bbox, label)
 
         image = image.transpose(2, 0, 1)[::-1]  # BGR -> channels first -> RGB
-        image = np.ascontiguousarray(image)
-        return torch.from_numpy(image).float() / 255, torch.from_numpy(bbox).float(), torch.from_numpy(label).float()
+        image = (torch.from_numpy(np.ascontiguousarray(image)).float() - self.mean) / self.std
+        return image, torch.from_numpy(bbox).float(), torch.from_numpy(label).float()
 
 
 def collate_wrapper(batch):
@@ -264,7 +266,7 @@ def collate_wrapper(batch):
     return torch.stack(images), torch.concat([batch_ids[:, None], bboxes, labels[:, None]], dim=-1)
 
 
-def init_dataset(data_path, batch_size=64, image_size=640, num_workers=8, with_info=False):
+def init_dataset(data_path, batch_size=64, image_size=640, rescale_mode="raw01", num_workers=8, max_mosaic_cache_len=1024, with_info=False):
     """
     >>> os.environ["KECAM_BACKEND"] = "torch"
     >>> from keras_cv_attention_models.coco import torch_data
@@ -277,12 +279,12 @@ def init_dataset(data_path, batch_size=64, image_size=640, num_workers=8, with_i
     """
     train, test, total_images, num_classes = load_from_custom_json(data_path)
 
-    train_dataset = DetectionDataset(train, is_train=True, image_size=image_size)
+    train_dataset = DetectionDataset(train, rescale_mode=rescale_mode, is_train=True, image_size=image_size, max_mosaic_cache_len=max_mosaic_cache_len)
     train_dataloader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, collate_fn=collate_wrapper, pin_memory=True, sampler=None, drop_last=False
     )
 
-    test_dataset = DetectionDataset(test, is_train=False, image_size=image_size)
+    test_dataset = DetectionDataset(test, rescale_mode=rescale_mode, is_train=False, image_size=image_size, max_mosaic_cache_len=max_mosaic_cache_len)
     test_dataloader = DataLoader(
         test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=collate_wrapper, pin_memory=True, sampler=None, drop_last=False
     )

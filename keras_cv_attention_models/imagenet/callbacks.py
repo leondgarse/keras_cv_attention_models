@@ -345,3 +345,114 @@ class MyCheckpoint(callbacks.Callback):
             print(">>>> Save best to:", monitor_save)
             if self.model is not None:
                 self.model.save(monitor_save)
+
+
+""" Currently for Torch Only """
+
+
+class ModelEMA(callbacks.Callback):
+    """Updated Exponential Moving Average (EMA) from https://github.com/rwightman/pytorch-image-models
+    Keeps a moving average of everything in the model state_dict (parameters and buffers)
+    For EMA details see https://www.tensorflow.org/api_docs/python/tf/train/ExponentialMovingAverage
+    To disable EMA set the `enabled` attribute to `False`.
+    """
+
+    def __init__(self, decay=0.9999, tau=2000, updates=0):
+        self.decay, self.tau, self.updates = decay, tau, updates
+        super().__init__()
+
+    def set_model(self, model):
+        from copy import deepcopy
+
+        self.model = model
+        self.ema = deepcopy(model).eval()  # FP32 EMA
+        for p in self.ema.parameters():
+            p.requires_grad_(False)
+        self.enabled = True
+
+    def on_train_batch_end(self, batch, logs=None):
+        if not self.enabled:
+            return
+        self.updates += 1
+        cur_decay = self.decay * (1 - np.exp(-self.updates / self.tau))  # decay exponential ramp (to help early epochs)
+        model_state_dict = self.model.state_dict()  # model state_dict
+        for name, param in self.ema.state_dict().items():
+            if param.dtype.is_floating_point:  # true for FP16 and FP32
+                param *= cur_decay  # Ensential in this way, in place operation
+                param += (1 - cur_decay) * model_state_dict[name].detach()  # Update EMA parameters
+
+    def on_epoch_end(self, cur_epoch, logs=None):
+        self.ema.save(self.ema.name + "_ema.h5")
+
+
+class CloseMosaic(callbacks.Callback):
+    def __init__(self, dataset, close_mosaic_epoch=90):
+        self.dataset, self.close_mosaic_epoch = dataset, close_mosaic_epoch
+        super().__init__()
+
+    def on_epoch_begin(self, cur_epoch, logs=None):
+        if cur_epoch == self.close_mosaic_epoch:
+            print(">>>> Closing dataset mosaic")
+            if hasattr(self.dataset, "mosaic"):
+                self.dataset.mosaic = 0
+            elif hasattr(self.dataset, "dataset") and hasattr(self.dataset.dataset, "mosaic"):  # Torch dataloader
+                self.dataset.dataset.mosaic = 0
+
+
+class WarmupTrain(callbacks.Callback):
+    """
+    import kecam
+    model = kecam.yolov8.YOLOV8_N(pretrained=None)
+    optimizer = build_optimizer(model)
+    model.train_compile(optimizer=optimizer, grad_accumulate=4)
+    warmup_train = WarmupTrain(steps_per_epoch=100, warmup_epochs=3)
+    warmup_train.set_model(model)
+
+    accumulates, momentums, lrs = [], [], [[] for _ in model.optimizer.param_groups]
+    for epoch in range(warmup_train.warmup_epochs + 3):
+        warmup_train.on_epoch_begin(epoch)
+        for batch in range(warmup_train.steps_per_epoch):
+            warmup_train.on_train_batch_begin(batch)
+            accumulates.append(model.grad_accumulate)
+            momentums.append(model.optimizer.param_groups[0]["momentum"])
+            for id, group in enumerate(model.optimizer.param_groups):
+                lrs[id].append(group['lr'])
+
+    fig, axes = plt.subplots(1, 5, figsize=[20, 4])
+    names = ["grad_accumulate", "momentum", "group 0 lr", "group 1 lr", "group 2 lr"]
+    for id, (name, values) in enumerate(zip(names, [accumulates, momentums, *lrs])):
+        axes[id].plot(values)
+        axes[id].set_title(name)
+        axes[id].grid(True)
+    fig.tight_layout()
+    """
+
+    def __init__(self, steps_per_epoch, warmup_epochs=3, warmup_momentum=0.8, warmup_bias_lr=0.1):
+        self.steps_per_epoch, self.warmup_epochs, self.warmup_momentum, self.warmup_bias_lr = steps_per_epoch, warmup_epochs, warmup_momentum, warmup_bias_lr
+        self.warmup_batch_steps = steps_per_epoch * warmup_epochs
+        self.cur_epoch = 0
+        super().__init__()
+
+    def set_model(self, model):
+        super().set_model(model)
+        self.target_momentums = [group.get("momentum", 0) for group in self.model.optimizer.param_groups]
+        self.target_lrs = [group.get("lr", 0) for group in self.model.optimizer.param_groups]
+        self.target_grad_accumulate = getattr(self.model, "grad_accumulate", 0)
+
+    def on_epoch_begin(self, cur_epoch, logs=None):
+        self.cur_epoch = cur_epoch
+        self.init_step_num = int(self.steps_per_epoch * cur_epoch)
+
+    def on_train_batch_begin(self, batch, logs=None):
+        if self.cur_epoch >= self.warmup_epochs:
+            return
+
+        warmup_ratio = (self.init_step_num + batch) / self.warmup_batch_steps
+        if self.target_grad_accumulate > 1:
+            self.model.grad_accumulate = round(warmup_ratio * self.target_grad_accumulate)
+
+        for group_num, group in enumerate(self.model.optimizer.param_groups):
+            warmup_lr = self.warmup_bias_lr if group_num == 0 else 0
+            group["lr"] = warmup_lr + warmup_ratio * (self.target_lrs[group_num] - warmup_lr)
+            if "momentum" in group:
+                group["momentum"] = self.warmup_momentum + warmup_ratio * (self.target_momentums[group_num] - self.warmup_momentum)
