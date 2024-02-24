@@ -187,7 +187,7 @@ class LearningRateScheduler(callbacks.Callback):
         if hasattr(self.model, "optimizer") and hasattr(self.model.optimizer, "lr"):
             lr = self.model.optimizer.lr
         elif hasattr(self.model, "optimizer") and hasattr(self.model.optimizer, "param_groups"):
-            lr = self.model.optimizer.param_groups[0]["lr"]
+            lr = self.model.optimizer.param_groups[-1]["lr"]
         lr = lr.value() if hasattr(lr, "value") else lr
         lr = lr.item() if hasattr(lr, "item") else lr
         logs["lr"] = lr
@@ -256,7 +256,7 @@ class MyHistory(callbacks.Callback):
         if hasattr(self.model, "optimizer") and hasattr(self.model.optimizer, "lr"):
             lr = self.model.optimizer.lr
         elif hasattr(self.model, "optimizer") and hasattr(self.model.optimizer, "param_groups"):
-            lr = self.model.optimizer.param_groups[0]["lr"]
+            lr = self.model.optimizer.param_groups[-1]["lr"]
         lr = lr.value() if hasattr(lr, "value") else lr
         lr = lr.item() if hasattr(lr, "item") else lr
         self.history.setdefault("lr", []).append(float(lr))

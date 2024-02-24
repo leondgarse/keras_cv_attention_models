@@ -156,6 +156,10 @@ if __name__ == "__main__":
     if args.restore_path is not None:
         print(">>>> Reload weights from:", args.restore_path)
         model.load(args.restore_path)  # Reload wights after compile
+        ema_model_path = os.path.splitext(args.restore_path)[0] + "ema.h5"
+        if os.path.exists(ema_model_path):
+            print(">>>> Reload EMA model weights from:", ema_model_path)
+            ema.ema.load(ema_model_path)
 
     """ Callback """
     warmup_train = kecam.imagenet.callbacks.WarmupTrain(steps_per_epoch=len(train_dataset), warmup_epochs=args.lr_warmup_steps)

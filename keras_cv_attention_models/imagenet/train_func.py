@@ -184,7 +184,7 @@ def init_model(model=None, input_shape=(224, 224, 3), num_classes=1000, pretrain
         kwargs.update({"num_classes": num_classes})  # Use model default input_shape if not specified
     if pretrained != "default":
         kwargs.update({"pretrained": pretrained})  # Use model default input_shape if not specified
-    print(">>>> init_model kwargs:", kwargs)
+    print(">>>> init_model kwargs:", {kk: getattr(vv, "name", vv) if isinstance(vv, models.Model) else vv for kk, vv in kwargs.items()})
 
     model_name = model.strip().split(".")
     if len(model_name) == 1:
