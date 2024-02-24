@@ -133,7 +133,7 @@ if __name__ == "__main__":
     model.to(global_device)
     basic_save_name = args.basic_save_name or "{}_{}".format(model.name, os.path.basename(args.data_name))
     print(">>>> basic_save_name:", basic_save_name)
-    ema = kecam.imagenet.callbacks.ModelEMA()
+    ema = kecam.imagenet.callbacks.ModelEMA(basic_save_name=basic_save_name, updates=args.initial_epoch * total_images // max(64, args.batch_size))
     ema.set_model(model)
 
     """ Optimizer, loss and Metrics """
@@ -156,10 +156,9 @@ if __name__ == "__main__":
     if args.restore_path is not None:
         print(">>>> Reload weights from:", args.restore_path)
         model.load(args.restore_path)  # Reload wights after compile
-        ema_model_path = os.path.splitext(args.restore_path)[0] + "ema.h5"
-        if os.path.exists(ema_model_path):
-            print(">>>> Reload EMA model weights from:", ema_model_path)
-            ema.ema.load(ema_model_path)
+        if os.path.exists(ema.save_file_path):
+            print(">>>> Reload EMA model weights from:", ema.save_file_path)
+            ema.ema.load(ema.save_file_path)
 
     """ Callback """
     warmup_train = kecam.imagenet.callbacks.WarmupTrain(steps_per_epoch=len(train_dataset), warmup_epochs=args.lr_warmup_steps)

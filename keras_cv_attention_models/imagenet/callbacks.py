@@ -357,8 +357,8 @@ class ModelEMA(callbacks.Callback):
     To disable EMA set the `enabled` attribute to `False`.
     """
 
-    def __init__(self, decay=0.9999, tau=2000, updates=0):
-        self.decay, self.tau, self.updates = decay, tau, updates
+    def __init__(self, basic_save_name=None, save_path="checkpoints", decay=0.9999, tau=2000, updates=0):
+        self.basic_save_name, self.save_path, self.decay, self.tau, self.updates = basic_save_name, save_path, decay, tau, updates
         super().__init__()
 
     def set_model(self, model):
@@ -368,6 +368,8 @@ class ModelEMA(callbacks.Callback):
         self.ema = deepcopy(model).eval()  # FP32 EMA
         for p in self.ema.parameters():
             p.requires_grad_(False)
+        self.basic_save_name = model.name if self.basic_save_name is None else self.basic_save_name
+        self.save_file_path = os.path.join(save_path, basic_save_name) + "_ema.h5"
         self.enabled = True
 
     def on_train_batch_end(self, batch, logs=None):
@@ -382,7 +384,8 @@ class ModelEMA(callbacks.Callback):
                 param += (1 - cur_decay) * model_state_dict[name].detach()  # Update EMA parameters
 
     def on_epoch_end(self, cur_epoch, logs=None):
-        self.ema.save(self.ema.name + "_ema.h5")
+        print(">>>> Save EMA model to:", self.save_file_path)
+        self.ema.save(self.save_file_path)
 
 
 class CloseMosaic(callbacks.Callback):
