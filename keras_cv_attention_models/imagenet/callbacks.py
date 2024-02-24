@@ -184,8 +184,13 @@ class LearningRateScheduler(callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        lr = self.model.optimizer.lr
-        logs["lr"] = lr.value() if hasattr(lr, "value") else lr
+        if hasattr(self.model, "optimizer") and hasattr(self.model.optimizer, "lr"):
+            lr = self.model.optimizer.lr
+        elif hasattr(self.model, "optimizer") and hasattr(self.model.optimizer, "param_groups"):
+            lr = self.model.optimizer.param_groups[0]["lr"]
+        lr = lr.value() if hasattr(lr, "value") else lr
+        lr = lr.item() if hasattr(lr, "item") else lr
+        logs["lr"] = lr
 
 
 def constant_scheduler(epoch, lr_base, lr_decay_steps, decay_rate=0.1, warmup_steps=0):

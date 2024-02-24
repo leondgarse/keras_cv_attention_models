@@ -111,9 +111,7 @@ class Loss:
             box_loss, dfl_loss = 0, 0
 
         self.box_loss, self.cls_loss, self.dfl_loss = box_loss * self.box_weight, cls_loss * self.cls_weight, dfl_loss * self.dfl_weight
-        # self.box_loss, self.cls_loss, self.dfl_loss = box_loss.detach(), cls_loss.detach(), dfl_loss.detach()  # For printing
         return (self.box_loss + self.cls_loss + self.dfl_loss) * batch_size
-        # loss.sum() * batch_size, loss.detach()
 
 
 def select_candidates_in_gts(xy_centers, gt_bboxes, eps=1e-9, roll_out=False):

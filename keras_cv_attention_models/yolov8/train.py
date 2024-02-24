@@ -33,7 +33,8 @@ class ModelEMA:
         model_state_dict = model.state_dict()  # model state_dict
         for name, param in self.ema.state_dict().items():
             if param.dtype.is_floating_point:  # true for FP16 and FP32
-                param = param * cur_decay + (1 - cur_decay) * model_state_dict[name].detach()  # Update EMA parameters
+                param *= cur_decay  # Ensential in this way, in place operation
+                param += (1 - cur_decay) * model_state_dict[name].detach()  # Update EMA parameters
 
 
 def build_optimizer(model, name="sgd", lr=0.01, momentum=0.937, decay=5e-4):
@@ -154,6 +155,7 @@ def train(model, dataset_path="coco.json", batch_size=16, epochs=100, initial_ep
 
 if __name__ == "__main__":
     import os, sys, torch
+
     os.environ["KECAM_BACKEND"] = "torch"
 
     from keras_cv_attention_models.yolov8 import train, yolov8

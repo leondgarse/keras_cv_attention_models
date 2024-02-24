@@ -296,7 +296,7 @@ def init_eval_dataset(
         from torch.utils.data import Dataset, DataLoader
         from keras_cv_attention_models.coco import torch_data
 
-        _, test, total_images, num_classes = torch_data.load_from_custom_json(data_name, with_info=True)
+        _, test, total_images, num_classes = torch_data.load_from_custom_json(data_name)
         mean, std = torch_data.init_mean_std_by_rescale_mode(rescale_mode, convert_to_image_data_format=False)
 
         class EvalDataset(Dataset):
@@ -555,7 +555,7 @@ class COCOEvalCallback(callbacks.Callback):
             print(">>>> Detection results saved to:", self.save_json)
 
         if hasattr(self.model, "history") and hasattr(self.model.history, "history"):
-            self.model.history.history.setdefault(self.item_key, []).append(coco_eval.stats.tolist())
+            self.model.history.history.setdefault(self.item_key, []).append(([0] * 12) if coco_eval is None else coco_eval.stats.tolist())
 
         # Training save best
         cur_ap = coco_eval.stats[0] if coco_eval is not None else 0
