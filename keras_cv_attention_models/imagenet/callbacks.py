@@ -313,6 +313,8 @@ class MyCheckpoint(callbacks.Callback):
         #     self.suffix = ".keras" if is_tf2_13 else ".h5"
         self.basic_save_name, self.mode, self.save_path = basic_save_name, mode, save_path
         self.__init_monitor_strategy__(monitor)
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
 
     def __init_monitor_strategy__(self, monitor):
         import re
@@ -369,6 +371,8 @@ class ModelEMA(callbacks.Callback):
     def __init__(self, basic_save_name=None, save_path="checkpoints", decay=0.9999, tau=2000, updates=0):
         self.basic_save_name, self.save_path, self.decay, self.tau, self.updates = basic_save_name, save_path, decay, tau, updates
         super().__init__()
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
 
     def set_model(self, model):
         from copy import deepcopy
