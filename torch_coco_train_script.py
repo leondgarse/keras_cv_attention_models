@@ -81,7 +81,7 @@ def parse_arguments(argv):
 
     """ Optimizer arguments like Learning rate, weight decay and momentum """
     lr_group = parser.add_argument_group("Optimizer arguments like Learning rate, weight decay and momentum")
-    lr_group.add_argument("--lr_base_512", type=float, default=0.08, help="Learning rate for batch_size=512, lr = lr_base_512 * 512 / batch_size")
+    lr_group.add_argument("--lr", type=float, default=0.01, help="Learning rate")
     lr_group.add_argument("--weight_decay", type=float, default=5e-4, help="Weight decay")
     lr_group.add_argument("--lr_warmup_steps", type=int, default=3, help="Learning rate warmup epochs")
     lr_group.add_argument("--momentum", type=float, default=0.937, help="Momentum for SGD / SGDW / RMSprop optimizer")
@@ -137,9 +137,8 @@ if __name__ == "__main__":
     ema.set_model(model)
 
     """ Optimizer, loss and Metrics """
-    lr = args.lr_base_512 * args.batch_size / 512
-    print(">>>> lr:", lr)
-    optimizer = build_optimizer(model, name=args.optimizer, lr=lr, momentum=args.momentum, weight_decay=args.weight_decay)
+    # lr = args.lr * args.batch_size / 512
+    optimizer = build_optimizer(model, name=args.optimizer, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
     loss = kecam.coco.torch_losses.Loss(device=global_device, nc=num_classes)
     box_loss_metric = kecam.imagenet.metrics.LossMeanMetricWrapper(loss, loss_attr_name="box_loss")
     cls_loss_metric = kecam.imagenet.metrics.LossMeanMetricWrapper(loss, loss_attr_name="cls_loss")
@@ -169,7 +168,10 @@ if __name__ == "__main__":
     coco_ap_eval.model = ema.ema
 
     """ Learning rate scheduler and training """
-    learning_rate_scheduler = lambda epoch: lr * ((1 - epoch / args.epochs) * (1.0 - lr) + lr)  # linear
+
+
+    learning_rate_scheduler = lambda epoch: kecam.imagenet.callbacks.linear_scheduler(epoch, args.lr, decay_step=args.epochs, warmup_steps=args.lr_warmup_steps)
+    # (1 - epoch / args.epochs) * args.lr + epoch / args.epochs * args.lr * args.lr  # linear from ultralytics
     lr_scheduler = kecam.imagenet.callbacks.LearningRateScheduler(learning_rate_scheduler)
     other_kwargs = {}
     latest_save, hist = kecam.imagenet.train_func.train(
@@ -180,7 +182,7 @@ if __name__ == "__main__":
         initial_epoch=args.initial_epoch,
         lr_scheduler=lr_scheduler,
         basic_save_name=basic_save_name,
-        init_callbacks=[warmup_train, close_mosaic, ema, coco_ap_eval, ema],
+        init_callbacks=[warmup_train, close_mosaic, coco_ap_eval, ema],
         logs=None,
         **other_kwargs,
     )

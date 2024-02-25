@@ -8,6 +8,17 @@
 
 ## Basic Usage
 - **Set os environment `export KECAM_BACKEND='torch'` to enable this PyTorch backend**.
+  ```py
+  import os
+  os.environ['KECAM_BACKEND'] = 'torch'
+
+  import numpy as np
+  from keras_cv_attention_models.backend import models, layers, functional, losses
+  xx, yy = np.random.uniform(size=[64, 3, 32, 32]).astype('float32'), np.random.uniform(0, 10, size=[64]).astype('int32')
+  mm = models.Sequential([layers.Input([3, 32, 32]), layers.Conv2D(128), layers.GlobalAveragePooling2D(), layers.Dense(10)])
+  mm.compile(optimizer='SGD', loss=losses.sparse_categorical_crossentropy, metrics='acc')
+  mm.fit(xx, yy, batch_size=4)
+  ```
 - **Create model and run predict**.
   - Will load same `h5` weights as TF one if available.
   - Note: `input_shape` will auto fit image data format. Given `input_shape=(224, 224, 3)` or `input_shape=(3, 224, 224)`, will set to `(3, 224, 224)` if `channels_first`.

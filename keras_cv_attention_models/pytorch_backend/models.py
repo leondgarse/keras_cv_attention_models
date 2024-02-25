@@ -33,7 +33,8 @@ class _Trainer_(object):
 
     def train_compile(self, optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, grad_accumulate=1, grad_max_norm=-1, **kwargs):
         # works like kers `model.compile`, but `compile` is took by `nn.Module`, rename as `train_compile`
-        self.optimizer = getattr(torch.optim, optimizer)(self.parameters()) if isinstance(optimizer, str) else optimizer
+        optimizer_kwargs = {"lr": 0.01} if isinstance(optimizer, str) and optimizer == "SGD" else {}  # lr is a required parameter for SGD
+        self.optimizer = getattr(torch.optim, optimizer)(self.parameters(), **optimizer_kwargs) if isinstance(optimizer, str) else optimizer
         self.compiled_loss = self.loss = (lambda y_true, y_pred: torch.functional.F.cross_entropy(y_pred, y_true)) if loss is None else loss
         self.loss_weights, self.grad_accumulate, self.grad_max_norm = loss_weights or 1.0, grad_accumulate, grad_max_norm
         self.metrics_names, self.metrics = self.init_metrics(metrics)
@@ -490,6 +491,10 @@ class Model(nn.Module, _Trainer_, _Exporter_):
         else:
             self.nodes.append(cur_node)
         return cur_node
+
+    def compile(self, **kwargs):
+        # compile is tooken by nn.Module, checking by kwargs if calling `train_compile` or default `compile`
+        return self.train_compile(**kwargs) if "loss" in kwargs or "optimizer" in kwargs or "metrics" in kwargs else super().compile(**kwargs)
 
     @property
     def layers(self):

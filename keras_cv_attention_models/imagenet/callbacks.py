@@ -214,6 +214,17 @@ def exp_scheduler(epoch, lr_base=0.1, decay_step=1, decay_rate=0.9, lr_min=0, wa
     return lr
 
 
+def linear_scheduler(epoch, lr_base=0.1, decay_step=100, lr_min=0, warmup_steps=0):
+    if epoch < warmup_steps:
+        lr = (lr_base - lr_min) * (epoch + 1) / (warmup_steps + 1)
+    elif epoch > decay_step:
+        return lr_min
+    else:
+        lr = lr_min + (1 - epoch / decay_step) * (lr_base - lr_min)
+    # print("Learning rate for iter {} is {}".format(epoch + 1, lr))
+    return lr
+
+
 class OptimizerWeightDecay(callbacks.Callback):
     def __init__(self, lr_base, wd_base, is_lr_on_batch=False):
         from tensorflow.keras import backend as K
@@ -282,10 +293,7 @@ class MyHistory(callbacks.Callback):
                 json.dump(self.history, ff)
 
     def print_hist(self):
-        print("{")
-        for kk, vv in self.history.items():
-            print("  '%s': %s," % (kk, vv))
-        print("}")
+        print("{\n" + "\n".join(["  '%s': %s," % (kk, vv) for kk, vv in self.history.items()]) + "\n}")
 
 
 class MyCheckpoint(callbacks.Callback):
@@ -359,6 +367,7 @@ class ModelEMA(callbacks.Callback):
 
     def __init__(self, basic_save_name=None, save_path="checkpoints", decay=0.9999, tau=2000, updates=0):
         self.basic_save_name, self.save_path, self.decay, self.tau, self.updates = basic_save_name, save_path, decay, tau, updates
+        self.cur_accumulate = 0
         super().__init__()
 
     def set_model(self, model):
@@ -366,15 +375,20 @@ class ModelEMA(callbacks.Callback):
 
         self.model = model
         self.ema = deepcopy(model).eval()  # FP32 EMA
-        for p in self.ema.parameters():
-            p.requires_grad_(False)
+        for param in self.ema.parameters():
+            param.requires_grad_(False)
         self.basic_save_name = model.name if self.basic_save_name is None else self.basic_save_name
-        self.save_file_path = os.path.join(save_path, basic_save_name) + "_ema.h5"
+        self.save_file_path = os.path.join(self.save_path, self.basic_save_name) + "_ema.h5"
         self.enabled = True
 
     def on_train_batch_end(self, batch, logs=None):
         if not self.enabled:
             return
+        self.cur_accumulate += 1
+        if self.cur_accumulate < getattr(self.model, "grad_accumulate", 1):
+            return
+
+        self.cur_accumulate = 0
         self.updates += 1
         cur_decay = self.decay * (1 - np.exp(-self.updates / self.tau))  # decay exponential ramp (to help early epochs)
         model_state_dict = self.model.state_dict()  # model state_dict
