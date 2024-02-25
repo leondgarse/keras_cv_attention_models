@@ -218,7 +218,7 @@ def linear_scheduler(epoch, lr_base=0.1, decay_step=100, lr_min=0, warmup_steps=
     if epoch < warmup_steps:
         lr = (lr_base - lr_min) * (epoch + 1) / (warmup_steps + 1)
     elif epoch > decay_step:
-        return lr_min
+        lr = lr_min
     else:
         lr = lr_min + (1 - epoch / decay_step) * (lr_base - lr_min)
     # print("Learning rate for iter {} is {}".format(epoch + 1, lr))
@@ -272,9 +272,10 @@ class MyHistory(callbacks.Callback):
         lr = lr.item() if hasattr(lr, "item") else lr
         self.history.setdefault("lr", []).append(float(lr))
 
-        for k, v in logs.items():
-            k = "accuracy" if "accuracy" in k else k
-            self.history.setdefault(k, []).append(float(v))
+        for kk, vv in logs.items():
+            kk = "accuracy" if "accuracy" in kk else kk
+            vv = [float(ii) for ii in vv] if isinstance(vv, (list, tuple)) else float(vv)
+            self.history.setdefault(kk, []).append(vv)
 
         if hasattr(self.model, "losses") and len(self.model.losses) != 0:  # Has regular_loss
             # regular_loss = functional.reduce_sum(self.model.losses).numpy()
@@ -367,11 +368,11 @@ class ModelEMA(callbacks.Callback):
 
     def __init__(self, basic_save_name=None, save_path="checkpoints", decay=0.9999, tau=2000, updates=0):
         self.basic_save_name, self.save_path, self.decay, self.tau, self.updates = basic_save_name, save_path, decay, tau, updates
-        self.cur_accumulate = 0
         super().__init__()
 
     def set_model(self, model):
         from copy import deepcopy
+        from collections import namedtuple
 
         self.model = model
         self.ema = deepcopy(model).eval()  # FP32 EMA
@@ -379,27 +380,29 @@ class ModelEMA(callbacks.Callback):
             param.requires_grad_(False)
         self.basic_save_name = model.name if self.basic_save_name is None else self.basic_save_name
         self.save_file_path = os.path.join(self.save_path, self.basic_save_name) + "_ema.h5"
+        self.ema.history = namedtuple('history', ['history'])({})  # Record history and pass back to model if any
         self.enabled = True
 
     def on_train_batch_end(self, batch, logs=None):
         if not self.enabled:
             return
-        self.cur_accumulate += 1
-        if self.cur_accumulate < getattr(self.model, "grad_accumulate", 1):
+        if getattr(self.model, "accumulate_passed_batches", 0) != 0:  # Model hasn't done an accumulated update
             return
 
-        self.cur_accumulate = 0
         self.updates += 1
+        # print(f">>>> {self.updates = }, {self.model.accumulate_passed_batches = }, {self.model.grad_accumulate = }")
         cur_decay = self.decay * (1 - np.exp(-self.updates / self.tau))  # decay exponential ramp (to help early epochs)
         model_state_dict = self.model.state_dict()  # model state_dict
         for name, param in self.ema.state_dict().items():
-            if param.dtype.is_floating_point:  # true for FP16 and FP32
+            if param.dtype.is_floating_point:  # Update EMA parameters, True for FP16 and FP32
                 param *= cur_decay  # Ensential in this way, in place operation
-                param += (1 - cur_decay) * model_state_dict[name].detach()  # Update EMA parameters
+                param += (1 - cur_decay) * model_state_dict[name].detach()
 
     def on_epoch_end(self, cur_epoch, logs=None):
         print(">>>> Save EMA model to:", self.save_file_path)
         self.ema.save(self.save_file_path)
+        if hasattr(self.model, "history") and hasattr(self.model.history, "history"):
+            self.model.history.history.update(self.ema.history.history)
 
 
 class CloseMosaic(callbacks.Callback):
@@ -418,34 +421,40 @@ class CloseMosaic(callbacks.Callback):
 
 class WarmupTrain(callbacks.Callback):
     """
-    import kecam
-    model = kecam.yolov8.YOLOV8_N(pretrained=None)
-    optimizer = build_optimizer(model)
-    model.train_compile(optimizer=optimizer, grad_accumulate=4)
-    warmup_train = WarmupTrain(steps_per_epoch=100, warmup_epochs=3)
-    warmup_train.set_model(model)
-
-    accumulates, momentums, lrs = [], [], [[] for _ in model.optimizer.param_groups]
-    for epoch in range(warmup_train.warmup_epochs + 3):
-        warmup_train.on_epoch_begin(epoch)
-        for batch in range(warmup_train.steps_per_epoch):
-            warmup_train.on_train_batch_begin(batch)
-            accumulates.append(model.grad_accumulate)
-            momentums.append(model.optimizer.param_groups[0]["momentum"])
-            for id, group in enumerate(model.optimizer.param_groups):
-                lrs[id].append(group['lr'])
-
-    fig, axes = plt.subplots(1, 5, figsize=[20, 4])
-    names = ["grad_accumulate", "momentum", "group 0 lr", "group 1 lr", "group 2 lr"]
-    for id, (name, values) in enumerate(zip(names, [accumulates, momentums, *lrs])):
-        axes[id].plot(values)
-        axes[id].set_title(name)
-        axes[id].grid(True)
-    fig.tight_layout()
+    >>> import torch, kecam
+    >>> model = kecam.yolov8.YOLOV8_N(pretrained=None)
+    >>> params = [
+    >>>     {"params": [param for param in model.parameters() if param.ndim < 2]},
+    >>>     {"params": [param for param in model.parameters() if param.ndim >= 2]},
+    >>> ]
+    >>> optimizer = torch.optim.SGD(params, lr=0.01, momentum=0.937)
+    >>> model.train_compile(optimizer=optimizer, grad_accumulate=4)
+    >>> warmup_train = kecam.imagenet.callbacks.WarmupTrain(steps_per_epoch=100, warmup_epochs=3)
+    >>> warmup_train.set_model(model)
+    >>>
+    >>> accumulates, momentums, lrs = [], [], [[] for _ in model.optimizer.param_groups]
+    >>> for epoch in range(warmup_train.warmup_epochs + 3):
+    >>>     warmup_train.on_epoch_begin(epoch)
+    >>>     for batch in range(warmup_train.steps_per_epoch):
+    >>>         warmup_train.on_train_batch_begin(batch)
+    >>>         accumulates.append(model.grad_accumulate)
+    >>>         momentums.append(model.optimizer.param_groups[0]["momentum"])
+    >>>         for id, group in enumerate(model.optimizer.param_groups):
+    >>>             lrs[id].append(group['lr'])
+    >>>
+    >>> cols = 2 + len(lrs)
+    >>> fig, axes = plt.subplots(1, cols, figsize=[cols * 4, 4])
+    >>> names = ["grad_accumulate", "momentum"] + ["group {} lr".format(id) for id in range(len(lrs))]
+    >>> for id, (name, values) in enumerate(zip(names, [accumulates, momentums, *lrs])):
+    >>>     axes[id].plot(values)
+    >>>     axes[id].set_title(name)
+    >>>     axes[id].grid(True)
+    >>> fig.tight_layout()
     """
 
-    def __init__(self, steps_per_epoch, warmup_epochs=3, warmup_momentum=0.8, warmup_bias_lr=0.1):
+    def __init__(self, steps_per_epoch, warmup_epochs=3, warmup_momentum=0.8, warmup_bias_lr=0.1, bias_group_id=0):
         self.steps_per_epoch, self.warmup_epochs, self.warmup_momentum, self.warmup_bias_lr = steps_per_epoch, warmup_epochs, warmup_momentum, warmup_bias_lr
+        self.bias_group_id = bias_group_id
         self.warmup_batch_steps = steps_per_epoch * warmup_epochs
         self.cur_epoch = 0
         super().__init__()
@@ -469,7 +478,7 @@ class WarmupTrain(callbacks.Callback):
             self.model.grad_accumulate = round(warmup_ratio * self.target_grad_accumulate)
 
         for group_num, group in enumerate(self.model.optimizer.param_groups):
-            warmup_lr = self.warmup_bias_lr if group_num == 0 else 0
+            warmup_lr = self.warmup_bias_lr if group_num == self.bias_group_id else 0
             group["lr"] = warmup_lr + warmup_ratio * (self.target_lrs[group_num] - warmup_lr)
             if "momentum" in group:
                 group["momentum"] = self.warmup_momentum + warmup_ratio * (self.target_momentums[group_num] - self.warmup_momentum)

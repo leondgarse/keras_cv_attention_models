@@ -1,13 +1,4 @@
-import math
-import torch
 import numpy as np
-from copy import deepcopy
-from tqdm import tqdm
-from torch import nn
-from torch.cuda import amp
-from torch.optim import lr_scheduler
-from keras_cv_attention_models.coco import torch_losses, torch_data, eval_func
-
 
 class ModelEMA:
     """Updated Exponential Moving Average (EMA) from https://github.com/rwightman/pytorch-image-models
@@ -17,7 +8,8 @@ class ModelEMA:
     """
 
     def __init__(self, model, decay=0.9999, tau=2000, updates=0):
-        # Create EMA
+        from copy import deepcopy
+
         self.decay, self.tau, self.updates = decay, tau, updates
         self.ema = deepcopy(model).eval()  # FP32 EMA
         for p in self.ema.parameters():
@@ -29,7 +21,7 @@ class ModelEMA:
         if not self.enabled:
             return
         self.updates += 1
-        cur_decay = self.decay * (1 - math.exp(-self.updates / self.tau))  # decay exponential ramp (to help early epochs)
+        cur_decay = self.decay * (1 - np.exp(-self.updates / self.tau))  # decay exponential ramp (to help early epochs)
         model_state_dict = model.state_dict()  # model state_dict
         for name, param in self.ema.state_dict().items():
             if param.dtype.is_floating_point:  # true for FP16 and FP32
@@ -38,14 +30,16 @@ class ModelEMA:
 
 
 def build_optimizer(model, name="sgd", lr=0.01, momentum=0.937, decay=5e-4):
+    import torch
+
     g = [], [], []  # optimizer parameter groups
-    bn = tuple(v for k, v in nn.__dict__.items() if "Norm" in k)  # normalization layers, i.e. BatchNorm2d()
+    bn = tuple(v for k, v in torch.nn.__dict__.items() if "Norm" in k)  # normalization layers, i.e. BatchNorm2d()
     for v in model.modules():
-        if hasattr(v, "bias") and isinstance(v.bias, nn.Parameter):  # bias (no decay)
+        if hasattr(v, "bias") and isinstance(v.bias, torch.nn.Parameter):  # bias (no decay)
             g[2].append(v.bias)
         if isinstance(v, bn):  # weight (no decay)
             g[1].append(v.weight)
-        elif hasattr(v, "weight") and isinstance(v.weight, nn.Parameter):  # weight (with decay)
+        elif hasattr(v, "weight") and isinstance(v.weight, torch.nn.Parameter):  # weight (with decay)
             g[0].append(v.weight)
 
     name_lower = name.lower()
@@ -59,6 +53,10 @@ def build_optimizer(model, name="sgd", lr=0.01, momentum=0.937, decay=5e-4):
 
 
 def train(model, dataset_path="coco.json", batch_size=16, epochs=100, initial_epoch=0, optimizer_name="sgd"):
+    import torch
+    from tqdm import tqdm
+    from keras_cv_attention_models.coco import torch_losses, torch_data, eval_func
+
     if torch.cuda.is_available():
         model = model.cuda()
         use_amp = True
@@ -82,8 +80,8 @@ def train(model, dataset_path="coco.json", batch_size=16, epochs=100, initial_ep
     ema = ModelEMA(model)
     # lf = lambda x: (x * (1 - 0.01) / warmup_epochs + 0.01) if x < warmup_epochs else ((1 - x / epochs) * (1.0 - 0.01) + 0.01)  # linear
     lf = lambda x: (1 - x / epochs) * (1.0 - 0.01) + 0.01  # linear
-    scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
-    scaler = amp.GradScaler(enabled=use_amp)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
+    scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
 
     validator = eval_func.COCOEvalCallback(
         data_name=dataset_path, batch_size=batch_size, rescale_mode="raw01", nms_method="hard", nms_iou_or_sigma=0.65, nms_max_output_size=300

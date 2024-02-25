@@ -6,7 +6,7 @@
 - [Custom detector using YOLOV8 header](#custom-detector-using-yolov8-header)
 - [Verification with PyTorch version](#verification-with-pytorch-version)
 - [COCO eval results](#coco-eval-results)
-- [Training using PyTorch backend and ultralytics](#training-using-pytorch-backend-and-ultralytics)
+- [Training using PyTorch backend](#training-using-pytorch-backend)
 ***
 
 ## Summary
@@ -229,7 +229,7 @@
   # Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.772
   # Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.855
   ```
-## Training using PyTorch backend and ultralytics
+## Training using PyTorch backend
   - **Custom dataset** is created using `custom_dataset_script.py`, which can be used as `dataset_path="coco.json"` for training, detail usage can be found in [Custom detection dataset](https://github.com/leondgarse/keras_cv_attention_models/discussions/52#discussioncomment-2460664).
   - **Train using `EfficientNetV2B0` backbone + `YOLOV8_N` head**.
     ```py

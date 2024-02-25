@@ -95,7 +95,7 @@ class DecodePredictions(layers.Layer):
         bbox_outputs, class_outputs = pred[:, : self.regression_len], pred[:, self.regression_len :]
         num_classes = class_outputs.shape[-1]
         class_outputs_flatten = functional.reshape(class_outputs, -1)
-        topk = class_outputs_flatten.shape[0] if topk == -1 else topk  # select all if -1
+        topk = class_outputs_flatten.shape[0] if topk == -1 else min(topk, class_outputs_flatten.shape[0])  # select all if -1
         _, class_topk_indices = functional.top_k(class_outputs_flatten, k=topk, sorted=False)
         # get original indices for class_outputs, original_indices_hh -> picking indices, original_indices_ww -> picked labels
         original_indices_hh, original_indices_ww = class_topk_indices // num_classes, class_topk_indices % num_classes

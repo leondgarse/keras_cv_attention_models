@@ -17,7 +17,7 @@
   xx, yy = np.random.uniform(size=[64, 3, 32, 32]).astype('float32'), np.random.uniform(0, 10, size=[64]).astype('int32')
   mm = models.Sequential([layers.Input([3, 32, 32]), layers.Conv2D(128), layers.GlobalAveragePooling2D(), layers.Dense(10)])
   mm.compile(optimizer='SGD', loss=losses.sparse_categorical_crossentropy, metrics='acc')
-  mm.fit(xx, yy, batch_size=4)
+  mm.fit(xx, yy, batch_size=4, epochs=3)
   ```
 - **Create model and run predict**.
   - Will load same `h5` weights as TF one if available.

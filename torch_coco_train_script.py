@@ -77,7 +77,7 @@ def parse_arguments(argv):
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights. Mostly used is `coco`")
     # parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
     parser.add_argument("--summary", action="store_true", help="show model summary")
-    parser.add_argument("--eval_start_epoch", type=int, default=-1, help="eval process start epoch, default -1 for `epochs * 1 // 4`")
+    parser.add_argument("--eval_start_epoch", type=int, default=0, help="eval process start epoch, set -1 for `epochs * 1 // 4`")
 
     """ Optimizer arguments like Learning rate, weight decay and momentum """
     lr_group = parser.add_argument_group("Optimizer arguments like Learning rate, weight decay and momentum")
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     """ Optimizer, loss and Metrics """
     # lr = args.lr * args.batch_size / 512
     optimizer = build_optimizer(model, name=args.optimizer, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    loss = kecam.coco.torch_losses.Loss(device=global_device, nc=num_classes)
+    loss = kecam.coco.torch_losses.Loss(device=global_device, nc=num_classes, input_shape=args.input_shape)
     box_loss_metric = kecam.imagenet.metrics.LossMeanMetricWrapper(loss, loss_attr_name="box_loss")
     cls_loss_metric = kecam.imagenet.metrics.LossMeanMetricWrapper(loss, loss_attr_name="cls_loss")
     dfl_loss_metric = kecam.imagenet.metrics.LossMeanMetricWrapper(loss, loss_attr_name="dfl_loss")
@@ -168,8 +168,6 @@ if __name__ == "__main__":
     coco_ap_eval.model = ema.ema
 
     """ Learning rate scheduler and training """
-
-
     learning_rate_scheduler = lambda epoch: kecam.imagenet.callbacks.linear_scheduler(epoch, args.lr, decay_step=args.epochs, warmup_steps=args.lr_warmup_steps)
     # (1 - epoch / args.epochs) * args.lr + epoch / args.epochs * args.lr * args.lr  # linear from ultralytics
     lr_scheduler = kecam.imagenet.callbacks.LearningRateScheduler(learning_rate_scheduler)

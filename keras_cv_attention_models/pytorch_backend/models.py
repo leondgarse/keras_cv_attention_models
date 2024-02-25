@@ -3,6 +3,7 @@ import numpy as np
 from tqdm.auto import tqdm
 from torch import nn
 from contextlib import nullcontext
+from collections import namedtuple
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.pytorch_backend import layers, callbacks, metrics
 
@@ -68,9 +69,11 @@ class _Trainer_(object):
     def fit(self, x=None, y=None, batch_size=32, epochs=1, callbacks=None, validation_data=None, initial_epoch=0, validation_batch_size=None, **kwargs):
         callbacks = callbacks or []
         [ii.set_model(self) for ii in callbacks if ii.model is None]
-        self.history = {"loss": []}
+        self.history = namedtuple('history', ['history', 'epoch'])({"loss": []}, [])  # Mimic of `keras.callbacks.History`
         validation_batch_size = validation_batch_size or batch_size
         self.batch_size, self.callbacks, self.validation_batch_size = batch_size, callbacks, validation_batch_size
+        self.accumulate_passed_batches = 0
+        self.optimizer.zero_grad()  # [TODO] should be inside or outside epochs loop?
 
         bar_format = "{n_fmt}/{total_fmt} [{bar:30}] - ETA: {elapsed}<{remaining} {rate_fmt}{postfix}{desc}"
         for epoch in range(initial_epoch, epochs):
@@ -80,9 +83,7 @@ class _Trainer_(object):
             [ii.reset_state() for ii in self.metrics]
 
             self.train()
-            self.optimizer.zero_grad()
-
-            avg_loss, accumulate_passed_batches = 0.0, 0
+            avg_loss = 0.0
             train_dataset, total = self._dataset_gen_(x, y, batch_size=batch_size)
             process_bar = tqdm(enumerate(train_dataset), total=total, bar_format=bar_format, ascii=".>>=")
             for batch, (xx, yy) in process_bar:
@@ -94,15 +95,15 @@ class _Trainer_(object):
                 out, loss = self.train_step(xx, yy)
                 self.scaler.scale(loss).backward()
 
-                accumulate_passed_batches += 1
-                if accumulate_passed_batches >= self.grad_accumulate:
+                self.accumulate_passed_batches += 1
+                if self.accumulate_passed_batches >= self.grad_accumulate:
                     self.scaler.unscale_(self.optimizer)
                     if self.grad_max_norm > 0:
                         torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=self.grad_max_norm)  # clip gradients
                     self.scaler.step(self.optimizer)  # self.optimizer.step()
                     self.scaler.update()
                     self.optimizer.zero_grad()
-                    accumulate_passed_batches = 0
+                    self.accumulate_passed_batches = 0
                 # print(">>>> Epoch {}, batch: {}, loss: {:.4f}".format(epoch, batch, loss.item()))
                 avg_loss += loss
                 process_bar.desc = " - loss: {:.4f}".format(avg_loss / (batch + 1))  # process_bar.set_description automatically add a : on the tail
@@ -123,9 +124,9 @@ class _Trainer_(object):
                 if batch == total - 1 and validation_data is not None:
                     val_loss, val_metrics_results = self.evaluate(validation_data, batch_size=validation_batch_size, callbacks=callbacks)
 
-                    self.history.setdefault("val_loss", []).append(val_loss.item())
+                    self.history.history.setdefault("val_loss", []).append(val_loss.item())
                     for name, val_metric_result in val_metrics_results.items():
-                        self.history.setdefault(name, []).append(val_metric_result.item() if hasattr(val_metric_result, "item") else val_metric_result)
+                        self.history.history.setdefault(name, []).append(val_metric_result.item() if hasattr(val_metric_result, "item") else val_metric_result)
 
                     process_bar.desc += " - val_loss: {:.4f}".format(val_loss)
                     process_bar.desc += "".join([" - {}: {:.4f}".format(name, metric) for name, metric in val_metrics_results.items()])
@@ -133,10 +134,11 @@ class _Trainer_(object):
                 process_bar.refresh()
 
             loss = avg_loss / (batch + 1)
-            self.history["loss"].append(loss.item() if hasattr(loss, "item") else loss)
+            self.history.epoch.append(epoch)
+            self.history.history["loss"].append(loss.item() if hasattr(loss, "item") else loss)
             for name, metric_result in metrics_results.items():
-                self.history.setdefault(name, []).append(metric_result)
-            epoch_logs = {kk: vv[-1] for kk, vv in self.history.items()}
+                self.history.history.setdefault(name, []).append(metric_result)
+            epoch_logs = {kk: vv[-1] for kk, vv in self.history.history.items()}
             with self.global_context, torch.no_grad():
                 [ii.on_epoch_end(epoch, epoch_logs) for ii in callbacks]
             print()
@@ -149,7 +151,7 @@ class _Trainer_(object):
         [ii.reset_state() for ii in self.metrics]
 
         self.eval()
-        avg_loss, accumulate_passed_batches = 0.0, 0
+        avg_loss = 0.0
         val_dataset, total = self._dataset_gen_(x, y, batch_size=batch_size)
         for batch, (xx, yy) in enumerate(val_dataset):
             batch_logs = {}  # Can be used as global value between different callbacks
@@ -244,7 +246,7 @@ class _Exporter_(object):
         from torchinfo import summary
 
         input_datas = self._create_fake_input_data_(input_shape)
-        print(summary(self, input_data=input_datas if len(self.inputs) == 1 else [input_datas], **kwargs))
+        summary(self, input_data=input_datas if len(self.inputs) == 1 else [input_datas], **kwargs)
 
     def export_onnx(self, filepath=None, input_shape=None, batch_size=1, simplify=False, input_names=None, output_names=None, **kwargs):
         input_datas = self._create_fake_input_data_(input_shape, batch_size=batch_size)
