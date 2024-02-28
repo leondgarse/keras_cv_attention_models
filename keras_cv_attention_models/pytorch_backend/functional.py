@@ -421,3 +421,11 @@ def unstack(inputs, axis=0, name=None):
 
     pre_axis_slice = [slice(None)] * axis
     return [inputs[tuple([*pre_axis_slice, index])] for index in range(axis_shape)]
+
+
+def where(condition, x=None, y=None, name=None):
+    if x is None and y is None:
+        output_shape = [None, len(condition.shape)]
+        return wrapper(lambda condition: torch.stack(torch.where(condition), axis=1), condition, output_shape=output_shape, name=name)
+    else:
+        raise NotImplemented  # functional.where with x or y inputs not implemented

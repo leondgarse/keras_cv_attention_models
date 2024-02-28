@@ -29,6 +29,7 @@ from tensorflow import (
     tile,
     transpose,
     unstack,
+    where,
     zeros,
 )
 from tensorflow.image import resize, extract_patches, non_max_suppression_with_scores

@@ -27,7 +27,8 @@ def reload_model_weights(
     if isinstance(file_hash, dict):
         # file_hash is a dict like {224: "aa", 384: "bb", 480: "cc"}
         if request_resolution == -1:
-            input_height = model.input_shape[2]  # Either channels_last or channels_first, 2 aixs has to be a shape one
+            model_input_shape = model.input_shape[0] if isinstance(model.input_shape, list) else model.input_shape  # In case multi inputs, just take the 1st
+            input_height = model_input_shape[2]  # Either channels_last or channels_first, 2 aixs has to be a shape one
             if input_height is None:  # input_shape is (None, None, 3)
                 request_resolution = max(file_hash.keys())
             else:
@@ -66,10 +67,11 @@ def reload_model_weights(
 
 def load_weights_with_mismatch(model, weight_file, mismatch_class=None, force_reload_mismatch=False, request_resolution=-1, method=None):
     model.load_weights(weight_file, by_name=True, skip_mismatch=True)
-    if len(model.input_shape) == 4 and backend.image_data_format() == "channels_first":
-        input_height, input_width = model.input_shape[2], model.input_shape[3]
-    elif len(model.input_shape) == 4:
-        input_height, input_width = model.input_shape[1], model.input_shape[2]
+    model_input_shape = model.input_shape[0] if isinstance(model.input_shape, list) else model.input_shape  # In case multi inputs, just take the 1st
+    if len(model_input_shape) == 4 and backend.image_data_format() == "channels_first":
+        input_height, input_width = model_input_shape[2], model_input_shape[3]
+    elif len(model_input_shape) == 4:
+        input_height, input_width = model_input_shape[1], model_input_shape[2]
     else:
         input_height, input_width = -1, -1
 

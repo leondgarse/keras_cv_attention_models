@@ -57,6 +57,12 @@ Paper [PDF 2307.10802 Meta-Transformer: A Unified Framework for Multimodal Learn
 """
 
 __tail_doc__ = """  patch_size: stem patch size. Default {patch_size}.
+  use_patch_bias: boolean value if `use_bias` for `PatchConv2DWithResampleWeights` layer.
+      False for MetaTransFormer, True for others
+  use_pre_norm: boolean value if adding an additional `LayerNormalization` after positional embedding.
+      True for MetaTransFormer, False for others
+  use_masked_positions: For BeitV2 training model https://github.com/microsoft/unilm/blob/master/beit2/modeling_pretrain.py#L126
+      Will use an additional `mask_inputs` supporting mask inputs, also affecting model output blocks.
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   layer_scale: init value for `attention` and `mlp` branch `gamma`, if > 0 will use `layer_scale` on block output.

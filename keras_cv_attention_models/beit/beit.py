@@ -455,6 +455,7 @@ def Beit(
     patch_size=16,
     use_patch_bias=True,  # False for MetaTransFormer, True for others
     use_pre_norm=False,  # True for MetaTransFormer, False for others
+    use_masked_positions=False,  # For BeitV2 training model https://github.com/microsoft/unilm/blob/master/beit2/modeling_pretrain.py#L126
     attn_key_dim=0,  # [Attention args]
     attn_qv_bias=True,  # Default False for Vit, True for Beit, if True and attn_qkv_bias being False, will add BiasLayer for query and key.
     attn_qkv_bias=False,  # True for Vit, False for Beit, if True, will just use bias in qkv_dense, and set qv_bias False.
@@ -517,6 +518,12 @@ def Beit(
         patch_height = nn.shape[1]
         nn = layers.Reshape([-1, nn.shape[-1]])(nn)
 
+        """ mask_inputs for BeitV2 training model, also affecting output block """
+        if use_masked_positions:
+            mask_inputs = layers.Input([nn.shape[1]])
+            masked_pos_expanded = functional.expand_dims(mask_inputs, axis=-1)
+            nn = nn * (1 - masked_pos_expanded) + ChannelAffine(name="mask_token")(functional.repeat(masked_pos_expanded, embed_dim, axis=-1))
+
         """ Positional embedding """
         if use_abs_pos_emb and use_abs_pos_emb_on_cls_token:  # ViT / EvaLarge / EvaGiant / DINOv2
             nn = ClassToken(name="cls_token")(nn)
@@ -552,6 +559,8 @@ def Beit(
     """ Head """
     if vocab_size > 0:  # Text model
         nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
+    elif use_masked_positions:  # mask_inputs for BeitV2 training model
+        nn = functional.gather_nd(nn[:, 1:, :], functional.where(functional.equal(mask_inputs, 1)))
     elif use_cat_head:  # DINOv2
         nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
         nn = functional.concat([nn[:, 0], functional.reduce_mean(nn[:, 1:, :], axis=1)], axis=-1)
@@ -568,7 +577,7 @@ def Beit(
         nn = layers.Dense(
             num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=head_init, name="predictions"
         )(nn)
-    model = models.Model(inputs, nn, name=model_name)
+    model = models.Model([inputs, mask_inputs] if use_masked_positions else inputs, nn, name=model_name)
     add_pre_post_process(model, rescale_mode="tf")
     mismatch_class = [PatchConv2DWithResampleWeights, PositionalEmbedding if use_abs_pos_emb else MultiHeadRelativePositionalEmbedding]
     reload_model_weights(model, PRETRAINED_DICT, "beit", pretrained, mismatch_class, force_reload_mismatch)
