@@ -190,7 +190,7 @@ class DetectionDataset(Dataset):  # for training/testing
         self.imread = cv2.imread
 
         """ Cache first for using in mosaic mix """
-        self.cached_images, self.cached_image_indexes, self.cache_length = [None] * len(data), [], min(batch_size * 32, 1024)
+        self.cached_images, self.cached_image_indexes, self.cache_length = [None] * len(data), [], min(batch_size * 32, max_mosaic_cache_len)
         if is_train:
             for index in np.random.choice(range(len(data)), 4, replace=False):
                 self.cached_image_indexes.append(index)

@@ -286,7 +286,7 @@ class MyHistory(callbacks.Callback):
                 self.history["val_loss"][-1] -= regular_loss
 
         model_history = self.model.history.history if hasattr(self.model.history, "history") else self.model.history
-        if "val_ap_ar" in model_history:  # save coco val_ap_ar
+        if "val_ap_ar" in model_history and "val_ap_ar" not in logs:  # save coco val_ap_ar
             self.history.setdefault("val_ap_ar", []).append(model_history["val_ap_ar"][-1])
 
         if self.initial_file:
@@ -479,7 +479,7 @@ class WarmupTrain(callbacks.Callback):
 
         warmup_ratio = (self.init_step_num + batch) / self.warmup_batch_steps
         if self.target_grad_accumulate > 1:
-            self.model.grad_accumulate = round(warmup_ratio * self.target_grad_accumulate)
+            self.model.grad_accumulate = round(1 + warmup_ratio * (self.target_grad_accumulate - 1))
 
         for group_num, group in enumerate(self.model.optimizer.param_groups):
             warmup_lr = self.warmup_bias_lr if group_num == self.bias_group_id else 0
