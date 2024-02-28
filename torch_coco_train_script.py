@@ -75,7 +75,7 @@ def parse_arguments(argv):
         "-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 by `keras.models.load_model` directly. Higher priority than model"
     )
     parser.add_argument("--pretrained", type=str, default=None, help="If build model with pretrained weights. Mostly used is `coco`")
-    # parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
+    parser.add_argument("--seed", type=int, default=None, help="Set random seed if not None")
     parser.add_argument("--summary", action="store_true", help="show model summary")
     parser.add_argument("--eval_start_epoch", type=int, default=0, help="eval process start epoch, set -1 for `epochs * 1 // 4`")
 
@@ -108,6 +108,9 @@ if __name__ == "__main__":
 
     args = parse_arguments(sys.argv[1:])
     print(">>>> All args:", args)
+
+    if args.seed is not None:
+        kecam.imagenet.train_func.set_random_seed(args.seed)
 
     """ Dataset """
     if args.data_name in BUILDIN_DATASETS:

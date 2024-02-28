@@ -8,6 +8,33 @@ from keras_cv_attention_models.imagenet import callbacks
 GLOBAL_STRATEGY = None
 
 
+def set_random_seed(seed):
+    import random
+    import numpy as np
+
+    print(">>>> Set random seed:", seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)  # Set a fixed value for the hash seed
+
+    if backend.is_torch_backend:
+        import torch
+
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        # When running on the CuDNN backend, two further options must be set
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    else:
+        import tensorflow as tf
+
+        tf.random.set_seed(seed)
+        tf.experimental.numpy.random.seed(seed)
+        # When running on the CuDNN backend, two further options must be set
+        os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
+        os.environ['TF_DETERMINISTIC_OPS'] = '1'
+
+
 def init_global_strategy(enable_float16=True, seed=0, TPU=False):
     import tensorflow as tf
 
@@ -37,8 +64,7 @@ def init_global_strategy(enable_float16=True, seed=0, TPU=False):
         tf.keras.mixed_precision.set_global_policy(policy)
 
     if seed is not None:
-        print(">>>> Set random seed:", seed)
-        tf.random.set_seed(seed)
+        set_random_seed(seed)
     return strategy
 
 
