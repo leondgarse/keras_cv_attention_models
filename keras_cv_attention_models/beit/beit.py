@@ -521,8 +521,10 @@ def Beit(
         """ mask_inputs for BeitV2 training model, also affecting output block """
         if use_masked_positions:
             mask_inputs = layers.Input([nn.shape[1]])
-            masked_pos_expanded = functional.expand_dims(mask_inputs, axis=-1)
-            nn = nn * (1 - masked_pos_expanded) + ChannelAffine(name="mask_token")(functional.repeat(masked_pos_expanded, embed_dim, axis=-1))
+            mask_inputs_expanded = functional.expand_dims(mask_inputs, axis=-1)
+            weight_init_value = initializers.TruncatedNormal(stddev=0.02)
+            masked_pos = ChannelAffine(weight_init_value=weight_init_value, name="mask_token")(functional.repeat(mask_inputs_expanded, embed_dim, axis=-1))
+            nn = nn * (1 - mask_inputs_expanded) + masked_pos
 
         """ Positional embedding """
         if use_abs_pos_emb and use_abs_pos_emb_on_cls_token:  # ViT / EvaLarge / EvaGiant / DINOv2

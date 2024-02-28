@@ -18,7 +18,10 @@ class ChannelAffine(layers.Layer):
     def __init__(self, use_bias=True, weight_init_value=1, axis=-1, **kwargs):
         super().__init__(**kwargs)
         self.use_bias, self.weight_init_value, self.axis = use_bias, weight_init_value, axis
-        self.ww_init = initializers.Constant(weight_init_value) if weight_init_value != 1 else "ones"
+        if isinstance(weight_init_value, (int, float)):
+            self.ww_init = initializers.Constant(weight_init_value) if weight_init_value != 1 else "ones"
+        else:
+            self.ww_init = weight_init_value  # Regard as built initializer
         self.bb_init = "zeros"
         self.supports_masking = False
 
@@ -58,7 +61,7 @@ class ChannelAffine(layers.Layer):
 
     def get_config(self):
         config = super().get_config()
-        config.update({"use_bias": self.use_bias, "weight_init_value": self.weight_init_value, "axis": self.axis})
+        config.update({"use_bias": self.use_bias, "axis": self.axis})
         return config
 
 
