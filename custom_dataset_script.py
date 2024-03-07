@@ -2,7 +2,7 @@
 import os
 import json
 import random
-from glob2 import glob
+from glob import glob
 from tqdm import tqdm
 
 IMAGE_SUFFIX = ["*.jpg", "*.jpeg", "*.png"]

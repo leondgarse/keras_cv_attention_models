@@ -427,5 +427,11 @@ def where(condition, x=None, y=None, name=None):
     if x is None and y is None:
         output_shape = [None, len(condition.shape)]
         return wrapper(lambda condition: torch.stack(torch.where(condition), axis=1), condition, output_shape=output_shape, name=name)
+    elif isinstance(x, GraphNode) and isinstance(y, GraphNode):
+        return wrapper(lambda inputs: torch.where(inputs[0], inputs[1], inputs[2]), [condition, x, y], output_shape=condition.shape, name=name)
+    elif isinstance(x, GraphNode):
+        return wrapper(lambda inputs: torch.where(inputs[0], inputs[1], y), [condition, x], output_shape=condition.shape, name=name)
+    elif isinstance(y, GraphNode):
+        return wrapper(lambda inputs: torch.where(inputs[0], x, inputs[1]), [condition, y], output_shape=condition.shape, name=name)
     else:
-        raise NotImplemented  # functional.where with x or y inputs not implemented
+        return wrapper(lambda condition: torch.where(condition, x, y), condition, output_shape=condition.shape, name=name)
