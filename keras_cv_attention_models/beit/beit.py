@@ -504,7 +504,8 @@ def Beit(
     model_name="beit",
     kwargs=None,
 ):
-    if vocab_size > 0:
+    is_text_model = vocab_size > 0
+    if is_text_model:
         """Text inputs"""
         inputs = layers.Input([None], dtype="int64")
         tok_emb = layers.Embedding(vocab_size, embed_dim, name="embed_tokens")(inputs)
@@ -576,14 +577,16 @@ def Beit(
         nn = attention_mlp_block(nn, layer_scale, mlp_ratio, use_gated_mlp, use_norm_mlp, block_drop_rate, layer_norm_epsilon, activation, attn_params, name)
 
         if patch_merging_block_id == id:
-            print(">>>> Before patch merging: blocks with cls token: {}, attn_height: {}".format(nn.shape[1], attn_params["attn_height"]))
-            attn_params["attn_height"] = int(np.ceil(attn_params["attn_height"] / ((nn.shape[1] - 1) / patch_merging_num_tokens) ** 0.5))
-            nn = patch_merging(nn, num_tokens_out=patch_merging_num_tokens, use_cls_token=True, epsilon=layer_norm_epsilon, name="patch_merging_")
-            print(">>>> After patch merging: blocks with cls token: {}, attn_height: {}".format(nn.shape[1], attn_params["attn_height"]))
+            print(">>>> Before patch merging: blocks: {}, attn_height: {}".format(nn.shape[1], attn_params["attn_height"]))
+            if attn_params["attn_height"] > 0:
+                attn_params["attn_height"] = int(np.ceil(attn_params["attn_height"] / ((nn.shape[1] - 1) / patch_merging_num_tokens) ** 0.5))
+            nn = patch_merging(nn, num_tokens_out=patch_merging_num_tokens, use_cls_token=not is_text_model, epsilon=layer_norm_epsilon, name="patch_merging_")
+            print(">>>> After patch merging: blocks: {}, attn_height: {}".format(nn.shape[1], attn_params["attn_height"]))
+            force_reload_mismatch = True
 
 
     """ Head """
-    if vocab_size > 0:  # Text model
+    if is_text_model:  # Text model
         nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
     elif use_mask_inputs:  # mask_inputs for BeitV2 training model
         nn = functional.gather_nd(nn[:, 1:, :], functional.where(functional.equal(mask_inputs, 1)))
