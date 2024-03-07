@@ -575,7 +575,7 @@ def Beit(
         block_drop_rate = drop_connect_rates[id]
         nn = attention_mlp_block(nn, layer_scale, mlp_ratio, use_gated_mlp, use_norm_mlp, block_drop_rate, layer_norm_epsilon, activation, attn_params, name)
 
-        if patch_merging_layer == id:
+        if patch_merging_block_id == id:
             print(">>>> Before patch merging: blocks with cls token: {}, attn_height: {}".format(nn.shape[1], attn_params["attn_height"]))
             attn_params["attn_height"] = int(np.ceil(attn_params["attn_height"] / ((nn.shape[1] - 1) / patch_merging_num_tokens) ** 0.5))
             nn = patch_merging(nn, num_tokens_out=patch_merging_num_tokens, use_cls_token=True, epsilon=layer_norm_epsilon, name="patch_merging_")
