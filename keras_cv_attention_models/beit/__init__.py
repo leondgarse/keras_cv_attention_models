@@ -63,6 +63,10 @@ __tail_doc__ = """  patch_size: stem patch size. Default {patch_size}.
       True for MetaTransFormer, False for others
   use_mask_inputs: For BeitV2 training model https://github.com/microsoft/unilm/blob/master/beit2/modeling_pretrain.py#L126
       Will use an additional `mask_inputs` supporting mask inputs, also affecting model output blocks.
+  patch_merging_block_id: applying `patch_merging` after `block_id`, >=0 value to enable.
+      https://arxiv.org/abs/2202.12015, https://github.com/conceptofmind/ViT-Patch-Merger
+  patch_merging_num_tokens: number of output tokens after `patch_merging`.
+      Should better be a square number, expecially if use_rot_pos_emb=True.
   input_shape: it should have exactly 3 inputs channels, like `(224, 224, 3)`.
   num_classes: number of classes to classify images into. Set `0` to exclude top layers.
   layer_scale: init value for `attention` and `mlp` branch `gamma`, if > 0 will use `layer_scale` on block output.

@@ -390,6 +390,21 @@ def attention_mlp_block(
     return nn
 
 
+def patch_merging(inputs, num_tokens_out=8, use_cls_token=True, epsilon=1e-6, name=None):
+    if use_cls_token:
+        cls_token, inputs = functional.split(inputs, [1, -1], axis=1)
+    input_channels = inputs.shape[-1]  # inputs: [batch, input_blocks, channels]
+    scale = float(input_channels) ** -0.5
+    pre_norm = layers.LayerNormalization(axis=-1, center=False, epsilon=epsilon, name=name)(inputs)
+    nn = layers.Dense(num_tokens_out, name=name and name + "queries")(pre_norm)  # -> [batch, input_blocks, num_tokens_out]
+    nn = functional.transpose(nn, [0, 2, 1])  # -> [batch, num_tokens_out, input_blocks]
+    nn = functional.softmax(nn, axis=-1)
+    out = nn @ pre_norm  # -> [batch, num_tokens_out, channels]
+    if use_cls_token:
+        out = functional.concat([cls_token, out], axis=1)
+    return out
+
+
 @backend.register_keras_serializable(package="beit")
 class HeadInitializer(initializers.Initializer):
     def __init__(self, stddev=0.02, scale=0.001, **kwargs):
@@ -456,6 +471,8 @@ def Beit(
     use_patch_bias=True,  # False for MetaTransFormer, True for others
     use_pre_norm=False,  # True for MetaTransFormer, False for others
     use_mask_inputs=False,  # For BeitV2 training model https://github.com/microsoft/unilm/blob/master/beit2/modeling_pretrain.py#L126
+    patch_merging_block_id=-1,  # >=0 value to enable. https://arxiv.org/abs/2202.12015, https://github.com/conceptofmind/ViT-Patch-Merger
+    patch_merging_num_tokens=8,  # Should better be a square number, expecially if use_rot_pos_emb=True
     attn_key_dim=0,  # [Attention args]
     attn_qv_bias=True,  # Default False for Vit, True for Beit, if True and attn_qkv_bias being False, will add BiasLayer for query and key.
     attn_qkv_bias=False,  # True for Vit, False for Beit, if True, will just use bias in qkv_dense, and set qv_bias False.
@@ -558,6 +575,13 @@ def Beit(
         block_drop_rate = drop_connect_rates[id]
         nn = attention_mlp_block(nn, layer_scale, mlp_ratio, use_gated_mlp, use_norm_mlp, block_drop_rate, layer_norm_epsilon, activation, attn_params, name)
 
+        if patch_merging_layer == id:
+            print(">>>> Before patch merging: blocks with cls token: {}, attn_height: {}".format(nn.shape[1], attn_params["attn_height"]))
+            attn_params["attn_height"] = int(np.ceil(attn_params["attn_height"] / ((nn.shape[1] - 1) / patch_merging_num_tokens) ** 0.5))
+            nn = patch_merging(nn, num_tokens_out=patch_merging_num_tokens, use_cls_token=True, epsilon=layer_norm_epsilon, name="patch_merging_")
+            print(">>>> After patch merging: blocks with cls token: {}, attn_height: {}".format(nn.shape[1], attn_params["attn_height"]))
+
+
     """ Head """
     if vocab_size > 0:  # Text model
         nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
@@ -580,7 +604,7 @@ def Beit(
             num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=head_init, name="predictions"
         )(nn)
     model = models.Model([inputs, mask_inputs] if use_mask_inputs else inputs, nn, name=model_name)
-    add_pre_post_process(model, rescale_mode="tf")
+    add_pre_post_process(model, input_shape=input_shape, rescale_mode="tf")
     mismatch_class = [PatchConv2DWithResampleWeights, PositionalEmbedding if use_abs_pos_emb else MultiHeadRelativePositionalEmbedding]
     reload_model_weights(model, PRETRAINED_DICT, "beit", pretrained, mismatch_class, force_reload_mismatch)
     return model
