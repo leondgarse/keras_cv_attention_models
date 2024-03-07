@@ -396,7 +396,7 @@ def patch_merging(inputs, num_tokens_out=8, use_cls_token=True, epsilon=1e-6, na
     input_channels = inputs.shape[-1]  # inputs: [batch, input_blocks, channels]
     scale = float(input_channels) ** -0.5
     pre_norm = layers.LayerNormalization(axis=-1, center=False, epsilon=epsilon, name=name)(inputs)
-    nn = layers.Dense(num_tokens_out, name=name and name + "queries")(pre_norm)  # -> [batch, input_blocks, num_tokens_out]
+    nn = layers.Dense(num_tokens_out, use_bias=False, name=name and name + "queries")(pre_norm)  # -> [batch, input_blocks, num_tokens_out]
     nn = functional.transpose(nn, [0, 2, 1])  # -> [batch, num_tokens_out, input_blocks]
     nn = functional.softmax(nn, axis=-1)
     out = nn @ pre_norm  # -> [batch, num_tokens_out, channels]
