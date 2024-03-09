@@ -1,5 +1,6 @@
 # ___Keras_cv_attention_models___
 ***
+- **WARNING: currently NOT compatible with `keras 3.0`, if using `tensorflow>=2.16.0`, needs to install `pip install tf-keras~=2.16` manually.**
 - **coco_train_script.py is under testing. Still struggling for this...**
 - **RepViT architecture is changed adapting new weights since kecam>1.3.22**
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
