@@ -1,9 +1,10 @@
+import sys
+sys.path.append(".")
+import keras_cv_attention_models  # Needs to set TF_USE_LEGACY_KERAS=1 env firstly
+
 import pytest
 import tensorflow as tf
 from tensorflow import keras
-import sys
-
-sys.path.append(".")
 from keras_cv_attention_models import attention_layers
 
 

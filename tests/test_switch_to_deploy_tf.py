@@ -1,9 +1,10 @@
-import pytest
 import sys
+sys.path.append(".")
+import keras_cv_attention_models  # Needs to set TF_USE_LEGACY_KERAS=1 env firstly
+
+import pytest
 import numpy as np
 
-sys.path.append(".")
-import keras_cv_attention_models
 from keras_cv_attention_models.test_images import cat
 
 
