@@ -14,9 +14,10 @@ jobs:
         python-version: 3.9
     - name: Install pypa/build
       run: >-
-        python -m
+        CUDA_VISIBLE_DEVICES='-1' python -m
         pip install
         build setuptools wheel pytest pytest-timeout pillow ftfy regex tensorflow tf-keras tensorflow-datasets torch torchvision
+        --extra-index-url https://download.pytorch.org/whl/cpu
         --user
     - name: Build a binary wheel and a source tarball
       run: >-
