@@ -56,7 +56,7 @@ class SimpleTokenizer(object):
 
         special_tokens = ([self.sot] if self.sot == self.eot else [self.sot, self.eot]) + (special_tokens if special_tokens else [])
         self.cache = {t: t for t in special_tokens}
-        special_regex = "|".join([ii.replace("|", "\|") for ii in special_tokens])
+        special_regex = "|".join([ii.replace("|", r"\|") for ii in special_tokens])
         self.pat = regex.compile(special_regex + r"""|'s|'t|'re|'ve|'m|'ll|'d|[\p{L}]+|[\p{N}]|[^\s\p{L}\p{N}]+""", regex.IGNORECASE)
         vocab.extend(special_tokens)
 

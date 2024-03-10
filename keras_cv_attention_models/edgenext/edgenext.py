@@ -1,3 +1,4 @@
+import math
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, models, functional, image_data_format, initializers
@@ -32,7 +33,7 @@ class PositionalEncodingFourier(layers.Layer):
         super().__init__(**kwargs)
         self.filters, self.temperature = filters, float(temperature)
         self.epsilon = 1e-6
-        self.scale = 2 * np.math.acos(-1.0)  # 2 * pi
+        self.scale = 2 * math.acos(-1.0)  # 2 * pi
 
     def build(self, input_shape):
         _, height, width, channels = input_shape  # ex: height, width, filters = 12, 27, 32
@@ -114,7 +115,7 @@ def split_depthwise_transpose_attention(
 ):
     channel_axis = -1 if image_data_format() == "channels_last" else 1
     input_channel = inputs.shape[channel_axis]
-    sub_channels = int(np.math.ceil(input_channel / split))
+    sub_channels = int(math.ceil(input_channel / split))
 
     if image_data_format() == "channels_last":
         spx, remainder = inputs[:, :, :, : (split - 1) * sub_channels], inputs[:, :, :, (split - 1) * sub_channels :]

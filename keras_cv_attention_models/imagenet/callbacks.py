@@ -321,7 +321,7 @@ class MyCheckpoint(callbacks.Callback):
 
         self.monitor = monitor
         monitor_save_name = self.basic_save_name + "_epoch_{}_" + monitor + "_{}" + self.suffix
-        self.monitor_save_re = re.compile(monitor_save_name.format("\d*", "[\d\.]*"))
+        self.monitor_save_re = re.compile(monitor_save_name.format(r"\d*", r"[\d\.]*"))
         self.monitor_save = os.path.join(self.save_path, monitor_save_name)
         self.latest_save = os.path.join(self.save_path, self.basic_save_name + "_latest" + self.suffix)
         self.is_better = (lambda cur, pre: cur <= pre) if self.mode == "min" or "loss" in monitor else (lambda cur, pre: cur >= pre)

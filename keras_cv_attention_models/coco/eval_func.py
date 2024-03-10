@@ -525,7 +525,7 @@ class COCOEvalCallback(callbacks.Callback):
         # Training saving best
         if self.model_basic_save_name is not None:
             monitor_save_name = self.model_basic_save_name + "_epoch_{}_" + self.item_key + "_{}.h5"
-            self.monitor_save_re = re.compile(monitor_save_name.format("\d*", "[\d\.]*"))
+            self.monitor_save_re = re.compile(monitor_save_name.format(r"\d*", r"[\d\.]*"))
             self.monitor_save = os.path.join(self.save_path, monitor_save_name)
             self.is_better = lambda cur, pre: cur >= pre
             self.pre_best = -1e5
