@@ -90,8 +90,9 @@ def FasterNet(
         if dropout > 0:
             nn = layers.Dropout(dropout, name="head_drop")(nn)
         head_init = initializers.TruncatedNormal(stddev=0.02)  # HeadInitializer(scale=head_init_scale)
+        bias_init = initializers.TruncatedNormal(stddev=0.02)  # HeadInitializer(scale=head_init_scale)
         nn = layers.Dense(
-            num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=head_init, name="predictions"
+            num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=bias_init, name="predictions"
         )(nn)
 
     model = models.Model(inputs, nn, name=model_name)
