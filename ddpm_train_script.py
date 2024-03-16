@@ -92,24 +92,6 @@ def parse_arguments():
         args.basic_save_name = basic_save_name
     return args
 
-import sys
-sys.path.append('/mnt/d/workspace/Automold--Road-Augmentation-Library/')
-import random
-import torch
-import Automold as am
-
-def custom_noise_func(images):
-    noise = []
-    for image in torch.clip_(images.permute([0, 2, 3, 1]) * 127.5 + 127.5, 0, 255):
-        cur_noise = image.numpy().astype('uint8')
-        if random.random() > 0.6:
-            cur_noise = am.add_fog(cur_noise)
-        elif random.random() > 0.3:
-            cur_noise = am.add_snow(cur_noise)
-        else:
-            cur_noise = am.add_rain(cur_noise)
-        noise.append(torch.from_numpy(cur_noise))
-    return torch.stack(noise).permute([0, 3, 1, 2]).float() / 127.5 - 1
 
 if __name__ == "__main__":
     args = parse_arguments()
@@ -133,7 +115,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         num_training_steps=args.num_training_steps,
         use_horizontal_flip=not args.disable_horizontal_flip,
-        custom_noise_func=custom_noise_func,  # Set custom one if using noise generating function other than normal random
+        custom_noise_func=None,  # Set custom one if using noise generating function other than normal random
     )
 
     inputs, noise = next(iter(train_dataset))
