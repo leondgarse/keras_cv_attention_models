@@ -107,6 +107,7 @@ if __name__ == "__main__":
         all_images, all_labels, num_classes = kecam.stable_diffusion.data.walk_data_path_gather_images(args.data_path), None, 0
         print(">>>> total images found:", len(all_images))
 
+    from fog_rain_snow import custom_noise_func
     build_dataset = kecam.stable_diffusion.data.build_torch_dataset if kecam.backend.is_torch_backend else kecam.stable_diffusion.data.build_tf_dataset
     train_dataset = build_dataset(
         images=all_images,
@@ -115,7 +116,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         num_training_steps=args.num_training_steps,
         use_horizontal_flip=not args.disable_horizontal_flip,
-        custom_noise_func=None,  # Set custom one if using noise generating function other than normal random
+        custom_noise_func=custom_noise_func,  # Set custom one if using noise generating function other than normal random
     )
 
     inputs, noise = next(iter(train_dataset))
