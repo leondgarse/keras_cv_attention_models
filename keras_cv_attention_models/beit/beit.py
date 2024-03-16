@@ -603,8 +603,9 @@ def Beit(
     """ Output """
     if num_classes > 0 and include_top:
         head_init = initializers.TruncatedNormal(stddev=0.02)  # HeadInitializer() -> Unknown initializer 'HeadInitializer' when loading [???]
+        bias_init = initializers.TruncatedNormal(stddev=0.02)  # HeadInitializer() -> Unknown initializer 'HeadInitializer' when loading [???]
         nn = layers.Dense(
-            num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=head_init, name="predictions"
+            num_classes, dtype="float32", activation=classifier_activation, kernel_initializer=head_init, bias_initializer=bias_init, name="predictions"
         )(nn)
     model = models.Model([inputs, mask_inputs] if use_mask_inputs else inputs, nn, name=model_name)
     add_pre_post_process(model, input_shape=input_shape, rescale_mode="tf")

@@ -1,16 +1,5 @@
 import os
 
-try:
-    from importlib.metadata import version
-
-    tf_version = version('tensorflow').split(".")
-    keras_version = version('keras').split(".")
-    if int(tf_version[0]) >= 2 and int(tf_version[1]) >= 16 and int(keras_version[0]) >= 3:
-        os.environ["TF_USE_LEGACY_KERAS"] = "1"
-        print("[WARNING] Currently tensorflow>=2.16 with keras 3 not supported, try pip install tf-keras~=2.16 and set TF_USE_LEGACY_KERAS=1 if meets error.")
-except:
-    pass
-
 is_tensorflow_backend, is_torch_backend, is_jax_backend, is_keras_core_backend = False, False, False, False
 if "tensorflow" in os.getenv("KECAM_BACKEND", "tensorflow").lower():
     is_tensorflow_backend = True
@@ -24,6 +13,29 @@ else:
     is_keras_core_backend = True
 
 if is_tensorflow_backend:
+    try:
+        from importlib.metadata import version
+
+        tf_version = version('tensorflow').split(".")
+        try:
+            keras_version = version('keras').split(".")
+        except:
+            keras_version = tf_version
+
+        try:
+            tf_keras_version = version('tf_keras').split(".")
+        except:
+            tf_keras_version = keras_version
+
+        is_tf_use_legacy_keras = os.environ.get("TF_USE_LEGACY_KERAS", "0") == "1"
+        if int(tf_version[0]) >= 2 and int(tf_version[1]) >= 16 and int(tf_keras_version[0]) >= 3:
+            print("[WARNING] Currently tensorflow>=2.16 with keras 3 not supported, try pip install tf-keras~=2.16 and set TF_USE_LEGACY_KERAS=1 if error.")
+        elif int(tf_version[0]) >= 2 and int(tf_version[1]) >= 16 and not is_tf_use_legacy_keras:
+            os.environ["TF_USE_LEGACY_KERAS"] = "1"
+            print("[WARNING] Setting TF_USE_LEGACY_KERAS=1. Make sure this is ahead of importing tensorflow or keras.")
+    except:
+        pass
+
     try:
         import tensorflow as tf
     except ModuleNotFoundError as ee:
