@@ -92,6 +92,24 @@ def parse_arguments():
         args.basic_save_name = basic_save_name
     return args
 
+import sys
+sys.path.append('/mnt/d/workspace/Automold--Road-Augmentation-Library/')
+import random
+import torch
+import Automold as am
+
+def custom_noise_func(images):
+    noise = []
+    for image in torch.clip_(images.permute([0, 2, 3, 1]) * 127.5 + 127.5, 0, 255):
+        cur_noise = image.numpy().astype('uint8')
+        if random.random() > 0.6:
+            cur_noise = am.add_fog(cur_noise)
+        elif random.random() > 0.3:
+            cur_noise = am.add_snow(cur_noise)
+        else:
+            cur_noise = am.add_rain(cur_noise)
+        noise.append(torch.from_numpy(cur_noise))
+    return torch.stack(noise).permute([0, 3, 1, 2]).float() / 127.5 - 1
 
 if __name__ == "__main__":
     args = parse_arguments()
@@ -107,9 +125,16 @@ if __name__ == "__main__":
         all_images, all_labels, num_classes = kecam.stable_diffusion.data.walk_data_path_gather_images(args.data_path), None, 0
         print(">>>> total images found:", len(all_images))
 
-    use_horizontal_flip = not args.disable_horizontal_flip
     build_dataset = kecam.stable_diffusion.data.build_torch_dataset if kecam.backend.is_torch_backend else kecam.stable_diffusion.data.build_tf_dataset
-    train_dataset = build_dataset(all_images, all_labels, args.input_shape, args.batch_size, args.num_training_steps, use_horizontal_flip=use_horizontal_flip)
+    train_dataset = build_dataset(
+        images=all_images,
+        labels=all_labels,
+        image_size=args.input_shape,
+        batch_size=args.batch_size,
+        num_training_steps=args.num_training_steps,
+        use_horizontal_flip=not args.disable_horizontal_flip,
+        custom_noise_func=custom_noise_func,  # Set custom one if using noise generating function other than normal random
+    )
 
     inputs, noise = next(iter(train_dataset))
     print(">>>> Total train batches: {}".format(len(train_dataset)))

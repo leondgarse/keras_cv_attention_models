@@ -37,7 +37,8 @@ def init_diffusion_alpha(num_training_steps=1000, beta_max=0.02):
     return sqrt_alpha_bar, sqrt_one_minus_alpha_bar
 
 
-def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_training_steps=1000, use_horizontal_flip=True):
+def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_training_steps=1000, use_horizontal_flip=True, custom_noise_func=None):
+    import sys
     import torch
     from PIL import Image
     from torch.utils.data import DataLoader, Dataset
@@ -81,8 +82,9 @@ def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_
             labels = torch.tensor(labels)  # if torch.rand(()) > to_zero_labels_rate else torch.zeros([batch_size], dtype=torch.int64)  # [perform worse ???]
         else:
             images = torch.stack(batch)
+
+        noise = torch.randn_like(images) if custom_noise_func is None else custom_noise_func(images)
         timestep = torch.randint(num_training_steps, size=(batch_size,))
-        noise = torch.randn_like(images)
 
         xt = sqrt_alpha_bar[timestep] * images + sqrt_one_minus_alpha_bar[timestep] * noise
         return ((xt, labels, timestep), noise) if use_labels else ((xt, timestep), noise)
@@ -91,7 +93,7 @@ def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_
     return DataLoader(dd, batch_size=batch_size, collate_fn=diffusion_process, shuffle=True, num_workers=4, drop_last=True, pin_memory=True)
 
 
-def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_training_steps=1000, use_horizontal_flip=True):
+def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_training_steps=1000, use_horizontal_flip=True, custom_noise_func=None):
     import tensorflow as tf
     from keras_cv_attention_models.imagenet.data import tf_imread
 
@@ -122,7 +124,7 @@ def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_tra
 
     def diffusion_process(image, label=None):
         timestep = tf.random.uniform([batch_size], 0, num_training_steps, dtype="int64")
-        noise = tf.random.normal([batch_size, *image_size, 3])
+        noise = tf.random.normal([batch_size, *image_size, 3]) if custom_noise_func is None else custom_noise_func(images)
         image = image / 127.5 - 1
         # labels = tf.cond(tf.random.uniform(()) > to_zero_labels_rate, lambda: label, lambda: tf.zeros([batch_size], dtype=label.dtype))
 
