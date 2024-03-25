@@ -4,6 +4,7 @@ from PIL import Image
 from tqdm.auto import tqdm
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import callbacks, functional
+from keras_cv_attention_models.models import no_grad_if_torch
 
 
 class RunPrediction:
@@ -25,6 +26,7 @@ class RunPrediction:
         self.to_device = (lambda xx: xx.to(self.device)) if backend.is_torch_backend else (lambda xx: xx)
         self.to_host = (lambda xx: xx.cpu()) if backend.is_torch_backend else (lambda xx: xx)
 
+    @no_grad_if_torch
     def __call__(self, image_size=-1, batch_size=1, labels=None, init_x0=None, init_step=0, labels_guide_weight=1.8, return_inner=False):
         assert (len(self.model.inputs) == 2 and labels is None) or (len(self.model.inputs) == 3 and labels is not None), "labels input not matching with model"
 

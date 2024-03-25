@@ -126,12 +126,12 @@ def add_snow(image, snow_coeff=-1):
 def custom_noise_func(images):
     noise = []
     for image in torch.clip_(images.permute([0, 2, 3, 1]) * 127.5 + 127.5, 0, 255):
-        cur_noise = image.numpy().astype("uint8")
+        image = image.numpy().astype("uint8")
         if random.random() > 0.6:
-            cur_noise = add_fog(cur_noise)
+            cur_noise = add_fog(image)
         elif random.random() > 0.3:
-            cur_noise = add_snow(cur_noise)
+            cur_noise = add_snow(image)
         else:
-            cur_noise = add_rain(cur_noise)
-        noise.append(torch.from_numpy(cur_noise))
+            cur_noise = add_rain(image)
+        noise.append(torch.from_numpy(cur_noise.astype('float32') - image.astype('float32')))
     return torch.stack(noise).permute([0, 3, 1, 2]).float() / 127.5 - 1
