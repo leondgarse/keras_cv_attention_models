@@ -485,13 +485,13 @@ def Beit(
     mlp_ratio=4,  # [MLP args]
     use_gated_mlp=False,  # [MLP args] True for DINOv2 and EVA02
     use_norm_mlp=False,  # [MLP args] True for EVA02 base and large, False for others.
+    include_top=True,  # [Head args] boolean value if include header and top output Dense layer. False for a LayerNorm layer only
     use_mean_pooling_head=True,  # [Head args] False for Vit, True for Beit, whether use use mean output or `class_token` output
     use_cat_head=False,  # [Head args] True for DINOv2
-    vocab_size=0,  # [Text model] Set value > 0 for building text model
+    vocab_size=0,  # [Text model] Set value > 0 for building text model. Will also set num_classes = vocab_size if include_top is True
     max_block_size=77,  # [Text model] max block size, works only if vocab_size > 0
     text_positional_dropout=0,  # [Text model] dropout for text model embedding layers
     text_use_positional_embedding=True,  # [Text model] boolean value if use Embedding positional layer after inputs
-    include_top=True,  # [Text model] boolean value if include top output Dense layer, True for using output channles == vocab_size
     input_shape=(224, 224, 3),  # [Common args] Not taking effect for text model
     num_classes=1000,  # For text model, equals to vocab_size if include_top is True
     layer_norm_epsilon=1e-6,  # 1e-5 for ViT clip models, 1e-6 for others
@@ -584,9 +584,8 @@ def Beit(
             print(">>>> After patch merging: blocks: {}, attn_height: {}".format(nn.shape[1], attn_params["attn_height"]))
             force_reload_mismatch = True
 
-
     """ Head """
-    if is_text_model:  # Text model
+    if is_text_model or not include_top:  # Text model
         nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
     elif use_mask_inputs:  # mask_inputs for BeitV2 training model
         nn = functional.gather_nd(nn[:, 1:, :], functional.where(functional.equal(mask_inputs, 1)))

@@ -120,13 +120,14 @@ Args:
   [Head args]
   use_mean_pooling_head: boolean value if use mean output or `class_token` output. Default False for Vit, True for Beit.
   use_cat_head: boolean value if use mean output concatenated with `class_token` output. Default True for DINOv2, False for others.
+  include_top: boolean value if include header and top output Dense layer. False for a LayerNorm layer only.
 
   [Text model args]
   vocab_size: set value > 0 for building text model. Default 49408 for ViTText, 0 for others.
+      Will also set num_classes = vocab_size if include_top is True.
   max_block_size: max block size, works only if vocab_size > 0. Default 77.
   text_positional_dropout: dropout for text model embedding layers. Default 0.
   text_use_positional_embedding: boolean value if use Embedding positional layer after inputs. Default True.
-  include_top: boolean value if include top output Dense layer, True for using output channles == vocab_size. Default True.
 
   [common args]
 """ + __tail_doc__
