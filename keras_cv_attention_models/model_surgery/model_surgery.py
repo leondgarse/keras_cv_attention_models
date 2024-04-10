@@ -432,6 +432,8 @@ def get_global_avg_pool_layer_id(model):
         print("[Search pool layer] header_layer_id = {}, layer.name = {}".format(header_layer_id, layer.name))
         if isinstance(layer, layers.GlobalAveragePooling2D):
             break
+        if hasattr(layer, "function") and hasattr(layer.function, "__name__") and layer.function.__name__ == "reduce_mean":
+            break
     return header_layer_id
 
 
