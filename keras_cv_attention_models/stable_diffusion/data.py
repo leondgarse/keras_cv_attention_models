@@ -39,6 +39,7 @@ def init_diffusion_alpha(num_training_steps=1000, beta_max=0.02):
 
 def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_training_steps=1000, use_horizontal_flip=True, custom_noise_func=None):
     import sys
+    import platform
     import torch
     from PIL import Image
     from torch.utils.data import DataLoader, Dataset
@@ -90,7 +91,8 @@ def build_torch_dataset(images, labels=None, image_size=512, batch_size=32, num_
         return ((xt, labels, timestep), noise) if use_labels else ((xt, timestep), noise)
 
     dd = _Dataset_(images, labels, image_size)
-    return DataLoader(dd, batch_size=batch_size, collate_fn=diffusion_process, shuffle=True, num_workers=4, drop_last=True, pin_memory=True)
+    num_workers = 4 if platform.system() == "Linux" else 0  # https://discuss.pytorch.org/t/errors-when-using-num-workers-0-in-dataloader/97564
+    return DataLoader(dd, batch_size=batch_size, collate_fn=diffusion_process, shuffle=True, num_workers=num_workers, drop_last=True, pin_memory=True)
 
 
 def build_tf_dataset(images, labels=None, image_size=512, batch_size=32, num_training_steps=1000, use_horizontal_flip=True, custom_noise_func=None):
