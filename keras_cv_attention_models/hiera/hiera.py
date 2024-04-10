@@ -147,7 +147,7 @@ def Hiera(
     """ stages """
     total_blocks = sum(num_blocks)
     global_block_id = 0
-    featrues = []
+    features = []
     for stack_id, (num_block, stride, use_window_attention) in enumerate(zip(num_blocks, strides, use_window_attentions)):
         stack_name = "stack{}_".format(stack_id + 1)
         cur_out_channels = embed_dim * (2**stack_id)
