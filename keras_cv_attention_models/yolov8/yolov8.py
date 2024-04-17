@@ -250,6 +250,8 @@ def yolov8_head(
         reg_channels, cls_channels = [reg_channel] * len(inputs), [cls_channel] * len(inputs)
     elif isinstance(hidden_channels, (list, tuple)):
         reg_channels, cls_channels = hidden_channels, hidden_channels
+    else:
+        reg_channels = cls_channels = hidden_channels
 
     for id, (feature, reg_channel, cls_channel) in enumerate(zip(inputs, reg_channels, cls_channels)):
         cur_name = name + "{}_".format(id + 1)
@@ -257,14 +259,14 @@ def yolov8_head(
         reg_nn = feature
         for id in range(depth):
             reg_nn = conv_bn(reg_nn, reg_channel, 3, activation=activation, name=cur_name + "reg_{}_".format(id + 1))
-        reg_out = conv2d_no_bias(reg_nn, regression_len * num_anchors, 1, use_bias=True, bias_initializer="ones", name=cur_name + "reg_3_")
+        reg_out = conv2d_no_bias(reg_nn, regression_len * num_anchors, 1, use_bias=True, bias_initializer="ones", name=cur_name + "reg_{}_".format(depth + 1))
 
         strides = 2 ** (id + 3)
         bias_init = initializers.constant(math.log(5 / num_classes / (640 / strides) ** 2))
         cls_nn = feature
         for id in range(depth):
             cls_nn = conv_bn(cls_nn, cls_channel, 3, activation=activation, name=cur_name + "cls_{}_".format(id + 1))
-        cls_out = conv2d_no_bias(cls_nn, num_classes * num_anchors, 1, use_bias=True, bias_initializer=bias_init, name=cur_name + "cls_3_")
+        cls_out = conv2d_no_bias(cls_nn, num_classes * num_anchors, 1, use_bias=True, bias_initializer=bias_init, name=cur_name + "cls_{}_".format(depth + 1))
         if classifier_activation is not None:
             cls_out = activation_by_name(cls_out, classifier_activation, name=cur_name + "classifier_")
 
@@ -283,6 +285,49 @@ def yolov8_head(
     return outputs
 
 
+def yolov8_seg_head(
+    inputs,
+    num_classes=80,
+    regression_len=64,
+    num_anchors=1,
+    depth=2,
+    hidden_channels=-1,
+    use_object_scores=False,
+    segment_hidden_channels=-1,
+    segment_num_masks=32,
+    activation="swish",
+    classifier_activation="sigmoid",
+    name="",
+):
+    channel_axis = -1 if image_data_format() == "channels_last" else 1
+    segment_hidden_channels = segment_hidden_channels if segment_hidden_channels > 0 else max(64, inputs[0].shape[channel_axis] // 4)
+
+    """ mask_protos """
+    mask_protos = inputs[0]
+    mask_protos = conv_bn(mask_protos, segment_hidden_channels, 3, activation=activation, name=name + "mask_protos_1_")
+    mask_protos = layers.Conv2DTranspose(segment_hidden_channels, kernel_size=2, strides=2, padding="VALID", name=name + "mask_protos_up")(mask_protos)
+    mask_protos = conv_bn(mask_protos, segment_hidden_channels, 3, activation=activation, name=name + "mask_protos_2_")
+    mask_protos = conv_bn(mask_protos, segment_num_masks, 1, activation=activation, name=name + "mask_protos_3_")
+
+    """ mask_coefficients """
+    mask_coefficients = []
+    mask_hidden_channels = max(inputs[0].shape[channel_axis] // 4, segment_num_masks)
+    for id, feature in enumerate(inputs):
+        cur_name = name + "{}_".format(id + 1)
+        for id in range(depth):
+            feature = conv_bn(feature, mask_hidden_channels, 3, activation=activation, name=cur_name + "mask_coefficients_{}_".format(id + 1))
+        feature = conv2d_no_bias(feature, segment_num_masks, use_bias=True, bias_initializer="ones", name=cur_name + "mask_coefficients_{}_".format(depth + 1))
+        feature = feature if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(feature)
+        feature = layers.Reshape([-1, feature.shape[-1]], name=cur_name + "mask_coefficients_reshape")(feature)
+        mask_coefficients.append(feature)
+    mask_coefficients = functional.concat(mask_coefficients, axis=1)
+
+    detect_out = yolov8_head(
+        inputs, num_classes, regression_len, num_anchors, depth, hidden_channels, use_object_scores, activation, classifier_activation, name=name
+    )
+    return functional.concat([detect_out, mask_coefficients], axis=-1), mask_protos
+
+
 """ YOLOV8 models """
 
 
@@ -297,7 +342,8 @@ def YOLOV8(
     anchors_mode="yolov8",
     num_anchors="auto",  # "auto" means: anchors_mode=="anchor_free" / "yolov8" -> 1, anchors_mode=="yolor" -> 3, else 9
     use_object_scores="auto",  # "auto" means: True if anchors_mode=="anchor_free" or anchors_mode=="yolor", else False
-    input_shape=(640, 640, 3),
+    segment_num_masks=0,  # [Segment parameters] Set > 0 value like 32 for building model using segment header
+    input_shape=(640, 640, 3),  # [Common parameters]
     num_classes=80,
     activation="swish",
     classifier_activation="sigmoid",
@@ -330,7 +376,11 @@ def YOLOV8(
     fpn_features = path_aggregation_fpn(features, csp_depthes[-1], paf_parallel_mode, use_reparam_conv=use_reparam_conv, activation=activation, name="pafpn_")
 
     header_kwargs = {"use_object_scores": use_object_scores, "activation": activation, "classifier_activation": classifier_activation}
-    outputs = yolov8_head(fpn_features, num_classes, regression_len, num_anchors, **header_kwargs, name="head_")
+    if segment_num_masks > 0:
+        header_kwargs.update({"segment_num_masks": segment_num_masks})
+        outputs = yolov8_seg_head(fpn_features, num_classes, regression_len, num_anchors, **header_kwargs, name="seg_head_")
+    else:
+        outputs = yolov8_head(fpn_features, num_classes, regression_len, num_anchors, **header_kwargs, name="head_")
     outputs = layers.Activation("linear", dtype="float32", name="outputs_fp32")(outputs)
 
     model = models.Model(inputs, outputs, name=model_name)
@@ -437,3 +487,11 @@ def YOLOV8_X_CLS(input_shape=(640, 640, 3), num_classes=1000, activation="swish"
     channels = [160, 320, 640, 1280]
     depthes = [3, 6, 6, 3]
     return YOLOV8Backbone(**locals(), model_name=kwargs.pop("model_name", "yolov8_x_cls"), **kwargs)
+
+
+""" Segmentation models """
+
+
+@register_model
+def YOLOV8_N_SEG(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
+    return YOLOV8(**locals(), segment_num_masks=32, model_name=kwargs.pop("model_name", "yolov8_n_seg"), **kwargs)
