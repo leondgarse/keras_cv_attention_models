@@ -12,6 +12,7 @@ from keras_cv_attention_models.yolov8.yolov8 import (
     YOLOV8_M_CLS,
     YOLOV8_L_CLS,
     YOLOV8_X_CLS,
+    YOLOV8_N_SEG,
     switch_to_deploy,
 )
 from keras_cv_attention_models.yolov8.yolo_nas import YOLO_NAS, YOLO_NAS_S, YOLO_NAS_M, YOLO_NAS_L

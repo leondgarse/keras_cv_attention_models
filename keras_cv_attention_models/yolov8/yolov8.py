@@ -25,6 +25,7 @@ PRETRAINED_DICT = {
     "yolov8_n_cls": {"imagenet": "b1cfac787589689c0f2abde6893ec140"},
     "yolov8_s_cls": {"imagenet": "2caa57e8cf67b39921c35f89cea5061c"},
     "yolov8_x_cls": {"imagenet": "2d4b8b996c24f5fde903678ee8b7cf20"},
+    "yolov8_n_seg": {"coco": "493ef7e87e304f87d3f0f41af8a03fa9"},
 }
 
 
