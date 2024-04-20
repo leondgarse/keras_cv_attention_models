@@ -179,6 +179,14 @@ def log(inputs, name=None):
     return wrapper(partial(torch.log), inputs, name=name)
 
 
+def logical_and(xx, yy, name=None):
+    return wrapper(lambda inputs: torch.logical_and(inputs[0], inputs[1]), [xx, yy], name=name)
+
+
+def logical_or(xx, yy, name=None):
+    return wrapper(lambda inputs: torch.logical_or(inputs[0], inputs[1]), [xx, yy], name=name)
+
+
 def matmul(xx, yy, transpose_a=False, transpose_b=False, name=None):
     return wrapper(lambda inputs: torch.matmul(inputs[0].T if transpose_a else inputs[0], inputs[1].T if transpose_b else inputs[1]), [xx, yy], name=name)
 

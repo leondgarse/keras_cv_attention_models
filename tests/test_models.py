@@ -764,7 +764,19 @@ def test_stable_diffusion_no_weights_predict():
     assert out.min() > -8 and out.max() < 8  # It should be within this range
 
 
-""" Segment Anything """
+""" Segmentation models """
+
+
+def test_YOLOV8_N_SEG_predict():
+    mm = keras_cv_attention_models.yolov8.YOLOV8_N_SEG(pretrained="coco")
+    preds, mask_protos = mm.predict(mm.preprocess_input(cat()), verbose=0)
+    bboxes, labels, confidences, masks = mm.decode_predictions(preds, mask_protos=mask_protos)[0]
+
+    assert bboxes.numpy().shape == (3, 4)
+    assert np.allclose(bboxes[0].numpy(), [0.08008686, 0.12759757, 0.98183596, 0.9811094], atol=1e-2)
+    assert list(labels.numpy()) == [15, 32, 32]
+    assert np.allclose(confidences.numpy(), [0.78913975, 0.49595365, 0.38611767], atol=1e-1)
+    assert np.allclose(masks.numpy().sum(1).sum(1), [13800, 530, 700], atol=100)
 
 
 def test_MobileSAM_predict():

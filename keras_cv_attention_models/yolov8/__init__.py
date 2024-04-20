@@ -13,6 +13,10 @@ from keras_cv_attention_models.yolov8.yolov8 import (
     YOLOV8_L_CLS,
     YOLOV8_X_CLS,
     YOLOV8_N_SEG,
+    YOLOV8_S_SEG,
+    YOLOV8_M_SEG,
+    YOLOV8_L_SEG,
+    YOLOV8_X_SEG,
     switch_to_deploy,
 )
 from keras_cv_attention_models.yolov8.yolo_nas import YOLO_NAS, YOLO_NAS_S, YOLO_NAS_M, YOLO_NAS_L
@@ -75,6 +79,9 @@ YOLOV8.__doc__ = __head_doc__ + __detector_head_doc__ + """
 [YOLOV8 parameters]
   model_name: string, model name.
 
+[Segmentation parameters]
+  segment_num_masks: Set > 0 value like 32 for building model using segment header. Default 0.
+
 [Detector parameters]
 """ + __detector_tail_doc__ + """
 Model architectures:
@@ -86,6 +93,14 @@ Model architectures:
   | YOLOV8_L  | 43.69M | 82.65G | 640   | 52.9        |         |
   | YOLOV8_X  | 68.23M | 129.0G | 640   | 53.9        |         |
   | YOLOV8_X6 | 97.42M | 522.6G | 1280  | 56.7 ?      |         |
+
+  | Model        | Params | FLOPs   | Input | COCO val mask AP |
+  | ------------ | ------ | ------- | ----- | ---------------- |
+  | YOLOV8_N_SEG | 3.41M  | 6.02G   | 640   | 30.5             |
+  | YOLOV8_S_SEG | 11.82M | 20.08G  | 640   | 36.8             |
+  | YOLOV8_M_SEG | 27.29M | 52.33G  | 640   | 40.8             |
+  | YOLOV8_L_SEG | 46.00M | 105.29G | 640   | 42.6             |
+  | YOLOV8_X_SEG | 71.83M | 164.30G | 640   | 43.4             |
 
   | Model                    | Params | FLOPs  | Input | COCO val AP | test AP |
   | ------------------------ | ------ | ------ | ----- | ----------- | ------- |
@@ -103,6 +118,12 @@ YOLOV8_M.__doc__ = YOLOV8_N.__doc__
 YOLOV8_L.__doc__ = YOLOV8_N.__doc__
 YOLOV8_X.__doc__ = YOLOV8_N.__doc__
 YOLOV8_X6.__doc__ = YOLOV8_N.__doc__
+
+YOLOV8_N_SEG.__doc__ = YOLOV8_N.__doc__
+YOLOV8_S_SEG.__doc__ = YOLOV8_N.__doc__
+YOLOV8_M_SEG.__doc__ = YOLOV8_N.__doc__
+YOLOV8_L_SEG.__doc__ = YOLOV8_N.__doc__
+YOLOV8_X_SEG.__doc__ = YOLOV8_N.__doc__
 
 YOLO_NAS.__doc__ = YOLOV8.__doc__
 YOLO_NAS_S.__doc__ = YOLOV8_N.__doc__

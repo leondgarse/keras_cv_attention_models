@@ -472,7 +472,7 @@ class Model(nn.Module, _Trainer_, _Exporter_):
         return [intra_nodes[ii][0] for ii in self.output_names] if self.num_outputs != 1 else intra_nodes[self.output_names[0]][0]
 
     @torch.no_grad()
-    def predict(self, inputs, **kwargs):
+    def predict(self, inputs, verbose=0, **kwargs):
         return self.forward(inputs, **kwargs)
 
     def graphnode_forward(self, inputs):

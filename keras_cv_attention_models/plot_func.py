@@ -86,18 +86,27 @@ def draw_bboxes(bboxes, ax=None):
 
 
 def show_image_with_bboxes(
-    image, bboxes, labels=None, confidences=None, is_bbox_width_first=False, ax=None, label_font_size=8, num_classes=80, indices_2_labels=None
+    image, bboxes=None, labels=None, confidences=None, masks=None, is_bbox_width_first=False, ax=None, label_font_size=8, num_classes=80, indices_2_labels=None
 ):
     import matplotlib.pyplot as plt
     import numpy as np
     from keras_cv_attention_models.coco import info
+    from keras_cv_attention_models.backend import numpy_image_resize
 
     need_plt_show = False
     if ax is None:
         fig, ax = plt.subplots()
         need_plt_show = True
+
     ax.imshow(image)
-    bboxes = np.array(bboxes)
+    masks = [] if masks is None else np.array(masks)
+    for mask in masks:  # Show segmentation results
+        random_color = np.concatenate([np.random.random(3), np.array([0.5])], axis=0)[None, None]
+        mask = np.greater(mask, 0.5)
+        colored_mask = numpy_image_resize(mask[:, :, None] * random_color, image.shape[:2])
+        ax.imshow(colored_mask)
+
+    bboxes = np.zeros([0, 4]) if bboxes is None else np.array(bboxes)
     if is_bbox_width_first:
         bboxes = bboxes[:, [1, 0, 3, 2]]
     for id, bb in enumerate(bboxes):
@@ -125,6 +134,12 @@ def show_image_with_bboxes(
     if need_plt_show:
         plt.show()
     return ax
+
+
+def show_image_with_bboxes_and_masks(
+    image, bboxes=None, labels=None, confidences=None, masks=None, is_bbox_width_first=False, ax=None, label_font_size=8, num_classes=80, indices_2_labels=None
+):
+    return show_image_with_bboxes(**locals())
 
 
 """ Show clip results """

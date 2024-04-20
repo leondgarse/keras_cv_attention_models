@@ -39,6 +39,14 @@
   | YOLOV8_M_CLS | 17.05M | 20.85G    | 2.56G     | 224   | 76.4     | [yolov8_m_cls.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_m_cls_imagenet.h5) |
   | YOLOV8_L_CLS | 37.48M | 49.41G    | 6.05G     | 224   | 78.0     | [yolov8_l_cls.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_cls_imagenet.h5) |
   | YOLOV8_X_CLS | 57.42M | 76.96G    | 9.43G     | 224   | 78.4     | [yolov8_x_cls.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_cls_imagenet.h5) |
+## Segmentation Models
+  | Model        | Params | FLOPs   | Input | COCO val mask AP | Download                                                                                                                     |
+  | ------------ | ------ | ------- | ----- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+  | YOLOV8_N_SEG | 3.41M  | 6.02G   | 640   | 30.5             | [yolov8_n_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_n_seg_imagenet.h5) |
+  | YOLOV8_S_SEG | 11.82M | 20.08G  | 640   | 36.8             | [yolov8_s_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_s_seg_imagenet.h5) |
+  | YOLOV8_M_SEG | 27.29M | 52.33G  | 640   | 40.8             | [yolov8_m_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_m_seg_imagenet.h5) |
+  | YOLOV8_L_SEG | 46.00M | 105.29G | 640   | 42.6             | [yolov8_l_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_seg_imagenet.h5) |
+  | YOLOV8_X_SEG | 71.83M | 164.30G | 640   | 43.4             | [yolov8_x_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_seg_imagenet.h5) |
 ## Usage
   - **Basic usage**
     ```py
@@ -58,7 +66,7 @@
     ![yolov8_n_dog_cat](https://user-images.githubusercontent.com/5744524/230085258-14aee245-0084-4090-a62f-a2f23ce800f5.png)
   - **Use dynamic input resolution** by set `input_shape=(None, None, 3)`. **Note: For `YOLO_NAS` models, actual input shape needs to be divisible by `32`**.
     ```py
-    from keras_cv_attention_models import yolov8
+    from keras_cv_attention_models import yolov8, test_images, coco, plot_func
     model = yolov8.YOLOV8_S(input_shape=(None, None, 3), pretrained="coco")
     # >>>> Load pretrained from: ~/.keras/models/yolov8_s_coco.h5
     print(model.input_shape, model.output_shape)
@@ -68,15 +76,13 @@
     print(model(tf.ones([1, 188, 276, 3])).shape)
     # (1, 1110, 144)
 
-    from keras_cv_attention_models import test_images
     imm = test_images.dog_cat()
     input_shape = (320, 224, 3)
     preds = model(model.preprocess_input(imm, input_shape=input_shape))
     bboxs, lables, confidences = model.decode_predictions(preds, input_shape=input_shape)[0]
 
     # Show result
-    from keras_cv_attention_models.coco import data
-    data.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=80)
+    plot_func.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=80)
     ```
     ![yolov8_s_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/230587610-8a276623-2ec9-49f1-a678-998b913a0739.png)
   - **Switch to deploy** by calling `model.switch_to_deploy()` if using `use_reparam_conv=True`. Will fuse reparameter block into a single `Conv2D` layer. Also applying `convert_to_fused_conv_bn_model` that fusing `Conv2D->BatchNorm`.
@@ -107,6 +113,20 @@
     print(model.decode_predictions(preds))
     # [('n02124075', 'Egyptian_cat', 0.2490207), ('n02123045', 'tabby', 0.12989485), ...]
     ```
+  - **Segmentation model** using dynamic input resolution.
+    ```py
+    from keras_cv_attention_models import yolov8, test_images, coco, plot_func
+    mm = yolov8.YOLOV8_S_SEG(pretrained="coco", input_shape=[None, None, 3])
+    print(mm.input_shape, mm.output_shape)
+    # (None, None, None, 3) ((None, None, 176), (None, None, None, 32))
+
+    image = test_images.dog_cat()
+    input_shape = (320, 608, 3)
+    preds, mask_protos = mm.predict(mm.preprocess_input(image, input_shape=input_shape))
+    bboxes, labels, confidences, masks = mm.decode_predictions(preds, mask_protos=mask_protos, input_shape=input_shape)[0]
+    _ = plot_func.show_image_with_bboxes_and_masks(image, bboxes, labels, confidences, masks=masks)
+    ```
+    ![yolov8_s_dynamic_segment_dog_cat](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/528cbea8-94ee-4152-bd45-14cbbcf95e94)
   - **Using PyTorch backend** by set `KECAM_BACKEND='torch'` environment variable.
     ```py
     os.environ['KECAM_BACKEND'] = 'torch'

@@ -99,7 +99,9 @@
   - [GPT2](#gpt2)
   - [LLaMA2](#llama2)
 - [Stable Diffusion](#stable-diffusion)
-- [Segment Anything](#segment-anything)
+- [Segmentation Models](#segmentation-models)
+  - [YOLOV8 Segmentation](#yolov8-segmentation)
+  - [Segment Anything](#segment-anything)
 - [Licenses](#licenses)
 - [Citing](#citing)
 
@@ -1667,7 +1669,18 @@
   | Decoder             | 49.49M | 1259.5G | [None, 64, 64, 4]   | [decoder_v1_5.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/stable_diffusion/decoder_v1_5.h5) |
 ***
 
-# Segment Anything
+# Segmentation Models
+## YOLOV8 Segmentation
+  - [Keras YOLOV8](keras_cv_attention_models/yolov8) includes implementation of [Github ultralytics/ultralytics](https://github.com/ultralytics/ultralytics) segmentation models.
+
+  | Model        | Params | FLOPs   | Input | COCO val mask AP | T4 Inference |
+  | ------------ | ------ | ------- | ----- | ---------------- | ------------ |
+  | [YOLOV8_N_SEG](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_n_seg_imagenet.h5) | 3.41M  | 6.02G   | 640   | 30.5             |  |
+  | [YOLOV8_S_SEG](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_s_seg_imagenet.h5) | 11.82M | 20.08G  | 640   | 36.8             |  |
+  | [YOLOV8_M_SEG](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_m_seg_imagenet.h5) | 27.29M | 52.33G  | 640   | 40.8             |  |
+  | [YOLOV8_L_SEG](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_seg_imagenet.h5) | 46.00M | 105.29G | 640   | 42.6             |  |
+  | [YOLOV8_X_SEG](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_seg_imagenet.h5) | 71.83M | 164.30G | 640   | 43.4             |  |
+## Segment Anything
   - [Keras Segment Anything](keras_cv_attention_models/segment_anything) includes implementation of [PDF 2304.02643 Segment Anything](https://arxiv.org/abs/2304.02643).
 
   | Model               | Params | FLOPs | Input | COCO val mIoU | T4 Inference |

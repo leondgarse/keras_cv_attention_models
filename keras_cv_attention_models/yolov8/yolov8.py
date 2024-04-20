@@ -25,7 +25,11 @@ PRETRAINED_DICT = {
     "yolov8_n_cls": {"imagenet": "b1cfac787589689c0f2abde6893ec140"},
     "yolov8_s_cls": {"imagenet": "2caa57e8cf67b39921c35f89cea5061c"},
     "yolov8_x_cls": {"imagenet": "2d4b8b996c24f5fde903678ee8b7cf20"},
-    "yolov8_n_seg": {"coco": "493ef7e87e304f87d3f0f41af8a03fa9"},
+    "yolov8_l_seg": {"coco": "01ad40cd469d9fc57cae381283e389eb"},
+    "yolov8_m_seg": {"coco": "9838e71d3cbde7a8d7a89aef724cd323"},
+    "yolov8_n_seg": {"coco": "c6e6b46e79dc555a015f4ff2b5aaab36"},
+    "yolov8_s_seg": {"coco": "d806a3fc3740c899a4f11feafe7298b6"},
+    "yolov8_x_seg": {"coco": "6ce769b0119372fee11cbfe2f3b6910b"},
 }
 
 
@@ -230,6 +234,9 @@ def path_aggregation_fpn(features, depth=3, parallel_mode=True, use_reparam_conv
     return downsamples
 
 
+""" headers """
+
+
 def yolov8_head(
     inputs,
     num_classes=80,
@@ -301,7 +308,7 @@ def yolov8_seg_head(
     name="",
 ):
     channel_axis = -1 if image_data_format() == "channels_last" else 1
-    segment_hidden_channels = segment_hidden_channels if segment_hidden_channels > 0 else max(64, inputs[0].shape[channel_axis] // 4)
+    segment_hidden_channels = segment_hidden_channels if segment_hidden_channels > 0 else max(64, inputs[0].shape[channel_axis])
 
     """ mask_protos """
     mask_protos = inputs[0]
@@ -309,6 +316,7 @@ def yolov8_seg_head(
     mask_protos = layers.Conv2DTranspose(segment_hidden_channels, kernel_size=2, strides=2, padding="VALID", name=name + "mask_protos_up")(mask_protos)
     mask_protos = conv_bn(mask_protos, segment_hidden_channels, 3, activation=activation, name=name + "mask_protos_2_")
     mask_protos = conv_bn(mask_protos, segment_num_masks, 1, activation=activation, name=name + "mask_protos_3_")
+    mask_protos = mask_protos if image_data_format() == "channels_last" else layers.Permute([2, 3, 1])(mask_protos)
 
     """ mask_coefficients """
     mask_coefficients = []
@@ -326,7 +334,7 @@ def yolov8_seg_head(
     detect_out = yolov8_head(
         inputs, num_classes, regression_len, num_anchors, depth, hidden_channels, use_object_scores, activation, classifier_activation, name=name
     )
-    return functional.concat([detect_out, mask_coefficients], axis=-1), mask_protos
+    return functional.concat([detect_out, mask_coefficients], axis=-1), mask_protos  # detect_out, mask_coefficients needs to apply NMS together
 
 
 """ YOLOV8 models """
@@ -343,7 +351,7 @@ def YOLOV8(
     anchors_mode="yolov8",
     num_anchors="auto",  # "auto" means: anchors_mode=="anchor_free" / "yolov8" -> 1, anchors_mode=="yolor" -> 3, else 9
     use_object_scores="auto",  # "auto" means: True if anchors_mode=="anchor_free" or anchors_mode=="yolor", else False
-    segment_num_masks=0,  # [Segment parameters] Set > 0 value like 32 for building model using segment header
+    segment_num_masks=0,  # [Segmentation parameters] Set > 0 value like 32 for building model using segment header
     input_shape=(640, 640, 3),  # [Common parameters]
     num_classes=80,
     activation="swish",
@@ -389,7 +397,7 @@ def YOLOV8(
 
     pyramid_levels = [pyramid_levels_min, pyramid_levels_min + len(features_pick) - 1]  # -> [3, 5]
     post_process = eval_func.DecodePredictions(
-        backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale, regression_len=regression_len
+        backbone.input_shape[1:], pyramid_levels, anchors_mode, use_object_scores, anchor_scale, regression_len=regression_len, num_masks=segment_num_masks
     )
     add_pre_post_process(model, rescale_mode=rescale_mode, post_process=post_process)
     model.switch_to_deploy = lambda: switch_to_deploy(model)
@@ -412,6 +420,9 @@ def switch_to_deploy(model):
     )
     add_pre_post_process(new_model, rescale_mode=model.preprocess_input.rescale_mode, post_process=post_process)
     return new_model
+
+
+""" Detection models """
 
 
 @register_model
@@ -496,3 +507,30 @@ def YOLOV8_X_CLS(input_shape=(640, 640, 3), num_classes=1000, activation="swish"
 @register_model
 def YOLOV8_N_SEG(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
     return YOLOV8(**locals(), segment_num_masks=32, model_name=kwargs.pop("model_name", "yolov8_n_seg"), **kwargs)
+
+
+@register_model
+def YOLOV8_S_SEG(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
+    csp_channels = [64, 128, 256, 512]
+    return YOLOV8(**locals(), segment_num_masks=32, model_name=kwargs.pop("model_name", "yolov8_s_seg"), **kwargs)
+
+
+@register_model
+def YOLOV8_M_SEG(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
+    csp_channels = [96, 192, 384, 576]
+    csp_depthes = [2, 4, 4, 2]
+    return YOLOV8(**locals(), segment_num_masks=32, model_name=kwargs.pop("model_name", "yolov8_m_seg"), **kwargs)
+
+
+@register_model
+def YOLOV8_L_SEG(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
+    csp_channels = [128, 256, 512, 512]
+    csp_depthes = [3, 6, 6, 3]
+    return YOLOV8(**locals(), segment_num_masks=32, model_name=kwargs.pop("model_name", "yolov8_l_seg"), **kwargs)
+
+
+@register_model
+def YOLOV8_X_SEG(input_shape=(640, 640, 3), freeze_backbone=False, num_classes=80, backbone=None, classifier_activation="sigmoid", pretrained="coco", **kwargs):
+    csp_channels = [160, 320, 640, 640]
+    csp_depthes = [3, 6, 6, 3]
+    return YOLOV8(**locals(), segment_num_masks=32, model_name=kwargs.pop("model_name", "yolov8_x_seg"), **kwargs)
