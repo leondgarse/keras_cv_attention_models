@@ -2,6 +2,7 @@
 - [Summary](#summary)
 - [Detection Models](#detection-models)
 - [Classification Models](#classification-models)
+- [Segmentation Models](#segmentation-models)
 - [Usage](#usage)
 - [Custom detector using YOLOV8 header](#custom-detector-using-yolov8-header)
 - [Verification with PyTorch version](#verification-with-pytorch-version)
@@ -42,11 +43,11 @@
 ## Segmentation Models
   | Model        | Params | FLOPs   | Input | COCO val mask AP | Download                                                                                                                     |
   | ------------ | ------ | ------- | ----- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-  | YOLOV8_N_SEG | 3.41M  | 6.02G   | 640   | 30.5             | [yolov8_n_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_n_seg_imagenet.h5) |
-  | YOLOV8_S_SEG | 11.82M | 20.08G  | 640   | 36.8             | [yolov8_s_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_s_seg_imagenet.h5) |
-  | YOLOV8_M_SEG | 27.29M | 52.33G  | 640   | 40.8             | [yolov8_m_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_m_seg_imagenet.h5) |
-  | YOLOV8_L_SEG | 46.00M | 105.29G | 640   | 42.6             | [yolov8_l_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_seg_imagenet.h5) |
-  | YOLOV8_X_SEG | 71.83M | 164.30G | 640   | 43.4             | [yolov8_x_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_seg_imagenet.h5) |
+  | YOLOV8_N_SEG | 3.41M  | 6.02G   | 640   | 30.5             | [yolov8_n_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_n_seg_coco.h5) |
+  | YOLOV8_S_SEG | 11.82M | 20.08G  | 640   | 36.8             | [yolov8_s_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_s_seg_coco.h5) |
+  | YOLOV8_M_SEG | 27.29M | 52.33G  | 640   | 40.8             | [yolov8_m_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_m_seg_coco.h5) |
+  | YOLOV8_L_SEG | 46.00M | 105.29G | 640   | 42.6             | [yolov8_l_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_seg_coco.h5) |
+  | YOLOV8_X_SEG | 71.83M | 164.30G | 640   | 43.4             | [yolov8_x_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_seg_coco.h5) |
 ## Usage
   - **Basic usage**
     ```py
@@ -85,23 +86,6 @@
     plot_func.show_image_with_bboxes(imm, bboxs, lables, confidences, num_classes=80)
     ```
     ![yolov8_s_dynamic_dog_cat](https://user-images.githubusercontent.com/5744524/230587610-8a276623-2ec9-49f1-a678-998b913a0739.png)
-  - **Switch to deploy** by calling `model.switch_to_deploy()` if using `use_reparam_conv=True`. Will fuse reparameter block into a single `Conv2D` layer. Also applying `convert_to_fused_conv_bn_model` that fusing `Conv2D->BatchNorm`.
-    ```py
-    from keras_cv_attention_models import yolov8, test_images, model_surgery
-
-    mm = yolov8.YOLO_NAS_S(use_reparam_conv=True)
-    model_surgery.count_params(mm)
-    # Total params: 12,911,584.0 | Trainable params: 12,878,304.0 | Non-trainable params:33,280.0
-    preds = mm(mm.preprocess_input(test_images.dog_cat()))
-
-    bb = mm.switch_to_deploy()
-    model_surgery.count_params(bb)
-    # Total params: 12,167,600.0 | Trainable params: 12,167,600.0 | Non-trainable params:0.0
-    preds_deploy = bb(bb.preprocess_input(test_images.dog_cat()))
-
-    print(f"{np.allclose(preds, preds_deploy, atol=1e-3) = }")
-    # np.allclose(preds, preds_deploy, atol=1e-3) = True
-    ```
   - **Classification model**
     ```py
     from keras_cv_attention_models.yolov8 import yolov8
@@ -127,6 +111,23 @@
     _ = plot_func.show_image_with_bboxes_and_masks(image, bboxes, labels, confidences, masks=masks)
     ```
     ![yolov8_s_dynamic_segment_dog_cat](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/528cbea8-94ee-4152-bd45-14cbbcf95e94)
+  - **Switch to deploy** by calling `model.switch_to_deploy()` if using `use_reparam_conv=True`. Will fuse reparameter block into a single `Conv2D` layer. Also applying `convert_to_fused_conv_bn_model` that fusing `Conv2D->BatchNorm`.
+    ```py
+    from keras_cv_attention_models import yolov8, test_images, model_surgery
+
+    mm = yolov8.YOLO_NAS_S(use_reparam_conv=True)
+    model_surgery.count_params(mm)
+    # Total params: 12,911,584.0 | Trainable params: 12,878,304.0 | Non-trainable params:33,280.0
+    preds = mm(mm.preprocess_input(test_images.dog_cat()))
+
+    bb = mm.switch_to_deploy()
+    model_surgery.count_params(bb)
+    # Total params: 12,167,600.0 | Trainable params: 12,167,600.0 | Non-trainable params:0.0
+    preds_deploy = bb(bb.preprocess_input(test_images.dog_cat()))
+
+    print(f"{np.allclose(preds, preds_deploy, atol=1e-3) = }")
+    # np.allclose(preds, preds_deploy, atol=1e-3) = True
+    ```
   - **Using PyTorch backend** by set `KECAM_BACKEND='torch'` environment variable.
     ```py
     os.environ['KECAM_BACKEND'] = 'torch'
@@ -215,6 +216,35 @@
   keras_out_reorder = tf.concat([bbox_out, cls_out], axis=-1)
   print(f"{np.allclose(keras_out_reorder, torch_out_concat.detach(), atol=1e-4) = }")
   # np.allclose(keras_out_reorder, torch_out_concat.detach(), atol=1e-4) = True
+  ```
+  **Segmentation model**
+  ```py
+  inputs = np.random.uniform(size=(1, 640, 640, 3)).astype("float32")
+
+  """ PyTorch yolov8n-seg """
+  sys.path.append('../ultralytics')
+  import torch
+
+  tt = torch.load('yolov8n-seg.pt')
+  _ = tt['model'].eval()
+  torch_model = tt['model'].float()
+  torch_out = torch_model(torch.from_numpy(inputs).permute([0, 3, 1, 2]))
+
+  """ Keras YOLOV8_N """
+  from keras_cv_attention_models import yolov8, coco
+  mm = yolov8.YOLOV8_N_SEG(pretrained='yolov8_n_seg_coco.h5', classifier_activation='sigmoid')
+  keras_out, keras_masks = mm(inputs)
+
+  """ Model outputs verification """
+  anchors = coco.get_anchor_free_anchors(input_shape=[640, 640], pyramid_levels=[3, 5], grid_zero_start=False)
+  keras_bbox_decoded = coco.decode_bboxes(keras_out, anchors, regression_len=64, return_centers=True).numpy()
+  # [top, left, bottom, right] -> [left, top, right, bottom]
+  print(f"{np.allclose(torch_out[0][:, :4].permute([0, 2, 1]) / 640, keras_bbox_decoded[:, :, [1, 0, 3, 2]], atol=1e-5) = }")
+  # np.allclose(torch_out[0][:, :4].permute([0, 2, 1]) / 640, keras_bbox_decoded[:, :, [1, 0, 3, 2]], atol=1e-5) = True
+  print(f"{np.allclose(torch_out[0][:, 4:].permute([0, 2, 1]), keras_bbox_decoded[:, :, 4:], atol=1e-5) = }")
+  # np.allclose(torch_out[0][:, 4:].permute([0, 2, 1]), keras_bbox_decoded[:, :, 4:], atol=1e-5) = True
+  print(f"{np.allclose(torch_out[1][-1].permute([0, 2, 3, 1]), keras_masks, atol=1e-5) = }")
+  # np.allclose(torch_out[1][-1].permute([0, 2, 3, 1]), keras_masks, atol=1e-5) = True
   ```
 ## COCO eval results
   ```sh
