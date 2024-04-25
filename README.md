@@ -1682,11 +1682,11 @@
 ## Segment Anything
   - [Keras Segment Anything](keras_cv_attention_models/segment_anything) includes implementation of [PDF 2304.02643 Segment Anything](https://arxiv.org/abs/2304.02643).
 
-  | Model               | Params | FLOPs | Input | COCO val mIoU | T4 Inference |
-  | ------------------- | ------ | ----- | ----- | ------------- | ------------ |
-  | [MobileSAM](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/mobile_sam_5m_image_encoder_1024_sam.h5)           | 5.74M  | 39.4G | 1024  | 72.8          |   |
-  | [TinySAM](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/tinysam_5m_image_encoder_1024_sam.h5)           | 5.74M  | 39.4G | 1024  |               |   |
-  | [EfficientViT_SAM_L0](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/efficientvit_sam_l0_image_encoder_1024_sam.h5) | 30.73M | 35.4G | 512   | 74.45         |   |
+  | Model               | Params | FLOPs | Input | COCO val mask AP | T4 Inference |
+  | ------------------- | ------ | ----- | ----- | ---------------- | ------------ |
+  | [MobileSAM](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/mobile_sam_5m_image_encoder_1024_sam.h5)           | 5.74M  | 39.4G | 1024  | 41.0             |   |
+  | [TinySAM](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/tinysam_5m_image_encoder_1024_sam.h5)           | 5.74M  | 39.4G | 1024  | 41.9             |   |
+  | [EfficientViT_SAM_L0](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/efficientvit_sam_l0_image_encoder_1024_sam.h5) | 30.73M | 35.4G | 512   | 45.7             |   |
 ***
 
 # Licenses

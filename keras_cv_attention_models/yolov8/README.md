@@ -111,7 +111,7 @@
     bboxes, labels, confidences, masks = mm.decode_predictions(preds, mask_protos=mask_protos, input_shape=input_shape)[0]
     _ = plot_func.show_image_with_bboxes_and_masks(image, bboxes, labels, confidences, masks=masks)
     ```
-    ![yolov8_s_dynamic_segment_dog_cat](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/528cbea8-94ee-4152-bd45-14cbbcf95e94)
+    ![yolov8_s_dynamic_segment_dog_cat](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/f2434e24-3279-4149-87a4-8329eebad68f)
   - **Switch to deploy** by calling `model.switch_to_deploy()` if using `use_reparam_conv=True`. Will fuse reparameter block into a single `Conv2D` layer. Also applying `convert_to_fused_conv_bn_model` that fusing `Conv2D->BatchNorm`.
     ```py
     from keras_cv_attention_models import yolov8, test_images, model_surgery

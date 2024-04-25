@@ -48,11 +48,11 @@ Init args:
   name: string, model name.
 """ + __tail_doc__ + """
 Model architectures:
-  | Model               | Params | FLOPs | Input | COCO val mIoU |
-  | ------------------- | ------ | ----- | ----- | ------------- |
-  | MobileSAM           | 5.74M  | 39.4G | 1024  | 72.8          |
-  | TinySAM             | 5.74M  | 39.4G | 1024  |               |
-  | EfficientViT_SAM_L0 | 30.73M | 35.4G | 512   | 74.45         |
+  | Model               | Params | FLOPs | Input | COCO val mask AP |
+  | ------------------- | ------ | ----- | ----- | ---------------- |
+  | MobileSAM           | 5.74M  | 39.4G | 1024  | 41.0             |
+  | TinySAM             | 5.74M  | 39.4G | 1024  | 41.9             |
+  | EfficientViT_SAM_L0 | 30.73M | 35.4G | 512   | 45.7             |
 """
 
 SAM.__call__.__doc__ = __call_doc__

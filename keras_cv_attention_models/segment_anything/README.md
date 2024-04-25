@@ -11,11 +11,11 @@
   - MobileSAM weights ported from [Github ChaoningZhang/MobileSAM](https://github.com/ChaoningZhang/MobileSAM)
   - EfficientViT_SAM weights ported from [Github mit-han-lab/efficientvit](https://github.com/mit-han-lab/efficientvit)
 ## Models
-  | Model               | Params | FLOPs | Input | COCO val mIoU | Download |
-  | ------------------- | ------ | ----- | ----- | ------------- | -------- |
-  | MobileSAM           | 5.74M  | 39.4G | 1024  | 72.8          | [mobile_sam_5m_image_encoder](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/mobile_sam_5m_image_encoder_1024_sam.h5)  |
-  | TinySAM             | 5.74M  | 39.4G | 1024  |               | [tinysam_5m_image_encoder](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/tinysam_5m_image_encoder_1024_sam.h5)     |
-  | EfficientViT_SAM_L0 | 30.73M | 35.4G | 512   | 74.45         | [efficientvit_sam_l0_image_encoder](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/efficientvit_sam_l0_image_encoder_1024_sam.h5)  |
+  | Model               | Params | FLOPs | Input | COCO val mask AP | Download |
+  | ------------------- | ------ | ----- | ----- | ---------------- | -------- |
+  | MobileSAM           | 5.74M  | 39.4G | 1024  | 41.0             | [mobile_sam_5m_image_encoder](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/mobile_sam_5m_image_encoder_1024_sam.h5)  |
+  | TinySAM             | 5.74M  | 39.4G | 1024  | 41.9             | [tinysam_5m_image_encoder](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/tinysam_5m_image_encoder_1024_sam.h5)     |
+  | EfficientViT_SAM_L0 | 30.73M | 35.4G | 512   | 45.7             | [efficientvit_sam_l0_image_encoder](https://github.com/leondgarse/keras_cv_attention_models/releases/download/segment_anything/efficientvit_sam_l0_image_encoder_1024_sam.h5)  |
 
   Model differences only in `ImageEncoder`, the SAM `PromptEncoder` and `MaskDecoder` are sharing the same one
 
@@ -67,17 +67,29 @@
     fig = mm.show(image, masks, iou_predictions, points=points, labels=labels, boxes=boxes, save_path='cc.jpg')
     ```
     ![sam_efficientvit_l0_box](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/45c94413-d0b9-4ced-b1c5-83efb15634e1)
+  - **Cooperate with detection model** **Note: bbox area required is a single one in format `[left, top, right, bottom]`, while detection models in this repo output bbox area in format `[top, left, bottom, right]`**.
+    ```py
+    from keras_cv_attention_models import segment_anything, test_images, yolov8
+    det = yolov8.YOLOV8_N()
+    mm = segment_anything.EfficientViT_SAM_L0()
+
+    image = test_images.dog_cat()
+    boxes, _, _ = det.decode_predictions(det(det.preprocess_input(image)))[0]
+    boxes = np.array(boxes)[0, [1, 0, 3, 2]]  # Pick a single one, and [top, left, bottom, right] -> [left, top, right, bottom]
+    masks, iou_predictions, low_res_masks = mm(image, boxes=boxes)
+    fig = mm.show(image, masks, iou_predictions, boxes=boxes, save_path='dd.jpg')
+    ```
+    ![sam_efficientvit_l0_yolov8n_box](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/c393a5b7-1849-4a27-ba68-221c36321316)
   - **Using PyTorch backend** by set `KECAM_BACKEND='torch'` environment variable.
     ```py
     os.environ['KECAM_BACKEND'] = 'torch'
-    import torch
     from keras_cv_attention_models import segment_anything, test_images
     # >>>> Using PyTorch backend
     mm = segment_anything.EfficientViT_SAM_L0()
     image = test_images.dog_cat()
     points, labels = [[0.5, 0.8], [0.5, 0.2], [0.8, 0.8]], [1, 1, 0]
     masks, iou_predictions, low_res_masks = mm(image, points, labels)
-    fig = mm.show(image, masks, iou_predictions, points=points, labels=labels, save_path='dd.jpg')
+    fig = mm.show(image, masks, iou_predictions, points=points, labels=labels, save_path='ee.jpg')
     ```
     ![sam_efficientvit_l0](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/72135535-1bfe-4ab0-abe6-980ce50c8045)
 ## Verification with PyTorch version

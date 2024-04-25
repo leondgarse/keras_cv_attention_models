@@ -98,7 +98,7 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
             return np.array(masks[0]), np.array(iou_predictions[0]), np.array(low_res_masks[0])
 
     @staticmethod
-    def show(image, masks, iou_predictions=None, points=None, labels=None, boxes=None, save_path=None, base_size=10, random_color=False):
+    def show(image, masks, iou_predictions=None, points=None, labels=None, boxes=None, save_path=None, base_size=5, random_color=False):
         import matplotlib.pyplot as plt
 
         to_array_reshape = lambda value, shape: np.array(value, dtype="float32").reshape(shape) if value is not None else None
@@ -137,8 +137,9 @@ class SAM(FakeModelWrapper):  # FakeModelWrapper providing save / load / cuda cl
             ax.set_axis_off()
         if save_path is not None:
             save_path = save_path if save_path.split(".")[-1].lower() in ["jpg", "png"] else (save_path + ".jpg")
-            fig.savefig(save_path, bbox_inches="tight")
+            fig.savefig(save_path, bbox_inches="tight", dpi=150)
         # plt.show()
+        fig.tight_layout()
         return fig
 
 
