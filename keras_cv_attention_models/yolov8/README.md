@@ -11,7 +11,8 @@
 ***
 
 ## Summary
-  - Keras implementation of [Github ultralytics/ultralytics](https://github.com/ultralytics/ultralytics) detection and classification models. Model weights converted from official publication.
+  - Keras implementation of [Github ultralytics/ultralytics](https://github.com/ultralytics/ultralytics) detection / classification / segmentation models. Model weights converted from official publication.
+  - Also includes implementation of [Github Deci-AI/super-gradients](https://github.com/Deci-AI/super-gradients) YOLO-NAS models.
 ***
 
 ## Detection Models
@@ -41,8 +42,8 @@
   | YOLOV8_L_CLS | 37.48M | 49.41G    | 6.05G     | 224   | 78.0     | [yolov8_l_cls.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_l_cls_imagenet.h5) |
   | YOLOV8_X_CLS | 57.42M | 76.96G    | 9.43G     | 224   | 78.4     | [yolov8_x_cls.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_x_cls_imagenet.h5) |
 ## Segmentation Models
-  | Model        | Params | FLOPs   | Input | COCO val mask AP | Download                                                                                                                     |
-  | ------------ | ------ | ------- | ----- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+  | Model        | Params | FLOPs   | Input | COCO val mask AP | Download                                                                                                                 |
+  | ------------ | ------ | ------- | ----- | ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
   | YOLOV8_N_SEG | 3.41M  | 6.02G   | 640   | 30.5             | [yolov8_n_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_n_seg_coco.h5) |
   | YOLOV8_S_SEG | 11.82M | 20.08G  | 640   | 36.8             | [yolov8_s_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_s_seg_coco.h5) |
   | YOLOV8_M_SEG | 27.29M | 52.33G  | 640   | 40.8             | [yolov8_m_seg.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/yolov8/yolov8_m_seg_coco.h5) |

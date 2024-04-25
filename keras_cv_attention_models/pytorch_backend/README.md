@@ -112,7 +112,7 @@
   mm.summary()
   ```
 ## Simple compile fit training
-  - It can be either typical PyTorch training process or a simple version of `train_compile` + `fit`. Here using `train_compile` instead of `compile`, as `compile` is already took by `nn.Module`.
+  - It can be either typical PyTorch training process or a simple version of `compile` + `fit`. **Note: will check if any kwargs in `["loss", "optmizer", "metrics"]` provided, deciding whether calling `self.train_compile` for training, or the default `torch.nn.Module.compile`**.
   ```py
   import os
   os.environ['KECAM_BACKEND'] = 'torch'
@@ -133,7 +133,7 @@
       mm = torch.compile(mm)
 
   """ Simple compile + fit """
-  mm.train_compile(optimizer="AdamW", metrics='acc')
+  mm.compile(optimizer="AdamW", metrics='acc')
   cur_callbacks = [
       callbacks.MyHistory(initial_file='checkpoints/test_hist.json'),
       callbacks.MyCheckpoint('test', save_path="checkpoints"),

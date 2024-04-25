@@ -2,7 +2,6 @@
 ***
 - **WARNING: currently NOT compatible with `keras 3.0`, if using `tensorflow>=2.16.0`, needs to install `pip install tf-keras~=2.16` manually.**
 - **coco_train_script.py is under testing. Still struggling for this...**
-- **RepViT architecture is changed adapting new weights since kecam>1.3.22**
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [___>>>> Roadmap and todo list <<<<___](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)
@@ -637,8 +636,8 @@
     xx = torch.rand([64, *mm.input_shape[1:]])
     yy = torch.functional.F.one_hot(torch.randint(0, mm.output_shape[-1], size=[64]), mm.output_shape[-1]).float()
     loss = lambda y_true, y_pred: (y_true - y_pred.float()).abs().mean()
-    # Here using `train_compile` instead of `compile`, as `compile` is already took by `nn.Module`.
-    mm.train_compile(optimizer="AdamW", loss=loss, metrics='acc', grad_accumulate=4)
+    # Will check kwargs for calling `self.train_compile` or `torch.nn.Module.compile`
+    mm.compile(optimizer="AdamW", loss=loss, metrics='acc', grad_accumulate=4)
     mm.fit(xx, yy, epochs=2, batch_size=4)
     ```
 ## Using keras core as backend

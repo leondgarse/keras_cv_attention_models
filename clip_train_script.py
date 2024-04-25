@@ -6,6 +6,10 @@ BUILDIN_DATASETS = {
         "url": "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/coco_dog_cat.tar.gz",
         "dataset_file": "captions.tsv",
     },
+    "gtsrb": {
+        "url": "https://github.com/leondgarse/keras_cv_attention_models/releases/download/assets/gtsrb.tar.gz",
+        "dataset_file": "captions.tsv",
+    },
 }
 
 if kecam.backend.is_torch_backend:  # os.environ["KECAM_BACKEND"] = "torch"

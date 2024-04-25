@@ -90,7 +90,7 @@
   images = [kecam.test_images.cat(), kecam.test_images.dog(), kecam.test_images.dog_cat()]
   # model.run_prediction.reset(softmax_scale=100, formatter="a {}", rescale_mode="torch")
   similarity = model.run_prediction(images, ["dog and a cat", "dog", "cat", "person"])
-  ax = plot_func.show_images_texts_similarity(images, model.run_prediction.text_labels, similarity)
+  ax = keras.plot_func.show_images_texts_similarity(images, model.run_prediction.text_labels, similarity)
   ```
   ![clip_out_3](https://github.com/leondgarse/keras_cv_attention_models/assets/5744524/a75ee754-536c-487b-a047-c676ba025ae3)
 ## Single tower training

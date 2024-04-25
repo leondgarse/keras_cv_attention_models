@@ -495,8 +495,20 @@ class Model(nn.Module, _Trainer_, _Exporter_):
         return cur_node
 
     def compile(self, **kwargs):
-        # compile is tooken by nn.Module, checking by kwargs if calling `train_compile` or default `compile`
-        return self.train_compile(**kwargs) if "loss" in kwargs or "optimizer" in kwargs or "metrics" in kwargs else super().compile(**kwargs)
+        """`compile` is tooken by `nn.Module`, checking by kwargs if calling `torch.nn.Module.compile` or compile with loss / optimizer for training.
+        - Given any parameters in ["loss", "optmizer", "metrics"], will call `self.train_compile`.
+        - Default without any parameters or not training kewargs will call `torch.nn.Module.compile`.
+
+        - `torch.nn.Module.compile` kwargs:
+          fullgraph=False, dynamic=None, backend='inductor', mode=None, options=None, disable=False
+        - `self.train_compile` kwargs:
+          optimizer="RMSprop", loss=None, metrics=None, loss_weights=None, grad_accumulate=1, grad_max_norm=-1
+        """
+        if "loss" in kwargs or "optimizer" in kwargs or "metrics" in kwargs:
+            return self.train_compile(**kwargs)
+        else:
+            print(">>>> Calling `torch.nn.Module.compile`")
+            return super().compile(**kwargs)
 
     @property
     def layers(self):
@@ -536,7 +548,7 @@ class Sequential(Model):
 
     def __init__(self, sequence_layers=None, name=None, **kwargs):
         self.sequence_layers, self.name, self.kwargs = sequence_layers, name, kwargs
-        if isinstance(sequence_layers[0], layers.Input):
+        if sequence_layers is not None and len(sequence_layers) > 0 and isinstance(sequence_layers[0], layers.Input):
             self.build(sequence_layers[0].shape)
         else:
             self.input_shape, self.built = None, False

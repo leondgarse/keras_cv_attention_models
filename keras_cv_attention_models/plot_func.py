@@ -101,10 +101,9 @@ def show_image_with_bboxes(
     ax.imshow(image)
     masks = [] if masks is None else np.array(masks)
     for mask in masks:  # Show segmentation results
-        random_color = np.concatenate([np.random.random(3), np.array([0.5])], axis=0)[None, None]
-        mask = np.greater(mask, 0.5)
-        colored_mask = numpy_image_resize(mask[:, :, None] * random_color, image.shape[:2])
-        ax.imshow(colored_mask)
+        random_color = np.concatenate([np.random.random(3), np.array([0.6])], axis=0)[None, None]
+        resized_mask = numpy_image_resize(mask[:, :, None], image.shape[:2])
+        ax.imshow(np.greater(resized_mask, 0.5) * random_color)
 
     bboxes = np.zeros([0, 4]) if bboxes is None else np.array(bboxes)
     if is_bbox_width_first:
