@@ -4,6 +4,16 @@ import torch
 """ Functions """
 
 
+def _to_dtype_(tensor, dtype=None):
+    if dtype is None:
+        return tensor
+
+    default_dtype = str(torch.get_default_dtype()).split('.')[-1]  # torch.float32 -> "float32"
+    if dtype == default_dtype:
+        return tensor
+    return tensor.to(dtype=getattr(torch, dtype, torch.get_default_dtype()))
+
+
 def constant(value=0):
     return Constant(value=value)
 
@@ -64,9 +74,9 @@ class Constant(Initializer):
 
     def __call__(self, shape, dtype=None, **kwargs):
         if hasattr(self.value, "shape") and tuple(self.value.shape) == tuple(shape):
-            return self.value
+            return _to_dtype_(self.value, dtype)
         else:
-            return torch.nn.init.constant_(torch.empty(shape), val=self.value)
+            return _to_dtype_(torch.nn.init.constant_(torch.empty(shape), val=self.value), dtype)
 
     def get_config(self):
         return {"value": self.value}
@@ -74,27 +84,27 @@ class Constant(Initializer):
 
 class GlorotNormal(Initializer):
     def __call__(self, shape, dtype=None, **kwargs):
-        return torch.nn.init.xavier_normal_(torch.empty(shape))
+        return _to_dtype_(torch.nn.init.xavier_normal_(torch.empty(shape)), dtype)
 
 
 class GlorotUniform(Initializer):
     def __call__(self, shape, dtype=None, **kwargs):
-        return torch.nn.init.xavier_uniform_(torch.empty(shape))
+        return _to_dtype_(torch.nn.init.xavier_uniform_(torch.empty(shape)), dtype)
 
 
 class HeNormal(Initializer):
     def __call__(self, shape, dtype=None, **kwargs):
-        return torch.nn.init.kaiming_normal_(torch.empty(shape))
+        return _to_dtype_(torch.nn.init.kaiming_normal_(torch.empty(shape)), dtype)
 
 
 class HeUniform(Initializer):
     def __call__(self, shape, dtype=None, **kwargs):
-        return torch.nn.init.kaiming_uniform_(torch.empty(shape))
+        return _to_dtype_(torch.nn.init.kaiming_uniform_(torch.empty(shape)), dtype)
 
 
 class Ones(Initializer):
     def __call__(self, shape, dtype=None, **kwargs):
-        return torch.nn.init.ones_(torch.empty(shape))
+        return _to_dtype_(torch.nn.init.ones_(torch.empty(shape)), dtype)
 
 
 class RandomNormal(Initializer):
@@ -103,7 +113,7 @@ class RandomNormal(Initializer):
         super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None, **kwargs):
-        return torch.nn.init.normal_(torch.empty(shape), mean=self.mean, std=self.stddev)
+        return _to_dtype_(torch.nn.init.normal_(torch.empty(shape), mean=self.mean, std=self.stddev), dtype)
 
     def get_config(self):
         return {"mean": self.mean, "stddev": self.stddev}
@@ -115,7 +125,7 @@ class RandomUniform(Initializer):
         super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None, **kwargs):
-        return torch.nn.init.uniform_(torch.empty(shape), a=self.minval, b=self.maxval)
+        return _to_dtype_(torch.nn.init.uniform_(torch.empty(shape), a=self.minval, b=self.maxval), dtype)
 
     def get_config(self):
         return {"minval": self.minval, "maxval": self.maxval}
@@ -127,7 +137,7 @@ class TruncatedNormal(Initializer):
         super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None, **kwargs):
-        return torch.nn.init.trunc_normal_(torch.empty(shape), mean=self.mean, std=self.stddev)
+        return _to_dtype_(torch.nn.init.trunc_normal_(torch.empty(shape), mean=self.mean, std=self.stddev), dtype)
 
     def get_config(self):
         return {"mean": self.mean, "stddev": self.stddev}
@@ -144,7 +154,7 @@ class VarianceScaling(Initializer):
         self.scale, self.mode, self.distribution, self.seed = scale, mode, distribution, seed
 
     def __call__(self, shape, dtype=None, **kwargs):
-        return torch.zeros(shape)  # [TODO]
+        return _to_dtype_(torch.zeros(shape), dtype)  # [TODO]
 
     def get_config(self):
         return {"scale": self.scale, "mode": self.mode, "distribution": self.distribution}
@@ -152,4 +162,4 @@ class VarianceScaling(Initializer):
 
 class Zeros(Initializer):
     def __call__(self, shape, dtype=None, **kwargs):
-        return torch.nn.init.zeros_(torch.empty(shape))
+        return _to_dtype_(torch.nn.init.zeros_(torch.empty(shape)), dtype)

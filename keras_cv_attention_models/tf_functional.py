@@ -34,3 +34,7 @@ from tensorflow import (
 )
 from tensorflow.image import resize, extract_patches, non_max_suppression_with_scores
 from tensorflow.signal import irfft2d, rfft2d
+
+
+def assign(parameter, data):
+    parameter.assign(data)

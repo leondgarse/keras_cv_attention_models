@@ -41,10 +41,10 @@ class PositionalIndex(layers.Layer):
 
 @backend.register_keras_serializable(package="kecam/gpt2")
 class CausalMask(layers.Layer):
-    def __init__(self, block_size, **kwargs):
+    def __init__(self, block_size, is_kv_cache=False, **kwargs):
         super().__init__(**kwargs)
         self.block_size = block_size
-        self.use_layer_as_module = True
+        self.use_layer_as_module, self.is_kv_cache = True, is_kv_cache
 
     def build(self, input_shape):
         causal_mask = (1 - np.tri(self.block_size).astype("float32")[None, None]) * -65504  # instead of -1e10, fit float16
@@ -56,11 +56,14 @@ class CausalMask(layers.Layer):
 
     def call(self, inputs):
         qq_len, kk_len = (functional.shape(inputs)[2], functional.shape(inputs)[3]) if backend.is_tensorflow_backend else (inputs.shape[2], inputs.shape[3])
-        return inputs + self.causal_mask[:, :, :qq_len, :kk_len]
+        if self.is_kv_cache:
+            return (inputs + self.causal_mask[:, :, :qq_len, :kk_len]) if qq_len > 1 else inputs
+        else:
+            return inputs + self.causal_mask[:, :, :qq_len, :kk_len]
 
     def get_config(self):
         base_config = super().get_config()
-        base_config.update({"block_size": self.block_size})
+        base_config.update({"block_size": self.block_size, "is_kv_cache": self.is_kv_cache})
         return base_config
 
 
@@ -175,6 +178,7 @@ def GPT2_XLarge(max_block_size=1024, vocab_size=50257, include_top=True, activat
 class RunPrediction:
     def __init__(self, model, tokenizer="GPT2Tokenizer"):
         self.model, self.tokenizer, self.built = model, tokenizer, False
+        self.use_kv_cache = len(model.inputs) > 1
 
     def build(self):
         from keras_cv_attention_models.clip import tokenizer
@@ -215,13 +219,22 @@ class RunPrediction:
             inputs_idxes = start_ids
             if not return_token_and_probs and LOCAL_RANK == 0:
                 print(self.tokenizer.decode(inputs_idxes.tolist()), end="", flush=True)
-            for _ in range(max_new_tokens):
+            for cur_pos in range(max_new_tokens):
                 # if the sequence context is growing too long we must crop it at block_size
                 idx_cond = inputs_idxes if inputs_idxes.shape[-1] <= self.max_block_size else inputs_idxes[-self.max_block_size :]
                 # forward the model to get the logits for the index in the sequence
                 cur_inputs = functional.convert_to_tensor(idx_cond, dtype="int64")[None]
 
-                logits = self.model(cur_inputs)
+                if self.use_kv_cache and cur_pos == 0:
+                    start_pos = functional.convert_to_tensor([0], dtype="int32")
+                    logits = self.model([cur_inputs, start_pos])
+                elif self.use_kv_cache:
+                    start_pos = functional.convert_to_tensor([cur_inputs.shape[-1] - 1], dtype="int32")
+                    # print(f"{start_pos = }")
+                    logits = self.model([cur_inputs[:, -1:], start_pos])
+                else:
+                    logits = self.model(cur_inputs)
+
                 # pluck the logits at the final step and scale by desired temperature
                 logits = logits[:, -1, :] / temperature
                 logits = np.array(logits.cpu() if backend.is_torch_backend else logits)

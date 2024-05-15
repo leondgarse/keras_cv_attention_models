@@ -17,14 +17,15 @@ PRETRAINED_DICT = {
 
 @backend.register_keras_serializable(package="kecam/llama2")
 class PositionalEncodingFourierRot1D(layers.Layer):
-    def __init__(self, max_block_size, temperature=1e4, **kwargs):
+    def __init__(self, max_block_size, temperature=1e4, is_kv_cache=False, **kwargs):
         super().__init__(**kwargs)
-        self.temperature, self.max_block_size = float(temperature), max_block_size
+        self.temperature, self.max_block_size, self.is_kv_cache = float(temperature), max_block_size, is_kv_cache
 
     def build(self, input_shape):
         # input: `[batch, ..., attn_height * attn_width, num_heads, channels // num_heads // 2, 2]`.
         # print(input_shape)
-        self.channels = input_shape[-2] * input_shape[-1]
+        tensor_shape = input_shape[0] if self.is_kv_cache else input_shape
+        self.channels = tensor_shape[-2] * tensor_shape[-1]
         pos_filters = self.channels // 2
         dim_t = self.temperature ** (np.arange(pos_filters, dtype="float32") / pos_filters)  # (filters,)
         grid = np.expand_dims(np.arange(self.max_block_size, dtype="float32"), -1) / dim_t
@@ -40,15 +41,23 @@ class PositionalEncodingFourierRot1D(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
-        left, right = functional.unstack(inputs, axis=-2)
+        if self.is_kv_cache:
+            cur_tensor, start_pos = inputs
+            start_pos = start_pos[0]
+        else:
+            cur_tensor, start_pos = inputs, 0
+        left, right = functional.unstack(cur_tensor, axis=-2)
         seq_len = functional.shape(left)[-3] if backend.is_tensorflow_backend else left.shape[-3]
-        pos_cos, pos_sin = self.pos_cos[:seq_len], self.pos_sin[:seq_len]
+        pos_cos, pos_sin = self.pos_cos[start_pos:start_pos + seq_len], self.pos_sin[start_pos:start_pos + seq_len]
         out = functional.stack([left * pos_cos - right * pos_sin, right * pos_cos + left * pos_sin], axis=-2)
         return out
 
+    def compute_output_shape(self, input_shape):
+        return input_shape[0] if self.is_kv_cache else input_shape
+
     def get_config(self):
         base_config = super().get_config()
-        base_config.update({"temperature": self.temperature, "max_block_size": self.max_block_size})
+        base_config.update({"temperature": self.temperature, "max_block_size": self.max_block_size, "is_kv_cache": self.is_kv_cache})
         return base_config
 
 
@@ -72,37 +81,89 @@ class RMSNorm(layers.Layer):
         return base_config
 
 
-def apply_positional_encoding_rotary(inputs, pos_emb_layer, name=""):
+@backend.register_keras_serializable(package="kecam/llama2")
+class KVCache(layers.Layer):
+    """
+    from keras_cv_attention_models.backend import initializers
+    from keras_cv_attention_models.llama2.llama3 import KVCache
+    aa = KVCache()
+    out = aa([initializers.Ones()([1, 3, 32, 32]), initializers.Ones()([1], dtype='int64')])
+    print(f"{out.shape = }, {aa.cache.shape = }")
+    # out.shape = TensorShape([1, 4, 32, 32]), aa.cache.shape = TensorShape([32, 2048, 32, 32])
+    print(f"{np.allclose(aa.cache[:1, :4], out) = }")
+    # np.allclose(aa.cache[:1, :4], out) = True
+    """
+    def __init__(self, max_batch_size=32, max_seq_len=2048, **kwargs):
+        super().__init__(**kwargs)
+        self.max_batch_size, self.max_seq_len = max_batch_size, max_seq_len
+
+    def build(self, input_shape):
+        tensor_shape = input_shape[0]
+        cache_shape = [self.max_batch_size, self.max_seq_len, tensor_shape[2], tensor_shape[3]]
+        self.cache = self.add_weight(name="cache", shape=cache_shape, initializer="zeros", trainable=False)
+        super().build(input_shape)
+
+    def call(self, inputs):
+        cur_tensor, start_pos = inputs
+        start_pos = start_pos[0]
+        if backend.is_torch_backend:
+            batch_size, seq_len = cur_tensor.shape[0], cur_tensor.shape[1]
+            self.cache[:batch_size, start_pos : start_pos + seq_len] = cur_tensor
+            tensor_with_cache = self.cache[:batch_size, : start_pos + seq_len]
+        else:
+            batch_size, seq_len = functional.shape(cur_tensor)[0], functional.shape(cur_tensor)[1]
+            tensor_with_cache = functional.concat([self.cache[:batch_size, :start_pos], cur_tensor], axis=1)
+            cur_batch_cache = functional.concat([tensor_with_cache, self.cache[:batch_size, start_pos + seq_len:]], axis=1)
+            self.cache.assign(functional.concat([cur_batch_cache, self.cache[batch_size:]], axis=0))
+        return tensor_with_cache
+
+    def compute_output_shape(self, input_shape):
+        tensor_shape = input_shape[0]
+        return [None, None, tensor_shape[2], tensor_shape[3]]
+
+    def get_config(self):
+        base_config = super().get_config()
+        base_config.update({"max_batch_size": self.max_batch_size, "max_seq_len": self.max_seq_len})
+        return base_config
+
+
+def apply_positional_encoding_rotary(inputs, pos_emb_layer, start_pos=0, is_kv_cache=False, name=""):
     """Reshape is separated out from PositionalEncodingFourierRot1D for setting as dynamic"""
     num_heads = inputs.shape[-2]
     # transformers using `x1, x2 = inputs[:, :, :half], inputs[:, :, half:]`, different from timm EVA one `torch.stack([-x[..., 1::2], x[..., ::2]], -1)`
     nn = layers.Reshape([-1, num_heads, 2, inputs.shape[-1] // 2], name=name + "pre_rope_reshape")(inputs)
-    nn = pos_emb_layer(nn)
+    nn = pos_emb_layer([nn, start_pos] if is_kv_cache else nn)
     out = layers.Reshape([-1, num_heads, inputs.shape[-1]], name=name + "post_rope_reshape")(nn)
     return out
 
 
-def causal_self_attention(inputs, block_size, num_heads, num_kv_heads=-1, use_bias=False, dropout=0, name=""):
+def causal_self_attention_with_cache(inputs, start_pos=0, max_batch_size=0, block_size=2048, num_heads=32, num_kv_heads=-1, use_bias=False, dropout=0, name=""):
     input_channels = inputs.shape[-1]
     key_dim = input_channels // num_heads
     qq_scale = 1.0 / (float(key_dim) ** 0.5)
     num_kv_heads = num_kv_heads if num_kv_heads > 0 else num_heads
+    is_kv_cache = max_batch_size > 0
 
     query = layers.Dense(num_heads * key_dim, use_bias=use_bias, name=name + "q_proj")(inputs)
     key = layers.Dense(num_kv_heads * key_dim, use_bias=use_bias, name=name + "k_proj")(inputs)
     value = layers.Dense(num_kv_heads * key_dim, use_bias=use_bias, name=name + "v_proj")(inputs)
 
     # Create a new one every time, as there's no weights for this layer
-    rope = PositionalEncodingFourierRot1D(max_block_size=block_size, name=name + "rope")
+    rope = PositionalEncodingFourierRot1D(max_block_size=block_size, is_kv_cache=is_kv_cache, name=name + "rope")
     query = layers.Reshape([-1, num_heads, key_dim], name=name + "query_reshape")(query)
-    query = apply_positional_encoding_rotary(query, rope, name=name + "query_")
+    query = apply_positional_encoding_rotary(query, rope, start_pos, is_kv_cache, name=name + "query_")
     query = functional.transpose(query, [0, 2, 1, 3])
 
     key = layers.Reshape([-1, num_kv_heads, key_dim], name=name + "key_reshape")(key)
-    key = apply_positional_encoding_rotary(key, rope, name=name + "key_")
+    key = apply_positional_encoding_rotary(key, rope, start_pos, is_kv_cache, name=name + "key_")
+    if is_kv_cache:  # Use KV cache if max_batch_size specified
+        key = KVCache(max_batch_size=max_batch_size, max_seq_len=block_size, name=name + "key_cahce")([key, start_pos])
     key = functional.transpose(key, [0, 2, 3, 1])
 
-    value = functional.transpose(layers.Reshape([-1, num_kv_heads, key_dim], name=name + "value_reshape")(value), [0, 2, 1, 3])
+    value = layers.Reshape([-1, num_kv_heads, key_dim], name=name + "value_reshape")(value)
+    if is_kv_cache:  # Use KV cache if max_batch_size specified
+        value = KVCache(max_batch_size=max_batch_size, max_seq_len=block_size, name=name + "value_cahce")([value, start_pos])
+    value = functional.transpose(value, [0, 2, 1, 3])
 
     if num_kv_heads != num_heads:
         assert (num_heads // num_kv_heads) * num_kv_heads == num_heads, "num_heads={} should be divisible by num_kv_heads={}".format(num_heads, num_kv_heads)
@@ -110,7 +171,7 @@ def causal_self_attention(inputs, block_size, num_heads, num_kv_heads=-1, use_bi
         value = functional.repeat(value, repeats=num_heads // num_kv_heads, axis=1)
 
     attn = (query @ key) * qq_scale
-    attn = CausalMask(block_size=block_size)(attn)
+    attn = CausalMask(block_size=block_size, is_kv_cache=is_kv_cache)(attn)
     attn = layers.Softmax(axis=-1, name=name + "attention_scores")(attn)
     attn_out = attn @ value
 
@@ -121,10 +182,22 @@ def causal_self_attention(inputs, block_size, num_heads, num_kv_heads=-1, use_bi
     return output
 
 
-def attention_fft_block(inputs, block_size, num_heads, num_kv_heads=-1, hidden_divisible=32, use_bias=False, dropout=0, activation="swish", name=""):
+def attention_fft_block(
+    inputs,
+    start_pos=0,
+    max_batch_size=0,
+    block_size=2048,
+    num_heads=32,
+    num_kv_heads=-1,
+    hidden_divisible=32,
+    use_bias=False,
+    dropout=0,
+    activation="swish",
+    name="",
+):
     input_channels = inputs.shape[-1]
     attn = RMSNorm(name=name + "input_layernorm")(inputs)
-    attn = causal_self_attention(attn, block_size, num_heads, num_kv_heads, use_bias, dropout, name=name + "self_attn.")
+    attn = causal_self_attention_with_cache(attn, start_pos, max_batch_size, block_size, num_heads, num_kv_heads, use_bias, dropout, name=name + "self_attn.")
     attn_out = inputs + attn
 
     hidden_dim = 2 * 4 * input_channels // 3
@@ -151,6 +224,7 @@ def LLaMA2(
     block_use_bias=False,
     vocab_size=50304,
     max_block_size=2048,
+    max_batch_size=0,  # > 0 value For applying static KV cache
     include_top=True,
     dropout=0.0,
     activation="swish",
@@ -159,18 +233,21 @@ def LLaMA2(
     kwargs=None,
 ):
     inputs = layers.Input([None], dtype="int64")
+    start_pos = layers.Input([], batch_size=1, dtype="int32", name="start_pos") if max_batch_size > 0 else 0  # needs an addidtional `start_pos` for KV Cache
     tok_emb = layers.Embedding(vocab_size, embedding_size, name="embed_tokens")(inputs)
     nn = layers.Dropout(dropout)(tok_emb)
 
     for block_id in range(num_blocks):
         block_name = "blocks.{}.".format(block_id)
-        nn = attention_fft_block(nn, max_block_size, num_heads, num_kv_heads, hidden_divisible, block_use_bias, dropout, activation, name=block_name)
+        nn = attention_fft_block(
+            nn, start_pos, max_batch_size, max_block_size, num_heads, num_kv_heads, hidden_divisible, block_use_bias, dropout, activation, name=block_name
+        )
     nn = RMSNorm(name="norm")(nn)
 
     if include_top:
         nn = layers.Dense(vocab_size, use_bias=False, dtype="float32", name="lm_head")(nn)
 
-    model = models.Model(inputs, nn, name=model_name)
+    model = models.Model([inputs, start_pos] if max_batch_size > 0 else inputs, nn, name=model_name)
     model.max_block_size = max_block_size  # or model.get_layer('pos_idx').block_size
     model.run_prediction = RunPrediction(model, tokenizer="SentencePieceTokenizer")
     reload_model_weights(model, PRETRAINED_DICT, "llama2", pretrained)

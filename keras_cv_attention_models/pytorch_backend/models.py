@@ -284,6 +284,12 @@ class _Exporter_(object):
         torch.jit.save(traced_cell, filepath, **kwargs)
         print("Exported pth:", filepath)
 
+    def make_fx(self, filepath=None, input_shape=None, batch_size=1, **kwargs):
+        import functorch
+
+        input_datas = self._create_fake_input_data_(input_shape, batch_size=batch_size)
+        return functorch.make_fx(self, **kwargs)(input_datas)
+
     def load_weights(self, filepath, by_name=True, skip_mismatch=False, **kwargs):
         if filepath.endswith("h5"):
             from keras_cv_attention_models.download_and_load import load_weights_from_hdf5_file
