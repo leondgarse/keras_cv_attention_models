@@ -171,7 +171,7 @@ def causal_self_attention_with_cache(inputs, start_pos=0, max_batch_size=0, bloc
         value = functional.repeat(value, repeats=num_heads // num_kv_heads, axis=1)
 
     attn = (query @ key) * qq_scale
-    attn = CausalMask(block_size=block_size, is_kv_cache=is_kv_cache)(attn)
+    attn = CausalMask(block_size=block_size, is_kv_cache=is_kv_cache)([attn, start_pos] if is_kv_cache else attn)
     attn = layers.Softmax(axis=-1, name=name + "attention_scores")(attn)
     attn_out = attn @ value
 

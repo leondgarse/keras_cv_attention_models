@@ -55,11 +55,14 @@ class CausalMask(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs):
-        qq_len, kk_len = (functional.shape(inputs)[2], functional.shape(inputs)[3]) if backend.is_tensorflow_backend else (inputs.shape[2], inputs.shape[3])
         if self.is_kv_cache:
-            return (inputs + self.causal_mask[:, :, :qq_len, :kk_len]) if qq_len > 1 else inputs
+            inputs, start_pos = inputs
+            start_pos = start_pos[0]
+            causal_mask = functional.pad(self.causal_mask, [[0, 0,], [0, 0], [0, 0], [start_pos, 0]])
         else:
-            return inputs + self.causal_mask[:, :, :qq_len, :kk_len]
+            causal_mask = self.causal_mask
+        qq_len, kk_len = (functional.shape(inputs)[2], functional.shape(inputs)[3]) if backend.is_tensorflow_backend else (inputs.shape[2], inputs.shape[3])
+        return (inputs + causal_mask[:, :, :qq_len, :kk_len])
 
     def get_config(self):
         base_config = super().get_config()
