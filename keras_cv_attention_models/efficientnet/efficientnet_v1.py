@@ -2,6 +2,7 @@
 Creates a EfficientNetV1 Model as defined in: EfficientNetV1: Self-training with Noisy Student improves ImageNet classification.
 arXiv preprint arXiv:1911.04252.
 """
+
 import math
 from keras_cv_attention_models.efficientnet.efficientnet_v2 import EfficientNetV2
 from keras_cv_attention_models.models import register_model

@@ -69,7 +69,7 @@ class _Trainer_(object):
     def fit(self, x=None, y=None, batch_size=32, epochs=1, callbacks=None, validation_data=None, initial_epoch=0, validation_batch_size=None, **kwargs):
         callbacks = callbacks or []
         [ii.set_model(self) for ii in callbacks if ii.model is None]
-        self.history = namedtuple('history', ['history', 'epoch'])({"loss": []}, [])  # Mimic of `keras.callbacks.History`
+        self.history = namedtuple("history", ["history", "epoch"])({"loss": []}, [])  # Mimic of `keras.callbacks.History`
         validation_batch_size = validation_batch_size or batch_size
         self.batch_size, self.callbacks, self.validation_batch_size = batch_size, callbacks, validation_batch_size
         self.accumulate_passed_batches = 0

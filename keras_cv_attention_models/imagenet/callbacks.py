@@ -384,7 +384,7 @@ class ModelEMA(callbacks.Callback):
             param.requires_grad_(False)
         self.basic_save_name = model.name if self.basic_save_name is None else self.basic_save_name
         self.save_file_path = os.path.join(self.save_path, self.basic_save_name) + "_ema.h5"
-        self.ema.history = namedtuple('history', ['history'])({})  # Record history and pass back to model if any
+        self.ema.history = namedtuple("history", ["history"])({})  # Record history and pass back to model if any
         self.enabled = True
 
     def on_train_batch_end(self, batch, logs=None):

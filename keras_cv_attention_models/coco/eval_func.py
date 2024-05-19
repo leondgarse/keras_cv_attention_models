@@ -177,7 +177,7 @@ class DecodePredictions(layers.Layer):
             self.__init_anchor__(input_shape)
 
         if self.num_masks > 0:  # Segmentation masks
-            pred, masks = pred[:, :-self.num_masks], pred[:, -self.num_masks:]
+            pred, masks = pred[:, : -self.num_masks], pred[:, -self.num_masks :]
         else:
             masks = None
 

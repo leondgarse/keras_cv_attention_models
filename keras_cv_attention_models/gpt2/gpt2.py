@@ -61,7 +61,7 @@ class CausalMask(layers.Layer):
         else:
             causal_mask = self.causal_mask
         qq_len, kk_len = (functional.shape(inputs)[2], functional.shape(inputs)[3]) if backend.is_tensorflow_backend else (inputs.shape[2], inputs.shape[3])
-        return (inputs + causal_mask[:, :, :qq_len, :kk_len])
+        return inputs + causal_mask[:, :, :qq_len, :kk_len]
 
     def compute_output_shape(self, input_shape):
         return input_shape[0] if self.is_kv_cache else input_shape

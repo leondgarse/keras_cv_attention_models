@@ -1,6 +1,7 @@
 """
 Just copied from ultralytics tal.py / Loss function / BboxLoss
 """
+
 import torch
 import math
 from torch import nn
@@ -30,9 +31,7 @@ class Loss:
         self.proj = torch.arange(reg_max, dtype=torch.float, device=self.device)
 
     def get_feature_sizes(self):
-        feature_sizes = [
-            (math.ceil(self.input_shape[-2] / (2**ii)), math.ceil(self.input_shape[-1] / (2**ii))) for ii in range(3, 3 + self.num_pyramid_levels)
-        ]
+        feature_sizes = [(math.ceil(self.input_shape[-2] / (2**ii)), math.ceil(self.input_shape[-1] / (2**ii))) for ii in range(3, 3 + self.num_pyramid_levels)]
         feature_lens = [ii[0] * ii[1] for ii in feature_sizes]
         return feature_sizes, feature_lens
 

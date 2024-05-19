@@ -48,7 +48,7 @@ class PositionalEncodingFourierRot1D(layers.Layer):
             cur_tensor, start_pos = inputs, 0
         left, right = functional.unstack(cur_tensor, axis=-2)
         seq_len = functional.shape(left)[-3] if backend.is_tensorflow_backend else left.shape[-3]
-        pos_cos, pos_sin = self.pos_cos[start_pos:start_pos + seq_len], self.pos_sin[start_pos:start_pos + seq_len]
+        pos_cos, pos_sin = self.pos_cos[start_pos : start_pos + seq_len], self.pos_sin[start_pos : start_pos + seq_len]
         out = functional.stack([left * pos_cos - right * pos_sin, right * pos_cos + left * pos_sin], axis=-2)
         return out
 
@@ -93,6 +93,7 @@ class KVCache(layers.Layer):
     print(f"{np.allclose(aa.cache[:1, :4], out) = }")
     # np.allclose(aa.cache[:1, :4], out) = True
     """
+
     def __init__(self, max_batch_size=32, max_seq_len=2048, **kwargs):
         super().__init__(**kwargs)
         self.max_batch_size, self.max_seq_len = max_batch_size, max_seq_len
@@ -113,7 +114,7 @@ class KVCache(layers.Layer):
         else:
             batch_size, seq_len = functional.shape(cur_tensor)[0], functional.shape(cur_tensor)[1]
             tensor_with_cache = functional.concat([self.cache[:batch_size, :start_pos], cur_tensor], axis=1)
-            cur_batch_cache = functional.concat([tensor_with_cache, self.cache[:batch_size, start_pos + seq_len:]], axis=1)
+            cur_batch_cache = functional.concat([tensor_with_cache, self.cache[:batch_size, start_pos + seq_len :]], axis=1)
             self.cache.assign(functional.concat([cur_batch_cache, self.cache[batch_size:]], axis=0))
         return tensor_with_cache
 

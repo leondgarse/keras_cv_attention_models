@@ -1,6 +1,7 @@
 """ Creates an EfficientNet-EdgeTPU model
 Ref impl: https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet/edgetpu
 """
+
 import math
 from keras_cv_attention_models.efficientnet.efficientnet_v2 import EfficientNetV2
 from keras_cv_attention_models.attention_layers import make_divisible

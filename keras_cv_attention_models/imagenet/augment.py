@@ -2,6 +2,7 @@
 Copied from: https://github.com/tensorflow/models/blob/master/official/vision/image_classification/augment.py
 Midified according to: https://github.com/rwightman/pytorch-image-models/blob/master/timm/data/auto_augment.py
 """
+
 # Copyright 2019 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -724,7 +725,7 @@ def select_and_apply_random_policy(policies: Any, image: tf.Tensor):
     policy_to_select = tf.random.uniform([], maxval=len(policies), dtype=tf.int32)
     # Note that using tf.case instead of tf.conds would result in significantly
     # larger graphs and would even break export for some larger policies.
-    for (i, policy) in enumerate(policies):
+    for i, policy in enumerate(policies):
         image = tf.cond(tf.equal(i, policy_to_select), lambda selected_policy=policy: selected_policy(image), lambda: image)
     return image
 
@@ -927,6 +928,7 @@ class AutoAugment(ImageAugment):
             for policy_info in policy:
                 policy_info = list(policy_info) + [replace_value, self.cutout_const, self.translate_const]
                 tf_policy.append(_parse_policy_info(*policy_info))
+
             # Now build the tf policy that will apply the augmentation procedue
             # on image.
             def make_final_policy(tf_policy_):

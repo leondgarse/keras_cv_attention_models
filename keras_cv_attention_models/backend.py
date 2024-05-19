@@ -16,14 +16,14 @@ if is_tensorflow_backend:
     try:
         from importlib.metadata import version
 
-        tf_version = version('tensorflow').split(".")
+        tf_version = version("tensorflow").split(".")
         try:
-            keras_version = version('keras').split(".")
+            keras_version = version("keras").split(".")
         except:
             keras_version = tf_version
 
         try:
-            tf_keras_version = version('tf_keras').split(".")
+            tf_keras_version = version("tf_keras").split(".")
         except:
             tf_keras_version = keras_version
 

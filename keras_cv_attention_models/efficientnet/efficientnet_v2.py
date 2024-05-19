@@ -2,6 +2,7 @@
 Creates a EfficientNetV2 Model as defined in: Mingxing Tan, Quoc V. Le. (2021). arXiv preprint arXiv:2104.00298.
 EfficientNetV2: Smaller Models and Faster Training.
 """
+
 import numpy as np
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.backend import layers, functional, models, is_channels_last

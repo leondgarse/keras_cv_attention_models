@@ -303,6 +303,7 @@ class MixupToken(layers.Layer):
 
     def call(self, inputs, training=None, **kwargs):
         height, width = functional.shape(inputs)[1], functional.shape(inputs)[2]
+
         # tf.print("training:", training)
         def _call_train():
             return functional.stack(self.rand_bbox(height, width))

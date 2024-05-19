@@ -8,7 +8,7 @@ def _to_dtype_(tensor, dtype=None):
     if dtype is None:
         return tensor
 
-    default_dtype = str(torch.get_default_dtype()).split('.')[-1]  # torch.float32 -> "float32"
+    default_dtype = str(torch.get_default_dtype()).split(".")[-1]  # torch.float32 -> "float32"
     if dtype == default_dtype:
         return tensor
     return tensor.to(dtype=getattr(torch, dtype, torch.get_default_dtype()))
