@@ -19,7 +19,7 @@
   from keras_cv_attention_models import gpt2
 
   mm = gpt2.GPT2_Base()
-  mm.run_prediction("hello world", num_samples=1, max_new_tokens=100)
+  _ = mm.run_prediction("hello world", num_samples=1, max_new_tokens=100)
   # hello world. I mean, just because we call ourselves anorexic, with a very strong genetic, doesn't mean we are human.
   #
   # And so there we have it. And we've just got to get through going through the rest of our lives.
@@ -44,7 +44,7 @@
   mm = gpt2.GPT2_Medium(pretrained="huggingface")
   # Load and convert weights from huggingface
   # >>>> Save to: ~/.keras/models/gpt2_medium_huggingface.h5
-  mm.run_prediction("hello world", num_samples=1, max_new_tokens=100)
+  _ = mm.run_prediction("hello world", num_samples=1, max_new_tokens=100)
   # hello world, and he'll meet you in the afternoon and ask you to think about your career, and then I'll return. I'll write something up, and after that I'll have you come over."<|endoftext|>BALTIMORE -- The Baltimore Sun has been the one to expose the violence and destruction of the Baltimore riots that led to the death of Freddie Gray, and it's not your typical public servant.
   #
   # The Sun, which is owned by the Baltimore-based News Corp, went public with

@@ -457,6 +457,18 @@ def test_LCNet050_dynamic_predict():
     assert out[1] == "Egyptian_cat"
 
 
+def test_LLaMA2_42M_run_prediction():
+    mm = keras_cv_attention_models.llama2.LLaMA2_42M(pretrained="tiny_stories")
+    generated = mm.run_prediction("A long time ago,", top_k=1, max_new_tokens=5)
+    assert generated == " there was a little girl"
+
+
+def test_LLaMA2_42M_kv_cache_run_prediction():
+    mm = keras_cv_attention_models.llama2.LLaMA2_42M(pretrained="tiny_stories", max_batch_size=1)
+    generated = mm.run_prediction("A long time ago,", top_k=1, max_new_tokens=5)
+    assert generated == " there was a little girl"
+
+
 def test_LeViT128S_predict():
     mm = keras_cv_attention_models.levit.LeViT128S(use_distillation=True, pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat()))

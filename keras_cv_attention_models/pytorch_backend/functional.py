@@ -241,11 +241,13 @@ def pad(inputs, paddings, mode="CONSTANT", constant_values=0, name=None):
     >>> np.allclose(aa, bb.detach())
     """
     # F.pad doesn't support 0 shape inputs, throws error while compute_output_shape
-    # pad = []
-    # for pp in paddings[::-1]:
-    #     pad += pp
-    # return Lambda(partial(F.pad, pad=pad, mode=mode.lower(), value=constant_values), name=name)(inputs)
     return _ZeroPadding(padding=paddings, mode=mode.lower(), value=constant_values)(inputs)
+    # pad, output_shape = [], []
+    # for pp, cur_shape in zip(paddings[::-1], inputs.shape):
+    #     pad += pp
+    #     output_shape.append(cur_shape + pp[0] + pp[1])
+    # print(f">>>> {pad = }")
+    # return Lambda(partial(F.pad, pad=pad, mode=mode.lower(), value=constant_values), output_shape=output_shape, name=name)(inputs)
 
 
 def pow(inputs, exponent, name=None):
@@ -423,12 +425,12 @@ def transpose(inputs, perm=None, conjugate=False, name=None):
 
 
 def unstack(inputs, axis=0, name=None):
+    assert inputs.shape[axis] is not None
     axis = len(inputs.shape) + axis if axis < 0 else axis
-    axis_shape = inputs.shape[axis]
-    assert axis_shape is not None
-
-    pre_axis_slice = [slice(None)] * axis
-    return [inputs[tuple([*pre_axis_slice, index])] for index in range(axis_shape)]
+    output_shape = [[jj for ii, jj in enumerate(inputs.shape) if ii != axis]] * inputs.shape[axis]
+    return wrapper(partial(torch.unbind, dim=axis), inputs, output_shape=output_shape, name=name)
+    # pre_axis_slice = [slice(None)] * axis
+    # return [inputs[tuple([*pre_axis_slice, index])] for index in range(axis_shape)]
 
 
 def where(condition, x=None, y=None, name=None):

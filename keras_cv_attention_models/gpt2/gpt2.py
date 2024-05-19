@@ -57,12 +57,14 @@ class CausalMask(layers.Layer):
     def call(self, inputs):
         if self.is_kv_cache:
             inputs, start_pos = inputs
-            start_pos = start_pos[0]
-            causal_mask = functional.pad(self.causal_mask, [[0, 0,], [0, 0], [0, 0], [start_pos, 0]])
+            causal_mask = functional.pad(self.causal_mask, [[0, 0], [0, 0], [0, 0], [start_pos[0], 0]])
         else:
             causal_mask = self.causal_mask
         qq_len, kk_len = (functional.shape(inputs)[2], functional.shape(inputs)[3]) if backend.is_tensorflow_backend else (inputs.shape[2], inputs.shape[3])
         return (inputs + causal_mask[:, :, :qq_len, :kk_len])
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[0] if self.is_kv_cache else input_shape
 
     def get_config(self):
         base_config = super().get_config()
@@ -217,7 +219,7 @@ class RunPrediction:
 
         LOCAL_RANK = int(os.environ.get("LOCAL_RANK", "0"))  # For torch distributed
         start_ids = np.array(self.tokenizer.encode(inputs, add_sot=True))
-        inner_tokens, inner_probs = [], []
+        generated, inner_tokens, inner_probs = "", [], []
         for k in range(num_samples):
             inputs_idxes = start_ids
             if not return_token_and_probs and LOCAL_RANK == 0:
@@ -256,6 +258,7 @@ class RunPrediction:
                     pick = np.array([np.random.choice(self.vocab_indexes, p=prob) for prob in probs])
                 inputs_idxes = np.concatenate([inputs_idxes, pick], axis=-1)
                 next_word = self.tokenizer.decode(inputs_idxes[-1:].tolist())
+                generated += next_word
                 if not return_token_and_probs and LOCAL_RANK == 0:
                     print(next_word, end="", flush=True)
 
@@ -267,7 +270,7 @@ class RunPrediction:
                     break
             if not return_token_and_probs and LOCAL_RANK == 0:
                 print("\n---------------")
-        return (np.stack(inner_tokens), np.stack(inner_probs)) if return_token_and_probs else None
+        return (np.stack(inner_tokens), np.stack(inner_probs)) if return_token_and_probs else generated
 
 
 def load_weights_from_huggingface(model, save_name=None, save_path=".", force=False):

@@ -22,7 +22,7 @@ class PositionalEncodingFourierRot1D(layers.Layer):
         self.temperature, self.max_block_size, self.is_kv_cache = float(temperature), max_block_size, is_kv_cache
 
     def build(self, input_shape):
-        # input: `[batch, ..., attn_height * attn_width, num_heads, channels // num_heads // 2, 2]`.
+        # input: `[batch, ..., attn_height * attn_width, num_heads, 2, channels // num_heads // 2]`.
         # print(input_shape)
         tensor_shape = input_shape[0] if self.is_kv_cache else input_shape
         self.channels = tensor_shape[-2] * tensor_shape[-1]

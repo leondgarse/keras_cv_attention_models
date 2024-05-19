@@ -21,7 +21,7 @@
 
   mm = llama2.LLaMA2_42M()
   # >>>> Load pretrained from: ~/.keras/models/llama2_42m_tiny_stories.h5
-  mm.run_prediction("As evening fell, a maiden stood at the edge of a wood. In her hands,")
+  _ = mm.run_prediction("As evening fell, a maiden stood at the edge of a wood. In her hands,")
   # >>>> Load tokenizer from file: ~/.keras/datasets/llama_tokenizer.model
   # <s>
   # As evening fell, a maiden stood at the edge of a wood. In her hands, she held a beautiful diamond. Everyone was surprised to see it.
@@ -62,6 +62,6 @@
   # >>>> Load pretrained from: pytorch_model-00002-of-00002.h5
   mm.save(mm.name + ".h5")  # mm.half().save(mm.name + ".h5") if using PyTorch backend
 
-  mm.run_prediction("Who's there?")
+  _ = mm.run_prediction("Who's there?")
   ```
 ***
