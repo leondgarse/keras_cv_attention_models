@@ -53,7 +53,7 @@ setup(
         # "tensorflow-macos;platform_system=='Darwin'",  # [???]
         "tensorflow;platform_system!='Darwin'",
         # "tensorflow-addons;platform_machine!='aarch64' and platform_machine!='aarch32'",  # [deprecated]
-        "tensorflow-datasets;platform_machine!='aarch64' and platform_machine!='aarch32'",  # >4.7.0 needs dm-tree, failed on arm, just skip
+        # "tensorflow-datasets;platform_machine!='aarch64' and platform_machine!='aarch32'",  # >4.7.0 needs dm-tree, failed on arm, just skip
     ],
     python_requires=">=3.6",
     license="Apache 2.0",
