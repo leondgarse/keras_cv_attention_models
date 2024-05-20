@@ -16,7 +16,7 @@ jobs:
       run: >-
         CUDA_VISIBLE_DEVICES='-1' python -m
         pip install
-        build setuptools wheel pytest pytest-timeout pillow ftfy regex tensorflow tf-keras torch torchvision sentencepiece
+        build setuptools wheel pytest pytest-timeout pillow ftfy regex tqdm tensorflow tf-keras torch torchvision sentencepiece
         --extra-index-url https://download.pytorch.org/whl/cpu
         --user
     - name: Build a binary wheel and a source tarball
