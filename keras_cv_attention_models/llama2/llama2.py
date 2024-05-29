@@ -163,7 +163,7 @@ def causal_self_attention_with_cache(inputs, start_pos=0, max_batch_size=0, bloc
 
     value = layers.Reshape([-1, num_kv_heads, key_dim], name=name + "value_reshape")(value)
     if is_kv_cache:  # Use KV cache if max_batch_size specified
-        value = KVCache(max_batch_size=max_batch_size, max_seq_len=block_size, name=name + "value_cahce")([value, start_pos])
+        value = KVCache(max_batch_size=max_batch_size, max_seq_len=block_size, name=name + "value_cache")([value, start_pos])
     value = functional.transpose(value, [0, 2, 1, 3])
 
     if num_kv_heads != num_heads:

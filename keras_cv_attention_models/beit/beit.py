@@ -303,6 +303,7 @@ def attention_block(
     use_pos_emb=False,
     use_rot_pos_emb=False,
     qk_rope=None,
+    shared_pos_emb=None,
     attn_height=-1,
     text_max_block_size=0,  # Also a mark if this is a text inputs
     attn_dropout=0,
@@ -344,6 +345,8 @@ def attention_block(
 
     if is_text_inputs:
         pos_emb = CausalMask(block_size=text_max_block_size)
+    elif shared_pos_emb:
+        pos_emb = shared_pos_emb
     elif use_pos_emb:
         pos_emb = MultiHeadRelativePositionalEmbedding(attn_height=attn_height, name=name and name + "pos_emb")
     else:
@@ -482,6 +485,7 @@ def Beit(
     use_abs_pos_emb=False,  # [Pos emb args] True for Vit, False for Beit, whether use abcolute positional embedding or relative one in attention blocks
     use_abs_pos_emb_on_cls_token=True,  # [Pos emb args] False for FlexiViT, no_embed_class in timm. If use_abs_pos_emb is True, whether apply pos_emb on cls_token.
     use_rot_pos_emb=False,  # [Pos emb args] True for EVA02, False for others
+    use_shared_pos_emb_for_attn=False,  # [Pos emb args] True for beit raw model without any finetune
     mlp_ratio=4,  # [MLP args]
     use_gated_mlp=False,  # [MLP args] True for DINOv2 and EVA02
     use_norm_mlp=False,  # [MLP args] True for EVA02 base and large, False for others.
@@ -568,6 +572,7 @@ def Beit(
         "use_rot_pos_emb": use_rot_pos_emb,
         "text_max_block_size": max_block_size if vocab_size > 0 else 0,
         "attn_dropout": attn_dropout,
+        "shared_pos_emb": MultiHeadRelativePositionalEmbedding(attn_height=patch_height, name="shared_pos_emb") if use_shared_pos_emb_for_attn else None,
     }
 
     drop_connect_rates = drop_connect_rates_split([depth], 0.0, drop_connect_rate)[0]
@@ -663,6 +668,14 @@ def keras_model_load_weights_from_pytorch_model(keras_model, timm_vit_model, sav
         full_name_align_dict = {"cls_token": -2, "positional_embedding": -1}
     else:
         full_name_align_dict = {"cls_token": -1, "positional_embedding": -1}
+
+    if "shared_pos_emb" in [ii.name for ii in keras_model.layers]:
+        full_name_align_dict["shared_pos_emb"] = -4
+        if "attn_gamma" in tail_align_dict:
+            tail_align_dict["attn_gamma"] += 1
+        if "mlp_gamma" in tail_align_dict:
+            tail_align_dict["mlp_gamma"] += 1
+
     additional_transfer = {attention_layers.MultiHeadRelativePositionalEmbedding: lambda ww: [ww[0].T]}
 
     download_and_load.keras_reload_from_torch_model(

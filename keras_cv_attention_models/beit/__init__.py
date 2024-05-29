@@ -110,6 +110,8 @@ Args:
       False for `FlexiViT`, same as `no_embed_class` in timm. Default True for others.
   use_rot_pos_emb: boolean value if use `PositionalEncodingFourierRot` on attention query and key.
       True for EVA02, False for others.
+  use_shared_pos_emb_for_attn: boolean value if use a shared `MultiHeadRelativePositionalEmbedding` layer for all attention blocks.
+      True for Beit raw model without any finetune, False for others.
 
   [MLP args]
   mlp_ratio: dimension expansion ration for `mlp_block`s. Default `4`.
