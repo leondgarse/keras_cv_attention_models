@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 from tqdm.auto import tqdm
@@ -259,7 +260,22 @@ class _Exporter_(object):
             dynamic_axes = {ii: {0: "-1"} for ii in input_names}
             dynamic_axes.update({ii: {0: "-1"} for ii in output_names})
 
-        filepath = (self.name + ".onnx") if filepath is None else (filepath if filepath.endswith(".onnx") else (filepath + ".onnx"))
+        is_over_two_gb = self.count_params(verbose=False) > 2 * 1024 * 1024 * 1024 // 4
+        if is_over_two_gb:
+            print("[WARNING] model size in float32 is over 2GB, will save weights as external data.")
+
+        if filepath is None and is_over_two_gb:
+            # if > 2G float32 data, save to a folder for keeping separated weights data
+            filepath = os.path.join(self.name, self.name + ".onnx")
+        elif filepath is None:
+            filepath = self.name + ".onnx"
+        elif not filepath.endswith(".onnx"):
+            filepath = filepath + ".onnx"
+
+        save_dir = os.path.dirname(filepath)
+        if len(save_dir) > 0 and not os.path.exists(save_dir):
+            os.makedirs(save_dir, exist_ok=True)
+
         torch.onnx.export(self, input_datas, filepath, input_names=input_names, output_names=output_names, dynamic_axes=dynamic_axes, **kwargs)
         print("Exported onnx:", filepath)
 
@@ -321,11 +337,12 @@ class _Exporter_(object):
     def save(self, filepath=None, **kwargs):
         self.save_weights(filepath, **kwargs)
 
-    def count_params(self):
+    def count_params(self, verbose=True):
         total_params = sum([np.prod(ii.shape) for ii in self.state_dict().values() if len(ii.shape) != 0])
         trainable_params = sum([np.prod(list(ii.shape)) for ii in self.parameters()])
         non_trainable_params = total_params - trainable_params
-        print("Total params: {:,} | Trainable params: {:,} | Non-trainable params:{:,}".format(total_params, trainable_params, non_trainable_params))
+        if verbose:
+            print("Total params: {:,} | Trainable params: {:,} | Non-trainable params:{:,}".format(total_params, trainable_params, non_trainable_params))
         return total_params
 
 
