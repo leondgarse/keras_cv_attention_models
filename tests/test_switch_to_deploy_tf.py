@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append(".")
 import keras_cv_attention_models  # Needs to set TF_USE_LEGACY_KERAS=1 env firstly
 

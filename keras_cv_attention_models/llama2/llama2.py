@@ -158,7 +158,7 @@ def causal_self_attention_with_cache(inputs, start_pos=0, max_batch_size=0, bloc
     key = layers.Reshape([-1, num_kv_heads, key_dim], name=name + "key_reshape")(key)
     key = apply_positional_encoding_rotary(key, rope, start_pos, is_kv_cache, name=name + "key_")
     if is_kv_cache:  # Use KV cache if max_batch_size specified
-        key = KVCache(max_batch_size=max_batch_size, max_seq_len=block_size, name=name + "key_cahce")([key, start_pos])
+        key = KVCache(max_batch_size=max_batch_size, max_seq_len=block_size, name=name + "key_cache")([key, start_pos])
     key = functional.transpose(key, [0, 2, 3, 1])
 
     value = layers.Reshape([-1, num_kv_heads, key_dim], name=name + "value_reshape")(value)

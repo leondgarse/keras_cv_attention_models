@@ -1,7 +1,8 @@
 # ___Keras_cv_attention_models___
 ***
-- **WARNING: currently NOT compatible with `keras 3.0`, if using `tensorflow>=2.16.0`, needs to install `pip install tf-keras~=2.16` manually.**
-- **coco_train_script.py is under testing. Still struggling for this...**
+- **WARNING: currently NOT compatible with `keras 3.0`, if using `tensorflow>=2.16.0`, needs to install `pip install tf-keras~=2.16` manually. While importing, import this package ahead of Tensorflow, or set `export TF_USE_LEGACY_KERAS=1`.**
+- **It's not recommended downloading and loading model from h5 file directly, better building model and loading weights like `import kecam; mm = kecam.models.LCNet050()`.**
+- **coco_train_script.py for TF is still under testing...**
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [___>>>> Roadmap and todo list <<<<___](https://github.com/leondgarse/keras_cv_attention_models/wiki/Roadmap)
@@ -109,7 +110,6 @@
 
 # General Usage
 ## Basic
-  - **Currently recommended TF version is `tensorflow==2.11.1`. Expecially for training or TFLite conversion**.
   - **Default import** will not specific these while using them in READMEs.
     ```py
     import os
