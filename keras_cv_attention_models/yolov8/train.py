@@ -76,7 +76,7 @@ def train(model, dataset_path="coco.json", batch_size=16, epochs=100, initial_ep
     num_classes = getattr(model, "num_classes", model.output_shape[-1] - 64)
     print(">>>> num_classes =", num_classes)
 
-    compute_loss = torch_losses.Loss(device=device, nc=num_classes)
+    compute_loss = torch_losses.Loss(device=device, nc=num_classes, input_shape=imgsz)
     optimizer = build_optimizer(model, name=optimizer_name)
     ema = ModelEMA(model)
     # lf = lambda x: (x * (1 - 0.01) / warmup_epochs + 0.01) if x < warmup_epochs else ((1 - x / epochs) * (1.0 - 0.01) + 0.01)  # linear
