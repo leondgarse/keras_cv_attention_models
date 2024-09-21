@@ -66,7 +66,7 @@ def parse_arguments():
         default="cifar10",
         help="dataset directory path containing images, or a recognition json dataset path, which will train using labels as instruction",
     )
-    parser.add_argument("-i", "--input_shape", type=int, default=32, help="Model input shape")
+    parser.add_argument("-i", "--input_shape", nargs="+", type=int, default=(32, 32), help="Model input shape. A single int value or 2 for height width.")
     parser.add_argument("-m", "--model", type=str, default="UNetTest", help="model from this repo `[model_classs.model_name]` like stable_diffusion.UNet")
     parser.add_argument("-b", "--batch_size", type=int, default=128, help="Batch size")
     parser.add_argument("-e", "--epochs", type=int, default=100, help="training epochs, total max iterations=epochs * steps_per_epoch")
@@ -85,6 +85,7 @@ def parse_arguments():
     parser.add_argument("--disable_horizontal_flip", action="store_true", help="Disable random horizontal flip")
     args = parser.parse_known_args()[0]
 
+    args.input_shape = args.input_shape[:2] if len(args.input_shape) > 1 else [args.input_shape[0], args.input_shape[0]]
     args.additional_model_kwargs = json.loads(args.additional_model_kwargs) if args.additional_model_kwargs else {}
     if args.basic_save_name is None and args.restore_path is not None:
         basic_save_name = os.path.splitext(os.path.basename(args.restore_path))[0]

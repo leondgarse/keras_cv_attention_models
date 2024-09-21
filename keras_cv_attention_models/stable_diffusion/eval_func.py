@@ -86,14 +86,15 @@ class DenoisingEval(callbacks.Callback):
         self, save_path, image_size=512, num_classes=0, num_training_steps=1000, num_steps=0, labels_guide_weight=1.8, beta_max=0.02, interval=1, rows=5, cols=4
     ):
         super().__init__()
-        self.save_path, self.image_size, self.labels_guide_weight, self.interval = save_path, image_size, labels_guide_weight, max(interval, 1)
+        self.save_path, self.labels_guide_weight, self.interval = save_path, labels_guide_weight, max(interval, 1)
         self.num_classes, self.rows, self.cols, self.batch_size = num_classes, rows, cols, rows * cols
+        self.image_size = image_size[:2] if isinstance(image_size, (list, tuple)) else (image_size, image_size)
         self.run_prediction = RunPrediction(model=None, num_training_steps=num_training_steps, num_steps=num_steps, beta_max=beta_max)
 
         if backend.image_data_format() == "channels_last":
-            self.eval_x0 = np.random.normal(size=(self.batch_size, image_size, image_size, 3)).astype("float32")
+            self.eval_x0 = np.random.normal(size=(self.batch_size, *self.image_size, 3)).astype("float32")
         else:
-            self.eval_x0 = np.random.normal(size=(self.batch_size, 3, image_size, image_size)).astype("float32")
+            self.eval_x0 = np.random.normal(size=(self.batch_size, 3, *self.image_size)).astype("float32")
 
         if num_classes > 0:
             labels_inputs = np.arange(0, num_classes, num_classes / self.batch_size)[: self.batch_size].astype("int64")

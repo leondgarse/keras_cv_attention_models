@@ -74,7 +74,9 @@ def parse_arguments():
     parser.add_argument("-r", "--restore_path", type=str, default=None, help="Restore model from saved h5 or pt file. Higher priority than model")
 
     model = parser.add_argument_group("Model arguments")
-    model.add_argument("-i", "--input_shape", type=int, default=224, help="Image model input shape")
+    model.add_argument(
+        "-i", "--input_shape", nargs="+", type=int, default=(224, 224), help="Image model input shape. A single int value or 2 for height width."
+    )
     model.add_argument("-m", "--image_model", type=str, default="EVA02SmallPatch14", help="Model name in format [sub_dir].[model_name] like beit.FlexiViTBase")
     model.add_argument("--image_model_pretrained", type=str, default=None, help="If build model with pretrained weights. Set 'default' for model preset value")
     model.add_argument("--text_model", type=str, default="LLaMA2_42M", help="model from this repo `[sub_dir].[model_name]` like gpt2.GPT2_Base")
@@ -95,6 +97,7 @@ def parse_arguments():
     lr_wd.add_argument("--weight_decay", type=float, default=0.2, help="Weight decay")
 
     args = parser.parse_known_args()[0]
+    args.input_shape = args.input_shape[:2] if len(args.input_shape) > 1 else [args.input_shape[0], args.input_shape[0]]
     args.text_model_pretrained = None if args.text_model_pretrained.lower() == "none" else args.text_model_pretrained
     if args.basic_save_name is None and args.restore_path is not None:
         basic_save_name = os.path.splitext(os.path.basename(args.restore_path))[0]
@@ -105,6 +108,7 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
+    print(">>>> All args:", args)
 
     if args.data_path in BUILDIN_DATASETS and not os.path.exists(args.data_path):
         args.data_path = kecam.download_and_load.download_buildin_dataset(args.data_path, BUILDIN_DATASETS, cache_subdir="datasets")
@@ -123,7 +127,7 @@ if __name__ == "__main__":
     with global_strategy.scope():
         if args.restore_path is None or kecam.backend.is_torch_backend:
             image_model_kwargs = {} if args.image_model_pretrained == "default" else {"pretrained": args.image_model_pretrained}
-            image_model_kwargs.update({"input_shape": (args.input_shape, args.input_shape, 3), "num_classes": args.latents_dim, "classifier_activation": None})
+            image_model_kwargs.update({"input_shape": (*args.input_shape, 3), "num_classes": args.latents_dim, "classifier_activation": None})
             print(">>>> image_model_kwargs:", image_model_kwargs)
             image_model = build_model(args.image_model, **image_model_kwargs)
             print(">>>> image_model name: {}, input_shape: {}, output_shape: {}".format(image_model.name, image_model.input_shape, image_model.output_shape))
