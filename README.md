@@ -1,6 +1,6 @@
 # ___Keras_cv_attention_models___
 ***
-- **WARNING: currently NOT compatible with `keras 3.0`, if using `tensorflow>=2.16.0`, needs to install `pip install tf-keras~=2.16` manually. While importing, import this package ahead of Tensorflow, or set `export TF_USE_LEGACY_KERAS=1`.**
+- **WARNING: currently NOT compatible with `keras 3.x`, if using `tensorflow>=2.16.0`, needs to install `pip install tf-keras~=$(pip show tensorflow | awk -F ': ' '/Version/{print $2}')` manually. While importing, import this package ahead of Tensorflow, or set `export TF_USE_LEGACY_KERAS=1`.**
 - **It's not recommended downloading and loading model from h5 file directly, better building model and loading weights like `import kecam; mm = kecam.models.LCNet050()`.**
 - **coco_train_script.py for TF is still under testing...**
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->

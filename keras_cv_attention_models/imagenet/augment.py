@@ -27,15 +27,29 @@ import math
 import tensorflow as tf
 from typing import Any, Dict, List, Optional, Text, Tuple, Union
 
-# from tensorflow.python.keras.layers.preprocessing import image_preprocessing as image_ops
 try:
-    from keras.layers.preprocessing import image_preprocessing as image_ops
+    # from tensorflow.python.keras.layers.preprocessing import image_preprocessing as image_ops
+    from keras.layers.preprocessing.image_preprocessing import transform as tf_image_transform
 except:
-    from keras.src.layers.preprocessing import image_preprocessing as image_ops  # TF >= 2.13.0
+    try:
+        from keras.src.layers.preprocessing.image_preprocessing import transform as tf_image_transform  # TF >= 2.13.0
+    except:
+        # TF >= 2.16.0
+        def tf_image_transform(images, transforms, fill_mode="reflect", fill_value=0.0, interpolation="bilinear", output_shape=None):
+            # Copied from keras==2.15.0 keras/src/layers/preprocessing/image_preprocessing.py
+            return tf.raw_ops.ImageProjectiveTransformV3(
+                images=images,
+                output_shape=output_shape or tf.convert_to_tensor(tf.shape(images)[1:3], tf.int32),
+                fill_value=tf.convert_to_tensor(fill_value, tf.float32),
+                transforms=transforms,
+                fill_mode=fill_mode.upper(),
+                interpolation=interpolation.upper(),
+            )
 
 # This signifies the max integer that the controller RNN could predict for the
 # augmentation scheme.
 _MAX_LEVEL = 10.0
+
 
 
 def to_4d(image: tf.Tensor) -> tf.Tensor:
@@ -169,14 +183,14 @@ def marge_two_transforms(aa: tf.Tensor, bb: tf.Tensor) -> tf.Tensor:
 
 
 def transform(image: tf.Tensor, transforms) -> tf.Tensor:
-    """Prepares input data for `image_ops.transform`."""
+    """Prepares input data for `transform`."""
     original_ndims = tf.rank(image)
     transforms = tf.convert_to_tensor(transforms, dtype=tf.float32)
     if transforms.shape.rank == 1:
         transforms = transforms[None]
     image = to_4d(image)
-    # image = image_ops.transform(images=image, transforms=transforms, interpolation="nearest", fill_mode="constant")
-    image = image_ops.transform(images=image, transforms=transforms, interpolation="bilinear", fill_mode="constant")
+    # image = transform(images=image, transforms=transforms, interpolation="nearest", fill_mode="constant")
+    image = tf_image_transform(images=image, transforms=transforms, interpolation="bilinear", fill_mode="constant")
     return from_4d(image, original_ndims)
 
 
