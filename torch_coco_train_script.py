@@ -43,7 +43,7 @@ def parse_arguments(argv):
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-d", "--data_name", type=str, default="coco_dog_cat", help="Dataset json file like coco.json")
-    parser.add_argument("-i", "--input_shape", type=int, default=640, help="Model input shape")
+    parser.add_argument("-i", "--input_shape", nargs="+", type=int, default=(640, 640), help="Model input shape. A single int value or 2 for height width.")
     parser.add_argument(
         "-B", "--backbone", type=str, default=None, help="Detector backbone, name in format [sub_dir].[model_name]. Default None for header preset."
     )
@@ -93,6 +93,7 @@ def parse_arguments(argv):
 
     args = parser.parse_known_args(argv)[0]
 
+    args.input_shape = args.input_shape[:2] if len(args.input_shape) > 1 else [args.input_shape[0], args.input_shape[0]]
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
     args.additional_backbone_kwargs = json.loads(args.additional_backbone_kwargs) if args.additional_backbone_kwargs else {}
 
@@ -125,7 +126,7 @@ if __name__ == "__main__":
     print(">>>> total_images: {}, num_classes: {}".format(total_images, num_classes))
 
     """ Model """
-    input_shape = (args.input_shape, args.input_shape, 3)
+    input_shape = (*args.input_shape, 3)
     if args.backbone is not None:
         backbone = kecam.imagenet.train_func.init_model(args.backbone, input_shape, 0, args.backbone_pretrained, **args.additional_backbone_kwargs)
         args.additional_det_header_kwargs.update({"backbone": backbone})

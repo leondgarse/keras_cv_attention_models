@@ -68,15 +68,15 @@ def train(model, dataset_path="coco.json", batch_size=16, epochs=100, initial_ep
     warmup_epochs = 3
     close_mosaic = 10
 
-    imgsz = (model.input_shape[2] or 640) if hasattr(model, "input_shape") else 640
-    print(">>>> imgsz:", imgsz)
+    input_shape = model.input_shape[2:] if hasattr(model, "input_shape") and model.input_shape[2] is not None else (640, 640)
+    print(">>>> input_shape:", input_shape)
 
-    train_loader, _ = torch_data.init_dataset(data_path=dataset_path, batch_size=batch_size, image_size=imgsz)
+    train_loader, _ = torch_data.init_dataset(data_path=dataset_path, batch_size=batch_size, image_size=input_shape)
     device = next(model.parameters()).device  # get model device
     num_classes = getattr(model, "num_classes", model.output_shape[-1] - 64)
     print(">>>> num_classes =", num_classes)
 
-    compute_loss = torch_losses.Loss(device=device, nc=num_classes, input_shape=imgsz)
+    compute_loss = torch_losses.Loss(device=device, nc=num_classes, input_shape=input_shape)
     optimizer = build_optimizer(model, name=optimizer_name)
     ema = ModelEMA(model)
     # lf = lambda x: (x * (1 - 0.01) / warmup_epochs + 0.01) if x < warmup_epochs else ((1 - x / epochs) * (1.0 - 0.01) + 0.01)  # linear

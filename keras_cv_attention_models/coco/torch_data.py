@@ -70,9 +70,12 @@ def augment_hsv(image, hsv_h=0.5, hsv_s=0.5, hsv_v=0.5):
     return cv2.cvtColor(image_hsv, cv2.COLOR_HSV2BGR, dst=image)
 
 
-def random_perspective(image, bbox, label, target_size=640, degrees=10, translate=0.1, scale=0.1, shear=10, size_thresh=2, aspect_thresh=20, area_thresh=0.1):
+def random_perspective(
+    image, bbox, label, target_shape=(640, 640), degrees=10, translate=0.1, scale=0.1, shear=10, size_thresh=2, aspect_thresh=20, area_thresh=0.1
+):
     import cv2
 
+    target_height, target_width = target_shape[:2] if isinstance(target_shape, (list, tuple)) else (target_shape, target_shape)
     # torchvision.transforms.RandomAffine(degrees=(-10, 10), translate=(.1, .1), scale=(.9, 1.1), shear=(-10, 10))
     # Center
     cc = np.eye(3)
@@ -92,12 +95,12 @@ def random_perspective(image, bbox, label, target_size=640, degrees=10, translat
 
     # Translation
     tt = np.eye(3)
-    tt[0, 2] = random.uniform(0.5 - translate, 0.5 + translate) * target_size  # x translation (pixels)
-    tt[1, 2] = random.uniform(0.5 - translate, 0.5 + translate) * target_size  # y translation (pixels)
+    tt[0, 2] = random.uniform(0.5 - translate, 0.5 + translate) * target_width  # x translation (pixels)
+    tt[1, 2] = random.uniform(0.5 - translate, 0.5 + translate) * target_height  # y translation (pixels)
 
     # Combined rotation matrix
     mm = tt @ ss @ rr @ cc  # order of operations (right to left) is IMPORTANT
-    image = cv2.warpAffine(image, mm[:2], dsize=(target_size, target_size), borderValue=(114, 114, 114))
+    image = cv2.warpAffine(image, mm[:2], dsize=(target_width, target_height), borderValue=(114, 114, 114))
 
     # warp points
     bbox = bbox[:, [1, 0, 3, 2, 3, 0, 1, 2]].reshape(-1, 2)  # x1y1, x2y2, x1y2, x2y1
@@ -110,11 +113,11 @@ def random_perspective(image, bbox, label, target_size=640, degrees=10, translat
     bbox = np.concatenate((yy.min(1), xx.min(1), yy.max(1), xx.max(1))).reshape(4, -1).T
 
     # clip boxes
-    bbox[:, [0, 2]] = bbox[:, [0, 2]].clip(0, target_size)
-    bbox[:, [1, 3]] = bbox[:, [1, 3]].clip(0, target_size)
+    bbox[:, [0, 2]] = bbox[:, [0, 2]].clip(0, target_height)
+    bbox[:, [1, 3]] = bbox[:, [1, 3]].clip(0, target_width)
 
     # filter candidates
-    height, width = bbox[:, 3] - bbox[:, 1], bbox[:, 2] - bbox[:, 0]
+    height, width = bbox[:, 2] - bbox[:, 0], bbox[:, 3] - bbox[:, 1]
     valid_height, valid_width = height > size_thresh, width > size_thresh
     valid_area = height * width / (pre_area + 1e-16) > area_thresh
     valid_height_aspect, valid_width_aspect = height / (width + 1e-16) < aspect_thresh, width / (height + 1e-16) < aspect_thresh
@@ -122,13 +125,14 @@ def random_perspective(image, bbox, label, target_size=640, degrees=10, translat
     return image, bbox[valid_candidates], label[valid_candidates]
 
 
-def combine_mosaic(images, bboxes, labels, target_size=640):
+def combine_mosaic(images, bboxes, labels, target_shape=(640, 640)):
     # loads images in a mosaic, bboxes: [top, left, bottom, right]
-    hh_center = int(random.uniform(target_size // 2, 2 * target_size - target_size // 2))
-    ww_center = int(random.uniform(target_size // 2, 2 * target_size - target_size // 2))
+    target_height, target_width = target_shape[:2] if isinstance(target_shape, (list, tuple)) else (target_shape, target_shape)
+    hh_center = int(random.uniform(target_height // 2, 2 * target_height - target_height // 2))
+    ww_center = int(random.uniform(target_width // 2, 2 * target_width - target_width // 2))
 
-    paste_border = target_size * 2
-    mosaic_image = np.full((paste_border, paste_border, 3), 114, dtype=np.uint8)  # base image with 4 tiles
+    paste_height, paste_width = target_height * 2, target_width * 2
+    mosaic_image = np.full((paste_height, paste_width, 3), 114, dtype=np.uint8)  # base image with 4 tiles
     mosaic_bboxes, mosaic_labels = [], []
 
     for order in range(4):
@@ -138,20 +142,20 @@ def combine_mosaic(images, bboxes, labels, target_size=640):
             paste_top, paste_left, paste_bottom, paste_right = max(hh_center - height, 0), max(ww_center - width, 0), hh_center, ww_center
             cut_top, cut_left, cut_bottom, cut_right = height - (hh_center - paste_top), width - (ww_center - paste_left), height, width
         elif order == 1:
-            paste_top, paste_left, paste_bottom, paste_right = max(hh_center - height, 0), ww_center, hh_center, min(ww_center + width, paste_border)
+            paste_top, paste_left, paste_bottom, paste_right = max(hh_center - height, 0), ww_center, hh_center, min(ww_center + width, paste_width)
             cut_top, cut_left, cut_bottom, cut_right = height - (hh_center - paste_top), 0, height, min(paste_right - ww_center, width)
         elif order == 2:
-            paste_top, paste_left, paste_bottom, paste_right = hh_center, max(ww_center - width, 0), min(hh_center + height, paste_border), ww_center
+            paste_top, paste_left, paste_bottom, paste_right = hh_center, max(ww_center - width, 0), min(hh_center + height, paste_height), ww_center
             cut_top, cut_left, cut_bottom, cut_right = 0, width - (ww_center - paste_left), min(paste_bottom - hh_center, height), width
         elif order == 3:
-            paste_top, paste_left, paste_bottom, paste_right = hh_center, ww_center, min(hh_center + height, paste_border), min(ww_center + width, paste_border)
+            paste_top, paste_left, paste_bottom, paste_right = hh_center, ww_center, min(hh_center + height, paste_height), min(ww_center + width, paste_width)
             cut_top, cut_left, cut_bottom, cut_right = 0, 0, min(paste_bottom - hh_center, height), min(paste_right - ww_center, width)
 
         mosaic_image[paste_top:paste_bottom, paste_left:paste_right] = cur_image[cut_top:cut_bottom, cut_left:cut_right]
         hh_offset, ww_offset = paste_top - cut_top, paste_left - cut_left
         mosaic_bboxes.append(bboxes[order] * [height, width, height, width] + [hh_offset, ww_offset, hh_offset, ww_offset])
         mosaic_labels.append(labels[order])
-    mosaic_bboxes = np.clip(np.concatenate(mosaic_bboxes, axis=0), 0, paste_border)
+    mosaic_bboxes = np.clip(np.concatenate(mosaic_bboxes, axis=0), 0, [paste_height, paste_width, paste_height, paste_width])
     mosaic_labels = np.concatenate(mosaic_labels, axis=0)
     return mosaic_image, mosaic_bboxes, mosaic_labels
 
@@ -160,16 +164,16 @@ class DetectionDataset(Dataset):  # for training/testing
     """
     >>> from keras_cv_attention_models.coco import torch_data
     >>> from keras_cv_attention_models.plot_func import show_image_with_bboxes
-    >>> train, test = torch_data.load_from_custom_json('datasets/coco_dog_cat/detections.json')
+    >>> train, test = torch_data.load_from_custom_json('datasets/coco_dog_cat/detections.json')[:2]
     >>> aa = torch_data.DetectionDataset(train)
     >>> image, bbox, label = aa.__getitem__(0)
-    >>> ax = show_image_with_bboxes(image.transpose([1, 2, 0]), bbox, label, indices_2_labels={0: 'cat', 1: 'dog'})
+    >>> ax = show_image_with_bboxes(image.numpy().transpose([1, 2, 0]), bbox, label, indices_2_labels={0: 'cat', 1: 'dog'})
     >>> ax.get_figure().savefig('aa.jpg')
     """
 
-    def __init__(self, data, image_size=640, batch_size=16, rescale_mode="raw01", is_train=True, mosaic=1.0, max_mosaic_cache_len=1024):
+    def __init__(self, data, image_size=(640, 640), batch_size=16, rescale_mode="raw01", is_train=True, mosaic=1.0, max_mosaic_cache_len=1024):
         self.data, self.batch_size, self.rescale_mode, self.is_train, self.mosaic = data, batch_size, rescale_mode, is_train, mosaic
-        self.target_size = max(image_size) if isinstance(image_size, (list, tuple)) else image_size
+        self.target_shape = image_size[:2] if isinstance(image_size, (list, tuple)) else (image_size, image_size)
         self.mean, self.std = init_mean_std_by_rescale_mode(rescale_mode)
 
         # self.rect = False if is_train else rect
@@ -201,12 +205,12 @@ class DetectionDataset(Dataset):  # for training/testing
 
     def __imread__(self, image_path):
         image = self.imread(image_path)
-        return aspect_aware_resize_and_crop_image(image, target_shape=self.target_size, do_pad=False, method="bilinear", antialias=False)[0]
+        return aspect_aware_resize_and_crop_image(image, target_shape=self.target_shape, do_pad=False, method="bilinear", antialias=False)[0]
 
     def __process_eval__(self, index, image_path, bbox, label):
         image = self.__imread__(image_path)
         bbox *= [image.shape[0], image.shape[1], image.shape[0], image.shape[1]]
-        image = np.pad(image, [[0, self.target_size - image.shape[0]], [0, self.target_size - image.shape[1]], [0, 0]])
+        image = np.pad(image, [[0, self.target_shape[0] - image.shape[0]], [0, self.target_shape[1] - image.shape[1]], [0, 0]])
         bbox /= [image.shape[0], image.shape[1], image.shape[0], image.shape[1]]
         return image, bbox, label
 
@@ -232,13 +236,13 @@ class DetectionDataset(Dataset):  # for training/testing
                 images.append(self.cached_images[index])
                 bboxes.append(datapoint["objects"]["bbox"])
                 labels.append(datapoint["objects"]["label"])
-            image, bbox, label = combine_mosaic(images, bboxes, labels, target_size=self.target_size)
+            image, bbox, label = combine_mosaic(images, bboxes, labels, target_shape=self.target_shape)
         else:
             bbox *= [image.shape[0], image.shape[1], image.shape[0], image.shape[1]]
 
         image, bbox, label = random_perspective(
-            image, bbox, label, target_size=self.target_size, degrees=self.degrees, translate=self.translate, scale=self.scale, shear=self.shear
-        )  # Also process image as [target_size, target_size]
+            image, bbox, label, target_shape=self.target_shape, degrees=self.degrees, translate=self.translate, scale=self.scale, shear=self.shear
+        )  # Also process image as target_shape
         image = augment_hsv(image, hsv_h=self.hsv_h, hsv_s=self.hsv_s, hsv_v=self.hsv_v)
         bbox /= [image.shape[0], image.shape[1], image.shape[0], image.shape[1]]  # normalized to [0, 1]
 
@@ -266,7 +270,7 @@ def collate_wrapper(batch):
     return torch.stack(images), torch.concat([batch_ids[:, None], bboxes, labels[:, None]], dim=-1)
 
 
-def init_dataset(data_path, batch_size=64, image_size=640, rescale_mode="raw01", num_workers=8, max_mosaic_cache_len=1024, with_info=False):
+def init_dataset(data_path, batch_size=64, image_size=(640, 640), rescale_mode="raw01", num_workers=8, max_mosaic_cache_len=1024, with_info=False):
     """
     >>> os.environ["KECAM_BACKEND"] = "torch"
     >>> from keras_cv_attention_models.coco import torch_data

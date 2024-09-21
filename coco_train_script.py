@@ -24,7 +24,7 @@ def parse_arguments(argv):
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-d", "--data_name", type=str, default="coco/2017", help="Dataset name from tensorflow_datasets like coco/2017")
-    parser.add_argument("-i", "--input_shape", type=int, default=256, help="Model input shape")
+    parser.add_argument("-i", "--input_shape", nargs="+", type=int, default=(256, 256), help="Model input shape. A single int value or 2 for height width.")
     parser.add_argument(
         "-B", "--backbone", type=str, default=None, help="Detector backbone, name in format [sub_dir].[model_name]. Default None for header preset."
     )
@@ -44,7 +44,7 @@ def parse_arguments(argv):
     )
     parser.add_argument("-b", "--batch_size", type=int, default=64, help="Batch size")
     parser.add_argument("-e", "--epochs", type=int, default=-1, help="Total epochs. Set -1 means using lr_decay_steps + lr_cooldown_steps")
-    parser.add_argument("-p", "--optimizer", type=str, default="LAMB", help="Optimizer name. One of [AdamW, LAMB, RMSprop, SGD, SGDW].")
+    parser.add_argument("-p", "--optimizer", type=str, default="Adam", help="Optimizer name. One of [AdamW, Adam, LAMB, RMSprop, SGD, SGDW].")
     parser.add_argument("-I", "--initial_epoch", type=int, default=0, help="Initial epoch when restore from previous interrupt")
     parser.add_argument(
         "-s",
@@ -142,6 +142,7 @@ def parse_arguments(argv):
 
     args = parser.parse_known_args(argv)[0]
 
+    args.input_shape = args.input_shape[:2] if len(args.input_shape) > 1 else [args.input_shape[0], args.input_shape[0]]
     args.additional_det_header_kwargs = json.loads(args.additional_det_header_kwargs) if args.additional_det_header_kwargs else {}
     if args.anchors_mode is not None:
         args.additional_det_header_kwargs.update({"anchors_mode": args.anchors_mode})
@@ -165,7 +166,7 @@ def parse_arguments(argv):
     elif args.basic_save_name is None or args.basic_save_name.startswith("_"):
         data_name = args.data_name.replace("/", "_")
         model_name = args.det_header.split(".")[-1] + ("" if args.backbone is None else ("_" + args.backbone.split(".")[-1]))
-        basic_save_name = "{}_{}_{}_{}_batchsize_{}".format(model_name, args.input_shape, args.optimizer, data_name, args.batch_size)
+        basic_save_name = "{}_{}_{}_{}_batchsize_{}".format(model_name, args.input_shape[0], args.optimizer, data_name, args.batch_size)
         basic_save_name += "_randaug_{}_mosaic_{}".format(args.magnitude, args.mosaic_mix_prob)
         basic_save_name += "_color_{}_position_{}".format(args.color_augment_method, args.positional_augment_methods)
         basic_save_name += "_lr512_{}_wd_{}_anchors_mode_{}".format(args.lr_base_512, args.weight_decay, args.anchors_mode)
@@ -181,7 +182,7 @@ def run_training_by_args(args):
 
     strategy = init_global_strategy(args.enable_float16, args.seed, args.TPU)
     batch_size = args.batch_size * strategy.num_replicas_in_sync
-    input_shape = (args.input_shape, args.input_shape, 3)
+    input_shape = (*args.input_shape, 3)
 
     if args.data_name in BUILDIN_DATASETS:
         from keras_cv_attention_models.download_and_load import download_buildin_dataset
