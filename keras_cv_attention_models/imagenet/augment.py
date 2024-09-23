@@ -46,10 +46,10 @@ except:
                 interpolation=interpolation.upper(),
             )
 
+
 # This signifies the max integer that the controller RNN could predict for the
 # augmentation scheme.
 _MAX_LEVEL = 10.0
-
 
 
 def to_4d(image: tf.Tensor) -> tf.Tensor:

@@ -1,5 +1,5 @@
 import tensorflow as tf
-from keras_cv_attention_models.imagenet.data import init_mean_std_by_rescale_mode, tf_imread, random_crop_and_resize_image, build_custom_dataset
+from keras_cv_attention_models.imagenet.tf_data import init_mean_std_by_rescale_mode, tf_imread, random_crop_and_resize_image, build_custom_dataset
 
 
 def image_process(image, image_size=(224, 224), is_train=True):

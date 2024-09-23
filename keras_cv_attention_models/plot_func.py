@@ -69,6 +69,73 @@ def stack_and_plot_images(images, texts=None, margin=5, margin_value=0, rows=-1,
     return ax, stacked_images
 
 
+""" Show recognition dataset """
+
+
+def show_batch_sample(dataset, rescale_mode="tf", rows=-1, caption_tokenizer=None, base_size=3, indices_2_labels=None):
+    from keras_cv_attention_models.common_layers import init_mean_std_by_rescale_mode
+    from keras_cv_attention_models.imagenet.eval_func import decode_predictions
+    from keras_cv_attention_models.backend import is_channels_last
+
+    if isinstance(dataset, (list, tuple)):
+        images, labels = dataset
+    else:
+        images, labels = next(iter(dataset))
+
+        if isinstance(images, tuple):  # caption datasets
+            images, labels = images
+        elif isinstance(labels, tuple):  # token_label datasets
+            labels, token_label = labels
+    images, labels = np.array(images), np.array(labels)
+
+    if caption_tokenizer is not None:
+        labels = [caption_tokenizer(ii) for ii in labels]
+
+    mean, std = init_mean_std_by_rescale_mode(rescale_mode)
+    mean, std = (mean.numpy(), std.numpy()) if hasattr(mean, "numpy") else (mean, std)
+    images = (images * std + mean) / 255
+    images = images if is_channels_last() else images.transpose([0, 2, 3, 1])
+
+    if isinstance(labels[0], str):
+        pass  # caption datasets
+    elif labels.shape[-1] == 1000:
+        labels = [ii[0][1] for ii in decode_predictions(labels, top=1)]
+    elif labels[0].ndim == 1:
+        labels = np.argmax(labels, axis=-1)  # If 2 dimension
+
+    if not isinstance(labels[0], str) and indices_2_labels is not None:
+        labels = [indices_2_labels.get(label, indices_2_labels.get(str(label), str(label))) for label in labels]
+    ax, _ = stack_and_plot_images(images, texts=labels, rows=rows, ax=None, base_size=base_size)
+    return ax
+
+
+def show_token_label_patches_single(image, token_label, rescale_mode="tf", top_k=3, resize_patch_shape=(160, 160)):
+    from keras_cv_attention_models.backend import functional, numpy_image_resize
+
+    mean, std = init_mean_std_by_rescale_mode(rescale_mode)
+    mean, std = (mean.numpy(), std.numpy()) if hasattr(mean, "numpy") else (mean, std)
+    image = (image * std + mean) / 255
+
+    height, width = image.shape[:2]
+    num_height_patch, num_width_patch = token_label.shape[0], token_label.shape[1]
+    height_patch, width_patch = int(np.ceil(height / num_height_patch)), int(np.ceil(width / num_width_patch))
+
+    token_label_scores, token_label_classes = functional.top_k(functional.convert_to_tensor(token_label), top_k)
+    token_label_scores, token_label_classes = np.array(token_label_scores), np.array(token_label_classes)
+    # fig, axes = plt.subplots(num_height_patch, num_width_patch)
+
+    image_pathes, labels = [], []
+    for hh_id in range(num_height_patch):
+        hh_image = image[hh_id * height_patch : (hh_id + 1) * height_patch]
+        for ww_id in range(num_width_patch):
+            image_patch = hh_image[:, ww_id * width_patch : (ww_id + 1) * width_patch]
+            image_pathes.append(numpy_image_resize(image_patch, resize_patch_shape))
+            scores = ",".join(["{:.1f}".format(ii * 100) for ii in token_label_scores[hh_id, ww_id]])
+            classes = ",".join(["{:d}".format(ii) for ii in token_label_classes[hh_id, ww_id].astype("int")])
+            labels.append(classes + "\n" + scores)
+    plot_func.stack_and_plot_images(image_pathes, labels)
+
+
 """ Show detection results """
 
 
@@ -139,6 +206,64 @@ def show_image_with_bboxes_and_masks(
     image, bboxes=None, labels=None, confidences=None, masks=None, is_bbox_width_first=False, ax=None, label_font_size=8, num_classes=80, indices_2_labels=None
 ):
     return show_image_with_bboxes(**locals())
+
+
+def show_detection_batch_sample(
+    dataset, rescale_mode="torch", rows=-1, label_font_size=8, base_size=3, anchors_mode="efficientdet", indices_2_labels=None, **anchor_kwargs
+):
+    import matplotlib.pyplot as plt
+    from keras_cv_attention_models.common_layers import init_mean_std_by_rescale_mode
+    from keras_cv_attention_models.coco import anchors_func
+    from keras_cv_attention_models.backend import is_channels_last
+
+    if isinstance(dataset, (list, tuple)):
+        images, labels = dataset
+    else:
+        images, labels = next(iter(dataset))
+    images, labels = np.array(images), np.array(labels)
+
+    mean, std = init_mean_std_by_rescale_mode(rescale_mode)
+    images = (images * std + mean) / 255
+    images = images if is_channels_last() else images.transpose([0, 2, 3, 1])
+
+    if anchors_mode == anchors_func.YOLOR_MODE:
+        pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(images.shape[1:-1], labels.shape[1])
+        anchors = anchors_func.get_yolor_anchors(images.shape[1:-1], pyramid_levels=pyramid_levels, is_for_training=False)
+    elif not anchors_mode == anchors_func.ANCHOR_FREE_MODE:
+        pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(images.shape[1:-1], labels.shape[1])
+        anchors = anchors_func.get_anchors(images.shape[1:-1], pyramid_levels, **anchor_kwargs)
+
+    cols, rows = get_plot_cols_rows(len(images), rows, ceil_mode=True)
+    fig, axes = plt.subplots(rows, cols, figsize=(base_size * cols, base_size * rows))
+    axes = axes.flatten()
+
+    for ax, image, label in zip(axes, images, labels):
+        if label.shape[-1] == 5:
+            pick = label[:, -1] >= 0
+            valid_preds = label[pick]
+        else:
+            pick = label[:, -1] == 1
+            valid_preds = label[pick]
+            valid_label = np.argmax(valid_preds[:, 4:-1], axis=-1)[:, None]
+            valid_preds = np.concatenate([valid_preds[:, :4], valid_label], axis=-1)
+
+        if anchors_mode == anchors_func.YOLOR_MODE:
+            valid_anchors = anchors[pick]
+            decoded_centers = (valid_preds[:, :2] + 0.5) * valid_anchors[:, 4:] + valid_anchors[:, :2]
+            decoded_hw = valid_preds[:, 2:4] * valid_anchors[:, 4:]
+
+            top_left = decoded_centers - decoded_hw * 0.5
+            bottom_right = top_left + decoded_hw
+            decoded_corner = np.concatenate([top_left, bottom_right], axis=-1)
+
+            valid_preds = np.concatenate([decoded_corner, valid_preds[:, -1:]], axis=-1)
+        elif not anchors_mode == anchors_func.ANCHOR_FREE_MODE:
+            valid_anchors = anchors[pick]
+            valid_preds = anchors_func.decode_bboxes(valid_preds, valid_anchors)
+        show_image_with_bboxes(image, valid_preds[:, :4], valid_preds[:, -1], ax=ax, label_font_size=label_font_size, indices_2_labels=indices_2_labels)
+    fig.tight_layout()
+    plt.show()
+    return fig
 
 
 """ Show clip results """

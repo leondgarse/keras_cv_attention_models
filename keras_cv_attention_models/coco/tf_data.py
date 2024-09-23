@@ -2,9 +2,10 @@ import os
 import tensorflow as tf
 from tensorflow import keras
 from keras_cv_attention_models.common_layers import init_mean_std_by_rescale_mode
-from keras_cv_attention_models.imagenet.data import tf_imread, random_crop_and_resize_image
+from keras_cv_attention_models.imagenet.tf_data import tf_imread, random_crop_and_resize_image
 from keras_cv_attention_models.coco import anchors_func
 from keras_cv_attention_models.plot_func import draw_bboxes, show_image_with_bboxes
+from keras_cv_attention_models.plot_func import show_detection_batch_sample as show_batch_sample
 
 
 """ Bboxes augment """
@@ -497,54 +498,3 @@ def init_dataset(
         test_dataset = test_dataset.map(test_process).batch(batch_size, drop_remainder=drop_remainder).map(lambda xx, yy: (rescaling(xx), bbox_process(yy)))
 
     return train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
-
-
-""" Show """
-
-
-def show_batch_sample(
-    dataset, rescale_mode="torch", rows=-1, label_font_size=8, base_size=3, anchors_mode="efficientdet", indices_2_labels=None, **anchor_kwargs
-):
-    import matplotlib.pyplot as plt
-    from keras_cv_attention_models.plot_func import get_plot_cols_rows, show_image_with_bboxes
-
-    if isinstance(dataset, (list, tuple)):
-        images, labels = dataset
-    else:
-        images, labels = dataset.as_numpy_iterator().next()
-    mean, std = init_mean_std_by_rescale_mode(rescale_mode)
-    images = (images * std + mean) / 255
-    if anchors_mode == anchors_func.YOLOR_MODE:
-        pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(images.shape[1:-1], labels.shape[1])
-        anchors = anchors_func.get_yolor_anchors(images.shape[1:-1], pyramid_levels=pyramid_levels, is_for_training=False)
-    elif not anchors_mode == anchors_func.ANCHOR_FREE_MODE:
-        pyramid_levels = anchors_func.get_pyramid_levels_by_anchors(images.shape[1:-1], labels.shape[1])
-        anchors = anchors_func.get_anchors(images.shape[1:-1], pyramid_levels, **anchor_kwargs)
-
-    cols, rows = get_plot_cols_rows(len(images), rows, ceil_mode=True)
-    fig, axes = plt.subplots(rows, cols, figsize=(base_size * cols, base_size * rows))
-    axes = axes.flatten()
-
-    for ax, image, label in zip(axes, images, labels):
-        if label.shape[-1] == 5:
-            pick = label[:, -1] >= 0
-            valid_preds = label[pick]
-        else:
-            pick = label[:, -1] == 1
-            valid_preds = label[pick]
-            valid_label = tf.cast(tf.argmax(valid_preds[:, 4:-1], axis=-1), valid_preds.dtype)
-            valid_preds = tf.concat([valid_preds[:, :4], tf.expand_dims(valid_label, -1)], axis=-1)
-
-        if anchors_mode == anchors_func.YOLOR_MODE:
-            valid_anchors = anchors[pick]
-            decoded_centers = (valid_preds[:, :2] + 0.5) * valid_anchors[:, 4:] + valid_anchors[:, :2]
-            decoded_hw = valid_preds[:, 2:4] * valid_anchors[:, 4:]
-            decoded_corner = anchors_func.center_yxhw_to_corners_nd(tf.concat([decoded_centers, decoded_hw], axis=-1))
-            valid_preds = tf.concat([decoded_corner, valid_preds[:, -1:]], axis=-1)
-        elif not anchors_mode == anchors_func.ANCHOR_FREE_MODE:
-            valid_anchors = anchors[pick]
-            valid_preds = anchors_func.decode_bboxes(valid_preds, valid_anchors)
-        show_image_with_bboxes(image, valid_preds[:, :4], valid_preds[:, -1], ax=ax, label_font_size=label_font_size, indices_2_labels=indices_2_labels)
-    fig.tight_layout()
-    plt.show()
-    return fig

@@ -1,11 +1,14 @@
 from keras_cv_attention_models import backend
 from keras_cv_attention_models.imagenet.eval_func import evaluation, combine_hist_into_one, parse_timm_log, decode_predictions, decode_predictions_imagenet21k
-from keras_cv_attention_models.plot_func import plot_hists
+from keras_cv_attention_models.plot_func import plot_hists, show_batch_sample, show_token_label_patches_single
 from keras_cv_attention_models.imagenet import callbacks
 from keras_cv_attention_models.imagenet import metrics
 from keras_cv_attention_models.imagenet.train_func import init_lr_scheduler, init_model, train
 
-if backend.is_tensorflow_backend:
+if not backend.is_tensorflow_backend:
+    from keras_cv_attention_models.imagenet import torch_data as data
+    from keras_cv_attention_models.imagenet.torch_data import init_dataset
+else:
     from keras_cv_attention_models.imagenet.train_func import (
         compile_model,
         init_global_strategy,
@@ -13,8 +16,8 @@ if backend.is_tensorflow_backend:
         init_optimizer,
         is_decoupled_weight_decay,
     )
-    from keras_cv_attention_models.imagenet import data
-    from keras_cv_attention_models.imagenet.data import init_dataset
+    from keras_cv_attention_models.imagenet import tf_data as data
+    from keras_cv_attention_models.imagenet.tf_data import init_dataset
     from keras_cv_attention_models.imagenet import losses
     from keras_cv_attention_models.imagenet import token_label
 
