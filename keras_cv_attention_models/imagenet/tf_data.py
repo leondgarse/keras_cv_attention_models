@@ -2,6 +2,7 @@ import os
 import tensorflow as tf
 from tensorflow import keras
 from keras_cv_attention_models.common_layers import init_mean_std_by_rescale_mode
+from keras_cv_attention_models.plot_func import show_batch_sample, show_token_label_patches_single
 
 
 def tf_imread(file_path):
@@ -351,9 +352,13 @@ def init_from_json_or_csv_or_tsv(data_path, is_caption=False):
 
     """ Construct more info """
     total_images, num_classes = len(train), info.get("num_classes", 0)
-    if not is_caption and num_classes <= 0 and "label" in train[0] and isinstance(train[0]["label"], int):
-        num_classes = max([ii["label"] for ii in train]) + 1
-        print(">>>> Using max value from train as num_classes:", num_classes)
+    if not is_caption and num_classes <= 0:
+        if "label" in train[0] and isinstance(train[0]["label"], int):
+            num_classes = max([ii["label"] for ii in train]) + 1
+            print(">>>> Using max value from train label as num_classes:", num_classes)
+        elif isinstance(train[0].get("objects", {}).get("label", None), int):
+            num_classes = max([max([int(jj) for jj in ii["objects"]["label"]]) for ii in train]) + 1
+            print(">>>> Using max value from train objects label as num_classes:", num_classes)
 
     if "base_path" in info and len(info["base_path"]) > 0:
         base_path = os.path.expanduser(info["base_path"])
@@ -459,6 +464,7 @@ def init_dataset(
     try_gcs, drop_remainder = is_tpu, is_tpu
     use_token_label = False if token_label_file is None else True
     use_distill = False if teacher_model is None else True
+    input_shape = input_shape[:2] if isinstance(input_shape, (list, tuple)) else (input_shape, input_shape)
     teacher_model_input_shape = input_shape if teacher_model_input_shape == -1 else teacher_model_input_shape
 
     if data_name.endswith(".json") or data_name.endswith(".tsv"):
@@ -543,65 +549,3 @@ def init_dataset(
         # Have to drop_remainder also for test set...
         test_dataset = test_dataset.batch(batch_size, drop_remainder=drop_remainder).map(test_post_batch)
     return train_dataset, test_dataset, total_images, num_classes, steps_per_epoch
-
-
-""" Show """
-
-
-def show_batch_sample(dataset, rescale_mode="tf", rows=-1, caption_tokenizer=None, base_size=3, indices_2_labels=None):
-    from keras_cv_attention_models import plot_func
-    from keras_cv_attention_models.imagenet.eval_func import decode_predictions
-
-    if isinstance(dataset, (list, tuple)):
-        images, labels = dataset
-    elif isinstance(dataset.element_spec[0], tuple):  # caption datasets
-        (images, labels), _ = dataset.as_numpy_iterator().next()
-    elif isinstance(dataset.element_spec[1], tuple):  # token_label datasets
-        images, (labels, token_label) = dataset.as_numpy_iterator().next()
-    else:
-        images, labels = dataset.as_numpy_iterator().next()
-
-    if caption_tokenizer is not None:
-        labels = [caption_tokenizer(ii) for ii in labels]
-
-    mean, std = init_mean_std_by_rescale_mode(rescale_mode)
-    mean, std = (mean.numpy(), std.numpy()) if hasattr(mean, "numpy") else (mean, std)
-    images = (images * std + mean) / 255
-
-    if isinstance(labels[0], str):
-        pass  # caption datasets
-    elif tf.shape(labels)[-1] == 1000:
-        labels = [ii[0][1] for ii in decode_predictions(labels, top=1)]
-    elif tf.rank(labels[0]) == 1:
-        labels = tf.argmax(labels, axis=-1).numpy()  # If 2 dimension
-
-    if not isinstance(labels[0], str) and indices_2_labels is not None:
-        labels = [indices_2_labels.get(label, indices_2_labels.get(str(label), str(label))) for label in labels]
-    ax, _ = plot_func.stack_and_plot_images(images, texts=labels, rows=rows, ax=None, base_size=base_size)
-    return ax
-
-
-def show_token_label_patches_single(image, token_label, rescale_mode="tf", top_k=3, resize_patch_shape=(160, 160)):
-    from keras_cv_attention_models import plot_func
-
-    mean, std = init_mean_std_by_rescale_mode(rescale_mode)
-    mean, std = (mean.numpy(), std.numpy()) if hasattr(mean, "numpy") else (mean, std)
-    image = (image * std + mean) / 255
-
-    height, width = image.shape[:2]
-    num_height_patch, num_width_patch = token_label.shape[0], token_label.shape[1]
-    height_patch, width_patch = int(tf.math.ceil(height / num_height_patch)), int(tf.math.ceil(width / num_width_patch))
-    token_label_scores, token_label_classes = tf.math.top_k(token_label, top_k)
-    token_label_scores, token_label_classes = token_label_scores.numpy(), token_label_classes.numpy()
-    # fig, axes = plt.subplots(num_height_patch, num_width_patch)
-
-    image_pathes, labels = [], []
-    for hh_id in range(num_height_patch):
-        hh_image = image[hh_id * height_patch : (hh_id + 1) * height_patch]
-        for ww_id in range(num_width_patch):
-            image_patch = hh_image[:, ww_id * width_patch : (ww_id + 1) * width_patch]
-            image_pathes.append(tf.image.resize(image_patch, resize_patch_shape).numpy())
-            scores = ",".join(["{:.1f}".format(ii * 100) for ii in token_label_scores[hh_id, ww_id]])
-            classes = ",".join(["{:d}".format(ii) for ii in token_label_classes[hh_id, ww_id].astype("int")])
-            labels.append(classes + "\n" + scores)
-    plot_func.stack_and_plot_images(image_pathes, labels)

@@ -1,6 +1,10 @@
 import os
 import json
+import types
 import numpy as np
+from tqdm import tqdm
+from keras_cv_attention_models.models import no_grad_if_torch
+from keras_cv_attention_models.backend import models, is_tensorflow_backend, is_channels_last, get_file
 
 
 CLASS_INDEX_IMAGENET = None
@@ -140,18 +144,16 @@ class ONNXModelInterf:
         # return np.array([self.ort_session.run(self.output_names, {self.input_name: imgs[None]})[0][0] for img in imgs])
 
 
+@no_grad_if_torch
 def evaluation(
     model, data_name="imagenet2012", input_shape=None, batch_size=64, central_crop=1.0, resize_method="bicubic", antialias=True, rescale_mode="auto"
 ):
-    import types
-    from tqdm import tqdm
-    from keras_cv_attention_models.backend import models
     from keras_cv_attention_models.model_surgery import change_model_input_shape
-    from keras_cv_attention_models.imagenet import data
+    from keras_cv_attention_models.imagenet import data  # avoiding circular import
 
     if isinstance(model, models.Model):
-        input_shape = model.input_shape[1:-1] if input_shape is None else input_shape[:2]
-        model_interf = change_model_input_shape(model, input_shape)
+        input_shape = (model.input_shape[1:-1] if is_channels_last() else model.input_shape[2:]) if input_shape is None else input_shape[:2]
+        model_interf = change_model_input_shape(model, input_shape) if is_tensorflow_backend else model
         print(">>>> Using input_shape {} for Keras model.".format(input_shape))
     elif isinstance(model, TFLiteModelInterf) or (isinstance(model, str) and model.endswith(".tflite")):
         model_interf = model if isinstance(model, TFLiteModelInterf) else TFLiteModelInterf(model)
@@ -182,7 +184,7 @@ def evaluation(
     )[1]
 
     y_true, y_pred_top_1, y_pred_top_5 = [], [], []
-    for img_batch, true_labels in tqdm(test_dataset.as_numpy_iterator(), "Evaluating", total=len(test_dataset)):
+    for img_batch, true_labels in tqdm(test_dataset, "Evaluating", total=len(test_dataset)):
         predicts = model_interf(img_batch)
         predicts = np.array(predicts.detach() if hasattr(predicts, "detach") else predicts)
         pred_argsort = predicts.argsort(-1)
@@ -201,8 +203,6 @@ def evaluation(
 
 def decode_predictions(preds, top=5):
     """Similar function from keras.applications.imagenet_utils.decode_predictions, just also supporting imagenet21k class index"""
-    from keras_cv_attention_models.backend import get_file
-
     preds = np.array(preds.detach() if hasattr(preds, "detach") else preds)
     if len(preds.shape) != 2 or (preds.shape[-1] not in [1000, 21843, 21841]):
         print("[Error] not imagenet or imagenet21k prediction, not supported")

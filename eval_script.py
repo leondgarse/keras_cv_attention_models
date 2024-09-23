@@ -1,7 +1,25 @@
 #!/usr/bin/env python3
+import os
 import json
+import kecam
 from keras_cv_attention_models.imagenet import evaluation
-import tensorflow as tf
+
+if kecam.backend.is_torch_backend:  # os.environ["KECAM_BACKEND"] = "torch"
+    import torch
+
+    # Always 0, no matter CUDA_VISIBLE_DEVICES
+    global_device = torch.device("cuda:0") if torch.cuda.is_available() and int(os.environ.get("CUDA_VISIBLE_DEVICES", "0")) >= 0 else torch.device("cpu")
+else:
+    import tensorflow as tf
+
+    gpus = tf.config.experimental.get_visible_devices("GPU")
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+
+    try:
+        import tensorflow_addons as tfa
+    except:
+        pass
 
 
 def parse_arguments(argv):
@@ -40,15 +58,6 @@ def parse_arguments(argv):
 
 
 if __name__ == "__main__":
-    gpus = tf.config.experimental.get_visible_devices("GPU")
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
-
-    try:
-        import tensorflow_addons as tfa
-    except:
-        pass
-    import keras_cv_attention_models
     import sys
 
     args = parse_arguments(sys.argv[1:])
@@ -68,9 +77,9 @@ if __name__ == "__main__":
     else:  # model_path like: volo.VOLO_d1
         model_name = args.model_path.strip().split(".")
         if len(model_name) == 1:
-            model_class = getattr(keras_cv_attention_models.models, model_name[0])(num_classes=num_classes, pretrained=pretrained, **kwargs)
+            model_class = getattr(kecam.models, model_name[0])
         else:
-            model_class = getattr(getattr(keras_cv_attention_models, model_name[0]), model_name[1])
+            model_class = getattr(getattr(kecam, model_name[0]), model_name[1])
         model_kwargs = json.loads(args.additional_model_kwargs) if args.additional_model_kwargs else {}
         if input_shape:
             model_kwargs.update({"input_shape": input_shape})
