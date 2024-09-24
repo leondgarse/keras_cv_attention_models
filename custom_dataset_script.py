@@ -5,7 +5,7 @@ import random
 from glob import glob
 from tqdm import tqdm
 
-IMAGE_SUFFIX = ["*.jpg", "*.jpeg", "*.png"]
+IMAGE_SUFFIX = ["*.jpg", "*.JPG", "*.jpeg", "*.JPEG", "*.png", "*.PNG"]
 
 
 def walk_through_image_folder(data_path, depth=2, image_classes_rule=None):
@@ -31,7 +31,7 @@ def walk_through_image_folder(data_path, depth=2, image_classes_rule=None):
 
 class ImageClassesRule_map:
     def __init__(self, dir, dir_rule="*", excludes=[]):
-        raw_labels = [os.path.basename(ii) for ii in glob(os.path.join(dir, dir_rule))]
+        raw_labels = [os.path.basename(ii) for ii in glob(os.path.join(dir, dir_rule)) if os.path.isdir(ii)]
         raw_labels = [ii for ii in raw_labels if ii not in excludes]
         is_all_numeric = sum([str.isnumeric(ii) for ii in raw_labels]) == len(raw_labels)
         if is_all_numeric:

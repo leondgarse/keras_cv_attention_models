@@ -186,7 +186,7 @@ def evaluation(
     y_true, y_pred_top_1, y_pred_top_5 = [], [], []
     for img_batch, true_labels in tqdm(test_dataset, "Evaluating", total=len(test_dataset)):
         predicts = model_interf(img_batch)
-        predicts = np.array(predicts.detach() if hasattr(predicts, "detach") else predicts)
+        predicts = np.array(predicts.cpu().detach() if hasattr(predicts, "detach") else predicts)
         pred_argsort = predicts.argsort(-1)
         y_pred_top_1.extend(pred_argsort[:, -1])
         y_pred_top_5.extend(pred_argsort[:, -5:])

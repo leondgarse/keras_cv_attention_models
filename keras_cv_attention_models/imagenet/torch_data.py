@@ -48,7 +48,7 @@ class RecognitionDatset(Dataset):
     def __init__(self, images, labels, num_classes, is_train=False, input_shape=(224, 224), central_crop=1.0, rescale_mode="torch", resize_method="bilinear"):
         from torchvision.transforms import Normalize, Compose, RandomResizedCrop, CenterCrop, Resize, InterpolationMode, ToTensor
 
-        self.images, self.labels = images, labels
+        self.images, self.labels, self.num_classes = images, labels, num_classes
         mean, std = init_mean_std_by_rescale_mode(rescale_mode)
         self.mean, self.std = mean / 255, std / 255  # ToTensor is already converted / 255
         interpolation = getattr(InterpolationMode, INTERPOLATION_MODE_MAP.get(resize_method, "INTER_LINEAR"))
@@ -67,7 +67,9 @@ class RecognitionDatset(Dataset):
         return len(self.images)
 
     def __getitem__(self, idx):
-        return self.transforms(Image.open(str(self.images[idx]))), torch.functional.F.one_hot(torch.tensor(self.labels[idx]), 10)
+        image = self.transforms(Image.open(str(self.images[idx])))
+        label = torch.functional.F.one_hot(torch.tensor(self.labels[idx]), self.num_classes)
+        return image, label
 
 
 def init_dataset(

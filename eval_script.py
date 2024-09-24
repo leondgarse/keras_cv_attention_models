@@ -90,5 +90,8 @@ if __name__ == "__main__":
         print(">>>> model_kwargs:", model_kwargs)
         model = model_class(**model_kwargs)
 
+        if kecam.backend.is_torch_backend:
+            model.to(device=global_device)
+
     antialias = not args.disable_antialias
     evaluation(model, args.data_name, input_shape, args.batch_size, args.central_crop, args.resize_method, antialias, args.rescale_mode)
