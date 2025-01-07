@@ -224,7 +224,7 @@ if __name__ == "__main__":
 
         if kecam.backend.is_torch_backend:
             model.to(device=global_device)
-            optimizer = build_torch_optimizer(model, lr=args.lr, weight_decay=args.weight_decay, beta1=0.9, beta2=0.95)
+            optimizer = build_torch_optimizer(model, lr=lr, weight_decay=args.weight_decay, beta1=0.9, beta2=0.95)
             if hasattr(torch, "compile") and torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 6:
                 print(">>>> Calling torch.compile")
                 model = torch.compile(model)
