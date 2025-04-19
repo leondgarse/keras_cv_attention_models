@@ -66,6 +66,9 @@ class Initializer:
         config.pop("dtype", None)
         return cls(**config)
 
+    def get_config(self):
+        return {"seed": self.seed}
+
 
 class Constant(Initializer):
     def __init__(self, value=0):
