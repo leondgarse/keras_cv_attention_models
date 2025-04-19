@@ -485,17 +485,19 @@ def addaptive_pooling_2d(inputs, output_size, reduce="mean", data_format="auto",
 
 
 @backend.register_keras_serializable(package="kecamCommon")
-def __anti_alias_downsample_initializer__(weight_shape, dtype="float32"):
-    import numpy as np
+class AntiAliasDownsampleInitializer(initializers.Initializer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-    kernel_size, channel = (weight_shape[0], weight_shape[2]) if backend.image_data_format() == "channels_last" else (weight_shape[2], weight_shape[0])
-    ww = np.array(np.poly1d((0.5, 0.5)) ** (kernel_size - 1)).astype("float32")
-    ww = np.expand_dims(ww, 0) * np.expand_dims(ww, 1)
-    if backend.image_data_format() == "channels_last":
-        ww = np.repeat(ww[:, :, None, None], channel, axis=-2)
-    else:
-        ww = np.repeat(ww[None, None, :, :], channel, axis=0)
-    return functional.convert_to_tensor(ww, dtype=dtype)
+    def __call__(self, weight_shape, dtype="float32", **kwargs):
+        kernel_size, channel = (weight_shape[0], weight_shape[2]) if backend.image_data_format() == "channels_last" else (weight_shape[2], weight_shape[0])
+        ww = np.array(np.poly1d((0.5, 0.5)) ** (kernel_size - 1)).astype("float32")
+        ww = np.expand_dims(ww, 0) * np.expand_dims(ww, 1)
+        if backend.image_data_format() == "channels_last":
+            ww = np.repeat(ww[:, :, None, None], channel, axis=-2)
+        else:
+            ww = np.repeat(ww[None, None, :, :], channel, axis=0)
+        return functional.convert_to_tensor(ww, dtype=dtype)
 
 
 def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="same", trainable=False, name=None):
@@ -506,7 +508,7 @@ def anti_alias_downsample(inputs, kernel_size=3, strides=2, padding="same", trai
         padding="same",
         use_bias=False,
         trainable=trainable,
-        depthwise_initializer=__anti_alias_downsample_initializer__,
+        depthwise_initializer=AntiAliasDownsampleInitializer(),
         name=name and name + "anti_alias_down",
     )(inputs)
 
@@ -523,13 +525,17 @@ def make_divisible(vv, divisor=4, min_value=None, limit_round_down=0.9):
 
 
 @backend.register_keras_serializable(package="kecamCommon")
-def __unfold_filters_initializer__(weight_shape, dtype="float32"):
-    kernel_size = weight_shape[0]
-    kernel_out = kernel_size * kernel_size
-    ww = np.reshape(np.eye(kernel_out, dtype="float32"), [kernel_size, kernel_size, 1, kernel_out])
-    if len(weight_shape) == 5:  # Conv3D or Conv3DTranspose
-        ww = np.expand_dims(ww, 2)
-    return functional.convert_to_tensor(ww)
+class UnfoldFiltersInitializer(initializers.Initializer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def __call__(self, weight_shape, dtype="float32", **kwargs):
+        kernel_size = weight_shape[0]
+        kernel_out = kernel_size * kernel_size
+        ww = np.reshape(np.eye(kernel_out, dtype="float32"), [kernel_size, kernel_size, 1, kernel_out])
+        if len(weight_shape) == 5:  # Conv3D or Conv3DTranspose
+            ww = np.expand_dims(ww, 2)
+        return functional.convert_to_tensor(ww)
 
 
 def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=2, dilation_rate=1, padding="same", compressed="auto", name=None):
@@ -557,11 +563,11 @@ def fold_by_conv2d_transpose(patches, output_shape=None, kernel_size=3, strides=
         output_padding=paded,
         use_bias=False,
         trainable=False,
-        kernel_initializer=__unfold_filters_initializer__,
+        kernel_initializer=UnfoldFiltersInitializer(),
         name=name and name + "fold_convtrans",
     )(conv_rr)
 
-    out = functional.reshape(convtrans_rr[..., 0], [-1, channel, convtrans_rr.shape[1], convtrans_rr.shape[2]])
+    out = functional.reshape(functional.squeeze(convtrans_rr, axis=-1), [-1, channel, convtrans_rr.shape[1], convtrans_rr.shape[2]])
     out = functional.transpose(out, [0, 2, 3, 1])
     if output_shape is None:
         output_shape = [-paded, -paded]
@@ -613,7 +619,7 @@ class CompatibleExtractPatches(layers.Layer):
                 padding="valid",
                 use_bias=False,
                 trainable=False,
-                kernel_initializer=__unfold_filters_initializer__,
+                kernel_initializer=UnfoldFiltersInitializer(),
                 name=self.name and self.name + "unfold_conv",
             )
             self.conv.build([None, *input_shape[1:-1], 1])
