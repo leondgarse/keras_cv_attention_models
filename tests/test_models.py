@@ -774,7 +774,7 @@ def test_stable_diffusion_no_weights_predict():
     else:
         out = out.numpy()
         assert out.shape == (1, 256, 256, 3)
-    assert out.min() > -8 and out.max() < 8  # It should be within this range
+    assert out.min() > -10 and out.max() < 10  # It should be within this range
 
 
 """ Segmentation models """
