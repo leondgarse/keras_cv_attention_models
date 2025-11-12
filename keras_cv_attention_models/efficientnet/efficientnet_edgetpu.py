@@ -1,4 +1,4 @@
-""" Creates an EfficientNet-EdgeTPU model
+"""Creates an EfficientNet-EdgeTPU model
 Ref impl: https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet/edgetpu
 """
 

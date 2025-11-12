@@ -54,8 +54,8 @@ def reload_model_weights(
         file_name = os.path.basename(url)
         try:
             pretrained_model = backend.get_file(file_name, url, cache_subdir="models", file_hash=cur_file_hash)
-        except:
-            print("[Error] will not load weights, url not found or download failed:", url)
+        except Exception as ee:
+            print(f"[Error] will not load weights, url not found or download failed. Error message: {ee}, url: {url}")
             return None
         else:
             print(">>>> Load pretrained from:", pretrained_model)

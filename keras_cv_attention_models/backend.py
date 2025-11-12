@@ -29,7 +29,10 @@ if is_tensorflow_backend:
 
         is_tf_use_legacy_keras = os.environ.get("TF_USE_LEGACY_KERAS", "0") == "1"
         if int(tf_version[0]) >= 2 and int(tf_version[1]) >= 16 and int(tf_keras_version[0]) >= 3:
-            print("[WARNING] Currently tensorflow>=2.16 with keras 3 not supported, try pip install tf-keras~=2.16 and set TF_USE_LEGACY_KERAS=1 if error.")
+            suggest = ".".join(tf_version[:2])
+            print(
+                f"[WARNING] Currently tensorflow>=2.16 with keras 3 not supported, try pip install tf-keras~={suggest} and set TF_USE_LEGACY_KERAS=1 if error."
+            )
         elif int(tf_version[0]) >= 2 and int(tf_version[1]) >= 16 and not is_tf_use_legacy_keras:
             os.environ["TF_USE_LEGACY_KERAS"] = "1"
             print("[WARNING] Setting TF_USE_LEGACY_KERAS=1. Make sure this is ahead of importing tensorflow or keras.")

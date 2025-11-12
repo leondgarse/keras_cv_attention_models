@@ -1,4 +1,4 @@
-""" CLIP tokenizer
+"""CLIP tokenizer
 
 Copied from https://github.com/mlfoundations/open_clip/blob/main/src/open_clip/tokenizer.py
 Copied from https://github.com/openai/CLIP. Originally MIT License, Copyright (c) 2021 OpenAI.
