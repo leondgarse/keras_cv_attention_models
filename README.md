@@ -1527,10 +1527,10 @@
 
   | Model              | Params | FLOPs  | Input | Top1 Acc |
   | ------------------ | ------ | ------ | ----- | -------- |
-  | ViT5_Small_Patch16 | 22.04M | 4.73G  | 224   | 82.2     |
-  | ViT5_Base_Patch16  | 86.54M | 18.00G | 224   | 84.2     |
-  | ViT5_Base_Patch16  | 86.83M | 56.19G | 384   | 85.4     |
-  | ViT5_Large_Patch16 | 304.3M | 63.01G | 224   | 84.9     |
+  | [ViT5_Small_Patch16](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/vit5_small_patch16_224_imagenet.h5) | 22.04M | 4.73G  | 224   | 82.2     |
+  | [ViT5_Base_Patch16](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/vit5_base_patch16_224_imagenet.h5) | 86.54M | 18.00G | 224   | 84.2     |
+  | [ViT5_Base_Patch16](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/vit5_base_patch16_384_imagenet.h5) | 86.83M | 56.19G | 384   | 85.4     |
+  | [ViT5_Large_Patch16](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/vit5_large_patch16_224_imagenet.h5) | 304.3M | 63.01G | 224   | 84.9     |
   | ViT5_Large_Patch16 | 304.6M | 193.2G | 384   | 86.0     |
 ## VOLO
   - [Keras VOLO](keras_cv_attention_models/volo) is for [PDF 2106.13112 VOLO: Vision Outlooker for Visual Recognition](https://arxiv.org/pdf/2106.13112.pdf).

@@ -106,11 +106,19 @@ Key rules:
 
 ## 6. Documentation
 
-1. **Model-specific `README.md`** (e.g., `beit/README.md`, `llama2/README.md`):
+Model table metrics:
+- **Params**: Computed via `model_surgery.count_params(model)`.
+- **FLOPs**: Computed via `model_surgery.get_flops(model)`.
+- **Top1 Acc**: From the original paper or reference repo.
+
+1. **Inner README** (e.g., `beit/README.md`, `llama2/README.md`):
    - Add paper reference in the Summary section.
-   - Add model table with Params, FLOPs, and model-specific metrics.
-   - Download links: `[filename.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/{sub_release}/{filename}.h5)`
-2. **Root `README.md`**: Add entry to Table of Contents in alphabetical order.
+   - Add model table with Params, FLOPs, Input, Top1 Acc, and a separate **Download** column with links.
+   - Example: `| ViT5_Small_Patch16 | 22.04M | 4.73G | 224 | 82.2 | [vit5_small_patch16_224.h5](https://...h5) |`
+2. **Outer `README.md`**:
+   - Add entry to Table of Contents in alphabetical order.
+   - Add model table where the **model name itself is the download link** (no separate Download column).
+   - Example: `| [ViT5_Small_Patch16](https://...h5) | 22.04M | 4.73G | 224 | 82.2 |`
 3. **`__init__.py`**: Ensure all parameters are documented with model-specific defaults noted.
 
 ## 7. Testing
