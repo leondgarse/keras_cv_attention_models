@@ -247,7 +247,7 @@ class _Exporter_(object):
         from torchinfo import summary
 
         input_datas = self._create_fake_input_data_(input_shape)
-        summary(self, input_data=input_datas if len(self.inputs) == 1 else [input_datas], **kwargs)
+        return summary(self, input_data=input_datas if len(self.inputs) == 1 else [input_datas], **kwargs)
 
     def export_onnx(self, filepath=None, input_shape=None, batch_size=1, simplify=False, input_names=None, output_names=None, **kwargs):
         input_datas = self._create_fake_input_data_(input_shape, batch_size=batch_size)
