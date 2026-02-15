@@ -21,6 +21,14 @@ def test_Beit_defination():
     assert isinstance(mm, models.Model)
 
 
+def test_ViT5_defination():
+    mm = keras_cv_attention_models.beit.ViT5_Small_Patch16(pretrained=None)
+    assert isinstance(mm, models.Model)
+
+    mm = keras_cv_attention_models.beit.ViT5_Base_Patch16(pretrained=None, num_classes=0)
+    assert isinstance(mm, models.Model)
+
+
 def test_BotNet_defination():
     mm = keras_cv_attention_models.botnet.BotNet50(pretrained=None)
     assert isinstance(mm, models.Model)
@@ -186,6 +194,14 @@ def test_WaveMLP_defination():
 
 def test_Beit_new_shape_predict():
     mm = keras_cv_attention_models.beit.BeitBasePatch16(input_shape=(320, 320, 3))
+    pred = mm(mm.preprocess_input(cat()))
+    out = mm.decode_predictions(pred)[0][0]
+
+    assert out[1] == "Egyptian_cat"
+
+
+def test_ViT5_predict():
+    mm = keras_cv_attention_models.beit.ViT5_Small_Patch16(pretrained="imagenet")
     pred = mm(mm.preprocess_input(cat()))
     out = mm.decode_predictions(pred)[0][0]
 

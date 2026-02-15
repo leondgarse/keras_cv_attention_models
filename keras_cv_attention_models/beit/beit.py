@@ -14,6 +14,7 @@ from keras_cv_attention_models.attention_layers import (
     PositionalEncodingFourierRot1D,
     CausalMask,
     add_pre_post_process,
+    RMSNorm,
 )
 from keras_cv_attention_models.download_and_load import reload_model_weights
 
@@ -43,73 +44,117 @@ PRETRAINED_DICT = {
     "meta_transformer_base_patch16": {"laion_2b": {384: "5daafcdef0895ab292b39173331c12c3"}},
     "meta_transformer_large_patch14": {"laion_2b": {336: "f3a4444bf823ccbaab6e586d9915ffb1"}},
     "vit_text_large_patch14": {"clip": "ebeaed60ecd6685c5aeaba117f1b1737"},
+    "vit5_small_patch16": {"imagenet": {224: "f60778dbc03efc0455c2efd197164368"}},
+    "vit5_base_patch16": {"imagenet": {224: "5f6b4958b86cabaa5f7c3cb37ee9cc65", 384: "6622efcd8fe321f8321b6cee4e3aa069"}},
+    "vit5_large_patch16": {"imagenet": {224: "08f35247ba56768d403e4c58f26f6771"}},
 }
 
 
 @backend.register_keras_serializable(package="beit")
 class PositionalEncodingFourierRot(layers.Layer):
-    def __init__(self, with_cls_token=True, attn_height=-1, num_heads=-1, temperature=1e4, ref_feature_shape=16, **kwargs):
+    def __init__(
+        self,
+        with_cls_token=True,
+        num_reg_tokens=0,
+        attn_height=-1,
+        num_heads=-1,
+        temperature=1e4,
+        reg_temperature=100,
+        ref_feature_shape=16,
+        reg_ref_feature_shape=14,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
-        self.with_cls_token, self.attn_height, self.num_heads = with_cls_token, attn_height, num_heads
-        self.temperature, self.ref_feature_shape = float(temperature), ref_feature_shape
-        self.cls_token_len = 1 if with_cls_token else 0
+        self.with_cls_token, self.num_reg_tokens = with_cls_token, num_reg_tokens
+        self.num_cls_tokens = 1 if with_cls_token else 0
+        self.attn_height, self.num_heads = attn_height, num_heads
+        self.temperature, self.reg_temperature = float(temperature), float(reg_temperature)
+        self.ref_feature_shape, self.reg_ref_feature_shape = ref_feature_shape, reg_ref_feature_shape
+
+        if hasattr(self, "register_buffer"):  # PyTorch
+            self.register_buffer("pos_sin", None, persistent=False)
+            self.register_buffer("pos_cos", None, persistent=False)
+            if self.num_reg_tokens > 0:
+                self.register_buffer("reg_pos_sin", None, persistent=False)
+                self.register_buffer("reg_pos_cos", None, persistent=False)
+
+    def _get_sin_cos_pos(self, height, width, ref_feature_shape, temperature):
+        hh, ww = np.arange(height, dtype="float32"), np.arange(width, dtype="float32")
+        if ref_feature_shape is not None and ref_feature_shape > 0:
+            hh = hh / height * ref_feature_shape
+            ww = ww / width * ref_feature_shape
+
+        actual_num_heads = self.num_heads if self.num_heads > 0 else 1
+        dim = self.channels // actual_num_heads // 2
+        freqs = 1.0 / (temperature ** (np.arange(0, dim, 2).astype("float32") / dim))
+
+        freqs_h = np.repeat(hh[:, None] * freqs[None, :], 2, axis=-1)
+        freqs_w = np.repeat(ww[:, None] * freqs[None, :], 2, axis=-1)
+
+        hh_grid, ww_grid = np.meshgrid(np.arange(height), np.arange(width), indexing="ij")
+        grid = np.concatenate([freqs_h[hh_grid], freqs_w[ww_grid]], axis=-1)
+        grid = grid.reshape([1, height * width, -1])
+
+        pos_sin, pos_cos = np.tile(np.sin(grid), [1, 1, actual_num_heads]), np.tile(np.cos(grid), [1, 1, actual_num_heads])
+        # print(f"{pos_sin.shape = }, {pos_cos.shape = }, {height = }, {width = }, {channels = }")
+        return functional.convert_to_tensor(pos_sin, dtype=self.compute_dtype), functional.convert_to_tensor(pos_cos, dtype=self.compute_dtype)
 
     def build(self, input_shape):
         # input (with_cls_token=True): `[batch, ..., attn_height * attn_width + class_token, channels]`.
         # input (with_cls_token=False): `[batch, ..., attn_height * attn_width, channels]`.
         # print(input_shape)
+        blocks, self.channels = input_shape[-2], input_shape[-1]
+        num_patches = blocks - self.num_cls_tokens - self.num_reg_tokens
+        self.blocks_shape = [*input_shape[1:-2], num_patches]
+        # print(f"{num_patches = }, {self.num_cls_tokens = }, {self.num_reg_tokens = }, {blocks = }, {self.channels = }")
+
         if self.attn_height == -1:
-            height = width = int(float(input_shape[-2] - self.cls_token_len) ** 0.5)  # hh == ww, e.g. 14
+            height = width = int(float(num_patches) ** 0.5)
         else:
             height = self.attn_height
-            width = int(float(input_shape[-2] - self.cls_token_len) / height)
-        self.channels = input_shape[-1]
-        self.blocks_shape = [*input_shape[1:-2], input_shape[-2] - self.cls_token_len]
+            width = int(float(num_patches) / height)
+        self.pos_sin, self.pos_cos = self._get_sin_cos_pos(height, width, self.ref_feature_shape, self.temperature)
 
-        hh, ww = np.arange(height, dtype="float32"), np.arange(width, dtype="float32")
-        if self.ref_feature_shape is not None and self.ref_feature_shape > 0:
-            # eva's scheme for resizing rope embeddings (ref shape = pretrain)
-            hh = hh / height * self.ref_feature_shape
-            ww = ww / height * self.ref_feature_shape
-
-        pos_fileters = (self.channels // self.num_heads // 4) if self.num_heads > 0 else (self.channels // 4)
-        grid = np.stack(np.meshgrid(hh, ww, indexing="ij"), axis=-1)
-        dim_t = self.temperature ** (np.arange(pos_fileters, dtype="float32") / pos_fileters)  # (filters,)
-        grid = np.expand_dims(grid, -1) / dim_t
-        grid = np.reshape(grid, [height, width, -1])
-        pos_sin, pos_cos = np.sin(grid), np.cos(grid)
-        pos_sin, pos_cos = np.repeat(pos_sin, 2, axis=-1), np.repeat(pos_cos, 2, axis=-1)
-        # print(f"{pos_sin.shape = }, {pos_cos.shape = }, {height = }, {width = }, {self.channels = }")
-        if self.num_heads > 0:
-            pos_sin = np.repeat(np.expand_dims(pos_sin, axis=-2), self.num_heads, axis=-2).reshape([height * width, self.num_heads * pos_fileters * 4])
-            pos_cos = np.repeat(np.expand_dims(pos_cos, axis=-2), self.num_heads, axis=-2).reshape([height * width, self.num_heads * pos_fileters * 4])
-        else:
-            pos_sin, pos_cos = np.reshape(pos_sin, [height * width, pos_fileters * 4]), np.reshape(pos_cos, [height * width, pos_fileters * 4])
-
-        if hasattr(self, "register_buffer"):  # PyTorch
-            self.register_buffer("pos_sin", functional.convert_to_tensor(pos_sin, dtype=self.compute_dtype), persistent=False)
-            self.register_buffer("pos_cos", functional.convert_to_tensor(pos_cos, dtype=self.compute_dtype), persistent=False)
-        else:
-            self.pos_sin = functional.convert_to_tensor(pos_sin, dtype=self.compute_dtype)
-            self.pos_cos = functional.convert_to_tensor(pos_cos, dtype=self.compute_dtype)
+        if self.num_reg_tokens > 0:
+            self.reg_blocks_shape = [*input_shape[1:-2], self.num_reg_tokens]
+            reg_height = reg_width = int(self.num_reg_tokens**0.5)
+            self.reg_pos_sin, self.reg_pos_cos = self._get_sin_cos_pos(reg_height, reg_width, self.reg_ref_feature_shape, self.reg_temperature)
         super().build(input_shape)
 
+    def _rotate_half(self, inputs, block_shape):
+        left, right = functional.split(functional.reshape(inputs, [-1, *block_shape, self.channels // 2, 2]), 2, axis=-1)
+        return functional.reshape(functional.concat([-right, left], axis=-1), (-1, *block_shape, self.channels))
+
     def call(self, inputs, **kwargs):
+        out = []
         if self.with_cls_token:
-            cls_token, inputs = functional.split(inputs, [1, -1], axis=-2)  # `[batch, num_heads, class_token + attn_height * attn_width, channels]`
-        # def rot(x): return torch.stack([-x[..., 1::2], x[..., ::2]], -1).reshape(x.shape)
-        left, right = functional.split(functional.reshape(inputs, [-1, *self.blocks_shape, self.channels // 2, 2]), 2, axis=-1)
-        rot = functional.reshape(functional.concat([-right, left], axis=-1), (-1, *self.blocks_shape, self.channels))
-        # def apply_rot_embed_cat(x: torch.Tensor, emb): return x * cos_emb + rot(x) * sin_emb
-        out = inputs * self.pos_cos + rot * self.pos_sin
-        if self.with_cls_token:
-            out = functional.concat([cls_token, out], axis=-2)
-        return out
+            cls_token, inputs = functional.split(inputs, [self.num_cls_tokens, -1], axis=-2)  # `[batch, num_heads, cls_tokens + attn_h * attn_w, channels]`
+            out.append(cls_token)
+        if self.num_reg_tokens > 0:
+            inputs, registers = functional.split(inputs, [-1, self.num_reg_tokens], axis=-2)  # `[batch, num_heads, attn_h * attn_w + reg_tokens, channels]`
+
+        patches = inputs * self.pos_cos + self._rotate_half(inputs, self.blocks_shape) * self.pos_sin
+        out.append(patches)
+
+        if self.num_reg_tokens > 0:  # From ViT-5
+            registers = registers * self.reg_pos_cos + self._rotate_half(registers, self.reg_blocks_shape) * self.reg_pos_sin
+            out.append(registers)
+        return functional.concat(out, axis=-2)
 
     def get_config(self):
         base_config = super().get_config()
-        base_config.update({"with_cls_token": self.with_cls_token, "attn_height": self.attn_height, "num_heads": self.num_heads})
-        base_config.update({"temperature": self.temperature, "ref_feature_shape": self.ref_feature_shape})
+        base_config.update(
+            {
+                "with_cls_token": self.with_cls_token,
+                "num_reg_tokens": self.num_reg_tokens,
+                "attn_height": self.attn_height,
+                "num_heads": self.num_heads,
+                "temperature": self.temperature,
+                "reg_temperature": self.reg_temperature,
+                "ref_feature_shape": self.ref_feature_shape,
+                "reg_ref_feature_shape": self.reg_ref_feature_shape,
+            }
+        )
         return base_config
 
 
@@ -296,17 +341,23 @@ def attention_block(
     inputs,
     num_heads=4,
     key_dim=0,
-    qv_bias=True,
     qkv_bias=False,
+    qv_bias=False,
     out_weight=True,
     out_bias=False,
-    use_pos_emb=False,
+    use_qk_norm=False,
     use_rot_pos_emb=False,
-    qk_rope=None,
-    shared_pos_emb=None,
+    with_cls_token=True,
+    num_reg_tokens=0,
     attn_height=-1,
+    shared_pos_emb=None,
+    use_pos_emb=False,
     text_max_block_size=0,  # Also a mark if this is a text inputs
     attn_dropout=0,
+    epsilon=1e-6,
+    temperature=1e4,
+    ref_feature_shape=16,
+    reg_ref_feature_shape=14,
     name=None,
 ):
     _, bb, cc = inputs.shape
@@ -331,14 +382,32 @@ def attention_block(
         query = BiasLayer(name=name + "query_bias")(query)
         value = BiasLayer(name=name + "value_bias")(value)
 
+    if use_qk_norm:
+        query = functional.reshape(query, [-1, bb, num_heads, key_dim])
+        key = functional.reshape(key, [-1, bb, num_heads, key_dim])
+        query = RMSNorm(epsilon=epsilon, axis=-1, name=name + "q_rmsnorm")(query)
+        key = RMSNorm(epsilon=epsilon, axis=-1, name=name + "k_rmsnorm")(key)
+        query = functional.reshape(query, [-1, bb, cc])
+        key = functional.reshape(key, [-1, bb, cc])
+
     if use_rot_pos_emb and is_text_inputs:
         rope = PositionalEncodingFourierRot1D(max_block_size=text_max_block_size, name=name + "rope")
         query = rope(layers.Reshape([-1, num_heads, key_dim // 2, 2])(query))
         key = rope(layers.Reshape([-1, num_heads, key_dim // 2, 2])(key))
     elif use_rot_pos_emb:
         # Create a new one every time, as there's no weights for this layer
-        rope = PositionalEncodingFourierRot(with_cls_token=True, attn_height=attn_height, num_heads=num_heads, name=name + "rope")
+        rope = PositionalEncodingFourierRot(
+            with_cls_token=with_cls_token,
+            num_reg_tokens=num_reg_tokens,
+            attn_height=attn_height,
+            num_heads=num_heads,
+            temperature=temperature,
+            ref_feature_shape=ref_feature_shape,
+            reg_ref_feature_shape=reg_ref_feature_shape,
+            name=name + "rope",
+        )
         query, key = rope(query), rope(key)
+
     query = functional.transpose(layers.Reshape([-1, num_heads, key_dim])(query), [0, 2, 1, 3])
     key = functional.transpose(layers.Reshape([-1, num_heads, key_dim])(key), [0, 2, 3, 1])
     value = functional.transpose(layers.Reshape([-1, num_heads, key_dim])(value), [0, 2, 1, 3])
@@ -374,17 +443,28 @@ def mlp_block(inputs, mlp_ratio=4, is_gated=False, use_norm=False, epsilon=1e-6,
 
 
 def attention_mlp_block(
-    inputs, layer_scale=0.1, mlp_ratio=4, use_gated_mlp=False, use_norm_mlp=False, drop_rate=0, epsilon=1e-6, activation="gelu", attn_params={}, name=""
+    inputs,
+    layer_scale=0.1,
+    mlp_ratio=4,
+    use_gated_mlp=False,
+    use_norm_mlp=False,
+    use_rms_norm=False,
+    drop_rate=0,
+    epsilon=1e-6,
+    activation="gelu",
+    attn_params={},
+    name="",
 ):
     # print(f">>>> {inputs.shape = }, {drop_rate = }")
-    nn = layers.LayerNormalization(axis=-1, epsilon=epsilon, name=name + "attn_ln")(inputs)  # "channels_first" also using axis=-1
-    nn = attention_block(nn, **attn_params, name=name + "attn_")
+    norm_layer = RMSNorm if use_rms_norm else layers.LayerNormalization
+    nn = norm_layer(axis=-1, epsilon=epsilon, name=name + "attn_ln")(inputs)  # "channels_first" also using axis=-1
+    nn = attention_block(nn, **attn_params, epsilon=epsilon, name=name + "attn_")
     nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "attn_gamma")(nn) if layer_scale > 0 else nn
     nn = drop_block(nn, drop_rate)
     attn_out = layers.Add(name=name + "attn_out")([inputs, nn])
 
     """ MLP """
-    nn = layers.LayerNormalization(axis=-1, epsilon=epsilon, name=name + "mlp_ln")(attn_out)  # "channels_first" also using axis=-1
+    nn = norm_layer(axis=-1, epsilon=epsilon, name=name + "mlp_ln")(attn_out)  # "channels_first" also using axis=-1
     nn = mlp_block(nn, mlp_ratio=mlp_ratio, is_gated=use_gated_mlp, use_norm=use_norm_mlp, epsilon=epsilon, activation=activation, name=name + "mlp_")
     nn = ChannelAffine(use_bias=False, weight_init_value=layer_scale, name=name + "mlp_gamma")(nn) if layer_scale > 0 else nn
     nn = drop_block(nn, drop_rate)
@@ -476,9 +556,13 @@ def Beit(
     use_mask_inputs=False,  # For BeitV2 training model https://github.com/microsoft/unilm/blob/master/beit2/modeling_pretrain.py#L126
     patch_merging_block_id=-1,  # >=0 value to enable. https://arxiv.org/abs/2202.12015, https://github.com/conceptofmind/ViT-Patch-Merger
     patch_merging_num_tokens=8,  # Should better be a square number, expecially if use_rot_pos_emb=True
+    with_cls_token=True,  # [Register tokens] https://arxiv.org/abs/2309.16588. Default 1 for cls_token, 0 for disable.
+    num_reg_tokens=0,  # [Register tokens] tokens added at the end of sequence, [CLS, patches, registers]
+    reg_temperature=None,  # [Register tokens] temperature for RoPE on registers
     attn_key_dim=0,  # [Attention args]
     attn_qv_bias=True,  # Default False for Vit, True for Beit, if True and attn_qkv_bias being False, will add BiasLayer for query and key.
     attn_qkv_bias=False,  # True for Vit, False for Beit, if True, will just use bias in qkv_dense, and set qv_bias False.
+    use_qk_norm=False,  # [Attention args] True for ViT-5, apply RMSNorm on query and key
     attn_out_weight=True,
     attn_out_bias=True,
     attn_dropout=0,
@@ -489,6 +573,7 @@ def Beit(
     mlp_ratio=4,  # [MLP args]
     use_gated_mlp=False,  # [MLP args] True for DINOv2 and EVA02
     use_norm_mlp=False,  # [MLP args] True for EVA02 base and large, False for others.
+    use_rms_norm=False,  # [MLP args] True for ViT-5, use RMSNorm instead of LayerNormalization
     include_top=True,  # [Head args] boolean value if include header and top output Dense layer. False for a LayerNorm layer only
     use_mean_pooling_head=True,  # [Head args] False for Vit, True for Beit, whether use use mean output or `class_token` output
     use_cat_head=False,  # [Head args] True for DINOv2
@@ -501,6 +586,9 @@ def Beit(
     layer_norm_epsilon=1e-6,  # 1e-5 for ViT clip models, 1e-6 for others
     activation="gelu",
     layer_scale=0.1,  # 0 for Vit, 0.1 for Beit, if > 0 will use `layer_scale` on block output
+    temperature=1e4,  # [Pos emb args] temperature for RoPE on patches
+    ref_feature_shape=16,  # [Pos emb args] reference feature shape for RoPE on patches
+    reg_ref_feature_shape=14,  # [Pos emb args] reference feature shape for RoPE on registers
     drop_connect_rate=0,
     classifier_activation="softmax",
     pretrained=None,
@@ -508,6 +596,7 @@ def Beit(
     model_name="beit",
     kwargs=None,
 ):
+    norm_layer = RMSNorm if use_rms_norm else layers.LayerNormalization
     is_text_model = vocab_size > 0
     if is_text_model:
         """Text inputs"""
@@ -528,8 +617,8 @@ def Beit(
         # else assume channel dimension is the one with min value in input_shape, and put it first or last regarding image_data_format
         input_shape = backend.align_input_shape_by_image_data_format(input_shape)
         inputs = layers.Input(input_shape)
-
-        """ forward_embeddings """
+        num_cls_tokens = 1 if with_cls_token else 0
+        """ Patch embedding """
         # torch conv kernel initializer: uniform(-1/sqrt(k), 1/sqrt(k)), where k = weight.size(1) * prod(*kernel_size)
         # Not using same one as torch, as current one works better in some tests, decreasing loss 3.7055 -> 3.4224 in the first epoch clip training for TF
         kernel_initializer = None if backend.is_torch_backend else initializers.RandomUniform(minval=-1 / (patch_size**0.5), maxval=1 / (patch_size**0.5))
@@ -549,15 +638,19 @@ def Beit(
             nn = nn * (1 - mask_inputs_expanded) + masked_pos
 
         """ Positional embedding """
-        if use_abs_pos_emb and use_abs_pos_emb_on_cls_token:  # ViT / EvaLarge / EvaGiant / DINOv2
-            nn = ClassToken(name="cls_token")(nn)
+        if use_abs_pos_emb and use_abs_pos_emb_on_cls_token:
+            nn = ClassToken(name="cls_token")(nn) if with_cls_token else nn
             nn = PositionalEmbedding(input_height=patch_height, name="positional_embedding")(nn)
-        elif use_abs_pos_emb:  # FlexiViT models
+        elif use_abs_pos_emb:
             nn = PositionalEmbedding(input_height=patch_height, name="positional_embedding")(nn)
+            nn = ClassToken(name="cls_token")(nn) if with_cls_token else nn
+        elif with_cls_token:
             nn = ClassToken(name="cls_token")(nn)
-        else:  # Beit and BeitV2
-            nn = ClassToken(name="cls_token")(nn)
-        nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="pre_ln")(nn) if use_pre_norm else nn
+
+        if num_reg_tokens > 0:
+            nn = ClassToken(num_tokens=num_reg_tokens, is_at_end=True, name="reg_token")(nn)
+
+        nn = norm_layer(axis=-1, epsilon=layer_norm_epsilon, name="pre_ln")(nn) if use_pre_norm else nn
 
     """ Attention MLP body """
     attn_params = {
@@ -565,11 +658,17 @@ def Beit(
         "key_dim": attn_key_dim,
         "qv_bias": attn_qv_bias,
         "qkv_bias": attn_qkv_bias,
+        "use_qk_norm": use_qk_norm,
         "out_weight": attn_out_weight,
         "out_bias": attn_out_bias,
         "attn_height": patch_height,
         "use_pos_emb": not use_abs_pos_emb,
         "use_rot_pos_emb": use_rot_pos_emb,
+        "with_cls_token": with_cls_token,
+        "num_reg_tokens": num_reg_tokens,
+        "temperature": temperature,
+        "ref_feature_shape": ref_feature_shape,
+        "reg_ref_feature_shape": reg_ref_feature_shape,
         "text_max_block_size": max_block_size if vocab_size > 0 else 0,
         "attn_dropout": attn_dropout,
         "shared_pos_emb": MultiHeadRelativePositionalEmbedding(attn_height=patch_height, name="shared_pos_emb") if use_shared_pos_emb_for_attn else None,
@@ -579,7 +678,9 @@ def Beit(
     for id in range(depth):
         name = "block{}_".format(id)
         block_drop_rate = drop_connect_rates[id]
-        nn = attention_mlp_block(nn, layer_scale, mlp_ratio, use_gated_mlp, use_norm_mlp, block_drop_rate, layer_norm_epsilon, activation, attn_params, name)
+        nn = attention_mlp_block(
+            nn, layer_scale, mlp_ratio, use_gated_mlp, use_norm_mlp, use_rms_norm, block_drop_rate, layer_norm_epsilon, activation, attn_params, name
+        )
 
         if patch_merging_block_id == id:
             print(">>>> Before patch merging: blocks: {}, attn_height: {}".format(nn.shape[1], attn_params["attn_height"]))
@@ -591,17 +692,17 @@ def Beit(
 
     """ Head """
     if is_text_model or not include_top:  # Text model
-        nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
+        nn = norm_layer(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
     elif use_mask_inputs:  # mask_inputs for BeitV2 training model
         nn = functional.gather_nd(nn[:, 1:, :], functional.where(functional.equal(mask_inputs, 1)))
     elif use_cat_head:  # DINOv2
-        nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
-        nn = functional.concat([nn[:, 0], functional.reduce_mean(nn[:, 1:, :], axis=1)], axis=-1)
+        nn = norm_layer(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
+        nn = functional.concat([nn[:, 0], functional.reduce_mean(nn[:, num_cls_tokens:, :], axis=1)], axis=-1)
     elif use_mean_pooling_head:
-        nn = functional.reduce_mean(nn[:, 1:, :], axis=1)
-        nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
+        nn = functional.reduce_mean(nn[:, num_cls_tokens:, :], axis=1)
+        nn = norm_layer(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
     else:  # FlexiViT
-        nn = layers.LayerNormalization(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
+        nn = norm_layer(axis=-1, epsilon=layer_norm_epsilon, name="out_ln")(nn)  # "channels_first" also using axis=-1
         nn = nn[:, 0]
 
     """ Output """

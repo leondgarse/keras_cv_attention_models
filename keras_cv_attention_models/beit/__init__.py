@@ -15,6 +15,7 @@ from keras_cv_attention_models.beit.eva02 import EVA02, EVA02TinyPatch14, EVA02S
 from keras_cv_attention_models.beit.flexivit import FlexiViT, FlexiViTSmall, FlexiViTBase, FlexiViTLarge
 from keras_cv_attention_models.beit.meta_transformer import MetaTransformer, MetaTransformerBasePatch16, MetaTransformerLargePatch14
 from keras_cv_attention_models.beit.vit import ViT, ViTTinyPatch16, ViTBasePatch16, ViTLargePatch14, ViTText, ViTTextLargePatch14
+from keras_cv_attention_models.beit.vit5 import ViT5, ViT5_Small_Patch16, ViT5_Base_Patch16, ViT5_Large_Patch16
 
 __beit_head_doc__ = """
 Keras implementation of [beit](https://github.com/microsoft/unilm/tree/master/beit).
@@ -56,6 +57,11 @@ Keras implementation of [Github invictus717/MetaTransformer](https://github.com/
 Paper [PDF 2307.10802 Meta-Transformer: A Unified Framework for Multimodal Learning](https://arxiv.org/abs/2307.10802).
 """
 
+__vit5_head_doc__ = """
+Keras implementation of [Github wangf3014/ViT-5](https://github.com/wangf3014/ViT-5).
+Paper [PDF 2602.08071 ViT-5: Vision Transformers for The Mid-2020s](https://arxiv.org/abs/2602.08071).
+"""
+
 __tail_doc__ = """  patch_size: stem patch size. Default {patch_size}.
   use_patch_bias: boolean value if `use_bias` for `PatchConv2DWithResampleWeights` layer.
       False for MetaTransFormer, True for others
@@ -93,6 +99,8 @@ Args:
   depth: number of blocks. Default `12`.
   embed_dim: channel dimension for stem and all blocks. Default `768`.
   num_heads: heads number for transformer blocks. Default `12`.
+  num_reg_tokens: number of register tokens appended at end of sequence `[CLS, patches, registers]`.
+      Default 4 for ViT-5, 0 for others.
   model_name: string, model name.
 
   [Attention args]
@@ -104,12 +112,20 @@ Args:
   attn_out_weight: boolean value if use output dense for transformer. Default `True`.
   attn_out_bias: boolean value if output dense use bias for transformer. Default `True`.
   attn_dropout: `attention_score` dropout rate. Default `0`.
+  use_qk_norm: boolean value, if True apply `RMSNorm` on `query` and `key` in transformer attention.
+      Default True for ViT-5, False for others.
   use_abs_pos_emb: boolean value if use abcolute positional embedding or relative one in attention blocks.
       Default True for Vit, False for Beit.
   use_abs_pos_emb_on_cls_token: boolean value, if `use_abs_pos_emb` is True, whether apply `pos_emb` on `cls_token`.
       False for `FlexiViT`, same as `no_embed_class` in timm. Default True for others.
   use_rot_pos_emb: boolean value if use `PositionalEncodingFourierRot` on attention query and key.
-      True for EVA02, False for others.
+      True for EVA02 and ViT-5, False for others.
+  ref_feature_shape: reference feature shape for RoPE on patches. Auto-computed as `input_shape[0] // patch_size` if set to -1.
+      Default -1 for ViT-5 (auto), 16 for EVA02.
+  reg_ref_feature_shape: reference feature shape for RoPE on register tokens.
+      Default 2 for ViT-5, 14 for others.
+  temperature: temperature for RoPE frequency computation on patches. Default `1e4`.
+  reg_temperature: temperature for RoPE on register tokens. Default `None`, auto-set to `100` for ViT-5.
   use_shared_pos_emb_for_attn: boolean value if use a shared `MultiHeadRelativePositionalEmbedding` layer for all attention blocks.
       True for Beit raw model without any finetune, False for others.
 
@@ -118,6 +134,8 @@ Args:
   use_gated_mlp: boolean value if using `dense gated + swish` instead of `activation` in `mlp` block.
       True for DINOv2 and EVA02, False for others.
   use_norm_mlp: boolean value if use additional LayerNorm for MLP block. True for EVA02 base and large, False for others.
+  use_rms_norm: boolean value, if True use `RMSNorm` instead of `LayerNormalization` in all blocks.
+      Default True for ViT-5, False for others.
 
   [Head args]
   use_mean_pooling_head: boolean value if use mean output or `class_token` output. Default False for Vit, True for Beit.
@@ -194,6 +212,16 @@ Model architectures:
 
 ViT.__doc__ = __vit_head_doc__ + __class_tail_doc__.format(patch_size=16)
 ViTText.__doc__ = __vit_head_doc__ + __class_tail_doc__.format(patch_size=16)
+ViT5.__doc__ = __vit5_head_doc__ + __class_tail_doc__.format(patch_size=16) + """
+Model architectures:
+  | Model              | Params | FLOPs  | Input | Top1 Acc |
+  | ------------------ | ------ | ------ | ----- | -------- |
+  | ViT5_Small_Patch16 | 22.04M | 4.73G  | 224   | 82.2     |
+  | ViT5_Base_Patch16  | 86.54M | 18.00G | 224   | 84.2     |
+  | ViT5_Base_Patch16  | 86.83M | 56.19G | 384   | 85.4     |
+  | ViT5_Large_Patch16 | 304.3M | 63.01G | 224   | 84.9     |
+  | ViT5_Large_Patch16 | 304.6M | 193.2G | 384   | 86.0     |
+"""
 
 MetaTransformer.__doc__ = __meta_transformer_head_doc__ + __class_tail_doc__.format(patch_size=16) + """
 Model architectures:
@@ -236,6 +264,10 @@ MetaTransformerLargePatch14.__doc__ = __meta_transformer_head_doc__ + __model_ta
 ViTTinyPatch16.__doc__ = __vit_head_doc__ + __model_tail_doc__.format(patch_size=16)
 ViTBasePatch16.__doc__ = __vit_head_doc__ + __model_tail_doc__.format(patch_size=16)
 ViTLargePatch14.__doc__ = __vit_head_doc__ + __model_tail_doc__.format(patch_size=14)
+
+ViT5_Small_Patch16.__doc__ = __vit5_head_doc__ + __model_tail_doc__.format(patch_size=16)
+ViT5_Base_Patch16.__doc__ = ViT5_Small_Patch16.__doc__
+ViT5_Large_Patch16.__doc__ = ViT5_Small_Patch16.__doc__
 
 MultiHeadRelativePositionalEmbedding.__doc__ = __beit_head_doc__ + """
 Multi Head Relative Positional Embedding layer.

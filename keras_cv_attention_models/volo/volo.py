@@ -270,9 +270,9 @@ class PositionalEmbedding(layers.Layer):
 
 @register_keras_serializable(package="volo")
 class ClassToken(layers.Layer):
-    def __init__(self, num_tokens=1, **kwargs):
+    def __init__(self, num_tokens=1, is_at_end=False, **kwargs):
         super().__init__(**kwargs)
-        self.num_tokens = num_tokens
+        self.num_tokens, self.is_at_end = num_tokens, is_at_end
         self.token_init = initializers.TruncatedNormal(stddev=0.2)
 
     def build(self, input_shape):
@@ -280,18 +280,16 @@ class ClassToken(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
-        if backend.is_torch_backend:
-            class_tokens = self.class_tokens.expand(inputs.shape[0], -1, -1)
-        else:
-            class_tokens = functional.repeat(self.class_tokens, functional.shape(inputs)[0], axis=0)
-        return functional.concat([class_tokens, inputs], axis=1)
+        class_tokens = functional.cast(self.class_tokens, inputs.dtype)
+        class_tokens = functional.tile(class_tokens, [functional.shape(inputs)[0], 1, 1])
+        return functional.concat([inputs, class_tokens], axis=1) if self.is_at_end else functional.concat([class_tokens, inputs], axis=1)
 
     def compute_output_shape(self, input_shape):
         return (input_shape[0], None if input_shape[1] is None else (input_shape[1] + self.num_tokens), input_shape[2])
 
     def get_config(self):
         base_config = super().get_config()
-        base_config.update({"num_tokens": self.num_tokens})
+        base_config.update({"num_tokens": self.num_tokens, "is_at_end": self.is_at_end})
         return base_config
 
 

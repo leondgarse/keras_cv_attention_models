@@ -86,6 +86,7 @@
   - [TinyViT](#tinyvit)
   - [UniFormer](#uniformer)
   - [VanillaNet](#vanillanet)
+  - [ViT-5](#vit-5)
   - [VOLO](#volo)
   - [WaveMLP](#wavemlp)
 - [Detection Models](#detection-models)
@@ -1521,6 +1522,16 @@
   | - deploy=True | 54.29M | 11.11G | 224   | 81.55    | 358.076 qps  |
   | VanillaNet13  | 107.7M | 21.82G | 224   | 82.05    | 218.256 qps  |
   | - deploy=True | 58.59M | 11.96G | 224   | 82.05    | 334.244 qps  |
+## ViT-5
+  - [Keras ViT-5](keras_cv_attention_models/beit) includes models from [PDF 2602.08071 ViT-5: Vision Transformers for The Mid-2020s](https://arxiv.org/abs/2602.08071).
+
+  | Model              | Params | FLOPs  | Input | Top1 Acc |
+  | ------------------ | ------ | ------ | ----- | -------- |
+  | ViT5_Small_Patch16 | 22.04M | 4.73G  | 224   | 82.2     |
+  | ViT5_Base_Patch16  | 86.54M | 18.00G | 224   | 84.2     |
+  | ViT5_Base_Patch16  | 86.83M | 56.19G | 384   | 85.4     |
+  | ViT5_Large_Patch16 | 304.3M | 63.01G | 224   | 84.9     |
+  | ViT5_Large_Patch16 | 304.6M | 193.2G | 384   | 86.0     |
 ## VOLO
   - [Keras VOLO](keras_cv_attention_models/volo) is for [PDF 2106.13112 VOLO: Vision Outlooker for Visual Recognition](https://arxiv.org/pdf/2106.13112.pdf).
 

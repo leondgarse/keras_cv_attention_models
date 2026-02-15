@@ -63,21 +63,24 @@ class PositionalEncodingFourierRot1D(layers.Layer):
 
 @backend.register_keras_serializable(package="kecam/llama2")
 class RMSNorm(layers.Layer):
-    def __init__(self, epsilon=1e-5, **kwargs):
+    def __init__(self, epsilon=1e-5, axis=-1, **kwargs):
         super().__init__(**kwargs)
-        self.epsilon = epsilon
+        self.epsilon, self.axis = epsilon, axis
 
     def build(self, input_shape):
-        self.gamma = self.add_weight(name="gamma", shape=(input_shape[-1],), initializer="ones", trainable=True)
+        if self.axis == -1 or self.axis == len(input_shape) - 1:
+            self.gamma = self.add_weight(name="gamma", shape=(input_shape[-1],), initializer="ones", trainable=True)
+        else:
+            self.gamma = self.add_weight(name="gamma", shape=(input_shape[self.axis],), initializer="ones", trainable=True)
         super().build(input_shape)
 
     def call(self, inputs):
-        norm = inputs * functional.rsqrt(functional.reduce_mean(inputs**2, keepdims=True, axis=-1) + self.epsilon)
+        norm = inputs * functional.rsqrt(functional.reduce_mean(inputs**2, keepdims=True, axis=self.axis) + self.epsilon)
         return norm * self.gamma
 
     def get_config(self):
         base_config = super().get_config()
-        base_config.update({"epsilon": self.epsilon})
+        base_config.update({"epsilon": self.epsilon, "axis": self.axis})
         return base_config
 
 

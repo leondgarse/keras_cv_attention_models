@@ -1,4 +1,4 @@
-# ___Keras BeiT / BeitV2 / ViT / FlexiViT / EVA / EVA02 / DINOv2 / MetaTransFormer___
+# ___Keras BeiT / BeitV2 / ViT / ViT-5 / FlexiViT / EVA / EVA02 / DINOv2 / MetaTransFormer___
 ***
 
 ## Summary
@@ -9,6 +9,7 @@
   - EVA02 Paper [PDF 2303.11331 EVA: EVA-02: A Visual Representation for Neon Genesis](https://arxiv.org/pdf/2303.11331.pdf). Model weights reloaded from [Github baaivision/EVA/EVA-02](https://github.com/baaivision/EVA/tree/master/EVA-02).
   - FlexiViT Paper [PDF 2212.08013 FlexiViT: One Model for All Patch Sizes](https://arxiv.org/pdf/2212.08013.pdf). Model weights reloaded from [Github google-research/big_vision](https://github.com/google-research/big_vision/tree/main/big_vision/configs/proj/flexivit).
   - MetaTransFormer Paper [PDF 2307.10802 Meta-Transformer: A Unified Framework for Multimodal Learning](https://arxiv.org/abs/2307.10802). Model weights reloaded from [Github invictus717/MetaTransformer](https://github.com/invictus717/MetaTransformer). **Note: image model weights for transformer blocks are same with the multi tasks one**
+  - ViT-5 Paper [PDF 2602.08071 ViT-5: Vision Transformers for The Mid-2020s](https://arxiv.org/abs/2602.08071). Model weights reloaded from [Github wangf3014/ViT-5](https://github.com/wangf3014/ViT-5).
 ***
 
 ## Beit Models
@@ -63,6 +64,14 @@
   | ------------------------------------- | ------- | ------ | ----- | -------- | -------- |
   | MetaTransformerBasePatch16, laion_2b  | 86.86M  | 55.73G | 384   | 85.4     | [meta_transformer_base_patch16.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/meta_transformer_base_patch16_384_laion_2b.h5) |
   | MetaTransformerLargePatch14, laion_2b | 304.53M | 191.6G | 336   | 88.1     | [meta_transformer_large_patch14.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/meta_transformer_large_patch14_336_laion_2b.h5) |
+## ViT-5 models
+  | Model              | Params | FLOPs  | Input | Top1 Acc | Download |
+  | ------------------ | ------ | ------ | ----- | -------- | -------- |
+  | ViT5_Small_Patch16 | 22.04M | 4.73G  | 224   | 82.2     | [vit5_small_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/vit5_small_patch16_224_imagenet.h5) |
+  | ViT5_Base_Patch16  | 86.54M | 18.00G | 224   | 84.2     | [vit5_base_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/vit5_base_patch16_224_imagenet.h5) |
+  | ViT5_Base_Patch16  | 86.83M | 56.19G | 384   | 85.4     | [vit5_base_patch16_384.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/vit5_base_patch16_384_imagenet.h5) |
+  | ViT5_Large_Patch16 | 304.3M | 63.01G | 224   | 84.9     | [vit5_large_patch16_224.h5](https://github.com/leondgarse/keras_cv_attention_models/releases/download/beit/vit5_large_patch16_224_imagenet.h5) |
+  | ViT5_Large_Patch16 | 304.6M | 193.2G | 384   | 86.0     |          |
 ## Usage
   ```py
   from keras_cv_attention_models import beit
@@ -198,6 +207,32 @@
   keras_out = mm(inputs).numpy()
 
   """ Verification """
+  print(f"{np.allclose(torch_out, keras_out, atol=1e-5) = }")
+  # np.allclose(torch_out, keras_out, atol=1e-5) = True
+  ```
+  **ViT5SmallPatch16**
+
+  ```py
+  """ PyTorch ViT5 Small Patch 16 """
+  sys.path.append('../ViT-5/')
+  import torch
+  # Monkey-patch cuda() to return the same tensor on CPU if no GPU
+  if not torch.cuda.is_available():
+      torch.Tensor.cuda = lambda self, *args, **kwargs: self
+  import models_vit5 as torch_vit5
+  torch_model = torch_vit5.vit5_small()
+  ss = torch.load("vit5_small_patch16_224.pth", map_location=torch.device("cpu"))
+  torch_model.load_state_dict(ss["model"])
+  torch_model.eval()
+
+  """ Keras ViT5 Small Patch 16 """
+  from keras_cv_attention_models.beit import vit5
+  mm = vit5.ViT5_Small_Patch16(pretrained="vit5_small_patch16_224_imagenet.h5", classifier_activation=None)
+
+  """ Verification """
+  inputs = np.random.uniform(size=(1, *mm.input_shape[1:])).astype("float32")
+  torch_out = torch_model(torch.from_numpy(inputs).permute(0, 3, 1, 2)).detach().numpy()
+  keras_out = mm(inputs).numpy()
   print(f"{np.allclose(torch_out, keras_out, atol=1e-5) = }")
   # np.allclose(torch_out, keras_out, atol=1e-5) = True
   ```
