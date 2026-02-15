@@ -555,6 +555,47 @@ def keras_reload_from_torch_model(
     do_predict=True,
     verbose=1,
 ):
+    """Convert and load weights from a PyTorch model into a Keras model, with optional prediction verification.
+
+    The main work is aligning the weight name order between torch and keras models. The conversion has 3 stages:
+      1. **Weight collection** (``state_dict_stack_by_layer``): Groups torch state_dict entries by layer name,
+         filtering with ``skip_weights`` and separating entries listed in ``unstack_weights``.
+      2. **Name alignment** (``align_layer_names_multi_stage``): Reorders keras layer names to match the torch
+         stacked weight order, using ``tail_align_dict``, ``full_name_align_dict``, and ``specific_match_func``.
+      3. **Weight transfer** (``keras_reload_stacked_state_dict``): Applies standard shape transforms (Conv2D
+         transpose, Dense transpose, etc.) plus ``additional_transfer`` overrides, sets weights, and saves.
+
+    Args:
+        torch_model: PyTorch model instance, state_dict (dict), or path to a ``.pth``/``.pt`` weights file.
+        keras_model: Target Keras model. If ``None``, only prints the torch weight summary without converting.
+        input_shape: Input spatial dimensions for prediction test, default ``(224, 224)``.
+
+        skip_weights: Weight name suffixes to drop entirely during collection.
+            Example: ``["num_batches_tracked", "relative_position_index"]``.
+        unstack_weights: Weight name suffixes to keep as individual entries (not grouped with their parent
+            layer). Example: ``["cls_token", "pos_embed", "gamma_1", "gamma_2"]``.
+
+        tail_align_dict: Reposition keras layers by tail name match. Format: ``{tail_name: offset}``.
+            Negative offset moves the layer earlier in the ordered list. Can be scoped by stack name using
+            nested dicts: ``{"stack3": {"attn_gamma": -6}}``. The "tail" is determined by ``tail_split_position``.
+        full_name_align_dict: Reposition keras layers by exact full name. Value can be a negative int (relative
+            offset), positive int (absolute position), or a string (position of another named layer).
+        tail_split_position: Where to split keras layer name into head/tail for ``tail_align_dict`` matching.
+            Default ``2``, meaning ``stack1_block1`` is head and ``attn_gamma`` is tail. Set to ``1`` for
+            head=``stack1`` and tail=``block1_attn_gamma``.
+        specific_match_func: A function ``f(names) -> reordered_names`` for full control over name ordering,
+            bypassing ``tail_align_dict`` and ``full_name_align_dict``. Useful when dicts can't express the mapping.
+
+        additional_transfer: Custom weight transforms applied after standard Conv2D/Dense transposes.
+            Keys can be layer classes (matched via ``isinstance``) or name suffix strings (matched via
+            ``endswith``). Values are ``lambda ww: [transformed_weights]``.
+        save_name: Output ``.h5`` file path. Defaults to ``{keras_model.name}_imagenet.h5``.
+        do_convert: If ``True``, perform the actual weight loading and saving. If ``False``, only print
+            weight lists for inspection (useful for debugging alignment).
+        do_predict: If ``True`` (and ``do_convert=True``), run prediction on a test image and print results
+            for both torch and keras models to verify correctness.
+        verbose: Verbosity level. ``1`` prints weight lists and progress, ``0`` is silent.
+    """
     import torch
     import numpy as np
 
